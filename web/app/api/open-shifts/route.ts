@@ -140,6 +140,23 @@ export async function PATCH(req: NextRequest) {
       // Kahraman bonusu: claimed_by = personnel_id
       db.prepare(`UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?`).run(claimed_by);
 
+      // Kapılan vardiyayı kahramanın takvimine işle (yoksa vardiya hiçbir takvimde görünmez)
+      const dt = new Date(os.date + "T00:00:00Z");
+      const dayIdx = (dt.getUTCDay() + 6) % 7; // 0 = Pazartesi
+      const monday = new Date(dt);
+      monday.setUTCDate(dt.getUTCDate() - dayIdx);
+      const week_start = monday.toISOString().split("T")[0];
+      const dup = db.prepare(`
+        SELECT id FROM shift_assignments
+        WHERE personnel_id = ? AND week_start = ? AND day = ? AND start_time = ?
+      `).get(claimed_by, week_start, dayIdx, os.start_time);
+      if (!dup) {
+        db.prepare(`
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, created_at)
+          VALUES (?, ?, ?, ?, 'open-shift', ?, ?, 'scheduled', 'published', ?)
+        `).run(claimed_by, os.location_id, week_start, dayIdx, os.start_time, os.end_time, now);
+      }
+
       // Kahramana onay bildirimi
       db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, created_at)

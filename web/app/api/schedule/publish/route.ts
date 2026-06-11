@@ -93,7 +93,14 @@ export async function POST(req: NextRequest) {
     // CLAUDE.md: prev_score = eski * 0.2 + bu_hafta_engine_puanı * 0.8
     // OR-Tools puanları varsa (base_points tabanlı): engine_total - prev_score = weekly_pts
     // Yoksa (manuel vardiya): calcShiftPoints ile saat bazlı tahmin et
-    for (const p of personnel as any[]) {
+    //
+    // Aynı hafta ikinci kez yayınlanırsa puanlar TEKRAR işlenmez — yoksa her
+    // "yayınla" tıklaması ağırlıklı ortalamayı yeniden uygulayıp puanları kaydırır.
+    const alreadyScored = db.prepare(
+      `SELECT 1 FROM score_history WHERE location_id = ? AND week_start = ? LIMIT 1`
+    ).get(location_id, week_start);
+
+    for (const p of alreadyScored ? [] : (personnel as any[])) {
       const oldScore = (p as any).prev_score ?? 0;
       let weekPoints: number;
 
@@ -120,7 +127,7 @@ export async function POST(req: NextRequest) {
       db.prepare(`UPDATE personnel SET prev_score = ? WHERE id = ?`).run(newScore, p.id);
 
       // Haftalık skor anlık görüntüsü — score_history tablosuna kaydet
-      // Aynı hafta için tekrar yayınlanırsa üzerine yaz (UPSERT)
+      // (yukarıdaki alreadyScored koruması sayesinde hafta başına bir kez yazılır)
       db.prepare(`
         INSERT INTO score_history (org_id, location_id, personnel_id, personnel_name, week_start, score, hero_count, no_show_count)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
