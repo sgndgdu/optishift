@@ -1,9 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { availability } from "@/lib/db/schema";
+import { availability, locations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+
+/** Lokasyon kuralından haftalık sarı gün hakkını okur (varsayılan 1). */
+async function getMaxPreferredNotDays(locationId: string | null): Promise<number> {
+  if (!locationId) return 1;
+  try {
+    const [loc] = await db.select().from(locations).where(eq(locations.id, locationId)).limit(1);
+    const rules = JSON.parse((loc as any)?.rules || "{}");
+    if (typeof rules.max_preferred_not_days === "number") return rules.max_preferred_not_days;
+  } catch { /* varsayılan */ }
+  return 1;
+}
 
 // GET: Bir personelin belirli bir hafta müsaitliğini getir
 export async function GET(req: NextRequest) {
@@ -29,8 +40,10 @@ export async function GET(req: NextRequest) {
     .where(and(eq(availability.personnel_id, personnel_id), eq(availability.week_start, week_start)))
     .limit(1);
 
+  const max_preferred_not_days = await getMaxPreferredNotDays(auth.location_id);
+
   if (!row) {
-    return NextResponse.json({ exists: false });
+    return NextResponse.json({ exists: false, max_preferred_not_days });
   }
 
   // Reshape to array format for the UI
@@ -47,7 +60,7 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ exists: true, submitted_at: row.submitted_at, is_locked: row.is_locked, days });
+  return NextResponse.json({ exists: true, submitted_at: row.submitted_at, is_locked: row.is_locked, days, max_preferred_not_days });
 }
 
 // POST: Müsaitlik gönder veya güncelle
@@ -65,6 +78,21 @@ export async function POST(req: NextRequest) {
 
     if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    }
+
+    // Sarı gün hakkı kontrolü — tüm haftayı sarıya boyayıp bedava telafi
+    // çarpanı toplamayı engeller (haftalık limit lokasyon kuralından gelir)
+    const yellowCount = [0, 1, 2, 3, 4, 5, 6]
+      .map((i) => days[i])
+      .filter((d: any) => d?.status === "preferred_not").length;
+    if (yellowCount > 0) {
+      const maxYellow = await getMaxPreferredNotDays(auth.location_id);
+      if (yellowCount > maxYellow) {
+        return NextResponse.json({
+          error: `Haftada en fazla ${maxYellow} gün "Tercih Etmiyorum" seçilebilir (şu an ${yellowCount} gün seçili). Gelemeyeceğin günler için "Gelemem" kullan.`,
+          max_preferred_not_days: maxYellow,
+        }, { status: 400 });
+      }
     }
 
     // Check if already submitted and locked

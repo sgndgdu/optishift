@@ -233,6 +233,8 @@ export default function PortalAvailability() {
   const [fetchLoading,setFetchLoading]= useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [shiftDefs,   setShiftDefs]   = useState<ShiftDef[]>([]);
+  const [maxYellow,   setMaxYellow]   = useState(1);
+  const [yellowWarn,  setYellowWarn]  = useState<string | null>(null);
 
   const ws = weekStart(weekOffset);
 
@@ -242,6 +244,7 @@ export default function PortalAvailability() {
     try {
       const r = await fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${ws}`);
       const d = await r.json();
+      if (typeof d.max_preferred_not_days === "number") setMaxYellow(d.max_preferred_not_days);
       if (d.exists && d.days) {
         setDays(d.days.map((x: any) => ({ status: x.status || "available", start: x.start || "08:00", end: x.end || "22:00" })));
         setIsSubmitted(true);
@@ -288,8 +291,18 @@ export default function PortalAvailability() {
     load();
   }, [mounted, user, load, router]);
 
-  const setStatus = (i: number, s: Status) =>
+  const setStatus = (i: number, s: Status) => {
+    // Sarı gün hakkı: haftada en fazla maxYellow gün "Esnek" seçilebilir
+    if (s === "preferred_not") {
+      const usedYellow = days.filter((d, j) => j !== i && d.status === "preferred_not").length;
+      if (usedYellow >= maxYellow) {
+        setYellowWarn(`Haftada en fazla ${maxYellow} gün "Esnek" seçebilirsin. Gelemeyeceğin günler için "Gelemem"i kullan.`);
+        setTimeout(() => setYellowWarn(null), 4000);
+        return;
+      }
+    }
     setDays(prev => prev.map((d, j) => j === i ? { ...d, status: s } : d));
+  };
   const setTime = (i: number, s: string, e: string) =>
     setDays(prev => prev.map((d, j) => j === i ? { ...d, start: s, end: e, shiftId: null } : d));
   const setShift = (i: number, def: ShiftDef) =>
@@ -388,6 +401,16 @@ export default function PortalAvailability() {
         </div>
       ) : (
         <div className={`space-y-3 ${isSubmitted ? "opacity-60 pointer-events-none" : ""}`}>
+          {yellowWarn && (
+            <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-300 rounded-2xl text-xs font-semibold text-amber-800">
+              <AlertCircle size={14} className="shrink-0 text-amber-500" />
+              {yellowWarn}
+            </div>
+          )}
+          <div className="flex items-center justify-between px-1 text-[11px] text-slate-400 font-medium">
+            <span>Esnek (sarı) gün hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span></span>
+            <span>Sarı günde çalışırsan puanın çarpanlı işlenir</span>
+          </div>
           {DAYS.map((name, i) => {
             const d = days[i];
             const cfg = S[d.status];

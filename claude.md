@@ -114,6 +114,7 @@ Personel portalı sadece `status = 'published'` vardiyeleri gösterir.
 - Her vardiya tipinin zorluk puanı vardır (müdür tanımlar: 1–10).
 - **Optimizasyon Hedefi:** OR-Tools, tüm personellerin toplam puanları arasındaki farkı (max − min) minimize eder.
 - **Tercih Edilmeyen Gün Telafisi:** Personelin sarı (preferred_not) işaretlediği güne atama yapılırsa vardiya puanı `rules.preferred_not_multiplier` ile çarpılır (varsayılan 1.5, settings'ten 1.0–3.0 ayarlanır). Motor sarı günden kaçınır (soft penalty) ama mecbur kalırsa fedakarlığı puanla telafi eder. Çarpan motor, publish fallback hesabı ve schedule sayfası client hesabının üçünde de uygulanır.
+- **Sarı Gün Hakkı (kötüye kullanım koruması):** Personel haftada en fazla `rules.max_preferred_not_days` gün sarı işaretleyebilir (varsayılan 1). Tüm haftayı sarıya boyayıp bedava çarpan toplamak engellenir. Hem portal UI'da (sayaç + uyarı) hem `/api/availability` POST'ta (400) uygulanır.
 - **Kriz Yönetimi:** Personel gelememe bildirimi yapınca shift "Açık Vardiya"ya düşer. Kabul eden personele 1.5x "Kahraman Bonusu" puanı verilir.
 - **Kümülatif Grafik:** Fairness sayfasında `score_history` tablosundan çekilen aylık trend grafiği gösterilir.
 

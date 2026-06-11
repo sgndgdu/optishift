@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const [noNightToMorning, setNoNightToMorning]         = useState(false);
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   const [preferredNotMultiplier, setPreferredNotMultiplier]       = useState(1.5);
+  const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason]     = useState(false);
   const [leaveAllowMultiDay, setLeaveAllowMultiDay]     = useState(false);
@@ -104,6 +105,9 @@ export default function SettingsPage() {
            setIncludeManagersInSchedule(!!parsedLoc.rules?.include_managers_in_schedule);
            if (typeof parsedLoc.rules?.preferred_not_multiplier === "number") {
              setPreferredNotMultiplier(parsedLoc.rules.preferred_not_multiplier);
+           }
+           if (typeof parsedLoc.rules?.max_preferred_not_days === "number") {
+             setMaxPreferredNotDays(parsedLoc.rules.max_preferred_not_days);
            }
            // İzin politikasını yükle
            if (typeof parsedLoc.leave_policy === 'string') {
@@ -202,6 +206,7 @@ export default function SettingsPage() {
             no_night_to_morning:     noNightToMorning,
             include_managers_in_schedule: includeManagersInSchedule,
             preferred_not_multiplier: preferredNotMultiplier,
+            max_preferred_not_days: maxPreferredNotDays,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -490,6 +495,27 @@ export default function SettingsPage() {
                       onChange={e => setPreferredNotMultiplier(Math.min(3, Math.max(1, parseFloat(e.target.value) || 1.5)))}
                       className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                  </div>
+                </div>
+
+                {/* Haftalık Sarı Gün Hakkı */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Haftalık Sarı Gün Hakkı</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">sarı</span> (tercih etmiyorum) işaretleyebilir. Tüm haftayı sarıya boyayıp çarpan toplamayı engeller.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="number"
+                      min={0}
+                      max={7}
+                      value={maxPreferredNotDays}
+                      onChange={e => setMaxPreferredNotDays(Math.min(7, Math.max(0, parseInt(e.target.value) || 0)))}
+                      className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs text-slate-400 font-semibold">gün</span>
                   </div>
                 </div>
 
