@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [ensureSeniorPerShift, setEnsureSeniorPerShift] = useState(false);
   const [maxConsecutiveDays, setMaxConsecutiveDays]     = useState(6);
   const [noNightToMorning, setNoNightToMorning]         = useState(false);
+  const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason]     = useState(false);
   const [leaveAllowMultiDay, setLeaveAllowMultiDay]     = useState(false);
@@ -100,6 +101,7 @@ export default function SettingsPage() {
            setEnsureSeniorPerShift(!!(parsedLoc.rules?.ensure_senior_per_shift));
            setMaxConsecutiveDays(parsedLoc.rules?.max_consecutive_days ?? 6);
            setNoNightToMorning(!!parsedLoc.rules?.no_night_to_morning);
+           setIncludeManagersInSchedule(!!parsedLoc.rules?.include_managers_in_schedule);
            // İzin politikasını yükle
            if (typeof parsedLoc.leave_policy === 'string') {
              try { parsedLoc.leave_policy = JSON.parse(parsedLoc.leave_policy); } catch { parsedLoc.leave_policy = {}; }
@@ -188,6 +190,7 @@ export default function SettingsPage() {
             ensure_senior_per_shift: ensureSeniorPerShift,
             max_consecutive_days:    maxConsecutiveDays,
             no_night_to_morning:     noNightToMorning,
+            include_managers_in_schedule: includeManagersInSchedule,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -437,6 +440,23 @@ export default function SettingsPage() {
                     className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ensureSeniorPerShift ? "bg-indigo-600" : "bg-slate-200"}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ensureSeniorPerShift ? "translate-x-6" : "translate-x-1"}`} />
+                  </button>
+                </div>
+
+                {/* Müdürü Planlamaya Dahil Et */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Müdürü Planlamaya Dahil Et</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Aktif olduğunda otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar. Kapalıyken manuel atama yine mümkündür.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeManagersInSchedule(v => !v)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${includeManagersInSchedule ? "bg-indigo-600" : "bg-slate-200"}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${includeManagersInSchedule ? "translate-x-6" : "translate-x-1"}`} />
                   </button>
                 </div>
 

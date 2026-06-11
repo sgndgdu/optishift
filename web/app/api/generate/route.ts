@@ -97,7 +97,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Aktif personeli çek
-    const personnelRows = db.prepare(`SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`).all(`%"${branchId}"%`) as any[];
+    let personnelRows = db.prepare(`SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`).all(`%"${branchId}"%`) as any[];
+
+    // Müdür/admin varsayılan olarak otomatik planlamaya dahil edilmez (locations.rules toggle'ı)
+    let includeManagersInSchedule = false;
+    if (locationRow?.rules) {
+      try {
+        includeManagersInSchedule = !!JSON.parse(locationRow.rules)?.include_managers_in_schedule;
+      } catch { /* ignore */ }
+    }
+    if (!includeManagersInSchedule) {
+      personnelRows = personnelRows.filter(
+        (p: any) => !["manager", "admin", "supervisor"].includes(p.user_access_level)
+      );
+    }
 
     // Müsaitlik verilerini çek — hedef haftaya göre filtrele
     const personnelIds = personnelRows.map((p: any) => p.id);
