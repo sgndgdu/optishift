@@ -1,45 +1,259 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+function useChatUnread() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const tick = () => fetch("/api/messages/unread-count").then(r => r.json()).then(d => {
+      const n = d?.count ?? 0;
+      setCount(n);
+      document.title = n > 0 ? `(${n}) OptiShift` : "OptiShift";
+    }).catch(() => {});
+    tick();
+    const id = setInterval(tick, 5_000);
+    return () => clearInterval(id);
+  }, []);
+  return count;
+}
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard",  label: "Dashboard",     icon: LayoutDashboard },
-  { href: "/personnel",  label: "Personel",       icon: Users },
-  { href: "/schedule",   label: "Vardiya Planı",  icon: CalendarClock },
-  { href: "/integrations", label: "Entegrasyonlar", icon: Plug },
-  { href: "/settings",   label: "Ayarlar",        icon: Settings },
+  { href: "/dashboard",    label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/personnel",    label: "Personel",        icon: Users },
+  { href: "/schedule",     label: "Vardiya Planı",   icon: CalendarClock },
+  { href: "/fairness",     label: "Adalet Puanı",    icon: Star },
+  { href: "/requests",     label: "Onay Kutusu",      icon: ClipboardList },
+  { href: "/open-shifts",  label: "Açık Vardiyalar",  icon: Megaphone },
+  { href: "/breaks",       label: "Mola Takibi",      icon: Coffee },
+  { href: "/reports",      label: "Raporlar",         icon: BarChart2 },
+  { href: "/chat",         label: "Mesajlaşma",       icon: MessageSquare },
+  { href: "/integrations", label: "Entegrasyonlar",  icon: Plug },
+  { href: "/billing",      label: "Faturalandırma",  icon: CreditCard },
+  { href: "/settings",     label: "Ayarlar",         icon: Settings },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const chatUnread = useChatUnread();
+  const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    let parsedUser: any = null;
+    let initialLoc = "";
+
+    try {
+      const stored = localStorage.getItem("optishift_manager_user");
+      parsedUser = stored ? JSON.parse(stored) : null;
+    } catch {}
+
+    if (parsedUser) setUser(parsedUser);
+
+    // Manager: her zaman kendi location_id'sini kullan, localStorage'daki eski değeri yok say
+    if (parsedUser?.role === "manager") {
+      initialLoc = parsedUser.location_id || "";
+    } else {
+      try {
+        const savedLoc = localStorage.getItem("optishift_selected_location");
+        initialLoc = savedLoc || parsedUser?.location_id || "";
+      } catch {}
+    }
+
+    if (initialLoc) {
+      setSelectedLocationId(initialLoc);
+      localStorage.setItem("optishift_selected_location", initialLoc);
+    }
+
+    // Manager sadece kendi şubesini görür — admin tüm şubelere erişir
+    if (parsedUser?.role === "admin" && parsedUser?.org_id) {
+      fetch(`/api/locations`)
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setLocations(data);
+            const isValid = data.some((l: { id: string }) => l.id === initialLoc);
+            if (!isValid) {
+              const fallbackId = data[0].id;
+              setSelectedLocationId(fallbackId);
+              localStorage.setItem("optishift_selected_location", fallbackId);
+              const updated = { ...parsedUser, location_id: fallbackId };
+              localStorage.setItem("optishift_manager_user", JSON.stringify(updated));
+              setUser(updated);
+              window.dispatchEvent(new Event("optishift_location_changed"));
+            }
+          }
+        })
+        .catch(() => {});
+    } else if (parsedUser?.location_id) {
+      // Manager: sadece kendi şubesi, dropdown yok
+      fetch(`/api/locations`)
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) setLocations(data);
+        })
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleLocationChange = (locId: string) => {
+    setSelectedLocationId(locId);
+    const updated = { ...user, location_id: locId };
+    localStorage.setItem("optishift_manager_user", JSON.stringify(updated));
+    localStorage.setItem("optishift_selected_location", locId);
+    setUser(updated);
+    setIsDropdownOpen(false);
+    window.dispatchEvent(new Event("optishift_location_changed"));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("optishift_manager_user");
+    router.push("/login");
+  };
+
+  const activeLocation = locations.find(l => l.id === selectedLocationId);
+
   return (
-    <aside className="w-56 min-h-screen bg-indigo-700 text-white flex flex-col shrink-0">
-      <div className="px-5 py-6 border-b border-indigo-600">
-        <span className="text-xl font-bold tracking-tight">OptiShift</span>
-        <p className="text-indigo-300 text-xs mt-0.5">İzmir Merkez Mağazası</p>
+    <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
+      {/* Brand */}
+      <div className="flex items-center gap-3 px-3 mb-8">
+        <Link href="/dashboard" className="flex items-center gap-3 flex-1 group">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
+            <Zap size={18} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
+            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Business</p>
+          </div>
+        </Link>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
-      <nav className="flex-1 py-4">
+
+      {/* Location Selector (Custom Dropdown) */}
+      <div className="px-3 mb-8">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Aktif Şube</p>
+        <div className="relative">
+          <button 
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-3 hover:bg-slate-100/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <div className="flex flex-col items-start truncate">
+              <span className="text-sm font-semibold text-slate-800 truncate">
+                {activeLocation?.name ?? "Yükleniyor..."}
+              </span>
+              <span className="text-xs text-slate-500 truncate">
+                {user?.org_name ?? "Şirket"}
+              </span>
+            </div>
+            {locations.length > 1 && (
+              <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-200", isDropdownOpen && "rotate-180")} />
+            )}
+          </button>
+
+          {isDropdownOpen && locations.length > 1 && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsDropdownOpen(false)} 
+              />
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="max-h-[200px] overflow-y-auto p-1.5 space-y-0.5">
+                  {locations.map(loc => {
+                    const isSelected = loc.id === selectedLocationId;
+                    return (
+                      <button
+                        key={loc.id}
+                        onClick={() => handleLocationChange(loc.id)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-left transition-colors",
+                          isSelected ? "bg-primary/5 text-primary font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
+                        )}
+                      >
+                        <span className="truncate">{loc.name}</span>
+                        {isSelected && <Check size={16} className="text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
+          const active  = pathname.startsWith(href);
+          const isChat  = href === "/chat";
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors ${
+              onClick={onClose}
+              className={cn(
+                "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                 active
-                  ? "bg-indigo-900 text-white font-medium"
-                  : "text-indigo-200 hover:bg-indigo-600 hover:text-white"
-              }`}
+                  ? "bg-primary/5 text-primary"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              )}
             >
-              <Icon size={18} />
+              {active && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+              )}
+              <div className="relative shrink-0">
+                <Icon size={18} className={cn("transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+                {isChat && chatUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
+                )}
+              </div>
               {label}
+              {isChat && chatUnread > 0 && (
+                <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
+              )}
             </Link>
           );
         })}
       </nav>
-      <div className="px-5 py-4 border-t border-indigo-600 text-xs text-indigo-400">
-        Müdür: Sefa Gündoğdu
+
+      {/* User Profile & Logout */}
+      <div className="mt-auto px-3 pt-6">
+        <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-indigo-600 uppercase">
+                {user?.name?.charAt(0) ?? "U"}
+              </span>
+            </div>
+            <div className="truncate">
+              <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
+              <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">
+                {user?.role === "manager" ? "Yönetici" : user?.role === "admin" ? "Admin" : "Personel"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors shrink-0"
+            title="Çıkış Yap"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

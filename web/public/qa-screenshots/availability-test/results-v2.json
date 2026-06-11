@@ -1,0 +1,72 @@
+{
+  "results": [
+    {
+      "step": "Step 1: Navigate to login",
+      "status": "PASS",
+      "detail": "Page loaded successfully",
+      "timestamp": "2026-06-07T17:32:05.452Z"
+    },
+    {
+      "step": "Step 2: Login",
+      "status": "PASS",
+      "detail": "Redirected to: http://localhost:3000/portal",
+      "timestamp": "2026-06-07T17:32:06.378Z"
+    },
+    {
+      "step": "Step 3: Navigate to availability",
+      "status": "PASS",
+      "detail": "URL: http://localhost:3000/portal/availability",
+      "timestamp": "2026-06-07T17:32:09.507Z"
+    },
+    {
+      "step": "Step 4: Initial screenshot",
+      "status": "PASS",
+      "detail": "Screenshot captured",
+      "timestamp": "2026-06-07T17:32:09.564Z"
+    },
+    {
+      "step": "Step 5: Set Monday to Gelemem",
+      "status": "PASS",
+      "detail": "Monday card class: \"rounded-2xl border-2 p-4 transition-all bg-rose-50 border-rose-200\"",
+      "timestamp": "2026-06-07T17:32:10.191Z"
+    },
+    {
+      "step": "Step 6: Set Tuesday start hour to 10",
+      "status": "PASS",
+      "detail": "Selected value: \"10\"",
+      "timestamp": "2026-06-07T17:32:10.560Z"
+    },
+    {
+      "step": "Step 7: Screenshot filled form",
+      "status": "PASS",
+      "detail": "Screenshot taken",
+      "timestamp": "2026-06-07T17:32:10.588Z"
+    },
+    {
+      "step": "Step 8: Click Müsaitliği Gönder",
+      "status": "PASS",
+      "detail": "Button clicked — visible:true",
+      "timestamp": "2026-06-07T17:32:11.464Z"
+    },
+    {
+      "step": "Step 9: Modal screenshot",
+      "status": "PASS",
+      "detail": "Modal appeared with \"Evet, Gönder\" button visible",
+      "timestamp": "2026-06-07T17:32:12.055Z"
+    },
+    {
+      "step": "Step 10: Click Evet, Gönder (normal click)",
+      "status": "PASS",
+      "detail": "Clicked — visible:true, disabled:false, y:668, inViewport:true",
+      "timestamp": "2026-06-07T17:32:14.278Z"
+    },
+    {
+      "step": "Step 11: Result after clicking",
+      "status": "PASS",
+      "detail": "Success banner \"Müsaitlik gönderildi\" is visible — API call succeeded",
+      "timestamp": "2026-06-07T17:32:14.301Z"
+    }
+  ],
+  "consoleErrors": [],
+  "timestamp": "2026-06-07T17:32:14.421Z"
+}

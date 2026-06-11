@@ -1,8 +1,124 @@
-import type { Personnel, WeekSchedule } from "./types";
+import type { Personnel, WeekSchedule, Organization, Location, Department, Role, ShiftDefinition, ScheduleRules, UserRole } from "./types";
+
+export const MOCK_ORGANIZATIONS: Organization[] = [
+  {
+    id: "ORG-001",
+    name: "Gratis Perakende A.Ş.",
+    connected_erp: "SAP_SuccessFactors",
+    erp_mapped_fields: { employee_name: "Emp_Name", employee_id: "Sicil_No" },
+  },
+  {
+    id: "ORG-002",
+    name: "Hilton Premium Hotel",
+    connected_erp: "SAP_ERP",
+    erp_mapped_fields: { employee_name: "Name", employee_id: "Emp_ID" },
+  },
+  {
+    id: "ORG-003",
+    name: "Cup & Go Cafe",
+    connected_erp: "Luca",
+  }
+];
+
+const defaultHours = {
+  0: { isOpen: true, open: "09:00", close: "22:00" },
+  1: { isOpen: true, open: "09:00", close: "22:00" },
+  2: { isOpen: true, open: "09:00", close: "22:00" },
+  3: { isOpen: true, open: "09:00", close: "22:00" },
+  4: { isOpen: true, open: "09:00", close: "22:00" },
+  5: { isOpen: true, open: "09:00", close: "22:00" },
+  6: { isOpen: true, open: "09:00", close: "22:00" },
+};
+
+const defaultShifts: ShiftDefinition[] = [
+  { id: "s1", name: "Açılış",  start: "09:00", end: "17:00", base_points: 3, coverage: { "Kasa": 1, "Reyon": 2, "Mutfak": 1 } },
+  { id: "s2", name: "Kapanış", start: "14:00", end: "22:00", base_points: 5, coverage: { "Kasa": 1, "Reyon": 1, "Mutfak": 1 } },
+];
+
+export const MOCK_LOCATIONS: Location[] = [
+  // Gratis Şubeleri
+  { id: "L-001", org_id: "ORG-001", name: "Gratis İzmir Merkez Mağazası", operating_hours: defaultHours, shift_definitions: defaultShifts, zone_quotas: { "Kasa": 2, "Reyon": 1 } },
+  { id: "L-002", org_id: "ORG-001", name: "Gratis İstanbul Kadıköy Şubesi", operating_hours: defaultHours, shift_definitions: defaultShifts, zone_quotas: {} },
+  // Otel Şubeleri
+  { id: "L-003", org_id: "ORG-002", name: "Hilton Bodrum Resort", operating_hours: defaultHours, shift_definitions: defaultShifts, zone_quotas: { "Resepsiyon": 1, "Kat Hizmetleri": 1 } },
+  // Kafe Şubeleri
+  { id: "L-004", org_id: "ORG-003", name: "Cup & Go Alsancak Şubesi", operating_hours: defaultHours, shift_definitions: defaultShifts, zone_quotas: { "Barista & Servis": 1 } },
+];
+
+export const MOCK_DEPARTMENTS: Department[] = [
+  // Gratis İzmir Merkez
+  { id: "D-001", location_id: "L-001", name: "Mağaza İçi Servis" },
+  { id: "D-002", location_id: "L-001", name: "Kasa & Ödeme" },
+  // Hilton Bodrum Resort
+  { id: "D-003", location_id: "L-003", name: "Resepsiyon" },
+  { id: "D-004", location_id: "L-003", name: "Kat Hizmetleri" },
+  { id: "D-005", location_id: "L-003", name: "Mutfak & Restoran" },
+  // Kafe (Cup & Go)
+  { id: "D-006", location_id: "L-004", name: "Barista & Servis" }
+];
+
+export const MOCK_ROLES: Role[] = [
+  // Gratis Kasa Departmanı
+  { 
+    id: "R-001", department_id: "D-002", name: "Kasiyer", difficulty_bonus: 0, 
+    min_per_shift: { s1: 2, s2: 2 },
+    daily_coverage: {
+      0: { s1: 2, s2: 2 }, 1: { s1: 2, s2: 2 }, 2: { s1: 2, s2: 2 }, 3: { s1: 2, s2: 2 }, 4: { s1: 2, s2: 2 },
+      5: { s1: 3, s2: 3 }, 6: { s1: 3, s2: 3 } // Hafta sonu yoğun
+    }
+  },
+  // Gratis Mağaza İçi Departmanı
+  { 
+    id: "R-002", department_id: "D-001", name: "Reyon Görevlisi", difficulty_bonus: 0, 
+    min_per_shift: { s1: 1, s2: 0 },
+    daily_coverage: {
+      0: { s1: 1, s2: 0 }, 1: { s1: 1, s2: 0 }, 2: { s1: 1, s2: 0 }, 3: { s1: 1, s2: 0 }, 4: { s1: 1, s2: 0 },
+      5: { s1: 2, s2: 1 }, 6: { s1: 2, s2: 1 }
+    }
+  },
+  { 
+    id: "R-003", department_id: "D-001", name: "Mağaza Sorumlusu", difficulty_bonus: 1, 
+    min_per_shift: { s1: 1, s2: 1 },
+    daily_coverage: {
+      0: { s1: 1, s2: 1 }, 1: { s1: 1, s2: 1 }, 2: { s1: 1, s2: 1 }, 3: { s1: 1, s2: 1 }, 4: { s1: 1, s2: 1 },
+      5: { s1: 1, s2: 1 }, 6: { s1: 1, s2: 1 }
+    }
+  },
+  // Hilton
+  { 
+    id: "R-004", department_id: "D-003", name: "Resepsiyonist", difficulty_bonus: 0, 
+    min_per_shift: { s1: 2, s2: 2 },
+    daily_coverage: {
+      0: { s1: 2, s2: 2 }, 1: { s1: 2, s2: 2 }, 2: { s1: 2, s2: 2 }, 3: { s1: 2, s2: 2 }, 4: { s1: 2, s2: 2 },
+      5: { s1: 2, s2: 2 }, 6: { s1: 2, s2: 2 }
+    }
+  },
+  { 
+    id: "R-005", department_id: "D-004", name: "Kat Görevlisi", difficulty_bonus: 0, 
+    min_per_shift: { s1: 3, s2: 1 },
+    daily_coverage: {
+      0: { s1: 3, s2: 1 }, 1: { s1: 3, s2: 1 }, 2: { s1: 3, s2: 1 }, 3: { s1: 3, s2: 1 }, 4: { s1: 3, s2: 1 },
+      5: { s1: 4, s2: 2 }, 6: { s1: 4, s2: 2 }
+    }
+  },
+];
+
+export const MOCK_CURRENT_USER = {
+  id: "U-001",
+  name: "Sefa Gündoğdu",
+  role: "supervisor" as UserRole,
+  org_id: "ORG-001",
+  assigned_location_ids: ["L-001", "L-002"],
+};
 
 export const PERSONNEL: Personnel[] = [
   {
     id: "P001",
+    org_id: "ORG-001",
+    assigned_location_ids: ["L-001"],
+    primary_location_id: "L-001",
+    department_id: "D-002",
+    user_access_level: "employee",
     name: "Ahmet Yılmaz",
     employee_id: "100001",
     phone: "+90 532 111 22 33",
@@ -14,10 +130,12 @@ export const PERSONNEL: Personnel[] = [
     status: "active",
     erp_id: "SAP-00001",
     notes: "",
-    skills: ["Kasa", "Reyon"],
-    skill_levels: { Kasa: "primary", Reyon: "secondary" },
+    roles: ["R-001", "R-002"],
+    role_levels: { "R-001": "primary", "R-002": "secondary" },
     availability: { 0: "available", 1: "available", 2: "preferred_not", 3: "available", 4: "available", 5: "preferred_not", 6: "unavailable" },
-    preferred_shift: "morning",
+    preferred_shift_ids: ["s1"],
+    preferred_days: [0, 1, 3, 4],
+    preferred_roles: ["R-001"],
     max_weekly_hours: 45,
     overtime_approved: false,
     prev_score: 32,
@@ -31,6 +149,11 @@ export const PERSONNEL: Personnel[] = [
   },
   {
     id: "P002",
+    org_id: "ORG-001",
+    assigned_location_ids: ["L-001"],
+    primary_location_id: "L-001",
+    department_id: "D-002",
+    user_access_level: "employee",
     name: "Fatma Şahin",
     employee_id: "100002",
     phone: "+90 543 222 33 44",
@@ -42,10 +165,12 @@ export const PERSONNEL: Personnel[] = [
     status: "active",
     erp_id: "SAP-00002",
     notes: "Cumartesi sabah tercih ediyor.",
-    skills: ["Kasa", "Mutfak"],
-    skill_levels: { Kasa: "primary", Mutfak: "secondary" },
+    roles: ["R-001", "R-003"],
+    role_levels: { "R-001": "primary", "R-003": "secondary" },
     availability: { 0: "available", 1: "unavailable", 2: "available", 3: "available", 4: "preferred_not", 5: "available", 6: "available" },
-    preferred_shift: "any",
+    preferred_shift_ids: [],
+    preferred_days: [5, 6],
+    preferred_roles: ["R-003"],
     max_weekly_hours: 45,
     overtime_approved: true,
     prev_score: 28,
@@ -60,21 +185,28 @@ export const PERSONNEL: Personnel[] = [
   },
   {
     id: "P003",
+    org_id: "ORG-001",
+    assigned_location_ids: ["L-001", "L-002"], // Joker eleman, 2 mağazada çalışabilir
+    primary_location_id: "L-001",
+    department_id: "D-001",
+    user_access_level: "employee",
     name: "Mehmet Demir",
     employee_id: "100003",
     phone: "+90 505 333 44 55",
     email: "mehmet.demir@izmir-merkez.com",
     hire_date: "2023-01-10",
     contract_end_date: "2026-12-31",
-    title: "Teras Görevlisi",
+    title: "Reyon Görevlisi",
     employment_type: "part_time",
     status: "active",
     erp_id: "SAP-00003",
     notes: "Part-time — haftada max 30 saat.",
-    skills: ["Teras", "Reyon"],
-    skill_levels: { Teras: "primary", Reyon: "secondary" },
+    roles: ["R-002"],
+    role_levels: { "R-002": "primary" },
     availability: { 0: "preferred_not", 1: "available", 2: "available", 3: "unavailable", 4: "available", 5: "available", 6: "preferred_not" },
-    preferred_shift: "evening",
+    preferred_shift_ids: ["s2"],
+    preferred_days: [1, 2, 4, 5],
+    preferred_roles: ["R-002"],
     max_weekly_hours: 30,
     overtime_approved: false,
     prev_score: 35,
@@ -87,80 +219,29 @@ export const PERSONNEL: Personnel[] = [
     ],
   },
   {
-    id: "P004",
-    name: "Ayşe Kaya",
-    employee_id: "100004",
-    phone: "+90 532 444 55 66",
-    email: "ayse.kaya@izmir-merkez.com",
-    hire_date: "2020-09-20",
-    contract_end_date: "",
-    title: "Kıdemli Kasiyer",
-    employment_type: "full_time",
-    status: "active",
-    erp_id: "SAP-00004",
-    notes: "",
-    skills: ["Kasa", "Teras"],
-    skill_levels: { Kasa: "primary", Teras: "primary" },
-    availability: { 0: "available", 1: "available", 2: "unavailable", 3: "available", 4: "available", 5: "unavailable", 6: "available" },
-    preferred_shift: "morning",
-    max_weekly_hours: 45,
-    overtime_approved: true,
-    prev_score: 30,
-    hero_count: 2,
-    no_show_count: 0,
-    late_count: 1,
-    annual_leave_days_total: 20,
-    leave_records: [
-      { id: "L005", type: "annual", start_date: "2026-01-19", end_date: "2026-01-30", days: 10, note: "Yıl sonu" },
-      { id: "L006", type: "sick",   start_date: "2026-03-03", end_date: "2026-03-04", days: 2,  note: "Doktor raporu" },
-    ],
-  },
-  {
-    id: "P005",
-    name: "Ali Çelik",
-    employee_id: "100005",
-    phone: "+90 543 555 66 77",
-    email: "ali.celik@izmir-merkez.com",
-    hire_date: "2024-02-01",
-    contract_end_date: "",
-    title: "Mutfak Görevlisi",
-    employment_type: "full_time",
-    status: "on_leave",
-    erp_id: "SAP-00005",
-    notes: "28 Mayıs–5 Haziran arası yıllık izin.",
-    skills: ["Mutfak", "Reyon"],
-    skill_levels: { Mutfak: "primary", Reyon: "secondary" },
-    availability: { 0: "unavailable", 1: "available", 2: "available", 3: "available", 4: "preferred_not", 5: "available", 6: "available" },
-    preferred_shift: "any",
-    max_weekly_hours: 45,
-    overtime_approved: false,
-    prev_score: 25,
-    hero_count: 0,
-    no_show_count: 2,
-    late_count: 4,
-    annual_leave_days_total: 14,
-    leave_records: [
-      { id: "L007", type: "annual", start_date: "2026-03-09", end_date: "2026-03-21", days: 10, note: "" },
-      { id: "L008", type: "annual", start_date: "2026-05-26", end_date: "2026-06-04", days: 7,  note: "Onaylı — yönetici notu" },
-    ],
-  },
-  {
     id: "P006",
+    org_id: "ORG-001",
+    assigned_location_ids: ["L-001"],
+    primary_location_id: "L-001",
+    department_id: undefined,
+    user_access_level: "manager",
     name: "Zeynep Arslan",
     employee_id: "100006",
     phone: "+90 505 666 77 88",
     email: "zeynep.arslan@izmir-merkez.com",
     hire_date: "2019-11-05",
     contract_end_date: "",
-    title: "Mağaza Şefi",
+    title: "Mağaza Müdürü",
     employment_type: "full_time",
     status: "active",
     erp_id: "SAP-00006",
-    notes: "Kıdemli çalışan. Tüm alanlarda yetkin.",
-    skills: ["Kasa", "Mutfak", "Teras"],
-    skill_levels: { Kasa: "primary", Mutfak: "primary", Teras: "secondary" },
+    notes: "Tüm mağaza yetkisi.",
+    roles: ["R-001", "R-002", "R-003"],
+    role_levels: { "R-001": "primary", "R-002": "primary", "R-003": "primary" },
     availability: { 0: "available", 1: "preferred_not", 2: "available", 3: "available", 4: "available", 5: "available", 6: "unavailable" },
-    preferred_shift: "any",
+    preferred_shift_ids: [],
+    preferred_days: [0, 2, 3, 4],
+    preferred_roles: ["R-003"],
     max_weekly_hours: 45,
     overtime_approved: true,
     prev_score: 40,
@@ -171,35 +252,29 @@ export const PERSONNEL: Personnel[] = [
     leave_records: [
       { id: "L009", type: "annual", start_date: "2026-02-02", end_date: "2026-02-13", days: 10, note: "Yurt dışı" },
     ],
-  },
+  }
 ];
 
+export const DEFAULT_RULES: ScheduleRules = {
+  max_weekly_hours: 45,
+  min_rest_hours: 11,
+  skills_match: "warn",
+};
+
 export const MOCK_SCHEDULE: WeekSchedule = {
-  fairnessGap: 0,
-  scores: { P001: 56, P002: 56, P003: 56, P004: 56, P005: 56, P006: 56 },
+  fairnessGap: 1,
+  scores: { P001: 35, P002: 38, P003: 38, P004: 38, P005: 33, P006: 43 },
   assignments: [
-    { personnelId: "P001", day: 0, shiftId: 0, points: 3  },
-    { personnelId: "P001", day: 1, shiftId: 1, points: 5  },
-    { personnelId: "P001", day: 4, shiftId: 1, points: 8  },
-    { personnelId: "P001", day: 5, shiftId: 1, points: 8  },
-    { personnelId: "P002", day: 2, shiftId: 1, points: 5  },
-    { personnelId: "P002", day: 3, shiftId: 1, points: 5  },
-    { personnelId: "P002", day: 5, shiftId: 1, points: 8  },
-    { personnelId: "P002", day: 6, shiftId: 1, points: 10 },
-    { personnelId: "P003", day: 1, shiftId: 1, points: 5  },
-    { personnelId: "P003", day: 4, shiftId: 0, points: 8  },
-    { personnelId: "P003", day: 5, shiftId: 0, points: 8  },
-    { personnelId: "P004", day: 1, shiftId: 0, points: 3  },
-    { personnelId: "P004", day: 3, shiftId: 1, points: 5  },
-    { personnelId: "P004", day: 4, shiftId: 1, points: 8  },
-    { personnelId: "P004", day: 6, shiftId: 1, points: 10 },
-    { personnelId: "P005", day: 1, shiftId: 0, points: 3  },
-    { personnelId: "P005", day: 2, shiftId: 1, points: 5  },
-    { personnelId: "P005", day: 3, shiftId: 1, points: 5  },
-    { personnelId: "P005", day: 5, shiftId: 0, points: 8  },
-    { personnelId: "P005", day: 6, shiftId: 1, points: 10 },
-    { personnelId: "P006", day: 0, shiftId: 0, points: 3  },
-    { personnelId: "P006", day: 2, shiftId: 1, points: 5  },
-    { personnelId: "P006", day: 4, shiftId: 1, points: 8  },
+    { personnelId: "P001", day: 0, shiftId: 0, role_id: "R-001", points: 3  },
+    { personnelId: "P001", day: 1, shiftId: 1, role_id: "R-001", points: 5  },
+    { personnelId: "P001", day: 4, shiftId: 1, role_id: "R-001", points: 8  },
+    { personnelId: "P001", day: 5, shiftId: 1, role_id: "R-002", points: 8  },
+    { personnelId: "P002", day: 2, shiftId: 1, role_id: "R-001", points: 5  },
+    { personnelId: "P002", day: 3, shiftId: 1, role_id: "R-003", points: 5  },
+    { personnelId: "P002", day: 5, shiftId: 1, role_id: "R-001", points: 8  },
+    { personnelId: "P002", day: 6, shiftId: 1, role_id: "R-001", points: 10 },
+    { personnelId: "P003", day: 1, shiftId: 1, role_id: "R-002", points: 5  },
+    { personnelId: "P003", day: 4, shiftId: 0, role_id: "R-002", points: 8  },
+    { personnelId: "P003", day: 5, shiftId: 0, role_id: "R-002", points: 8  },
   ],
 };

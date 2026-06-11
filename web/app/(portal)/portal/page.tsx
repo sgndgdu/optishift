@@ -1,0 +1,443 @@
+"use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Clock, Calendar as CalIcon, TrendingUp, BellRing, Check,
+  MapPin, AlertCircle, Timer, ChevronRight,
+  Zap, ClipboardList, PlayCircle, StopCircle,
+} from "lucide-react";
+import Link from "next/link";
+
+function getWeekStart(offset: number): string {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
+  return monday.toISOString().split("T")[0];
+}
+
+const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const SHORT     = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+
+function timeAgo(ts: number | null): string {
+  if (!ts) return "";
+  const diff = Date.now() - ts * 1000;
+  const minutes = Math.floor(diff / 60000);
+  const hours   = Math.floor(diff / 3600000);
+  const days    = Math.floor(diff / 86400000);
+  if (minutes < 1)  return "Az önce";
+  if (hours   < 1)  return `${minutes} dk önce`;
+  if (hours   < 24) return `${hours} saat önce`;
+  return `${days} gün önce`;
+}
+
+function shiftDur(s: any): number {
+  if (!s?.start_time || !s?.end_time) return 8;
+  const [sh, sm] = s.start_time.split(":").map(Number);
+  const [eh, em] = s.end_time.split(":").map(Number);
+  let diff = (eh * 60 + em) - (sh * 60 + sm);
+  if (diff < 0) diff += 1440;
+  return Math.round(diff / 60 * 10) / 10;
+}
+
+function elapsedLabel(checkInAt: number): string {
+  const diff = Date.now() - checkInAt * 1000;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  return h > 0 ? `${h}s ${m}dk` : `${m} dakika`;
+}
+
+export default function PortalDashboard() {
+  const router = useRouter();
+  const [user,          setUser]          = useState<any>(null);
+  const [mounted,       setMounted]       = useState(false);
+  const [shifts,        setShifts]        = useState<any[]>([]);
+  const [notifs,        setNotifs]        = useState<any[]>([]);
+  const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
+  const [dataLoading,   setDataLoading]   = useState(true);
+  const [checkInLoading,setCheckInLoading]= useState(false);
+  const [elapsed,       setElapsed]       = useState("");
+  const [now,           setNow]           = useState(new Date());
+
+  // clock tick
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // auth
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("optishift_portal_user");
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (parsed) setUser(parsed);
+      setMounted(true);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    if (!user) router.push("/login");
+  }, [mounted, user, router]);
+
+  // data
+  const loadData = useCallback(async () => {
+    if (!user?.personnel_id) return;
+    setDataLoading(true);
+    const ws  = getWeekStart(0);
+    const nws = getWeekStart(1);
+    try {
+      const [shiftData, notifData, availData] = await Promise.all([
+        fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}`).then(r => r.json()),
+        fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
+        fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
+      ]);
+      setShifts(Array.isArray(shiftData) ? shiftData : []);
+      setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
+      setNextWeekAvail(availData?.exists ?? false);
+    } catch {} finally { setDataLoading(false); }
+  }, [user?.personnel_id]);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // today
+  const todayIdx   = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const todayShift = shifts.find(s => s.day === todayIdx) ?? null;
+
+  // elapsed timer
+  useEffect(() => {
+    if (!todayShift?.check_in_at || todayShift?.check_out_at) { setElapsed(""); return; }
+    const tick = () => setElapsed(elapsedLabel(todayShift.check_in_at));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [todayShift?.check_in_at, todayShift?.check_out_at]);
+
+  const handleCheckIn = async (shiftId: number) => {
+    setCheckInLoading(true);
+    try {
+      await fetch("/api/shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "check_in", shift_id: shiftId }),
+      });
+      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: Math.floor(Date.now() / 1000) } : s));
+    } catch {} finally { setCheckInLoading(false); }
+  };
+
+  const handleCheckOut = async (shiftId: number) => {
+    setCheckInLoading(true);
+    try {
+      await fetch("/api/shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "check_out", shift_id: shiftId }),
+      });
+      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: Math.floor(Date.now() / 1000) } : s));
+    } catch {} finally { setCheckInLoading(false); }
+  };
+
+  if (!mounted) return <div className="p-5 space-y-5" />;
+
+  // computed
+  const shiftDays     = new Set(shifts.map((s: any) => s.day));
+  const totalHours    = shifts.reduce((acc: number, s: any) => acc + shiftDur(s), 0);
+  const upcomingShifts = shifts.filter(s => s.day >= todayIdx).sort((a, b) => a.day - b.day);
+  const unreadCount   = notifs.filter(n => !n.is_read).length;
+  const isCheckedIn   = !!todayShift?.check_in_at && !todayShift?.check_out_at;
+  const isCompleted   = !!todayShift?.check_out_at;
+  const todayLabel    = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+
+  return (
+    <div className="p-5 pb-8 space-y-5 animate-in fade-in duration-300">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">{todayLabel}</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Merhaba, {user.name?.split(" ")[0]} 👋
+          </h1>
+        </div>
+        <Link href="/portal/notifications"
+          className="relative mt-1 p-2.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors">
+          <BellRing size={22} />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
+          )}
+        </Link>
+      </div>
+
+      {/* ── Hero: Bugün ─────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-br from-primary via-indigo-600 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+        <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-indigo-400/20 rounded-full blur-2xl" />
+        <div className="relative z-10">
+
+          {/* label */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-1.5 text-indigo-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
+              {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
+              {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? "Vardiya bitti" : "Bugün"}
+            </div>
+            {todayShift && (
+              <span className={`text-[11px] font-bold px-3 py-1.5 rounded-full border ${
+                isCompleted ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" :
+                isCheckedIn ? "bg-amber-400/20 text-amber-200 border-amber-400/30 animate-pulse" :
+                              "bg-white/10 text-white/80 border-white/20"
+              }`}>
+                {isCompleted ? "Tamamlandı ✓" : isCheckedIn ? "● Aktif" : "Onaylandı"}
+              </span>
+            )}
+          </div>
+
+          {/* content */}
+          {dataLoading ? (
+            <div className="animate-pulse space-y-2 mb-5">
+              <div className="h-12 bg-white/10 rounded-xl w-3/4" />
+              <div className="h-4 bg-white/10 rounded-xl w-1/2" />
+            </div>
+          ) : todayShift ? (
+            <div className="mb-5">
+              <div className="text-4xl font-black tracking-tight mb-1.5">
+                {todayShift.start_time} – {todayShift.end_time}
+              </div>
+              {isCheckedIn && elapsed && (
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="w-1.5 h-1.5 bg-amber-300 rounded-full animate-pulse" />
+                  <span className="text-sm font-bold text-amber-200">{elapsed} çalışıyorsun</span>
+                </div>
+              )}
+              {isCompleted && (
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Check size={13} className="text-emerald-300" />
+                  <span className="text-sm font-bold text-emerald-200">{shiftDur(todayShift)} saat çalıştın</span>
+                </div>
+              )}
+              <p className="text-indigo-200/70 text-sm flex items-center gap-2">
+                <span>{shiftDur(todayShift)} saatlik vardiya</span>
+                {todayShift.location_name && (
+                  <><span className="opacity-40">·</span><MapPin size={11} className="inline -mt-px" /> {todayShift.location_name}</>
+                )}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-5">
+              <div className="text-2xl font-black mb-1 text-white/70">Bugün vardiya yok</div>
+              {upcomingShifts.length > 0 ? (
+                <p className="text-indigo-200/70 text-sm">
+                  Sonraki: <span className="font-bold text-indigo-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
+                </p>
+              ) : (
+                <p className="text-indigo-200/60 text-sm">Bu hafta başka vardiya yok.</p>
+              )}
+            </div>
+          )}
+
+          {/* buttons */}
+          <div className="flex gap-2.5">
+            <button onClick={() => router.push("/portal/calendar")}
+              className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-bold py-3 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 active:scale-[0.97]">
+              <CalIcon size={14} /> Takvim
+            </button>
+            {todayShift && !todayShift.check_in_at && !isCompleted && (
+              <button onClick={() => handleCheckIn(todayShift.id)} disabled={checkInLoading}
+                className="flex-[2] bg-emerald-400 hover:bg-emerald-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
+                <PlayCircle size={15} /> {checkInLoading ? "…" : "Vardiyayı Başlat"}
+              </button>
+            )}
+            {todayShift && isCheckedIn && (
+              <button onClick={() => handleCheckOut(todayShift.id)} disabled={checkInLoading}
+                className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
+                <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
+              </button>
+            )}
+            {(!todayShift || isCompleted) && (
+              <button onClick={() => router.push("/portal/availability")}
+                className="flex-[2] bg-white text-primary text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97]">
+                <Zap size={14} /> Müsaitlik Gir
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Bu Hafta mini takvim ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <span className="text-sm font-black text-slate-800">Bu Hafta</span>
+          {!dataLoading && (
+            <span className="text-xs font-bold text-slate-400">
+              {shifts.length} vardiya · {totalHours.toFixed(0)} saat
+            </span>
+          )}
+        </div>
+        <div className="px-3 pb-3 grid grid-cols-7 gap-1.5">
+          {dataLoading
+            ? Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
+              ))
+            : Array.from({ length: 7 }).map((_, i) => {
+                const hasShift = shiftDays.has(i);
+                const isToday  = i === todayIdx;
+                const dayShift = shifts.find(s => s.day === i);
+                return (
+                  <div key={i} onClick={() => router.push("/portal/calendar")}
+                    className={`flex flex-col items-center gap-1 py-2.5 px-0.5 rounded-xl cursor-pointer transition-all active:scale-95 ${
+                      isToday  ? "bg-primary text-white shadow-md shadow-primary/25" :
+                      hasShift ? "bg-indigo-50 text-indigo-700" :
+                                 "bg-slate-50 text-slate-400"
+                    }`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-indigo-200" : "opacity-60"}`}>
+                      {SHORT[i]}
+                    </span>
+                    {hasShift ? (
+                      <span className={`text-[9px] font-black leading-none ${isToday ? "text-white" : "text-indigo-600"}`}>
+                        {dayShift?.start_time?.slice(0, 5) ?? ""}
+                      </span>
+                    ) : (
+                      <div className={`w-1 h-1 rounded-full ${isToday ? "bg-white/40" : "bg-slate-300"}`} />
+                    )}
+                  </div>
+                );
+              })
+          }
+        </div>
+      </div>
+
+      {/* ── Hızlı Erişim ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Müsaitlik", color: "text-violet-600 bg-violet-50" },
+          { href: "/portal/requests",     icon: <ClipboardList size={18}/>, label: "Talepler",  color: "text-amber-600  bg-amber-50"  },
+          { href: "/portal/calendar",     icon: <CalIcon size={18} />,      label: "Takvim",    color: "text-emerald-600 bg-emerald-50"},
+        ].map(item => (
+          <Link key={item.href} href={item.href}
+            className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-slate-100 py-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all active:scale-[0.97]">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>{item.icon}</div>
+            <span className="text-xs font-bold text-slate-600">{item.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Müsaitlik hatırlatıcı ────────────────────────────────────────── */}
+      {nextWeekAvail === false && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-2xl px-4 py-3.5">
+          <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
+            <AlertCircle size={18} className="text-violet-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-violet-800">Gelecek hafta müsaitliğin eksik</p>
+            <p className="text-xs text-violet-500 mt-0.5">Müdürün planlama yapabilmesi için gir.</p>
+          </div>
+          <Link href="/portal/availability"
+            className="text-xs font-bold text-violet-700 bg-white border border-violet-200 px-3 py-2 rounded-xl whitespace-nowrap hover:bg-violet-50 transition-colors shrink-0">
+            Gir →
+          </Link>
+        </div>
+      )}
+
+      {/* ── Yaklaşan Vardiyalar ──────────────────────────────────────────── */}
+      {!dataLoading && upcomingShifts.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-black text-slate-900 text-base">Yaklaşan Vardiyalar</h3>
+            <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">
+              Takvim <ChevronRight size={13} />
+            </Link>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
+            {upcomingShifts.slice(0, 3).map((s, idx) => {
+              const dur = shiftDur(s);
+              const isT = s.day === todayIdx;
+              return (
+                <div key={s.id ?? idx} className="flex items-center gap-3 px-4 py-3.5">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isT ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
+                  }`}>
+                    <span className="text-[10px] font-black">{SHORT[s.day]}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold ${isT ? "text-primary" : "text-slate-800"}`}>
+                      {DAY_NAMES[s.day]}{isT ? " · Bugün" : ""}
+                    </p>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">{s.start_time} – {s.end_time}</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">{dur}s</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats ───────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-3">
+            <TrendingUp size={18} />
+          </div>
+          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{user.prev_score ?? 0}</p>
+          <p className="text-xs text-slate-400 font-semibold mt-0.5">Adalet Puanı</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">
+            <Clock size={18} />
+          </div>
+          {dataLoading ? (
+            <div className="h-7 bg-slate-100 rounded animate-pulse w-16 mb-1" />
+          ) : (
+            <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">
+              {totalHours > 0 ? totalHours.toFixed(0) : "—"}
+              {totalHours > 0 && <span className="text-sm text-slate-400 font-semibold ml-1">sa</span>}
+            </p>
+          )}
+          <p className="text-xs text-slate-400 font-semibold mt-0.5">Bu Hafta</p>
+        </div>
+      </div>
+
+      {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-black text-slate-900 text-base">Bildirimler</h3>
+          <Link href="/portal/notifications" className="text-xs font-bold text-primary flex items-center gap-0.5">
+            Tümünü Gör <ChevronRight size={13} />
+          </Link>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          {dataLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
+            </div>
+          ) : notifs.length === 0 ? (
+            <div className="py-8 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-2">
+                <Check size={18} />
+              </div>
+              <p className="text-sm font-semibold text-slate-500">Yeni bildirim yok</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {notifs.map(n => (
+                <Link key={n.id} href="/portal/notifications"
+                  className={`flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors ${!n.is_read ? "bg-indigo-50/40" : ""}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    n.type === "schedule" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
+                  }`}>
+                    {n.type === "schedule" ? <CalIcon size={14} /> : <AlertCircle size={14} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold leading-tight ${!n.is_read ? "text-slate-800" : "text-slate-600"}`}>{n.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{n.message}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0 mt-0.5 whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}

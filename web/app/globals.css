@@ -1,36 +1,242 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
+@theme {
+  --font-sans: var(--font-inter);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #0f172a; /* Slate 900 */
+
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+
+    /* Energetic Primary (Indigo/Violet) */
+    --primary: #6366f1; /* Indigo 500 */
+    --primary-foreground: #ffffff;
+
+    --secondary: #f1f5f9; /* Slate 100 */
+    --secondary-foreground: #0f172a;
+
+    --muted: #f8fafc; /* Slate 50 */
+    --muted-foreground: #64748b; /* Slate 500 */
+
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+
+    --border: #e2e8f0; /* Slate 200 */
+    --input: #e2e8f0;
+    --ring: #818cf8; /* Indigo 400 */
+
+    --radius: 0.75rem;
+  }
+
+  /* Koyu Modu Korumak isteyenler için yumuşatılmış dark mode (Şu an light ağırlıklı olacağız) */
+  .dark {
+    --background: #020617;
+    --foreground: #f8fafc;
+
+    --card: #0f172a;
+    --card-foreground: #f8fafc;
+
+    --popover: #0f172a;
+    --popover-foreground: #f8fafc;
+
+    --primary: #818cf8;
+    --primary-foreground: #ffffff;
+
+    --secondary: #1e293b;
+    --secondary-foreground: #f8fafc;
+
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+
+    --accent: #1e293b;
+    --accent-foreground: #f8fafc;
+
+    --destructive: #f87171;
+    --destructive-foreground: #ffffff;
+
+    --border: #1e293b;
+    --input: #1e293b;
+    --ring: #818cf8;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased font-sans selection:bg-primary/20 selection:text-primary;
+  }
+}
+
+/* Custom Utilities for Premium Stripe-like Look */
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+  }
+  .dark .glass {
+    @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800 shadow-none;
+  }
+  .stripe-card {
+    @apply bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300;
+  }
+  .animate-in {
+    animation: animate-in 0.4s ease-out both;
+  }
+  .fade-in {
+    animation-name: fade-in;
+  }
+  .slide-in-from-bottom-4 {
+    transform: translateY(16px);
+    opacity: 0;
+    animation: slide-in-from-bottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .slide-in-from-bottom-6 {
+    transform: translateY(24px);
+    opacity: 0;
+    animation: slide-in-from-bottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .slide-in-from-bottom-8 {
+    transform: translateY(32px);
+    opacity: 0;
+    animation: slide-in-from-bottom 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  @keyframes slide-in-from-bottom {
+    0% { transform: translateY(16px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
+/* ── Availability dual-range slider ──────────────────────────────────────── */
+.avail-range {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: transparent;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+.avail-range::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 8px;
+}
+.avail-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #10b981;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  pointer-events: all;
+  cursor: pointer;
+  margin-top: -8px;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.avail-range::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+  box-shadow: 0 3px 14px rgba(16, 185, 129, 0.35);
+}
+.avail-range::-moz-range-track {
+  background: transparent;
+  height: 8px;
+}
+.avail-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #10b981;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  pointer-events: all;
+  cursor: pointer;
+}
+.avail-range.avail-amber::-webkit-slider-thumb {
+  border-color: #f59e0b;
+}
+.avail-range.avail-amber::-webkit-slider-thumb:active {
+  box-shadow: 0 3px 14px rgba(245, 158, 11, 0.35);
+}
+.avail-range.avail-amber::-moz-range-thumb {
+  border-color: #f59e0b;
 }
 
 .field-input {
   width: 100%;
-  padding: 0.375rem 0.75rem;
+  padding: 0.5rem 1rem;
   font-size: 0.875rem;
   border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: white;
+  border-radius: 0.75rem;
+  background: #f8fafc;
   outline: none;
-  transition: box-shadow 0.15s;
+  transition: all 0.2s;
+  color: #0f172a;
 }
 .field-input:focus {
-  box-shadow: 0 0 0 2px #818cf8;
-  border-color: transparent;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
 }
 .field-label {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
-  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.375rem;
 }

@@ -1,1166 +1,711 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Plus, X, Search, ChevronRight, Award, Info, AlertCircle,
+  Users, Plus, Search, Edit2, Trash2, Key, X, Check, Copy,
+  Phone, Mail, Briefcase, Shield, ChevronDown, Upload
 } from "lucide-react";
-import { PERSONNEL as INITIAL_PERSONNEL } from "@/lib/mock-data";
-import type {
-  Personnel, Availability, PersonnelStatus,
-  EmploymentType, SkillLevel, PreferredShift,
-  LeaveRecord, LeaveType,
-} from "@/lib/types";
-import { DAYS, AVAILABILITY_LABELS, PREDEFINED_ZONES } from "@/lib/types";
 
-// ── Display maps ─────────────────────────────────────────────────────────────
-
-const ZONE_COLORS: Record<string, { chip: string; dot: string }> = {
-  Kasa:   { chip: "bg-indigo-100 text-indigo-700",  dot: "bg-indigo-400"  },
-  Reyon:  { chip: "bg-green-100 text-green-700",    dot: "bg-green-400"   },
-  Teras:  { chip: "bg-orange-100 text-orange-700",  dot: "bg-orange-400"  },
-  Mutfak: { chip: "bg-pink-100 text-pink-700",      dot: "bg-pink-400"    },
-};
-const ZONE_DEFAULT = { chip: "bg-slate-100 text-slate-700", dot: "bg-slate-400" };
-
-const STATUS_CFG: Record<PersonnelStatus, { label: string; cls: string }> = {
-  active:   { label: "Aktif",  cls: "bg-green-100 text-green-700"   },
-  on_leave: { label: "İzinde", cls: "bg-yellow-100 text-yellow-700" },
-  inactive: { label: "Pasif",  cls: "bg-slate-100 text-slate-500"   },
+type Personnel = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email: string;
+  phone: string;
+  title: string;
+  employment_type: string;
+  status: string;
+  user_access_level: string;
+  prev_score: number;
+  hero_count: number;
+  roles: string[];
+  weekly_off_day: number | null;
 };
 
-const EMP_LABELS: Record<EmploymentType, string> = {
-  full_time: "Tam Zamanlı",
-  part_time: "Yarı Zamanlı",
-  intern:    "Stajyer",
-};
+const ROLES = [
+  { value: "employee", label: "Personel" },
+  { value: "manager", label: "Müdür Yardımcısı" },
+];
 
-const AVAIL_CYCLE: Availability[] = ["available", "preferred_not", "unavailable"];
-const AVAIL_CELL: Record<Availability, { bg: string; icon: string }> = {
-  available:     { bg: "bg-green-500 hover:bg-green-600",   icon: "✓" },
-  preferred_not: { bg: "bg-yellow-400 hover:bg-yellow-500", icon: "~" },
-  unavailable:   { bg: "bg-red-500 hover:bg-red-600",       icon: "✕" },
-};
+const EMP_TYPES = [
+  { value: "full_time", label: "Tam Zamanlı" },
+  { value: "part_time", label: "Yarı Zamanlı" },
+  { value: "intern", label: "Stajyer" },
+];
 
-const AVAIL_SHORT: Record<Availability, string> = {
-  available:     "Müsait",
-  preferred_not: "Tercihen",
-  unavailable:   "İzinli",
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function initials(name: string) {
-  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function nextId(list: Personnel[]) {
-  const nums = list.map(p => parseInt(p.id.replace("P", ""), 10));
-  return `P${String(Math.max(0, ...nums) + 1).padStart(3, "0")}`;
-}
-
-function cycleAvail(a: Availability): Availability {
-  return AVAIL_CYCLE[(AVAIL_CYCLE.indexOf(a) + 1) % AVAIL_CYCLE.length];
-}
-
-function calcLeaveEntitlement(hireDateStr: string): number {
-  if (!hireDateStr) return 14;
-  const years = (Date.now() - new Date(hireDateStr).getTime()) / (365.25 * 86400 * 1000);
-  if (years < 1) return 0;
-  if (years < 5) return 14;
-  if (years < 15) return 20;
-  return 26;
-}
-
-function tenureStr(hireDateStr: string): string {
-  if (!hireDateStr) return "";
-  const ms = Date.now() - new Date(hireDateStr).getTime();
-  const years = Math.floor(ms / (365.25 * 86400 * 1000));
-  const months = Math.floor((ms % (365.25 * 86400 * 1000)) / (30.44 * 86400 * 1000));
-  if (years === 0) return `${months} ay`;
-  return months > 0 ? `${years} yıl ${months} ay` : `${years} yıl`;
-}
-
-function formatDate(d: string) {
-  if (!d) return "";
-  const [y, m, day] = d.split("-");
-  const months = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
-  return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
-}
-
-const LEAVE_LABELS: Record<LeaveType, string> = {
-  annual: "Yıllık İzin",
-  sick:   "Hastalık İzni",
-  excuse: "Mazeret İzni",
-};
-const LEAVE_COLORS: Record<LeaveType, string> = {
-  annual: "bg-indigo-100 text-indigo-700",
-  sick:   "bg-red-100 text-red-600",
-  excuse: "bg-yellow-100 text-yellow-700",
-};
-
-type Tab = "general" | "skills" | "availability" | "leave" | "performance";
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export default function PersonnelPage() {
-  const [personnel, setPersonnel] = useState<Personnel[]>(INITIAL_PERSONNEL);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("general");
+export default function PersonnelManagementPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+  const [personnel, setPersonnel] = useState<Personnel[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PersonnelStatus | "all">("all");
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [skillDropOpen, setSkillDropOpen] = useState(false);
-  const [customSkill, setCustomSkill] = useState("");
-  const skillRef = useRef<HTMLDivElement>(null);
-  const [showLeaveForm, setShowLeaveForm] = useState(false);
-  const [leaveForm, setLeaveForm] = useState<{ type: LeaveType; start_date: string; end_date: string; note: string }>({
-    type: "annual", start_date: "", end_date: "", note: "",
-  });
-  const [requestSentFor, setRequestSentFor] = useState<string | null>(null);
-  const [generalDraft, setGeneralDraft] = useState<Partial<Personnel> | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [resetLinkModal, setResetLinkModal] = useState<{ name: string; url: string } | null>(null);
+  const [resetLinkCopied, setResetLinkCopied] = useState(false);
+  const [resetLinkLoading, setResetLinkLoading] = useState<string | null>(null);
+
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResults, setBulkResults] = useState<any[]>([]);
 
   const [newForm, setNewForm] = useState({
-    name: "", title: "", phone: "", email: "",
-    employment_type: "full_time" as EmploymentType,
+    name: "", email: "", phone: "", title: "", employment_type: "full_time", role: "employee",
   });
+  const [addError, setAddError] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+
+  // Edit modal state
+  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", user_access_level: "employee", roles: [] as string[], weekly_off_day: null as number | null });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+
+  const fetchPersonnel = async (u: any) => {
+    setLoading(true);
+    try {
+      // Şef ise kendi departmanı, sahip/supervisor ise tüm şube
+      const param = u.department_id
+        ? `department_id=${u.department_id}`
+        : `location_id=${u.location_id}`;
+      const res = await fetch(`/api/personnel?${param}`);
+      const data = await res.json();
+      setPersonnel(Array.isArray(data) ? data : []);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (skillRef.current && !skillRef.current.contains(e.target as Node)) {
-        setSkillDropOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    try {
+      const stored = localStorage.getItem("optishift_manager_user");
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (!parsed) { router.push("/login"); return; }
+      setUser(parsed);
+      setMounted(true);
+    } catch { router.push("/login"); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { setGeneralDraft(null); }, [selectedId]);
+  useEffect(() => {
+    if (!user) return;
+    fetchPersonnel(user);
 
-  const selected = personnel.find(p => p.id === selectedId) ?? null;
+    // Load departments from settings localStorage
+    try {
+      const locId = localStorage.getItem("optishift_selected_location") || user.location_id;
+      const raw = localStorage.getItem(`optishift_settings_mock_${locId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.departments)) setDepartments(parsed.departments);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, router]);
 
-  const filtered = personnel.filter(p => {
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
-    const q = search.toLowerCase();
-    if (q && !p.name.toLowerCase().includes(q) &&
-        !p.title.toLowerCase().includes(q) &&
-        !p.employee_id.includes(q)) return false;
-    return true;
-  });
+  const handleAdd = async () => {
+    setAddError("");
+    if (!newForm.name || !newForm.email) { setAddError("Ad ve email zorunlu"); return; }
+    setAddLoading(true);
+    try {
+      const res = await fetch("/api/personnel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          org_id: user.org_id,
+          location_id: user.location_id,
+          department_id: user.department_id ?? null,
+          ...newForm,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 402 && data.upgrade) {
+          setAddError(`${data.error} → Faturalandırma sayfasından planınızı yükseltin.`);
+        } else {
+          setAddError(data.error);
+        }
+        setAddLoading(false);
+        return;
+      }
+      setTempPassword(data.temp_password);
+      setShowAddModal(false);
+      setNewForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", role: "employee" });
+      fetchPersonnel(user);
+    } catch { setAddError("Sunucu hatası"); }
+    setAddLoading(false);
+  };
 
-  function patch(id: string, updates: Partial<Personnel>) {
-    setPersonnel(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }
+  const handleDeactivate = async (id: string) => {
+    if (!confirm("Bu personeli devre dışı bırakmak istediğinize emin misiniz?")) return;
+    await fetch(`/api/personnel?id=${id}`, { method: "DELETE" });
+    fetchPersonnel(user);
+  };
 
-  function openDrawer(id: string) {
-    setSelectedId(id);
-    setActiveTab("general");
-    setSkillDropOpen(false);
-  }
+  const handleGenerateResetLink = async (p: Personnel) => {
+    if (!p.user_id) return;
+    setResetLinkLoading(p.id);
+    try {
+      const res = await fetch("/api/auth/admin-reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: p.user_id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetLinkModal({ name: p.name, url: data.resetUrl });
+        setResetLinkCopied(false);
+      }
+    } finally {
+      setResetLinkLoading(null);
+    }
+  };
 
-  function closeDrawer() { setSelectedId(null); }
-
-  // Çalışma alanları
-  function addZone(zone: string) {
-    if (!selected || selected.skills.includes(zone)) return;
-    patch(selected.id, {
-      skills: [...selected.skills, zone],
-      skill_levels: { ...selected.skill_levels, [zone]: "secondary" as SkillLevel },
+  const openEdit = (p: Personnel) => {
+    setEditingPersonnel(p);
+    setEditForm({
+      name: p.name,
+      phone: p.phone || "",
+      title: p.title || "",
+      employment_type: p.employment_type || "full_time",
+      user_access_level: p.user_access_level || "employee",
+      roles: Array.isArray(p.roles) ? p.roles : [],
+      weekly_off_day: p.weekly_off_day ?? null,
     });
-    setSkillDropOpen(false);
-    setCustomSkill("");
-  }
+    setEditError("");
+  };
 
-  function removeZone(zone: string) {
-    if (!selected) return;
-    const lvls = { ...selected.skill_levels };
-    delete lvls[zone];
-    patch(selected.id, { skills: selected.skills.filter(s => s !== zone), skill_levels: lvls });
-  }
+  const handleEdit = async () => {
+    if (!editingPersonnel) return;
+    setEditLoading(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/personnel?id=${editingPersonnel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEditError(data.error || "Güncelleme hatası"); setEditLoading(false); return; }
+      setEditingPersonnel(null);
+      fetchPersonnel(user);
+    } catch { setEditError("Sunucu hatası"); }
+    setEditLoading(false);
+  };
 
-  // Add modal
-  function handleAdd() {
-    if (!newForm.name.trim()) return;
-    const id = nextId(personnel);
-    const p: Personnel = {
-      id, name: newForm.name.trim(),
-      employee_id: String(100000 + parseInt(id.replace("P", ""), 10)),
-      phone: newForm.phone, email: newForm.email,
-      hire_date: new Date().toISOString().slice(0, 10),
-      contract_end_date: "",
-      title: newForm.title || "Çalışan",
-      employment_type: newForm.employment_type,
-      status: "active", erp_id: "", notes: "",
-      skills: [], skill_levels: {},
-      availability: { 0: "available", 1: "available", 2: "available", 3: "available", 4: "available", 5: "available", 6: "available" },
-      preferred_shift: "any", max_weekly_hours: 45,
-      overtime_approved: false, prev_score: 0, hero_count: 0,
-      no_show_count: 0, late_count: 0,
-      annual_leave_days_total: 0, leave_records: [],
-    };
-    setPersonnel(prev => [...prev, p]);
-    setNewForm({ name: "", title: "", phone: "", email: "", employment_type: "full_time" });
-    setIsAddOpen(false);
-    openDrawer(id);
-  }
+  const handleBulkUpload = async () => {
+    setAddError("");
+    if (!bulkText.trim()) return;
+    
+    setAddLoading(true);
+    const lines = bulkText.trim().split("\n");
+    const list = lines.map(line => {
+      const parts = line.split("\t"); // Assuming Excel copy (TSV)
+      return {
+        name: parts[0]?.trim(),
+        email: parts[1]?.trim(),
+        phone: parts[2]?.trim(),
+        title: parts[3]?.trim()
+      };
+    }).filter(p => p.name && p.email);
 
-  const TITLE_SUGGESTIONS = ["Kasiyer", "Kasa Sorumlusu", "Barista", "Garson", "Reyon Görevlisi", "Mutfak Görevlisi", "Teras Görevlisi", "Mağaza Şefi", "Stajyer"];
-  const TABS: { id: Tab; label: string }[] = [
-    { id: "general",      label: "Genel" },
-    { id: "skills",       label: "Yetenekler" },
-    { id: "availability", label: "Müsaitlik" },
-    { id: "leave",        label: "İzin" },
-    { id: "performance",  label: "Performans" },
-  ];
-  const freeZones = selected ? PREDEFINED_ZONES.filter(z => !selected.skills.includes(z)) : [];
-  const teamAvg = Math.round(personnel.reduce((a, p) => a + p.prev_score, 0) / (personnel.length || 1));
+    try {
+      const res = await fetch("/api/personnel/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          org_id: user.org_id,
+          location_id: user.location_id,
+          personnel_list: list,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAddError(data.error); setAddLoading(false); return; }
+      
+      setBulkResults(data.results);
+      setBulkText("");
+      fetchPersonnel(user);
+    } catch { setAddError("Sunucu hatası"); }
+    setAddLoading(false);
+  };
 
-  const gen = selected ? (generalDraft ? { ...selected, ...generalDraft } : selected) : null;
-  const isDirty = generalDraft !== null && Object.keys(generalDraft).length > 0;
-  function updateDraft(updates: Partial<Personnel>) {
-    setGeneralDraft(prev => ({ ...(prev ?? {}), ...updates }));
-  }
-  function saveGeneral() {
-    if (!generalDraft || !selected) return;
-    patch(selected.id, generalDraft);
-    setGeneralDraft(null);
-  }
+  const filtered = personnel.filter(
+    (p) => p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.email?.toLowerCase().includes(search.toLowerCase()) ||
+      p.title?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (!mounted) return <div className="space-y-6 max-w-5xl" />;
+
+  const active = personnel.filter(p => p.status === "active").length;
 
   return (
-    <div className="space-y-5 max-w-5xl">
-
+    <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Personel</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{personnel.length} çalışan kayıtlı</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Personel Yönetimi</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{active} aktif çalışan</p>
         </div>
-        <button
-          onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus size={16} /> Personel Ekle
-        </button>
-      </div>
-
-      {/* Search + Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="İsim, ünvan veya sicil no..."
-            className="field-input pl-9"
-          />
-        </div>
-        <div className="flex gap-1">
-          {(["all", "active", "on_leave", "inactive"] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                statusFilter === s ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {s === "all" ? "Tümü" : STATUS_CFG[s as PersonnelStatus].label}
-              {s !== "all" && (
-                <span className="ml-1 opacity-60">({personnel.filter(p => p.status === s).length})</span>
-              )}
-            </button>
-          ))}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors shadow-sm"
+          >
+            <Upload size={16} /> <span className="hidden sm:inline">Toplu Yükle</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-3 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-indigo-100"
+          >
+            <Plus size={16} /> <span className="hidden sm:inline">Personel Ekle</span><span className="sm:hidden">Ekle</span>
+          </button>
         </div>
       </div>
 
-      {/* List */}
-      <div className="space-y-2">
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-slate-400 text-sm">Arama kriterlerine uyan personel bulunamadı.</div>
-        )}
-        {filtered.map(p => {
-          const sc = STATUS_CFG[p.status];
-          const isSelected = p.id === selectedId;
-          return (
-            <button
-              key={p.id}
-              onClick={() => isSelected ? closeDrawer() : openDrawer(p.id)}
-              className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl border transition-all text-left ${
-                isSelected ? "bg-indigo-50 border-indigo-200 shadow-sm" : "bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm"
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 ${
-                p.status === "inactive" ? "bg-slate-400" : "bg-indigo-600"
-              }`}>
-                {initials(p.name)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-slate-800">{p.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sc.cls}`}>{sc.label}</span>
-                  {p.employment_type !== "full_time" && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{EMP_LABELS[p.employment_type]}</span>
-                  )}
-                </div>
-                <div className="text-xs text-slate-500 mt-0.5">{p.title} · Sicil: {p.employee_id}</div>
-                <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {p.skills.map(s => {
-                    const c = ZONE_COLORS[s] ?? ZONE_DEFAULT;
-                    const isPrimary = p.skill_levels[s] === "primary";
-                    return (
-                      <span key={s} className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.chip}`}>
-                        #{s}{isPrimary && <span className="ml-0.5 opacity-50">●</span>}
-                      </span>
-                    );
-                  })}
-                  {p.skills.length === 0 && <span className="text-xs text-slate-400 italic">Yetenek atanmamış</span>}
-                </div>
-              </div>
-              <div className="text-right shrink-0 mr-1">
-                <div className="text-lg font-bold text-indigo-600">{p.prev_score}p</div>
-                <div className="text-xs text-slate-400">Adil Puan</div>
-                {p.hero_count > 0 && (
-                  <div className="text-xs text-yellow-600 mt-0.5">★ {p.hero_count}×</div>
-                )}
-                {(() => {
-                  const ent = p.annual_leave_days_total || calcLeaveEntitlement(p.hire_date);
-                  const used = p.leave_records.filter(r => r.type === "annual").reduce((s, r) => s + r.days, 0);
-                  const rem = ent - used;
-                  if (rem <= 0) return <div className="text-[10px] text-red-500 mt-0.5">İzin tükendi</div>;
-                  if (rem <= 3) return <div className="text-[10px] text-orange-500 mt-0.5">{rem}g izin kaldı</div>;
-                  return null;
-                })()}
-              </div>
-              <ChevronRight size={16} className={`text-slate-300 shrink-0 transition-transform ${isSelected ? "rotate-90" : ""}`} />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── DRAWER BACKDROP ───────────────────────────────────────────────── */}
-      {selected && (
-        <div className="fixed inset-0 bg-black/20 z-40" onClick={closeDrawer} />
+      {/* Temp password banner */}
+      {tempPassword && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="font-bold text-emerald-800 text-sm">✅ Personel eklendi!</p>
+            <p className="text-emerald-700 text-sm mt-1">
+              Geçici şifre: <span className="font-mono font-bold bg-emerald-100 px-2 py-0.5 rounded">{tempPassword}</span>
+              — Bu şifreyi personele iletin, giriş yapıp değiştirebilirler.
+            </p>
+          </div>
+          <button onClick={() => setTempPassword(null)} className="text-emerald-500 hover:text-emerald-700">
+            <X size={18} />
+          </button>
+        </div>
       )}
 
-      {/* ── DRAWER PANEL ──────────────────────────────────────────────────── */}
-      <div className={`fixed inset-y-0 right-0 w-[480px] bg-white shadow-2xl z-50 flex flex-col transition-transform duration-300 ${
-        selected ? "translate-x-0" : "translate-x-full"
-      }`}>
-        {selected && <>
-          {/* Drawer header */}
-          <div className="px-6 pt-6 pb-0 border-b border-slate-100 shrink-0">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${
-                  selected.status === "inactive" ? "bg-slate-400" : "bg-indigo-600"
-                }`}>
-                  {initials(selected.name)}
-                </div>
-                <div>
-                  <div className="font-bold text-slate-800 text-lg leading-tight">{selected.name}</div>
-                  <div className="text-slate-500 text-sm">{selected.title}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <select
-                  value={selected.status}
-                  onChange={e => patch(selected.id, { status: e.target.value as PersonnelStatus })}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer outline-none ${STATUS_CFG[selected.status].cls}`}
-                >
-                  <option value="active">Aktif</option>
-                  <option value="on_leave">İzinde</option>
-                  <option value="inactive">Pasif</option>
-                </select>
-                <button onClick={closeDrawer} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 pb-0">
-              {TABS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`px-3 py-2 text-xs font-medium rounded-t-lg transition-colors border-b-2 ${
-                    activeTab === t.id
-                      ? "text-indigo-600 border-indigo-600 bg-indigo-50/50"
-                      : "text-slate-500 border-transparent hover:text-slate-700"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Drawer body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 pb-2">
-
-            {/* ── GENEL BİLGİLER ──────────────────────────────────────── */}
-            {activeTab === "general" && gen && (
-              <div className="space-y-4">
-
-                {/* Kimlik & İletişim */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                  <div className="px-5 py-2.5 bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kimlik & İletişim</span>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-slate-100">
-                    <div className="px-4 py-3.5">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Sicil No</div>
-                      <input value={gen.employee_id} onChange={e => updateDraft({ employee_id: e.target.value })}
-                        className="w-full text-sm text-slate-800 bg-transparent outline-none placeholder-slate-300" />
-                    </div>
-                    <div className="px-4 py-3.5">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">ERP ID</div>
-                      <input value={gen.erp_id} onChange={e => updateDraft({ erp_id: e.target.value })}
-                        className="w-full text-sm text-slate-800 bg-transparent outline-none placeholder-slate-300" placeholder="—" />
-                    </div>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Telefon</div>
-                    <input value={gen.phone} onChange={e => updateDraft({ phone: e.target.value })}
-                      className="w-full text-sm text-slate-800 bg-transparent outline-none placeholder-slate-300" placeholder="+90 5xx xxx xx xx" />
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">E-posta</div>
-                    <input value={gen.email} onChange={e => updateDraft({ email: e.target.value })}
-                      className="w-full text-sm text-slate-800 bg-transparent outline-none placeholder-slate-300" placeholder="ad@sirket.com" />
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-slate-100">
-                    <div className="px-4 py-3.5">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">İşe Giriş</div>
-                      <input type="date" value={gen.hire_date} onChange={e => updateDraft({ hire_date: e.target.value })}
-                        className="w-full text-sm text-slate-800 bg-transparent outline-none" />
-                    </div>
-                    <div className="px-4 py-3.5">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Sözleşme Bitiş</div>
-                      <input type="date" value={gen.contract_end_date} onChange={e => updateDraft({ contract_end_date: e.target.value })}
-                        className="w-full text-sm text-slate-800 bg-transparent outline-none" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pozisyon */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                  <div className="px-5 py-2.5 bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pozisyon</span>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Ünvan</div>
-                    <input value={gen.title} onChange={e => updateDraft({ title: e.target.value })}
-                      className="w-full text-sm text-slate-800 bg-transparent outline-none placeholder-slate-300"
-                      list="drawer-title-list" placeholder="Kasiyer, Barista, Garson…" />
-                    <datalist id="drawer-title-list">
-                      {TITLE_SUGGESTIONS.map(t => <option key={t} value={t} />)}
-                    </datalist>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Çalışma Türü</div>
-                    <div className="flex gap-2">
-                      {(["full_time", "part_time", "intern"] as EmploymentType[]).map(t => (
-                        <button key={t}
-                          onClick={() => updateDraft({ employment_type: t })}
-                          className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                            gen.employment_type === t
-                              ? "bg-slate-800 text-white border-slate-800"
-                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
-                          }`}
-                        >{EMP_LABELS[t]}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vardiya Tercihleri */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                  <div className="px-5 py-2.5 bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vardiya Tercihleri</span>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Tercih Edilen Vardiya</div>
-                    <div className="flex gap-2">
-                      {([["morning", "Sabah (08-16)"], ["evening", "Akşam (16-24)"], ["any", "Fark Etmez"]] as [PreferredShift, string][]).map(([v, label]) => (
-                        <button key={v}
-                          onClick={() => updateDraft({ preferred_shift: v })}
-                          className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                            gen.preferred_shift === v
-                              ? "bg-indigo-600 text-white border-indigo-600"
-                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
-                          }`}
-                        >{label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Max Haftalık Saat</div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => updateDraft({ max_weekly_hours: Math.max(8, gen.max_weekly_hours - 1) })}
-                        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-base transition-colors">−</button>
-                      <span className="text-base font-bold text-slate-800 w-8 text-center">{gen.max_weekly_hours}</span>
-                      <button onClick={() => updateDraft({ max_weekly_hours: Math.min(60, gen.max_weekly_hours + 1) })}
-                        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-base transition-colors">+</button>
-                      <span className="text-xs text-slate-400">saat / hafta</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <div>
-                      <div className="text-sm font-medium text-slate-700">Fazla Mesai Onayı</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Motor bu personeli OT'ye yazabilir</div>
-                    </div>
-                    <button
-                      onClick={() => updateDraft({ overtime_approved: !gen.overtime_approved })}
-                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${gen.overtime_approved ? "bg-indigo-600" : "bg-slate-300"}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${gen.overtime_approved ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Notlar */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                  <div className="px-5 py-2.5 bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notlar</span>
-                  </div>
-                  <div className="px-4 py-3.5">
-                    <textarea value={gen.notes} onChange={e => updateDraft({ notes: e.target.value })}
-                      rows={3} placeholder="Bu personel hakkında not ekle…"
-                      className="w-full text-sm text-slate-800 bg-transparent outline-none resize-none placeholder-slate-300" />
-                  </div>
-                </div>
-
-                {/* Tehlike bölgesi */}
-                <button
-                  onClick={() => {
-                    if (!confirm(`${selected.name} silinsin mi?`)) return;
-                    setPersonnel(prev => prev.filter(p => p.id !== selected.id));
-                    closeDrawer();
-                  }}
-                  className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                >
-                  Bu personeli sil
-                </button>
-
-              </div>
-            )}
-
-            {/* ── YETENEKLER ──────────────────────────────────────────── */}
-            {activeTab === "skills" && (
-              <div className="space-y-4">
-
-                {/* ── Çalışma İstasyonları ── */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-700">Çalışma İstasyonları</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Hangi istasyonlara atanabileceğini belirler — shift oluştururken OR-Tools bu bilgiyi kullanır</div>
-                    </div>
-                    <div className="relative" ref={skillRef}>
-                      <button
-                        onClick={() => setSkillDropOpen(!skillDropOpen)}
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors border border-indigo-200"
-                      >
-                        <Plus size={12} /> Alan Ekle
-                      </button>
-                      {skillDropOpen && (
-                        <div className="absolute right-0 top-9 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-10 overflow-hidden">
-                          {freeZones.length > 0 ? freeZones.map(z => {
-                            const c = ZONE_COLORS[z] ?? ZONE_DEFAULT;
-                            return (
-                              <button key={z} onClick={() => addZone(z)}
-                                className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 transition-colors">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${c.dot}`} />
-                                {z}
-                              </button>
-                            );
-                          }) : (
-                            <div className="px-4 py-3 text-xs text-slate-400">Tüm bölgeler atandı.</div>
-                          )}
-                          <div className="border-t border-slate-100 px-3 py-2.5">
-                            <div className="text-xs text-slate-400 mb-1.5">Özel alan:</div>
-                            <div className="flex gap-1.5">
-                              <input value={customSkill}
-                                onChange={e => setCustomSkill(e.target.value)}
-                                onKeyDown={e => e.key === "Enter" && customSkill.trim() && addZone(customSkill.trim())}
-                                placeholder="Örn: Bar, Resepsiyon…"
-                                className="field-input text-xs py-1" />
-                              <button onClick={() => customSkill.trim() && addZone(customSkill.trim())}
-                                className="px-2 bg-indigo-600 text-white text-xs rounded-lg shrink-0">+</button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selected.skills.length === 0 ? (
-                    <div className="text-center py-8 text-slate-400 text-sm">
-                      Henüz alan atanmamış.
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {selected.skills.map(zone => {
-                        const level: SkillLevel = selected.skill_levels[zone] ?? "secondary";
-                        const c = ZONE_COLORS[zone] ?? ZONE_DEFAULT;
-                        return (
-                          <div key={zone} className="flex items-center gap-3 px-4 py-3.5">
-                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 ${c.chip}`}>{zone}</span>
-                            <div className="flex-1" />
-                            <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0 text-xs font-medium">
-                              <button
-                                onClick={() => patch(selected.id, { skill_levels: { ...selected.skill_levels, [zone]: "primary" } })}
-                                className={`px-3 py-1.5 transition-colors ${level === "primary" ? "bg-indigo-600 text-white" : "bg-white text-slate-400 hover:text-slate-600"}`}
-                              >Ana Alan</button>
-                              <button
-                                onClick={() => patch(selected.id, { skill_levels: { ...selected.skill_levels, [zone]: "secondary" } })}
-                                className={`px-3 py-1.5 border-l border-slate-200 transition-colors ${level === "secondary" ? "bg-slate-600 text-white" : "bg-white text-slate-400 hover:text-slate-600"}`}
-                              >Yardımcı</button>
-                            </div>
-                            <button onClick={() => removeZone(zone)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors shrink-0">
-                              <X size={13} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* İstasyon açıklaması */}
-                  <div className="border-t border-slate-100 px-5 py-3 flex gap-2 bg-slate-50">
-                    <Info size={12} className="text-slate-400 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      <span className="font-medium text-slate-500">Ana</span> — bu istasyona birincil atanır, kota hesabında önceliklidir.{" "}
-                      <span className="font-medium text-slate-500">Yardımcı</span> — ihtiyaç halinde atanabilir; uyumsuzlukta uyarı verilir, müdür ezebilir.
-                    </p>
-                  </div>
-                </div>
-
-                {/* ── Takım İstasyon Kapsamı ── */}
-                <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-slate-100">
-                    <div className="text-sm font-semibold text-slate-700">Takım İstasyon Kapsamı</div>
-                    <div className="text-xs text-slate-400 mt-0.5">İstasyon başına kaç kişi atanabilir</div>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {PREDEFINED_ZONES.map(zone => {
-                      const total = personnel.filter(p => p.skills.includes(zone)).length;
-                      const primaryCount = personnel.filter(p => p.skills.includes(zone) && p.skill_levels[zone] === "primary").length;
-                      const c = ZONE_COLORS[zone] ?? ZONE_DEFAULT;
-                      const thisHas = selected.skills.includes(zone);
-                      return (
-                        <div key={zone} className={`flex items-center gap-3 px-5 py-3.5 ${!thisHas ? "opacity-30" : ""}`}>
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 ${c.chip}`}>{zone}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-1.5">
-                            <div className={`h-1.5 rounded-full transition-all ${c.dot}`}
-                              style={{ width: `${(total / personnel.length) * 100}%` }} />
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <span className="text-xs font-semibold text-slate-600">{total}</span>
-                            <span className="text-xs text-slate-300 mx-1">·</span>
-                            <span className="text-xs text-slate-400">{primaryCount} ana</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* ── MÜSAİTLİK ───────────────────────────────────────────── */}
-            {activeTab === "availability" && (() => {
-              const isSent = requestSentFor === selected.id;
-              const avail = selected.availability;
-              const counts = {
-                available:     Object.values(avail).filter(v => v === "available").length,
-                preferred_not: Object.values(avail).filter(v => v === "preferred_not").length,
-                unavailable:   Object.values(avail).filter(v => v === "unavailable").length,
-              };
-
-              return (
-                <div className="space-y-5">
-
-                  {/* Müsaitlik isteği CTA */}
-                  <div className="rounded-2xl border border-slate-200 p-5">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                        <Info size={16} className="text-indigo-500" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-700">Müsaitlik İsteği</div>
-                        <div className="text-xs text-slate-400 mt-0.5">
-                          {selected.name} uygulamada bildirim alır — "Haftalık müsaitlik talebi geldi" — ve kendi gireceği ekrandan doldurur.
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setRequestSentFor(selected.id)}
-                      disabled={isSent}
-                      className={`w-full py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        isSent
-                          ? "bg-green-100 text-green-700 cursor-default"
-                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                      }`}
-                    >
-                      {isSent ? "✓ Bildirim Gönderildi" : "Müsaitlik İsteği Gönder"}
-                    </button>
-                    {isSent && (
-                      <p className="text-xs text-slate-400 text-center mt-2">
-                        Gönderi tarihi: Bugün
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Mevcut müsaitlik — read only */}
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mevcut Durum</p>
-                      <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Çalışan tarafından doldurulur</span>
-                    </div>
-                    <div className="grid grid-cols-7 gap-2">
-                      {DAYS.map((day, d) => {
-                        const status: Availability = avail[d] ?? "available";
-                        const cell = AVAIL_CELL[status];
-                        return (
-                          <div key={day} className="text-center">
-                            <div className="text-xs text-slate-400 mb-1.5 font-medium">{day.slice(0, 3)}</div>
-                            <div className={`w-full aspect-square rounded-xl ${cell.bg.split(" ")[0]} flex items-center justify-center text-white text-sm font-bold shadow-sm`}>
-                              {cell.icon}
-                            </div>
-                            <div className="text-[10px] text-slate-400 mt-1.5 leading-tight">{AVAIL_SHORT[status]}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex gap-4 mt-5 text-xs text-slate-500 flex-wrap">
-                      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-500 inline-block" /> Müsait</span>
-                      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-400 inline-block" /> Tercih Etmiyor</span>
-                      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 inline-block" /> Kesinlikle Gelemez</span>
-                    </div>
-                  </section>
-
-                  {/* Özet */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {(["available", "preferred_not", "unavailable"] as const).map(s => {
-                      const colorsMap: Record<Availability, string> = {
-                        available:     "bg-green-50 border-green-200 text-green-700",
-                        preferred_not: "bg-yellow-50 border-yellow-200 text-yellow-700",
-                        unavailable:   "bg-red-50 border-red-200 text-red-700",
-                      };
-                      const icons: Record<Availability, string> = { available: "✓", preferred_not: "~", unavailable: "✕" };
-                      return (
-                        <div key={s} className={`border rounded-xl p-3 text-center ${colorsMap[s]}`}>
-                          <div className="text-xl font-bold">{icons[s]} {counts[s]}</div>
-                          <div className="text-xs mt-0.5 opacity-75">{AVAIL_SHORT[s]}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* OR-Tools notu */}
-                  <div className="bg-amber-50 rounded-xl p-4">
-                    <div className="flex gap-2">
-                      <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-700">
-                        <strong>Kırmızı günler</strong> OR-Tools motoruna kesin kısıt olarak girilir — bu personel o güne hiçbir koşulda yazılmaz.{" "}
-                        <strong>Sarı günler</strong> yumuşak kısıt olarak değerlendirilir, motor kaçınmaya çalışır ancak zorunluysa yazabilir.
-                      </p>
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })()}
-
-            {/* ── İZİN YÖNETİMİ ───────────────────────────────────────── */}
-            {activeTab === "leave" && (() => {
-              const entitlement = selected.annual_leave_days_total || calcLeaveEntitlement(selected.hire_date);
-              const annualUsed = selected.leave_records
-                .filter(r => r.type === "annual")
-                .reduce((s, r) => s + r.days, 0);
-              const remaining = Math.max(0, entitlement - annualUsed);
-              const pct = entitlement > 0 ? Math.min(100, Math.round((annualUsed / entitlement) * 100)) : 0;
-              const isExhausted = remaining === 0 && entitlement > 0;
-              const isLow = remaining > 0 && remaining <= 3;
-
-              function addLeave() {
-                if (!leaveForm.start_date || !leaveForm.end_date) return;
-                // iş günü sayısı
-                let days = 0;
-                const cur = new Date(leaveForm.start_date);
-                const end = new Date(leaveForm.end_date);
-                while (cur <= end) { if (cur.getDay() !== 0 && cur.getDay() !== 6) days++; cur.setDate(cur.getDate() + 1); }
-                if (days <= 0) return;
-                const newRec: LeaveRecord = {
-                  id: `L${Date.now()}`,
-                  type: leaveForm.type,
-                  start_date: leaveForm.start_date,
-                  end_date: leaveForm.end_date,
-                  days,
-                  note: leaveForm.note,
-                };
-                patch(selected!.id, { leave_records: [...selected!.leave_records, newRec] });
-                setLeaveForm({ type: "annual", start_date: "", end_date: "", note: "" });
-                setShowLeaveForm(false);
-              }
-
-              function deleteLeave(id: string) {
-                patch(selected!.id, { leave_records: selected!.leave_records.filter(r => r.id !== id) });
-              }
-
-              return (
-                <div className="space-y-4">
-
-                  {/* Bakiye kartı */}
-                  <div className="rounded-2xl bg-slate-800 p-5 text-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-xs text-slate-400 mb-0.5">Yıllık İzin Bakiyesi</div>
-                        <div className="text-xs text-slate-400">Kıdem: {tenureStr(selected.hire_date)} — {entitlement} iş günü hak</div>
-                      </div>
-                      <div className={`text-4xl font-bold ${isExhausted ? "text-red-400" : isLow ? "text-orange-300" : "text-emerald-400"}`}>
-                        {remaining}
-                        <span className="text-base font-normal text-slate-400 ml-1">gün</span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-700 rounded-full h-1.5 mb-3">
-                      <div
-                        className={`h-1.5 rounded-full transition-all ${isExhausted ? "bg-red-400" : isLow ? "bg-orange-400" : "bg-emerald-400"}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 text-center">
-                      <div>
-                        <div className="text-lg font-semibold">{entitlement}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">Toplam Hak</div>
-                      </div>
-                      <div className="border-x border-slate-700">
-                        <div className="text-lg font-semibold text-amber-300">{annualUsed}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">Kullanılan</div>
-                      </div>
-                      <div>
-                        <div className={`text-lg font-semibold ${isExhausted ? "text-red-400" : isLow ? "text-orange-300" : "text-emerald-400"}`}>{remaining}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">Kalan</div>
-                      </div>
-                    </div>
-                    {isExhausted && <div className="mt-3 text-xs text-red-300 text-center">Yıllık izin hakkı tükendi.</div>}
-                    {isLow && <div className="mt-3 text-xs text-orange-300 text-center">Sadece {remaining} gün kaldı.</div>}
-                  </div>
-
-                  {/* İzin geçmişi */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">İzin Geçmişi</p>
-                      <button
-                        onClick={() => { setShowLeaveForm(v => !v); }}
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
-                      >
-                        <Plus size={13} /> İzin Ekle
-                      </button>
-                    </div>
-
-                    {/* İzin ekleme formu */}
-                    {showLeaveForm && (
-                      <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-3">
-                        <div className="flex gap-2">
-                          {(["annual", "sick", "excuse"] as LeaveType[]).map(t => (
-                            <button
-                              key={t}
-                              onClick={() => setLeaveForm(f => ({ ...f, type: t }))}
-                              className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                leaveForm.type === t ? "bg-indigo-600 text-white" : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-300"
-                              }`}
-                            >
-                              {LEAVE_LABELS[t].replace(" İzni", "")}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="field-label">Başlangıç</label>
-                            <input type="date" value={leaveForm.start_date}
-                              onChange={e => setLeaveForm(f => ({ ...f, start_date: e.target.value }))}
-                              className="field-input" />
-                          </div>
-                          <div>
-                            <label className="field-label">Bitiş</label>
-                            <input type="date" value={leaveForm.end_date}
-                              min={leaveForm.start_date}
-                              onChange={e => setLeaveForm(f => ({ ...f, end_date: e.target.value }))}
-                              className="field-input" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="field-label">Not (isteğe bağlı)</label>
-                          <input value={leaveForm.note}
-                            onChange={e => setLeaveForm(f => ({ ...f, note: e.target.value }))}
-                            className="field-input" placeholder="Açıklama..." />
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setShowLeaveForm(false)}
-                            className="flex-1 py-2 text-xs border border-slate-200 rounded-lg hover:bg-white text-slate-600">
-                            İptal
-                          </button>
-                          <button
-                            onClick={addLeave}
-                            disabled={!leaveForm.start_date || !leaveForm.end_date}
-                            className="flex-1 py-2 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg font-medium">
-                            Kaydet
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Kayıt listesi */}
-                    {selected.leave_records.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
-                        Kayıtlı izin yok.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {[...selected.leave_records]
-                          .sort((a, b) => b.start_date.localeCompare(a.start_date))
-                          .map(rec => (
-                          <div key={rec.id} className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-100">
-                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${LEAVE_COLORS[rec.type]}`}>
-                              {LEAVE_LABELS[rec.type]}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm text-slate-700">
-                                {formatDate(rec.start_date)}
-                                {rec.start_date !== rec.end_date && <> — {formatDate(rec.end_date)}</>}
-                              </div>
-                              {rec.note && <div className="text-xs text-slate-400 truncate">{rec.note}</div>}
-                            </div>
-                            <div className="text-sm font-semibold text-slate-600 shrink-0">{rec.days}g</div>
-                            <button onClick={() => deleteLeave(rec.id)}
-                              className="p-1 rounded-lg hover:bg-red-100 text-slate-300 hover:text-red-400 transition-colors shrink-0">
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              );
-            })()}
-
-            {/* ── PERFORMANS ──────────────────────────────────────────── */}
-            {activeTab === "performance" && (() => {
-              const sorted = [...personnel].sort((a, b) => b.prev_score - a.prev_score);
-              const rank = sorted.findIndex(p => p.id === selected.id) + 1;
-              const maxScore = sorted[0]?.prev_score ?? 1;
-              const diff = selected.prev_score - teamAvg;
-              const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-              const diffColor = diff > 0 ? "text-orange-500" : diff < 0 ? "text-emerald-600" : "text-slate-400";
-              const diffNote = diff > 0
-                ? "Motor önümüzdeki dönem bu kişiye daha az ağır vardiya verecek"
-                : diff < 0
-                ? "Motor bu kişiye öncelik tanıyacak, puan dengelenecek"
-                : "Takımla tam dengeli";
-
-              const AVATAR_COLORS = ["bg-indigo-500","bg-violet-500","bg-sky-500","bg-emerald-500","bg-amber-500","bg-rose-500"];
-
-              return (
-                <div className="space-y-4">
-
-                  {/* Puan kartı */}
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <div className="flex items-center gap-4 px-5 py-4">
-                      <div>
-                        <div className="text-4xl font-bold text-slate-800 leading-none">{selected.prev_score}</div>
-                        <div className="text-xs text-slate-400 mt-1">Kümülatif Adil Puan</div>
-                      </div>
-                      <div className="flex-1" />
-                      <div className="text-right">
-                        <div className={`text-lg font-bold ${diffColor}`}>{diffLabel}p</div>
-                        <div className="text-xs text-slate-400">takım ort. {teamAvg}p</div>
-                      </div>
-                    </div>
-                    <div className="px-5 pb-1">
-                      <div className="bg-slate-100 rounded-full h-1.5">
-                        <div className="h-1.5 rounded-full bg-indigo-500 transition-all"
-                          style={{ width: `${maxScore > 0 ? (selected.prev_score / maxScore) * 100 : 0}%` }} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 mt-3">
-                      <span className="text-xs text-slate-500">{diffNote}</span>
-                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{rank}/{personnel.length}. sıra</span>
-                    </div>
-                  </div>
-
-                  {/* Güvenilirlik */}
-                  <div className="rounded-2xl border border-slate-200 divide-y divide-slate-100">
-                    <div className="px-5 py-3 flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Güvenilirlik</span>
-                      <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Yoklama modülünden otomatik</span>
-                    </div>
-                    {[
-                      { label: "Gelmeme (No-Show)", value: selected.no_show_count, warnAt: 2 },
-                      { label: "Geç Gelme",         value: selected.late_count,    warnAt: 4 },
-                    ].map(row => {
-                      const isWarn = row.value >= row.warnAt;
-                      const countColor = row.value === 0 ? "text-slate-400" : isWarn ? "text-red-500" : "text-orange-500";
-                      return (
-                        <div key={row.label} className="flex items-center gap-4 px-5 py-3.5">
-                          <span className="flex-1 text-sm text-slate-700">{row.label}</span>
-                          {isWarn && <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">Dikkat</span>}
-                          <span className={`text-base font-bold shrink-0 ${countColor}`}>{row.value}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Kahraman bonusu */}
-                  <div className="rounded-2xl border border-slate-200 px-5 py-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                      <Award size={18} className="text-amber-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-700">Kahraman Bonusu</div>
-                      <div className="text-xs text-slate-400">Son dakika açık vardiyayı kabul et → ×1.5 puan</div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      {selected.hero_count === 0
-                        ? <span className="text-xs text-slate-400">Henüz yok</span>
-                        : <div>
-                            <div className="text-xl font-bold text-amber-500">{selected.hero_count}</div>
-                            <div className="text-[10px] text-slate-400 leading-tight">kez</div>
-                          </div>
-                      }
-                    </div>
-                  </div>
-
-                  {/* Takım sıralaması */}
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <div className="px-5 py-3 border-b border-slate-100">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Takım Sıralaması</span>
-                    </div>
-                    <div>
-                      {sorted.map((p, i) => {
-                        const isThis = p.id === selected.id;
-                        const barPct = maxScore > 0 ? (p.prev_score / maxScore) * 100 : 0;
-                        const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
-                        return (
-                          <div key={p.id} className={`flex items-center gap-3 px-5 py-3 ${isThis ? "bg-indigo-50" : "border-t border-slate-50"}`}>
-                            <span className={`text-xs font-semibold w-5 shrink-0 ${isThis ? "text-indigo-500" : "text-slate-300"}`}>{i + 1}</span>
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${isThis ? "bg-indigo-600" : avatarColor} opacity-${isThis ? "100" : "60"}`}>
-                              {initials(p.name)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs font-medium truncate ${isThis ? "text-indigo-700" : "text-slate-500"}`}>{p.name.split(" ")[0]}</span>
-                                <span className={`text-xs font-bold shrink-0 ml-2 ${isThis ? "text-indigo-600" : "text-slate-500"}`}>{p.prev_score}p</span>
-                              </div>
-                              <div className="bg-slate-100 rounded-full h-1">
-                                <div
-                                  className={`h-1 rounded-full ${isThis ? "bg-indigo-500" : "bg-slate-300"}`}
-                                  style={{ width: `${barPct}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* ── SAVE BAR ─────────────────────────────────────────────────────── */}
-          {isDirty && activeTab === "general" && (
-            <div className="shrink-0 border-t border-slate-200 px-6 py-4 bg-white flex gap-3 items-center">
-              <span className="flex-1 text-xs text-slate-400">Kaydedilmemiş değişiklikler var</span>
-              <button onClick={() => setGeneralDraft(null)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-                Vazgeç
-              </button>
-              <button onClick={saveGeneral}
-                className="px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors">
-                Kaydet
-              </button>
-            </div>
-          )}
-        </>}
+      {/* Search */}
+      <div className="relative">
+        <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="İsim, email veya unvan ara..."
+          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 shadow-sm"
+        />
       </div>
 
-      {/* ── ADD MODAL ─────────────────────────────────────────────────────── */}
-      {isAddOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setIsAddOpen(false)} />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 pointer-events-auto">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-slate-800">Yeni Personel</h2>
-                <button onClick={() => setIsAddOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
-                  <X size={18} className="text-slate-400" />
-                </button>
+      {/* Personnel List */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 animate-pulse flex gap-4">
+              <div className="w-12 h-12 bg-slate-100 rounded-full" />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className="h-4 bg-slate-100 rounded w-1/3" />
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
               </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="field-label">Ad Soyad *</label>
-                  <input value={newForm.name}
-                    onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
-                    onKeyDown={e => e.key === "Enter" && handleAdd()}
-                    className="field-input" placeholder="Örn: Mehmet Kaya" autoFocus />
-                </div>
-                <div>
-                  <label className="field-label">Ünvan</label>
-                  <input value={newForm.title}
-                    onChange={e => setNewForm(f => ({ ...f, title: e.target.value }))}
-                    className="field-input" placeholder="Kasiyer, Barista..."
-                    list="modal-title-list" />
-                  <datalist id="modal-title-list">
-                    {TITLE_SUGGESTIONS.map(t => <option key={t} value={t} />)}
-                  </datalist>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="field-label">Telefon</label>
-                    <input value={newForm.phone}
-                      onChange={e => setNewForm(f => ({ ...f, phone: e.target.value }))}
-                      className="field-input" placeholder="+90 5xx" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+          <Users size={40} className="mx-auto text-slate-300 mb-3" />
+          <p className="text-slate-500 font-medium">
+            {search ? "Arama sonucu bulunamadı" : "Henüz personel yok"}
+          </p>
+          {!search && (
+            <button onClick={() => setShowAddModal(true)} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">
+              + İlk personeli ekle
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+          {filtered.map((p) => (
+            <div
+              key={p.id}
+              className={`group bg-white rounded-3xl p-5 flex items-start gap-4 transition-all duration-300 border border-slate-200/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 h-full ${p.status === "inactive" ? "opacity-60 bg-slate-50" : ""}`}
+            >
+              {/* Avatar */}
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.user_access_level === "manager" ? "bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 border border-purple-200" : "bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700 border border-indigo-200"}`}>
+                {p.name.charAt(0)}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-extrabold text-slate-800 text-base truncate">{p.name}</h3>
+                    <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">{p.email}</p>
                   </div>
-                  <div>
-                    <label className="field-label">E-posta</label>
-                    <input value={newForm.email}
-                      onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
-                      className="field-input" placeholder="ad@email.com" />
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${p.user_access_level === "manager" ? "bg-purple-50 text-purple-700 border-purple-100" : "bg-slate-50 text-slate-600 border-slate-200"}`}>
+                      {p.user_access_level === "manager" ? "Yönetici" : "Personel"}
+                    </span>
+                    {p.status === "inactive" && (
+                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-red-50 text-red-600 border border-red-100">Pasif</span>
+                    )}
                   </div>
                 </div>
+                
+                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unvan / Rol</span>
+                    <span className="text-xs font-semibold text-slate-700 truncate">{p.title || "Belirtilmedi"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Telefon</span>
+                    <span className="text-xs font-semibold text-slate-700 flex items-center gap-1"><Phone size={12} className="text-slate-400"/> {p.phone || "—"}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {Array.isArray(p.roles) && p.roles.map(r => (
+                    <span key={r} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{r}</span>
+                  ))}
+                  {p.weekly_off_day !== null && p.weekly_off_day !== undefined && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      İzin: {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][p.weekly_off_day]}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 mt-4 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-500">Adalet Skoru: <strong className="text-indigo-600">{p.prev_score}</strong></span>
+                    {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 flex items-center gap-1">⭐ {p.hero_count}x</span>}
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Düzenle"
+                    >
+                      <Edit2 size={15} />
+                    </button>
+                    {p.user_id && (
+                      <button
+                        onClick={() => handleGenerateResetLink(p)}
+                        disabled={resetLinkLoading === p.id}
+                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Şifre Sıfırlama Linki Oluştur"
+                      >
+                        {resetLinkLoading === p.id
+                          ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+                          : <Key size={15} />
+                        }
+                      </button>
+                    )}
+                    {p.status === "active" && (
+                      <button
+                        onClick={() => handleDeactivate(p.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Devre dışı bırak"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editingPersonnel && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Personel Düzenle</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{editingPersonnel.email}</p>
+              </div>
+              <button onClick={() => setEditingPersonnel(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="field-label">Çalışma Türü</label>
-                  <select value={newForm.employment_type}
-                    onChange={e => setNewForm(f => ({ ...f, employment_type: e.target.value as EmploymentType }))}
-                    className="field-input">
-                    <option value="full_time">Tam Zamanlı</option>
-                    <option value="part_time">Yarı Zamanlı</option>
-                    <option value="intern">Stajyer</option>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad</label>
+                  <input value={editForm.name} onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
+                  <input value={editForm.title} onChange={(e) => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista, Kasiyer..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
+                <input value={editForm.phone} onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
+                  <select value={editForm.employment_type} onChange={(e) => setEditForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                    {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Sistem Rolü</label>
+                  <select value={editForm.user_access_level} onChange={(e) => setEditForm(f => ({ ...f, user_access_level: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                    {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setIsAddOpen(false)}
-                  className="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors">
-                  İptal
-                </button>
-                <button onClick={handleAdd} disabled={!newForm.name.trim()}
-                  className="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg font-medium transition-colors">
-                  Kaydet & Aç
-                </button>
+
+              {departments.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-2 block">Bölge / Zon Ataması</label>
+                  <div className="flex flex-wrap gap-2">
+                    {departments.map(dept => {
+                      const selected = editForm.roles.includes(dept.name);
+                      return (
+                        <button
+                          key={dept.id}
+                          type="button"
+                          onClick={() => setEditForm(f => ({
+                            ...f,
+                            roles: selected
+                              ? f.roles.filter(r => r !== dept.name)
+                              : [...f.roles, dept.name],
+                          }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                            selected
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                          }`}
+                        >
+                          {selected && <Check size={10} className="inline mr-1" />}
+                          {dept.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2">Seçilen bölgeler vardiya planında personelin kartında görünür.</p>
+                </div>
+              )}
+
+              {/* Sabit İzin Günü */}
+              <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-3.5">
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Sabit Haftalık İzin Günü</label>
+                <select
+                  value={editForm.weekly_off_day === null ? "" : String(editForm.weekly_off_day)}
+                  onChange={e => setEditForm(f => ({ ...f, weekly_off_day: e.target.value === "" ? null : Number(e.target.value) }))}
+                  className="w-full border border-amber-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-400"
+                >
+                  <option value="">Tanımsız (esnek çalışma)</option>
+                  {["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"].map((d, i) => (
+                    <option key={i} value={i}>{d}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-amber-700 mt-1.5">OR-Tools bu günü her hafta otomatik bloklar. Part-time için "Tanımsız" bırakın.</p>
               </div>
+
+              {editError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{editError}</div>}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditingPersonnel(null)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
+              <button onClick={handleEdit} disabled={editLoading} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                {editLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Kaydet</>}
+              </button>
             </div>
           </div>
-        </>
+        </div>
+      )}
+
+      {/* ADD MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-slate-800">Yeni Personel Ekle</h2>
+              <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad *</label>
+                  <input value={newForm.name} onChange={(e) => setNewForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
+                  <input value={newForm.title} onChange={(e) => setNewForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">E-posta *</label>
+                <input type="email" value={newForm.email} onChange={(e) => setNewForm(f => ({ ...f, email: e.target.value }))} placeholder="personel@sirket.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
+                <input value={newForm.phone} onChange={(e) => setNewForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
+                  <select value={newForm.employment_type} onChange={(e) => setNewForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                    {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Rol</label>
+                  <select value={newForm.role} onChange={(e) => setNewForm(f => ({ ...f, role: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                    {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {addError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{addError}</div>}
+
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                <Key size={12} className="inline mr-1" />
+                Sistem otomatik bir geçici şifre oluşturacak — personele iletmeniz gerekecek.
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
+              <button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                {addLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Ekle & Davet Et</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK UPLOAD MODAL */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Excel&apos;den Toplu Yükle</h2>
+                <p className="text-sm text-slate-500 mt-1">Excel tablosunu kopyalayıp aşağıdaki alana yapıştırın.</p>
+              </div>
+              <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkText(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+
+            {bulkResults.length > 0 ? (
+              <div className="flex-1 overflow-auto">
+                <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-4 font-bold text-sm flex items-center gap-2">
+                  <Check size={18} /> {bulkResults.length} personel başarıyla eklendi!
+                </div>
+                <p className="text-xs text-slate-500 mb-3 font-medium">Bu şifreleri personellerinize iletmeyi unutmayın (sayfayı kapattığınızda şifreleri göremezsiniz).</p>
+                <div className="space-y-2">
+                  {bulkResults.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm">
+                      <div>
+                        <div className="font-bold text-slate-800">{r.name}</div>
+                        <div className="text-xs text-slate-500">{r.email}</div>
+                      </div>
+                      <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-bold text-indigo-600">
+                        {r.temp_password}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => { setShowBulkModal(false); setBulkResults([]); }} className="w-full mt-6 bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-900">
+                  Kapat
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                  <div className="text-xs font-bold text-slate-600 mb-2">Beklenen Format (Sütunlar)</div>
+                  <div className="flex text-xs font-mono bg-white border border-slate-200 p-2 rounded text-slate-500">
+                    <div className="flex-1 font-bold text-slate-700">Ad Soyad</div>
+                    <div className="flex-1 font-bold text-slate-700">E-posta</div>
+                    <div className="flex-1">Telefon (Ops)</div>
+                    <div className="flex-1">Unvan (Ops)</div>
+                  </div>
+                </div>
+
+                <textarea
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  placeholder="Excel'den buraya yapıştırın..."
+                  className="w-full flex-1 min-h-[200px] border border-slate-200 rounded-xl p-4 text-sm font-mono whitespace-pre focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none"
+                />
+
+                {addError && <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{addError}</div>}
+
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowBulkModal(false)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
+                  <button onClick={handleBulkUpload} disabled={addLoading || !bulkText.trim()} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                    {addLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Upload size={16} /> Kayıtları Yükle</>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reset Link Modal */}
+      {resetLinkModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setResetLinkModal(null)}>
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-5"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                <Key size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-900">{resetLinkModal.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Şifre sıfırlama linki — 1 saat geçerli</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+              <p className="text-[11px] text-slate-500 font-mono break-all leading-relaxed">{resetLinkModal.url}</p>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Bu linki personele <strong>WhatsApp, SMS veya e-posta</strong> ile iletin. Link 1 saat sonra geçersiz olur.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setResetLinkModal(null)}
+                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Kapat
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(resetLinkModal.url);
+                  setResetLinkCopied(true);
+                  setTimeout(() => setResetLinkCopied(false), 2000);
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                  resetLinkCopied
+                    ? "bg-emerald-500 text-white"
+                    : "bg-amber-500 hover:bg-amber-600 text-white"
+                }`}
+              >
+                {resetLinkCopied ? <><Check size={14} /> Kopyalandı!</> : <><Copy size={14} /> Kopyala</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-

@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-06-07T17:24:47.316Z",
+  "total_issues": 1,
+  "issues": [
+    {
+      "severity": "HIGH",
+      "description": "\"Evet, Gönder\" click blocked — modal button intercepted by nav bar. Using JS click as workaround.",
+      "screenshot": "avail-10-modal-detail.png"
+    }
+  ],
+  "log": [
+    "After login: http://localhost:3000/portal",
+    "Monday default: start=8:00, end=22:00"
+  ]
+}

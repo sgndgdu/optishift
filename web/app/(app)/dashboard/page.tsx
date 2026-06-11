@@ -1,109 +1,399 @@
-import { Users, CalendarCheck, AlertTriangle, TrendingUp } from "lucide-react";
-import { PERSONNEL, MOCK_SCHEDULE } from "@/lib/mock-data";
-import { DAYS } from "@/lib/types";
+"use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-const KPI = [
-  { label: "Toplam Personel",    value: "6",    sub: "4 aktif bu hafta",        icon: Users,         color: "bg-indigo-500" },
-  { label: "Vardiya Adalet Farkı", value: "0p", sub: "Mükemmel denge ✓",       icon: TrendingUp,    color: "bg-green-500" },
-  { label: "Açık Vardiya",       value: "0",    sub: "Tüm slotlar dolu",        icon: CalendarCheck, color: "bg-blue-500" },
-  { label: "Uyarı",              value: "1",    sub: "Tercih dışı atama",       icon: AlertTriangle, color: "bg-yellow-500" },
-];
+import { useState, useEffect, useRef } from "react";
+import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const { assignments, scores } = MOCK_SCHEDULE;
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+  const [personnel, setPersonnel] = useState<any[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [todayShifts, setTodayShifts] = useState<any[]>([]);
+  const [openShifts, setOpenShifts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+  const lateAutoCreated = useRef<Set<number>>(new Set());
+
+  const getTodayWeekStart = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((day + 6) % 7));
+    return monday.toISOString().split("T")[0];
+  };
+  const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+
+  const loadData = async (u: typeof user) => {
+    setLoading(true);
+    try {
+      const weekStart = getTodayWeekStart();
+      const [personnelRes, leaveRes, shiftsRes, openShiftsRes] = await Promise.all([
+        fetch(`/api/personnel?location_id=${u.location_id}`),
+        fetch(`/api/leave-requests?location_id=${u.location_id}`),
+        fetch(`/api/shifts?location_id=${u.location_id}&week_start=${weekStart}`),
+        fetch(`/api/open-shifts?location_id=${u.location_id}`),
+      ]);
+      const personnelData = await personnelRes.json();
+      const leaveData = await leaveRes.json();
+      const shiftsData = await shiftsRes.json();
+      const openShiftsData = await openShiftsRes.json();
+
+      setPersonnel(Array.isArray(personnelData) ? personnelData : []);
+      setLeaveRequests(Array.isArray(leaveData) ? leaveData.filter((l: any) => l.status === "pending") : []);
+      setTodayShifts(Array.isArray(shiftsData) ? shiftsData.filter((s: any) => s.day === todayIdx) : []);
+      setOpenShifts(Array.isArray(openShiftsData) ? openShiftsData : []);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("optishift_manager_user");
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (parsed) setUser(parsed);
+      setMounted(true);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    if (!user) { router.push("/login"); return; }
+    if (!user.location_id) { router.push("/onboarding"); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData(user);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, user, router]);
+
+  // Dakikada bir "now" güncelle (geç kalan tespiti için) + 60 sn'de bir canlı operasyon yenile
+  useEffect(() => {
+    const tickClock = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(tickClock);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.location_id) return;
+    const refreshShifts = setInterval(async () => {
+      try {
+        const weekStart = getTodayWeekStart();
+        const res = await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${weekStart}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setTodayShifts(data.filter((s: any) => s.day === todayIdx));
+        }
+      } catch {}
+    }, 60_000);
+    return () => clearInterval(refreshShifts);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.location_id]);
+
+  const handleLeaveAction = async (id: number, action: "approved" | "rejected") => {
+    if (!user) return;
+    await fetch(`/api/leave-requests/review?id=${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: action, reviewed_by: user.personnel_id }),
+    });
+    setLeaveRequests(prev => prev.filter(l => l.id !== id));
+  };
+
+  // Vardiya başlangıcından 30 dk geçmiş, henüz check-in yok → geç kalan
+  const isLate = (s: any): boolean => {
+    if (s.check_in_at || !s.start_time) return false;
+    const [h, m] = s.start_time.split(":").map(Number);
+    const shiftStartMin = h * 60 + m;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    return nowMin >= shiftStartMin + 30;
+  };
+
+  // Geç kalan vardiyalar için otomatik açık vardiya oluştur (tek seferlik)
+  const autoCreateOpenShift = async (s: any) => {
+    if (lateAutoCreated.current.has(s.id) || !user?.location_id) return;
+    lateAutoCreated.current.add(s.id);
+    const today = new Date().toISOString().split("T")[0];
+    try {
+      await fetch("/api/open-shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_id: user.location_id,
+          date: today,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          note: `Otomatik: ${s.personnel_id} check-in yapmadı`,
+          hero_bonus_multiplier: 1.5,
+        }),
+      });
+      // Açık vardiya sayısını güncelle
+      setOpenShifts(prev => [...prev, { status: "open", id: Date.now() }]);
+    } catch {}
+  };
+
+  if (!mounted) return <div className="space-y-8" />;
+
+  const activeCount = personnel.filter(p => p.status === "active").length;
+  const scores = personnel.map(p => p.prev_score ?? 0);
+  const maxScore = Math.max(...scores, 1);
+
+  const kpi = [
+    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100" },
+    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100" },
+    { label: "Açık Vardiya",         value: String(openShifts.filter((s: any) => s.status === "open").length), sub: openShifts.filter((s: any) => s.status === "open").length > 0 ? `${openShifts.filter((s: any) => s.status === "open").length} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100" },
+    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
+  ];
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Bu haftanın özeti — 26 Mayıs – 1 Haziran 2026</p>
-      </div>
-
-      {/* KPI Kartları */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {KPI.map(({ label, value, sub, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-            <div className={`inline-flex p-2 rounded-lg ${color} mb-3`}>
-              <Icon size={18} className="text-white" />
-            </div>
-            <div className="text-2xl font-bold text-slate-800">{value}</div>
-            <div className="text-sm font-medium text-slate-600 mt-0.5">{label}</div>
-            <div className="text-xs text-slate-400 mt-1">{sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Adil Puan Dağılımı */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-        <h2 className="font-semibold text-slate-700 mb-4">Adil Vardiya Puanı Dağılımı</h2>
-        <div className="space-y-3">
-          {PERSONNEL.map((p) => {
-            const score = scores[p.id] ?? 0;
-            const maxScore = Math.max(...Object.values(scores));
-            const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
-            const weeklyPts = assignments
-              .filter((a) => a.personnelId === p.id)
-              .reduce((s, a) => s + a.points, 0);
-            return (
-              <div key={p.id} className="flex items-center gap-3">
-                <div className="w-28 text-sm text-slate-600 truncate">{p.name.split(" ")[0]}</div>
-                <div className="flex-1 bg-slate-100 rounded-full h-3">
-                  <div
-                    className="bg-indigo-500 h-3 rounded-full transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="text-sm font-medium text-slate-700 w-16 text-right">
-                  {score}p <span className="text-xs text-green-600 font-normal">(+{weeklyPts})</span>
-                </div>
-              </div>
-            );
-          })}
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Hoş geldiniz, <strong>{user.name}</strong> 👋
+          </p>
         </div>
       </div>
 
-      {/* Bu Haftanın Vardiyaları (mini tablo) */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 overflow-x-auto">
-        <h2 className="font-semibold text-slate-700 mb-4">Bu Haftanın Planı</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left pb-2 text-slate-500 font-medium pr-4">Personel</th>
-              {DAYS.map((d) => (
-                <th key={d} className="text-center pb-2 text-slate-500 font-medium px-1 text-xs">
-                  {d.slice(0, 3)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PERSONNEL.map((p) => (
-              <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="py-2 pr-4 text-slate-700 font-medium whitespace-nowrap">
-                  {p.name.split(" ")[0]}
-                </td>
-                {Array.from({ length: 7 }, (_, d) => {
-                  const a = assignments.find((x) => x.personnelId === p.id && x.day === d);
+      {/* KPI Kartları */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+        {kpi.map(({ label, value, sub, icon: Icon, color, bg }) => (
+          <Card key={label} className="stripe-card group border-0 shadow-none">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-2.5 rounded-xl ${bg} ${color}`}>
+                  <Icon size={20} />
+                </div>
+              </div>
+              <div>
+                <div className="text-3xl font-black text-slate-900 tracking-tight">{loading ? "—" : value}</div>
+                <div className="text-sm font-semibold text-slate-600 mt-1">{label}</div>
+                <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* İzin Talepleri */}
+        <Card className="flex flex-col stripe-card border-0 shadow-none">
+          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
+                  <Clock size={18} />
+                </div>
+                <CardTitle className="text-base font-bold">Bekleyen Talepler</CardTitle>
+              </div>
+              <Badge variant={leaveRequests.length > 0 ? "warning" : "secondary"}>
+                {leaveRequests.length} Talep
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 p-5 space-y-3">
+            {loading ? (
+              <div className="space-y-3">
+                {[1,2].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : leaveRequests.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <Check size={32} className="text-slate-300 mb-3" />
+                <p className="text-sm font-semibold">Tüm talepler yanıtlandı.</p>
+              </div>
+            ) : (
+              leaveRequests.map(req => (
+                <div key={req.id} className="group flex items-center justify-between p-4 rounded-xl border border-slate-200/60 bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
+                  <div>
+                    <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                       {req.personnel_name ?? req.personnel_id}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-1 bg-slate-50 px-2.5 py-1 rounded-md inline-block border border-slate-100">
+                      {req.start_date} → {req.end_date} <span className="font-bold text-slate-400 mx-1">|</span> {req.days} gün
+                    </div>
+                    {req.note && <div className="text-xs text-slate-400 mt-2 italic">&quot;{req.note}&quot;</div>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleLeaveAction(req.id, "approved")} variant="outline" size="icon" className="h-9 w-9 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200">
+                      <Check size={18} />
+                    </Button>
+                    <Button onClick={() => handleLeaveAction(req.id, "rejected")} variant="outline" size="icon" className="h-9 w-9 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200">
+                      <X size={18} />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Personel Puanları */}
+        <Card className="flex flex-col stripe-card border-0 shadow-none">
+          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-100 rounded-xl text-primary">
+                  <TrendingUp size={18} />
+                </div>
+                <CardTitle className="text-base font-bold">Adalet Skoru Dağılımı</CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            {loading ? (
+              <div className="space-y-4">
+                {[1,2,3,4].map(i => <div key={i} className="h-4 bg-slate-100 rounded-md animate-pulse" />)}
+              </div>
+            ) : personnel.filter(p => p.status === "active").length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">
+                Henüz personel yok.<br />
+                <a href="/personnel" className="text-primary hover:underline font-bold mt-2 inline-block">Personel ekle →</a>
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {personnel.filter(p => p.status === "active").slice(0, 6).map(p => {
+                  const score = p.prev_score ?? 0;
+                  const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
                   return (
-                    <td key={d} className="text-center py-2 px-1">
-                      {a ? (
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
-                          a.shiftId === 0 ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                        }`}>
-                          {a.shiftId === 0 ? "S" : "A"}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
+                    <div key={p.id} className="flex items-center gap-4 group">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div className="w-24 text-sm font-semibold text-slate-700 truncate">{p.name.split(" ")[0]}</div>
+                      <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="text-sm font-bold text-slate-700 w-12 text-right">{score}p</div>
+                    </div>
+                );
+              })}
+            </div>
+          )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Canlı Operasyon — Bugün */}
+      {todayShifts.length > 0 && (() => {
+        const checkedIn  = todayShifts.filter(s => s.check_in_at && !s.check_out_at);
+        const checkedOut = todayShifts.filter(s => s.check_out_at);
+        const lateShifts = todayShifts.filter(s => !s.check_in_at && isLate(s));
+        const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s));
+
+        // Geç kalanlar için açık vardiya oluştur
+        lateShifts.forEach(s => autoCreateOpenShift(s));
+
+        return (
+          <Card className="stripe-card border-0 shadow-none">
+            <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600 shrink-0">
+                  <Users size={18} />
+                </div>
+                <CardTitle className="text-base font-bold">Canlı Operasyon — Bugün</CardTitle>
+                {lateShifts.length > 0 && (
+                  <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
+                    <AlertTriangle size={11} className="mr-1" />{lateShifts.length} Geç
+                  </Badge>
+                )}
+                <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                  <RefreshCw size={11} />
+                  {now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+
+              {/* Özet satırı */}
+              <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border/30">
+                {[
+                  { label: "Beklenen", value: todayShifts.length, color: "text-slate-600" },
+                  { label: "Aktif",    value: checkedIn.length,   color: "text-emerald-600" },
+                  { label: "Çıktı",   value: checkedOut.length,   color: "text-slate-400" },
+                  { label: "Bekliyor",value: waiting.length,      color: "text-amber-600" },
+                  { label: "Geç",     value: lateShifts.length,   color: "text-red-600" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span className={`text-sm font-black ${color}`}>{value}</span>
+                    <span className="text-xs text-slate-400 font-medium">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {todayShifts.map((s: any) => {
+                  const p           = personnel.find(px => px.id === s.personnel_id);
+                  const isCheckedIn  = !!s.check_in_at;
+                  const isCheckedOut = !!s.check_out_at;
+                  const late         = isLate(s);
+                  return (
+                    <div key={s.id} className={`flex items-center gap-3 p-3.5 rounded-xl border transition-colors ${
+                      isCheckedOut ? "bg-slate-50 border-slate-100" :
+                      isCheckedIn  ? "bg-emerald-50 border-emerald-200" :
+                      late         ? "bg-red-50 border-red-200" :
+                                     "bg-white border-slate-200"
+                    }`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isCheckedOut ? "bg-slate-200 text-slate-500" :
+                        isCheckedIn  ? "bg-emerald-500 text-white" :
+                        late         ? "bg-red-500 text-white" :
+                                       "bg-amber-100 text-amber-700"
+                      }`}>
+                        {isCheckedOut ? <X size={14} /> : isCheckedIn ? <Check size={14} /> : late ? <AlertTriangle size={14} /> : <Clock size={14} />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-slate-800 truncate">{p?.name ?? s.personnel_id}</div>
+                        <div className="text-xs text-slate-500">{s.start_time}–{s.end_time}
+                          {isCheckedOut && <span className="ml-1 text-slate-400">• Çıktı</span>}
+                          {isCheckedIn && !isCheckedOut && <span className="ml-1 text-emerald-600 font-semibold">• Aktif</span>}
+                          {!isCheckedIn && late && <span className="ml-1 text-red-600 font-semibold">• Geç geldi</span>}
+                          {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="text-xs text-slate-400 mt-3">S = Sabah (08-16) &nbsp; A = Akşam (16-24)</p>
-      </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Hızlı Eylemler — Onboarding */}
+      {!loading && personnel.filter(p => p.status === "active").length <= 1 && (
+        <Card className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border-indigo-100/50 shadow-none">
+          <CardContent className="p-6">
+            <h2 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+              <span>🚀</span> Başlangıç Rehberi
+            </h2>
+            <p className="text-muted-foreground text-sm mb-5">Sistemi kullanmaya başlamak için şu adımları tamamlayın:</p>
+            <div className="space-y-3">
+              {[
+                { step: "1", label: "Personel ekleyin", href: "/personnel", done: personnel.length > 1 },
+                { step: "2", label: "Personellerden müsaitlik toplayın", href: "/schedule", done: false },
+                { step: "3", label: "Vardiya planı oluşturun", href: "/schedule", done: false },
+              ].map(({ step, label, href, done }) => (
+                <a key={step} href={href} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${done ? "bg-emerald-50/50 border-emerald-100" : "bg-white border-slate-200 hover:border-primary/30 hover:shadow-sm"}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${done ? "bg-emerald-500 text-white shadow-sm" : "bg-primary/10 text-primary"}`}>
+                    {done ? <Check size={14} /> : step}
+                  </div>
+                  <span className={`text-sm font-semibold ${done ? "text-emerald-700 line-through opacity-80" : "text-slate-800"}`}>{label}</span>
+                  {!done && (
+                    <div className="ml-auto flex items-center gap-1 text-primary text-xs font-bold">
+                      Git <ArrowRight size={14} />
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,0 +1,42 @@
+{
+  "issues": [
+    {
+      "id": 1,
+      "page": "/login",
+      "severity": "düşük",
+      "description": "Kullanıcı adı input alanı type=\"text\" — email kullananlar için type=\"email\" daha uygun olabilir (accessibility)",
+      "screenshotPath": "/Users/sefagundogdu/Desktop/OptiShift/web/public/qa-screenshots/login-desktop.png",
+      "extra": ""
+    },
+    {
+      "id": 2,
+      "page": "/login",
+      "severity": "düşük",
+      "description": "Login formu sadece \"Kullanıcı Adı\" gösteriyor — kullanıcılar email adresini girmeyi deneyebilir (UX sorunu)",
+      "screenshotPath": "/Users/sefagundogdu/Desktop/OptiShift/web/public/qa-screenshots/login-desktop.png",
+      "extra": ""
+    },
+    {
+      "id": 3,
+      "page": "/schedule (Müdür)",
+      "severity": "düşük",
+      "description": "Coverage gap sayacı (atanan/gereken) grid'de görünmüyor",
+      "screenshotPath": "/Users/sefagundogdu/Desktop/OptiShift/web/public/qa-screenshots/manager-schedule-detail.png",
+      "extra": ""
+    },
+    {
+      "id": 4,
+      "page": "/dashboard (Müdür)",
+      "severity": "orta",
+      "description": "Canlı operasyon check-in istatistikleri (Geldi/Bekleniyor/Molada) görünmüyor",
+      "screenshotPath": "/Users/sefagundogdu/Desktop/OptiShift/web/public/qa-screenshots/manager-dashboard-detail.png",
+      "extra": ""
+    }
+  ],
+  "total": 4,
+  "kritik": 0,
+  "orta": 1,
+  "dusuk": 3,
+  "timestamp": "2026-06-07T12:47:16.223Z",
+  "screenshotsDir": "/Users/sefagundogdu/Desktop/OptiShift/web/public/qa-screenshots"
+}

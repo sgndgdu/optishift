@@ -16,77 +16,104 @@ import json
 # ─── VERİ MODELİ ─────────────────────────────────────────────────────────────
 
 STORE = {
-    "store_id": "M-402",
-    "store_name": "İzmir Merkez Mağazası",
+    "store_id": "L-001",
+    "store_name": "OptiShift Global",
     "connected_erp": "SAP_SuccessFactors",
-    "erp_mapped_fields": {
-        "employee_name": "Emp_Name",
-        "employee_id": "Sicil_No",
-    },
 }
 
-PERSONNEL = [
-    {"id": "P001", "name": "Ahmet Yılmaz",   "skills": ["Kasa", "Reyon"],              "prev_score": 32},
-    {"id": "P002", "name": "Fatma Şahin",    "skills": ["Kasa", "Mutfak"],             "prev_score": 28},
-    {"id": "P003", "name": "Mehmet Demir",   "skills": ["Teras", "Reyon"],             "prev_score": 35},
-    {"id": "P004", "name": "Ayşe Kaya",      "skills": ["Kasa", "Teras"],              "prev_score": 30},
-    {"id": "P005", "name": "Ali Çelik",      "skills": ["Mutfak", "Reyon"],            "prev_score": 25},
-    {"id": "P006", "name": "Zeynep Arslan",  "skills": ["Kasa", "Mutfak", "Teras"],   "prev_score": 40},
-]
+# Çoklu Şube Destekli Personel Listesi
+PERSONNEL = []
 
-# 0=Pazartesi … 6=Pazar
-DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-NUM_DAYS = 7
+# Müsaitlik Haritası
+AVAILABILITY = {}
 
-SHIFTS = [
-    {"id": 0, "name": "Sabah Açılış",  "start": 8,  "end": 16},
-    {"id": 1, "name": "Akşam Kapanış", "start": 16, "end": 24},
-]
-NUM_SHIFTS = len(SHIFTS)
-SHIFT_HOURS = 8
+# Kapasite Matrisi: {shift_idx: {day(0-6): exact_count}}
+# Boşsa motor coverage-max moduna düşer
+DEMAND_MATRIX = {}
 
-# Müsaitlik: available / preferred_not / unavailable
-AVAILABILITY = {
-    "P001": {0: "available",     1: "available",     2: "preferred_not", 3: "available",     4: "available",     5: "preferred_not", 6: "unavailable"},
-    "P002": {0: "available",     1: "unavailable",   2: "available",     3: "available",     4: "preferred_not", 5: "available",     6: "available"},
-    "P003": {0: "preferred_not", 1: "available",     2: "available",     3: "unavailable",   4: "available",     5: "available",     6: "preferred_not"},
-    "P004": {0: "available",     1: "available",     2: "unavailable",   3: "available",     4: "available",     5: "unavailable",   6: "available"},
-    "P005": {0: "unavailable",   1: "available",     2: "available",     3: "available",     4: "preferred_not", 5: "available",     6: "available"},
-    "P006": {0: "available",     1: "preferred_not", 2: "available",     3: "available",     4: "available",     5: "available",     6: "unavailable"},
-}
+# Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
+ENSURE_SENIOR_PER_SHIFT = False
 
-# Her bölgede günlük minimum çalışan kişi (min_per_day — tüm vardiyalar toplamı)
+# Ardışık maksimum çalışma günü (7 = devre dışı)
+MAX_CONSECUTIVE_DAYS = 6
+
+# Gece vardiyası (≥23:00 bitiş) sonrası sabah vardiyası (≤12:00 başlangıç) yasağı
+NO_NIGHT_TO_MORNING = False
+
+
+# Her bölgede günlük minimum çalışan kişi (Varsayılan şablon - Optimizasyon sırasında dinamik filtrelenecektir)
 ZONE_DEMAND_PER_DAY = {
-    "Kasa":   2,   # gün boyunca en az 2 kasiyerin vardiyası olmalı
+    "Kasa":   2,
     "Reyon":  1,
     "Teras":  1,
     "Mutfak": 1,
+    "Resepsiyon": 1,
+    "Kat Hizmetleri": 1,
+    "Barista & Servis": 1,
 }
 
 RULES = {
     "max_weekly_hours": 45,
-    "min_rest_hours":   11,   # iki vardiya arası minimum
+    "min_rest_hours":   11,
 }
 
+DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+
+SHIFTS = [
+    {"name": "Sabah",  "start": "08:00", "end": "16:00", "base_points": 3},
+    {"name": "Akşam",  "start": "16:00", "end": "24:00", "base_points": 5},
+]
+
+NUM_DAYS   = 7
+NUM_SHIFTS = 2
+SHIFT_HOURS = 8
+
+# ─── YARDIMCI ────────────────────────────────────────────────────────────────
+
+def _shift_minutes(shift: dict) -> tuple:
+    """Vardiya start/end string'lerini toplam dakikaya çevirir. Gece geçişini destekler."""
+    sh, sm = map(int, shift["start"].split(":"))
+    eh, em = map(int, shift["end"].split(":"))
+    start_min = sh * 60 + sm
+    end_min   = eh * 60 + em
+    if end_min <= start_min:   # 16:00–00:00 gibi gece geçişi
+        end_min += 24 * 60
+    return start_min, end_min
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
 
 def shift_points(day: int, shift_id: int) -> int:
-    """CLAUDE.md Bölüm 3-E'deki puan tablosu."""
+    """
+    ShiftDefinition'daki base_points'i temel alır; gün bonuslarını üstüne uygular.
+    Gün bonusları CLAUDE.md Bölüm 3-E'ye göre minimum değer garantisi verir.
+    """
+    base = SHIFTS[shift_id].get("base_points", 5) if shift_id < len(SHIFTS) else 5
     is_friday_saturday = day in (4, 5)
     is_sunday          = day == 6
-    is_morning         = shift_id == 0
+    is_last_shift      = shift_id == len(SHIFTS) - 1  # günün kapanış vardiyası
 
-    if is_sunday and not is_morning:
-        return 10   # Pazar akşam kapanış
+    if is_sunday and is_last_shift:
+        return max(base, 10)   # Pazar kapanış — en ağır
     if is_friday_saturday:
-        return 8    # Cuma/Cumartesi yoğun saatler
-    if is_morning:
-        return 3    # Hafta içi sabah açılış
-    return 5        # Hafta içi akşam kapanış (temizlik dahil)
+        return max(base, 8)    # Cuma/Cumartesi yoğunluğu
+    return base
 
 
 # ─── MODEL KURULUMU ───────────────────────────────────────────────────────────
+
+def get_avail(person_id, d, _s=None):
+    """Personelin gün d için müsaitlik durumunu döndürür.
+
+    DB'den iki format gelebilir:
+      - Basit string: "available" | "preferred_not" | "unavailable"
+      - Dict (saat aralıklı): {"status": "preferred_not", "start": "09:00", "end": "17:00"}
+    """
+    avail_map = AVAILABILITY.get(person_id, {})
+    # JSON serileştirme int key'leri string'e dönüştürür; ikisini de dene
+    day_avail = avail_map.get(str(d)) if avail_map.get(str(d)) is not None else avail_map.get(d)
+    if isinstance(day_avail, dict):
+        return day_avail.get("status", "available")
+    return day_avail if day_avail is not None else "available"
 
 def build_model():
     model = cp_model.CpModel()
@@ -109,24 +136,72 @@ def build_model():
 
     # Müsaitlik: "unavailable" günlerde kesinlikle çalışamaz (Kırmızı)
     for p_idx, person in enumerate(PERSONNEL):
-        avail = AVAILABILITY[person["id"]]
         for d in range(NUM_DAYS):
-            if avail.get(d) == "unavailable":
-                for s in range(NUM_SHIFTS):
+            for s in range(NUM_SHIFTS):
+                if get_avail(person["id"], d, s) == "unavailable":
                     model.add(shifts[(p_idx, d, s)] == 0)
 
-    # Minimum dinlenme: akşam vardiyası (16-24) → ertesi sabah (08-16) YASAK
-    # 24:00 kapanış + 11s dinlenme = 11:00 → sabah 08:00 başlangıcı yetersiz (sadece 8s)
+    # Minimum dinlenme: Genel geçiş matrisi (N vardiya destekli)
+    # Her (s1, s2) çifti için: ertesi güne geçen dinlenme süresi < min_rest_hours ise yasak.
+    # Formül: rest_gap = (start_s2 + 1440) − end_s1
+    # Örnek: Akşam 16-00 → Sabah 08-16: (480+1440)−1440 = 480 dk = 8s < 11s → YASAK ✓
+    # Gece geçişli vardiyalar için _shift_minutes zaten end_min > 1440 döndürür.
+    min_rest_min = RULES["min_rest_hours"] * 60
+    forbidden_transitions = []
+    for s1 in range(NUM_SHIFTS):
+        _, end1 = _shift_minutes(SHIFTS[s1])
+        for s2 in range(NUM_SHIFTS):
+            start2, _ = _shift_minutes(SHIFTS[s2])
+            rest_gap = (start2 + 1440) - end1
+            if rest_gap < min_rest_min:
+                forbidden_transitions.append((s1, s2))
+
     for p in range(num_p):
         for d in range(NUM_DAYS - 1):
-            model.add(shifts[(p, d, 1)] + shifts[(p, d + 1, 0)] <= 1)
+            for s1, s2 in forbidden_transitions:
+                model.add(shifts[(p, d, s1)] + shifts[(p, d + 1, s2)] <= 1)
 
-    # Haftalık maksimum saat limiti (45s → max 5 vardiya × 8s = 40s güvenli, 45/8=5)
-    max_shifts_per_week = RULES["max_weekly_hours"] // SHIFT_HOURS
+    # Ardışık gün limiti: herhangi (MAX_CONSECUTIVE_DAYS+1) günlük pencerede en az 1 gün serbest
+    if MAX_CONSECUTIVE_DAYS < NUM_DAYS:
+        window = MAX_CONSECUTIVE_DAYS + 1
+        for p in range(num_p):
+            for start_d in range(NUM_DAYS - MAX_CONSECUTIVE_DAYS):
+                model.add(
+                    sum(shifts[(p, d, s)] for d in range(start_d, start_d + window) for s in range(NUM_SHIFTS))
+                    <= MAX_CONSECUTIVE_DAYS
+                )
+
+    # Gececi→Sabahçı yasak: gece vardiyası (≥23:00 bitiş) → ertesi sabah (≤12:00 başlangıç)
+    if NO_NIGHT_TO_MORNING:
+        night_idxs = [s for s in range(NUM_SHIFTS) if _shift_minutes(SHIFTS[s])[1] >= 23 * 60]
+        morning_idxs = [s for s in range(NUM_SHIFTS) if _shift_minutes(SHIFTS[s])[0] <= 12 * 60]
+        for p in range(num_p):
+            for d in range(NUM_DAYS - 1):
+                for ns in night_idxs:
+                    for ms in morning_idxs:
+                        model.add(shifts[(p, d, ns)] + shifts[(p, d + 1, ms)] <= 1)
+
+    # Haftalık maksimum saat limiti — gerçek vardiya sürelerini hesaba kat
+    # Her vardiya tipinin gerçek süresini _shift_minutes ile hesapla (dakika cinsinden)
+    shift_durations_min = []
+    for s in range(NUM_SHIFTS):
+        if s < len(SHIFTS):
+            start_m, end_m = _shift_minutes(SHIFTS[s])
+            shift_durations_min.append(end_m - start_m)
+        else:
+            shift_durations_min.append(SHIFT_HOURS * 60)
+
+    max_weekly_minutes = RULES["max_weekly_hours"] * 60
     for p in range(num_p):
+        # part-time personel için kendi max_weekly_hours'unu kullan
+        person_max_min = int(PERSONNEL[p].get("max_weekly_hours", RULES["max_weekly_hours"])) * 60
+        effective_max  = min(max_weekly_minutes, person_max_min)
         model.add(
-            sum(shifts[(p, d, s)] for d in range(NUM_DAYS) for s in range(NUM_SHIFTS))
-            <= max_shifts_per_week
+            sum(
+                shifts[(p, d, s)] * shift_durations_min[s]
+                for d in range(NUM_DAYS)
+                for s in range(NUM_SHIFTS)
+            ) <= effective_max
         )
 
     # Bölge kotası: her gün yetkin kişi toplamı minimumu (min_per_day)
@@ -143,6 +218,20 @@ def build_model():
                     >= min_count
                 )
 
+    # Demand-based exact coverage: DEMAND_MATRIX[shift_idx][day] = exact_count
+    # Bu kısıt varsa o gün o vardiyaya tam N kişi atanır (ne fazla ne eksik)
+    for s_idx, day_counts in DEMAND_MATRIX.items():
+        for d, exact_count in day_counts.items():
+            if exact_count > 0:
+                model.add(
+                    sum(shifts[(p, d, s_idx)] for p in range(num_p)) == exact_count
+                )
+            else:
+                # 0 girildiyse o gün o vardiyaya kimse atanmaz
+                model.add(
+                    sum(shifts[(p, d, s_idx)] for p in range(num_p)) == 0
+                )
+
     # ── SOFT CONSTRAINTS (Ceza Değişkenleri) ─────────────────────────────────
 
     # preferred_not günlerde çalışmak istenmeyen ama zorunlu olabilir
@@ -151,33 +240,79 @@ def build_model():
         for p_idx, person in enumerate(PERSONNEL)
         for d in range(NUM_DAYS)
         for s in range(NUM_SHIFTS)
-        if AVAILABILITY[person["id"]].get(d) == "preferred_not"
+        if get_avail(person["id"], d, s) == "preferred_not"
     ]
 
     # ── ADİL PUAN OPTİMİZASYONU ──────────────────────────────────────────────
 
-    # Bu haftanın toplam adil puanı (önceki ay puanı + bu hafta)
     person_scores = []
+    weighted_scores = []  # Adaleti tartmak için part-time/full-time ağırlıklı skor
+
     for p_idx, person in enumerate(PERSONNEL):
         weekly_pts = sum(
             shifts[(p_idx, d, s)] * shift_points(d, s)
             for d in range(NUM_DAYS)
             for s in range(NUM_SHIFTS)
         )
-        total = model.new_int_var(0, 600, f"total_score_p{p_idx}")
-        model.add(total == person["prev_score"] + weekly_pts)
+        total = model.new_int_var(0, 1000, f"total_score_p{p_idx}")
+        model.add(total == int(person.get("prev_score", 0)) + weekly_pts)
         person_scores.append(total)
 
-    # Adalet farkı: max_score - min_score → minimize
-    max_score = model.new_int_var(0, 600, "max_score")
-    min_score = model.new_int_var(0, 600, "min_score")
-    model.add_max_equality(max_score, person_scores)
-    model.add_min_equality(min_score, person_scores)
-    fairness_gap = model.new_int_var(0, 600, "fairness_gap")
+        # Part-time çalışanların hedeflenen saati daha düşük olduğu için, adalet skorlarını oranlıyoruz.
+        # Çarpanlar: full_time = 1.0 (10), part_time = 0.6 (6)
+        weight = 6 if person.get("employment_type") == "part_time" else 10
+        weighted = model.new_int_var(0, 5000, f"weighted_score_p{p_idx}")
+        # weighted = (total * 10) / weight -> eğer part-time ise (total * 10) / 6, yani puanı suni olarak yüksek görünür, 
+        # böylece algoritma ona daha fazla vardiya yazmak için yırtınmaz.
+        model.add(weighted * weight == total * 10)
+        weighted_scores.append(weighted)
+
+    # Adalet farkı (Ağırlıklı): max_score - min_score → minimize
+    max_score = model.new_int_var(0, 5000, "max_score")
+    min_score = model.new_int_var(0, 5000, "min_score")
+    model.add_max_equality(max_score, weighted_scores)
+    model.add_min_equality(min_score, weighted_scores)
+    fairness_gap = model.new_int_var(0, 5000, "fairness_gap")
     model.add(fairness_gap == max_score - min_score)
 
-    # Amaç fonksiyonu: adalet farkını öncelikle minimize et, sonra preferred_not cezalarını
-    model.minimize(fairness_gap * 100 + sum(preferred_not_penalties))
+    # Toplam atama sayısı — yüksek olması isteniyor (coverage)
+    num_p = len(PERSONNEL)
+    max_possible = num_p * NUM_DAYS * NUM_SHIFTS
+    total_assignments = model.new_int_var(0, max_possible, "total_assignments")
+    model.add(total_assignments == sum(
+        shifts[(p, d, s)]
+        for p in range(num_p)
+        for d in range(NUM_DAYS)
+        for s in range(NUM_SHIFTS)
+    ))
+
+    # ── Kıdemli personel soft constraint ─────────────────────────────────────
+    # Her vardiya × gün için primary personel yoksa ceza uygula (planı kilitlemez)
+    senior_violation_penalties = []
+    if ENSURE_SENIOR_PER_SHIFT and num_p > 0:
+        primary_idxs = [
+            p_idx for p_idx, person in enumerate(PERSONNEL)
+            if person.get("role_level") == "primary"
+        ]
+        if primary_idxs:
+            for s in range(NUM_SHIFTS):
+                for d in range(NUM_DAYS):
+                    # 1 if no primary assigned this shift/day, else 0
+                    no_primary = model.new_bool_var(f"no_primary_s{s}_d{d}")
+                    primary_sum = sum(shifts[(p, d, s)] for p in primary_idxs)
+                    # no_primary == 1  ↔  primary_sum == 0
+                    model.add(primary_sum == 0).only_enforce_if(no_primary)
+                    model.add(primary_sum >= 1).only_enforce_if(no_primary.negated())
+                    senior_violation_penalties.append(no_primary)
+
+    # Amaç: adalet farkını minimize et (öncelik 1), coverage'ı maximize et (öncelik 2), preferred_not cezalarını minimize et (öncelik 3)
+    # coverage terimi negatif → minimize ederken coverage artar
+    model.minimize(
+        fairness_gap * 100
+        - total_assignments
+        + sum(preferred_not_penalties) * 10
+        + sum(senior_violation_penalties) * 50
+    )
 
     return model, shifts, person_scores, fairness_gap
 
@@ -366,6 +501,7 @@ def export_excel(solver, shifts, person_scores):
 
     # ── SEKMİ 1: Yönetici Özeti & KPI ────────────────────────────────────
     ws1 = wb.active
+    assert ws1 is not None
     ws1.title = "Yönetici Özeti & KPI"
     ws1.row_dimensions[1].height = 30
     ws1.row_dimensions[3].height = 22
@@ -521,16 +657,102 @@ def main():
     print()
 
 
-def api_mode(prev_scores: dict):
-    """Next.js API route tarafından çağrılır. prev_scores ile önceki puanları override eder."""
+def api_mode(payload: dict):
+    """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    for p in PERSONNEL:
-        if p["id"] in prev_scores:
-            p["prev_score"] = prev_scores[p["id"]]
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING
+
+    branch_id = payload.get("branchId", "L-001")
+    ENSURE_SENIOR_PER_SHIFT = bool(payload.get("ensure_senior_per_shift", False))
+    MAX_CONSECUTIVE_DAYS = int(payload.get("max_consecutive_days", 6))
+    NO_NIGHT_TO_MORNING = bool(payload.get("no_night_to_morning", False))
+
+    # Payload'dan gelen dinamik verileri global değişkenlere aktar
+    raw_personnel    = payload.get("personnel", [])
+    raw_availability = payload.get("availability", {})
+    rules = payload.get("rules", {})
+
+    if rules:
+        RULES.update(rules)
+
+    # Vardiya tanımlarını payload'dan oku (location shift_definitions)
+    shifts_from_payload = payload.get("shifts")
+    if shifts_from_payload and isinstance(shifts_from_payload, list) and len(shifts_from_payload) > 0:
+        SHIFTS = [
+            {
+                "name":        s.get("name", f"Vardiya {i + 1}"),
+                "start":       s.get("start", "08:00"),
+                "end":         s.get("end",   "16:00"),
+                "base_points": int(s.get("base_points", 5)),
+            }
+            for i, s in enumerate(shifts_from_payload)
+        ]
+        NUM_SHIFTS = len(SHIFTS)
+        # Ortalama vardiya süresi → haftalık max vardiya sayısı hesabı için
+        total_mins = sum((_shift_minutes(sh)[1] - _shift_minutes(sh)[0]) for sh in SHIFTS)
+        SHIFT_HOURS = max(1, round((total_mins / NUM_SHIFTS) / 60))
+
+    PERSONNEL = raw_personnel
+
+    # Availability JSON keyleri string olabilir, integer'a çevirmemiz lazım (day_0 -> 0)
+    AVAILABILITY = {}
+    for p_id, av_dict in raw_availability.items():
+        parsed = {}
+        for day_str, status in av_dict.items():
+            parsed[int(day_str)] = status
+        AVAILABILITY[p_id] = parsed
+
+    # Eğer o şube için hiç personel yoksa boş sonuç dön
+    if not PERSONNEL:
+        print(json.dumps({"error": f"Seçilen şubede ({branch_id}) aktif personel bulunamadı."}))
+        return
+
+    # Kapasite matrisi: {shiftDefId → {day → exact_count}} — demand-based scheduling
+    # shiftDefId'yi shift index'ine çevir (payload'daki shifts sırası == index)
+    DEMAND_MATRIX = {}
+    raw_demand = payload.get("demand_matrix")
+    if raw_demand and isinstance(raw_demand, dict):
+        # shifts_from_payload varsa id→index map kur
+        shifts_raw = payload.get("shifts") or []
+        id_to_idx = {}
+        for i, s in enumerate(shifts_raw):
+            # Her shift için hem id hem name ile eşleşebilsin
+            if s.get("id"):
+                id_to_idx[str(s["id"])] = i
+            if s.get("name"):
+                id_to_idx[str(s["name"])] = i
+            # Sayısal index fallback
+            id_to_idx[str(i)] = i
+        for shift_key, day_map in raw_demand.items():
+            s_idx = id_to_idx.get(str(shift_key))
+            if s_idx is None:
+                # fallback: key sayısal ise doğrudan index olarak kullan
+                try: s_idx = int(shift_key)
+                except: continue
+            if s_idx >= NUM_SHIFTS:
+                continue
+            parsed_days = {}
+            for day_str, cnt in day_map.items():
+                try:
+                    parsed_days[int(day_str)] = int(cnt)
+                except: pass
+            if parsed_days:
+                DEMAND_MATRIX[s_idx] = parsed_days
+
+    # Bölge kotaları: payload'dan gel, yoksa global defaultlara dön
+    # Format: {"Kasa": 2, "Reyon": 1} — skill adı → günlük minimum çalışan
+    payload_quotas = payload.get("zone_quotas")
+    all_branch_skills = set(skill for p in PERSONNEL for skill in p.get("skills", []))
+    if payload_quotas and isinstance(payload_quotas, dict) and len(payload_quotas) > 0:
+        # Sadece bu şubedeki personelin sahip olduğu yetenekleri içer
+        ZONE_DEMAND_PER_DAY = {k: int(v) for k, v in payload_quotas.items() if k in all_branch_skills}
+    else:
+        # Payload'da kota yoksa global defaultları şube yeteneklerine göre daralt
+        ZONE_DEMAND_PER_DAY = {k: v for k, v in ZONE_DEMAND_PER_DAY.items() if k in all_branch_skills}
 
     result = solve(silent=True)
     if result is None:
-        print(json.dumps({"error": "Çözüm bulunamadı"}))
+        print(json.dumps({"error": "Optimizasyon için uygun bir çözüm bulunamadı. Kısıtlamaları esnetmeyi deneyin."}))
         return
 
     solver, shifts, person_scores, fairness_gap = result
@@ -540,6 +762,7 @@ def api_mode(prev_scores: dict):
         "assignments": [],
         "scores": {},
         "personnel": [],
+        "senior_violations": [],  # vardiya × gün: primary personel atanamadı
     }
 
     for p_idx, person in enumerate(PERSONNEL):
@@ -547,19 +770,40 @@ def api_mode(prev_scores: dict):
         output["personnel"].append({
             "id": person["id"],
             "name": person["name"],
-            "skills": person["skills"],
-            "prev_score": person["prev_score"],
-            "availability": {str(k): v for k, v in AVAILABILITY[person["id"]].items()},
+            "skills": person.get("skills", []),
+            "prev_score": person.get("prev_score", 0),
+            "employment_type": person.get("employment_type", "full_time"),
+            "availability": {str(k): v for k, v in AVAILABILITY.get(person["id"], {}).items()},
         })
         for d in range(NUM_DAYS):
             for s in range(NUM_SHIFTS):
                 if solver.value(shifts[(p_idx, d, s)]):
                     output["assignments"].append({
                         "personnelId": person["id"],
-                        "day": d,
-                        "shiftId": s,
-                        "points": shift_points(d, s),
+                        "day":         d,
+                        "shiftId":     s,
+                        "start_time":  SHIFTS[s]["start"],
+                        "end_time":    SHIFTS[s]["end"],
+                        "points":      shift_points(d, s),
                     })
+
+    # Kıdemli kısıt ihlallerini tespit et (primary atanamamış vardiya/gün kombinasyonları)
+    if ENSURE_SENIOR_PER_SHIFT:
+        primary_idxs = [
+            p_idx for p_idx, person in enumerate(PERSONNEL)
+            if person.get("role_level") == "primary"
+        ]
+        if primary_idxs:
+            for s in range(NUM_SHIFTS):
+                for d in range(NUM_DAYS):
+                    has_primary = any(solver.value(shifts[(p, d, s)]) for p in primary_idxs)
+                    has_anyone  = any(solver.value(shifts[(p, d, s)]) for p in range(len(PERSONNEL)))
+                    if has_anyone and not has_primary:
+                        output["senior_violations"].append({
+                            "shift": SHIFTS[s]["name"],
+                            "shift_idx": s,
+                            "day": d,
+                        })
 
     sys.stdout.write(json.dumps(output, ensure_ascii=False))
 
@@ -568,7 +812,13 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--api":
         import json as _json
-        prev_scores = _json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
-        api_mode(prev_scores)
+        # stdin üzerinden tam JSON payload'ını oku
+        raw_input = sys.stdin.read()
+        if raw_input.strip():
+            payload = _json.loads(raw_input)
+            api_mode(payload)
+        else:
+            print(_json.dumps({"error": "Empty input received via stdin"}))
     else:
-        main()
+        # Manuel terminal testi için mock data oluştur veya hata ver
+        print("Test modu (mock data) şu an API moduna çevrildiği için desteklenmiyor. --api argümanı ve stdin JSON payload'u gereklidir.")

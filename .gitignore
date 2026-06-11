@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# SQLite veritabanları (test verisi — seed scriptleriyle yeniden üretilebilir)
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+
+# Geçici / artık dosyalar
+.fuse_hidden*
+
+# Referans amaçlı kopyalanan dış repolar (git'e dahil edilmez)
+_references/
+
+# Motor çıktıları (her çalıştırmada yeniden üretilir)
+engine/optishift_result.json
+engine/optishift_schedule.xlsx
