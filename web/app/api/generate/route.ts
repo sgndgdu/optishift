@@ -52,7 +52,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const branchId: string = body.locationId ?? "L-001";
+  // Diğer API'larla tutarlılık için snake_case da kabul edilir
+  const branchId: string | undefined = body.locationId ?? body.location_id;
+  if (!branchId) {
+    return NextResponse.json({ error: "locationId (veya location_id) zorunlu" }, { status: 400 });
+  }
   // week_start: schedule sayfasından ISO Pazartesi tarihi gelir (YYYY-MM-DD)
   // Gelmezse otomatik olarak bu haftanın Pazartesisini hesapla
   const week_start: string = (() => {

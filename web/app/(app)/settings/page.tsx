@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Save, Plus, X, AlertCircle, Bell, Send, UserCircle } from "lucide-react";
-import { MOCK_DEPARTMENTS, MOCK_ROLES } from "@/lib/mock-data";
 import type { Location, ShiftDefinition, Department, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
@@ -111,9 +110,16 @@ export default function SettingsPage() {
            setLeaveAllowMultiDay(!!lp.allow_multi_day);
            setLeaveMaxDays(lp.max_days_per_request ?? 1);
 
-           // Departmanlar ve rolleri (şimdilik mock datadan yükle, ileride db'ye alınırsa güncellenir)
-           let depts = MOCK_DEPARTMENTS.filter(d => d.location_id === finalId);
-           let locRoles = MOCK_ROLES.filter(r => depts.some(d => d.id === r.department_id));
+           // Departmanları DB'den yükle; bölge rolleri henüz DB'de tutulmuyor (localStorage)
+           let depts: Department[] = [];
+           try {
+             const dres = await fetch(`/api/departments?location_id=${finalId}`);
+             if (dres.ok) {
+               const draw = await dres.json();
+               if (Array.isArray(draw)) depts = draw;
+             }
+           } catch { /* departman yüklenemezse boş liste */ }
+           let locRoles: Role[] = [];
 
            const savedSettingsRaw = finalId ? localStorage.getItem(`optishift_settings_mock_${finalId}`) : null;
            if (savedSettingsRaw) {
