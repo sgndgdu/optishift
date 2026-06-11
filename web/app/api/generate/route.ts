@@ -249,6 +249,7 @@ export async function POST(req: NextRequest) {
     let ensureSeniorPerShift = false;
     let maxConsecutiveDays = 6;
     let noNightToMorning = false;
+    let preferredNotMultiplier = 1.5;
     if (locationRow?.rules) {
       try {
         const parsedRules = JSON.parse(locationRow.rules);
@@ -257,6 +258,9 @@ export async function POST(req: NextRequest) {
           maxConsecutiveDays = parsedRules.max_consecutive_days;
         }
         noNightToMorning = !!parsedRules?.no_night_to_morning;
+        if (typeof parsedRules?.preferred_not_multiplier === 'number') {
+          preferredNotMultiplier = parsedRules.preferred_not_multiplier;
+        }
       } catch { /* ignore */ }
     }
 
@@ -273,6 +277,7 @@ export async function POST(req: NextRequest) {
       ensure_senior_per_shift: ensureSeniorPerShift,
       max_consecutive_days:    maxConsecutiveDays,
       no_night_to_morning:     noNightToMorning,
+      preferred_not_multiplier: preferredNotMultiplier,
       rules: {
         max_weekly_hours: 45,
         min_rest_hours:   11,

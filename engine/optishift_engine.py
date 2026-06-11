@@ -31,6 +31,9 @@ AVAILABILITY = {}
 # Boşsa motor coverage-max moduna düşer
 DEMAND_MATRIX = {}
 
+# Tercih edilmeyen (sarı) günde çalıştırılan personelin puan telafi çarpanı
+PREFERRED_NOT_MULTIPLIER = 1.5
+
 # Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
 ENSURE_SENIOR_PER_SHIFT = False
 
@@ -97,6 +100,19 @@ def shift_points(day: int, shift_id: int) -> int:
     if is_friday_saturday:
         return max(base, 8)    # Cuma/Cumartesi yoğunluğu
     return base
+
+
+def effective_points(person_id, day: int, shift_id: int) -> int:
+    """Kişiye özel puan: tercih edilmeyen (sarı) günde çalışma telafi çarpanı uygulanır.
+
+    Personel bir günü 'tercih etmiyorum' olarak işaretlemişse ve yine de o güne
+    atanırsa, vardiyanın puanı PREFERRED_NOT_MULTIPLIER ile çarpılır. Böylece
+    adalet dengelemesi bu fedakarlığı otomatik tartar.
+    """
+    pts = shift_points(day, shift_id)
+    if get_avail(person_id, day) == "preferred_not":
+        pts = int(pts * PREFERRED_NOT_MULTIPLIER + 0.5)
+    return pts
 
 
 # ─── MODEL KURULUMU ───────────────────────────────────────────────────────────
@@ -250,7 +266,7 @@ def build_model():
 
     for p_idx, person in enumerate(PERSONNEL):
         weekly_pts = sum(
-            shifts[(p_idx, d, s)] * shift_points(d, s)
+            shifts[(p_idx, d, s)] * effective_points(person["id"], d, s)
             for d in range(NUM_DAYS)
             for s in range(NUM_SHIFTS)
         )
@@ -451,7 +467,7 @@ def export_json(solver, shifts, person_scores) -> dict:
                         "shift": SHIFTS[s]["name"],
                         "start": SHIFTS[s]["start"],
                         "end": SHIFTS[s]["end"],
-                        "points": shift_points(d, s),
+                        "points": effective_points(person["id"], d, s),
                         "availability_status": AVAILABILITY[person["id"]].get(d, "available"),
                     }
                     break
@@ -660,12 +676,16 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
 
     branch_id = payload.get("branchId", "L-001")
     ENSURE_SENIOR_PER_SHIFT = bool(payload.get("ensure_senior_per_shift", False))
     MAX_CONSECUTIVE_DAYS = int(payload.get("max_consecutive_days", 6))
     NO_NIGHT_TO_MORNING = bool(payload.get("no_night_to_morning", False))
+    try:
+        PREFERRED_NOT_MULTIPLIER = max(1.0, float(payload.get("preferred_not_multiplier", 1.5)))
+    except (TypeError, ValueError):
+        PREFERRED_NOT_MULTIPLIER = 1.5
 
     # Payload'dan gelen dinamik verileri global değişkenlere aktar
     raw_personnel    = payload.get("personnel", [])
@@ -784,7 +804,7 @@ def api_mode(payload: dict):
                         "shiftId":     s,
                         "start_time":  SHIFTS[s]["start"],
                         "end_time":    SHIFTS[s]["end"],
-                        "points":      shift_points(d, s),
+                        "points":      effective_points(person["id"], d, s),
                     })
 
     # Kıdemli kısıt ihlallerini tespit et (primary atanamamış vardiya/gün kombinasyonları)

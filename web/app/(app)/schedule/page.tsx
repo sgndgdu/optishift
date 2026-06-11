@@ -61,6 +61,11 @@ function calcPoints(startMin: number, endMin: number, day: number): number {
   return Math.round(hours * dayMultiplier + lateBonus);
 }
 
+/** Sarı (tercih edilmeyen) günde çalışan personele telafi çarpanı uygular. */
+function withPrefNotBonus(pts: number, am: AvailMap, pid: string, day: number, mult: number): number {
+  return am[pid]?.[day]?.status === "preferred_not" ? Math.round(pts * mult) : pts;
+}
+
 /** Bir hücrenin başlangıç/bitiş dakikalarını shift tanımlarıyla eşleştirir (±10 dk tolerans). */
 function matchShiftDef(startMin: number, endMin: number, defs: ShiftDefinition[]): ShiftDefinition | null {
   for (const d of defs) {
@@ -119,6 +124,7 @@ export default function SchedulePage() {
   const [departments, setDepartments]             = useState<any[]>([]);
   const [cellMap, setCellMap]                     = useState<CellMap>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
+  const [prefNotMult, setPrefNotMult]             = useState(1.5);
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
   const [generating, setGenerating]               = useState(false);
@@ -277,6 +283,16 @@ export default function SchedulePage() {
           setDemandMatrix({});
         }
 
+        // Tercih edilmeyen gün telafi çarpanı (locations.rules)
+        let mult = 1.5;
+        if (Array.isArray(locData) && locData[0]?.rules) {
+          try {
+            const r = typeof locData[0].rules === "string" ? JSON.parse(locData[0].rules) : locData[0].rules;
+            if (typeof r?.preferred_not_multiplier === "number") mult = r.preferred_not_multiplier;
+          } catch { /* varsayılan 1.5 */ }
+        }
+        setPrefNotMult(mult);
+
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active") : []);
 
         const newAvailMap: AvailMap = {};
@@ -306,7 +322,7 @@ export default function SchedulePage() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              newCellMap[key] = { startMin, endMin, points: calcPoints(startMin, endMin, s.day) };
+              newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, s.day), newAvailMap, s.personnel_id, s.day, mult) };
               if (s.publication_status === "draft") hasDraft = true;
             }
           }
@@ -436,7 +452,7 @@ export default function SchedulePage() {
       [key]: {
         startMin: popover.startMin,
         endMin:   popover.endMin,
-        points:   calcPoints(popover.startMin, popover.endMin, popover.day),
+        points:   withPrefNotBonus(calcPoints(popover.startMin, popover.endMin, popover.day), availMap, popover.personnelId, popover.day, prefNotMult),
       },
     });
     setPopover(null);
@@ -480,7 +496,7 @@ export default function SchedulePage() {
           const startMin = hhmmToMin(a.start_time);
           const rawEnd   = hhmmToMin(a.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-          newCellMap[key] = { startMin, endMin, points: calcPoints(startMin, endMin, a.day) };
+          newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, a.day), availMap, a.personnelId, a.day, prefNotMult) };
         }
       }
       pushCellMap(newCellMap);
@@ -739,7 +755,7 @@ export default function SchedulePage() {
           const startMin = hhmmToMin(s.start_time);
           const rawEnd   = hhmmToMin(s.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd;
-          newCellMap[key] = { startMin, endMin, points: calcPoints(startMin, endMin, s.day) };
+          newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, s.day), availMap, s.personnel_id, s.day, prefNotMult) };
         }
       }
       pushCellMap(newCellMap);
@@ -793,7 +809,7 @@ export default function SchedulePage() {
       const key = `${personId}-${day}`;
       const isWeekOff = person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === day;
       if (!newMap[key] && availMap[personId]?.[day]?.status !== 'unavailable' && !isWeekOff) {
-        newMap[key] = { startMin: ds, endMin: de, points: calcPoints(ds, de, day) };
+        newMap[key] = { startMin: ds, endMin: de, points: withPrefNotBonus(calcPoints(ds, de, day), availMap, personId, day, prefNotMult) };
         added++;
       }
     }
@@ -863,7 +879,7 @@ export default function SchedulePage() {
   }
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
-  const popoverPoints = popover ? calcPoints(popover.startMin, popover.endMin, popover.day) : 0;
+  const popoverPoints = popover ? withPrefNotBonus(calcPoints(popover.startMin, popover.endMin, popover.day), availMap, popover.personnelId, popover.day, prefNotMult) : 0;
   const hasExisting   = popover ? !!cellMap[`${popover.personnelId}-${popover.day}`] : false;
   const popoverHours  = popover ? Math.round((popover.endMin - popover.startMin) / 60 * 10) / 10 : 0;
 
@@ -1035,7 +1051,7 @@ export default function SchedulePage() {
         newMap[`${personId}-${targetDay}`] = {
           startMin,
           endMin,
-          points: calcPoints(startMin, endMin, targetDay)
+          points: withPrefNotBonus(calcPoints(startMin, endMin, targetDay), availMap, personId, targetDay, prefNotMult)
         };
         pushCellMap(newMap);
       }
@@ -1063,7 +1079,7 @@ export default function SchedulePage() {
 
     newMap[targetId] = {
       ...sourceCell,
-      points: calcPoints(sourceCell.startMin, sourceCell.endMin, targetDay)
+      points: withPrefNotBonus(calcPoints(sourceCell.startMin, sourceCell.endMin, targetDay), availMap, targetPId, targetDay, prefNotMult)
     };
     delete newMap[sourceId];
     

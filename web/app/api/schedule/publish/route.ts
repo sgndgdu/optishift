@@ -100,6 +100,14 @@ export async function POST(req: NextRequest) {
       `SELECT 1 FROM score_history WHERE location_id = ? AND week_start = ? LIMIT 1`
     ).get(location_id, week_start);
 
+    // Tercih edilmeyen gün telafi çarpanı (locations.rules)
+    let prefNotMult = 1.5;
+    try {
+      const locRules = db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(location_id) as any;
+      const parsed = JSON.parse(locRules?.rules || "{}");
+      if (typeof parsed.preferred_not_multiplier === "number") prefNotMult = parsed.preferred_not_multiplier;
+    } catch { /* varsayılan 1.5 */ }
+
     for (const p of alreadyScored ? [] : (personnel as any[])) {
       const oldScore = (p as any).prev_score ?? 0;
       let weekPoints: number;
@@ -117,10 +125,17 @@ export async function POST(req: NextRequest) {
         `).all(p.id, week_start, location_id) as any[];
 
         if (weekShifts.length === 0) continue;
-        weekPoints = weekShifts.reduce(
-          (sum: number, s: any) => sum + calcShiftPoints(s.start_time, s.end_time, s.day),
-          0,
-        );
+        // Sarı (tercih edilmeyen) günlerde çalışana telafi çarpanı uygula
+        const availRow = db.prepare(
+          `SELECT * FROM availability WHERE personnel_id = ? AND week_start = ?`
+        ).get(p.id, week_start) as any;
+        weekPoints = weekShifts.reduce((sum: number, s: any) => {
+          let pts = calcShiftPoints(s.start_time, s.end_time, s.day);
+          if (availRow?.[`day_${s.day}`] === "preferred_not") {
+            pts = Math.round(pts * prefNotMult);
+          }
+          return sum + pts;
+        }, 0);
       }
 
       const newScore = Math.round((oldScore * 0.2 + weekPoints * 0.8) * 100) / 100;

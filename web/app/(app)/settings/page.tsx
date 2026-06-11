@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [maxConsecutiveDays, setMaxConsecutiveDays]     = useState(6);
   const [noNightToMorning, setNoNightToMorning]         = useState(false);
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
+  const [preferredNotMultiplier, setPreferredNotMultiplier]       = useState(1.5);
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason]     = useState(false);
   const [leaveAllowMultiDay, setLeaveAllowMultiDay]     = useState(false);
@@ -101,6 +102,9 @@ export default function SettingsPage() {
            setMaxConsecutiveDays(parsedLoc.rules?.max_consecutive_days ?? 6);
            setNoNightToMorning(!!parsedLoc.rules?.no_night_to_morning);
            setIncludeManagersInSchedule(!!parsedLoc.rules?.include_managers_in_schedule);
+           if (typeof parsedLoc.rules?.preferred_not_multiplier === "number") {
+             setPreferredNotMultiplier(parsedLoc.rules.preferred_not_multiplier);
+           }
            // İzin politikasını yükle
            if (typeof parsedLoc.leave_policy === 'string') {
              try { parsedLoc.leave_policy = JSON.parse(parsedLoc.leave_policy); } catch { parsedLoc.leave_policy = {}; }
@@ -197,6 +201,7 @@ export default function SettingsPage() {
             max_consecutive_days:    maxConsecutiveDays,
             no_night_to_morning:     noNightToMorning,
             include_managers_in_schedule: includeManagersInSchedule,
+            preferred_not_multiplier: preferredNotMultiplier,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -464,6 +469,28 @@ export default function SettingsPage() {
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${includeManagersInSchedule ? "translate-x-6" : "translate-x-1"}`} />
                   </button>
+                </div>
+
+                {/* Tercih Edilmeyen Gün Çarpanı */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Tercih Edilmeyen Gün Çarpanı</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Personel bir günü <span className="font-semibold text-amber-600">sarı</span> (tercih etmiyorum) işaretlemişse ve yine de o güne atanırsa, vardiya puanı bu çarpanla çarpılır. Fedakarlık adalet puanına yansır.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-slate-400 font-semibold">×</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={3}
+                      step={0.25}
+                      value={preferredNotMultiplier}
+                      onChange={e => setPreferredNotMultiplier(Math.min(3, Math.max(1, parseFloat(e.target.value) || 1.5)))}
+                      className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
                 </div>
 
                 {/* Gececi→Sabahçı Yasağı */}
