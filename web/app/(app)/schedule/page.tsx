@@ -1087,7 +1087,7 @@ export default function SchedulePage() {
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">Haftalık çalışma takvimi — hücreye tıklayarak vardiya ekle/düzenle</p>
         </div>
 
-        {/* ── Top bar ── */}
+        {/* ── Top bar: hafta navigasyonu + yardımcı araçlar ── */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Week navigation */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -1108,104 +1108,124 @@ export default function SchedulePage() {
             </button>
           </div>
 
-          <button
-            onClick={handleCopyPrevWeek}
-            disabled={copyLoading}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-            title="Geçen haftanın planını bu haftaya kopyala (taslak olarak kaydedilir)"
-          >
-            <Copy size={13} /> {copyLoading ? "Kopyalanıyor…" : <><span className="hidden sm:inline">Geçen Haftayı Kopyala</span><span className="sm:hidden">Kopyala</span></>}
-          </button>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {/* Undo / Redo */}
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                title="Geri Al (Ctrl+Z)"
+                className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Undo2 size={14} />
+              </button>
+              <div className="w-px h-5 bg-slate-200" />
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                title="Yeniden Yap (Ctrl+Y)"
+                className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Redo2 size={14} />
+              </button>
+            </div>
 
-          <button
-            onClick={handleRequestAvailability}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            <Bell size={13} /> <span className="hidden sm:inline">Müsaitlik İste</span><span className="sm:hidden">İste</span>
-          </button>
-
-          <button
-            onClick={handleGenerateClick}
-            disabled={generating}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-          >
-            <Zap size={13} /> {generating ? "Oluşturuluyor…" : <><span className="hidden sm:inline">Otomatik Oluştur</span><span className="sm:hidden">Oluştur</span></>}
-          </button>
-
-          <button
-            onClick={handleSaveDraft}
-            disabled={draftLoading || Object.keys(cellMap).length === 0}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-          >
-            <BookOpen size={13} /> {draftLoading ? "Kaydediliyor…" : <><span className="hidden sm:inline">Taslak Kaydet</span><span className="sm:hidden">Taslak</span></>}
-          </button>
-
-          <button
-            onClick={handleSendForReview}
-            disabled={sendReviewLoading || !isDraftWeek}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-xl hover:bg-sky-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-            title="Personele bildirim gönder — 48 saat itiraz penceresi"
-          >
-            <Eye size={13} /> {sendReviewLoading ? "Gönderiliyor…" : <><span className="hidden sm:inline">Personele Gönder</span><span className="sm:hidden">Gönder</span></>}
-          </button>
-
-          <button
-            onClick={handlePublish}
-            disabled={publishLoading || Object.keys(cellMap).length === 0}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-          >
-            <Send size={13} /> {publishLoading ? "Yayınlanıyor…" : "Yayınla"}
-          </button>
-
-          <a
-            href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`}
-            download
-            className="ml-auto px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            <Download size={13} /> <span className="hidden sm:inline">Excel İndir</span><span className="sm:hidden">Excel</span>
-          </a>
-
-          <button
-            onClick={handleAISummary}
-            disabled={aiLoading || Object.keys(cellMap).length === 0}
-            className="px-3 py-2 text-xs md:text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-          >
-            <Sparkles size={13} /> {aiLoading ? "Analiz ediliyor…" : <><span className="hidden sm:inline">AI Özet</span><span className="sm:hidden">AI</span></>}
-          </button>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
-              onClick={() => setViewMode("shift")}
-              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "shift" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              onClick={handleAISummary}
+              disabled={aiLoading || Object.keys(cellMap).length === 0}
+              className="px-3 py-2 text-xs md:text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
             >
-              Kapasite Pano
+              <Sparkles size={13} /> {aiLoading ? "Analiz ediliyor…" : <><span className="hidden sm:inline">AI Özet</span><span className="sm:hidden">AI</span></>}
+            </button>
+
+            <a
+              href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`}
+              download
+              className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <Download size={13} /> <span className="hidden sm:inline">Excel İndir</span><span className="sm:hidden">Excel</span>
+            </a>
+
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setViewMode("shift")}
+                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "shift" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Kapasite Pano
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "grid" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Personel Tablo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── İş akışı: 1 Planla → 2 Oluştur → 3 Yayınla ── */}
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+          {/* 1 · Planla */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">1 · Planla</span>
+            <button
+              onClick={handleRequestAvailability}
+              className="px-2.5 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+              title="Müsaitlik girmemiş personele hatırlatma bildirimi gönder"
+            >
+              <Bell size={13} /> <span className="hidden sm:inline">Müsaitlik İste</span><span className="sm:hidden">İste</span>
             </button>
             <button
-              onClick={() => setViewMode("grid")}
-              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "grid" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              onClick={handleCopyPrevWeek}
+              disabled={copyLoading}
+              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              title="Geçen haftanın planını bu haftaya kopyala (taslak olarak kaydedilir)"
             >
-              Personel Tablo
+              <Copy size={13} /> {copyLoading ? "Kopyalanıyor…" : <><span className="hidden sm:inline">Geçen Haftayı Kopyala</span><span className="sm:hidden">Kopyala</span></>}
             </button>
           </div>
 
-          {/* Undo / Redo */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <ChevronRight size={14} className="text-slate-300 shrink-0 hidden md:block" />
+
+          {/* 2 · Oluştur */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">2 · Oluştur</span>
             <button
-              onClick={undo}
-              disabled={!canUndo}
-              title="Geri Al (Ctrl+Z)"
-              className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              onClick={handleGenerateClick}
+              disabled={generating}
+              className="px-2.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              title="Kapasite planı + müsaitlik + kurallara göre adil taslak üret"
             >
-              <Undo2 size={14} />
+              <Zap size={13} /> {generating ? "Oluşturuluyor…" : <><span className="hidden sm:inline">Otomatik Oluştur</span><span className="sm:hidden">Oluştur</span></>}
             </button>
-            <div className="w-px h-5 bg-slate-200" />
             <button
-              onClick={redo}
-              disabled={!canRedo}
-              title="Yeniden Yap (Ctrl+Y)"
-              className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              onClick={handleSaveDraft}
+              disabled={draftLoading || Object.keys(cellMap).length === 0}
+              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Redo2 size={14} />
+              <BookOpen size={13} /> {draftLoading ? "Kaydediliyor…" : <><span className="hidden sm:inline">Taslak Kaydet</span><span className="sm:hidden">Taslak</span></>}
+            </button>
+          </div>
+
+          <ChevronRight size={14} className="text-slate-300 shrink-0 hidden md:block" />
+
+          {/* 3 · Yayınla */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">3 · Yayınla</span>
+            <button
+              onClick={handleSendForReview}
+              disabled={sendReviewLoading || !isDraftWeek}
+              className="px-2.5 py-1.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              title="Personele bildirim gönder — 48 saat itiraz penceresi"
+            >
+              <Eye size={13} /> {sendReviewLoading ? "Gönderiliyor…" : <><span className="hidden sm:inline">Personele Gönder</span><span className="sm:hidden">Gönder</span></>}
+            </button>
+            <button
+              onClick={handlePublish}
+              disabled={publishLoading || Object.keys(cellMap).length === 0}
+              className="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Send size={13} /> {publishLoading ? "Yayınlanıyor…" : "Yayınla"}
             </button>
           </div>
         </div>
