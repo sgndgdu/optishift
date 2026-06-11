@@ -247,10 +247,11 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 - `shift_assignments.check_in_at` — nullable timestamp
 - `shift_assignments.check_out_at` — nullable timestamp
 
-**Eksik tablolar (DB'de yok — schema + migration gerekli):**
-- `shift_swap_requests` — `(id, org_id, location_id, requester_id, target_id, requester_shift_id, target_shift_id, status: 'pending'|'target_accepted'|'target_rejected'|'manager_approved'|'manager_rejected', note, created_at)`
+**Talep/operasyon tabloları (DB'de mevcut — uygulandı):**
+- `shift_swap_requests` — `(id, org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status: 'pending'|'peer_accepted'|'peer_rejected'|'manager_approved'|'manager_rejected'|'cancelled', note, created_at)` — durum geçişleri `lib/swapReducer.ts`'te tanımlı; PATCH body: `{ id, status }`
 - `shift_edit_requests` — `(id, org_id, location_id, personnel_id, shift_id, requested_start, requested_end, reason, status: 'pending'|'approved'|'rejected', created_at)`
-- `open_shifts` — `(id, org_id, location_id, week_start, day, start_time, end_time, required_skill, hero_bonus_multiplier, status: 'open'|'claimed'|'cancelled', claimed_by, claimed_at, created_at)`
+- `open_shifts` — `(id, org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status: 'open'|'claimed'|'cancelled', claimed_by, claimed_by_name, claimed_at, created_at)` — claim edilince kahramanın takvimine `shift_assignments` kaydı otomatik düşer
+- Not: `/api/locations` PATCH `?id=` query parametresi alır (body'de değil); `/api/generate` hem `locationId` hem `location_id` kabul eder
 
 **Örnek demand_matrix:**
 ```json
