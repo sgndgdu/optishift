@@ -277,7 +277,12 @@ export default function SchedulePage() {
             const rawDemand = typeof locData[0].demand_matrix === "string"
               ? JSON.parse(locData[0].demand_matrix)
               : locData[0].demand_matrix;
-            setDemandMatrix(rawDemand && typeof rawDemand === "object" ? rawDemand : {});
+            const matrix = rawDemand && typeof rawDemand === "object" ? rawDemand : {};
+            setDemandMatrix(matrix);
+            // Matris doluysa kapasite paneli varsayılan açık gelsin
+            const hasDemand = Object.values(matrix as Record<string, Record<number, number>>)
+              .some(days => Object.values(days ?? {}).some(n => (n ?? 0) > 0));
+            if (hasDemand) setDemandOpen(true);
           } catch { setDemandMatrix({}); }
         } else {
           setDemandMatrix({});
