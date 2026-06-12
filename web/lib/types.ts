@@ -84,6 +84,8 @@ export interface ScheduleRules {
   max_weekly_hours: number;   // yasal üst sınır, varsayılan 45
   min_rest_hours: number;     // iki vardiya arası min dinlenme, varsayılan 11
   skills_match: SkillsMatchMode;
+  clopening_min_rest_hours?: number;   // bu saatin altındaki ardışık gün geçişi "clopening" sayılır, varsayılan 13
+  change_compensation_points?: number; // yayınlanmış vardiya değişince personele yazılan telafi puanı, varsayılan 2
 }
 
 // ─── Personel ─────────────────────────────────────────────────────────────────

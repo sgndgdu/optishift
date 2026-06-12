@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
   const [openShifts, setOpenShifts] = useState<any[]>([]);
   const [availMissing, setAvailMissing] = useState<any[]>([]);
+  const [publishLead, setPublishLead] = useState<number | null>(null);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent">("idle");
   const [nextWeekPublished, setNextWeekPublished] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -43,13 +44,14 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const weekStart = getTodayWeekStart();
-      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes] = await Promise.all([
+      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes, publishStatsRes] = await Promise.all([
         fetch(`/api/personnel?location_id=${u.location_id}`),
         fetch(`/api/leave-requests?location_id=${u.location_id}`),
         fetch(`/api/shifts?location_id=${u.location_id}&week_start=${weekStart}`),
         fetch(`/api/open-shifts?location_id=${u.location_id}`),
         fetch(`/api/availability/team?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
         fetch(`/api/shifts?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
+        fetch(`/api/schedule/publish-stats?location_id=${u.location_id}`),
       ]);
       const personnelData = await personnelRes.json();
       const leaveData = await leaveRes.json();
@@ -57,6 +59,7 @@ export default function DashboardPage() {
       const openShiftsData = await openShiftsRes.json();
       const availData = await availRes.json();
       const nextShiftsData = await nextShiftsRes.json();
+      const publishStatsData = await publishStatsRes.json();
 
       setPersonnel(Array.isArray(personnelData) ? personnelData : []);
       setLeaveRequests(Array.isArray(leaveData) ? leaveData.filter((l: any) => l.status === "pending") : []);
@@ -67,6 +70,7 @@ export default function DashboardPage() {
         Array.isArray(nextShiftsData) &&
         nextShiftsData.some((s: any) => !s.publication_status || s.publication_status === "published")
       );
+      setPublishLead(typeof publishStatsData?.avg_lead_days === "number" ? publishStatsData.avg_lead_days : null);
     } catch (e) {
       console.error(e);
     }
@@ -184,6 +188,18 @@ export default function DashboardPage() {
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100" },
     { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
     { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
+    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023)
+    {
+      label: "Yayın Öncülüğü",
+      value: publishLead === null ? "—" : `${publishLead.toLocaleString("tr-TR")} gün`,
+      sub: publishLead === null ? "Henüz yayın verisi yok"
+        : publishLead >= 7 ? "Harika — tam hafta önceden"
+        : publishLead >= 3 ? "İyi — daha erken hedefleyin"
+        : "Geç — personel plan yapamıyor",
+      icon: CalendarCheck,
+      color: publishLead === null ? "text-slate-500" : publishLead >= 7 ? "text-emerald-600" : publishLead >= 3 ? "text-amber-600" : "text-red-600",
+      bg: publishLead === null ? "bg-slate-100" : publishLead >= 7 ? "bg-emerald-100" : publishLead >= 3 ? "bg-amber-100" : "bg-red-100",
+    },
   ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
 
   return (
@@ -201,7 +217,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Kartları */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
         {kpi.map(({ label, value, sub, icon: Icon, color, bg, href }) => (
           <Card
             key={label}

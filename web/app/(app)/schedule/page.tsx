@@ -125,6 +125,7 @@ export default function SchedulePage() {
   const [cellMap, setCellMap]                     = useState<CellMap>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [prefNotMult, setPrefNotMult]             = useState(1.5);
+  const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
   const [generating, setGenerating]               = useState(false);
@@ -288,15 +289,18 @@ export default function SchedulePage() {
           setDemandMatrix({});
         }
 
-        // Tercih edilmeyen gün telafi çarpanı (locations.rules)
+        // Tercih edilmeyen gün telafi çarpanı + clopening eşiği (locations.rules)
         let mult = 1.5;
+        let clopeningRest = 13;
         if (Array.isArray(locData) && locData[0]?.rules) {
           try {
             const r = typeof locData[0].rules === "string" ? JSON.parse(locData[0].rules) : locData[0].rules;
             if (typeof r?.preferred_not_multiplier === "number") mult = r.preferred_not_multiplier;
-          } catch { /* varsayılan 1.5 */ }
+            if (typeof r?.clopening_min_rest_hours === "number") clopeningRest = r.clopening_min_rest_hours;
+          } catch { /* varsayılanlar */ }
         }
         setPrefNotMult(mult);
+        setClopeningMinRest(clopeningRest);
 
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active") : []);
 
@@ -634,7 +638,8 @@ export default function SchedulePage() {
       if (totalHours > maxH) {
         violations.push(`${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s — limit ${maxH}s aşıldı`);
       }
-      // 11 saatlik dinlenme kuralı
+      // 11 saatlik dinlenme kuralı + clopening tespiti (kapanış→açılış yorucu geçişi)
+      let clopeningCount = 0;
       for (let d = 0; d < 6; d++) {
         const cur  = cellMap[`${p.id}-${d}`];
         const next = cellMap[`${p.id}-${d + 1}`];
@@ -643,7 +648,13 @@ export default function SchedulePage() {
         const gap    = (next.startMin + 1440) - adjEnd;
         if (gap < 11 * 60) {
           violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} arası dinlenme ${Math.round(gap / 60 * 10) / 10}s (min 11s)`);
+        } else if (gap < clopeningMinRest * 60) {
+          clopeningCount++;
+          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} clopening (kapanış→açılış) — dinlenme ${Math.round(gap / 60 * 10) / 10}s, ${clopeningMinRest}s önerilir`);
         }
+      }
+      if (clopeningCount >= 2) {
+        violations.push(`${p.name}: bu hafta ${clopeningCount} clopening — yorgunluk riski yüksek, dağıtmayı düşünün`);
       }
       // Müsaitlik ihlalleri — "unavailable" gün atama
       for (let d = 0; d < 7; d++) {

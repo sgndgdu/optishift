@@ -58,6 +58,9 @@ ZONE_DEMAND_PER_DAY = {
 RULES = {
     "max_weekly_hours": 45,
     "min_rest_hours":   11,
+    # Bu saatin altındaki ardışık gün geçişi "clopening" (kapanış→açılış) sayılır
+    # ve soft ceza alır. min_rest_hours'un altı zaten hard yasak.
+    "clopening_min_rest_hours": 13,
 }
 
 DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -259,6 +262,28 @@ def build_model():
         if get_avail(person["id"], d, s) == "preferred_not"
     ]
 
+    # Clopening (kapanış→açılış) soft cezası — OPTI-023.
+    # Dinlenme yasal minimumun (min_rest_hours) üstünde ama clopening eşiğinin
+    # altında kalan ardışık gün geçişleri yorucudur; motor alternatif varken kaçınır.
+    clopening_min = int(RULES.get("clopening_min_rest_hours", 13)) * 60
+    clopening_transitions = []
+    for s1 in range(NUM_SHIFTS):
+        _, end1 = _shift_minutes(SHIFTS[s1])
+        for s2 in range(NUM_SHIFTS):
+            start2, _ = _shift_minutes(SHIFTS[s2])
+            rest_gap = (start2 + 1440) - end1
+            if min_rest_min <= rest_gap < clopening_min:
+                clopening_transitions.append((s1, s2))
+
+    clopening_penalties = []
+    for p in range(num_p):
+        for d in range(NUM_DAYS - 1):
+            for s1, s2 in clopening_transitions:
+                b = model.new_bool_var(f"clopening_p{p}_d{d}_s{s1}_{s2}")
+                # İki vardiya da atanmışsa b zorunlu 1; aksi halde minimize 0'a çeker
+                model.add(shifts[(p, d, s1)] + shifts[(p, d + 1, s2)] - 1 <= b)
+                clopening_penalties.append(b)
+
     # Minimum haftalık saat garantisi (soft) — part-time alt sınır.
     # Hard constraint yapılmaz: personel kırmızı günlerle haftayı kapatmışsa
     # plan kilitlenmesin diye eksik kalan dakikalar shortfall ile cezalandırılır.
@@ -350,6 +375,7 @@ def build_model():
         + sum(preferred_not_penalties) * 10
         + sum(senior_violation_penalties) * 50
         + sum(min_hours_shortfalls) * 5
+        + sum(clopening_penalties) * 30
     )
 
     return model, shifts, person_scores, fairness_gap

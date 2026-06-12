@@ -88,6 +88,9 @@ Müdürün vardiyayı oluşturmadan önce esnetebileceği veya katılaştırabil
 - **Bütçe/Mesai Limiti:** Haftalık toplam fazla mesai bütçe sınırı.
 - *Not:* Kurallar "Kritik" (Değiştirilemez) ve "Esnek" (Uyar ama izin ver) olarak ayrılır.
 - **Yayınlama Öncesi İhlal Özeti:** "Yayınla" öncesinde sistem tüm kural ihlallerini tarar ve bir modal gösterir: "3 personelde 11 saat ihlali, 1 personel 45 saati aşacak. Devam etmek istiyor musunuz?"
+- **Clopening Tespiti (OPTI-023):** Ardışık gün geçişinde dinlenme `rules.clopening_min_rest_hours` (varsayılan 13) saatin altındaysa (ama yasal 11 saatin üstündeyse) ihlal modalında "clopening (kapanış→açılış)" olarak isimlendirilir; kişi başı haftada 2+ clopening ayrıca özetlenir. OR-Tools motoru her clopening geçişine soft ceza (×30) uygular — alternatif varken kaçınır, mecbursa izin verir.
+- **Yayın Sonrası Değişiklik Telafisi (OPTI-023):** Yayınlanmış (published) bir vardiyanın saati değişirse — bugün veya gelecekteki vardiyalar için — personele `rules.change_compensation_points` (varsayılan 2) telafi puanı yazılır (`prev_score += puan × 0.8`, kahraman bonusu emsali) ve bildirim gider. Predictability pay'in puan karşılığıdır; geçmiş hafta düzeltmeleri telafi tetiklemez.
+- **Yayın Öncülüğü KPI'ı (OPTI-023):** `shift_assignments.published_at` haftanın ilk yayın anını tutar. `/api/schedule/publish-stats?location_id=` son 8 haftanın `lead_days` (hafta başlangıcı − ilk yayın) ortalamasını döner. Müdür dashboard'unda KPI kartı, supervisor panelinde şube kartı sayacı olarak gösterilir: ≥7 gün yeşil, 3–7 amber, <3 kırmızı.
 
 ### E. Dinamik Mola (Break) Yönetimi
 - **Mola Havuzu Mantığı:** Çalışan işe gelip check-in yaptıktan sonra molaya çıkarken uygulamadan "Molaya Çık" butonuna basar.
@@ -246,6 +249,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 **Kritik alan eklemeleri:**
 - `locations.demand_matrix` — JSON: `{ [shiftDefId]: { [day: 0-6]: count } }` — haftalık kapasite matrisi
 - `shift_assignments.status` — `'draft' | 'published'` (varsayılan `'published'` — mevcut kayıtlar için)
+- `shift_assignments.published_at` — nullable unix timestamp, haftanın ilk yayın anı (yayın öncülüğü KPI'ı)
 - `shift_assignments.check_in_at` — nullable timestamp
 - `shift_assignments.check_out_at` — nullable timestamp
 

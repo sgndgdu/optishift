@@ -100,6 +100,23 @@ export async function POST(req: NextRequest) {
     const now = Math.floor(Date.now() / 1000);
     const results: any[] = [];
     const errors: string[] = [];
+    const compensations: { personnel_id: string; points: number }[] = [];
+
+    // Lokasyon bazlı telafi puanı kuralı (rules.change_compensation_points, varsayılan 2)
+    const compPointsCache = new Map<string, number>();
+    const getCompPoints = (locId: string): number => {
+      if (compPointsCache.has(locId)) return compPointsCache.get(locId)!;
+      let pts = 2;
+      try {
+        const row = db.prepare("SELECT rules FROM locations WHERE id = ?").get(locId) as any;
+        const parsed = JSON.parse(row?.rules || "{}");
+        if (typeof parsed.change_compensation_points === "number") pts = parsed.change_compensation_points;
+      } catch { /* varsayılan 2 */ }
+      compPointsCache.set(locId, pts);
+      return pts;
+    };
+
+    const todayStr = new Date().toISOString().split("T")[0];
 
     db.transaction(() => {
       for (const shift of shifts) {
@@ -171,11 +188,42 @@ export async function POST(req: NextRequest) {
             continue;
           } else {
             // Kendi şubesinde güncelleniyor
+            // Yayın sonrası değişiklik tespiti: yayınlanmış vardiyanın saati değişiyorsa
+            // personele telafi puanı yazılır (predictability pay analoğu — OPTI-023)
+            const timeChanged =
+              existing.publication_status === "published" &&
+              (existing.start_time !== (start_time || null) || existing.end_time !== (end_time || null));
+
             db.prepare(`
               UPDATE shift_assignments
-              SET shift_id = ?, start_time = ?, end_time = ?, status = 'scheduled', publication_status = ?
+              SET shift_id = ?, start_time = ?, end_time = ?, status = 'scheduled', publication_status = ?,
+                  published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, ?) ELSE published_at END
               WHERE id = ?
-            `).run(shift_id || 'custom', start_time || null, end_time || null, pubStatus, existing.id);
+            `).run(shift_id || 'custom', start_time || null, end_time || null, pubStatus, pubStatus, now, existing.id);
+
+            if (timeChanged && pubStatus === "published") {
+              // Sadece bugün veya gelecekteki vardiyalar için telafi (geçmiş düzeltmeleri hariç)
+              const shiftDate = new Date(`${week_start}T00:00:00`);
+              shiftDate.setDate(shiftDate.getDate() + day);
+              if (shiftDate.toISOString().split("T")[0] >= todayStr) {
+                const compPts = getCompPoints(location_id);
+                if (compPts > 0) {
+                  // Hero bonusu emsali: prev_score ağırlıklı ortalama olduğu için ×0.8 ile eklenir
+                  db.prepare(`UPDATE personnel SET prev_score = ROUND(COALESCE(prev_score, 0) + ?, 2) WHERE id = ?`)
+                    .run(Math.round(compPts * 0.8 * 100) / 100, personnel_id);
+                  db.prepare(`
+                    INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+                    VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', 0, ?)
+                  `).run(
+                    personnel_id,
+                    `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Son dakika değişikliği için +${compPts} telafi puanı hesabına eklendi.`,
+                    now
+                  );
+                  compensations.push({ personnel_id, points: compPts });
+                }
+              }
+            }
+
             results.push({ id: existing.id, updated: true });
             continue;
           }
@@ -183,9 +231,9 @@ export async function POST(req: NextRequest) {
 
         // Çakışma yoksa yeni kayıt oluştur
         const result = db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?)
-        `).run(personnel_id, location_id, week_start, day, shift_id || 'custom', start_time || null, end_time || null, pubStatus, now);
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)
+        `).run(personnel_id, location_id, week_start, day, shift_id || 'custom', start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, now);
         
         results.push({ id: result.lastInsertRowid, inserted: true });
       }
@@ -194,10 +242,10 @@ export async function POST(req: NextRequest) {
     db.close();
 
     if (errors.length > 0) {
-      return NextResponse.json({ error: "Bazı atamalarda çakışma oldu", details: errors, results }, { status: 409 });
+      return NextResponse.json({ error: "Bazı atamalarda çakışma oldu", details: errors, results, compensations }, { status: 409 });
     }
 
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json({ success: true, results, compensations });
   } catch (err: any) {
     db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -231,9 +279,10 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       const info = db.prepare(`
-        UPDATE shift_assignments SET publication_status = 'published'
+        UPDATE shift_assignments SET publication_status = 'published',
+          published_at = COALESCE(published_at, ?)
         WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
-      `).run(location_id, week_start);
+      `).run(Math.floor(Date.now() / 1000), location_id, week_start);
       db.close();
       return NextResponse.json({ success: true, updated: info.changes });
     }

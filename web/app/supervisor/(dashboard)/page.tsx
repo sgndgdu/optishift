@@ -16,6 +16,7 @@ type Location = {
   name: string;
   dept_count: number;
   personnel_count: number;
+  publish_lead: number | null; // programın hafta başından ort. kaç gün önce yayınlandığı
 };
 
 export default function SupervisorDashboard() {
@@ -62,15 +63,17 @@ export default function SupervisorDashboard() {
       // Her şube için departman + personel sayısını paralel çek
       const enriched = await Promise.all(
         locs.map(async (loc) => {
-          const [depts, pers] = await Promise.all([
+          const [depts, pers, pubStats] = await Promise.all([
             fetch(`/api/departments?location_id=${loc.id}`).then(r => r.json()).catch(() => []),
             fetch(`/api/personnel?location_id=${loc.id}`).then(r => r.json()).catch(() => []),
+            fetch(`/api/schedule/publish-stats?location_id=${loc.id}`).then(r => r.json()).catch(() => null),
           ]);
           return {
             id: loc.id,
             name: loc.name,
             dept_count: Array.isArray(depts) ? depts.length : 0,
             personnel_count: Array.isArray(pers) ? pers.filter((p: any) => p.status === "active").length : 0,
+            publish_lead: typeof pubStats?.avg_lead_days === "number" ? pubStats.avg_lead_days : null,
           };
         })
       );
@@ -183,7 +186,7 @@ export default function SupervisorDashboard() {
                   </div>
 
                   {/* Sayaçlar */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
                       <p className="text-lg font-black text-indigo-600">{loc.dept_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Departman</p>
@@ -191,6 +194,17 @@ export default function SupervisorDashboard() {
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
                       <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Personel</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <p className={`text-lg font-black ${
+                        loc.publish_lead === null ? "text-slate-300"
+                        : loc.publish_lead >= 7 ? "text-emerald-600"
+                        : loc.publish_lead >= 3 ? "text-amber-600"
+                        : "text-red-600"
+                      }`}>
+                        {loc.publish_lead === null ? "—" : `${loc.publish_lead.toLocaleString("tr-TR")}g`}
+                      </p>
+                      <p className="text-[11px] font-semibold text-slate-500">Yayın Öncülüğü</p>
                     </div>
                   </div>
 

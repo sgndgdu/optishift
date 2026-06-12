@@ -161,6 +161,7 @@ export const shiftAssignments = sqliteTable("shift_assignments", {
   points: real("points").default(0),
   status: text("status").default("scheduled"), // scheduled | completed | absent | swapped
   publication_status: text("publication_status").default("published"), // draft | published
+  published_at: integer("published_at"), // unix timestamp — haftanın ilk yayın anı (yayın öncülüğü KPI'ı)
   check_in_at: integer("check_in_at"),   // unix timestamp
   check_out_at: integer("check_out_at"), // unix timestamp
   created_at: integer("created_at").$defaultFn(() => Math.floor(Date.now() / 1000)),
