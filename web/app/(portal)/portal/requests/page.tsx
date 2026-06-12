@@ -395,6 +395,7 @@ export default function PortalRequests() {
                   note={s.note}
                   canCancel={s.status === "pending"}
                   onCancel={() => setCancelConfirm({ kind: "swap", id: s.id })}
+                  showSwapSteps
                 />
               ))}
           </Section>
@@ -461,6 +462,7 @@ export default function PortalRequests() {
                     </div>
                     <ArrowLeftRight size={18} className="text-primary shrink-0 mt-0.5" />
                   </div>
+                  <SwapSteps status={s.status} />
                   {isPending && (
                     <div className="flex gap-2">
                       <button
@@ -819,7 +821,53 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-function RequestCard({ title, sub, status, note, managerNote, canCancel, onCancel }: {
+// Swap akışı 3 aşamalıdır: teklif → karşı taraf kabulü → müdür onayı.
+// Statüden her adımın durumunu türetir; iptal edilen taleplerde gösterilmez.
+function SwapSteps({ status }: { status: string }) {
+  if (status === "cancelled") return null;
+  const STEPS = ["Teklif", "Kabul", "Müdür Onayı"];
+  // Her adım: done | current | failed | upcoming
+  const states: ("done" | "current" | "failed" | "upcoming")[] =
+    status === "pending"          ? ["done", "current", "upcoming"] :
+    status === "peer_rejected"    ? ["done", "failed", "upcoming"] :
+    status === "peer_accepted"    ? ["done", "done", "current"] :
+    status === "manager_approved" ? ["done", "done", "done"] :
+    status === "manager_rejected" ? ["done", "done", "failed"] :
+    ["upcoming", "upcoming", "upcoming"];
+
+  const dotCls = {
+    done:     "bg-emerald-500 text-white",
+    current:  "bg-amber-400 text-white animate-pulse",
+    failed:   "bg-red-500 text-white",
+    upcoming: "bg-slate-200 text-slate-400",
+  };
+  const labelCls = {
+    done:     "text-emerald-600",
+    current:  "text-amber-600",
+    failed:   "text-red-600",
+    upcoming: "text-slate-400",
+  };
+
+  return (
+    <div className="flex items-center gap-1 border-t border-slate-50 pt-2.5">
+      {STEPS.map((label, i) => (
+        <div key={label} className="flex items-center gap-1 flex-1 last:flex-none">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${dotCls[states[i]]}`}>
+              {states[i] === "done" ? "✓" : states[i] === "failed" ? "✕" : i + 1}
+            </span>
+            <span className={`text-[10px] font-bold ${labelCls[states[i]]}`}>{label}</span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={`flex-1 h-px mx-1 ${states[i] === "done" ? "bg-emerald-200" : "bg-slate-100"}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RequestCard({ title, sub, status, note, managerNote, canCancel, onCancel, showSwapSteps }: {
   title: string;
   sub: string;
   status: string;
@@ -827,6 +875,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
   managerNote?: string;
   canCancel?: boolean;
   onCancel?: () => void;
+  showSwapSteps?: boolean;
 }) {
   const isFinal = ["cancelled", "manager_approved", "manager_rejected", "approved", "rejected", "peer_rejected"].includes(status);
   return (
@@ -849,6 +898,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
           )}
         </div>
       </div>
+      {showSwapSteps && <SwapSteps status={status} />}
       {note && <p className="text-xs text-slate-400 italic border-t border-slate-50 pt-2">"{note}"</p>}
       {managerNote && <p className="text-xs text-slate-500 border-t border-slate-50 pt-2"><span className="font-bold">Müdür notu:</span> {managerNote}</p>}
     </div>
