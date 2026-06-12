@@ -16,6 +16,9 @@ export default function DashboardPage() {
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
   const [openShifts, setOpenShifts] = useState<any[]>([]);
+  const [availMissing, setAvailMissing] = useState<any[]>([]);
+  const [remindState, setRemindState] = useState<"idle" | "sending" | "sent">("idle");
+  const [nextWeekPublished, setNextWeekPublished] = useState(true);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const lateAutoCreated = useRef<Set<number>>(new Set());
@@ -29,25 +32,41 @@ export default function DashboardPage() {
   };
   const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
+  // Planlama hedefi: gelecek haftanın pazartesi tarihi
+  const getNextWeekStart = () => {
+    const monday = new Date(getTodayWeekStart() + "T00:00:00");
+    monday.setDate(monday.getDate() + 7);
+    return monday.toISOString().split("T")[0];
+  };
+
   const loadData = async (u: typeof user) => {
     setLoading(true);
     try {
       const weekStart = getTodayWeekStart();
-      const [personnelRes, leaveRes, shiftsRes, openShiftsRes] = await Promise.all([
+      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes] = await Promise.all([
         fetch(`/api/personnel?location_id=${u.location_id}`),
         fetch(`/api/leave-requests?location_id=${u.location_id}`),
         fetch(`/api/shifts?location_id=${u.location_id}&week_start=${weekStart}`),
         fetch(`/api/open-shifts?location_id=${u.location_id}`),
+        fetch(`/api/availability/team?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
+        fetch(`/api/shifts?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
       ]);
       const personnelData = await personnelRes.json();
       const leaveData = await leaveRes.json();
       const shiftsData = await shiftsRes.json();
       const openShiftsData = await openShiftsRes.json();
+      const availData = await availRes.json();
+      const nextShiftsData = await nextShiftsRes.json();
 
       setPersonnel(Array.isArray(personnelData) ? personnelData : []);
       setLeaveRequests(Array.isArray(leaveData) ? leaveData.filter((l: any) => l.status === "pending") : []);
       setTodayShifts(Array.isArray(shiftsData) ? shiftsData.filter((s: any) => s.day === todayIdx) : []);
       setOpenShifts(Array.isArray(openShiftsData) ? openShiftsData : []);
+      setAvailMissing(Array.isArray(availData?.personnel) ? availData.personnel.filter((p: any) => !p.submitted) : []);
+      setNextWeekPublished(
+        Array.isArray(nextShiftsData) &&
+        nextShiftsData.some((s: any) => !s.publication_status || s.publication_status === "published")
+      );
     } catch (e) {
       console.error(e);
     }
@@ -105,6 +124,22 @@ export default function DashboardPage() {
     setLeaveRequests(prev => prev.filter(l => l.id !== id));
   };
 
+  // Gelecek hafta müsaitliğini girmeyenlere hatırlatma bildirimi gönder
+  const handleRemindAvailability = async () => {
+    if (!user?.location_id || remindState !== "idle") return;
+    setRemindState("sending");
+    try {
+      await fetch("/api/availability/remind", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: user.location_id, week_start: getNextWeekStart() }),
+      });
+      setRemindState("sent");
+    } catch {
+      setRemindState("idle");
+    }
+  };
+
   // Vardiya başlangıcından 30 dk geçmiş, henüz check-in yok → geç kalan
   const isLate = (s: any): boolean => {
     if (s.check_in_at || !s.start_time) return false;
@@ -143,12 +178,13 @@ export default function DashboardPage() {
   const scores = personnel.map(p => p.prev_score ?? 0);
   const maxScore = Math.max(...scores, 1);
 
+  const openCount = openShifts.filter((s: any) => s.status === "open").length;
   const kpi = [
     { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100" },
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100" },
-    { label: "Açık Vardiya",         value: String(openShifts.filter((s: any) => s.status === "open").length), sub: openShifts.filter((s: any) => s.status === "open").length > 0 ? `${openShifts.filter((s: any) => s.status === "open").length} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100" },
+    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
     { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
-  ];
+  ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -159,17 +195,25 @@ export default function DashboardPage() {
             Hoş geldiniz, <strong>{user.name}</strong> 👋
           </p>
         </div>
+        <Button onClick={() => router.push("/open-shifts?new=1")} className="shrink-0 font-bold">
+          <CalendarCheck size={16} className="mr-2" /> Açık Vardiya Oluştur
+        </Button>
       </div>
 
       {/* KPI Kartları */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
-        {kpi.map(({ label, value, sub, icon: Icon, color, bg }) => (
-          <Card key={label} className="stripe-card group border-0 shadow-none">
+        {kpi.map(({ label, value, sub, icon: Icon, color, bg, href }) => (
+          <Card
+            key={label}
+            onClick={href ? () => router.push(href) : undefined}
+            className={`stripe-card group border-0 shadow-none ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+          >
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-2.5 rounded-xl ${bg} ${color}`}>
                   <Icon size={20} />
                 </div>
+                {href && <ArrowRight size={15} className="text-slate-300 group-hover:text-slate-500 transition-colors" />}
               </div>
               <div>
                 <div className="text-3xl font-black text-slate-900 tracking-tight">{loading ? "—" : value}</div>
@@ -180,6 +224,55 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Cuma'dan itibaren: gelecek haftanın planı hâlâ yayınlanmadıysa uyar */}
+      {!loading && !nextWeekPublished && [5, 6, 0].includes(now.getDay()) && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-red-200 bg-red-50">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <AlertTriangle size={18} className="text-red-600 shrink-0" />
+            <div className="min-w-0">
+              <span className="text-sm font-bold text-red-800">Gelecek haftanın planı henüz yayınlanmadı</span>
+              <p className="text-xs text-red-700">Personel önümüzdeki haftanın vardiyalarını göremiyor.</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => router.push("/schedule")}
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-red-300 text-red-800 hover:bg-red-100"
+          >
+            Plana Git <ArrowRight size={14} className="ml-1.5" />
+          </Button>
+        </div>
+      )}
+
+      {/* Gelecek hafta müsaitlik girmeyenler */}
+      {!loading && availMissing.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+            <div className="min-w-0">
+              <span className="text-sm font-bold text-amber-800">
+                Gelecek hafta için müsaitlik girmeyen: {availMissing.length} kişi
+              </span>
+              <p className="text-xs text-amber-700 truncate">
+                {availMissing.map((p: any) => p.name).join(", ")}
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleRemindAvailability}
+            disabled={remindState !== "idle"}
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
+          >
+            {remindState === "sent" ? <><Check size={14} className="mr-1.5" />Hatırlatma gönderildi</>
+              : remindState === "sending" ? "Gönderiliyor…"
+              : "Hatırlatma Gönder"}
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* İzin Talepleri */}

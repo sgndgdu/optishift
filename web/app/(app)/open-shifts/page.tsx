@@ -39,6 +39,11 @@ export default function OpenShiftsPage() {
       const stored = localStorage.getItem("optishift_manager_user");
       const parsed = stored ? JSON.parse(stored) : null;
       if (parsed) setUser(parsed);
+      // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
+      if (new URLSearchParams(window.location.search).get("new") === "1") {
+        setShowForm(true);
+        setDate(new Date().toISOString().split("T")[0]);
+      }
       setMounted(true);
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
