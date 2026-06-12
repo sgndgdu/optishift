@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, Zap, LogOut, X } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, Zap, LogOut, X, BellRing } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -21,15 +21,29 @@ function useChatUnread() {
   return count;
 }
 
+function useNotifUnread() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const tick = () => fetch("/api/notifications/unread-count").then(r => r.json()).then(d => {
+      setCount(d?.count ?? 0);
+    }).catch(() => {});
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, []);
+  return count;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const NAV = [
-  { href: "/portal",              label: "Özet",      icon: Home,          exact: true },
-  { href: "/portal/calendar",     label: "Vardiyalar", icon: Calendar },
-  { href: "/portal/availability", label: "Müsaitlik",  icon: Clock },
-  { href: "/portal/requests",     label: "Talepler",   icon: Inbox },
-  { href: "/portal/chat",         label: "Sohbet",     icon: MessageSquare },
-  { href: "/portal/settings",     label: "Hesabım",    icon: UserCircle },
+  { href: "/portal",              label: "Özet",        icon: Home,          exact: true },
+  { href: "/portal/calendar",     label: "Vardiyalar",  icon: Calendar },
+  { href: "/portal/availability", label: "Müsaitlik",   icon: Clock },
+  { href: "/portal/requests",     label: "Talepler",    icon: Inbox },
+  { href: "/portal/chat",         label: "Sohbet",      icon: MessageSquare },
+  { href: "/portal/notifications", label: "Bildirimler", icon: BellRing },
+  { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },
 ];
 
 const BOTTOM_NAV = NAV.slice(0, 5);
@@ -40,6 +54,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const chatUnread = useChatUnread();
+  const notifUnread = useNotifUnread();
 
   useEffect(() => {
     try {
@@ -74,7 +89,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         <nav className="flex-1 space-y-1 px-1 overflow-y-auto">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
-            const isChat   = href === "/portal/chat";
+            const badge =
+              href === "/portal/chat" ? chatUnread :
+              href === "/portal/notifications" ? notifUnread : 0;
             return (
               <Link
                 key={href}
@@ -91,13 +108,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 )}
                 <div className="relative shrink-0">
                   <Icon size={18} className={cn("transition-colors", isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
-                  {isChat && chatUnread > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{badge}</span>
                   )}
                 </div>
                 {label}
-                {isChat && chatUnread > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
+                {badge > 0 && (
+                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
                 )}
               </Link>
             );
@@ -136,9 +153,17 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </div>
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
-          <Link href="/portal/settings" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
-            <UserCircle size={22} />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/portal/notifications" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+              <BellRing size={21} />
+              {notifUnread > 0 && (
+                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{notifUnread}</span>
+              )}
+            </Link>
+            <Link href="/portal/settings" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+              <UserCircle size={22} />
+            </Link>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto">
