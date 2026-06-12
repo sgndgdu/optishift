@@ -207,7 +207,7 @@ Admin
   4. **Otomatik Oluştur (OR-Tools):** Kapasite matrisini + müsaitliği + kural kısıtlarını + adalet puanını birleştirerek taslak üretir.
   5. **Manuel Düzeltme:** Her hücreye tıklayarak şablondan seç veya slider ile saat ayarla. Hücrelerde `atanan/gereken` sayacı canlı gösterilir.
   6. **Kural İhlali Önizlemesi:** Yayınlamadan önce otomatik kural tarama → ihlal modalı.
-  7. **Taslak Kaydet / Personele Gönder (opsiyonel) / Yayınla** — üç ayrı buton.
+  7. **Otomatik Taslak + Tek Birincil Aksiyon (OPTI-024):** Hücre değişiklikleri 1.2 sn debounce ile otomatik taslak olarak kaydedilir (`/api/shifts` PATCH `sync_draft_week` — draft satırlar tam senkron, silinen hücre DB'den silinir, yayınlanmış satırlara dokunulmaz). "Taslak Kaydet" butonu yoktur. Üst barda tek birincil buton: hafta boşsa "Otomatik Oluştur", doluysa "Yayınla". İkincil aksiyonlar (Müsaitlik İste, Geçen Haftayı Kopyala, Personele Gönder, AI Özet, Excel, Geri Al/Yinele) "⋯ İşlemler" menüsündedir. Hafta durumu pasif çiple gösterilir: Boş hafta / Taslak / Yayınlandı / Yayınlanmamış değişiklik. Yayınlanmış haftada düzenlemeler otomatik kaydedilmez — "Yayınla"ya kadar lokal kalır.
 
   **Coverage Gap Göstergesi:**
   Grid'de her gün sütununun altında shift bazında sayaç: `(atanan)/(gereken)`. Eksikse kırmızı, tamsa yeşil, fazlaysa mavi.

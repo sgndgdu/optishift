@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, ChevronDown, Sparkles, Eye, Copy,
-  Undo2, Redo2, Search, Trash2, CalendarCheck,
+  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
@@ -140,8 +140,10 @@ export default function SchedulePage() {
   const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count}
   const [demandSaving, setDemandSaving]           = useState(false);
   const [demandOpen, setDemandOpen]               = useState(false);
-  const [draftLoading, setDraftLoading]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
+  const [saveState, setSaveState]                 = useState<"idle" | "saving" | "saved">("idle");
+  const [dirty, setDirty]                         = useState(false); // yayınlanmamış lokal değişiklik var mı
+  const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
@@ -158,16 +160,20 @@ export default function SchedulePage() {
   // Undo/Redo stacks — refs to avoid stale closure issues
   const undoStack = useRef<CellMap[]>([]);
   const redoStack = useRef<CellMap[]>([]);
+  // Otomatik kayıt: sadece kullanıcı eylemiyle değişen cellMap kaydedilir (hafta yüklemesi değil)
+  const userEditRef = useRef(false);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Kullanıcı eylemi ile cellMap değişimi — undo geçmişine kaydeder
+  // Kullanıcı eylemi ile cellMap değişimi — undo geçmişine kaydeder + otomatik kaydı tetikler
   const pushCellMap = (newMap: CellMap) => {
     undoStack.current = [...undoStack.current.slice(-29), cellMap];
     redoStack.current = [];
+    userEditRef.current = true;
+    setDirty(true);
     setCellMap(newMap);
     setCanUndo(true);
     setCanRedo(false);
@@ -177,6 +183,8 @@ export default function SchedulePage() {
     if (!undoStack.current.length) return;
     const prev = undoStack.current[undoStack.current.length - 1];
     undoStack.current = undoStack.current.slice(0, -1);
+    userEditRef.current = true;
+    setDirty(true);
     setCellMap(current => {
       redoStack.current = [current, ...redoStack.current.slice(0, 29)];
       return prev;
@@ -189,6 +197,8 @@ export default function SchedulePage() {
     if (!redoStack.current.length) return;
     const next = redoStack.current[0];
     redoStack.current = redoStack.current.slice(1);
+    userEditRef.current = true;
+    setDirty(true);
     setCellMap(current => {
       undoStack.current = [...undoStack.current.slice(-29), current];
       return next;
@@ -339,10 +349,60 @@ export default function SchedulePage() {
         }
         setCellMap(newCellMap);
         setDbShiftCount(Object.keys(newCellMap).length);
+        // Hafta yüklemesi kullanıcı düzenlemesi değildir — otomatik kayıt tetiklenmesin
+        userEditRef.current = false;
+        setDirty(false);
+        setSaveState("idle");
       } catch {}
       setLoading(false);
     })();
   }, [activeLocationId, weekOffset]);
+
+  // ── Otomatik taslak kaydı (OPTI-024) ──────────────────────────────────────
+  // Kullanıcı düzenlemesinden 1.2 sn sonra haftanın draft satırları DB ile
+  // senkronlanır. Yayınlanmış haftada otomatik kayıt yapılmaz — değişiklikler
+  // "Yayınla" düğmesine kadar lokal kalır (portal eski planı göstermeye devam eder).
+  useEffect(() => {
+    if (!userEditRef.current || !activeLocationId || !weekStart) return;
+    const isPublishedWeek = dbShiftCount > 0 && !isDraftWeek;
+    if (isPublishedWeek) return;
+    const t = setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        const res = await fetch("/api/shifts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_draft_week",
+            location_id: activeLocationId,
+            week_start: weekStart,
+            shifts: Object.entries(cellMap).map(([key, val]) => {
+              const lastDash = key.lastIndexOf("-");
+              return {
+                personnel_id: key.slice(0, lastDash),
+                day:          parseInt(key.slice(lastDash + 1)),
+                start_time:   minToHHMM(val.startMin),
+                end_time:     minToHHMM(val.endMin),
+              };
+            }),
+          }),
+        });
+        if (res.ok) {
+          userEditRef.current = false;
+          setSaveState("saved");
+          const n = Object.keys(cellMap).length;
+          setIsDraftWeek(n > 0);
+          setDbShiftCount(n);
+        } else {
+          setSaveState("idle");
+        }
+      } catch {
+        setSaveState("idle");
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cellMap, activeLocationId, weekStart]);
 
   // Poll availability every 30 s so manager sees updates without refresh
   useEffect(() => {
@@ -383,6 +443,17 @@ export default function SchedulePage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [popover]);
+
+  // ⋯ İşlemler menüsünü dışarı tıklayınca kapat
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-actions-menu]")) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [actionsOpen]);
 
   // Popover klavye kısayolları — cellMap'i closure içinde okur (popover açıkken stale değil)
   useEffect(() => {
@@ -425,6 +496,10 @@ export default function SchedulePage() {
     return { id: p.id, name: p.name, score: (p.prev_score || 0) + weekPoints };
   });
   const maxScore = Math.max(...personScores.map(s => s.score), 1);
+
+  // Hafta durumu (OPTI-024): tek birincil aksiyon + pasif durum çipi bu türevlerden beslenir
+  const cellCount = Object.keys(cellMap).length;
+  const isPublishedWeek = dbShiftCount > 0 && !isDraftWeek;
 
   // Cell click → open popover
   const handleCellClick = (e: React.MouseEvent, personnelId: string, day: number) => {
@@ -565,6 +640,9 @@ export default function SchedulePage() {
       setPublishSuccess(true);
       setIsDraftWeek(false);
       setDbShiftCount(Object.keys(cellMap).length);
+      setDirty(false);
+      userEditRef.current = false;
+      setSaveState("idle");
       setTimeout(() => setPublishSuccess(false), 4000);
     } catch {
       showToast("Yayınlama sırasında hata oluştu.", "error");
@@ -688,37 +766,10 @@ export default function SchedulePage() {
       };
     });
 
-  const handleSaveDraft = async () => {
-    if (Object.keys(cellMap).length === 0) {
-      showToast("Kaydedilecek vardiya yok.", "error");
-      return;
-    }
-    setDraftLoading(true);
-    try {
-      const res = await fetch("/api/shifts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildShiftsPayload("draft")),
-      });
-      const data = await res.json();
-      if (!res.ok && res.status !== 409) {
-        showToast("Taslak kaydedilemedi: " + (data.error || "Hata"), "error");
-        return;
-      }
-      setIsDraftWeek(true);
-      setDbShiftCount(Object.keys(cellMap).length);
-      showToast("Taslak kaydedildi. Personeller henüz göremez.", "success");
-    } catch {
-      showToast("Taslak kaydedilemedi.", "error");
-    } finally {
-      setDraftLoading(false);
-    }
-  };
-
   // Taslağı personele inceleme için gönder — durum draft kalır, sadece bildirim gider
   const handleSendForReview = async () => {
     if (!isDraftWeek) {
-      showToast("Önce 'Taslak Kaydet' ile planı kaydedin.", "error");
+      showToast("Henüz taslak yok — plana vardiya ekleyin, otomatik kaydedilir.", "error");
       return;
     }
     setSendReviewLoading(true);
@@ -776,34 +827,8 @@ export default function SchedulePage() {
       }
       pushCellMap(newCellMap);
       setEngineScores({});
-
-      // Taslak olarak hemen kaydet
-      const saveRes = await fetch("/api/shifts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          Object.entries(newCellMap).map(([key, val]) => {
-            const lastDash = key.lastIndexOf("-");
-            return {
-              personnel_id:       key.slice(0, lastDash),
-              location_id:        activeLocationId,
-              week_start:         weekStart,
-              day:                parseInt(key.slice(lastDash + 1)),
-              start_time:         minToHHMM(val.startMin),
-              end_time:           minToHHMM(val.endMin),
-              publication_status: "draft",
-            };
-          })
-        ),
-      });
-
-      if (saveRes.ok || saveRes.status === 409) {
-        setIsDraftWeek(true);
-        setDbShiftCount(Object.keys(newCellMap).length);
-        showToast(`${Object.keys(newCellMap).length} vardiya geçen haftadan kopyalandı. Taslak kaydedildi.`, "success");
-      } else {
-        showToast("Grid dolduruldu fakat taslak kaydedilemedi — manuel kaydedin.", "info");
-      }
+      // Kalıcı kayıt otomatik taslak senkronuna bırakılır (OPTI-024)
+      showToast(`${Object.keys(newCellMap).length} vardiya geçen haftadan kopyalandı.`, "success");
     } catch {
       showToast("Kopyalama sırasında hata oluştu.", "error");
     } finally {
@@ -1119,7 +1144,7 @@ export default function SchedulePage() {
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">Haftalık çalışma takvimi — hücreye tıklayarak vardiya ekle/düzenle</p>
         </div>
 
-        {/* ── Top bar: hafta navigasyonu + yardımcı araçlar ── */}
+        {/* ── Top bar: hafta navigasyonu + durum çipi + tek birincil aksiyon (OPTI-024) ── */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Week navigation */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -1140,44 +1165,30 @@ export default function SchedulePage() {
             </button>
           </div>
 
+          {/* Hafta durumu çipi — adımlar buton değil, durumdur */}
+          {!loading && (
+            cellCount === 0 && dbShiftCount === 0 ? (
+              <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap">Boş hafta</span>
+            ) : isPublishedWeek && !dirty ? (
+              <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-100 text-emerald-700 whitespace-nowrap flex items-center gap-1">
+                <Check size={11} /> Yayınlandı
+              </span>
+            ) : isPublishedWeek && dirty ? (
+              <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">Yayınlanmamış değişiklik</span>
+            ) : (
+              <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-100 text-sky-700 whitespace-nowrap" title="Personel taslağı göremez">Taslak</span>
+            )
+          )}
+
+          {/* Otomatik kayıt göstergesi */}
+          {!isPublishedWeek && saveState !== "idle" && (
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
+              {saveState === "saving" ? "Kaydediliyor…" : <><Check size={11} className="text-emerald-500" /> Kaydedildi</>}
+            </span>
+          )}
+
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {/* Undo / Redo */}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                title="Geri Al (Ctrl+Z)"
-                className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Undo2 size={14} />
-              </button>
-              <div className="w-px h-5 bg-slate-200" />
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                title="Yeniden Yap (Ctrl+Y)"
-                className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Redo2 size={14} />
-              </button>
-            </div>
-
-            <button
-              onClick={handleAISummary}
-              disabled={aiLoading || Object.keys(cellMap).length === 0}
-              className="px-3 py-2 text-xs md:text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-            >
-              <Sparkles size={13} /> {aiLoading ? "Analiz ediliyor…" : <><span className="hidden sm:inline">AI Özet</span><span className="sm:hidden">AI</span></>}
-            </button>
-
-            <a
-              href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`}
-              download
-              className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
-            >
-              <Download size={13} /> <span className="hidden sm:inline">Excel İndir</span><span className="sm:hidden">Excel</span>
-            </a>
-
+            {/* Görünüm değiştirici */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button
                 onClick={() => setViewMode("shift")}
@@ -1192,73 +1203,102 @@ export default function SchedulePage() {
                 Personel Tablo
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* ── İş akışı: 1 Planla → 2 Oluştur → 3 Yayınla ── */}
-        <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-          {/* 1 · Planla */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">1 · Planla</span>
-            <button
-              onClick={handleRequestAvailability}
-              className="px-2.5 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors flex items-center gap-1.5"
-              title="Müsaitlik girmemiş personele hatırlatma bildirimi gönder"
-            >
-              <Bell size={13} /> <span className="hidden sm:inline">Müsaitlik İste</span><span className="sm:hidden">İste</span>
-            </button>
-            <button
-              onClick={handleCopyPrevWeek}
-              disabled={copyLoading}
-              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              title="Geçen haftanın planını bu haftaya kopyala (taslak olarak kaydedilir)"
-            >
-              <Copy size={13} /> {copyLoading ? "Kopyalanıyor…" : <><span className="hidden sm:inline">Geçen Haftayı Kopyala</span><span className="sm:hidden">Kopyala</span></>}
-            </button>
-          </div>
+            {/* ⋯ İşlemler menüsü — ikincil aksiyonların tamamı */}
+            <div className="relative" data-actions-menu>
+              <button
+                onClick={() => setActionsOpen(o => !o)}
+                className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <MoreHorizontal size={15} /> <span className="hidden sm:inline">İşlemler</span>
+              </button>
+              {actionsOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
+                  {cellCount > 0 && (
+                    <button
+                      onClick={() => { setActionsOpen(false); handleGenerateClick(); }}
+                      disabled={generating}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Zap size={13} className="text-indigo-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur (OR-Tools)"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <Bell size={13} className="text-amber-500" /> Müsaitlik İste
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }}
+                    disabled={copyLoading}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); handleSendForReview(); }}
+                    disabled={sendReviewLoading || !isDraftWeek}
+                    title="Personele bildirim gönder — 48 saat itiraz penceresi"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
+                  </button>
+                  <div className="my-1 border-t border-slate-100" />
+                  <button
+                    onClick={() => { setActionsOpen(false); handleAISummary(); }}
+                    disabled={aiLoading || cellCount === 0}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles size={13} className="text-violet-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
+                  </button>
+                  <a
+                    href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`}
+                    download
+                    onClick={() => setActionsOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <Download size={13} className="text-slate-400" /> Excel İndir
+                  </a>
+                  <div className="my-1 border-t border-slate-100" />
+                  <button
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300">Ctrl+Z</span>
+                  </button>
+                  <button
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
-          <ChevronRight size={14} className="text-slate-300 shrink-0 hidden md:block" />
-
-          {/* 2 · Oluştur */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">2 · Oluştur</span>
-            <button
-              onClick={handleGenerateClick}
-              disabled={generating}
-              className="px-2.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              title="Kapasite planı + müsaitlik + kurallara göre adil taslak üret"
-            >
-              <Zap size={13} /> {generating ? "Oluşturuluyor…" : <><span className="hidden sm:inline">Otomatik Oluştur</span><span className="sm:hidden">Oluştur</span></>}
-            </button>
-            <button
-              onClick={handleSaveDraft}
-              disabled={draftLoading || Object.keys(cellMap).length === 0}
-              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <BookOpen size={13} /> {draftLoading ? "Kaydediliyor…" : <><span className="hidden sm:inline">Taslak Kaydet</span><span className="sm:hidden">Taslak</span></>}
-            </button>
-          </div>
-
-          <ChevronRight size={14} className="text-slate-300 shrink-0 hidden md:block" />
-
-          {/* 3 · Yayınla */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl pl-2.5 pr-1.5 py-1.5 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none whitespace-nowrap">3 · Yayınla</span>
-            <button
-              onClick={handleSendForReview}
-              disabled={sendReviewLoading || !isDraftWeek}
-              className="px-2.5 py-1.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              title="Personele bildirim gönder — 48 saat itiraz penceresi"
-            >
-              <Eye size={13} /> {sendReviewLoading ? "Gönderiliyor…" : <><span className="hidden sm:inline">Personele Gönder</span><span className="sm:hidden">Gönder</span></>}
-            </button>
-            <button
-              onClick={handlePublish}
-              disabled={publishLoading || Object.keys(cellMap).length === 0}
-              className="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Send size={13} /> {publishLoading ? "Yayınlanıyor…" : "Yayınla"}
-            </button>
+            {/* Tek birincil aksiyon: boş hafta → Otomatik Oluştur, dolu hafta → Yayınla */}
+            {cellCount === 0 ? (
+              <button
+                onClick={handleGenerateClick}
+                disabled={generating}
+                title="Kapasite planı + müsaitlik + kurallara göre adil taslak üret"
+                className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <Zap size={14} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
+              </button>
+            ) : (
+              <button
+                onClick={handlePublish}
+                disabled={publishLoading || (isPublishedWeek && !dirty)}
+                title={isPublishedWeek && !dirty ? "Yayınlanacak değişiklik yok" : "Planı yayınla — personele bildirim gider"}
+                className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : "Yayınla"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1380,21 +1420,7 @@ export default function SchedulePage() {
         )}
 
         {/* ── Status banners ── */}
-        {!loading && isDraftWeek && !publishSuccess && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-700 font-semibold flex items-center gap-2">
-            <AlertCircle size={16} />
-            <span>
-              Taslak plan mevcut — personeller henüz göremez.{" "}
-              <span className="font-normal opacity-80">İnceleme için "Personele Gönder", onaylamak için "Yayınla" butonunu kullanın.</span>
-            </span>
-          </div>
-        )}
-        {!loading && dbShiftCount > 0 && !isDraftWeek && !publishSuccess && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
-            <Check size={16} />
-            Bu haftaya ait yayınlanmış plan mevcut ({dbShiftCount} vardiya). Değişiklik yapmak için hücrelere tıklayın, ardından tekrar yayınlayın.
-          </div>
-        )}
+        {/* Taslak/yayınlandı durumu artık üst bardaki durum çipinde gösterilir (OPTI-024) */}
         {!loading && shiftDefs.length === 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-700 flex items-center gap-2">
             <BookOpen size={15} className="shrink-0" />

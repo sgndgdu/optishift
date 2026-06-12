@@ -287,6 +287,52 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, updated: info.changes });
     }
 
+    // ── Taslak otomatik kayıt: haftanın draft satırlarını tam senkronla ──
+    // OPTI-024: client cellMap'in güncel halini gönderir; draft satırlar
+    // silinip yeniden yazılır (lokalde silinen hücre DB'den de silinir).
+    // Yayınlanmış satırlara dokunulmaz — onların değişikliği "Yayınla" ile gider.
+    if (action === "sync_draft_week") {
+      if (auth.role === "employee") {
+        db.close();
+        return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      }
+      const { location_id, week_start, shifts } = body;
+      if (!location_id || !week_start || !Array.isArray(shifts)) {
+        db.close();
+        return NextResponse.json({ error: "location_id, week_start ve shifts zorunlu" }, { status: 400 });
+      }
+      const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+      if (!loc) {
+        db.close();
+        return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+      }
+      const now = Math.floor(Date.now() / 1000);
+      let synced = 0;
+      db.transaction(() => {
+        db.prepare(`
+          DELETE FROM shift_assignments
+          WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
+        `).run(location_id, week_start);
+        const hasPublished = db.prepare(`
+          SELECT 1 FROM shift_assignments
+          WHERE personnel_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
+        `);
+        const insert = db.prepare(`
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?)
+        `);
+        for (const s of shifts) {
+          if (!s?.personnel_id || s.day === undefined || !s.start_time || !s.end_time) continue;
+          // Yayınlanmış satır varsa (bu veya başka şubede) draft kopya yazma
+          if (hasPublished.get(s.personnel_id, week_start, s.day)) continue;
+          insert.run(s.personnel_id, location_id, week_start, s.day, s.shift_id || "custom", s.start_time, s.end_time, now);
+          synced++;
+        }
+      })();
+      db.close();
+      return NextResponse.json({ success: true, synced });
+    }
+
     // ── Check-in ─────────────────────────────────────────────────────
     if (action === "check_in") {
       const { shift_id } = body;
