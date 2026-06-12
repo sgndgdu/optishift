@@ -184,17 +184,19 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, phone, title, employment_type, status, max_weekly_hours, user_access_level, prev_score, roles, weekly_off_day } = body;
+    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, prev_score, roles, weekly_off_day } = body;
 
     const now = Math.floor(Date.now() / 1000);
     db.prepare(`
       UPDATE personnel SET name=COALESCE(?,name), phone=COALESCE(?,phone), title=COALESCE(?,title),
       employment_type=COALESCE(?,employment_type), status=COALESCE(?,status),
-      max_weekly_hours=COALESCE(?,max_weekly_hours), user_access_level=COALESCE(?,user_access_level),
+      max_weekly_hours=COALESCE(?,max_weekly_hours), min_weekly_hours=COALESCE(?,min_weekly_hours),
+      user_access_level=COALESCE(?,user_access_level),
       prev_score=COALESCE(?,prev_score),
       roles=COALESCE(?,roles),
       updated_at=? WHERE id=?
-    `).run(name, phone, title, employment_type, status, max_weekly_hours, user_access_level, prev_score ?? null,
+    `).run(name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours ?? null,
+      user_access_level, prev_score ?? null,
       roles !== undefined ? JSON.stringify(roles) : null, now, id);
 
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata

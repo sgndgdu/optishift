@@ -22,6 +22,8 @@ type Personnel = {
   hero_count: number;
   roles: string[];
   weekly_off_day: number | null;
+  max_weekly_hours: number | null;
+  min_weekly_hours: number | null;
 };
 
 const ROLES = [
@@ -61,7 +63,7 @@ export default function PersonnelManagementPage() {
 
   // Edit modal state
   const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", user_access_level: "employee", roles: [] as string[], weekly_off_day: null as number | null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", user_access_level: "employee", roles: [] as string[], weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0 });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -176,12 +178,18 @@ export default function PersonnelManagementPage() {
       user_access_level: p.user_access_level || "employee",
       roles: Array.isArray(p.roles) ? p.roles : [],
       weekly_off_day: p.weekly_off_day ?? null,
+      max_weekly_hours: p.max_weekly_hours ?? 45,
+      min_weekly_hours: p.min_weekly_hours ?? 0,
     });
     setEditError("");
   };
 
   const handleEdit = async () => {
     if (!editingPersonnel) return;
+    if (editForm.min_weekly_hours > editForm.max_weekly_hours) {
+      setEditError("Min haftalık saat, max haftalık saatten büyük olamaz.");
+      return;
+    }
     setEditLoading(true);
     setEditError("");
     try {
@@ -491,6 +499,30 @@ export default function PersonnelManagementPage() {
                   <p className="text-[10px] text-slate-400 mt-2">Seçilen bölgeler vardiya planında personelin kartında görünür.</p>
                 </div>
               )}
+
+              {/* Haftalık Saat Sınırları */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Max Haftalık Saat</label>
+                  <input
+                    type="number" min={8} max={60}
+                    value={editForm.max_weekly_hours}
+                    onChange={(e) => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Yasal üst sınır (varsayılan 45)</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Min Haftalık Saat</label>
+                  <input
+                    type="number" min={0} max={editForm.max_weekly_hours}
+                    value={editForm.min_weekly_hours}
+                    onChange={(e) => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">0 = kapalı. Part-time saat garantisi</p>
+                </div>
+              </div>
 
               {/* Sabit İzin Günü */}
               <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-3.5">

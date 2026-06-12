@@ -89,6 +89,7 @@ export const personnel = sqliteTable("personnel", {
   preferred_days: text("preferred_days"), // JSON array
   preferred_roles: text("preferred_roles"), // JSON array
   max_weekly_hours: integer("max_weekly_hours").default(45),
+  min_weekly_hours: integer("min_weekly_hours").default(0), // part-time alt sınır garantisi, 0 = kapalı
   overtime_approved: integer("overtime_approved", { mode: "boolean" }).default(false),
   prev_score: real("prev_score").default(0),
   hero_count: integer("hero_count").default(0),

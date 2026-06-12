@@ -113,6 +113,7 @@ export interface Personnel {
   preferred_days: number[];
   preferred_roles: string[]; // preferred_zones yerine
   max_weekly_hours: number;
+  min_weekly_hours?: number; // part-time alt sınır garantisi, 0/undefined = kapalı
   overtime_approved: boolean;
   prev_score: number;
   hero_count: number;

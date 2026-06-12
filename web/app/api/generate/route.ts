@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
         prev_score: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
         max_weekly_hours: p.max_weekly_hours ?? 45,
+        min_weekly_hours: p.min_weekly_hours ?? 0,
         branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
         org_id: p.org_id,
         role_level,

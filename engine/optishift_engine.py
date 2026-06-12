@@ -259,6 +259,23 @@ def build_model():
         if get_avail(person["id"], d, s) == "preferred_not"
     ]
 
+    # Minimum haftalık saat garantisi (soft) — part-time alt sınır.
+    # Hard constraint yapılmaz: personel kırmızı günlerle haftayı kapatmışsa
+    # plan kilitlenmesin diye eksik kalan dakikalar shortfall ile cezalandırılır.
+    min_hours_shortfalls = []
+    for p in range(num_p):
+        min_minutes = int(PERSONNEL[p].get("min_weekly_hours", 0) or 0) * 60
+        if min_minutes <= 0:
+            continue
+        assigned_minutes = sum(
+            shifts[(p, d, s)] * shift_durations_min[s]
+            for d in range(NUM_DAYS)
+            for s in range(NUM_SHIFTS)
+        )
+        shortfall = model.new_int_var(0, min_minutes, f"min_hours_shortfall_p{p}")
+        model.add(assigned_minutes + shortfall >= min_minutes)
+        min_hours_shortfalls.append(shortfall)
+
     # ── ADİL PUAN OPTİMİZASYONU ──────────────────────────────────────────────
 
     person_scores = []
@@ -323,11 +340,16 @@ def build_model():
 
     # Amaç: adalet farkını minimize et (öncelik 1), coverage'ı maximize et (öncelik 2), preferred_not cezalarını minimize et (öncelik 3)
     # coverage terimi negatif → minimize ederken coverage artar
+    # min_hours_shortfalls dakika cinsinden ×5: 8 saatlik açık ≈ 2400 ceza.
+    # Bir vardiyalık fairness_gap artışı (~500-1700) bunun altında kalır,
+    # yani motor alt sınırı doldurmayı adalet farkına tercih eder; yine de
+    # kırmızı günler kapatmışsa plan kilitlenmez (soft).
     model.minimize(
         fairness_gap * 100
         - total_assignments
         + sum(preferred_not_penalties) * 10
         + sum(senior_violation_penalties) * 50
+        + sum(min_hours_shortfalls) * 5
     )
 
     return model, shifts, person_scores, fairness_gap
