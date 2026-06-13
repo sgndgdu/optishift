@@ -1389,6 +1389,16 @@ export default function SchedulePage() {
                   >
                     <Download size={13} className="text-slate-400" /> Excel İndir
                   </a>
+                  <button
+                    onClick={() => {
+                      setActionsOpen(false);
+                      setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" });
+                      setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
+                  </button>
                   <div className="my-1 border-t border-slate-100" />
                   <button
                     onClick={undo}
@@ -1591,102 +1601,25 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* ── Özel Günler & Haftalar Paneli ── */}
+        {/* ── Haftalık notlar (sadece week-scope; day-scope olanlar sütun başlıklarında gösterilir) ── */}
         {(() => {
-          const DAY_SHORT = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
-          const weekHolidays = isoDates.flatMap((d, i) => TURKISH_HOLIDAYS.filter(h => h.date === d).map(h => ({ ...h, isoDate: d, dayIdx: i })));
-          const weekEvents   = events.filter(e => e.scope !== "week" && isoDates.includes(e.date));
-          const weekNotes    = events.filter(e => e.scope === "week" && e.date === weekStart);
-          const hasContent   = weekHolidays.length > 0 || weekEvents.length > 0 || weekNotes.length > 0;
+          const weekNotes = events.filter(e => e.scope === "week" && e.date === weekStart);
+          if (weekNotes.length === 0) return null;
           return (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              {/* Başlık satırı */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Özel Günler & Haftalar</span>
-                <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-2">
+              {weekNotes.map(ev => (
+                <div key={ev.id} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                  <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
+                  <span className="font-bold">{ev.title}</span>
+                  {ev.note && <span className="opacity-60">— {ev.note}</span>}
+                  <span className="text-[9px] opacity-50 uppercase tracking-wide">haftalık</span>
                   <button
-                    onClick={() => {
-                      setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" });
-                      setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
-                    }}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg transition-colors"
-                    title="Haftalık not ekle"
-                  >
-                    <CalendarPlus size={11} /> Haftalık Not
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAddEventModal({ date: isoDates[0] ?? weekStart, dayLabel: DAY_SHORT[0] ?? "Pzt", initScope: "day" });
-                      setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
-                    }}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg transition-colors"
-                    title="Özel gün ekle"
-                  >
-                    <CalendarPlus size={11} /> Özel Gün
-                  </button>
+                    onClick={() => deleteEvent(ev.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                    title="Sil"
+                  ><X size={11} /></button>
                 </div>
-              </div>
-
-              {!hasContent ? (
-                <div className="px-4 py-3 text-xs text-slate-400 italic">
-                  Bu hafta resmi tatil veya özel etkinlik yok. Yukarıdan ekleyebilirsiniz.
-                </div>
-              ) : (
-                <div className="px-4 py-3 space-y-2.5">
-                  {/* Haftalık Notlar */}
-                  {weekNotes.length > 0 && (
-                    <div className="space-y-1">
-                      {weekNotes.map(ev => (
-                        <div key={ev.id} className={cn("flex items-start gap-2 px-3 py-2 rounded-xl border group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
-                          <span className="shrink-0 mt-0.5">{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold">{ev.title}</p>
-                            {ev.note && <p className="text-[10px] opacity-75 mt-0.5">{ev.note}</p>}
-                          </div>
-                          <span className="text-[9px] font-semibold opacity-60 shrink-0 mt-0.5 uppercase tracking-wide">Haftalık</span>
-                          <button
-                            onClick={() => deleteEvent(ev.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-current hover:scale-110 shrink-0"
-                            title="Sil"
-                          ><X size={12} /></button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Resmi Tatiller */}
-                  {weekHolidays.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {weekHolidays.map(h => (
-                        <span key={h.date + h.name} className="inline-flex items-center gap-1 text-[11px] bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full font-medium">
-                          🎌 <span className="font-bold">{DAY_SHORT[h.dayIdx]}</span> {h.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Özel Günler */}
-                  {weekEvents.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {weekEvents.map(ev => {
-                        const dayIdx = isoDates.indexOf(ev.date);
-                        return (
-                          <span key={ev.id} className={cn("inline-flex items-center gap-1 text-[11px] border px-2.5 py-1 rounded-full font-medium group/pill cursor-default", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
-                            {EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}
-                            {dayIdx >= 0 && <span className="font-bold">{DAY_SHORT[dayIdx]}</span>}
-                            {ev.title}
-                            <button
-                              onClick={() => deleteEvent(ev.id)}
-                              className="opacity-0 group-hover/pill:opacity-100 transition-opacity ml-0.5 hover:scale-110"
-                              title="Sil"
-                            ><X size={10} /></button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+              ))}
             </div>
           );
         })()}
@@ -1914,6 +1847,19 @@ export default function SchedulePage() {
                               {dayAssigned}
                             </span>
                           ) : null}
+                          {/* Etkinlik ekle */}
+                          {isoDate && (
+                            <button
+                              onClick={() => {
+                                setAddEventModal({ date: isoDate, dayLabel: `${d} ${dates[i]}`, initScope: "day" });
+                                setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+                              }}
+                              className="mt-1 text-[8px] text-slate-300 hover:text-indigo-400 transition-colors w-full text-center flex items-center justify-center gap-0.5 py-0.5 rounded hover:bg-indigo-50"
+                              title="Etkinlik ekle"
+                            >
+                              <CalendarPlus size={9} /> ekle
+                            </button>
+                          )}
                         </th>
                       );
                     })}
