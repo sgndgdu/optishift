@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
-import { Save, Plus, X, Send, UserCircle, Moon } from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
-type TabKey = "shifts" | "rules" | "account";
+type TabKey = "shifts" | "rules" | "zones" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "shifts",  label: "Vardiyalar" },
   { key: "rules",   label: "Kurallar" },
+  { key: "zones",   label: "Bölgeler" },
   { key: "account", label: "Hesap & Bildirimler" },
 ];
 
@@ -107,6 +107,8 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("shifts");
+  const [editingDeptIdx, setEditingDeptIdx] = useState<number | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Bildirim state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -543,72 +545,6 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              {/* Bölgeler & Kotalar — OR-Tools kısıtı olduğu için Kurallar'da */}
-              <SectionCard title="Bölgeler & Alan Kotaları">
-                <div className="py-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {departments.map((dept, dIdx) => (
-                      <div key={dept.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-white">
-                        <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                        <input
-                          value={dept.name}
-                          onChange={e => {
-                            const next = [...departments];
-                            next[dIdx].name = e.target.value;
-                            setDepartments(next);
-                          }}
-                          className="flex-1 font-semibold text-slate-800 bg-transparent outline-none text-sm border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5"
-                          placeholder="Bölge adı"
-                        />
-                        <button onClick={() => setDepartments(departments.filter((_, i) => i !== dIdx))} className="text-slate-300 hover:text-red-400 transition-colors p-0.5">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => setDepartments([...departments, { id: `d${Date.now()}`, location_id: locationData.id, name: "Yeni Bölge" }])}
-                      className="border-2 border-dashed border-slate-200 rounded-lg px-3 py-2 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-sm font-medium"
-                    >
-                      <Plus size={14} /> Yeni Bölge
-                    </button>
-                  </div>
-
-                  {zoneQuotas.length > 0 && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <p className="text-xs text-slate-400 mb-2">Günlük minimum kişi sayısı (OR-Tools kısıtı)</p>
-                      <div className="space-y-1.5">
-                        {zoneQuotas.map((entry, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <input
-                              value={entry.zone}
-                              onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
-                              placeholder="Alan adı"
-                              className="flex-1 text-sm bg-white border border-slate-200 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500 text-slate-800"
-                            />
-                            <input
-                              type="number" min={0} max={99}
-                              value={entry.min}
-                              onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
-                              className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-500"
-                            />
-                            <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
-                            <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-400 transition-colors p-0.5">
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
-                    className="w-full border border-dashed border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Plus size={12} /> Kota Ekle
-                  </button>
-                </div>
-              </SectionCard>
-
               <SectionCard title="İzin Politikası">
                 <RuleRow
                   label="İzin İçin Mazeret Zorunlu"
@@ -640,6 +576,138 @@ export default function SettingsPage() {
               <div className="flex justify-end">
                 <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
                   <Save size={16} /> Kuralları Kaydet
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ─── BÖLGELER ─── */}
+          {activeTab === "zones" && (
+            <div className="space-y-6">
+              <p className="text-sm text-slate-500">
+                Lokasyondaki fiziksel alanları tanımlayın (Bar, Mutfak, Kasa vb.). Personel bu bölgelere atanabilir.
+                İsim değiştirmek için kalem ikonuna tıklayın.
+              </p>
+
+              {/* Bölge listesi — read-only by default, explicit edit to change name */}
+              <div className="space-y-2">
+                {departments.map((dept, dIdx) => (
+                  <div
+                    key={dept.id}
+                    className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 group"
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0" />
+
+                    {editingDeptIdx === dIdx ? (
+                      <input
+                        ref={editInputRef}
+                        value={dept.name}
+                        onChange={e => {
+                          const next = [...departments];
+                          next[dIdx] = { ...next[dIdx], name: e.target.value };
+                          setDepartments(next);
+                        }}
+                        onBlur={() => setEditingDeptIdx(null)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" || e.key === "Escape") setEditingDeptIdx(null);
+                        }}
+                        className="flex-1 font-semibold text-slate-800 bg-transparent outline-none text-sm border-b-2 border-indigo-400 py-0.5"
+                      />
+                    ) : (
+                      <span className="flex-1 font-semibold text-slate-800 text-sm select-none">{dept.name}</span>
+                    )}
+
+                    {editingDeptIdx === dIdx ? (
+                      <button
+                        onClick={() => setEditingDeptIdx(null)}
+                        className="p-1 text-indigo-600 hover:text-indigo-800 transition-colors shrink-0"
+                        title="Tamam"
+                      >
+                        <Check size={15} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingDeptIdx(dIdx);
+                          setTimeout(() => editInputRef.current?.focus(), 0);
+                        }}
+                        className="p-1 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        title="İsmi düzenle"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setDepartments(departments.filter((_, i) => i !== dIdx));
+                        if (editingDeptIdx === dIdx) setEditingDeptIdx(null);
+                      }}
+                      className="p-1 text-slate-300 hover:text-red-400 transition-colors shrink-0"
+                      title="Sil"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => {
+                    const newIdx = departments.length;
+                    setDepartments([...departments, { id: `d${Date.now()}`, location_id: locationData.id, name: "Yeni Bölge" }]);
+                    setTimeout(() => {
+                      setEditingDeptIdx(newIdx);
+                      editInputRef.current?.focus();
+                    }, 50);
+                  }}
+                  className="w-full border-2 border-dashed border-slate-200 rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-sm font-medium"
+                >
+                  <Plus size={16} /> Yeni Bölge Ekle
+                </button>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* Günlük Alan Kotaları */}
+              <div>
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-slate-700">Günlük Alan Kotaları</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Her bölgede günde en az kaç kişi çalışmalı? OR-Tools bu kısıtı zorunlu tutar.</p>
+                </div>
+                <div className="space-y-2">
+                  {zoneQuotas.map((entry, idx) => (
+                    <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                      <input
+                        value={entry.zone}
+                        onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
+                        placeholder="Bölge adı (Örn: Kasa)"
+                        className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5 text-slate-800 font-medium"
+                      />
+                      <span className="text-xs text-slate-400 shrink-0">min</span>
+                      <input
+                        type="number" min={0} max={99}
+                        value={entry.min}
+                        onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
+                        className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-500 font-bold"
+                      />
+                      <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
+                      <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
+                    className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Plus size={14} /> Kota Ekle
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+                  <Save size={16} /> Bölgeleri Kaydet
                 </button>
               </div>
             </div>
