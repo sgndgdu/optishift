@@ -1481,8 +1481,8 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* ── Kapasite Planı (Demand Matrix) ── */}
-        {shiftDefs.length > 0 && (
+        {/* ── Kapasite Planı (Demand Matrix) — sadece ShiftBoard görünümünde; Tablo görünümünde thead'e gömülü ── */}
+        {shiftDefs.length > 0 && viewMode === "shift" && (
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <button
               onClick={() => setDemandOpen(o => !o)}
@@ -1781,9 +1781,6 @@ export default function SchedulePage() {
                       Personel
                     </th>
                     {DAYS.map((d, i) => {
-                      const defsWithDemand = shiftDefs.filter(def => (demandMatrix[def.id]?.[i] ?? 0) > 0);
-                      const dayAssigned = shiftDefs.reduce((sum, def) => sum + (assignedCounts[def.id]?.[i] ?? 0), 0);
-                      const dayRequired = shiftDefs.reduce((sum, def) => sum + (demandMatrix[def.id]?.[i] ?? 0), 0);
                       const isoDate = isoDates[i] ?? "";
                       const dayHolidays = isoDate ? TURKISH_HOLIDAYS.filter(h => h.date === isoDate) : [];
                       const dayEvents   = isoDate ? events.filter(e => eventCoversDate(e, isoDate)) : [];
@@ -1821,36 +1818,6 @@ export default function SchedulePage() {
                               >×</button>
                             </div>
                           ))}
-                          {/* Kapasite badge'leri */}
-                          {defsWithDemand.length > 1 ? (
-                            <div className="mt-1 flex flex-col gap-0.5 items-center">
-                              {defsWithDemand.map(def => {
-                                const a = assignedCounts[def.id]?.[i] ?? 0;
-                                const r = demandMatrix[def.id]?.[i] ?? 0;
-                                return (
-                                  <span key={def.id} className={cn(
-                                    "px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap",
-                                    a < r ? "bg-red-100 text-red-600" : a > r ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
-                                  )}>
-                                    {def.name}: {a}/{r}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          ) : dayRequired > 0 ? (
-                            <span className={cn(
-                              "inline-flex items-center justify-center mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold",
-                              dayAssigned < dayRequired ? "bg-red-100 text-red-600" :
-                              dayAssigned > dayRequired ? "bg-blue-100 text-blue-600" :
-                              "bg-emerald-100 text-emerald-600"
-                            )}>
-                              {dayAssigned}/{dayRequired}
-                            </span>
-                          ) : dayAssigned > 0 ? (
-                            <span className="inline-flex items-center justify-center mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">
-                              {dayAssigned}
-                            </span>
-                          ) : null}
                           {/* Etkinlik ekle */}
                           {isoDate && (
                             <button
@@ -1871,6 +1838,49 @@ export default function SchedulePage() {
                       Saat
                     </th>
                   </tr>
+
+                  {/* ── Demand satırları — her shift için kaç kişi gerekli ── */}
+                  {shiftDefs.map(def => (
+                    <tr key={`demand-${def.id}`} className="bg-indigo-50/50 border-b border-indigo-100/70">
+                      <td className="py-1.5 px-4">
+                        <span className="text-[11px] font-bold text-indigo-700">{def.name}</span>
+                        <span className="text-[10px] text-indigo-400 ml-1">{def.start}–{def.end}</span>
+                      </td>
+                      {Array.from({ length: 7 }, (_, day) => {
+                        const val = demandMatrix[def.id]?.[day] ?? 0;
+                        const assigned = assignedCounts[def.id]?.[day] ?? 0;
+                        return (
+                          <td key={day} className="py-1 px-1 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                value={val === 0 ? "" : val}
+                                placeholder="—"
+                                onChange={e => {
+                                  const n = Math.max(0, parseInt(e.target.value) || 0);
+                                  setDemandMatrix(prev => ({
+                                    ...prev,
+                                    [def.id]: { ...(prev[def.id] ?? {}), [day]: n },
+                                  }));
+                                }}
+                                onBlur={() => handleDemandSave(true)}
+                                className="w-8 h-6 text-center text-xs font-bold border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-indigo-200"
+                              />
+                              {val > 0 && (
+                                <span className={cn(
+                                  "text-[9px] font-bold",
+                                  assigned < val ? "text-red-500" : assigned > val ? "text-blue-500" : "text-emerald-500"
+                                )}>{assigned}/{val}</span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td />
+                    </tr>
+                  ))}
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredPersonnel.length === 0 && personnelFilter && (
