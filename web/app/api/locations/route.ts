@@ -120,6 +120,14 @@ export async function PATCH(req: NextRequest) {
       updates.push("leave_policy = ?");
       values.push(typeof body.leave_policy === "string" ? body.leave_policy : JSON.stringify(body.leave_policy));
     }
+    if (body.latitude !== undefined) {
+      updates.push("latitude = ?");
+      values.push(body.latitude === null ? null : Number(body.latitude));
+    }
+    if (body.longitude !== undefined) {
+      updates.push("longitude = ?");
+      values.push(body.longitude === null ? null : Number(body.longitude));
+    }
 
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
 

@@ -141,6 +141,10 @@ export default function SettingsPage() {
   const [leaveAllowMultiDay, setLeaveAllowMultiDay] = useState(false);
   const [leaveMaxDays, setLeaveMaxDays]             = useState(1);
 
+  // Konum koordinatları (hava durumu için)
+  const [locationLat, setLocationLat] = useState("");
+  const [locationLon, setLocationLon] = useState("");
+
   useEffect(() => {
     const init = async () => {
       const savedId = localStorage.getItem("optishift_selected_location");
@@ -185,6 +189,8 @@ export default function SettingsPage() {
           if (typeof loc.rules?.night_multiplier === "number")          setNightMultiplier(loc.rules.night_multiplier);
 
           if (typeof loc.leave_policy === "string") { try { loc.leave_policy = JSON.parse(loc.leave_policy); } catch { loc.leave_policy = {}; } }
+          setLocationLat(loc.latitude != null ? String(loc.latitude) : "");
+          setLocationLon(loc.longitude != null ? String(loc.longitude) : "");
           const lp = loc.leave_policy || {};
           setLeaveRequireReason(!!lp.require_reason);
           setLeaveAllowMultiDay(!!lp.allow_multi_day);
@@ -250,6 +256,8 @@ export default function SettingsPage() {
             allow_multi_day:      leaveAllowMultiDay,
             max_days_per_request: leaveAllowMultiDay ? leaveMaxDays : 1,
           },
+          latitude:  locationLat  ? parseFloat(locationLat)  : null,
+          longitude: locationLon ? parseFloat(locationLon) : null,
         }),
       });
       if (!res.ok) throw new Error("Sunucu hatası");
@@ -570,6 +578,43 @@ export default function SettingsPage() {
                     </span>
                   }
                   right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
+                />
+              </SectionCard>
+
+              <SectionCard title="Konum & Hava Durumu">
+                <RuleRow
+                  label="GPS Koordinatları"
+                  description={
+                    <span>
+                      Lokasyonun enlem/boylam değerleri — vardiya takviminde o haftanın günlük hava durumu ikonları görünür.{" "}
+                      <a href="https://www.latlong.net" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">latlong.net</a>{" "}
+                      üzerinden şubenizin koordinatlarını bulabilirsiniz.
+                    </span>
+                  }
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={locationLat}
+                          onChange={e => setLocationLat(e.target.value)}
+                          placeholder="41.0082"
+                          className="w-24 px-2 py-1.5 text-sm border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                        <span className="text-xs text-slate-400">°N</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={locationLon}
+                          onChange={e => setLocationLon(e.target.value)}
+                          placeholder="28.9784"
+                          className="w-24 px-2 py-1.5 text-sm border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                        <span className="text-xs text-slate-400">°E</span>
+                      </div>
+                    </div>
+                  }
                 />
               </SectionCard>
 

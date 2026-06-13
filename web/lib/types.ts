@@ -26,6 +26,20 @@ export interface Location {
   rules?: { max_weekly_hours: number; min_rest_hours: number; force_skills_match: boolean };
   // Kapasite matrisi: shiftDefId → { day(0-6) → gerekli kişi sayısı }
   demand_matrix?: Record<string, Record<number, number>>;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface LocationEvent {
+  id: number;
+  org_id: string;
+  location_id: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  type: "kampanya" | "etkinlik" | "denetim" | "kapali" | "diger";
+  note?: string;
+  created_by?: string;
+  created_at?: number;
 }
 
 export interface Department {

@@ -5,11 +5,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, ChevronDown, Sparkles, Eye, Copy,
-  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2,
+  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
-import type { ShiftDefinition } from "@/lib/types";
+import type { ShiftDefinition, LocationEvent } from "@/lib/types";
+import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 import {
   DndContext,
   DragEndEvent,
@@ -99,6 +100,37 @@ const AVAIL_BG: Record<string, string> = {
   unavailable:   "bg-red-50",
 };
 
+function wmoIcon(code: number): string {
+  if (code === 0) return "☀️";
+  if (code <= 2)  return "🌤️";
+  if (code <= 3)  return "☁️";
+  if (code <= 48) return "🌫️";
+  if (code <= 55) return "🌦️";
+  if (code <= 65) return "🌧️";
+  if (code <= 77) return "❄️";
+  if (code <= 82) return "🌧️";
+  if (code <= 86) return "🌨️";
+  return "⛈️";
+}
+
+function getWeekIsoDates(weekStart: string): string[] {
+  if (!weekStart) return Array(7).fill("");
+  const start = new Date(weekStart + "T00:00:00");
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d.toISOString().split("T")[0];
+  });
+}
+
+const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: string }> = {
+  kampanya: { emoji: "🎯", color: "bg-purple-50 text-purple-700 border-purple-200", label: "Kampanya"  },
+  etkinlik: { emoji: "🎉", color: "bg-blue-50 text-blue-700 border-blue-200",       label: "Etkinlik"  },
+  denetim:  { emoji: "📋", color: "bg-orange-50 text-orange-700 border-orange-200", label: "Denetim"   },
+  kapali:   { emoji: "🔒", color: "bg-red-50 text-red-700 border-red-200",          label: "Kapalı"    },
+  diger:    { emoji: "📌", color: "bg-slate-100 text-slate-600 border-slate-200",   label: "Diğer"     },
+};
+
 type CellData = { startMin: number; endMin: number; points: number };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
@@ -156,6 +188,16 @@ export default function SchedulePage() {
   const [canRedo, setCanRedo]                     = useState(false);
   const [viewMode, setViewMode]                   = useState<"shift" | "grid">("shift");
   const [activeDragData, setActiveDragData]       = useState<{ id: string; type: string; person?: any } | null>(null);
+
+  // Takvim etkinlikleri + hava durumu
+  const [events, setEvents]                       = useState<LocationEvent[]>([]);
+  const [weather, setWeather]                     = useState<Record<string, { icon: string; temp: number }>>({});
+  const [locationLatLon, setLocationLatLon]       = useState<{ lat: number; lon: number } | null>(null);
+  const [addEventModal, setAddEventModal]         = useState<{ date: string; dayLabel: string } | null>(null);
+  const [newEventTitle, setNewEventTitle]         = useState("");
+  const [newEventType, setNewEventType]           = useState("kampanya");
+  const [newEventNote, setNewEventNote]           = useState("");
+  const [eventSaving, setEventSaving]             = useState(false);
 
   // Undo/Redo stacks — refs to avoid stale closure issues
   const undoStack = useRef<CellMap[]>([]);
@@ -256,12 +298,13 @@ export default function SchedulePage() {
     (async () => {
       setLoading(true);
       try {
-        const [pRes, aRes, sRes, locRes, deptRes] = await Promise.all([
+        const [pRes, aRes, sRes, locRes, deptRes, evRes] = await Promise.all([
           fetch(`/api/personnel?location_id=${activeLocationId}`),
           fetch(`/api/availability/team?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/locations?id=${activeLocationId}`),
           fetch(`/api/departments?location_id=${activeLocationId}`),
+          fetch(`/api/events?location_id=${activeLocationId}&week_start=${weekStart}`),
         ]);
         const pData = await pRes.json();
         const aData = await aRes.json();
@@ -311,6 +354,15 @@ export default function SchedulePage() {
         }
         setPrefNotMult(mult);
         setClopeningMinRest(clopeningRest);
+
+        // Koordinatlar (hava durumu için)
+        const rawLat = Array.isArray(locData) ? locData[0]?.latitude : null;
+        const rawLon = Array.isArray(locData) ? locData[0]?.longitude : null;
+        setLocationLatLon(rawLat && rawLon ? { lat: rawLat, lon: rawLon } : null);
+
+        // Etkinlikler
+        const evData = await evRes.json();
+        setEvents(Array.isArray(evData) ? evData : []);
 
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active") : []);
 
@@ -403,6 +455,28 @@ export default function SchedulePage() {
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cellMap, activeLocationId, weekStart]);
+
+  // Hava durumu — Open-Meteo (ücretsiz, key yok)
+  useEffect(() => {
+    if (!locationLatLon || !weekStart) { setWeather({}); return; }
+    const { lat, lon } = locationLatLon;
+    const startDate = new Date(weekStart + "T00:00:00");
+    const today = new Date();
+    const diffDays = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < -7 || diffDays > 9) { setWeather({}); return; }
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&timezone=Europe%2FIstanbul&forecast_days=16`
+    )
+      .then(r => r.json())
+      .then((data: any) => {
+        const map: Record<string, { icon: string; temp: number }> = {};
+        (data.daily?.time ?? []).forEach((d: string, i: number) => {
+          map[d] = { icon: wmoIcon(data.daily.weathercode[i] ?? 0), temp: Math.round(data.daily.temperature_2m_max[i] ?? 0) };
+        });
+        setWeather(map);
+      })
+      .catch(() => setWeather({}));
+  }, [locationLatLon, weekStart]);
 
   // Poll availability every 30 s so manager sees updates without refresh
   useEffect(() => {
@@ -902,6 +976,44 @@ export default function SchedulePage() {
     }
   };
 
+  // ── Etkinlik yönetimi ─────────────────────────────────────────────────────
+  const deleteEvent = async (id: number) => {
+    try {
+      await fetch(`/api/events?id=${id}`, { method: "DELETE" });
+      setEvents(prev => prev.filter(e => e.id !== id));
+    } catch {}
+  };
+
+  const saveEvent = async () => {
+    if (!newEventTitle.trim() || !addEventModal || !activeLocationId) return;
+    setEventSaving(true);
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_id: activeLocationId,
+          date:        addEventModal.date,
+          title:       newEventTitle.trim(),
+          type:        newEventType,
+          note:        newEventNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.id) {
+        setEvents(prev => [...prev, {
+          id: data.id, org_id: "", location_id: activeLocationId,
+          date: addEventModal.date, title: newEventTitle.trim(),
+          type: newEventType as LocationEvent["type"],
+          note: newEventNote.trim() || undefined,
+        }]);
+        setAddEventModal(null);
+        setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+      }
+    } catch {}
+    setEventSaving(false);
+  };
+
   // Her gün×shift için kaç kişi atandığını hesapla (coverage gap için)
   const assignedCounts: Record<string, Record<number, number>> = {};
   for (const [key, cell] of Object.entries(cellMap)) {
@@ -915,6 +1027,8 @@ export default function SchedulePage() {
     }
     void pId;
   }
+
+  const isoDates = getWeekIsoDates(weekStart);
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
   const popoverPoints = popover ? withPrefNotBonus(calcPoints(popover.startMin, popover.endMin, popover.day), availMap, popover.personnelId, popover.day, prefNotMult) : 0;
@@ -1627,10 +1741,57 @@ export default function SchedulePage() {
                       const defsWithDemand = shiftDefs.filter(def => (demandMatrix[def.id]?.[i] ?? 0) > 0);
                       const dayAssigned = shiftDefs.reduce((sum, def) => sum + (assignedCounts[def.id]?.[i] ?? 0), 0);
                       const dayRequired = shiftDefs.reduce((sum, def) => sum + (demandMatrix[def.id]?.[i] ?? 0), 0);
+                      const isoDate = isoDates[i] ?? "";
+                      const dayHolidays = isoDate ? TURKISH_HOLIDAYS.filter(h => h.date === isoDate) : [];
+                      const dayEvents   = isoDate ? events.filter(e => e.date === isoDate) : [];
+                      const dayWeather  = isoDate ? weather[isoDate] : undefined;
                       return (
-                        <th key={d} className="text-center py-3 px-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[72px]">
-                          <span className={cn(i === 5 || i === 6 ? "text-violet-600" : "")}>{d}</span>
+                        <th key={d} className="text-center py-2 px-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px] align-top">
+                          {/* Gün adı + hava durumu */}
+                          <div className="flex items-center justify-center gap-1">
+                            <span className={cn(i === 5 || i === 6 ? "text-violet-600" : "")}>{d}</span>
+                            {dayWeather && (
+                              <span className="font-normal text-[10px] text-slate-400" title={`${dayWeather.temp}°C`}>
+                                {dayWeather.icon} {dayWeather.temp}°
+                              </span>
+                            )}
+                          </div>
+                          {/* Tarih */}
                           <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{dates[i]}</span>
+                          {/* Resmi tatiller */}
+                          {dayHolidays.map(h => (
+                            <div key={h.name} title={h.name}
+                              className="mt-0.5 mx-0.5 px-1 py-0.5 rounded text-[8px] bg-red-50 text-red-500 border border-red-100 truncate text-left">
+                              🎌 {h.name}
+                            </div>
+                          ))}
+                          {/* Özel etkinlikler */}
+                          {dayEvents.map(ev => (
+                            <div key={ev.id} title={`${ev.title}${ev.note ? ` — ${ev.note}` : ""}`}
+                              className={cn("mt-0.5 mx-0.5 px-1 py-0.5 rounded text-[8px] border flex items-center gap-0.5 group cursor-default text-left", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                              <span className="shrink-0">{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
+                              <span className="truncate flex-1 max-w-[52px]">{ev.title}</span>
+                              <button
+                                onClick={e => { e.stopPropagation(); deleteEvent(ev.id); }}
+                                className="ml-0.5 opacity-0 group-hover:opacity-100 leading-none shrink-0 hover:scale-110"
+                                title="Etkinliği sil"
+                              >×</button>
+                            </div>
+                          ))}
+                          {/* Etkinlik ekle butonu */}
+                          {isoDate && (
+                            <button
+                              onClick={() => {
+                                setAddEventModal({ date: isoDate, dayLabel: `${d} ${dates[i]}` });
+                                setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+                              }}
+                              className="mt-0.5 text-[8px] text-slate-300 hover:text-indigo-400 transition-colors w-full text-center flex items-center justify-center gap-0.5 py-0.5 rounded hover:bg-indigo-50"
+                              title="Etkinlik ekle"
+                            >
+                              <CalendarPlus size={9} /> ekle
+                            </button>
+                          )}
+                          {/* Kapasite badge'leri */}
                           {defsWithDemand.length > 1 ? (
                             <div className="mt-1 flex flex-col gap-0.5 items-center">
                               {defsWithDemand.map(def => {
@@ -2071,6 +2232,86 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+      {/* ── Etkinlik Ekleme Modalı ── */}
+      {addEventModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+          onClick={() => setAddEventModal(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">Etkinlik Ekle</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{addEventModal.dayLabel}</p>
+              </div>
+              <button onClick={() => setAddEventModal(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Başlık</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newEventTitle}
+                  onChange={e => setNewEventTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveEvent()}
+                  placeholder="Kampanya adı, denetim günü, özel etkinlik..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Tür</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(EVENT_TYPE_CONFIG).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      onClick={() => setNewEventType(key)}
+                      className={cn(
+                        "text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors",
+                        newEventType === key
+                          ? cn("border-current", cfg.color)
+                          : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                      )}
+                    >
+                      {cfg.emoji} {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  Not <span className="font-normal text-slate-400">(opsiyonel)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newEventNote}
+                  onChange={e => setNewEventNote(e.target.value)}
+                  placeholder="Ekstra detay, hatırlatma..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setAddEventModal(null)}
+                className="flex-1 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={saveEvent}
+                disabled={!newEventTitle.trim() || eventSaving}
+                className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {eventSaving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </>)}
     </div>
       <DragOverlay>

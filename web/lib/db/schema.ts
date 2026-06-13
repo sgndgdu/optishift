@@ -25,6 +25,8 @@ export const locations = sqliteTable("locations", {
   rules: text("rules"), // JSON: {max_weekly_hours, min_rest_hours, force_skills_match}
   demand_matrix: text("demand_matrix"), // JSON: {shiftDefId: {day(0-6): count}}
   leave_policy: text("leave_policy"),   // JSON: {require_reason, allow_multi_day, max_days_per_request}
+  latitude: real("latitude"),
+  longitude: real("longitude"),
 });
 
 // ─── Departments ─────────────────────────────────────────────────────────────
@@ -279,6 +281,19 @@ export const passwordResetTokens = sqliteTable("password_reset_tokens", {
   user_id: text("user_id").notNull().references(() => users.id),
   expires_at: integer("expires_at").notNull(), // unix timestamp
   used_at: integer("used_at"),
+  created_at: integer("created_at").$defaultFn(() => Math.floor(Date.now() / 1000)),
+});
+
+// ─── Location Events (Takvim Etkinlikleri) ───────────────────────────────────
+export const locationEvents = sqliteTable("location_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull().references(() => locations.id),
+  date: text("date").notNull(),       // YYYY-MM-DD
+  title: text("title").notNull(),
+  type: text("type").notNull().default("diger"), // kampanya | etkinlik | denetim | kapali | diger
+  note: text("note"),
+  created_by: text("created_by"),
   created_at: integer("created_at").$defaultFn(() => Math.floor(Date.now() / 1000)),
 });
 
