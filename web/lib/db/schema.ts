@@ -91,7 +91,8 @@ export const personnel = sqliteTable("personnel", {
   max_weekly_hours: integer("max_weekly_hours").default(45),
   min_weekly_hours: integer("min_weekly_hours").default(0), // part-time alt sınır garantisi, 0 = kapalı
   overtime_approved: integer("overtime_approved", { mode: "boolean" }).default(false),
-  prev_score: real("prev_score").default(0),
+  prev_score: real("prev_score").default(0),        // cumulative_burden olarak kullanılıyor (rolling decay)
+  fairness_z_score: real("fairness_z_score").default(0),
   hero_count: integer("hero_count").default(0),
   no_show_count: integer("no_show_count").default(0),
   late_count: integer("late_count").default(0),
@@ -231,7 +232,17 @@ export const scoreHistory = sqliteTable("score_history", {
   personnel_id: text("personnel_id").notNull().references(() => personnel.id),
   personnel_name: text("personnel_name"),
   week_start: text("week_start").notNull(), // ISO Monday date, YYYY-MM-DD
-  score: real("score").notNull().default(0),
+  score: real("score").notNull().default(0),         // eski alan — geriye dönük uyumluluk
+  // Yeni burden breakdown (adalet motoru v2)
+  total_hours: real("total_hours").default(0),
+  raw_score: real("raw_score").default(0),           // difficulty × hours, modifier yok
+  burden_score: real("burden_score").default(0),     // modifier'lı haftalık yük
+  weekend_shifts: integer("weekend_shifts").default(0),
+  night_shifts: integer("night_shifts").default(0),
+  pref_not_shifts: integer("pref_not_shifts").default(0),
+  clopening_count: integer("clopening_count").default(0),
+  cumulative_burden: real("cumulative_burden").default(0), // rolling decay snapshot
+  fairness_z_score: real("fairness_z_score").default(0),
   hero_count: integer("hero_count").default(0),
   no_show_count: integer("no_show_count").default(0),
   created_at: integer("created_at").$defaultFn(() => Math.floor(Date.now() / 1000)),

@@ -58,9 +58,13 @@ ZONE_DEMAND_PER_DAY = {
 RULES = {
     "max_weekly_hours": 45,
     "min_rest_hours":   11,
-    # Bu saatin altındaki ardışık gün geçişi "clopening" (kapanış→açılış) sayılır
-    # ve soft ceza alır. min_rest_hours'un altı zaten hard yasak.
     "clopening_min_rest_hours": 13,
+    # Adalet motoru v2 — burden multiplier'ları
+    "weekend_multiplier":       1.2,
+    "night_multiplier":         1.3,
+    "preferred_not_multiplier": 1.5,
+    "clopening_multiplier":     1.2,
+    "hero_multiplier":          1.5,
 }
 
 DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -88,33 +92,35 @@ def _shift_minutes(shift: dict) -> tuple:
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
 
-def shift_points(day: int, shift_id: int) -> int:
+def shift_points(day: int, shift_id: int) -> float:
     """
-    ShiftDefinition'daki base_points'i temel alır; gün bonuslarını üstüne uygular.
-    Gün bonusları CLAUDE.md Bölüm 3-E'ye göre minimum değer garantisi verir.
+    Burden skoru: difficulty × duration_hours × weekend/night multiplier.
+    Multiplier'lar RULES'tan okunur (müdür ayarlar).
     """
-    base = SHIFTS[shift_id].get("base_points", 5) if shift_id < len(SHIFTS) else 5
-    is_friday_saturday = day in (4, 5)
-    is_sunday          = day == 6
-    is_last_shift      = shift_id == len(SHIFTS) - 1  # günün kapanış vardiyası
+    shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
+    base = shift.get("base_points", 5)
+    start_m, end_m = _shift_minutes(shift) if shift else (0, 480)
+    hours = (end_m - start_m) / 60
 
-    if is_sunday and is_last_shift:
-        return max(base, 10)   # Pazar kapanış — en ağır
-    if is_friday_saturday:
-        return max(base, 8)    # Cuma/Cumartesi yoğunluğu
-    return base
+    weekend_mult = RULES.get("weekend_multiplier", 1.2)
+    night_mult   = RULES.get("night_multiplier",   1.3)
+
+    is_weekend = day in (5, 6)
+    is_night   = shift.get("is_night", False)
+
+    burden = base * hours
+    if is_weekend: burden *= weekend_mult
+    if is_night:   burden *= night_mult
+    return round(burden)
+
 
 
 def effective_points(person_id, day: int, shift_id: int) -> int:
-    """Kişiye özel puan: tercih edilmeyen (sarı) günde çalışma telafi çarpanı uygulanır.
-
-    Personel bir günü 'tercih etmiyorum' olarak işaretlemişse ve yine de o güne
-    atanırsa, vardiyanın puanı PREFERRED_NOT_MULTIPLIER ile çarpılır. Böylece
-    adalet dengelemesi bu fedakarlığı otomatik tartar.
-    """
+    """Kişiye özel burden puanı: preferred_not günde çalışma telafi çarpanı uygulanır."""
     pts = shift_points(day, shift_id)
     if get_avail(person_id, day) == "preferred_not":
-        pts = int(pts * PREFERRED_NOT_MULTIPLIER + 0.5)
+        mult = RULES.get("preferred_not_multiplier", PREFERRED_NOT_MULTIPLIER)
+        pts = int(pts * mult + 0.5)
     return pts
 
 
@@ -312,8 +318,9 @@ def build_model():
             for d in range(NUM_DAYS)
             for s in range(NUM_SHIFTS)
         )
-        total = model.new_int_var(0, 1000, f"total_score_p{p_idx}")
-        model.add(total == int(person.get("prev_score", 0)) + weekly_pts)
+        total = model.new_int_var(0, 10000, f"total_score_p{p_idx}")
+        # cumulative_burden = prev_score alanından geliyor (adalet motoru v2)
+        model.add(total == int(person.get("cumulative_burden", person.get("prev_score", 0))) + weekly_pts)
         person_scores.append(total)
 
         # Part-time çalışanların hedeflenen saati daha düşük olduğu için, adalet skorlarını oranlıyoruz.
@@ -525,7 +532,7 @@ def export_json(solver, shifts, person_scores) -> dict:
         result["fairness_summary"].append({
             "id": person["id"],
             "name": person["name"],
-            "previous_score": person["prev_score"],
+            "cumulative_burden": person.get("cumulative_burden", person.get("prev_score", 0)),
             "total_score": solver.value(person_scores[p_idx]),
         })
 

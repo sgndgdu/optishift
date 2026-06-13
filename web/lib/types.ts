@@ -70,6 +70,7 @@ export interface ShiftDefinition {
   start: string;       // "HH:MM"
   end: string;         // "HH:MM"
   base_points: number; // 1–10, bu vardiyayı OR-Tools'a ne kadar "ağır" göstereceği
+  is_night?: boolean;  // gece vardiyası — adalet motoru night_multiplier uygular
   coverage?: Record<string, number>; // role_id -> required_count
 }
 

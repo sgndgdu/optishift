@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
     // prevScores: DB'deki değerleri kullan (client'tan override almıyoruz)
     const prevScores: Record<string, number> = {};
     for (const p of personnelRows) {
-      prevScores[p.id] = p.prev_score ?? 0;
+      prevScores[p.id] = p.prev_score ?? 0; // prev_score = cumulative_burden (adalet motoru v2)
     }
 
     // Verileri formatla
@@ -166,7 +166,8 @@ export async function POST(req: NextRequest) {
         id: p.id,
         name: p.name,
         skills: JSON.parse(p.roles || "[]"),
-        prev_score: prevScores[p.id] ?? 0,
+        prev_score: prevScores[p.id] ?? 0,        // engine'e cumulative_burden olarak geçiyor
+        cumulative_burden: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
         max_weekly_hours: p.max_weekly_hours ?? 45,
         min_weekly_hours: p.min_weekly_hours ?? 0,
