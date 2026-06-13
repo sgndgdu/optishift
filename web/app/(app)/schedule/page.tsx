@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
-  Download, Zap, Send, X, Plus, BookOpen, ChevronDown, Sparkles, Eye, Copy,
+  Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -171,7 +171,6 @@ export default function SchedulePage() {
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
   const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count}
-  const [demandOpen, setDemandOpen]               = useState(false);
   const [fairnessOpen, setFairnessOpen]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
   const [saveState, setSaveState]                 = useState<"idle" | "saving" | "saved">("idle");
@@ -336,10 +335,6 @@ export default function SchedulePage() {
               : locData[0].demand_matrix;
             const matrix = rawDemand && typeof rawDemand === "object" ? rawDemand : {};
             setDemandMatrix(matrix);
-            // Matris doluysa kapasite paneli varsayılan açık gelsin
-            const hasDemand = Object.values(matrix as Record<string, Record<number, number>>)
-              .some(days => Object.values(days ?? {}).some(n => (n ?? 0) > 0));
-            if (hasDemand) setDemandOpen(true);
           } catch { setDemandMatrix({}); }
         } else {
           setDemandMatrix({});
@@ -1478,81 +1473,6 @@ export default function SchedulePage() {
             >
               <X size={14} />
             </button>
-          </div>
-        )}
-
-        {/* ── Kapasite Planı (Demand Matrix) — sadece ShiftBoard görünümünde; Tablo görünümünde thead'e gömülü ── */}
-        {shiftDefs.length > 0 && viewMode === "shift" && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <button
-              onClick={() => setDemandOpen(o => !o)}
-              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
-                  <Zap size={12} className="text-indigo-600" />
-                </div>
-                <span className="text-sm font-bold text-slate-800">Kapasite Planı</span>
-                <span className="text-xs text-slate-400 font-medium">— her gün kaç kişi gerekli?</span>
-              </div>
-              <ChevronDown size={15} className={cn("text-slate-400 transition-transform duration-200", demandOpen && "rotate-180")} />
-            </button>
-
-            {demandOpen && (
-              <div className="border-t border-slate-100 px-5 py-4">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px] text-xs">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-1.5 pr-4 text-slate-500 font-semibold w-28">Vardiya</th>
-                        {DAYS.map((d, i) => (
-                          <th key={d} className={cn("text-center py-1.5 px-1 font-semibold", i >= 5 ? "text-violet-600" : "text-slate-500")}>
-                            {d}
-                            <span className="block text-[10px] font-normal text-slate-400">{dates[i]}</span>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shiftDefs.map(def => (
-                        <tr key={def.id} className="border-t border-slate-50">
-                          <td className="py-2 pr-4">
-                            <span className="font-semibold text-slate-700">{def.name}</span>
-                            <span className="text-slate-400 ml-1">{def.start}–{def.end}</span>
-                          </td>
-                          {Array.from({ length: 7 }, (_, day) => {
-                            const val = demandMatrix[def.id]?.[day] ?? 0;
-                            return (
-                              <td key={day} className="py-2 px-1 text-center">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={99}
-                                  value={val === 0 ? "" : val}
-                                  placeholder="—"
-                                  onChange={e => {
-                                    const n = Math.max(0, parseInt(e.target.value) || 0);
-                                    setDemandMatrix(prev => ({
-                                      ...prev,
-                                      [def.id]: { ...(prev[def.id] ?? {}), [day]: n },
-                                    }));
-                                  }}
-                                  onBlur={() => handleDemandSave(true)}
-                                  className="w-10 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-slate-50 hover:bg-white transition-colors"
-                                />
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">Boş bırakılan günler → motor müsaitliğe göre kendi kararını verir. Değerler odak ayrılınca otomatik kaydedilir.</p>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
