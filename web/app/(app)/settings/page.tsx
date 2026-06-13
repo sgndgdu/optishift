@@ -141,9 +141,12 @@ export default function SettingsPage() {
   const [leaveAllowMultiDay, setLeaveAllowMultiDay] = useState(false);
   const [leaveMaxDays, setLeaveMaxDays]             = useState(1);
 
-  // Konum koordinatları (hava durumu için)
-  const [locationLat, setLocationLat] = useState("");
-  const [locationLon, setLocationLon] = useState("");
+  // Konum (hava durumu için) — lat/lon DB'de, kullanıcı şehir adı veya GPS butonu ile ayarlar
+  const [locationLat, setLocationLat]       = useState("");
+  const [locationLon, setLocationLon]       = useState("");
+  const [locationCityInput, setLocationCityInput] = useState("");
+  const [weatherStatus, setWeatherStatus]   = useState<"idle" | "searching" | "found" | "error">("idle");
+  const [weatherLabel, setWeatherLabel]     = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -189,8 +192,22 @@ export default function SettingsPage() {
           if (typeof loc.rules?.night_multiplier === "number")          setNightMultiplier(loc.rules.night_multiplier);
 
           if (typeof loc.leave_policy === "string") { try { loc.leave_policy = JSON.parse(loc.leave_policy); } catch { loc.leave_policy = {}; } }
-          setLocationLat(loc.latitude != null ? String(loc.latitude) : "");
-          setLocationLon(loc.longitude != null ? String(loc.longitude) : "");
+          const lat = loc.latitude != null ? String(loc.latitude) : "";
+          const lon = loc.longitude != null ? String(loc.longitude) : "";
+          setLocationLat(lat);
+          setLocationLon(lon);
+          if (lat && lon) {
+            setWeatherStatus("found");
+            // Ters geocode — şehir adını göster
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=tr`)
+              .then(r => r.json())
+              .then((d: any) => {
+                const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || "";
+                const country = d.address?.country || "";
+                setWeatherLabel(city ? `${city}, ${country}` : `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`);
+              })
+              .catch(() => setWeatherLabel(`${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`));
+          }
           const lp = loc.leave_policy || {};
           setLeaveRequireReason(!!lp.require_reason);
           setLeaveAllowMultiDay(!!lp.allow_multi_day);
@@ -224,8 +241,60 @@ export default function SettingsPage() {
     return () => window.removeEventListener("optishift_location_changed", init);
   }, []);
 
+  const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
+    try {
+      setWeatherStatus("searching");
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=tr&format=json`);
+      const d = await r.json();
+      const result = d.results?.[0];
+      if (!result) { setWeatherStatus("error"); return null; }
+      const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
+      setWeatherLabel(label);
+      setWeatherStatus("found");
+      return { lat: result.latitude, lon: result.longitude, label };
+    } catch {
+      setWeatherStatus("error");
+      return null;
+    }
+  };
+
+  const useDeviceLocation = () => {
+    if (!navigator.geolocation) { alert("Tarayıcınız konum özelliğini desteklemiyor."); return; }
+    setWeatherStatus("searching");
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        setLocationLat(String(latitude));
+        setLocationLon(String(longitude));
+        setWeatherStatus("found");
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=tr`)
+          .then(r => r.json())
+          .then((d: any) => {
+            const city = d.address?.city || d.address?.town || d.address?.village || "";
+            setWeatherLabel(city ? `${city}, Türkiye` : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          })
+          .catch(() => setWeatherLabel(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`));
+      },
+      () => { setWeatherStatus("error"); alert("Konum alınamadı. Tarayıcı iznini kontrol edin."); }
+    );
+  };
+
   const handleSave = async () => {
     if (!locationData) return;
+
+    // Şehir adı girildiyse önce geocode et
+    let finalLat = locationLat;
+    let finalLon = locationLon;
+    if (locationCityInput.trim()) {
+      const geo = await geocodeCity(locationCityInput.trim());
+      if (geo) {
+        finalLat = String(geo.lat);
+        finalLon = String(geo.lon);
+        setLocationLat(finalLat);
+        setLocationLon(finalLon);
+        setLocationCityInput("");
+      }
+    }
     const quotasObj: Record<string, number> = {};
     for (const { zone, min } of zoneQuotas) {
       const t = zone.trim();
@@ -256,8 +325,8 @@ export default function SettingsPage() {
             allow_multi_day:      leaveAllowMultiDay,
             max_days_per_request: leaveAllowMultiDay ? leaveMaxDays : 1,
           },
-          latitude:  locationLat  ? parseFloat(locationLat)  : null,
-          longitude: locationLon ? parseFloat(locationLon) : null,
+          latitude:  finalLat ? parseFloat(finalLat) : null,
+          longitude: finalLon ? parseFloat(finalLon) : null,
         }),
       });
       if (!res.ok) throw new Error("Sunucu hatası");
@@ -583,36 +652,64 @@ export default function SettingsPage() {
 
               <SectionCard title="Konum & Hava Durumu">
                 <RuleRow
-                  label="GPS Koordinatları"
-                  description={
-                    <span>
-                      Lokasyonun enlem/boylam değerleri — vardiya takviminde o haftanın günlük hava durumu ikonları görünür.{" "}
-                      <a href="https://www.latlong.net" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">latlong.net</a>{" "}
-                      üzerinden şubenizin koordinatlarını bulabilirsiniz.
-                    </span>
-                  }
+                  label="Şube Konumu"
+                  description="Ayarlandıktan sonra vardiya takviminde o haftanın günlük hava durumu ikonları görünür."
                   right={
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={locationLat}
-                          onChange={e => setLocationLat(e.target.value)}
-                          placeholder="41.0082"
-                          className="w-24 px-2 py-1.5 text-sm border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                        <span className="text-xs text-slate-400">°N</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={locationLon}
-                          onChange={e => setLocationLon(e.target.value)}
-                          placeholder="28.9784"
-                          className="w-24 px-2 py-1.5 text-sm border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                        <span className="text-xs text-slate-400">°E</span>
-                      </div>
+                    <div className="flex flex-col items-end gap-2 min-w-[220px]">
+                      {/* Mevcut konum göstergesi */}
+                      {weatherStatus === "found" && weatherLabel && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">
+                          <span>📍 <span className="font-semibold">{weatherLabel}</span></span>
+                          <button
+                            onClick={() => { setLocationLat(""); setLocationLon(""); setWeatherLabel(""); setWeatherStatus("idle"); }}
+                            className="text-emerald-400 hover:text-red-400 transition-colors ml-1"
+                            title="Konumu sıfırla"
+                          >×</button>
+                        </div>
+                      )}
+                      {weatherStatus === "searching" && (
+                        <span className="text-xs text-slate-400 animate-pulse">Aranıyor...</span>
+                      )}
+                      {weatherStatus === "error" && (
+                        <span className="text-xs text-red-500">Bulunamadı, tekrar deneyin.</span>
+                      )}
+                      {/* Şehir / ilçe ara */}
+                      {weatherStatus !== "found" && (
+                        <div className="flex items-center gap-1.5 w-full">
+                          <input
+                            type="text"
+                            value={locationCityInput}
+                            onChange={e => setLocationCityInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && locationCityInput.trim()) {
+                                geocodeCity(locationCityInput.trim()).then(geo => {
+                                  if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                                });
+                              }
+                            }}
+                            placeholder="İstanbul, Kadıköy..."
+                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!locationCityInput.trim()) return;
+                              geocodeCity(locationCityInput.trim()).then(geo => {
+                                if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                              });
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors shrink-0"
+                          >
+                            Ara
+                          </button>
+                        </div>
+                      )}
+                      {/* Cihaz konumu */}
+                      <button
+                        onClick={useDeviceLocation}
+                        className="flex items-center gap-1.5 text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100 transition-colors w-full justify-center font-medium"
+                      >
+                        📍 Cihaz konumumu kullan
+                      </button>
                     </div>
                   }
                 />
