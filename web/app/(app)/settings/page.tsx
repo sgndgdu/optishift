@@ -46,6 +46,8 @@ export default function SettingsPage() {
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   const [preferredNotMultiplier, setPreferredNotMultiplier]       = useState(1.5);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
+  const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
+  const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason]     = useState(false);
   const [leaveAllowMultiDay, setLeaveAllowMultiDay]     = useState(false);
@@ -108,6 +110,12 @@ export default function SettingsPage() {
            }
            if (typeof parsedLoc.rules?.max_preferred_not_days === "number") {
              setMaxPreferredNotDays(parsedLoc.rules.max_preferred_not_days);
+           }
+           if (typeof parsedLoc.rules?.clopening_min_rest_hours === "number") {
+             setClopeningMinRestHours(parsedLoc.rules.clopening_min_rest_hours);
+           }
+           if (typeof parsedLoc.rules?.change_compensation_points === "number") {
+             setChangeCompensationPoints(parsedLoc.rules.change_compensation_points);
            }
            // İzin politikasını yükle
            if (typeof parsedLoc.leave_policy === 'string') {
@@ -207,6 +215,8 @@ export default function SettingsPage() {
             include_managers_in_schedule: includeManagersInSchedule,
             preferred_not_multiplier: preferredNotMultiplier,
             max_preferred_not_days: maxPreferredNotDays,
+            clopening_min_rest_hours: clopeningMinRestHours,
+            change_compensation_points: changeCompensationPoints,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -516,6 +526,48 @@ export default function SettingsPage() {
                       className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <span className="text-xs text-slate-400 font-semibold">gün</span>
+                  </div>
+                </div>
+
+                {/* Clopening Eşiği */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Clopening Eşiği</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Kapanış→Açılış geçişinde dinlenme bu saatin altındaysa yayın öncesi ihlal modalı &quot;clopening&quot; olarak işaretler ve motor soft ceza uygular. Yasal minimum 11 saatin üstünde olmalı.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="number"
+                      min={11}
+                      max={24}
+                      value={clopeningMinRestHours}
+                      onChange={e => setClopeningMinRestHours(Math.min(24, Math.max(11, parseInt(e.target.value) || 13)))}
+                      className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs text-slate-400 font-semibold">saat</span>
+                  </div>
+                </div>
+
+                {/* Değişiklik Telafi Puanı */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Yayın Sonrası Değişiklik Telafisi</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Yayınlanmış bir vardiyanın saati değiştirildiğinde personele bu kadar telafi puanı verilir (bugün ve gelecek vardiyalar için; geçmiş hafta düzeltmeleri hariç).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={changeCompensationPoints}
+                      onChange={e => setChangeCompensationPoints(Math.min(10, Math.max(0, parseInt(e.target.value) || 2)))}
+                      className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs text-slate-400 font-semibold">puan</span>
                   </div>
                 </div>
 
