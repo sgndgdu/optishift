@@ -27,17 +27,13 @@ const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 function getWeekStartISO(offset: number): string {
   const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-  return monday.toISOString().split("T")[0];
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
 }
 
 function getWeekLabel(offset: number): { label: string; dates: string[] } {
   const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
 
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
@@ -115,11 +111,10 @@ function wmoIcon(code: number): string {
 
 function getWeekIsoDates(weekStart: string): string[] {
   if (!weekStart) return Array(7).fill("");
-  const start = new Date(weekStart + "T00:00:00");
+  const [y, m, d] = weekStart.split("-").map(Number);
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d.toISOString().split("T")[0];
+    const date = new Date(y, m - 1, d + i); // yerel tarih — UTC dönüşümü yok
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
 }
 
