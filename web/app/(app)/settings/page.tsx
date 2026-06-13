@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
-type TabKey = "shifts" | "rules" | "location" | "account";
+type TabKey = "shifts" | "rules" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "shifts",   label: "Vardiyalar" },
-  { key: "rules",    label: "Kurallar" },
-  { key: "location", label: "Lokasyon" },
-  { key: "account",  label: "Hesap & Bildirimler" },
+  { key: "shifts",  label: "Vardiyalar" },
+  { key: "rules",   label: "Kurallar" },
+  { key: "account", label: "Hesap & Bildirimler" },
 ];
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -59,7 +59,7 @@ function NumberInput({
           const raw = step && step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value);
           if (!isNaN(raw)) onChange(Math.min(max, Math.max(min, raw)));
         }}
-        className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
       />
       {suffix && <span className="text-xs text-slate-400 font-semibold">{suffix}</span>}
     </div>
@@ -93,6 +93,18 @@ function SectionLabel({ children }: { children: ReactNode }) {
   return <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{children}</h3>;
 }
 
+// Shared time input style — same everywhere on the page
+function TimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="time"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 w-28"
+    />
+  );
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("shifts");
 
@@ -123,9 +135,9 @@ export default function SettingsPage() {
   const [nightMultiplier, setNightMultiplier]                     = useState(1.3);
 
   // İzin politikası
-  const [leaveRequireReason, setLeaveRequireReason]   = useState(false);
-  const [leaveAllowMultiDay, setLeaveAllowMultiDay]   = useState(false);
-  const [leaveMaxDays, setLeaveMaxDays]               = useState(1);
+  const [leaveRequireReason, setLeaveRequireReason] = useState(false);
+  const [leaveAllowMultiDay, setLeaveAllowMultiDay] = useState(false);
+  const [leaveMaxDays, setLeaveMaxDays]             = useState(1);
 
   useEffect(() => {
     const init = async () => {
@@ -298,119 +310,162 @@ export default function SettingsPage() {
 
           {/* ─── VARDIYALAR ─── */}
           {activeTab === "shifts" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {locationData.shift_definitions.map((shift: ShiftDefinition, idx: number) => (
-                  <div key={shift.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
-                    {/* Başlık satırı */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={shift.name}
-                        onChange={e => {
-                          const next = [...locationData.shift_definitions];
-                          next[idx] = { ...next[idx], name: e.target.value };
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className="flex-1 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none px-1 py-0.5 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                            i === idx ? { ...s, is_night: !s.is_night } : s
-                          );
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
-                          shift.is_night
-                            ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                            : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
-                        )}
-                      >
-                        <Moon size={10} /> Gece
-                      </button>
-                      <button
-                        onClick={() => {
-                          const next = locationData.shift_definitions.filter((_: ShiftDefinition, i: number) => i !== idx);
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className="text-slate-300 hover:text-red-400 p-1 transition-colors"
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
+            <div className="space-y-8">
 
-                    {/* Saat aralığı */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="time"
-                        value={shift.start}
-                        onChange={e => {
-                          const next = [...locationData.shift_definitions];
-                          next[idx] = { ...next[idx], start: e.target.value };
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-indigo-500"
-                      />
-                      <span className="text-slate-300">–</span>
-                      <input
-                        type="time"
-                        value={shift.end}
-                        onChange={e => {
-                          const next = [...locationData.shift_definitions];
-                          next[idx] = { ...next[idx], end: e.target.value };
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    {/* Zorluk slider */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400">Zorluk ağırlığı</span>
-                        <span className={cn("text-sm font-black", pointsColor(shift.base_points))}>{shift.base_points}</span>
+              {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
+              <div>
+                <SectionLabel>Çalışma Saatleri</SectionLabel>
+                <p className="text-xs text-slate-400 mb-3">Lokasyonun her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
+                <div className="space-y-1">
+                  {DAYS.map((dayName, idx) => {
+                    const dayData = locationData.operating_hours[idx];
+                    return (
+                      <div key={idx} className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
+                        <label className="flex items-center gap-2 cursor-pointer w-32">
+                          <input
+                            type="checkbox"
+                            checked={dayData.isOpen}
+                            onChange={e => {
+                              const next = { ...locationData.operating_hours };
+                              next[idx] = { ...next[idx], isOpen: e.target.checked };
+                              setLocationData({ ...locationData, operating_hours: next });
+                            }}
+                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-600 cursor-pointer"
+                          />
+                          <span className={`text-sm font-medium ${dayData.isOpen ? "text-slate-700" : "text-slate-400 line-through"}`}>{dayName}</span>
+                        </label>
+                        <div className={`flex items-center gap-2 ${dayData.isOpen ? "" : "opacity-30 pointer-events-none"}`}>
+                          <TimeInput value={dayData.open} onChange={v => {
+                            const next = { ...locationData.operating_hours };
+                            next[idx] = { ...next[idx], open: v };
+                            setLocationData({ ...locationData, operating_hours: next });
+                          }} />
+                          <span className="text-slate-300 text-sm">–</span>
+                          <TimeInput value={dayData.close} onChange={v => {
+                            const next = { ...locationData.operating_hours };
+                            next[idx] = { ...next[idx], close: v };
+                            setLocationData({ ...locationData, operating_hours: next });
+                          }} />
+                        </div>
+                        {!dayData.isOpen && <span className="text-xs text-slate-400">Kapalı</span>}
                       </div>
-                      <input
-                        type="range"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={shift.base_points}
-                        onChange={e => {
-                          const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                            i === idx ? { ...s, base_points: Number(e.target.value) } : s
-                          );
-                          setLocationData({ ...locationData, shift_definitions: next });
-                        }}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-indigo-600 bg-slate-200"
-                      />
-                      <div className="flex justify-between text-[9px] text-slate-300 px-0.5">
-                        <span>Kolay</span><span>Orta</span><span>Zor</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                <button
-                  onClick={() => {
-                    const next = [
-                      ...locationData.shift_definitions,
-                      { id: `s${Date.now()}`, name: "Yeni Vardiya", start: "12:00", end: "20:00", base_points: 3 },
-                    ];
-                    setLocationData({ ...locationData, shift_definitions: next });
-                  }}
-                  className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors min-h-[180px]"
-                >
-                  <Plus size={22} className="mb-2" />
-                  <span className="font-medium text-sm">Yeni Vardiya Ekle</span>
-                </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Yük çarpanları */}
+              <hr className="border-slate-100" />
+
+              {/* 2. Vardiya Tanımları */}
+              <div>
+                <SectionLabel>Vardiya Tanımları</SectionLabel>
+                <p className="text-xs text-slate-400 mb-3">Her vardiya bloğunun adını, saatlerini ve zorluk ağırlığını tanımlayın.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {locationData.shift_definitions.map((shift: ShiftDefinition, idx: number) => (
+                    <div key={shift.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                      {/* Ad + Gece badge + Sil */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={shift.name}
+                          onChange={e => {
+                            const next = [...locationData.shift_definitions];
+                            next[idx] = { ...next[idx], name: e.target.value };
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }}
+                          className="flex-1 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none px-1 py-0.5 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                              i === idx ? { ...s, is_night: !s.is_night } : s
+                            );
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
+                            shift.is_night
+                              ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                              : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
+                          )}
+                        >
+                          <Moon size={10} /> Gece
+                        </button>
+                        <button
+                          onClick={() => {
+                            const next = locationData.shift_definitions.filter((_: ShiftDefinition, i: number) => i !== idx);
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }}
+                          className="text-slate-300 hover:text-red-400 p-1 transition-colors"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+
+                      {/* Saat — same TimeInput component as operating hours above */}
+                      <div className="flex items-center gap-2">
+                        <TimeInput value={shift.start} onChange={v => {
+                          const next = [...locationData.shift_definitions];
+                          next[idx] = { ...next[idx], start: v };
+                          setLocationData({ ...locationData, shift_definitions: next });
+                        }} />
+                        <span className="text-slate-300 text-sm">–</span>
+                        <TimeInput value={shift.end} onChange={v => {
+                          const next = [...locationData.shift_definitions];
+                          next[idx] = { ...next[idx], end: v };
+                          setLocationData({ ...locationData, shift_definitions: next });
+                        }} />
+                      </div>
+
+                      {/* Zorluk slider */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-400">Zorluk ağırlığı</span>
+                          <span className={cn("text-sm font-black", pointsColor(shift.base_points))}>{shift.base_points}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          step={1}
+                          value={shift.base_points}
+                          onChange={e => {
+                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                              i === idx ? { ...s, base_points: Number(e.target.value) } : s
+                            );
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }}
+                          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-indigo-600 bg-slate-200"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-300 px-0.5">
+                          <span>Kolay</span><span>Orta</span><span>Zor</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      const next = [
+                        ...locationData.shift_definitions,
+                        { id: `s${Date.now()}`, name: "Yeni Vardiya", start: "12:00", end: "20:00", base_points: 3 },
+                      ];
+                      setLocationData({ ...locationData, shift_definitions: next });
+                    }}
+                    className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors min-h-[180px]"
+                  >
+                    <Plus size={22} className="mb-2" />
+                    <span className="font-medium text-sm">Yeni Vardiya Ekle</span>
+                  </button>
+                </div>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* 3. Yük Çarpanları */}
               <div>
                 <SectionLabel>Yük Çarpanları</SectionLabel>
+                <p className="text-xs text-slate-400 mb-3">Hafta sonu ve gece vardiyaları adalet hesabında daha ağır sayılır.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
                     <div>
@@ -468,7 +523,7 @@ export default function SettingsPage() {
               <SectionCard title="Adalet & Telafi">
                 <RuleRow
                   label="Tercih Edilmeyen Gün Çarpanı"
-                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır. Fedakarlık adalet puanına yansır.</>}
+                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır.</>}
                   right={<NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />}
                 />
                 <RuleRow
@@ -478,14 +533,80 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Clopening Eşiği"
-                  description="Kapanış→Açılış geçişinde bu saatin altında dinlenme varsa ihlal modalında işaretlenir ve motor soft ceza uygular."
+                  description="Kapanış→Açılış geçişinde bu saatin altında dinlenme varsa ihlal modalında işaretlenir."
                   right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
                 />
                 <RuleRow
                   label="Yayın Sonrası Değişiklik Telafisi"
-                  description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele verilecek telafi puanı (bugün ve gelecek vardiyalar için)."
+                  description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele verilecek telafi puanı."
                   right={<NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />}
                 />
+              </SectionCard>
+
+              {/* Bölgeler & Kotalar — OR-Tools kısıtı olduğu için Kurallar'da */}
+              <SectionCard title="Bölgeler & Alan Kotaları">
+                <div className="py-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {departments.map((dept, dIdx) => (
+                      <div key={dept.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                        <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                        <input
+                          value={dept.name}
+                          onChange={e => {
+                            const next = [...departments];
+                            next[dIdx].name = e.target.value;
+                            setDepartments(next);
+                          }}
+                          className="flex-1 font-semibold text-slate-800 bg-transparent outline-none text-sm border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5"
+                          placeholder="Bölge adı"
+                        />
+                        <button onClick={() => setDepartments(departments.filter((_, i) => i !== dIdx))} className="text-slate-300 hover:text-red-400 transition-colors p-0.5">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setDepartments([...departments, { id: `d${Date.now()}`, location_id: locationData.id, name: "Yeni Bölge" }])}
+                      className="border-2 border-dashed border-slate-200 rounded-lg px-3 py-2 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-sm font-medium"
+                    >
+                      <Plus size={14} /> Yeni Bölge
+                    </button>
+                  </div>
+
+                  {zoneQuotas.length > 0 && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-xs text-slate-400 mb-2">Günlük minimum kişi sayısı (OR-Tools kısıtı)</p>
+                      <div className="space-y-1.5">
+                        {zoneQuotas.map((entry, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input
+                              value={entry.zone}
+                              onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
+                              placeholder="Alan adı"
+                              className="flex-1 text-sm bg-white border border-slate-200 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500 text-slate-800"
+                            />
+                            <input
+                              type="number" min={0} max={99}
+                              value={entry.min}
+                              onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
+                              className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-500"
+                            />
+                            <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
+                            <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-400 transition-colors p-0.5">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
+                    className="w-full border border-dashed border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Plus size={12} /> Kota Ekle
+                  </button>
+                </div>
               </SectionCard>
 
               <SectionCard title="İzin Politikası">
@@ -503,10 +624,7 @@ export default function SettingsPage() {
                         <span className="flex items-center gap-2 mt-2">
                           <span>Tek talep için max:</span>
                           <input
-                            type="number"
-                            min={2}
-                            max={30}
-                            value={leaveMaxDays}
+                            type="number" min={2} max={30} value={leaveMaxDays}
                             onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
                             className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
                           />
@@ -522,146 +640,6 @@ export default function SettingsPage() {
               <div className="flex justify-end">
                 <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
                   <Save size={16} /> Kuralları Kaydet
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ─── LOKASYON ─── */}
-          {activeTab === "location" && (
-            <div className="space-y-8">
-              {/* Çalışma Saatleri */}
-              <div>
-                <SectionLabel>Çalışma Saatleri</SectionLabel>
-                <div className="space-y-1">
-                  {DAYS.map((dayName, idx) => {
-                    const dayData = locationData.operating_hours[idx];
-                    return (
-                      <div key={idx} className="flex flex-wrap items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
-                        <label className="flex items-center gap-2 cursor-pointer w-28 md:w-32">
-                          <input
-                            type="checkbox"
-                            checked={dayData.isOpen}
-                            onChange={e => {
-                              const next = { ...locationData.operating_hours };
-                              next[idx] = { ...next[idx], isOpen: e.target.checked };
-                              setLocationData({ ...locationData, operating_hours: next });
-                            }}
-                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-600 cursor-pointer"
-                          />
-                          <span className={`text-sm font-medium ${dayData.isOpen ? "text-slate-700" : "text-slate-400 line-through"}`}>{dayName}</span>
-                        </label>
-                        <div className={`flex items-center gap-2 ${dayData.isOpen ? "" : "opacity-30 pointer-events-none"}`}>
-                          <input
-                            type="time"
-                            value={dayData.open}
-                            onChange={e => {
-                              const next = { ...locationData.operating_hours };
-                              next[idx] = { ...next[idx], open: e.target.value };
-                              setLocationData({ ...locationData, operating_hours: next });
-                            }}
-                            className="px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                          />
-                          <span className="text-slate-300">–</span>
-                          <input
-                            type="time"
-                            value={dayData.close}
-                            onChange={e => {
-                              const next = { ...locationData.operating_hours };
-                              next[idx] = { ...next[idx], close: e.target.value };
-                              setLocationData({ ...locationData, operating_hours: next });
-                            }}
-                            className="px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        {!dayData.isOpen && <span className="text-xs text-slate-400 font-medium">Kapalı</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
-              {/* Bölgeler */}
-              <div>
-                <SectionLabel>Bölgeler & Departmanlar</SectionLabel>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                  {departments.map((dept, dIdx) => (
-                    <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                      <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                      <input
-                        value={dept.name}
-                        onChange={e => {
-                          const next = [...departments];
-                          next[dIdx].name = e.target.value;
-                          setDepartments(next);
-                        }}
-                        className="flex-1 font-semibold text-slate-800 bg-transparent outline-none text-sm border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5"
-                        placeholder="Bölge adı"
-                      />
-                      <button
-                        onClick={() => setDepartments(departments.filter((_, i) => i !== dIdx))}
-                        className="p-1 text-slate-300 hover:text-red-400 transition-colors"
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setDepartments([...departments, { id: `d${Date.now()}`, location_id: locationData.id, name: "Yeni Bölge" }])}
-                    className="border-2 border-dashed border-slate-200 rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-sm font-medium"
-                  >
-                    <Plus size={16} /> Yeni Bölge Ekle
-                  </button>
-                </div>
-
-                <p className="text-xs font-semibold text-slate-500 mb-1">Günlük Alan Kotaları</p>
-                <p className="text-xs text-slate-400 mb-3">Her bölgede günde en az kaç kişi çalışmalı? OR-Tools bu kural dahilinde optimize eder.</p>
-                <div className="space-y-2">
-                  {zoneQuotas.map((entry, idx) => (
-                    <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                      <input
-                        value={entry.zone}
-                        onChange={e => {
-                          const next = [...zoneQuotas];
-                          next[idx] = { ...next[idx], zone: e.target.value };
-                          setZoneQuotas(next);
-                        }}
-                        placeholder="Yetenek adı (Örn: Kasa)"
-                        className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5 text-slate-800"
-                      />
-                      <span className="text-xs text-slate-400 shrink-0">min</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={entry.min}
-                        onChange={e => {
-                          const next = [...zoneQuotas];
-                          next[idx] = { ...next[idx], min: Number(e.target.value) };
-                          setZoneQuotas(next);
-                        }}
-                        className="w-16 text-sm text-center bg-white border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-indigo-500"
-                      />
-                      <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
-                      <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
-                    className="w-full border border-dashed border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Plus size={14} /> Kota Ekle
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
-                  <Save size={16} /> Lokasyonu Kaydet
                 </button>
               </div>
             </div>
@@ -692,12 +670,7 @@ export default function SettingsPage() {
                           {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
                         </select>
                         <span>günü saat</span>
-                        <input
-                          type="time"
-                          value={reminderTime}
-                          onChange={e => setReminderTime(e.target.value)}
-                          className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400"
-                        />
+                        <TimeInput value={reminderTime} onChange={setReminderTime} />
                         <span>hatırlatma gönder</span>
                       </div>
                     )}
