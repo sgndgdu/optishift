@@ -253,19 +253,22 @@ export function ShiftBoard({
                     {isoDates && (() => {
                       const isoDate = isoDates[dayIndex];
                       const holidays = TURKISH_HOLIDAYS.filter(h => h.date === isoDate);
-                      const dayEvents = (events ?? []).filter(e => e.date === isoDate);
+                      const dayEvents = (events ?? []).filter(e => e.scope !== "week" && e.date === isoDate);
                       if (holidays.length === 0 && dayEvents.length === 0) return null;
+                      const allTitles = [
+                        ...holidays.map(h => `🎌 ${h.name}`),
+                        ...dayEvents.map(e => `${EVENT_EMOJI[e.type] ?? "📌"} ${e.title}`),
+                      ].join(" · ");
                       return (
-                        <div className="flex flex-col gap-0.5 mt-1 px-1">
+                        <div
+                          className="flex items-center justify-center gap-0.5 mt-1"
+                          title={allTitles}
+                        >
                           {holidays.map(h => (
-                            <span key={h.name} className="text-[8px] bg-red-50 text-red-600 border border-red-200 rounded px-1 py-0.5 text-center font-medium leading-tight truncate">
-                              🎌 {h.name}
-                            </span>
+                            <span key={h.name} className="w-2 h-2 rounded-full bg-red-500 inline-block" title={h.name} />
                           ))}
                           {dayEvents.map(ev => (
-                            <span key={ev.id} className="text-[8px] bg-purple-50 text-purple-600 border border-purple-200 rounded px-1 py-0.5 text-center font-medium leading-tight truncate">
-                              {EVENT_EMOJI[ev.type] ?? "📌"} {ev.title}
-                            </span>
+                            <span key={ev.id} className="w-2 h-2 rounded-full inline-block bg-violet-500" title={ev.title} />
                           ))}
                         </div>
                       );

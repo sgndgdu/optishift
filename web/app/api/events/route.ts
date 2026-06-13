@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const db = new Database(DB_PATH);
   try {
     const body = await req.json();
-    const { location_id, date, title, type, note } = body;
+    const { location_id, date, title, type, scope, note } = body;
     if (!location_id || !date || !title?.trim()) {
       db.close();
       return NextResponse.json({ error: "location_id, date ve title zorunlu" }, { status: 400 });
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
     }
 
     db.prepare(
-      `INSERT INTO location_events (org_id, location_id, date, title, type, note, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(auth.org_id, location_id, date, title.trim(), type || "diger", note || null, auth.id);
+      `INSERT INTO location_events (org_id, location_id, date, title, type, scope, note, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(auth.org_id, location_id, date, title.trim(), type || "diger", scope || "day", note || null, auth.id);
 
     const row = db.prepare("SELECT last_insert_rowid() as id").get() as { id: number };
     db.close();

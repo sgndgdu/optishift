@@ -34,9 +34,10 @@ export interface LocationEvent {
   id: number;
   org_id: string;
   location_id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (day: specific date, week: week_start)
   title: string;
   type: "kampanya" | "etkinlik" | "denetim" | "kapali" | "diger";
+  scope: "day" | "week"; // day = güne özel, week = haftanın tamamı
   note?: string;
   created_by?: string;
   created_at?: number;

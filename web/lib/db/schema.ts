@@ -289,9 +289,10 @@ export const locationEvents = sqliteTable("location_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   org_id: text("org_id").notNull(),
   location_id: text("location_id").notNull().references(() => locations.id),
-  date: text("date").notNull(),       // YYYY-MM-DD
+  date: text("date").notNull(),       // YYYY-MM-DD (day scope: specific date, week scope: week_start)
   title: text("title").notNull(),
   type: text("type").notNull().default("diger"), // kampanya | etkinlik | denetim | kapali | diger
+  scope: text("scope").notNull().default("day"), // day | week
   note: text("note"),
   created_by: text("created_by"),
   created_at: integer("created_at").$defaultFn(() => Math.floor(Date.now() / 1000)),

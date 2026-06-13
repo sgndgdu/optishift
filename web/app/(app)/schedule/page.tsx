@@ -193,9 +193,10 @@ export default function SchedulePage() {
   const [events, setEvents]                       = useState<LocationEvent[]>([]);
   const [weather, setWeather]                     = useState<Record<string, { icon: string; temp: number }>>({});
   const [locationLatLon, setLocationLatLon]       = useState<{ lat: number; lon: number } | null>(null);
-  const [addEventModal, setAddEventModal]         = useState<{ date: string; dayLabel: string } | null>(null);
+  const [addEventModal, setAddEventModal]         = useState<{ date: string; dayLabel: string; initScope?: "day" | "week" } | null>(null);
   const [newEventTitle, setNewEventTitle]         = useState("");
   const [newEventType, setNewEventType]           = useState("kampanya");
+  const [newEventScope, setNewEventScope]         = useState<"day" | "week">("day");
   const [newEventNote, setNewEventNote]           = useState("");
   const [eventSaving, setEventSaving]             = useState(false);
 
@@ -987,15 +988,17 @@ export default function SchedulePage() {
   const saveEvent = async () => {
     if (!newEventTitle.trim() || !addEventModal || !activeLocationId) return;
     setEventSaving(true);
+    const eventDate = newEventScope === "week" ? weekStart : addEventModal.date;
     try {
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           location_id: activeLocationId,
-          date:        addEventModal.date,
+          date:        eventDate,
           title:       newEventTitle.trim(),
           type:        newEventType,
+          scope:       newEventScope,
           note:        newEventNote.trim() || undefined,
         }),
       });
@@ -1003,12 +1006,13 @@ export default function SchedulePage() {
       if (data.id) {
         setEvents(prev => [...prev, {
           id: data.id, org_id: "", location_id: activeLocationId,
-          date: addEventModal.date, title: newEventTitle.trim(),
+          date: eventDate, title: newEventTitle.trim(),
           type: newEventType as LocationEvent["type"],
+          scope: newEventScope,
           note: newEventNote.trim() || undefined,
         }]);
         setAddEventModal(null);
-        setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+        setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventScope("day");
       }
     } catch {}
     setEventSaving(false);
@@ -1587,25 +1591,102 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* ── Tatil & Etkinlik Bandı ── */}
+        {/* ── Özel Günler & Haftalar Paneli ── */}
         {(() => {
-          const weekHolidays = isoDates.flatMap(d => TURKISH_HOLIDAYS.filter(h => h.date === d).map(h => ({ ...h, isoDate: d })));
-          const weekEvents   = events.filter(e => isoDates.includes(e.date));
-          if (weekHolidays.length === 0 && weekEvents.length === 0) return null;
           const DAY_SHORT = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+          const weekHolidays = isoDates.flatMap((d, i) => TURKISH_HOLIDAYS.filter(h => h.date === d).map(h => ({ ...h, isoDate: d, dayIdx: i })));
+          const weekEvents   = events.filter(e => e.scope !== "week" && isoDates.includes(e.date));
+          const weekNotes    = events.filter(e => e.scope === "week" && e.date === weekStart);
+          const hasContent   = weekHolidays.length > 0 || weekEvents.length > 0 || weekNotes.length > 0;
           return (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-wrap gap-2 items-center">
-              <span className="text-xs font-bold text-amber-700 shrink-0">Bu hafta:</span>
-              {weekHolidays.map(h => (
-                <span key={h.date + h.name} className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded-full font-medium">
-                  🎌 <span className="font-semibold">{DAY_SHORT[isoDates.indexOf(h.isoDate)]}</span> {h.name}
-                </span>
-              ))}
-              {weekEvents.map(ev => (
-                <span key={ev.id} className={cn("inline-flex items-center gap-1 text-xs border px-2 py-0.5 rounded-full font-medium", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
-                  {EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"} <span className="font-semibold">{DAY_SHORT[isoDates.indexOf(ev.date)]}</span> {ev.title}
-                </span>
-              ))}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              {/* Başlık satırı */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Özel Günler & Haftalar</span>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" });
+                      setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg transition-colors"
+                    title="Haftalık not ekle"
+                  >
+                    <CalendarPlus size={11} /> Haftalık Not
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAddEventModal({ date: isoDates[0] ?? weekStart, dayLabel: DAY_SHORT[0] ?? "Pzt", initScope: "day" });
+                      setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg transition-colors"
+                    title="Özel gün ekle"
+                  >
+                    <CalendarPlus size={11} /> Özel Gün
+                  </button>
+                </div>
+              </div>
+
+              {!hasContent ? (
+                <div className="px-4 py-3 text-xs text-slate-400 italic">
+                  Bu hafta resmi tatil veya özel etkinlik yok. Yukarıdan ekleyebilirsiniz.
+                </div>
+              ) : (
+                <div className="px-4 py-3 space-y-2.5">
+                  {/* Haftalık Notlar */}
+                  {weekNotes.length > 0 && (
+                    <div className="space-y-1">
+                      {weekNotes.map(ev => (
+                        <div key={ev.id} className={cn("flex items-start gap-2 px-3 py-2 rounded-xl border group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                          <span className="shrink-0 mt-0.5">{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold">{ev.title}</p>
+                            {ev.note && <p className="text-[10px] opacity-75 mt-0.5">{ev.note}</p>}
+                          </div>
+                          <span className="text-[9px] font-semibold opacity-60 shrink-0 mt-0.5 uppercase tracking-wide">Haftalık</span>
+                          <button
+                            onClick={() => deleteEvent(ev.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-current hover:scale-110 shrink-0"
+                            title="Sil"
+                          ><X size={12} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Resmi Tatiller */}
+                  {weekHolidays.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {weekHolidays.map(h => (
+                        <span key={h.date + h.name} className="inline-flex items-center gap-1 text-[11px] bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full font-medium">
+                          🎌 <span className="font-bold">{DAY_SHORT[h.dayIdx]}</span> {h.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Özel Günler */}
+                  {weekEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {weekEvents.map(ev => {
+                        const dayIdx = isoDates.indexOf(ev.date);
+                        return (
+                          <span key={ev.id} className={cn("inline-flex items-center gap-1 text-[11px] border px-2.5 py-1 rounded-full font-medium group/pill cursor-default", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                            {EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}
+                            {dayIdx >= 0 && <span className="font-bold">{DAY_SHORT[dayIdx]}</span>}
+                            {ev.title}
+                            <button
+                              onClick={() => deleteEvent(ev.id)}
+                              className="opacity-0 group-hover/pill:opacity-100 transition-opacity ml-0.5 hover:scale-110"
+                              title="Sil"
+                            ><X size={10} /></button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -1768,7 +1849,7 @@ export default function SchedulePage() {
                       const dayRequired = shiftDefs.reduce((sum, def) => sum + (demandMatrix[def.id]?.[i] ?? 0), 0);
                       const isoDate = isoDates[i] ?? "";
                       const dayHolidays = isoDate ? TURKISH_HOLIDAYS.filter(h => h.date === isoDate) : [];
-                      const dayEvents   = isoDate ? events.filter(e => e.date === isoDate) : [];
+                      const dayEvents   = isoDate ? events.filter(e => e.scope !== "week" && e.date === isoDate) : [];
                       const dayWeather  = isoDate ? weather[isoDate] : undefined;
                       return (
                         <th key={d} className="text-center py-2 px-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px] align-top">
@@ -1803,19 +1884,6 @@ export default function SchedulePage() {
                               >×</button>
                             </div>
                           ))}
-                          {/* Etkinlik ekle butonu */}
-                          {isoDate && (
-                            <button
-                              onClick={() => {
-                                setAddEventModal({ date: isoDate, dayLabel: `${d} ${dates[i]}` });
-                                setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
-                              }}
-                              className="mt-0.5 text-[8px] text-slate-300 hover:text-indigo-400 transition-colors w-full text-center flex items-center justify-center gap-0.5 py-0.5 rounded hover:bg-indigo-50"
-                              title="Etkinlik ekle"
-                            >
-                              <CalendarPlus size={9} /> ekle
-                            </button>
-                          )}
                           {/* Kapasite badge'leri */}
                           {defsWithDemand.length > 1 ? (
                             <div className="mt-1 flex flex-col gap-0.5 items-center">
@@ -2265,14 +2333,41 @@ export default function SchedulePage() {
         >
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">Etkinlik Ekle</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{addEventModal.dayLabel}</p>
-              </div>
+              <h2 className="text-base font-bold text-slate-800">Etkinlik Ekle</h2>
               <button onClick={() => setAddEventModal(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors">
                 <X size={16} />
               </button>
             </div>
+
+            {/* Kapsam toggle */}
+            <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
+              <button
+                onClick={() => setNewEventScope("day")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  newEventScope === "day" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                📅 Özel Gün
+              </button>
+              <button
+                onClick={() => setNewEventScope("week")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  newEventScope === "week" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                🗓 Haftalık Not
+              </button>
+            </div>
+
+            {/* Kapsam bilgisi */}
+            <p className="text-[11px] text-slate-400 -mt-1">
+              {newEventScope === "week"
+                ? "Bu haftanın tamamı için not — planlamada göz önünde bulundurulur."
+                : `Gün: ${addEventModal.dayLabel} — sadece o güne özel.`}
+            </p>
+
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Başlık</label>
@@ -2282,7 +2377,7 @@ export default function SchedulePage() {
                   value={newEventTitle}
                   onChange={e => setNewEventTitle(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && saveEvent()}
-                  placeholder="Kampanya adı, denetim günü, özel etkinlik..."
+                  placeholder={newEventScope === "week" ? "Ramazan dönemi, yoğun sezon, denetim haftası..." : "Kampanya başlangıcı, denetim, kapalı gün..."}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
                 />
               </div>
