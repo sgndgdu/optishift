@@ -123,6 +123,12 @@ function getWeekIsoDates(weekStart: string): string[] {
   });
 }
 
+function eventCoversDate(ev: LocationEvent, isoDate: string): boolean {
+  if (ev.scope === "week") return false;
+  if (ev.end_date) return isoDate >= ev.date && isoDate <= ev.end_date;
+  return ev.date === isoDate;
+}
+
 const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: string }> = {
   kampanya: { emoji: "🎯", color: "bg-purple-50 text-purple-700 border-purple-200", label: "Kampanya"  },
   etkinlik: { emoji: "🎉", color: "bg-blue-50 text-blue-700 border-blue-200",       label: "Etkinlik"  },
@@ -197,6 +203,7 @@ export default function SchedulePage() {
   const [newEventTitle, setNewEventTitle]         = useState("");
   const [newEventType, setNewEventType]           = useState("kampanya");
   const [newEventScope, setNewEventScope]         = useState<"day" | "week">("day");
+  const [newEventEndDate, setNewEventEndDate]     = useState("");
   const [newEventNote, setNewEventNote]           = useState("");
   const [eventSaving, setEventSaving]             = useState(false);
 
@@ -988,7 +995,8 @@ export default function SchedulePage() {
   const saveEvent = async () => {
     if (!newEventTitle.trim() || !addEventModal || !activeLocationId) return;
     setEventSaving(true);
-    const eventDate = newEventScope === "week" ? weekStart : addEventModal.date;
+    const eventDate   = newEventScope === "week" ? weekStart : addEventModal.date;
+    const eventEndDate = newEventScope === "day" && newEventEndDate && newEventEndDate > eventDate ? newEventEndDate : undefined;
     try {
       const res = await fetch("/api/events", {
         method: "POST",
@@ -996,6 +1004,7 @@ export default function SchedulePage() {
         body: JSON.stringify({
           location_id: activeLocationId,
           date:        eventDate,
+          end_date:    eventEndDate,
           title:       newEventTitle.trim(),
           type:        newEventType,
           scope:       newEventScope,
@@ -1006,13 +1015,13 @@ export default function SchedulePage() {
       if (data.id) {
         setEvents(prev => [...prev, {
           id: data.id, org_id: "", location_id: activeLocationId,
-          date: eventDate, title: newEventTitle.trim(),
+          date: eventDate, end_date: eventEndDate, title: newEventTitle.trim(),
           type: newEventType as LocationEvent["type"],
           scope: newEventScope,
           note: newEventNote.trim() || undefined,
         }]);
         setAddEventModal(null);
-        setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventScope("day");
+        setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventScope("day"); setNewEventEndDate("");
       }
     } catch {}
     setEventSaving(false);
@@ -1782,7 +1791,7 @@ export default function SchedulePage() {
                       const dayRequired = shiftDefs.reduce((sum, def) => sum + (demandMatrix[def.id]?.[i] ?? 0), 0);
                       const isoDate = isoDates[i] ?? "";
                       const dayHolidays = isoDate ? TURKISH_HOLIDAYS.filter(h => h.date === isoDate) : [];
-                      const dayEvents   = isoDate ? events.filter(e => e.scope !== "week" && e.date === isoDate) : [];
+                      const dayEvents   = isoDate ? events.filter(e => eventCoversDate(e, isoDate)) : [];
                       const dayWeather  = isoDate ? weather[isoDate] : undefined;
                       return (
                         <th key={d} className="text-center py-2 px-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px] align-top">
@@ -2307,13 +2316,6 @@ export default function SchedulePage() {
               </button>
             </div>
 
-            {/* Kapsam bilgisi */}
-            <p className="text-[11px] text-slate-400 -mt-1">
-              {newEventScope === "week"
-                ? "Bu haftanın tamamı için not — planlamada göz önünde bulundurulur."
-                : `Gün: ${addEventModal.dayLabel} — sadece o güne özel.`}
-            </p>
-
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Başlık</label>
@@ -2327,6 +2329,37 @@ export default function SchedulePage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
                 />
               </div>
+
+              {/* Tarih aralığı — sadece Özel Gün modunda */}
+              {newEventScope === "day" && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs font-semibold text-slate-600 block mb-1">Başlangıç</label>
+                    <input
+                      type="date"
+                      value={addEventModal.date}
+                      readOnly
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-default"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs font-semibold text-slate-600 block mb-1">
+                      Bitiş <span className="font-normal text-slate-400">(opsiyonel)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={newEventEndDate}
+                      min={addEventModal.date}
+                      onChange={e => setNewEventEndDate(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                    />
+                  </div>
+                </div>
+              )}
+              {newEventScope === "week" && (
+                <p className="text-[11px] text-slate-400">Bu haftanın tamamı için not — sütun başlıklarında değil, üstte görünür.</p>
+              )}
+
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Tür</label>
                 <div className="flex flex-wrap gap-1.5">

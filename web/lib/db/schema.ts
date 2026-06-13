@@ -289,7 +289,8 @@ export const locationEvents = sqliteTable("location_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   org_id: text("org_id").notNull(),
   location_id: text("location_id").notNull().references(() => locations.id),
-  date: text("date").notNull(),       // YYYY-MM-DD (day scope: specific date, week scope: week_start)
+  date: text("date").notNull(),       // YYYY-MM-DD başlangıç tarihi (week scope: week_start)
+  end_date: text("end_date"),         // YYYY-MM-DD bitiş tarihi — null=tek gün, set=aralık
   title: text("title").notNull(),
   type: text("type").notNull().default("diger"), // kampanya | etkinlik | denetim | kapali | diger
   scope: text("scope").notNull().default("day"), // day | week

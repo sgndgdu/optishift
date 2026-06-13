@@ -140,6 +140,19 @@ export function DroppableUnassignArea({ children }: { children: React.ReactNode 
 const EVENT_EMOJI: Record<string, string> = {
   kampanya: "🎯", etkinlik: "🎉", denetim: "📋", kapali: "🔒", diger: "📌",
 };
+const EVENT_COLOR: Record<string, string> = {
+  kampanya: "bg-purple-50 text-purple-700 border-purple-200",
+  etkinlik: "bg-blue-50 text-blue-700 border-blue-200",
+  denetim:  "bg-orange-50 text-orange-700 border-orange-200",
+  kapali:   "bg-red-50 text-red-700 border-red-200",
+  diger:    "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+function eventCoversDate(ev: LocationEvent, isoDate: string): boolean {
+  if (ev.scope === "week") return false;
+  if (ev.end_date) return isoDate >= ev.date && isoDate <= ev.end_date;
+  return ev.date === isoDate;
+}
 
 export function ShiftBoard({
   personnel,
@@ -252,23 +265,21 @@ export function ShiftBoard({
                     <p className="text-[9px] text-slate-500 text-center">{dates[dayIndex]}</p>
                     {isoDates && (() => {
                       const isoDate = isoDates[dayIndex];
-                      const holidays = TURKISH_HOLIDAYS.filter(h => h.date === isoDate);
-                      const dayEvents = (events ?? []).filter(e => e.scope !== "week" && e.date === isoDate);
+                      if (!isoDate) return null;
+                      const holidays  = TURKISH_HOLIDAYS.filter(h => h.date === isoDate);
+                      const dayEvents = (events ?? []).filter(e => eventCoversDate(e, isoDate));
                       if (holidays.length === 0 && dayEvents.length === 0) return null;
-                      const allTitles = [
-                        ...holidays.map(h => `🎌 ${h.name}`),
-                        ...dayEvents.map(e => `${EVENT_EMOJI[e.type] ?? "📌"} ${e.title}`),
-                      ].join(" · ");
                       return (
-                        <div
-                          className="flex items-center justify-center gap-0.5 mt-1"
-                          title={allTitles}
-                        >
+                        <div className="flex flex-col gap-0.5 mt-1 px-1">
                           {holidays.map(h => (
-                            <span key={h.name} className="w-2 h-2 rounded-full bg-red-500 inline-block" title={h.name} />
+                            <span key={h.name} className="text-[8px] bg-red-50 text-red-600 border border-red-200 rounded px-1 py-0.5 text-center font-semibold leading-tight truncate block">
+                              🎌 {h.name}
+                            </span>
                           ))}
                           {dayEvents.map(ev => (
-                            <span key={ev.id} className="w-2 h-2 rounded-full inline-block bg-violet-500" title={ev.title} />
+                            <span key={ev.id} className={cn("text-[8px] rounded px-1 py-0.5 text-center font-semibold leading-tight truncate block border", EVENT_COLOR[ev.type] ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                              {EVENT_EMOJI[ev.type] ?? "📌"} {ev.title}
+                            </span>
                           ))}
                         </div>
                       );

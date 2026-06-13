@@ -21,9 +21,14 @@ export async function GET(req: NextRequest) {
       const weekEnd = new Date(week_start + "T00:00:00");
       weekEnd.setDate(weekEnd.getDate() + 6);
       const weekEndStr = weekEnd.toISOString().split("T")[0];
+      // Tek günlük ve aralıklı etkinlikler: haftayla örtüşen her şeyi al
       rows = db.prepare(
-        `SELECT * FROM location_events WHERE org_id = ? AND location_id = ? AND date >= ? AND date <= ? ORDER BY date ASC`
-      ).all(auth.org_id, location_id, week_start, weekEndStr) as any[];
+        `SELECT * FROM location_events
+         WHERE org_id = ? AND location_id = ?
+           AND date <= ?
+           AND (end_date IS NULL AND date >= ? OR end_date IS NOT NULL AND end_date >= ?)
+         ORDER BY date ASC`
+      ).all(auth.org_id, location_id, weekEndStr, week_start, week_start) as any[];
     } else if (location_id) {
       rows = db.prepare(
         `SELECT * FROM location_events WHERE org_id = ? AND location_id = ? ORDER BY date ASC`
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
   const db = new Database(DB_PATH);
   try {
     const body = await req.json();
-    const { location_id, date, title, type, scope, note } = body;
+    const { location_id, date, end_date, title, type, scope, note } = body;
     if (!location_id || !date || !title?.trim()) {
       db.close();
       return NextResponse.json({ error: "location_id, date ve title zorunlu" }, { status: 400 });
@@ -65,8 +70,8 @@ export async function POST(req: NextRequest) {
     }
 
     db.prepare(
-      `INSERT INTO location_events (org_id, location_id, date, title, type, scope, note, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(auth.org_id, location_id, date, title.trim(), type || "diger", scope || "day", note || null, auth.id);
+      `INSERT INTO location_events (org_id, location_id, date, end_date, title, type, scope, note, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(auth.org_id, location_id, date, end_date || null, title.trim(), type || "diger", scope || "day", note || null, auth.id);
 
     const row = db.prepare("SELECT last_insert_rowid() as id").get() as { id: number };
     db.close();
