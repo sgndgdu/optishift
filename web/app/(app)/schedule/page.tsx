@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, ChevronDown, Sparkles, Eye, Copy,
-  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal,
+  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
@@ -138,8 +138,8 @@ export default function SchedulePage() {
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
   const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count}
-  const [demandSaving, setDemandSaving]           = useState(false);
   const [demandOpen, setDemandOpen]               = useState(false);
+  const [fairnessOpen, setFairnessOpen]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
   const [saveState, setSaveState]                 = useState<"idle" | "saving" | "saved">("idle");
   const [dirty, setDirty]                         = useState(false); // yayınlanmamış lokal değişiklik var mı
@@ -687,20 +687,17 @@ export default function SchedulePage() {
     }
   };
 
-  const handleDemandSave = async () => {
+  const handleDemandSave = async (silent = false) => {
     if (!activeLocationId) return;
-    setDemandSaving(true);
     try {
       await fetch(`/api/locations?id=${activeLocationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ demand_matrix: demandMatrix }),
       });
-      showToast("Kapasite planı kaydedildi.", "success");
+      if (!silent) showToast("Kapasite planı kaydedildi.", "success");
     } catch {
-      showToast("Kapasite planı kaydedilemedi.", "error");
-    } finally {
-      setDemandSaving(false);
+      if (!silent) showToast("Kapasite planı kaydedilemedi.", "error");
     }
   };
 
@@ -1204,6 +1201,20 @@ export default function SchedulePage() {
               </button>
             </div>
 
+            {/* Adalet dağılımı çekmecesi toggle */}
+            <button
+              onClick={() => setFairnessOpen(o => !o)}
+              title="Adalet Dağılımı"
+              className={cn(
+                "p-2 rounded-xl border transition-colors",
+                fairnessOpen
+                  ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                  : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+              )}
+            >
+              <BarChart2 size={15} />
+            </button>
+
             {/* ⋯ İşlemler menüsü — ikincil aksiyonların tamamı */}
             <div className="relative" data-actions-menu>
               <button
@@ -1394,6 +1405,7 @@ export default function SchedulePage() {
                                       [def.id]: { ...(prev[def.id] ?? {}), [day]: n },
                                     }));
                                   }}
+                                  onBlur={() => handleDemandSave(true)}
                                   className="w-10 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-slate-50 hover:bg-white transition-colors"
                                 />
                               </td>
@@ -1404,15 +1416,8 @@ export default function SchedulePage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">Boş bırakılan günler → motor müsaitliğe göre kendi kararını verir.</p>
-                  <button
-                    onClick={handleDemandSave}
-                    disabled={demandSaving}
-                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                  >
-                    {demandSaving ? "Kaydediliyor…" : "Kaydet"}
-                  </button>
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">Boş bırakılan günler → motor müsaitliğe göre kendi kararını verir. Değerler odak ayrılınca otomatik kaydedilir.</p>
                 </div>
               </div>
             )}
@@ -1873,12 +1878,30 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* ── Right panel: Fairness distribution ── */}
-      {viewMode === "grid" && (
-      <div className="hidden xl:block w-[260px] shrink-0">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sticky top-4">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">Adalet Dağılımı</h2>
-
+      {/* ── Adalet Dağılımı çekmecesi (sağdan kayar, tüm view mode'larda çalışır) ── */}
+      {fairnessOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20"
+          onClick={() => setFairnessOpen(false)}
+        />
+      )}
+      <div className={cn(
+        "fixed top-0 right-0 h-full w-72 bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col transition-transform duration-300",
+        fairnessOpen ? "translate-x-0" : "translate-x-full"
+      )}>
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <BarChart2 size={15} className="text-indigo-500" />
+            <h2 className="text-sm font-bold text-slate-800">Adalet Dağılımı</h2>
+          </div>
+          <button
+            onClick={() => setFairnessOpen(false)}
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+          >
+            <X size={15} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
           {personScores.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-6">Personel yok</p>
           ) : (
@@ -1888,7 +1911,7 @@ export default function SchedulePage() {
                 .map(s => (
                   <div key={s.id}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-slate-700 truncate max-w-[150px]">{s.name}</span>
+                      <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{s.name}</span>
                       <span className="text-xs font-bold text-slate-400 tabular-nums">{Math.round(s.score * 10) / 10}</span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -1901,14 +1924,12 @@ export default function SchedulePage() {
                 ))}
             </div>
           )}
-
-          <div className="mt-5 pt-4 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
-            <p>Puan = birikimli puan + bu haftanın vardiya puanları.</p>
-            <p>Cumartesi/Pazar ×1.5 · 22:00 sonrası +2 bonus.</p>
-          </div>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
+          <p>Puan = birikimli puan + bu haftanın vardiya puanları.</p>
+          <p>Cumartesi/Pazar ×1.5 · 22:00 sonrası +2 bonus.</p>
         </div>
       </div>
-      )}
 
       {/* ── Cell popover (fixed position) ── */}
       {popover && (
