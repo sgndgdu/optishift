@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Search, Plus, CalendarCheck, Clock, X } from "lucide-react";
-import type { ShiftDefinition } from "@/lib/types";
+import type { ShiftDefinition, LocationEvent } from "@/lib/types";
+import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 
 // Types
 type CellMap = Record<string, { startMin: number; endMin: number; points?: number }>;
@@ -136,6 +137,10 @@ export function DroppableUnassignArea({ children }: { children: React.ReactNode 
   );
 }
 
+const EVENT_EMOJI: Record<string, string> = {
+  kampanya: "🎯", etkinlik: "🎉", denetim: "📋", kapali: "🔒", diger: "📌",
+};
+
 export function ShiftBoard({
   personnel,
   shiftDefs,
@@ -143,6 +148,8 @@ export function ShiftBoard({
   cellMap,
   availMap,
   dates,
+  isoDates,
+  events,
   onRemoveShift
 }: {
   personnel: any[],
@@ -151,6 +158,8 @@ export function ShiftBoard({
   cellMap: CellMap,
   availMap: AvailMap,
   dates: string[],
+  isoDates?: string[],
+  events?: LocationEvent[],
   onRemoveShift: (personId: string, day: number) => void
 }) {
   const [filter, setFilter] = useState("");
@@ -241,6 +250,26 @@ export function ShiftBoard({
                   <div className="sticky top-0 bg-white z-20 py-2 border-b border-slate-200 rounded-t-lg shadow-sm mb-2">
                     <h3 className="text-xs font-bold text-slate-800 text-center">{dayName}</h3>
                     <p className="text-[9px] text-slate-500 text-center">{dates[dayIndex]}</p>
+                    {isoDates && (() => {
+                      const isoDate = isoDates[dayIndex];
+                      const holidays = TURKISH_HOLIDAYS.filter(h => h.date === isoDate);
+                      const dayEvents = (events ?? []).filter(e => e.date === isoDate);
+                      if (holidays.length === 0 && dayEvents.length === 0) return null;
+                      return (
+                        <div className="flex flex-col gap-0.5 mt-1 px-1">
+                          {holidays.map(h => (
+                            <span key={h.name} className="text-[8px] bg-red-50 text-red-600 border border-red-200 rounded px-1 py-0.5 text-center font-medium leading-tight truncate">
+                              🎌 {h.name}
+                            </span>
+                          ))}
+                          {dayEvents.map(ev => (
+                            <span key={ev.id} className="text-[8px] bg-purple-50 text-purple-600 border border-purple-200 rounded px-1 py-0.5 text-center font-medium leading-tight truncate">
+                              {EVENT_EMOJI[ev.type] ?? "📌"} {ev.title}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   
                   <div className="flex-1 flex flex-col gap-2 overflow-y-auto px-1.5 pb-2">

@@ -1587,6 +1587,29 @@ export default function SchedulePage() {
           </div>
         )}
 
+        {/* ── Tatil & Etkinlik Bandı ── */}
+        {(() => {
+          const weekHolidays = isoDates.flatMap(d => TURKISH_HOLIDAYS.filter(h => h.date === d).map(h => ({ ...h, isoDate: d })));
+          const weekEvents   = events.filter(e => isoDates.includes(e.date));
+          if (weekHolidays.length === 0 && weekEvents.length === 0) return null;
+          const DAY_SHORT = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-wrap gap-2 items-center">
+              <span className="text-xs font-bold text-amber-700 shrink-0">Bu hafta:</span>
+              {weekHolidays.map(h => (
+                <span key={h.date + h.name} className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded-full font-medium">
+                  🎌 <span className="font-semibold">{DAY_SHORT[isoDates.indexOf(h.isoDate)]}</span> {h.name}
+                </span>
+              ))}
+              {weekEvents.map(ev => (
+                <span key={ev.id} className={cn("inline-flex items-center gap-1 text-xs border px-2 py-0.5 rounded-full font-medium", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                  {EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"} <span className="font-semibold">{DAY_SHORT[isoDates.indexOf(ev.date)]}</span> {ev.title}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* ── Otomatik oluştur onay diyalogu ── */}
         {confirmGenerate && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
@@ -1703,6 +1726,8 @@ export default function SchedulePage() {
             cellMap={cellMap}
             availMap={availMap}
             dates={dates}
+            isoDates={isoDates}
+            events={events}
             onRemoveShift={(personId, day) => {
               const newMap = { ...cellMap };
               delete newMap[`${personId}-${day}`];
