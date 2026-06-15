@@ -1,16 +1,19 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment, useMemo } from "react";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
+  History, CheckCircle2, RefreshCw, ChevronDown,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
+import { getWeekStart } from "@/lib/date";
+import { DAY_SHORT } from "@/lib/constants";
 import {
   DndContext,
   DragEndEvent,
@@ -23,13 +26,7 @@ import {
 import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import { ShiftBoard } from "@/components/schedule/ShiftBoard";
 
-const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-
-function getWeekStartISO(offset: number): string {
-  const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
-  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
-}
+const DAYS = DAY_SHORT;
 
 function getWeekLabel(offset: number): { label: string; dates: string[] } {
   const now = new Date();
@@ -132,6 +129,159 @@ const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: s
   diger:    { emoji: "📌", color: "bg-slate-100 text-slate-600 border-slate-200",   label: "Diğer"     },
 };
 
+// ─── Yayın geçmişi tipleri ────────────────────────────────────────────────────
+interface PubSummary {
+  id: number;
+  week_start: string;
+  revision: number;
+  published_by_name: string | null;
+  published_at: number;
+}
+
+interface SnapshotAssignment {
+  personnelId: string;
+  personnelName: string;
+  departmentId: string | null;
+  departmentName: string;
+  day: number;
+  startTime: string;
+  endTime: string;
+  shiftId: string;
+  points: number;
+}
+
+interface PubSnapshot {
+  locationName: string;
+  shiftDefs: { id: string; name: string; start: string; end: string }[];
+  departments: { id: string; name: string }[];
+  assignments: SnapshotAssignment[];
+}
+
+interface FullPub extends PubSummary {
+  snapshot: PubSnapshot | null;
+}
+
+const DAYS_SHORT = DAY_SHORT;
+
+function fullWeekLabel(weekStart: string): string {
+  if (!weekStart) return "";
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const mon = new Date(y, m - 1, d);
+  const sun = new Date(y, m - 1, d + 6);
+  return `${mon.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} – ${sun.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}`;
+}
+
+function timeAgo(ts: number): string {
+  const diff = Math.floor(Date.now() / 1000) - ts;
+  if (diff < 60) return "az önce";
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} saat önce`;
+  const days = Math.floor(diff / 86400);
+  if (days < 7) return `${days} gün önce`;
+  if (days < 30) return `${Math.floor(days / 7)} hafta önce`;
+  return `${Math.floor(days / 30)} ay önce`;
+}
+
+// ─── Snapshot viewer (read-only grid) ─────────────────────────────────────────
+function SnapshotGrid({ data }: { data: FullPub }) {
+  const snap = data.snapshot;
+  if (!snap) return <div className="py-10 text-center text-sm text-slate-400">Anlık görüntü bulunamadı.</div>;
+
+  const cellMap: Record<string, SnapshotAssignment> = {};
+  for (const a of snap.assignments) cellMap[`${a.personnelId}-${a.day}`] = a;
+
+  const personnelByDept: Record<string, { id: string; name: string }[]> = {};
+  const seen = new Set<string>();
+  for (const a of snap.assignments) {
+    if (!seen.has(a.personnelId)) {
+      seen.add(a.personnelId);
+      const key = a.departmentId ?? "__none__";
+      if (!personnelByDept[key]) personnelByDept[key] = [];
+      personnelByDept[key].push({ id: a.personnelId, name: a.personnelName });
+    }
+  }
+
+  const deptOrder = [...snap.departments.map(d => d.id)];
+  if (personnelByDept["__none__"]?.length) deptOrder.push("__none__");
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr className="bg-slate-50/80 border-b border-slate-200">
+            <th className="py-2.5 px-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-40 sticky left-0 bg-slate-50/80 z-10">Personel</th>
+            {DAYS_SHORT.map((d, i) => (
+              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-black uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-indigo-500 bg-indigo-50/40" : "text-slate-400")}>
+                {d}
+              </th>
+            ))}
+            <th className="py-2.5 px-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-12">Saat</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deptOrder.map(deptId => {
+            const dept = snap.departments.find(d => d.id === deptId);
+            const ppl = personnelByDept[deptId] ?? [];
+            if (!ppl.length) return null;
+            return (
+              <Fragment key={`sg-dept-${deptId}`}>
+                <tr className="border-t-2 border-slate-200 bg-slate-50/60">
+                  <td colSpan={9} className="py-2 px-4">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{dept?.name ?? "Diğer"}</span>
+                  </td>
+                </tr>
+                {ppl.map(p => {
+                  const totalMins = Array.from({ length: 7 }, (_, d) => {
+                    const c = cellMap[`${p.id}-${d}`];
+                    if (!c) return 0;
+                    const [sh, sm] = c.startTime.split(":").map(Number);
+                    const [eh, em] = c.endTime.split(":").map(Number);
+                    let start = sh * 60 + sm, end = eh * 60 + em;
+                    if (end <= start) end += 1440;
+                    return end - start;
+                  }).reduce((a, b) => a + b, 0);
+                  return (
+                    <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/40 transition-colors">
+                      <td className="py-2.5 px-4 sticky left-0 bg-white z-10">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-black flex items-center justify-center shrink-0">
+                            {p.name.charAt(0)}
+                          </div>
+                          <span className="font-semibold text-slate-800 truncate max-w-[90px]">{p.name}</span>
+                        </div>
+                      </td>
+                      {Array.from({ length: 7 }, (_, d) => {
+                        const cell = cellMap[`${p.id}-${d}`];
+                        return (
+                          <td key={d} className={cn("py-1 px-1 text-center", d >= 5 && "bg-indigo-50/20")}>
+                            {cell ? (
+                              <div className="bg-indigo-50 border border-indigo-200/70 rounded-lg py-1 px-1 mx-auto max-w-[80px]">
+                                <div className="font-bold text-indigo-700 text-[10px] truncate">
+                                  {snap.shiftDefs.find(s => s.id === cell.shiftId)?.name ?? "—"}
+                                </div>
+                                <div className="text-indigo-400/80 text-[9px]">{cell.startTime}–{cell.endTime}</div>
+                              </div>
+                            ) : <span className="text-slate-200 text-[10px]">—</span>}
+                          </td>
+                        );
+                      })}
+                      <td className="py-1 px-3 text-center">
+                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">
+                          {totalMins > 0 ? `${Math.round(totalMins / 60 * 10) / 10}s` : "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 type CellData = { startMin: number; endMin: number; points: number };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
@@ -149,13 +299,15 @@ interface Popover {
 export default function SchedulePage() {
   const [mounted, setMounted]                      = useState(false);
   const [weekOffset, setWeekOffset]               = useState(0);
-  const [weekStart, setWeekStart]                 = useState("");
-  const [weekLabel, setWeekLabel]                 = useState("");
-  const [dates, setDates]                         = useState<string[]>([]);
+  const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);
+  const weekLabel = useMemo(() => mounted ? getWeekLabel(weekOffset).label : "", [weekOffset, mounted]);
+  // dates, weekStart'tan türetilir — ayrı state tutmak senkron sorununa yol açıyor
+
   const [activeLocationId, setActiveLocationId]   = useState("");
   const [personnel, setPersonnel]                 = useState<any[]>([]);
   const [departments, setDepartments]             = useState<any[]>([]);
   const [cellMap, setCellMap]                     = useState<CellMap>({});
+  const [forceAssignMap, setForceAssignMap]       = useState<Record<string, { status: string; multiplier: number }>>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [prefNotMult, setPrefNotMult]             = useState(1.5);
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
@@ -170,11 +322,19 @@ export default function SchedulePage() {
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
-  const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count}
+  const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count} (lokasyon geneli, OR-Tools fallback)
+  const [deptDemandMatrix, setDeptDemandMatrix]   = useState<Record<string, Record<string, Record<number, number>>>>({}); // deptId → shiftDefId → {day → count}
   const [fairnessOpen, setFairnessOpen]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
   const [saveState, setSaveState]                 = useState<"idle" | "saving" | "saved">("idle");
   const [dirty, setDirty]                         = useState(false); // yayınlanmamış lokal değişiklik var mı
+  const [editUnlocked, setEditUnlocked]           = useState(false); // yayınlanmış hafta için kilit açık mı
+  const [unlockModal, setUnlockModal]             = useState(false); // kilit açma modalı
+  const [editRequestStatus, setEditRequestStatus] = useState<"idle" | "sending" | "pending" | "approved" | "rejected">("idle");
+  const [editRequestId, setEditRequestId]         = useState<number | null>(null);
+  const [editRequestNote, setEditRequestNote]     = useState<string | null>(null);
+  const [editRequestReviewer, setEditRequestReviewer] = useState<string | null>(null);
+  const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
@@ -186,7 +346,14 @@ export default function SchedulePage() {
   const [personnelFilter, setPersonnelFilter]     = useState('');
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
-  const [viewMode, setViewMode]                   = useState<"shift" | "grid">("shift");
+  const [schedulePhase, setSchedulePhase]          = useState<"demand" | "schedule" | "publications">("demand");
+  const [publications, setPublications]            = useState<PubSummary[]>([]);
+  const [pubsLoading, setPubsLoading]              = useState(false);
+  const [expandedPubId, setExpandedPubId]          = useState<number | null>(null);
+  const [expandedPubData, setExpandedPubData]      = useState<FullPub | null>(null);
+  const [expandedPubLoading, setExpandedPubLoading] = useState(false);
+  const [collapsedDepts, setCollapsedDepts]       = useState<Set<string>>(new Set());
+  const [currentRevision, setCurrentRevision]     = useState<number | null>(null);
   const [activeDragData, setActiveDragData]       = useState<{ id: string; type: string; person?: any } | null>(null);
 
   // Takvim etkinlikleri + hava durumu
@@ -254,12 +421,6 @@ export default function SchedulePage() {
   // Init: mounted + location + tarihler (tümü client-only)
   useEffect(() => {
     setMounted(true);
-    // Tarih hesapları client-only
-    const ws = getWeekStartISO(weekOffset);
-    const wl = getWeekLabel(weekOffset);
-    setWeekStart(ws);
-    setWeekLabel(wl.label);
-    setDates(wl.dates);
 
     let locId = "";
     try {
@@ -269,6 +430,8 @@ export default function SchedulePage() {
         const u = localStorage.getItem("optishift_manager_user");
         if (u) locId = JSON.parse(u).location_id || "";
       }
+      const savedPhase = localStorage.getItem("optishift_schedule_phase") as "demand" | "schedule" | "publications" | null;
+      if (savedPhase) setSchedulePhase(savedPhase);
     } catch {}
     setActiveLocationId(locId);
 
@@ -282,38 +445,41 @@ export default function SchedulePage() {
     return () => window.removeEventListener("optishift_location_changed", handleLocChange);
   }, []);
 
-  // weekOffset değişince tarihleri güncelle
-  useEffect(() => {
-    if (!mounted) return;
-    const ws = getWeekStartISO(weekOffset);
-    const wl = getWeekLabel(weekOffset);
-    setWeekStart(ws);
-    setWeekLabel(wl.label);
-    setDates(wl.dates);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekOffset, mounted]);
-
   // Load personnel + availability + existing shifts
   useEffect(() => {
     if (!activeLocationId) return;
-    const weekStart = getWeekStartISO(weekOffset);
+    const weekStart = getWeekStart(weekOffset);
     (async () => {
       setLoading(true);
       try {
-        const [pRes, aRes, sRes, locRes, deptRes, evRes] = await Promise.all([
+        const [pRes, aRes, sRes, locRes, deptRes, evRes, pubRes] = await Promise.all([
           fetch(`/api/personnel?location_id=${activeLocationId}`),
           fetch(`/api/availability/team?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/locations?id=${activeLocationId}`),
           fetch(`/api/departments?location_id=${activeLocationId}`),
           fetch(`/api/events?location_id=${activeLocationId}&week_start=${weekStart}`),
+          fetch(`/api/schedule/publications?location_id=${activeLocationId}&week_start=${weekStart}`),
         ]);
         const pData = await pRes.json();
         const aData = await aRes.json();
         const sData = await sRes.json();
         const locData = await locRes.json();
         const deptData = await deptRes.json();
-        setDepartments(Array.isArray(deptData) ? deptData : []);
+        const deptArr = Array.isArray(deptData) ? deptData : [];
+        setDepartments(deptArr);
+
+        // Per-departman kapasite matrislerini yükle
+        const deptDemands: Record<string, Record<string, Record<number, number>>> = {};
+        for (const dept of deptArr) {
+          if (dept.demand_matrix) {
+            try {
+              const raw = typeof dept.demand_matrix === "string" ? JSON.parse(dept.demand_matrix) : dept.demand_matrix;
+              if (raw && typeof raw === "object") deptDemands[dept.id] = raw;
+            } catch { /* ignore */ }
+          }
+        }
+        setDeptDemandMatrix(deptDemands);
 
         // Shift tanımlarını yükle
         if (Array.isArray(locData) && locData[0]?.shift_definitions) {
@@ -362,6 +528,15 @@ export default function SchedulePage() {
         const evData = await evRes.json();
         setEvents(Array.isArray(evData) ? evData : []);
 
+        // Mevcut yayın revizyonu
+        const pubData = await pubRes.json();
+        if (Array.isArray(pubData) && pubData.length > 0) {
+          const maxRev = Math.max(...pubData.map((p: any) => p.revision ?? 0));
+          setCurrentRevision(maxRev);
+        } else {
+          setCurrentRevision(null);
+        }
+
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active") : []);
 
         const newAvailMap: AvailMap = {};
@@ -383,6 +558,7 @@ export default function SchedulePage() {
         setAvailMap(newAvailMap);
 
         const newCellMap: CellMap = {};
+        const newForceMap: Record<string, { status: string; multiplier: number }> = {};
         if (Array.isArray(sData)) {
           let hasDraft = false;
           for (const s of sData) {
@@ -393,16 +569,27 @@ export default function SchedulePage() {
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
               newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, s.day), newAvailMap, s.personnel_id, s.day, mult) };
               if (s.publication_status === "draft") hasDraft = true;
+              if (s.force_assigned && s.force_acceptance_status) {
+                newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 1.5 };
+              }
             }
           }
           setIsDraftWeek(hasDraft);
         }
+        setForceAssignMap(newForceMap);
         setCellMap(newCellMap);
         setDbShiftCount(Object.keys(newCellMap).length);
         // Hafta yüklemesi kullanıcı düzenlemesi değildir — otomatik kayıt tetiklenmesin
         userEditRef.current = false;
         setDirty(false);
         setSaveState("idle");
+        setCollapsedDepts(new Set());
+        setEditUnlocked(false);
+        setEditRequestStatus("idle");
+        setEditRequestId(null);
+        setEditRequestNote(null);
+        setEditRequestReviewer(null);
+        editRequestCheckedRef.current = null;
       } catch {}
       setLoading(false);
     })();
@@ -475,6 +662,81 @@ export default function SchedulePage() {
       })
       .catch(() => setWeather({}));
   }, [locationLatLon, weekStart]);
+
+  // Yayınlar sekmesi açıldığında publication listesini yükle
+  useEffect(() => {
+    if (schedulePhase !== "publications" || !activeLocationId) return;
+    setPubsLoading(true);
+    setExpandedPubId(null);
+    setExpandedPubData(null);
+    fetch(`/api/schedule/publications?location_id=${activeLocationId}`)
+      .then(r => r.json())
+      .then(data => setPublications(Array.isArray(data) ? data : []))
+      .catch(() => setPublications([]))
+      .finally(() => setPubsLoading(false));
+  }, [schedulePhase, activeLocationId]);
+
+  // ── Düzenleme onay talebi polling (status = "pending" olduğu sürece) ──────────
+  useEffect(() => {
+    if (editRequestStatus !== "pending" || !activeLocationId || !weekStart) return;
+    const interval = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/schedule/edit-requests?location_id=${activeLocationId}&week_start=${weekStart}`);
+        const d = await r.json();
+        if (d?.status === "approved") {
+          setEditRequestStatus("approved");
+          setEditRequestNote(d.note ?? null);
+          setEditRequestReviewer(d.reviewed_by_name ?? null);
+          setEditRequestId(d.id);
+          setEditUnlocked(true);
+          setUnlockModal(false);
+          showToast(`Düzenleme onaylandı${d.reviewed_by_name ? " — " + d.reviewed_by_name : ""}! Değişiklik yapabilirsiniz.`, "success");
+        } else if (d?.status === "rejected") {
+          setEditRequestStatus("rejected");
+          setEditRequestNote(d.note ?? null);
+          setEditRequestReviewer(d.reviewed_by_name ?? null);
+          setEditRequestId(d.id);
+          showToast("Düzenleme talebi reddedildi.", "error");
+        } else if (d?.status === "completed") {
+          setEditRequestStatus("idle");
+        }
+      } catch { /* ignore */ }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [editRequestStatus, activeLocationId, weekStart]);
+
+  // ── Yayınlanmış haftada sayfa yüklenince mevcut talep durumunu geri yükle ────
+  useEffect(() => {
+    if (!activeLocationId || !weekStart || dbShiftCount === 0 || isDraftWeek || editUnlocked) return;
+    const key = `${activeLocationId}-${weekStart}`;
+    if (editRequestCheckedRef.current === key) return;
+    editRequestCheckedRef.current = key;
+
+    fetch(`/api/schedule/edit-requests?location_id=${activeLocationId}&week_start=${weekStart}`)
+      .then(r => r.json())
+      .then((d: any) => {
+        if (!d) return;
+        const age = Math.floor(Date.now() / 1000) - (d.reviewed_at ?? d.created_at ?? 0);
+        if (d.status === "pending") {
+          setEditRequestId(d.id);
+          setEditRequestStatus("pending"); // polling devreye girer
+        } else if (d.status === "approved" && age < 1800) {
+          // Son 30 dakikada onaylandı — kilit otomatik açılır
+          setEditRequestId(d.id);
+          setEditRequestStatus("approved");
+          setEditRequestNote(d.note ?? null);
+          setEditRequestReviewer(d.reviewed_by_name ?? null);
+          setEditUnlocked(true);
+          showToast(`Düzenleme onayı aktif${d.reviewed_by_name ? " — " + d.reviewed_by_name : ""}. Değişiklik yapabilirsiniz.`, "info");
+        } else if (d.status === "rejected" && age < 3600) {
+          setEditRequestId(d.id);
+          setEditRequestStatus("rejected");
+          setEditRequestNote(d.note ?? null);
+          setEditRequestReviewer(d.reviewed_by_name ?? null);
+        }
+      })
+      .catch(() => {});
+  }, [activeLocationId, weekStart, dbShiftCount, isDraftWeek, editUnlocked]);
 
   // Poll availability every 30 s so manager sees updates without refresh
   useEffect(() => {
@@ -559,6 +821,16 @@ export default function SchedulePage() {
   }, [undo, redo]);
 
   // weekStart/weekLabel/dates computed in useEffect (client-only — Date.now & locale sensitive)
+
+  // dates her zaman weekStart'tan türetilir — ayrı state yoktur
+  const dates = useMemo(() => {
+    if (!weekStart) return DAYS.map(() => "");
+    const [y, m, d] = weekStart.split("-").map(Number);
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(y, m - 1, d + i);
+      return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+    });
+  }, [weekStart]);
 
   // Computed per-person scores (live, based on cellMap)
   const personScores = personnel.map(p => {
@@ -676,43 +948,61 @@ export default function SchedulePage() {
       const shiftRes = await fetch("/api/shifts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildShiftsPayload("published")),
+        body: JSON.stringify({ shifts: buildShiftsPayload("published"), force: true }),
       });
       const shiftData = await shiftRes.json();
 
-      // 409 = kısmi başarı: bazı vardiyalar kural ihlali nedeniyle atlandı ama geri kalanlar kaydedildi
       if (!shiftRes.ok && shiftRes.status !== 409) {
         showToast("Vardiyalar kaydedilirken hata: " + (shiftData.error || "Bilinmeyen hata"), "error");
         return;
       }
+      // 409 artık sadece uyarı — force=true olduğu için vardiyalar yine de kaydedildi
       if (shiftRes.status === 409 && shiftData.details?.length > 0) {
-        // Hangi vardiyalar atlandı — isimlerle göster
-        const detailLines = shiftData.details.map((d: string) => {
+        const names = shiftData.details.map((d: string) => {
           const match = d.match(/^(P\w+) için (.+)/);
-          if (match) {
-            const p = personnel.find((p: any) => p.id === match[1]);
-            return `• ${p?.name ?? match[1]}: ${match[2]}`;
-          }
-          return `• ${d}`;
-        }).join("\n");
-        setError(`⚠️ ${shiftData.details.length} vardiya İş Kanunu kuralları nedeniyle atlandı:\n${detailLines}\n\nGeri kalan vardiyalar yayınlandı.`);
+          if (!match) return null;
+          const p = personnel.find((p: any) => p.id === match[1]);
+          return p?.name ?? null;
+        }).filter(Boolean);
+        const unique = [...new Set(names)];
+        showToast(
+          unique.length > 0
+            ? `Tüm vardiyalar yayınlandı. (${unique.join(", ")} için 11s dinlenme uyarısı)`
+            : "Tüm vardiyalar yayınlandı.",
+          "info"
+        );
       }
 
-      await fetch("/api/schedule/publish", {
+      const pubRes2 = await fetch("/api/schedule/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           location_id: activeLocationId,
           week_start:  weekStart,
-          // OR-Tools puanları varsa gönder — yoksa publish route kendi formülüyle hesaplar
           ...(Object.keys(engineScores).length > 0 && { scores: engineScores }),
         }),
       });
+      const pubData2 = await pubRes2.json().catch(() => ({}));
+      if (typeof pubData2.revision === "number") setCurrentRevision(pubData2.revision);
 
       setPublishSuccess(true);
       setIsDraftWeek(false);
       setDbShiftCount(Object.keys(cellMap).length);
       setDirty(false);
+      // Edit request'i "completed" olarak işaretle — DB'de temizlik
+      if (editRequestId) {
+        fetch("/api/schedule/edit-requests", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editRequestId, status: "completed" }),
+        }).catch(() => {});
+      }
+      setEditUnlocked(false);
+      setEditRequestStatus("idle");
+      setEditRequestId(null);
+      setEditRequestNote(null);
+      setEditRequestReviewer(null);
+      editRequestCheckedRef.current = null;
       userEditRef.current = false;
       setSaveState("idle");
       setTimeout(() => setPublishSuccess(false), 4000);
@@ -738,7 +1028,7 @@ export default function SchedulePage() {
 
   // Request availability — müdürün baktığı haftanın sonraki haftasına gönder (UX-5 fix)
   const handleRequestAvailability = async () => {
-    const targetWeek = getWeekStartISO(weekOffset + 1);
+    const targetWeek = getWeekStart(weekOffset + 1);
     const targetWeekLabel = new Date(targetWeek).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
     try {
       const payload = personnel.map(p => ({
@@ -759,6 +1049,47 @@ export default function SchedulePage() {
     }
   };
 
+  const handleExpandPub = async (pub: PubSummary) => {
+    if (expandedPubId === pub.id) {
+      setExpandedPubId(null);
+      setExpandedPubData(null);
+      return;
+    }
+    setExpandedPubId(pub.id);
+    setExpandedPubData(null);
+    setExpandedPubLoading(true);
+    try {
+      const res = await fetch("/api/schedule/publications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pub.id }),
+      });
+      const data = await res.json();
+      setExpandedPubData(data);
+    } catch { /* ignore */ }
+    setExpandedPubLoading(false);
+  };
+
+  // Yayınlanmış plan düzenleme onayı — supervisor'a gönder ve polling başlat
+  const handleSendEditRequest = async () => {
+    if (!activeLocationId || !weekStart) return;
+    setEditRequestStatus("sending");
+    try {
+      const res = await fetch("/api/schedule/edit-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: activeLocationId, week_start: weekStart }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEditRequestId(data.id);
+      setEditRequestStatus("pending"); // polling useEffect otomatik başlar
+    } catch {
+      setEditRequestStatus("idle");
+      showToast("Onay talebi gönderilemedi.", "error");
+    }
+  };
+
   const handleDemandSave = async (silent = false) => {
     if (!activeLocationId) return;
     try {
@@ -771,6 +1102,17 @@ export default function SchedulePage() {
     } catch {
       if (!silent) showToast("Kapasite planı kaydedilemedi.", "error");
     }
+  };
+
+  const handleDeptDemandSave = async (deptId: string) => {
+    const matrix = deptDemandMatrix[deptId] ?? {};
+    try {
+      await fetch(`/api/departments?id=${deptId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_matrix: matrix }),
+      });
+    } catch { /* sessiz hata */ }
   };
 
   // Kural ihlali kontrolü — yayınlamadan önce çalıştırılır
@@ -874,7 +1216,7 @@ export default function SchedulePage() {
     setConfirmCopy(false);
     setCopyLoading(true);
     try {
-      const prevWeekStart = getWeekStartISO(weekOffset - 1);
+      const prevWeekStart = getWeekStart(weekOffset - 1);
       const res = await fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${prevWeekStart}`);
       const data = await res.json();
 
@@ -1030,6 +1372,37 @@ export default function SchedulePage() {
     }
     void pId;
   }
+
+  // Departman bazlı atanan kişi sayıları
+  const deptAssignedCounts: Record<string, Record<string, Record<number, number>>> = {};
+  for (const [key, cell] of Object.entries(cellMap)) {
+    const lastDash = key.lastIndexOf("-");
+    const pId = key.slice(0, lastDash);
+    const day = parseInt(key.slice(lastDash + 1));
+    const matchedDef = matchShiftDef(cell.startMin, cell.endMin, shiftDefs);
+    if (matchedDef) {
+      const person = personnel.find(p => p.id === pId);
+      const deptId = person?.department_id || '__none__';
+      if (!deptAssignedCounts[deptId]) deptAssignedCounts[deptId] = {};
+      if (!deptAssignedCounts[deptId][matchedDef.id]) deptAssignedCounts[deptId][matchedDef.id] = {};
+      deptAssignedCounts[deptId][matchedDef.id][day] = (deptAssignedCounts[deptId][matchedDef.id][day] || 0) + 1;
+    }
+  }
+
+  // ShiftBoard için toplam talep (tüm dept matrislerinin toplamı; yoksa lokasyon geneli)
+  const hasDeptDemand = Object.keys(deptDemandMatrix).length > 0;
+  const effectiveDemandMatrix: Record<string, Record<number, number>> = hasDeptDemand
+    ? Object.values(deptDemandMatrix).reduce<Record<string, Record<number, number>>>((acc, matrix) => {
+        for (const [defId, days] of Object.entries(matrix)) {
+          if (!acc[defId]) acc[defId] = {};
+          for (const [day, count] of Object.entries(days)) {
+            const d = parseInt(day);
+            acc[defId][d] = (acc[defId][d] || 0) + (count as number);
+          }
+        }
+        return acc;
+      }, {})
+    : demandMatrix;
 
   const isoDates = getWeekIsoDates(weekStart);
 
@@ -1254,8 +1627,8 @@ export default function SchedulePage() {
       <div className="flex-1 min-w-0 space-y-4 overflow-x-auto">
 
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Vardiya Planı</h1>
-          <p className="text-slate-500 text-xs md:text-sm mt-0.5">Haftalık çalışma takvimi — hücreye tıklayarak vardiya ekle/düzenle</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Vardiya Planı</h1>
+          <p className="text-slate-400 text-xs md:text-sm mt-0.5">Haftalık çalışma takvimi — hücreye tıklayarak vardiya ekle/düzenle</p>
         </div>
 
         {/* ── Top bar: hafta navigasyonu + durum çipi + tek birincil aksiyon (OPTI-024) ── */}
@@ -1264,7 +1637,8 @@ export default function SchedulePage() {
           <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <button
               onClick={() => setWeekOffset(o => o - 1)}
-              className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors"
+              disabled={weekOffset <= 0}
+              className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
               <ChevronLeft size={16} />
             </button>
@@ -1293,6 +1667,10 @@ export default function SchedulePage() {
               <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-100 text-sky-700 whitespace-nowrap" title="Personel taslağı göremez">Taslak</span>
             )
           )}
+          {/* Revizyon etiketi */}
+          {isPublishedWeek && currentRevision !== null && currentRevision > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-md bg-violet-100 text-violet-700 border border-violet-200" title={`${currentRevision}. revizyon yayınlandı`}>R{currentRevision}</span>
+          )}
 
           {/* Otomatik kayıt göstergesi */}
           {!isPublishedWeek && saveState !== "idle" && (
@@ -1302,19 +1680,26 @@ export default function SchedulePage() {
           )}
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {/* Görünüm değiştirici */}
+            {/* Faz göstergesi */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button
-                onClick={() => setViewMode("shift")}
-                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "shift" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                onClick={() => { setSchedulePhase("demand"); localStorage.setItem("optishift_schedule_phase", "demand"); }}
+                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", schedulePhase === "demand" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
               >
-                Kapasite Pano
+                1 · Kapasite
               </button>
               <button
-                onClick={() => setViewMode("grid")}
-                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", viewMode === "grid" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                onClick={() => { setSchedulePhase("schedule"); localStorage.setItem("optishift_schedule_phase", "schedule"); }}
+                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors", schedulePhase === "schedule" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
               >
-                Personel Tablo
+                2 · Planlama
+              </button>
+              <button
+                onClick={() => { setSchedulePhase("publications"); localStorage.setItem("optishift_schedule_phase", "publications"); }}
+                className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1", schedulePhase === "publications" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                <History size={11} />
+                Yayınlar
               </button>
             </div>
 
@@ -1413,37 +1798,78 @@ export default function SchedulePage() {
                   >
                     <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
                   </button>
+                  <div className="h-px bg-slate-100 mx-2 my-1" />
+                  <button
+                    onClick={() => { setActionsOpen(false); setSchedulePhase("publications"); localStorage.setItem("optishift_schedule_phase", "publications"); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <History size={13} className="text-slate-400" /> Yayın Geçmişi
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Tek birincil aksiyon: boş hafta → Otomatik Oluştur, dolu hafta → Yayınla */}
-            {cellCount === 0 ? (
+            {/* Birincil aksiyon — faza göre */}
+            {schedulePhase === "demand" ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRequestAvailability}
+                  className="px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+                >
+                  <Bell size={13} /> Müsaitlik İste
+                </button>
+                <button
+                  onClick={() => { setSchedulePhase("schedule"); localStorage.setItem("optishift_schedule_phase", "schedule"); }}
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  Planlamaya Geç <ChevronRight size={14} />
+                </button>
+              </div>
+            ) : schedulePhase === "publications" ? (
               <button
-                onClick={handleGenerateClick}
-                disabled={generating}
-                title="Kapasite planı + müsaitlik + kurallara göre adil taslak üret"
-                className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                onClick={() => { setSchedulePhase("demand"); localStorage.setItem("optishift_schedule_phase", "demand"); }}
+                className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5"
               >
-                <Zap size={14} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
+                <ChevronLeft size={14} /> Planlamaya Dön
+              </button>
+            ) : isPublishedWeek && !editUnlocked ? (
+              /* Yayınlanmış + kilitli: düzenleme onayı gerekli */
+              <button
+                onClick={() => setUnlockModal(true)}
+                className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Düzenle
               </button>
             ) : (
-              <button
-                onClick={handlePublish}
-                disabled={publishLoading || (isPublishedWeek && !dirty)}
-                title={isPublishedWeek && !dirty ? "Yayınlanacak değişiklik yok" : "Planı yayınla — personele bildirim gider"}
-                className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-              >
-                <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : "Yayınla"}
-              </button>
+              <div className="flex items-center gap-2">
+                {(cellCount === 0 || generating) && !isPublishedWeek && (
+                  <button
+                    onClick={handleGenerateClick}
+                    disabled={generating}
+                    title="Kapasite planı + müsaitlik + kurallara göre adil taslak üret"
+                    className="px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Zap size={13} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
+                  </button>
+                )}
+                <button
+                  onClick={handlePublish}
+                  disabled={publishLoading || !dirty}
+                  title={!dirty ? "Yayınlanacak değişiklik yok" : "Planı yayınla — personele bildirim gider"}
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                >
+                  <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Revize Et & Yayınla" : "Yayınla"}
+                </button>
+              </div>
             )}
           </div>
         </div>
 
         {/* Müsaitlik girilmemiş personel uyarısı */}
         {noAvailCount > 0 && personnel.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-            <AlertCircle size={13} className="shrink-0 text-blue-500" />
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-600">
+            <AlertCircle size={13} className="shrink-0 text-blue-400" />
             <span>
               <span className="font-bold">{noAvailCount} personel</span> bu hafta için müsaitlik bilgisi girmemiş.
               Otomatik oluşturmada hepsine <span className="font-bold">müsait</span> olarak davranılır.{" "}
@@ -1633,6 +2059,117 @@ export default function SchedulePage() {
           </div>
         )}
 
+        {/* ── Yayınlanmış plan düzenleme — supervisor onay modalı ── */}
+        {unlockModal && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { if (editRequestStatus !== "pending") setUnlockModal(false); }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+
+              {/* Gönderilmedi / gönderiliyor */}
+              {(editRequestStatus === "idle" || editRequestStatus === "sending") && (
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">Düzenleme Onayı</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Patron onayı gerekiyor</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-5 leading-relaxed">
+                    Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>supervisor / patron</strong>&apos;a gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }}
+                      className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      onClick={handleSendEditRequest}
+                      disabled={editRequestStatus === "sending"}
+                      className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {editRequestStatus === "sending" && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                      {editRequestStatus === "sending" ? "Gönderiliyor…" : "Onay İste"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Onay bekleniyor */}
+              {editRequestStatus === "pending" && (
+                <div className="p-6 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+                  </div>
+                  <p className="font-bold text-slate-800 mb-1">Onay Bekleniyor</p>
+                  <p className="text-sm text-slate-500 mb-5">Talep patrona iletildi. Onayladığında düzenleme modu otomatik açılacak.</p>
+                  <button
+                    onClick={() => { setUnlockModal(false); }}
+                    className="w-full py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Kapat (arka planda bekler)
+                  </button>
+                </div>
+              )}
+
+              {/* Reddedildi */}
+              {editRequestStatus === "rejected" && (
+                <div className="p-6 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
+                    <X size={22} className="text-red-500" />
+                  </div>
+                  <p className="font-bold text-slate-800 mb-1">Talep Reddedildi</p>
+                  {editRequestNote && <p className="text-sm text-slate-500 mb-1">&ldquo;{editRequestNote}&rdquo;</p>}
+                  <p className="text-xs text-slate-400 mb-5">Planı düzenlemek için tekrar onay isteyin veya yöneticinizle iletişime geçin.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Kapat</button>
+                    <button onClick={() => { setEditRequestStatus("idle"); handleSendEditRequest(); }} className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors">Tekrar İste</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Onay bekleniyor — modal kapalıyken gösterilecek inline banner */}
+        {/* Onay bekleniyor */}
+        {isPublishedWeek && !editUnlocked && editRequestStatus === "pending" && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+            <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin shrink-0" />
+            <span className="flex-1">Düzenleme onayı patronda bekleniyor…</span>
+            <button onClick={() => setUnlockModal(true)} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">Detay</button>
+          </div>
+        )}
+
+        {/* Reddedildi */}
+        {isPublishedWeek && !editUnlocked && editRequestStatus === "rejected" && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <X size={14} className="shrink-0" />
+            <div className="flex-1">
+              <span>Düzenleme talebi reddedildi</span>
+              {editRequestReviewer && <span className="text-red-500"> — {editRequestReviewer}</span>}
+              {editRequestNote && <span className="italic"> &ldquo;{editRequestNote}&rdquo;</span>}
+            </div>
+            <button onClick={() => { setEditRequestStatus("idle"); setUnlockModal(true); }} className="text-xs font-bold text-red-600 hover:text-red-800 shrink-0 whitespace-nowrap">Tekrar İste</button>
+          </div>
+        )}
+
+        {/* Onaylandı — kilit açık, düzenleme modunda */}
+        {isPublishedWeek && editUnlocked && editRequestStatus === "approved" && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+            <CheckCircle2 size={14} className="shrink-0 text-emerald-500" />
+            <div className="flex-1">
+              <span className="font-semibold">Düzenleme modu açık</span>
+              {editRequestReviewer && <span className="text-emerald-500 font-normal"> — {editRequestReviewer} onayladı</span>}
+              {editRequestNote && <span className="text-emerald-400 italic"> &ldquo;{editRequestNote}&rdquo;</span>}
+            </div>
+            <span className="text-xs text-emerald-400 shrink-0">Yayınlayınca kapanır</span>
+          </div>
+        )}
+
         {/* ── Personel arama filtresi ── */}
         {personnel.length > 5 && (
           <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
@@ -1655,361 +2192,396 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* ── Schedule grid ── */}
-        {viewMode === "shift" ? (
-          <ShiftBoard
-            personnel={personnel}
-            shiftDefs={shiftDefs}
-            demandMatrix={demandMatrix}
-            cellMap={cellMap}
-            availMap={availMap}
-            dates={dates}
-            isoDates={isoDates}
-            events={events}
-            onRemoveShift={(personId, day) => {
-              const newMap = { ...cellMap };
-              delete newMap[`${personId}-${day}`];
-              pushCellMap(newMap);
-            }}
-          />
-        ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
-          {generating && (
-            <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center">
-              <Zap size={36} className="text-indigo-500 animate-pulse mb-3" />
-              <p className="text-lg font-bold text-slate-800">Yapay Zeka Planlıyor...</p>
-              <p className="text-sm text-slate-500 mt-1">Bu işlem 5-15 saniye sürebilir, lütfen bekleyin.</p>
+        {/* ── FAZ 2: Sürükle & Bırak ── */}
+        {schedulePhase === "schedule" ? (
+          <div className="relative">
+            <ShiftBoard
+              personnel={personnel}
+              shiftDefs={shiftDefs}
+              demandMatrix={effectiveDemandMatrix}
+              cellMap={cellMap}
+              availMap={availMap}
+              dates={dates}
+              isoDates={isoDates}
+              events={events}
+              forceAssignMap={forceAssignMap}
+              onRemoveShift={(personId, day) => {
+                if (isPublishedWeek && !editUnlocked) return;
+                const newMap = { ...cellMap };
+                delete newMap[`${personId}-${day}`];
+                pushCellMap(newMap);
+              }}
+            />
+            {/* Kilitli overlay */}
+            {isPublishedWeek && !editUnlocked && (
+              <div
+                className="absolute inset-0 z-20 bg-white/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 cursor-pointer rounded-2xl"
+                onClick={() => setUnlockModal(true)}
+              >
+                <div className="bg-white border border-slate-200 shadow-lg rounded-2xl px-6 py-5 flex flex-col items-center gap-2 text-center max-w-xs">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <p className="font-bold text-slate-800 text-sm">Yayınlanmış Plan Kilitli</p>
+                  <p className="text-xs text-slate-500">Değişiklik yapmak için düzenleme modunu açın.</p>
+                  <button
+                    onClick={e => { e.stopPropagation(); setUnlockModal(true); }}
+                    className="mt-1 px-4 py-2 text-xs font-bold text-white bg-slate-700 rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    Düzenle
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : schedulePhase === "demand" ? (
+        /* ── FAZ 1: Kapasite Planı ── */
+        <div className="space-y-3">
+          {/* Demand table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
+              <div className="flex-1">
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Kapasite Planı</p>
+                <p className="text-xs text-slate-400 mt-0.5">Her vardiya için kaç kişi gerektiğini girin — sayılar şablon olarak kaydedilir</p>
+              </div>
+              {shiftDefs.length === 0 && (
+                <a href="/settings" className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1">
+                  <BookOpen size={12} /> Vardiya tanımla
+                </a>
+              )}
             </div>
-          )}
-          {loading ? (
-            <div className="p-8 space-y-3">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : personnel.length === 0 ? (
-            <div className="py-16 text-center text-slate-400">
-              <p className="font-semibold">Bu şubede aktif personel bulunamadı.</p>
-              <p className="text-sm mt-1">Personel eklemek için Personel sayfasına gidin.</p>
-            </div>
-          ) : (
+
+            {loading ? (
+              <div className="p-6 space-y-2">
+                {[1,2,3,4].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : shiftDefs.length === 0 ? (
+              <div className="py-10 text-center text-slate-400 text-sm">
+                Vardiya şablonu tanımlı değil.{" "}
+                <a href="/settings" className="font-semibold text-indigo-600 hover:underline">Ayarlar'dan ekleyin</a>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]">
+              <table className="w-full min-w-[680px]">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/70">
-                    <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-44">
-                      Personel
-                    </th>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left py-2.5 px-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
                     {DAYS.map((d, i) => {
-                      const isoDate = isoDates[i] ?? "";
-                      const dayHolidays = isoDate ? TURKISH_HOLIDAYS.filter(h => h.date === isoDate) : [];
-                      const dayEvents   = isoDate ? events.filter(e => eventCoversDate(e, isoDate)) : [];
-                      const dayWeather  = isoDate ? weather[isoDate] : undefined;
+                      const isWeekend = i === 5 || i === 6;
                       return (
-                        <th key={d} className="text-center py-2 px-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px] align-top">
-                          {/* Gün adı + hava durumu */}
-                          <div className="flex items-center justify-center gap-1">
-                            <span className={cn(i === 5 || i === 6 ? "text-violet-600" : "")}>{d}</span>
-                            {dayWeather && (
-                              <span className="font-normal text-[10px] text-slate-400" title={`${dayWeather.temp}°C`}>
-                                {dayWeather.icon} {dayWeather.temp}°
-                              </span>
-                            )}
-                          </div>
-                          {/* Tarih */}
-                          <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{dates[i]}</span>
-                          {/* Resmi tatiller */}
-                          {dayHolidays.map(h => (
-                            <div key={h.name} title={h.name}
-                              className="mt-0.5 mx-0.5 px-1 py-0.5 rounded text-[8px] bg-red-50 text-red-500 border border-red-100 truncate text-left">
-                              🎌 {h.name}
-                            </div>
-                          ))}
-                          {/* Özel etkinlikler */}
-                          {dayEvents.map(ev => (
-                            <div key={ev.id} title={`${ev.title}${ev.note ? ` — ${ev.note}` : ""}`}
-                              className={cn("mt-0.5 mx-0.5 px-1 py-0.5 rounded text-[8px] border flex items-center gap-0.5 group cursor-default text-left", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
-                              <span className="shrink-0">{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
-                              <span className="truncate flex-1 max-w-[52px]">{ev.title}</span>
-                              <button
-                                onClick={e => { e.stopPropagation(); deleteEvent(ev.id); }}
-                                className="ml-0.5 opacity-0 group-hover:opacity-100 leading-none shrink-0 hover:scale-110"
-                                title="Etkinliği sil"
-                              >×</button>
-                            </div>
-                          ))}
-                          {/* Etkinlik ekle */}
-                          {isoDate && (
-                            <button
-                              onClick={() => {
-                                setAddEventModal({ date: isoDate, dayLabel: `${d} ${dates[i]}`, initScope: "day" });
-                                setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote("");
-                              }}
-                              className="mt-1 text-[8px] text-slate-300 hover:text-indigo-400 transition-colors w-full text-center flex items-center justify-center gap-0.5 py-0.5 rounded hover:bg-indigo-50"
-                              title="Etkinlik ekle"
-                            >
-                              <CalendarPlus size={9} /> ekle
-                            </button>
-                          )}
+                        <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-black uppercase tracking-widest", isWeekend ? "text-indigo-500 bg-indigo-50/40" : "text-slate-400")}>
+                          <div>{d}</div>
+                          <div className={cn("text-[10px] font-semibold mt-0.5", isWeekend ? "text-indigo-300" : "text-slate-300")}>{dates[i]}</div>
                         </th>
                       );
                     })}
-                    <th className="text-center py-3 px-3 text-xs font-bold text-slate-500 uppercase tracking-wider w-16">
-                      Saat
-                    </th>
+                    <th className="w-10" />
                   </tr>
-
-                  {/* ── Demand satırları — her shift için kaç kişi gerekli ── */}
-                  {shiftDefs.map(def => (
-                    <tr key={`demand-${def.id}`} className="bg-indigo-50/50 border-b border-indigo-100/70">
-                      <td className="py-1.5 px-4">
-                        <span className="text-[11px] font-bold text-indigo-700">{def.name}</span>
-                        <span className="text-[10px] text-indigo-400 ml-1">{def.start}–{def.end}</span>
-                      </td>
-                      {Array.from({ length: 7 }, (_, day) => {
-                        const val = demandMatrix[def.id]?.[day] ?? 0;
-                        const assigned = assignedCounts[def.id]?.[day] ?? 0;
-                        return (
-                          <td key={day} className="py-1 px-1 text-center">
-                            <div className="flex items-center justify-center gap-1">
+                </thead>
+                <tbody>
+                  {departments.length === 0 ? (
+                    /* Departmansız — lokasyon geneli */
+                    shiftDefs.map(def => (
+                      <tr key={def.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="py-2.5 px-5">
+                          <span className="text-sm font-semibold text-slate-700">{def.name}</span>
+                          <span className="text-[10px] text-slate-400 ml-2">{def.start}–{def.end}</span>
+                        </td>
+                        {Array.from({ length: 7 }, (_, day) => {
+                          const val = demandMatrix[def.id]?.[day] ?? 0;
+                          const isWeekend = day === 5 || day === 6;
+                          return (
+                            <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
                               <input
-                                type="number"
-                                min={0}
-                                max={99}
+                                type="number" min={0} max={99}
                                 value={val === 0 ? "" : val}
                                 placeholder="—"
+                                disabled={isPublishedWeek && !editUnlocked}
                                 onChange={e => {
                                   const n = Math.max(0, parseInt(e.target.value) || 0);
-                                  setDemandMatrix(prev => ({
-                                    ...prev,
-                                    [def.id]: { ...(prev[def.id] ?? {}), [day]: n },
-                                  }));
+                                  setDemandMatrix(prev => ({ ...prev, [def.id]: { ...(prev[def.id] ?? {}), [day]: n } }));
                                 }}
                                 onBlur={() => handleDemandSave(true)}
-                                className="w-8 h-6 text-center text-xs font-bold border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-indigo-200"
+                                className="w-11 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50"
                               />
-                              {val > 0 && (
-                                <span className={cn(
-                                  "text-[9px] font-bold",
-                                  assigned < val ? "text-red-500" : assigned > val ? "text-blue-500" : "text-emerald-500"
-                                )}>{assigned}/{val}</span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td />
-                    </tr>
-                  ))}
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredPersonnel.length === 0 && personnelFilter && (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-sm text-slate-400">
-                        &ldquo;{personnelFilter}&rdquo; ile eşleşen personel bulunamadı.
-                      </td>
-                    </tr>
-                  )}
-                  {tableRows.map(row => {
-                    if (row.kind === 'header') {
-                      return (
-                        <tr key={`dept-${row.dept.id}`} className="bg-slate-100/70 border-t-2 border-slate-200">
-                          <td colSpan={9} className="py-2 px-4">
-                            <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{row.dept.name}</span>
-                          </td>
-                        </tr>
-                      );
-                    }
-                    const p = row.person;
-                    const ps = personScores.find(s => s.id === p.id);
-                    const weekPoints = ps ? ps.score - (p.prev_score || 0) : 0;
-                    const totalHours = Object.entries(cellMap)
-                      .filter(([k]) => k.startsWith(`${p.id}-`))
-                      .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-                    const personMaxHours = p.max_weekly_hours ?? 45;
-
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
-                        {/* Personnel column */}
-                        <td className="py-3 px-4 group/row">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-600 font-bold text-xs flex items-center justify-center shrink-0">
-                              {p.name.charAt(0)}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-semibold text-slate-800 truncate max-w-[80px]">{p.name}</div>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <div className="h-1.5 w-14 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className={cn("h-full rounded-full transition-all duration-300", ps ? scoreColor(ps.score, maxScore) : "bg-slate-200")}
-                                    style={{ width: `${ps ? Math.min(100, (ps.score / maxScore) * 100) : 0}%` }}
-                                  />
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-medium">{Math.round(weekPoints * 10) / 10}p</span>
-                              </div>
-                            </div>
-                            {/* Satır hızlı işlemleri — hover'da görünür */}
-                            <div className="hidden group-hover/row:flex items-center gap-0.5 shrink-0">
-                              <button
-                                onClick={e => { e.stopPropagation(); fillPersonRow(p.id); }}
-                                title="Müsait tüm günleri doldur"
-                                className="p-1 rounded-md text-emerald-500 hover:bg-emerald-50 transition-colors"
-                              >
-                                <CalendarCheck size={12} />
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); clearPersonRow(p.id); }}
-                                title="Tüm vardiyaları temizle"
-                                className="p-1 rounded-md text-red-400 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Day cells */}
-                        {Array.from({ length: 7 }, (_, day) => {
-                          const key         = `${p.id}-${day}`;
-                          const cell        = cellMap[key];
-                          const avail       = availMap[p.id]?.[day];
-                          const noAvailData = !availMap[p.id];
-                          const matchedDef  = cell ? matchShiftDef(cell.startMin, cell.endMin, shiftDefs) : null;
-                          const isUnavail   = avail?.status === "unavailable";
-                          const isPrefNot   = avail?.status === "preferred_not";
-                          const isWeeklyOff = p.weekly_off_day !== null && p.weekly_off_day !== undefined && Number(p.weekly_off_day) === day;
-                          return (
-                            <DroppableCell
-                              key={day}
-                              id={key}
-                              disabled={isWeeklyOff}
-                              className={cn(
-                                "py-2 px-1.5 text-center group transition-colors",
-                                isWeeklyOff ? "bg-amber-50/60 cursor-not-allowed" : "cursor-pointer",
-                                !isWeeklyOff && (avail ? AVAIL_BG[avail.status] : "bg-white"),
-                              )}
-                              onClick={isWeeklyOff ? undefined : e => handleCellClick(e, p.id, day)}
-                            >
-                              {cell ? (
-                                // ─── Vardiya atanmış ───────────────────────────────
-                                <DraggableShift id={key}>
-                                <div className={cn(
-                                  "relative inline-flex flex-col items-center px-2 py-1.5 rounded-lg text-xs font-bold leading-tight transition-colors",
-                                  isUnavail
-                                    ? "bg-red-100 text-red-700 group-hover:bg-red-200 ring-1 ring-red-200"
-                                    : "bg-violet-100 text-violet-700 group-hover:bg-violet-200"
-                                )}>
-                                  {matchedDef ? (
-                                    <>
-                                      <span>{matchedDef.name}</span>
-                                      <span className="text-[10px] font-normal opacity-60">{minToHHMM(cell.startMin)}–{minToHHMM(cell.endMin, cell.endMin >= 1440)}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>{minToHHMM(cell.startMin)}</span>
-                                      <span className="text-[10px] font-normal opacity-70">{minToHHMM(cell.endMin, cell.endMin >= 1440)}</span>
-                                    </>
-                                  )}
-                                  {/* Müsaitlik uyarı rozeti — unavailable veya preferred_not günde atama */}
-                                  {(isUnavail || isPrefNot) && (
-                                    <span className={cn(
-                                      "absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white",
-                                      isUnavail ? "bg-red-500" : "bg-amber-400"
-                                    )}>!</span>
-                                  )}
-                                </div>
-                                </DraggableShift>
-                              ) : noAvailData ? (
-                                // ─── Müsaitlik bilgisi yok ─────────────────────────
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-300 group-hover:bg-slate-100 group-hover:text-slate-500 transition-colors text-xs font-bold">
-                                  ?
-                                </span>
-                              ) : isUnavail ? (
-                                // ─── Kesinlikle gelemez (izin veya haftalık off) ────
-                                <div className={cn(
-                                  "inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-semibold select-none",
-                                  isWeeklyOff ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-400"
-                                )}>
-                                  {isWeeklyOff ? "İzin Günü" : "İzin"}
-                                </div>
-                              ) : isPrefNot ? (
-                                // ─── Tercih etmiyor ────────────────────────────────
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-amber-300 group-hover:bg-amber-100 group-hover:text-amber-500 transition-colors">
-                                    <Plus size={12} />
-                                  </span>
-                                  {avail?.start && avail?.end && (
-                                    <span className="text-[9px] text-amber-500 font-semibold leading-tight whitespace-nowrap">
-                                      {normTime(avail.start)}–{normTime(avail.end)}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                // ─── Müsait ────────────────────────────────────────
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-slate-200 group-hover:bg-violet-100 group-hover:text-violet-400 transition-colors">
-                                    <Plus size={12} />
-                                  </span>
-                                  {avail?.start && avail?.end && (
-                                    <span className="text-[9px] text-emerald-500 font-semibold leading-tight whitespace-nowrap">
-                                      {normTime(avail.start)}–{normTime(avail.end)}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </DroppableCell>
+                            </td>
                           );
                         })}
-
-                        {/* Weekly hours */}
-                        <td className="py-3 px-3 text-center">
-                          <span className={cn(
-                            "text-xs font-bold px-2 py-1 rounded-md transition-colors",
-                            totalHours > personMaxHours ? "bg-red-100 text-red-700 ring-1 ring-red-300" : totalHours > personMaxHours * 0.9 ? "bg-amber-100 text-amber-700 ring-1 ring-amber-300" : totalHours > 0 ? "text-slate-600" : "text-slate-300"
-                          )}
-                          title={`Limit: ${personMaxHours}s`}
-                          >
-                            {totalHours > 0 ? `${Math.round(totalHours * 10) / 10}s` : "—"}
-                          </span>
-                        </td>
+                        <td />
                       </tr>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    /* Departman bazlı */
+                    departments.map(dept => (
+                      <Fragment key={dept.id}>
+                        <tr className="border-t border-slate-200 bg-slate-50/70">
+                          <td colSpan={9} className="px-5 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-0.5 h-4 rounded-full bg-indigo-500 shrink-0" />
+                              <span className="text-xs font-black text-slate-700">{dept.name}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {shiftDefs.map(def => {
+                          const deptRow = deptDemandMatrix[dept.id]?.[def.id] ?? {};
+                          return (
+                            <tr key={`${dept.id}-${def.id}`} className="border-b border-slate-50 hover:bg-slate-50/50">
+                              <td className="py-2.5 pl-8 pr-4">
+                                <span className="text-[12px] font-semibold text-slate-600">{def.name}</span>
+                                <span className="text-[10px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
+                              </td>
+                              {Array.from({ length: 7 }, (_, day) => {
+                                const val = deptRow[day] ?? 0;
+                                const assigned = deptAssignedCounts[dept.id]?.[def.id]?.[day] ?? 0;
+                                const isWeekend = day === 5 || day === 6;
+                                const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
+                                return (
+                                  <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <input
+                                        type="number" min={0} max={99}
+                                        value={val === 0 ? "" : val}
+                                        placeholder="—"
+                                        disabled={isPublishedWeek && !editUnlocked}
+                                        onChange={e => {
+                                          const n = Math.max(0, parseInt(e.target.value) || 0);
+                                          setDeptDemandMatrix(prev => ({
+                                            ...prev,
+                                            [dept.id]: { ...(prev[dept.id] ?? {}), [def.id]: { ...(prev[dept.id]?.[def.id] ?? {}), [day]: n } },
+                                          }));
+                                        }}
+                                        onBlur={() => handleDeptDemandSave(dept.id)}
+                                        className="w-11 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50"
+                                      />
+                                      {val > 0 && (
+                                        <span className={cn(
+                                          "text-[10px] font-bold px-1.5 rounded-full leading-tight",
+                                          coverState === "under" && "text-red-500",
+                                          coverState === "ok"    && "text-emerald-600",
+                                          coverState === "over"  && "text-sky-500",
+                                        )}>{assigned}/{val}</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                              <td />
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+            )}
+          </div>
+
+          {/* Müsaitlik banner (demand fazında) */}
+          {noAvailCount > 0 && personnel.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+              <Bell size={14} className="text-amber-500 shrink-0" />
+              <span className="flex-1">
+                <span className="font-bold">{noAvailCount} personel</span> bu hafta için müsaitlik bilgisi girmemiş.
+              </span>
+              <button
+                onClick={handleRequestAvailability}
+                className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+              >
+                Müsaitlik İste
+              </button>
+            </div>
+          )}
+
+          {/* CTA: Planlamaya Geç */}
+          <div className="flex items-center justify-between gap-4 px-1">
+            <p className="text-xs text-slate-400">
+              Bu kapasite planı şablon olarak kaydedilir ve sonraki haftalarda otomatik yüklenir.
+            </p>
+            <button
+              onClick={() => { setSchedulePhase("schedule"); localStorage.setItem("optishift_schedule_phase", "schedule"); }}
+              className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm shrink-0"
+            >
+              Planlamaya Geç <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+        ) : schedulePhase === "publications" ? (
+        /* ── FAZ 3: Yayın Geçmişi ── */
+        <div className="space-y-4">
+          {pubsLoading ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              <p className="text-sm text-slate-400">Yükleniyor…</p>
+            </div>
+          ) : publications.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-20 flex flex-col items-center gap-3 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <History size={24} className="text-slate-300" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-600">Henüz yayınlanmış vardiya yok</p>
+                <p className="text-sm text-slate-400 mt-1">Planlamayı tamamlayıp yayınladığınızda burada görünür.</p>
+              </div>
+              <button
+                onClick={() => { setSchedulePhase("demand"); localStorage.setItem("optishift_schedule_phase", "demand"); }}
+                className="mt-2 px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors"
+              >
+                Planlamaya Git
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* ─── Bu hafta yayın durumu ─── */}
+              {(() => {
+                const thisPub = publications.find(p => p.week_start === weekStart);
+                if (!thisPub) return (
+                  <div className="flex items-center gap-4 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                      <AlertCircle size={18} className="text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-amber-800 text-sm">Bu Hafta Henüz Yayınlanmadı</p>
+                      <p className="text-xs text-amber-600 mt-0.5">{weekLabel} — plan oluşturup yayınladığınızda burada görünür.</p>
+                    </div>
+                    <button
+                      onClick={() => { setSchedulePhase("schedule"); localStorage.setItem("optishift_schedule_phase", "schedule"); }}
+                      className="shrink-0 px-3 py-1.5 text-xs font-bold text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-100 transition-colors"
+                    >
+                      Planlamaya Geç
+                    </button>
+                  </div>
+                );
+                return (
+                  <div className="flex items-center gap-4 px-5 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-emerald-800 text-sm">Bu Hafta Yayınlandı</p>
+                        {thisPub.revision > 0 && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-violet-100 text-violet-700 border border-violet-200">R{thisPub.revision}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-emerald-600 mt-0.5">{weekLabel} · {thisPub.published_by_name ?? "Yönetici"} · {timeAgo(thisPub.published_at)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleExpandPub(thisPub)}
+                      className={cn(
+                        "shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border",
+                        expandedPubId === thisPub.id
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                      )}
+                    >
+                      <Eye size={12} />
+                      {expandedPubId === thisPub.id ? "Kapat" : "Görüntüle"}
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {/* ─── Yayın geçmişi listesi ─── */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
+                  <History size={14} className="text-slate-400" />
+                  <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Tüm Yayınlar</h2>
+                  <span className="ml-auto text-xs text-slate-400">{publications.length} hafta</span>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {publications.map(pub => {
+                    const isThisWeek = pub.week_start === weekStart;
+                    const isExpanded = expandedPubId === pub.id;
+                    return (
+                      <div key={pub.id}>
+                        <button
+                          onClick={() => handleExpandPub(pub)}
+                          className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50/70 transition-colors text-left"
+                        >
+                          {/* İkon */}
+                          <div className={cn(
+                            "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                            pub.revision === 0 ? "bg-emerald-50 border border-emerald-200" : "bg-violet-50 border border-violet-200"
+                          )}>
+                            {pub.revision === 0
+                              ? <CheckCircle2 size={14} className="text-emerald-600" />
+                              : <RefreshCw size={14} className="text-violet-600" />
+                            }
+                          </div>
+
+                          {/* Hafta bilgisi */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={cn("font-bold text-sm", isThisWeek ? "text-indigo-700" : "text-slate-800")}>
+                                {fullWeekLabel(pub.week_start)}
+                              </span>
+                              {isThisWeek && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase tracking-wider">Bu Hafta</span>
+                              )}
+                              {pub.revision > 0 && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-violet-100 text-violet-700 border border-violet-200">R{pub.revision}</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {pub.published_by_name ?? "Yönetici"} · {timeAgo(pub.published_at)}
+                            </p>
+                          </div>
+
+                          {/* Chevron */}
+                          <ChevronDown size={14} className={cn("text-slate-300 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />
+                        </button>
+
+                        {/* Snapshot genişleme */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-100">
+                            {expandedPubLoading && expandedPubId === pub.id ? (
+                              <div className="py-10 flex flex-col items-center gap-2">
+                                <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+                                <p className="text-xs text-slate-400">Yükleniyor…</p>
+                              </div>
+                            ) : expandedPubData?.id === pub.id ? (
+                              <>
+                                <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
+                                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                                    {expandedPubData.snapshot?.locationName} — {fullWeekLabel(pub.week_start)}
+                                    {pub.revision > 0 && ` — R${pub.revision}`}
+                                  </span>
+                                  <span className="ml-auto text-[10px] text-slate-400">
+                                    {expandedPubData.snapshot?.assignments.length ?? 0} atama
+                                  </span>
+                                </div>
+                                <SnapshotGrid data={expandedPubData} />
+                              </>
+                            ) : (
+                              <div className="py-6 text-center text-xs text-slate-400">Yüklenemedi.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
         </div>
-        )}
+        ) : null}
 
-        {/* ── Legend ── */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
-          <span className="font-semibold text-slate-600">Lejant:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-emerald-50 border border-emerald-200" />Müsait
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />Tercih etmiyor
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-red-50 border border-red-200" />
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-red-100 text-red-400 text-[9px] font-semibold">İzin</span>
-            Gelemez
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-5 h-4 rounded flex items-center justify-center bg-violet-100 text-violet-700 text-[9px] font-bold">
-              <span className="relative"><span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full text-[6px] text-white flex items-center justify-center">!</span>S</span>
-            </span>
-            Kısıt ihlali
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-5 h-4 rounded bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 text-[9px] font-bold">?</span>
-            Müsaitlik yok
-          </span>
-          <span className="ml-auto text-slate-400">
-            Hücreye tıkla → vardiya ekle / düzenle
-          </span>
+        {/* Generating overlay — schedule fazında */}
+        {schedulePhase === "schedule" && generating && (
+        <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 pointer-events-none">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
+            <Zap size={22} className="text-indigo-600 animate-pulse" />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-slate-800">OR-Tools Planlıyor</p>
+            <p className="text-sm text-slate-400 mt-0.5">5-15 saniye sürebilir…</p>
+          </div>
         </div>
+        )}
       </div>
 
       {/* ── Adalet Dağılımı çekmecesi (sağdan kayar, tüm view mode'larda çalışır) ── */}
