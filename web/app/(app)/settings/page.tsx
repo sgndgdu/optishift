@@ -132,6 +132,8 @@ export default function SettingsPage() {
   const [preferredNotMultiplier, setPreferredNotMultiplier]       = useState(1.5);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
+  const [maxWeeklyHours, setMaxWeeklyHours]                       = useState(45);
+  const [minRestHours, setMinRestHours]                           = useState(11);
   const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
   const [leaveOverrideBonus, setLeaveOverrideBonus]               = useState(1.5);
   const [weekendMultiplier, setWeekendMultiplier]                 = useState(1.2);
@@ -202,6 +204,8 @@ export default function SettingsPage() {
           if (typeof loc.rules?.preferred_not_multiplier === "number")  setPreferredNotMultiplier(loc.rules.preferred_not_multiplier);
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
+          if (typeof loc.rules?.max_weekly_hours === "number")          setMaxWeeklyHours(loc.rules.max_weekly_hours);
+          if (typeof loc.rules?.min_rest_hours === "number")            setMinRestHours(loc.rules.min_rest_hours);
           if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
           if (typeof loc.rules?.leave_override_bonus_multiplier === "number") setLeaveOverrideBonus(loc.rules.leave_override_bonus_multiplier);
           if (typeof loc.rules?.weekend_multiplier === "number")        setWeekendMultiplier(loc.rules.weekend_multiplier);
@@ -345,6 +349,8 @@ export default function SettingsPage() {
             preferred_not_multiplier:     preferredNotMultiplier,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
+            max_weekly_hours:             maxWeeklyHours,
+            min_rest_hours:               minRestHours,
             change_compensation_points:         changeCompensationPoints,
             leave_override_bonus_multiplier:    leaveOverrideBonus,
             weekend_multiplier:                 weekendMultiplier,
@@ -701,6 +707,16 @@ export default function SettingsPage() {
                   label="Clopening Uyarısı"
                   description={<>Kapanış→açılış geçişinde <span className="font-semibold">{clopeningMinRestHours} saat</span> altında dinlenme varsa ihlal modalında işaretlenir ve OR-Tools cezalandırır.</>}
                   right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Haftalık Maksimum Çalışma"
+                  description="Personelin haftada çalışabileceği yasal üst sınır. OR-Tools bu saati aşan atama yapmaz."
+                  right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
+                />
+                <RuleRow
+                  label="Minimum Dinlenme Süresi"
+                  description="İki vardiya arasında bulunması gereken en az dinlenme süresi (hard constraint)."
+                  right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                 />
                 <RuleRow
                   label="Maks. Ardışık Çalışma"
