@@ -137,6 +137,20 @@ export default function SettingsPage() {
   const [weekendMultiplier, setWeekendMultiplier]                 = useState(1.2);
   const [nightMultiplier, setNightMultiplier]                     = useState(1.3);
 
+  // Ek toggle'lar
+  const [clopeningEnabled, setClopeningEnabled]                   = useState(true);
+  const [swapRequestsEnabled, setSwapRequestsEnabled]             = useState(true);
+  const [editRequestsEnabled, setEditRequestsEnabled]             = useState(true);
+  const [checkinRequired, setCheckinRequired]                     = useState(false);
+  const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
+  const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
+  const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
+  const [prePublishCheckEnabled, setPrePublishCheckEnabled]       = useState(true);
+  const [heroBonusEnabled, setHeroBonusEnabled]                   = useState(true);
+  const [weekendMultiplierEnabled, setWeekendMultiplierEnabled]   = useState(true);
+  const [nightMultiplierEnabled, setNightMultiplierEnabled]       = useState(true);
+  const [publishLeadKpiEnabled, setPublishLeadKpiEnabled]         = useState(true);
+
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason] = useState(false);
   const [leaveAllowMultiDay, setLeaveAllowMultiDay] = useState(false);
@@ -192,6 +206,19 @@ export default function SettingsPage() {
           if (typeof loc.rules?.leave_override_bonus_multiplier === "number") setLeaveOverrideBonus(loc.rules.leave_override_bonus_multiplier);
           if (typeof loc.rules?.weekend_multiplier === "number")        setWeekendMultiplier(loc.rules.weekend_multiplier);
           if (typeof loc.rules?.night_multiplier === "number")          setNightMultiplier(loc.rules.night_multiplier);
+
+          setClopeningEnabled(loc.rules?.clopening_enabled !== false);
+          setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
+          setEditRequestsEnabled(loc.rules?.edit_requests_enabled !== false);
+          setCheckinRequired(!!loc.rules?.checkin_required);
+          setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
+          if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
+          if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
+          setPrePublishCheckEnabled(loc.rules?.pre_publish_check !== false);
+          setHeroBonusEnabled(loc.rules?.hero_bonus_enabled !== false);
+          setWeekendMultiplierEnabled(loc.rules?.weekend_multiplier_enabled !== false);
+          setNightMultiplierEnabled(loc.rules?.night_multiplier_enabled !== false);
+          setPublishLeadKpiEnabled(loc.rules?.publish_lead_kpi_enabled !== false);
 
           if (typeof loc.leave_policy === "string") { try { loc.leave_policy = JSON.parse(loc.leave_policy); } catch { loc.leave_policy = {}; } }
           const lat = loc.latitude != null ? String(loc.latitude) : "";
@@ -322,6 +349,18 @@ export default function SettingsPage() {
             leave_override_bonus_multiplier:    leaveOverrideBonus,
             weekend_multiplier:                 weekendMultiplier,
             night_multiplier:                   nightMultiplier,
+            clopening_enabled:                  clopeningEnabled,
+            swap_requests_enabled:              swapRequestsEnabled,
+            edit_requests_enabled:              editRequestsEnabled,
+            checkin_required:                   checkinRequired,
+            auto_open_shift_on_late:            autoOpenShiftOnLate,
+            late_threshold_min:                 lateThresholdMin,
+            max_concurrent_breaks:              maxConcurrentBreaks,
+            pre_publish_check:                  prePublishCheckEnabled,
+            hero_bonus_enabled:                 heroBonusEnabled,
+            weekend_multiplier_enabled:         weekendMultiplierEnabled,
+            night_multiplier_enabled:           nightMultiplierEnabled,
+            publish_lead_kpi_enabled:           publishLeadKpiEnabled,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -547,23 +586,44 @@ export default function SettingsPage() {
               {/* 3. Yük Çarpanları */}
               <div>
                 <SectionLabel>Yük Çarpanları</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Hafta sonu ve gece vardiyaları adalet hesabında daha ağır sayılır.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <p className="text-xs text-slate-400 mb-3">Hafta sonu ve gece vardiyaları adalet hesabında daha ağır sayılır. Kapalıysa o tip vardiyalar normal puan alır.</p>
+                <div className="space-y-3">
                   <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Hafta Sonu</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Cmt–Paz vardiyelerin yük katsayısı</p>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Toggle on={weekendMultiplierEnabled} onToggle={() => setWeekendMultiplierEnabled(v => !v)} />
+                      <div className={weekendMultiplierEnabled ? "" : "opacity-40"}>
+                        <p className="text-sm font-semibold text-slate-800">Hafta Sonu Çarpanı</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Cmt–Paz vardiyelerin yük katsayısı</p>
+                      </div>
                     </div>
-                    <NumberInput value={weekendMultiplier} onChange={setWeekendMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                    <div className={weekendMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
+                      <NumberInput value={weekendMultiplier} onChange={setWeekendMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                    </div>
                   </div>
                   <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-                        <Moon size={13} className="text-indigo-400" /> Gece Vardiyası
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">"Gece" işaretli vardiyaların yük katsayısı</p>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Toggle on={nightMultiplierEnabled} onToggle={() => setNightMultiplierEnabled(v => !v)} />
+                      <div className={nightMultiplierEnabled ? "" : "opacity-40"}>
+                        <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                          <Moon size={13} className="text-indigo-400" /> Gece Vardiyası Çarpanı
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">"Gece" işaretli vardiyaların yük katsayısı</p>
+                      </div>
                     </div>
-                    <NumberInput value={nightMultiplier} onChange={setNightMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                    <div className={nightMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
+                      <NumberInput value={nightMultiplier} onChange={setNightMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                    </div>
+                  </div>
+                  <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Toggle on={heroBonusEnabled} onToggle={() => setHeroBonusEnabled(v => !v)} />
+                      <div className={heroBonusEnabled ? "" : "opacity-40"}>
+                        <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                          ⭐ Kahraman Bonusu
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personele 1.5× puan bonusu verilir</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -638,9 +698,68 @@ export default function SettingsPage() {
                   right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
                 />
                 <RuleRow
+                  label="Clopening Uyarısı"
+                  description={<>Kapanış→açılış geçişinde <span className="font-semibold">{clopeningMinRestHours} saat</span> altında dinlenme varsa ihlal modalında işaretlenir ve OR-Tools cezalandırır.</>}
+                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
+                />
+                <RuleRow
                   label="Maks. Ardışık Çalışma"
                   description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
                   right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
+                />
+              </SectionCard>
+
+              <SectionCard title="Personel Talepleri">
+                <RuleRow
+                  label="Vardiya Takas Talebi"
+                  description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
+                  right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Vardiya Değişiklik Talebi"
+                  description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
+                  right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
+                />
+              </SectionCard>
+
+              <SectionCard title="Canlı Operasyon">
+                <RuleRow
+                  label="Check-in Zorunluluğu"
+                  description="Personel portaldaki vardiya kartından check-in yapmadan aktif sayılmaz. Check-in yoksa geç kalan listesine düşer."
+                  right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
+                />
+                <RuleRow
+                  label="Geç Kalan → Otomatik Açık Vardiya"
+                  description={
+                    <span>
+                      Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ check-in olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
+                      {autoOpenShiftOnLate && (
+                        <span className="flex items-center gap-2 mt-2">
+                          <span>Eşik:</span>
+                          <input
+                            type="number" min={10} max={120} value={lateThresholdMin}
+                            onChange={e => setLateThresholdMin(Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
+                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
+                          />
+                          <span>dakika</span>
+                        </span>
+                      )}
+                    </span>
+                  }
+                  right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
+                />
+                <RuleRow
+                  label="Eş Zamanlı Mola Limiti"
+                  description="Aynı anda molaya çıkabilecek maksimum kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
+                  right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
+                />
+              </SectionCard>
+
+              <SectionCard title="Yayın Akışı">
+                <RuleRow
+                  label="Yayın Öncesi İhlal Kontrolü"
+                  description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
+                  right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
                 />
               </SectionCard>
 
@@ -883,6 +1002,15 @@ export default function SettingsPage() {
               <div>
                 <SectionLabel>Bildirimler</SectionLabel>
                 <div className="space-y-3">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-slate-700 text-sm">Yayın Öncülüğü KPI</div>
+                        <div className="text-xs text-slate-400 mt-0.5">Müdür dashboard'unda "kaç gün önceden yayınlandı" KPI kartı gösterilir</div>
+                      </div>
+                      <Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />
+                    </div>
+                  </div>
                   <div className="bg-white border border-slate-200 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-3">
                       <div>
