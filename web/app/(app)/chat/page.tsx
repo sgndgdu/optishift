@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Users, User, ChevronRight, Check, CheckCheck, ArrowDown } from "lucide-react";
+import { MessageSquare, Send, Users, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 
 interface Message {
   id: number;
@@ -84,15 +84,17 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
 }
 
 export default function ManagerChatPage() {
-  const [user,        setUser]        = useState<any>(null);
-  const [contacts,    setContacts]    = useState<Contact[]>([]);
-  const [selected,    setSelected]    = useState<Contact | null>(null);
-  const [messages,    setMessages]    = useState<Message[]>([]);
-  const [text,        setText]        = useState("");
-  const [sending,     setSending]     = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [newMsgCount, setNewMsgCount] = useState(0);
-  const [isAtBottom,  setIsAtBottom]  = useState(true);
+  const [user,         setUser]         = useState<any>(null);
+  const [contacts,     setContacts]     = useState<Contact[]>([]);
+  const [selected,     setSelected]     = useState<Contact | null>(null);
+  const [messages,     setMessages]     = useState<Message[]>([]);
+  const [text,         setText]         = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
+  const [newMsgCount,  setNewMsgCount]  = useState(0);
+  const [isAtBottom,   setIsAtBottom]   = useState(true);
+  const [search,       setSearch]       = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const bottomRef      = useRef<HTMLDivElement>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
@@ -146,12 +148,12 @@ export default function ManagerChatPage() {
     } catch {}
 
     setContacts(list);
-    if (list.length > 0 && !selectedRef.current) setSelected(list[0]);
+    // No auto-select — user must choose from the directory
   }, []);
 
   useEffect(() => { if (user) buildContacts(); }, [user, buildContacts]);
 
-  // ── Conversations poll — sorted by recency ────────────────────────────────
+  // ── Conversations poll — update unread + lastMessage (no recency sort in directory mode)
   const pollConversations = useCallback(async () => {
     const u = userRef.current;
     if (!u) return;
@@ -162,20 +164,17 @@ export default function ManagerChatPage() {
       for (const c of (data.dm ?? []))     dmMap[c.partner_id]  = c;
       for (const g of (data.groups ?? [])) grpMap[g.group_id]   = g;
 
-      setContacts(prev => {
-        const updated = prev.map(c => {
-          if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
-            const g = grpMap[c.groupId];
-            return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
-          }
-          if (c.type === "individual" && dmMap[c.id]) {
-            const d = dmMap[c.id];
-            return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
-          }
-          return c;
-        });
-        return [...updated].sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0));
-      });
+      setContacts(prev => prev.map(c => {
+        if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
+          const g = grpMap[c.groupId];
+          return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
+        }
+        if (c.type === "individual" && dmMap[c.id]) {
+          const d = dmMap[c.id];
+          return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
+        }
+        return c;
+      }));
     } catch {}
   }, []);
 
@@ -194,6 +193,7 @@ export default function ManagerChatPage() {
     setMessages([]);
     setNewMsgCount(0);
     setIsAtBottom(true);
+    setClearConfirm(false);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
 
     const initUrl = selected.type === "group"
@@ -258,6 +258,17 @@ export default function ManagerChatPage() {
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
   };
 
+  const clearConversation = async () => {
+    if (!selected) return;
+    const url = selected.type === "group"
+      ? `/api/messages?group_id=${selected.groupId}`
+      : `/api/messages?to_user_id=${selected.id}`;
+    setMessages([]);
+    setClearConfirm(false);
+    await fetch(url, { method: "DELETE" });
+    pollConversations();
+  };
+
   async function send() {
     const u = userRef.current;
     if (!text.trim() || !selected || !u || sending) return;
@@ -302,6 +313,10 @@ export default function ManagerChatPage() {
   }
 
   const totalUnread = contacts.reduce((s, c) => s + (c.unread ?? 0), 0);
+  const q = search.toLowerCase();
+  const filtered = q ? contacts.filter(c => c.name.toLowerCase().includes(q)) : contacts;
+  const groupContacts = filtered.filter(c => c.type === "group");
+  const individualContacts = filtered.filter(c => c.type === "individual");
 
   return (
     <div className="h-[calc(100vh-4rem)] md:h-screen flex overflow-hidden bg-slate-50 relative">
@@ -309,15 +324,15 @@ export default function ManagerChatPage() {
         <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+      {/* ── Sidebar / Directory ───────────────────────────────────────────── */}
       <div className={`absolute md:relative inset-y-0 left-0 z-30 w-72 shrink-0 bg-white border-r border-slate-100 flex flex-col transition-transform duration-200 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-4 md:p-5 border-b border-slate-100 shrink-0">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                 <MessageSquare size={16} className="text-primary" />
               </div>
-              <h2 className="text-base font-black text-slate-900">Mesajlaşma</h2>
+              <h2 className="text-base font-black text-slate-900">Rehber</h2>
             </div>
             <div className="flex items-center gap-2">
               {totalUnread > 0 && (
@@ -328,15 +343,41 @@ export default function ManagerChatPage() {
               </button>
             </div>
           </div>
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Kişi ara…"
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary transition-colors placeholder:text-slate-400"
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-1">
-          {contacts.length === 0 && (
+          {contacts.length === 0 ? (
             <p className="text-xs text-slate-400 text-center mt-8 px-4">Kişi bulunamadı.</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center mt-8 px-4">"{search}" için sonuç yok.</p>
+          ) : (
+            <>
+              {groupContacts.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                  {groupContacts.map(c => (
+                    <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
+                  ))}
+                </>
+              )}
+              {individualContacts.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kişiler</p>
+                  {individualContacts.map(c => (
+                    <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
+                  ))}
+                </>
+              )}
+            </>
           )}
-          {contacts.map(c => (
-            <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
-          ))}
         </div>
       </div>
 
@@ -344,6 +385,7 @@ export default function ManagerChatPage() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         {selected ? (
           <>
+            {/* Header */}
             <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 md:py-4 flex items-center gap-3 shrink-0">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 shrink-0">
                 <ChevronRight size={16} className="rotate-180" />
@@ -357,8 +399,21 @@ export default function ManagerChatPage() {
                 <p className="text-sm font-black text-slate-900 truncate">{selected.name}</p>
                 <p className="text-[10px] text-slate-400 font-medium">{selected.label ?? selected.role}</p>
               </div>
+              {clearConfirm ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-slate-500">Sohbet silinsin mi?</span>
+                  <button onClick={clearConversation} className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors">Sil</button>
+                  <button onClick={() => setClearConfirm(false)} className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors">İptal</button>
+                </div>
+              ) : (
+                <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
+                  className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
 
+            {/* Messages */}
             <div ref={scrollRef} onScroll={handleScroll}
               className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-2 bg-slate-50/50">
               {grouped.length === 0 && (
@@ -439,12 +494,15 @@ export default function ManagerChatPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-300">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-2 flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold">
-              <ChevronRight size={16} className="rotate-180" /> Kişileri Göster
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-300">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold">
+              <ChevronRight size={16} className="rotate-180" /> Rehberi Aç
             </button>
-            <MessageSquare size={48} strokeWidth={1.5} />
-            <p className="text-sm font-medium">Bir konuşma seç</p>
+            <div className="hidden md:flex flex-col items-center gap-3 text-center">
+              <MessageSquare size={48} strokeWidth={1.5} />
+              <p className="text-sm font-semibold text-slate-400">Kime yazmak istiyorsunuz?</p>
+              <p className="text-xs text-slate-300">Soldan bir kişi veya kanal seçin.</p>
+            </div>
           </div>
         )}
       </div>

@@ -117,5 +117,35 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/messages/contacts — müdür listesini getir (supervisor için)
-// Ayrı bir route olarak değil, ?contacts=true query ile
+// DELETE: Konuşmayı tamamen sil
+export async function DELETE(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  const { searchParams } = new URL(req.url);
+  const to_user_id = searchParams.get("to_user_id");
+  const group_id   = searchParams.get("group_id");
+  const org_id     = auth.org_id;
+  const me         = auth.id;
+
+  const db = getDb();
+  try {
+    if (group_id) {
+      db.prepare("DELETE FROM messages WHERE org_id = ? AND group_id = ?").run(org_id, group_id);
+    } else if (to_user_id) {
+      db.prepare(`
+        DELETE FROM messages
+        WHERE org_id = ?
+          AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+      `).run(org_id, me, to_user_id, to_user_id, me);
+    } else {
+      db.close();
+      return NextResponse.json({ error: "group_id veya to_user_id zorunlu" }, { status: 400 });
+    }
+    db.close();
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    db.close();
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

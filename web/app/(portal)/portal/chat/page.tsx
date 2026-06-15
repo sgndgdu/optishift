@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Users, User, Check, CheckCheck, ArrowDown } from "lucide-react";
+import { MessageSquare, Send, Users, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 
 interface Message {
   id: number;
@@ -49,14 +49,16 @@ function formatRelative(ts: number) {
 }
 
 export default function EmployeeChatPage() {
-  const [user,       setUser]       = useState<any>(null);
-  const [contacts,   setContacts]   = useState<Contact[]>([]);
-  const [selected,   setSelected]   = useState<Contact | null>(null);
-  const [messages,   setMessages]   = useState<Message[]>([]);
-  const [text,       setText]       = useState("");
-  const [sending,    setSending]    = useState(false);
-  const [newMsgCount,setNewMsgCount]= useState(0);
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [user,         setUser]         = useState<any>(null);
+  const [contacts,     setContacts]     = useState<Contact[]>([]);
+  const [selected,     setSelected]     = useState<Contact | null>(null);
+  const [messages,     setMessages]     = useState<Message[]>([]);
+  const [text,         setText]         = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [newMsgCount,  setNewMsgCount]  = useState(0);
+  const [isAtBottom,   setIsAtBottom]   = useState(true);
+  const [search,       setSearch]       = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const bottomRef      = useRef<HTMLDivElement>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
@@ -107,12 +109,12 @@ export default function EmployeeChatPage() {
     } catch {}
 
     setContacts(list);
-    if (list.length > 0 && !selectedRef.current) setSelected(list[0]);
+    // No auto-select — user must choose from the directory
   }, []);
 
   useEffect(() => { if (user) buildContacts(); }, [user, buildContacts]);
 
-  // ── Conversations poll — unread + last msg + sort by recency ──────────────
+  // ── Conversations poll — update unread + lastMessage (no recency sort in directory mode)
   const pollConversations = useCallback(async () => {
     const u = userRef.current;
     if (!u) return;
@@ -123,20 +125,17 @@ export default function EmployeeChatPage() {
       for (const c of (data.dm ?? []))     dmMap[c.partner_id]  = c;
       for (const g of (data.groups ?? [])) grpMap[g.group_id]   = g;
 
-      setContacts(prev => {
-        const updated = prev.map(c => {
-          if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
-            const g = grpMap[c.groupId];
-            return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
-          }
-          if (c.type === "individual" && dmMap[c.id]) {
-            const d = dmMap[c.id];
-            return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
-          }
-          return c;
-        });
-        return [...updated].sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0));
-      });
+      setContacts(prev => prev.map(c => {
+        if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
+          const g = grpMap[c.groupId];
+          return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
+        }
+        if (c.type === "individual" && dmMap[c.id]) {
+          const d = dmMap[c.id];
+          return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
+        }
+        return c;
+      }));
     } catch {}
   }, []);
 
@@ -155,6 +154,7 @@ export default function EmployeeChatPage() {
     setMessages([]);
     setNewMsgCount(0);
     setIsAtBottom(true);
+    setClearConfirm(false);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
 
     const initUrl = selected.type === "group"
@@ -218,6 +218,17 @@ export default function EmployeeChatPage() {
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
   };
 
+  const clearConversation = async () => {
+    if (!selected) return;
+    const url = selected.type === "group"
+      ? `/api/messages?group_id=${selected.groupId}`
+      : `/api/messages?to_user_id=${selected.id}`;
+    setMessages([]);
+    setClearConfirm(false);
+    await fetch(url, { method: "DELETE" });
+    pollConversations();
+  };
+
   async function send() {
     const u = userRef.current;
     if (!text.trim() || !selected || !u || sending) return;
@@ -261,22 +272,38 @@ export default function EmployeeChatPage() {
   }
 
   const totalUnread = contacts.reduce((s, c) => s + (c.unread ?? 0), 0);
+  const q = search.toLowerCase();
+  const filtered = q ? contacts.filter(c => c.name.toLowerCase().includes(q)) : contacts;
+  const groupContacts = filtered.filter(c => c.type === "group");
+  const individualContacts = filtered.filter(c => c.type === "individual");
 
+  // ── Mobile: chat area visible when selected, directory otherwise
   return (
     <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 m-5"
       style={{ height: "calc(100vh - 120px)" }}>
       <div className="flex flex-col md:flex-row h-full">
 
-        {/* ── Contacts panel ───────────────────────────────────────────── */}
-        <div className={`md:w-72 md:border-r md:border-slate-100 shrink-0 border-b border-slate-100 md:border-b-0 flex flex-col ${selected ? "hidden md:flex" : "flex"}`}>
-          <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
-            <h2 className="text-sm font-black text-slate-700">Sohbet</h2>
-            {totalUnread > 0 && (
-              <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
-            )}
+        {/* ── Directory panel ───────────────────────────────────────────── */}
+        <div className={`md:w-72 md:border-r md:border-slate-100 shrink-0 flex flex-col ${selected ? "hidden md:flex" : "flex"}`}>
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-black text-slate-700">Sohbet</h2>
+              {totalUnread > 0 && (
+                <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
+              )}
+            </div>
+            <div className="relative">
+              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Kişi ara…"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary transition-colors placeholder:text-slate-400"
+              />
+            </div>
           </div>
 
-          {/* Mobile horizontal scroll */}
+          {/* Mobile horizontal avatars strip */}
           <div className="flex md:hidden gap-2 p-3 overflow-x-auto shrink-0 border-b border-slate-50">
             {contacts.map(c => {
               const isSelected = selected?.id === c.id;
@@ -300,48 +327,99 @@ export default function EmployeeChatPage() {
             })}
           </div>
 
-          {/* Desktop list — sorted by recency */}
+          {/* Desktop directory list */}
           <div className="hidden md:flex flex-col flex-1 overflow-y-auto">
-            {contacts.length === 0 && <p className="text-xs text-slate-400 p-4">Kişi bulunamadı.</p>}
-            {contacts.map(c => {
-              const isSelected = selected?.id === c.id;
-              return (
-                <button key={c.id} onClick={() => handleSelect(c)}
-                  className={`flex items-center gap-3 w-full px-4 py-3 transition-colors text-left border-b border-slate-50 ${
-                    isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
-                  }`}>
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative ${
-                    c.type === "group" ? "bg-emerald-100 text-emerald-700" :
-                    c.role === "manager" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
-                  }`}>
-                    {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
-                    {(c.unread ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
-                      {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
-                    </div>
-                    {c.lastMessage ? (
-                      <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>
-                        {c.lastMessage}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-slate-300 font-medium">{c.label}</p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+            {contacts.length === 0 ? (
+              <p className="text-xs text-slate-400 p-4">Kişi bulunamadı.</p>
+            ) : filtered.length === 0 ? (
+              <p className="text-xs text-slate-400 p-4">"{search}" için sonuç yok.</p>
+            ) : (
+              <>
+                {groupContacts.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                    {groupContacts.map(c => {
+                      const isSelected = selected?.id === c.id;
+                      return (
+                        <button key={c.id} onClick={() => handleSelect(c)}
+                          className={`flex items-center gap-3 w-full px-4 py-3 transition-colors text-left border-b border-slate-50 ${
+                            isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
+                          }`}>
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative bg-emerald-100 text-emerald-700`}>
+                            <Users size={14} />
+                            {(c.unread ?? 0) > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
+                              {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+                            </div>
+                            {c.lastMessage ? (
+                              <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
+                            ) : (
+                              <p className="text-[11px] text-slate-300 font-medium">{c.label}</p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+                {individualContacts.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kişiler</p>
+                    {individualContacts.map(c => {
+                      const isSelected = selected?.id === c.id;
+                      return (
+                        <button key={c.id} onClick={() => handleSelect(c)}
+                          className={`flex items-center gap-3 w-full px-4 py-3 transition-colors text-left border-b border-slate-50 ${
+                            isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
+                          }`}>
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative ${
+                            c.role === "manager" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
+                          }`}>
+                            {c.name.charAt(0).toUpperCase()}
+                            {(c.unread ?? 0) > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
+                              {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+                            </div>
+                            {c.lastMessage ? (
+                              <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
+                            ) : (
+                              <p className="text-[11px] text-slate-300 font-medium">{c.label}</p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
           </div>
+
+          {/* Mobile: empty directory state */}
+          {!selected && (
+            <div className="flex md:hidden flex-1 flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
+              <MessageSquare size={36} strokeWidth={1.5} />
+              <p className="text-xs font-medium">Kime yazmak istiyorsunuz?</p>
+              <p className="text-[11px] text-slate-400">Yukarıdan bir kişi seçin.</p>
+            </div>
+          )}
         </div>
 
         {/* ── Chat area ────────────────────────────────────────────────── */}
         <div className={`flex-1 flex flex-col min-w-0 min-h-0 relative ${!selected ? "hidden md:flex" : "flex"}`}>
           {selected ? (
             <>
+              {/* Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2.5 shrink-0 bg-white">
                 <button onClick={() => setSelected(null)}
                   className="md:hidden p-2 -ml-1 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors text-lg font-medium">
@@ -353,12 +431,25 @@ export default function EmployeeChatPage() {
                 }`}>
                   {selected.type === "group" ? <Users size={14} /> : selected.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <p className="text-sm font-black text-slate-900">{selected.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-slate-900 truncate">{selected.name}</p>
                   <p className="text-[10px] text-slate-400">{selected.label}</p>
                 </div>
+                {clearConfirm ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] text-slate-500">Sil?</span>
+                    <button onClick={clearConversation} className="text-[11px] font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors">Evet</button>
+                    <button onClick={() => setClearConfirm(false)} className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg transition-colors">İptal</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
 
+              {/* Messages */}
               <div ref={scrollRef} onScroll={handleScroll}
                 className="flex-1 overflow-y-auto px-4 py-3 space-y-1 bg-slate-50/50">
                 {grouped.length === 0 && (
@@ -438,8 +529,9 @@ export default function EmployeeChatPage() {
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
-              <User size={36} strokeWidth={1.5} />
-              <p className="text-xs font-medium">Bir kişi seçin</p>
+              <MessageSquare size={36} strokeWidth={1.5} />
+              <p className="text-xs font-semibold">Kime yazmak istiyorsunuz?</p>
+              <p className="text-[11px] text-slate-400">Soldan bir kişi veya kanal seçin.</p>
             </div>
           )}
         </div>

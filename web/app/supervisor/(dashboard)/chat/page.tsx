@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Send, Users, Building2, ChevronRight, Check, CheckCheck, ArrowDown } from "lucide-react";
+import { MessageSquare, Send, Users, Building2, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -100,6 +100,8 @@ export default function SupervisorChatPage() {
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const [newMsgCount,     setNewMsgCount]     = useState(0);
   const [isAtBottom,      setIsAtBottom]      = useState(true);
+  const [search,          setSearch]          = useState("");
+  const [clearConfirm,    setClearConfirm]    = useState(false);
 
   const bottomRef      = useRef<HTMLDivElement>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
@@ -167,13 +169,13 @@ export default function SupervisorChatPage() {
     } catch {}
 
     setContacts(list);
-    if (list.length > 0 && !selectedRef.current) setSelected(list[0]);
+    // No auto-select — user must choose from the directory
     setLoadingContacts(false);
   }, []);
 
   useEffect(() => { if (user) buildContacts(); }, [user, buildContacts]);
 
-  // ── Conversations poll — sorted by recency ────────────────────────────────
+  // ── Conversations poll — update unread + lastMessage (no recency sort in directory mode)
   const pollConversations = useCallback(async () => {
     const u = userRef.current;
     if (!u) return;
@@ -184,20 +186,17 @@ export default function SupervisorChatPage() {
       for (const c of (data.dm ?? []))     dmMap[c.partner_id]  = c;
       for (const g of (data.groups ?? [])) grpMap[g.group_id]   = g;
 
-      setContacts(prev => {
-        const updated = prev.map(c => {
-          if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
-            const g = grpMap[c.groupId];
-            return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
-          }
-          if (c.type === "individual" && dmMap[c.id]) {
-            const d = dmMap[c.id];
-            return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
-          }
-          return c;
-        });
-        return [...updated].sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0));
-      });
+      setContacts(prev => prev.map(c => {
+        if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
+          const g = grpMap[c.groupId];
+          return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
+        }
+        if (c.type === "individual" && dmMap[c.id]) {
+          const d = dmMap[c.id];
+          return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
+        }
+        return c;
+      }));
     } catch {}
   }, []);
 
@@ -216,6 +215,7 @@ export default function SupervisorChatPage() {
     setMessages([]);
     setNewMsgCount(0);
     setIsAtBottom(true);
+    setClearConfirm(false);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
 
     const initUrl = selected.type === "group"
@@ -280,6 +280,17 @@ export default function SupervisorChatPage() {
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
   };
 
+  const clearConversation = async () => {
+    if (!selected) return;
+    const url = selected.type === "group"
+      ? `/api/messages?group_id=${selected.groupId}`
+      : `/api/messages?to_user_id=${selected.id}`;
+    setMessages([]);
+    setClearConfirm(false);
+    await fetch(url, { method: "DELETE" });
+    pollConversations();
+  };
+
   const sendMessage = async () => {
     const u = userRef.current;
     if (!draft.trim() || !selected || !u || sending) return;
@@ -325,6 +336,10 @@ export default function SupervisorChatPage() {
   }
 
   const totalUnread = contacts.reduce((s, c) => s + (c.unread ?? 0), 0);
+  const q = search.toLowerCase();
+  const filtered = q ? contacts.filter(c => c.name.toLowerCase().includes(q)) : contacts;
+  const groupContacts = filtered.filter(c => c.type === "group");
+  const individualContacts = filtered.filter(c => c.type === "individual");
 
   if (!mounted) return <div className="flex h-full" />;
 
@@ -340,23 +355,33 @@ export default function SupervisorChatPage() {
           <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* ── Contacts ─────────────────────────────────────────────────── */}
+        {/* ── Contacts / Directory ─────────────────────────────────────── */}
         <div className={cn(
           "absolute md:relative inset-y-0 left-0 z-30 md:z-auto w-72 md:w-64 md:shrink-0 bg-white rounded-2xl border border-slate-200/60 flex flex-col overflow-hidden transition-transform duration-200 md:translate-x-0",
           sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
         )}>
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <MessageSquare size={15} className="text-violet-500" />
-              Konuşmalar
-            </h2>
-            <div className="flex items-center gap-2">
-              {totalUnread > 0 && (
-                <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
-              )}
-              <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                <ChevronRight size={15} />
-              </button>
+          <div className="p-4 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <MessageSquare size={15} className="text-violet-500" />
+                Rehber
+              </h2>
+              <div className="flex items-center gap-2">
+                {totalUnread > 0 && (
+                  <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
+                )}
+                <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Kişi ara…"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-violet-500 transition-colors placeholder:text-slate-400"
+              />
             </div>
           </div>
 
@@ -370,8 +395,23 @@ export default function SupervisorChatPage() {
                 <Building2 size={28} className="mx-auto mb-2 text-slate-300" />
                 <p className="text-sm font-semibold">Kişi bulunamadı.</p>
               </div>
+            ) : filtered.length === 0 ? (
+              <p className="text-xs text-slate-400 p-4 text-center">"{search}" için sonuç yok.</p>
             ) : (
-              contacts.map(c => <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelect} />)
+              <>
+                {groupContacts.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                    {groupContacts.map(c => <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelect} />)}
+                  </>
+                )}
+                {individualContacts.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Müdürler</p>
+                    {individualContacts.map(c => <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelect} />)}
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -381,13 +421,15 @@ export default function SupervisorChatPage() {
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 rounded-xl text-sm font-bold">
-                <ChevronRight size={16} className="rotate-180" /> Konuşmaları Göster
+                <ChevronRight size={16} className="rotate-180" /> Rehberi Aç
               </button>
               <MessageSquare size={40} className="mb-3 text-slate-300" />
-              <p className="font-semibold text-slate-500">Mesajlaşmak için bir konuşma seçin.</p>
+              <p className="font-semibold text-slate-500">Kime yazmak istiyorsunuz?</p>
+              <p className="text-sm text-slate-400 mt-1">Soldan bir kanal veya müdür seçin.</p>
             </div>
           ) : (
             <>
+              {/* Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
                 <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors shrink-0">←</button>
                 <div className={cn(
@@ -396,12 +438,25 @@ export default function SupervisorChatPage() {
                 )}>
                   {selected.type === "group" ? <Users size={16} /> : selected.name.charAt(0)}
                 </div>
-                <div>
-                  <p className="font-bold text-slate-800 text-sm">{selected.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-800 text-sm truncate">{selected.name}</p>
                   <p className="text-xs text-slate-400">{selected.subtitle}</p>
                 </div>
+                {clearConfirm ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-slate-500">Sohbet silinsin mi?</span>
+                    <button onClick={clearConversation} className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors">Sil</button>
+                    <button onClick={() => setClearConfirm(false)} className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors">İptal</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
+                    className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
 
+              {/* Messages */}
               <div ref={scrollRef} onScroll={handleScroll}
                 className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
                 {messages.length === 0 && (
