@@ -28,7 +28,7 @@ type Personnel = {
 
 const ROLES = [
   { value: "employee", label: "Personel" },
-  { value: "manager", label: "Müdür Yardımcısı" },
+  { value: "manager", label: "Müdür / Yönetici" },
 ];
 
 const EMP_TYPES = [
@@ -67,6 +67,8 @@ export default function PersonnelManagementPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [toast, setToast] = useState("");
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
   const fetchPersonnel = async (u: any) => {
     setLoading(true);
@@ -200,8 +202,10 @@ export default function PersonnelManagementPage() {
       });
       const data = await res.json();
       if (!res.ok) { setEditError(data.error || "Güncelleme hatası"); setEditLoading(false); return; }
+      const roleChanged = editForm.user_access_level !== (editingPersonnel.user_access_level ?? "employee");
       setEditingPersonnel(null);
       fetchPersonnel(user);
+      if (roleChanged) showToast("Rol değişikliği kişinin tekrar giriş yapmasıyla aktif olur.");
     } catch { setEditError("Sunucu hatası"); }
     setEditLoading(false);
   };
@@ -465,6 +469,9 @@ export default function PersonnelManagementPage() {
                   <select value={editForm.user_access_level} onChange={(e) => setEditForm(f => ({ ...f, user_access_level: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
+                  {editForm.user_access_level !== (editingPersonnel?.user_access_level ?? "employee") && (
+                    <p className="text-[10px] text-amber-600 mt-1">Değişiklik tekrar girişle aktif olur.</p>
+                  )}
                 </div>
               </div>
 
@@ -736,6 +743,12 @@ export default function PersonnelManagementPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-xs">
+          {toast}
         </div>
       )}
     </div>

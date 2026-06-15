@@ -7,6 +7,12 @@ import { requireAuth } from "@/lib/auth";
 
 const DB_PATH = path.join(process.cwd(), "optishift.db");
 
+// Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
+const ROLE_RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
+function canAssignRole(assignerRole: string, targetRole: string): boolean {
+  return (ROLE_RANK[assignerRole] ?? 0) >= (ROLE_RANK[targetRole] ?? 0);
+}
+
 // GET: Departman veya lokasyona göre personeli getir
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -105,6 +111,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
+    // Atanan rol, atayan kişinin rolünü aşamaz
+    const requestedRole = role ?? "employee";
+    if (!canAssignRole(auth.role, requestedRole)) {
+      db.close();
+      return NextResponse.json({ error: `${auth.role} rolü, ${requestedRole} rolü atayamaz` }, { status: 403 });
+    }
+
+    // Manager sadece kendi şubesine personel ekleyebilir
+    if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
+      db.close();
+      return NextResponse.json({ error: "Sadece kendi şubenize personel ekleyebilirsiniz" }, { status: 403 });
+    }
+
     // location_id'nin bu org'a ait olduğunu doğrula
     const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!loc) {
@@ -177,14 +196,26 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
     // Personelin bu org'a ait olduğunu doğrula
-    const existing = db.prepare("SELECT id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id);
+    const existing = db.prepare("SELECT id, primary_location_id, user_access_level FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
     if (!existing) {
       db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
+    // Manager sadece kendi şubesindeki personeli düzenleyebilir
+    if (auth.role === "manager" && auth.location_id && existing.primary_location_id !== auth.location_id) {
+      db.close();
+      return NextResponse.json({ error: "Sadece kendi şubenizin personelini düzenleyebilirsiniz" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, prev_score, roles, weekly_off_day } = body;
+
+    // Atanan rol, atayan kişinin rolünü aşamaz
+    if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
+      db.close();
+      return NextResponse.json({ error: `${auth.role} rolü, ${user_access_level} rolü atayamaz` }, { status: 403 });
+    }
 
     const now = Math.floor(Date.now() / 1000);
     db.prepare(`
@@ -208,6 +239,20 @@ export async function PATCH(req: NextRequest) {
 
     if (name) db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);
     if (user_access_level) db.prepare("UPDATE users SET role=? WHERE personnel_id=?").run(user_access_level, id);
+
+    // Terfi/rol değişikliği bildirimi — eski rol farklıysa kişiye bildir
+    if (user_access_level && user_access_level !== existing.user_access_level) {
+      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Süpervizör", admin: "Admin" };
+      const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
+      db.prepare(`
+        INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+        VALUES (?, 'alert', 'Sistem Rolünüz Güncellendi', ?, '/portal', 0, ?)
+      `).run(
+        id,
+        `Sistem rolünüz "${newLabel}" olarak güncellendi. Yeni yetkileriniz için çıkış yapıp tekrar giriş yapın.`,
+        now
+      );
+    }
 
     db.close();
     return NextResponse.json({ success: true });

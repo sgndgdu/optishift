@@ -2,8 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import { requireAuth } from "@/lib/auth";
 
 const DB_PATH = path.join(process.cwd(), "optishift.db");
+
+const ROLE_RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
+function canAssignRole(assignerRole: string, targetRole: string): boolean {
+  return (ROLE_RANK[assignerRole] ?? 0) >= (ROLE_RANK[targetRole] ?? 0);
+}
 
 // GET /api/invites?token=xxx — token doğrula
 export async function GET(req: NextRequest) {
@@ -41,6 +47,13 @@ export async function GET(req: NextRequest) {
 
 // POST /api/invites — yeni davet token üret
 export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  if (auth.role === "employee") {
+    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+  }
+
   const db = new Database(DB_PATH);
   try {
     const body = await req.json();
@@ -48,6 +61,25 @@ export async function POST(req: NextRequest) {
 
     if (!org_id || !location_id || !created_by) {
       return NextResponse.json({ error: "org_id, location_id, created_by zorunlu" }, { status: 400 });
+    }
+
+    // org izolasyonu
+    if (org_id !== auth.org_id) {
+      db.close();
+      return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    }
+
+    // Atanan rol, atayan kişinin rolünü aşamaz
+    const requestedRole = role ?? "employee";
+    if (!canAssignRole(auth.role, requestedRole)) {
+      db.close();
+      return NextResponse.json({ error: `${auth.role} rolü, ${requestedRole} rolü için davet oluşturamaz` }, { status: 403 });
+    }
+
+    // Manager sadece kendi şubesine davet oluşturabilir
+    if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
+      db.close();
+      return NextResponse.json({ error: "Sadece kendi şubeniz için davet oluşturabilirsiniz" }, { status: 403 });
     }
 
     const token = Array.from({ length: 12 }, () =>
