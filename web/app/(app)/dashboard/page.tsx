@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,15 +30,15 @@ export default function DashboardPage() {
     const day = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - ((day + 6) % 7));
-    return monday.toISOString().split("T")[0];
+    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
   };
   const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
   // Planlama hedefi: gelecek haftanın pazartesi tarihi
   const getNextWeekStart = () => {
-    const monday = new Date(getTodayWeekStart() + "T00:00:00");
-    monday.setDate(monday.getDate() + 7);
-    return monday.toISOString().split("T")[0];
+    const [y, mo, d] = getTodayWeekStart().split("-").map(Number);
+    const nextMonday = new Date(y, mo - 1, d + 7);
+    return `${nextMonday.getFullYear()}-${String(nextMonday.getMonth() + 1).padStart(2, "0")}-${String(nextMonday.getDate()).padStart(2, "0")}`;
   };
 
   const loadData = async (u: typeof user) => {
@@ -157,7 +158,7 @@ export default function DashboardPage() {
   const autoCreateOpenShift = async (s: any) => {
     if (lateAutoCreated.current.has(s.id) || !user?.location_id) return;
     lateAutoCreated.current.add(s.id);
-    const today = new Date().toISOString().split("T")[0];
+    const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
     try {
       await fetch("/api/open-shifts", {
         method: "POST",
@@ -176,7 +177,7 @@ export default function DashboardPage() {
     } catch {}
   };
 
-  if (!mounted) return <div className="space-y-8" />;
+  if (!mounted || !user) return <div className="space-y-8" />;
 
   const activeCount = personnel.filter(p => p.status === "active").length;
   const scores = personnel.map(p => p.prev_score ?? 0);
@@ -184,10 +185,10 @@ export default function DashboardPage() {
 
   const openCount = openShifts.filter((s: any) => s.status === "open").length;
   const kpi = [
-    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100" },
-    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100" },
+    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100",  href: "/personnel" },
+    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100", href: "/requests" },
     { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
-    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100", href: "/fairness" },
     // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023)
     {
       label: "Yayın Öncülüğü",
@@ -199,6 +200,7 @@ export default function DashboardPage() {
       icon: CalendarCheck,
       color: publishLead === null ? "text-slate-500" : publishLead >= 7 ? "text-emerald-600" : publishLead >= 3 ? "text-amber-600" : "text-red-600",
       bg: publishLead === null ? "bg-slate-100" : publishLead >= 7 ? "bg-emerald-100" : publishLead >= 3 ? "bg-amber-100" : "bg-red-100",
+      href: "/schedule",
     },
   ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
 
@@ -272,7 +274,12 @@ export default function DashboardPage() {
                 Gelecek hafta için müsaitlik girmeyen: {availMissing.length} kişi
               </span>
               <p className="text-xs text-amber-700 truncate">
-                {availMissing.map((p: any) => p.name).join(", ")}
+                {availMissing.map((p: any, i: number) => (
+                  <span key={p.id ?? i}>
+                    {i > 0 && ", "}
+                    <Link href="/personnel" className="font-semibold hover:underline">{p.name}</Link>
+                  </span>
+                ))}
               </p>
             </div>
           </div>
@@ -301,9 +308,14 @@ export default function DashboardPage() {
                 </div>
                 <CardTitle className="text-base font-bold">Bekleyen Talepler</CardTitle>
               </div>
-              <Badge variant={leaveRequests.length > 0 ? "warning" : "secondary"}>
-                {leaveRequests.length} Talep
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={leaveRequests.length > 0 ? "warning" : "secondary"}>
+                  {leaveRequests.length} Talep
+                </Badge>
+                <Link href="/requests" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5">
+                  Tümü <ArrowRight size={12} />
+                </Link>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="flex-1 p-5 space-y-3">
@@ -321,7 +333,9 @@ export default function DashboardPage() {
                 <div key={req.id} className="group flex items-center justify-between p-4 rounded-xl border border-slate-200/60 bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
                   <div>
                     <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                       {req.personnel_name ?? req.personnel_id}
+                      <Link href="/personnel" className="hover:underline hover:text-primary transition-colors">
+                        {req.personnel_name ?? req.personnel_id}
+                      </Link>
                     </div>
                     <div className="text-xs text-slate-500 font-medium mt-1 bg-slate-50 px-2.5 py-1 rounded-md inline-block border border-slate-100">
                       {req.start_date} → {req.end_date} <span className="font-bold text-slate-400 mx-1">|</span> {req.days} gün
@@ -346,12 +360,15 @@ export default function DashboardPage() {
         <Card className="flex flex-col stripe-card border-0 shadow-none">
           <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 flex-1">
                 <div className="p-2 bg-indigo-100 rounded-xl text-primary">
                   <TrendingUp size={18} />
                 </div>
                 <CardTitle className="text-base font-bold">Adalet Skoru Dağılımı</CardTitle>
               </div>
+              <Link href="/fairness" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
+                Tümü <ArrowRight size={12} />
+              </Link>
             </div>
           </CardHeader>
           <CardContent className="p-5">
@@ -374,7 +391,7 @@ export default function DashboardPage() {
                       <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
                         {p.name.charAt(0)}
                       </div>
-                      <div className="w-24 text-sm font-semibold text-slate-700 truncate">{p.name.split(" ")[0]}</div>
+                      <Link href="/personnel" className="w-24 text-sm font-semibold text-slate-700 truncate hover:text-primary hover:underline transition-colors">{p.name.split(" ")[0]}</Link>
                       <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
                         <div className="bg-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${pct}%` }} />
                       </div>
@@ -441,7 +458,7 @@ export default function DashboardPage() {
                   const isCheckedOut = !!s.check_out_at;
                   const late         = isLate(s);
                   return (
-                    <div key={s.id} className={`flex items-center gap-3 p-3.5 rounded-xl border transition-colors ${
+                    <Link key={s.id} href="/personnel" className={`flex items-center gap-3 p-3.5 rounded-xl border transition-colors hover:shadow-sm ${
                       isCheckedOut ? "bg-slate-50 border-slate-100" :
                       isCheckedIn  ? "bg-emerald-50 border-emerald-200" :
                       late         ? "bg-red-50 border-red-200" :
@@ -464,7 +481,7 @@ export default function DashboardPage() {
                           {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

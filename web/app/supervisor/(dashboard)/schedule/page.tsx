@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, CalendarClock, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +17,13 @@ function getWeekStart(date: Date): string {
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split("T")[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function addWeeks(dateStr: string, n: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + n * 7);
-  return d.toISOString().split("T")[0];
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, mo - 1, d + n * 7);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function weekDates(weekStart: string): string[] {
@@ -217,7 +218,7 @@ function SupervisorScheduleInner() {
                         <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-600 font-bold text-xs flex items-center justify-center shrink-0">
                           {p.name.charAt(0)}
                         </div>
-                        <span className="text-sm font-semibold text-slate-800 truncate max-w-[100px]">{p.name}</span>
+                        <Link href={`/supervisor/personnel?location_id=${selectedLocId}`} className="text-sm font-semibold text-slate-800 truncate max-w-[100px] hover:underline hover:text-primary">{p.name}</Link>
                       </div>
                     </td>
                     {Array.from({ length: 7 }, (_, day) => {

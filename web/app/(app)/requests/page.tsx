@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ClipboardList, ArrowLeftRight, FileEdit, CalendarOff,
   CheckCircle2, XCircle, Clock, History
@@ -242,7 +243,9 @@ export default function ManagerRequestsPage() {
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <ArrowLeftRight size={13} className="text-primary shrink-0" />
                       <p className="text-sm font-black text-slate-900">
-                        {s.requester_name} ↔ {s.target_name}
+                        <Link href="/personnel" className="hover:underline hover:text-primary">{s.requester_name}</Link>
+                        {" ↔ "}
+                        <Link href="/personnel" className="hover:underline hover:text-primary">{s.target_name}</Link>
                       </p>
                       <StatusBadge status={s.status} />
                     </div>
@@ -292,7 +295,7 @@ export default function ManagerRequestsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <FileEdit size={13} className="text-blue-600 shrink-0" />
-                      <p className="text-sm font-black text-slate-900">{e.personnel_name ?? "Personel"}</p>
+                      <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">{e.personnel_name ?? "Personel"}</Link>
                       <StatusBadge status={e.status} />
                     </div>
                     <p className="text-xs text-slate-500">
@@ -341,9 +344,9 @@ export default function ManagerRequestsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <CalendarOff size={13} className="text-violet-600 shrink-0" />
-                      <p className="text-sm font-black text-slate-900">
+                      <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">
                         {l.personnel_name ?? l.personnel_id}
-                      </p>
+                      </Link>
                       <StatusBadge status={l.status} />
                     </div>
                     <p className="text-xs text-slate-600 font-semibold">{l.type}</p>

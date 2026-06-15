@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Coffee, Play, Square, AlertTriangle, Users, Clock, CheckCircle2 } from "lucide-react";
 
 const MAX_BREAK_MIN = 15; // aynı anda birden fazla kişi molaya çıkınca uyarı
@@ -44,7 +45,7 @@ export default function BreaksPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
 
-  const today = new Date().toISOString().slice(0, 10);
+  const _td = new Date(); const today = `${_td.getFullYear()}-${String(_td.getMonth()+1).padStart(2,"0")}-${String(_td.getDate()).padStart(2,"0")}`;
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -192,7 +193,7 @@ export default function BreaksPage() {
                   {s.personnel_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-slate-900">{s.personnel_name}</p>
+                  <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">{s.personnel_name}</Link>
                   <p className="text-xs text-slate-500">Başladı: {formatHM(s.start_at)}</p>
                 </div>
                 <div className="text-right shrink-0">
@@ -259,7 +260,7 @@ export default function BreaksPage() {
                 <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
                   {s.personnel_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
-                <p className="text-sm font-semibold text-slate-700 flex-1">{s.personnel_name}</p>
+                <Link href="/personnel" className="text-sm font-semibold text-slate-700 flex-1 hover:underline hover:text-primary">{s.personnel_name}</Link>
                 <p className="text-xs text-slate-400">{formatHM(s.start_at)} – {formatHM(s.end_at)}</p>
                 <span className="text-xs font-bold text-slate-500">{s.duration_min} dk</span>
               </div>

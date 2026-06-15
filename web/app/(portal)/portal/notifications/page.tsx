@@ -6,6 +6,18 @@ import { useRouter } from "next/navigation";
 import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+function getNotifHref(notif: any): string | null {
+  switch (notif.type) {
+    case "schedule":      return "/portal/calendar";
+    case "leave_approved":
+    case "leave_rejected":
+    case "trade_request":
+    case "open_shift":    return "/portal/requests";
+    case "availability":  return "/portal/availability";
+    default:              return null;
+  }
+}
+
 const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
   schedule:      { Icon: CalendarDays,  color: "bg-blue-100 text-blue-600" },
   leave_approved: { Icon: CheckCircle2, color: "bg-emerald-100 text-emerald-600" },
@@ -117,7 +129,11 @@ export default function NotificationsPage() {
             return (
               <div
                 key={notif.id}
-                onClick={() => !notif.is_read && markRead(notif.id)}
+                onClick={async () => {
+                  if (!notif.is_read) await markRead(notif.id);
+                  const href = getNotifHref(notif);
+                  if (href) router.push(href);
+                }}
                 className={`p-4 rounded-2xl border transition-all flex gap-4 cursor-pointer ${notif.is_read ? "bg-white border-slate-200" : "bg-indigo-50/50 border-indigo-100 shadow-sm"}`}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${cfg.color}`}>

@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   BarChart3, Building2, Users, Clock, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, TrendingUp,
@@ -15,7 +16,7 @@ function getWeekStart(offsetWeeks = 0) {
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff + offsetWeeks * 7);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatWeekLabel(weekStart: string) {
@@ -214,9 +215,9 @@ export default function SupervisorReports() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KpiCard icon={<Building2 size={16} className="text-blue-600" />} bg="bg-blue-50"
-          label="Şube" value={`${branches.length}`} />
+          label="Şube" value={`${branches.length}`} href="/supervisor" />
         <KpiCard icon={<Users size={16} className="text-indigo-600" />} bg="bg-indigo-50"
-          label="Personel" value={`${totalPersonnel}`} />
+          label="Personel" value={`${totalPersonnel}`} href="/supervisor/personnel" />
         <KpiCard icon={<Clock size={16} className="text-emerald-600" />} bg="bg-emerald-50"
           label="Toplam Saat" value={`${totalHours} sa`} sub={`${totalShifts} vardiya`} />
         <KpiCard
@@ -227,6 +228,7 @@ export default function SupervisorReports() {
           label="Yasal Uyumluluk"
           value={totalFlags > 0 ? `${totalFlags} uyarı` : "Temiz"}
           valueClass={totalFlags > 0 ? "text-red-600" : "text-emerald-700"}
+          onClick={totalFlags > 0 ? () => setActiveTab("compliance") : undefined}
         />
       </div>
 
@@ -261,7 +263,8 @@ export default function SupervisorReports() {
                 <EmptyState text="Şube bulunamadı" />
               )}
               {branches.map(branch => (
-                <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 p-5">
+                <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
@@ -273,7 +276,8 @@ export default function SupervisorReports() {
                       </div>
                     </div>
                     {branch.compliance_flags.length > 0 && (
-                      <span className="text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full shrink-0 cursor-pointer hover:bg-red-100"
+                        onClick={e => { e.stopPropagation(); setActiveTab("compliance"); }}>
                         {branch.compliance_flags.length} uyarı
                       </span>
                     )}
@@ -284,7 +288,7 @@ export default function SupervisorReports() {
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <StatBox label="Vardiya" value={`${branch.scheduled_shifts}`} />
+                    <StatBox label="Vardiya" value={`${branch.scheduled_shifts}`} href={`/supervisor/schedule?location_id=${branch.id}`} />
                     <StatBox label="Toplam Saat" value={`${branch.total_hours} sa`} />
                     <StatBox
                       label="Ort. Puan"
@@ -311,9 +315,10 @@ export default function SupervisorReports() {
                 branches.map(branch =>
                   branch.compliance_flags.length > 0 ? (
                     <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                      <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2">
+                      <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
                         <Building2 size={13} className="text-slate-400" />
-                        <span className="text-xs font-bold text-slate-600">{branch.name}</span>
+                        <span className="text-xs font-bold text-slate-600 hover:underline">{branch.name}</span>
                       </div>
                       <div className="divide-y divide-slate-50">
                         {branch.compliance_flags.map((flag, i) => {
@@ -322,7 +327,7 @@ export default function SupervisorReports() {
                           return (
                             <div key={i} className="px-5 py-3 flex items-center justify-between gap-4">
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-slate-800">{flag.name}</p>
+                                <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-bold text-slate-800 hover:underline hover:text-primary">{flag.name}</Link>
                                 <div className="mt-1.5 h-1.5 w-36 bg-slate-100 rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full ${over ? "bg-red-500" : "bg-amber-400"}`}
@@ -383,9 +388,10 @@ export default function SupervisorReports() {
 
               {branches.map(branch => (
                 <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2">
+                  <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
                     <Building2 size={13} className="text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600">{branch.name}</span>
+                    <span className="text-xs font-bold text-slate-600 hover:underline">{branch.name}</span>
                   </div>
                   {branch.personnel.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-5">Personel yok</p>
@@ -400,7 +406,7 @@ export default function SupervisorReports() {
                             <div key={i} className="px-5 py-3 flex items-center gap-4">
                               <div className="w-5 text-[10px] font-bold text-slate-400 shrink-0">{i + 1}</div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-slate-800">{p.name}</p>
+                                <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-semibold text-slate-800 hover:underline hover:text-primary">{p.name}</Link>
                                 <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-violet-400 rounded-full transition-all"
@@ -429,7 +435,7 @@ export default function SupervisorReports() {
 // ─── sub-components ──────────────────────────────────────────────────────────
 
 function KpiCard({
-  icon, bg, label, value, sub, valueClass,
+  icon, bg, label, value, sub, valueClass, href, onClick,
 }: {
   icon: React.ReactNode;
   bg: string;
@@ -437,20 +443,44 @@ function KpiCard({
   value: string;
   sub?: string;
   valueClass?: string;
+  href?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-4">
+  const isClickable = !!(href || onClick);
+  const inner = (
+    <>
       <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center mb-3`}>
         {icon}
       </div>
       <p className={`text-xl font-black ${valueClass ?? "text-slate-900"}`}>{value}</p>
       {sub && <p className="text-[10px] text-slate-400 font-medium">{sub}</p>}
       <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={`bg-white rounded-2xl border border-slate-100 p-4 block ${isClickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className={`bg-white rounded-2xl border border-slate-100 p-4 ${isClickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+      onClick={onClick}>
+      {inner}
     </div>
   );
 }
 
-function StatBox({ label, value }: { label: string; value: string }) {
+function StatBox({ label, value, href }: { label: string; value: string; href?: string }) {
+  if (href) {
+    return (
+      <Link href={href} className="bg-slate-50 rounded-xl px-3 py-2.5 block hover:bg-slate-100 transition-colors" onClick={e => e.stopPropagation()}>
+        <p className="text-base font-black text-slate-900">{value}</p>
+        <p className="text-[10px] text-slate-400 font-medium mt-0.5">{label}</p>
+      </Link>
+    );
+  }
   return (
     <div className="bg-slate-50 rounded-xl px-3 py-2.5">
       <p className="text-base font-black text-slate-900">{value}</p>

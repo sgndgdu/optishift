@@ -15,7 +15,10 @@ function getWeekStart(offset: number): string {
   const day = now.getDay();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-  return monday.toISOString().split("T")[0];
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, "0");
+  const d = String(monday.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -138,6 +141,13 @@ export default function PortalDashboard() {
   };
 
   if (!mounted) return <div className="p-5 space-y-5" />;
+
+  const getNotifHref = (n: any) => {
+    if (n.type === "schedule") return "/portal/calendar";
+    if (["leave_approved","leave_rejected","trade_request","open_shift"].includes(n.type)) return "/portal/requests";
+    if (n.type === "availability") return "/portal/availability";
+    return "/portal/notifications";
+  };
 
   // computed
   const shiftDays     = new Set(shifts.map((s: any) => s.day));
@@ -351,7 +361,7 @@ export default function PortalDashboard() {
               const dur = shiftDur(s);
               const isT = s.day === todayIdx;
               return (
-                <div key={s.id ?? idx} className="flex items-center gap-3 px-4 py-3.5">
+                <Link key={s.id ?? idx} href="/portal/calendar" className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     isT ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
                   }`}>
@@ -364,7 +374,7 @@ export default function PortalDashboard() {
                     <p className="text-xs text-slate-400 font-medium mt-0.5">{s.start_time} – {s.end_time}</p>
                   </div>
                   <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">{dur}s</span>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -380,7 +390,7 @@ export default function PortalDashboard() {
           <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{user.prev_score ?? 0}</p>
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Adalet Puanı</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <Link href="/portal/calendar" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 block hover:shadow-md transition-shadow">
           <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">
             <Clock size={18} />
           </div>
@@ -393,7 +403,7 @@ export default function PortalDashboard() {
             </p>
           )}
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Bu Hafta</p>
-        </div>
+        </Link>
       </div>
 
       {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
@@ -419,7 +429,7 @@ export default function PortalDashboard() {
           ) : (
             <div className="divide-y divide-slate-50">
               {notifs.map(n => (
-                <Link key={n.id} href="/portal/notifications"
+                <Link key={n.id} href={getNotifHref(n)}
                   className={`flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors ${!n.is_read ? "bg-indigo-50/40" : ""}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                     n.type === "schedule" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"

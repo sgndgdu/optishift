@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, Users, CalendarClock, ChevronRight,
-  Plus, MapPin, Layers, AlertCircle, Zap,
+  Plus, MapPin, Layers, AlertCircle, Zap, CheckCircle2, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 type Location = {
@@ -16,7 +17,19 @@ type Location = {
   name: string;
   dept_count: number;
   personnel_count: number;
-  publish_lead: number | null; // programın hafta başından ort. kaç gün önce yayınlandığı
+  publish_lead: number | null;
+};
+
+type EditRequest = {
+  id: number;
+  org_id: string;
+  location_id: string;
+  week_start: string;
+  requested_by: string;
+  requested_by_name: string;
+  status: string;
+  created_at: number;
+  note?: string | null;
 };
 
 export default function SupervisorDashboard() {
@@ -26,6 +39,9 @@ export default function SupervisorDashboard() {
   const [org, setOrg]           = useState<any>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [editRequests, setEditRequests] = useState<EditRequest[]>([]);
+  const [reviewingId, setReviewingId]   = useState<number | null>(null);
+  const [reviewNote, setReviewNote]     = useState("");
 
   // ── Auth ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -37,13 +53,38 @@ export default function SupervisorDashboard() {
     setMounted(true);
   }, []);
 
+  // ── Onay talepleri ─────────────────────────────────────────────────────
+  const loadEditRequests = async (orgId: string) => {
+    try {
+      const res = await fetch(`/api/schedule/edit-requests?org_id=${orgId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setEditRequests(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
   useEffect(() => {
     if (!mounted) return;
     if (!user) { router.push("/login"); return; }
     if (user.role !== "supervisor" && user.role !== "admin") { router.push("/login"); return; }
     loadData();
+    if (user.org_id) loadEditRequests(user.org_id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user]);
+
+  const handleReview = async (id: number, status: "approved" | "rejected") => {
+    setReviewingId(id);
+    try {
+      await fetch("/api/schedule/edit-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status, note: reviewNote || null }),
+      });
+      setReviewNote("");
+      setEditRequests(prev => prev.filter(r => r.id !== id));
+    } catch {}
+    setReviewingId(null);
+  };
 
   // ── Veri yükleme ────────────────────────────────────────────────────────
   const loadData = async () => {
@@ -111,11 +152,12 @@ export default function SupervisorDashboard() {
       {/* Özet sayılar */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
-          { label: "Şube",       value: locations.length, icon: Building2, color: "text-violet-600", bg: "bg-violet-100" },
+          { label: "Şube",       value: locations.length, icon: Building2, color: "text-violet-600", bg: "bg-violet-100", href: "/supervisor" },
           { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-indigo-600", bg: "bg-indigo-100" },
-          { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-emerald-600", bg: "bg-emerald-100" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <Card key={label} className="border-0 shadow-sm">
+          { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-emerald-600", bg: "bg-emerald-100", href: "/supervisor/personnel" },
+        ].map(({ label, value, icon: Icon, color, bg, href }) => (
+          <Card key={label} className={`border-0 shadow-sm ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+            onClick={href ? () => router.push(href) : undefined}>
             <CardContent className="p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
               <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
                 <Icon size={18} className={color} />
@@ -130,6 +172,66 @@ export default function SupervisorDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Bekleyen Düzenleme Onayları */}
+      {editRequests.length > 0 && (
+        <div>
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            Bekleyen Onaylar
+            <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{editRequests.length}</span>
+          </h2>
+          <div className="space-y-2">
+            {editRequests.map(req => {
+              const locName = locations.find(l => l.id === req.location_id)?.name ?? req.location_id;
+              const isReviewing = reviewingId === req.id;
+              return (
+                <div key={req.id} className="bg-white border border-amber-200 rounded-2xl shadow-sm overflow-hidden">
+                  <div className="flex items-start gap-4 px-5 py-4">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 text-sm">{req.requested_by_name} — <Link href={`/supervisor/schedule?location_id=${req.location_id}`} className="text-slate-500 font-semibold hover:underline hover:text-primary" onClick={e => e.stopPropagation()}>{locName}</Link></p>
+                      <p className="text-xs text-slate-400 mt-0.5">{req.week_start} haftası yayınlanmış planı düzenlemek istiyor</p>
+                      <input
+                        type="text"
+                        placeholder="Not ekle (opsiyonel)…"
+                        value={reviewNote}
+                        onChange={e => setReviewNote(e.target.value)}
+                        className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 placeholder-slate-300 outline-none focus:ring-2 focus:ring-indigo-200"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleReview(req.id, "approved")}
+                        disabled={isReviewing}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-colors",
+                          isReviewing ? "opacity-50 cursor-not-allowed bg-emerald-50 text-emerald-600 border border-emerald-200"
+                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                        )}
+                      >
+                        <CheckCircle2 size={12} /> Onayla
+                      </button>
+                      <button
+                        onClick={() => handleReview(req.id, "rejected")}
+                        disabled={isReviewing}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-colors border",
+                          isReviewing ? "opacity-50 cursor-not-allowed border-slate-200 text-slate-400"
+                            : "border-red-200 text-red-600 hover:bg-red-50"
+                        )}
+                      >
+                        <X size={12} /> Reddet
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Şube kartları */}
       <div>
@@ -162,7 +264,8 @@ export default function SupervisorDashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {locations.map(loc => (
-              <Card key={loc.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <Card key={loc.id} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/supervisor/schedule?location_id=${loc.id}`)}>
                 <CardContent className="p-6 space-y-4">
                   {/* Üst satır */}
                   <div className="flex items-start justify-between">
@@ -191,11 +294,13 @@ export default function SupervisorDashboard() {
                       <p className="text-lg font-black text-indigo-600">{loc.dept_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Departman</p>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition-colors"
+                      onClick={e => { e.stopPropagation(); router.push(`/supervisor/personnel?location_id=${loc.id}`); }}>
                       <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Personel</p>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-violet-50 transition-colors"
+                      onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
                       <p className={`text-lg font-black ${
                         loc.publish_lead === null ? "text-slate-300"
                         : loc.publish_lead >= 7 ? "text-emerald-600"
@@ -210,13 +315,15 @@ export default function SupervisorDashboard() {
 
                   {/* Aksiyonlar */}
                   <div className="flex gap-2 pt-1">
-                    <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1">
+                    <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"
+                      onClick={e => e.stopPropagation()}>
                       <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-xl transition-colors">
                         <CalendarClock size={13} />
                         Vardiya Planı
                       </button>
                     </Link>
-                    <Link href={`/supervisor/personnel?location_id=${loc.id}`} className="flex-1">
+                    <Link href={`/supervisor/personnel?location_id=${loc.id}`} className="flex-1"
+                      onClick={e => e.stopPropagation()}>
                       <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
                         <Users size={13} />
                         Personel

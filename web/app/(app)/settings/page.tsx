@@ -133,6 +133,7 @@ export default function SettingsPage() {
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
   const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
+  const [leaveOverrideBonus, setLeaveOverrideBonus]               = useState(1.5);
   const [weekendMultiplier, setWeekendMultiplier]                 = useState(1.2);
   const [nightMultiplier, setNightMultiplier]                     = useState(1.3);
 
@@ -188,6 +189,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
           if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
+          if (typeof loc.rules?.leave_override_bonus_multiplier === "number") setLeaveOverrideBonus(loc.rules.leave_override_bonus_multiplier);
           if (typeof loc.rules?.weekend_multiplier === "number")        setWeekendMultiplier(loc.rules.weekend_multiplier);
           if (typeof loc.rules?.night_multiplier === "number")          setNightMultiplier(loc.rules.night_multiplier);
 
@@ -316,9 +318,10 @@ export default function SettingsPage() {
             preferred_not_multiplier:     preferredNotMultiplier,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
-            change_compensation_points:   changeCompensationPoints,
-            weekend_multiplier:           weekendMultiplier,
-            night_multiplier:             nightMultiplier,
+            change_compensation_points:         changeCompensationPoints,
+            leave_override_bonus_multiplier:    leaveOverrideBonus,
+            weekend_multiplier:                 weekendMultiplier,
+            night_multiplier:                   nightMultiplier,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -565,6 +568,48 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <hr className="border-slate-100" />
+
+              {/* 4. Adalet & Telafi */}
+              <div>
+                <SectionLabel>Adalet & Telafi</SectionLabel>
+                <div className="space-y-0 border border-slate-200 rounded-xl overflow-hidden">
+                  <RuleRow
+                    label="Tercih Edilmeyen Gün Çarpanı"
+                    description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır.</>}
+                    right={<NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />}
+                  />
+                  <div className="border-t border-slate-100">
+                    <RuleRow
+                      label="Haftalık Sarı Gün Hakkı"
+                      description="Personel haftada en fazla bu kadar günü 'tercih etmiyorum' olarak işaretleyebilir."
+                      right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
+                    />
+                  </div>
+                  <div className="border-t border-slate-100">
+                    <RuleRow
+                      label="Clopening Eşiği"
+                      description="Kapanış→Açılış geçişinde bu saatin altında dinlenme varsa ihlal modalında işaretlenir."
+                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
+                    />
+                  </div>
+                  <div className="border-t border-slate-100">
+                    <RuleRow
+                      label="Yayın Sonrası Değişiklik Telafisi"
+                      description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele verilecek telafi puanı."
+                      right={<NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />}
+                    />
+                  </div>
+                  <div className="border-t border-slate-100">
+                    <RuleRow
+                      label="Zorunlu Atama Bonus Çarpanı"
+                      description="İzinliyken müdür tarafından atanan personel kabul ederse puan yükü bu katsayıyla çarpılır."
+                      right={<NumberInput value={leaveOverrideBonus} onChange={setLeaveOverrideBonus} min={1} max={3} step={0.25} prefix="×" />}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
                   <Save size={16} /> Vardiyaları Kaydet
@@ -596,29 +641,6 @@ export default function SettingsPage() {
                   label="Maks. Ardışık Çalışma"
                   description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
                   right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
-                />
-              </SectionCard>
-
-              <SectionCard title="Adalet & Telafi">
-                <RuleRow
-                  label="Tercih Edilmeyen Gün Çarpanı"
-                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır.</>}
-                  right={<NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />}
-                />
-                <RuleRow
-                  label="Haftalık Sarı Gün Hakkı"
-                  description="Personel haftada en fazla bu kadar günü 'tercih etmiyorum' olarak işaretleyebilir."
-                  right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
-                />
-                <RuleRow
-                  label="Clopening Eşiği"
-                  description="Kapanış→Açılış geçişinde bu saatin altında dinlenme varsa ihlal modalında işaretlenir."
-                  right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
-                />
-                <RuleRow
-                  label="Yayın Sonrası Değişiklik Telafisi"
-                  description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele verilecek telafi puanı."
-                  right={<NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />}
                 />
               </SectionCard>
 

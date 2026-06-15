@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle } from "lucide-react";
 
 function formatDate(d: string) {
@@ -42,7 +43,7 @@ export default function OpenShiftsPage() {
       // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
       if (new URLSearchParams(window.location.search).get("new") === "1") {
         setShowForm(true);
-        setDate(new Date().toISOString().split("T")[0]);
+        const _od = new Date(); setDate(`${_od.getFullYear()}-${String(_od.getMonth()+1).padStart(2,"0")}-${String(_od.getDate()).padStart(2,"0")}`);
       }
       setMounted(true);
     } catch {}
@@ -277,7 +278,8 @@ export default function OpenShiftsPage() {
               <div className="flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-2">
                 <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
                 <p className="text-xs font-bold text-emerald-700">
-                  {s.claimed_by_name} bu vardiyayı üstlendi — {s.hero_bonus_multiplier}x kahraman bonusu kazandı
+                  <Link href="/personnel" className="hover:underline">{s.claimed_by_name}</Link>
+                  {" bu vardiyayı üstlendi — "}{s.hero_bonus_multiplier}x kahraman bonusu kazandı
                 </p>
               </div>
             )}
