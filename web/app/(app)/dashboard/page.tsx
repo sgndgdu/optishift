@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef } from "react";
+import { useManagerAuth } from "@/hooks/useAuth";
 import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,8 +12,7 @@ import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = useManagerAuth();
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
@@ -80,22 +80,11 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_manager_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
+    if (!mounted || !user) return;
     if (!user.location_id) { router.push("/onboarding"); return; }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData(user);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, user, router]);
+  }, [mounted, user]);
 
   // Dakikada bir "now" güncelle (geç kalan tespiti için) + 60 sn'de bir canlı operasyon yenile
   useEffect(() => {

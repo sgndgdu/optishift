@@ -5,18 +5,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-function getNotifHref(notif: any): string | null {
-  switch (notif.type) {
-    case "schedule":      return "/portal/calendar";
-    case "leave_approved":
-    case "leave_rejected":
-    case "trade_request":
-    case "open_shift":    return "/portal/requests";
-    case "availability":  return "/portal/availability";
-    default:              return null;
-  }
-}
+import { usePortalAuth } from "@/hooks/useAuth";
+import { timeAgo } from "@/lib/date";
+import { getNotifHref } from "@/lib/notif";
 
 const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
   schedule:      { Icon: CalendarDays,  color: "bg-blue-100 text-blue-600" },
@@ -26,39 +17,11 @@ const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
   alert:          { Icon: AlertTriangle, color: "bg-amber-100 text-amber-600" },
 };
 
-function timeAgo(ts: number | null): string {
-  if (!ts) return "";
-  const diff = Date.now() - ts * 1000;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return "Az önce";
-  if (hours < 1) return `${minutes} dakika önce`;
-  if (hours < 24) return `${hours} saat önce`;
-  return `${days} gün önce`;
-}
-
 export default function NotificationsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = usePortalAuth();
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_portal_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) router.push("/login");
-  }, [mounted, user, router]);
 
   useEffect(() => {
     if (!user?.personnel_id) return;

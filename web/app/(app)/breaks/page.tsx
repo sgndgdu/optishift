@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Coffee, Play, Square, AlertTriangle, Users, Clock, CheckCircle2 } from "lucide-react";
+import { useManagerAuth } from "@/hooks/useAuth";
 
 const MAX_BREAK_MIN = 15; // aynı anda birden fazla kişi molaya çıkınca uyarı
 
@@ -21,27 +22,13 @@ function formatHM(ts: number) {
 
 export default function BreaksPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
-
+  const { user, mounted } = useManagerAuth();
   const [sessions, setSessions]   = useState<any[]>([]);
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [toast, setToast]         = useState("");
   const [tick, setTick]           = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_manager_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => { if (mounted && !user) router.push("/login"); }, [mounted, user, router]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
 

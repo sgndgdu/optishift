@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSupervisorAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, CalendarClock, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +43,7 @@ export default function SupervisorSchedulePage() {
 function SupervisorScheduleInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = useSupervisorAuth();
 
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocId, setSelectedLocId] = useState<string>("");
@@ -52,21 +52,8 @@ function SupervisorScheduleInner() {
   const [shifts, setShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_supervisor_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
-    if (user.role !== "supervisor" && user.role !== "admin") { router.push("/login"); return; }
-
+    if (!mounted || !user) return;
     fetch(`/api/locations?org_id=${user.org_id}`)
       .then(r => r.json())
       .then(data => {

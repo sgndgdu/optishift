@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useManagerAuth } from "@/hooks/useAuth";
 import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle } from "lucide-react";
 
 function formatDate(d: string) {
@@ -18,8 +19,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function OpenShiftsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = useManagerAuth();
 
   const [shifts, setShifts]         = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -34,24 +34,17 @@ export default function OpenShiftsPage() {
   const [bonus, setBonus]           = useState(1.5);
   const [saving, setSaving]         = useState(false);
 
+  // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      setShowForm(true);
+      const _od = new Date();
+      setDate(`${_od.getFullYear()}-${String(_od.getMonth()+1).padStart(2,"0")}-${String(_od.getDate()).padStart(2,"0")}`);
+    }
+  }, []);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_manager_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
-      if (new URLSearchParams(window.location.search).get("new") === "1") {
-        setShowForm(true);
-        const _od = new Date(); setDate(`${_od.getFullYear()}-${String(_od.getMonth()+1).padStart(2,"0")}-${String(_od.getDate()).padStart(2,"0")}`);
-      }
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
+    if (!mounted || !user) return;
     if (user.role !== "manager" && user.role !== "admin" && user.role !== "supervisor") {
       router.push("/dashboard");
     }

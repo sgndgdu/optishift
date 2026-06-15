@@ -7,59 +7,41 @@ import { MapPin, RefreshCcw, Users, Clock, ChevronLeft, ChevronRight } from "luc
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-function getWeekStart(offset: number): string {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-  return monday.toISOString().split("T")[0];
-}
+import { usePortalAuth } from "@/hooks/useAuth";
+import { getWeekStart } from "@/lib/date";
+import { DAY_NAMES as DAYS } from "@/lib/constants";
 
 export default function PortalCalendar() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = usePortalAuth();
   const [tab, setTab] = useState<"mine" | "all">("mine");
   const [weekOffset, setWeekOffset] = useState(0);
   const [shifts, setShifts] = useState<any[]>([]);
+  const [allShifts, setAllShifts] = useState<any[]>([]);
+  const [personnelMap, setPersonnelMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
-  const fetchShifts = async (personnelId: string, offset: number) => {
+  const weekStart = getWeekStart(weekOffset);
+
+  useEffect(() => {
+    if (!user?.personnel_id) return;
     setLoading(true);
-    try {
-      const weekStart = getWeekStart(offset);
-      const res = await fetch(`/api/shifts?personnel_id=${personnelId}&week_start=${weekStart}`);
-      if (res.ok) {
-        const data = await res.json();
-        setShifts(Array.isArray(data) ? data : []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_portal_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) router.push("/login");
-  }, [mounted, user, router]);
-
-  useEffect(() => {
-    if (user && user.personnel_id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchShifts(user.personnel_id, weekOffset);
-    }
-  }, [user, weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+    Promise.all([
+      fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${weekStart}`).then(r => r.json()).catch(() => []),
+      user.location_id
+        ? fetch(`/api/shifts?location_id=${user.location_id}&week_start=${weekStart}`).then(r => r.json()).catch(() => [])
+        : Promise.resolve([]),
+      user.location_id
+        ? fetch(`/api/personnel?location_id=${user.location_id}`).then(r => r.json()).catch(() => [])
+        : Promise.resolve([]),
+    ]).then(([mine, all, ppl]) => {
+      setShifts(Array.isArray(mine) ? mine : []);
+      setAllShifts(Array.isArray(all) ? all : []);
+      const map: Record<string, string> = {};
+      if (Array.isArray(ppl)) ppl.forEach((p: any) => { map[p.id] = p.name; });
+      setPersonnelMap(map);
+    }).finally(() => setLoading(false));
+  }, [user, weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!mounted) return <div className="space-y-4" />;
 
@@ -70,16 +52,11 @@ export default function PortalCalendar() {
     return `${weekOffset > 0 ? '+' : ''}${weekOffset} Hafta`;
   };
 
-  const getDayName = (dayIndex: number) => {
-    const days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-    return days[dayIndex];
-  };
-
   return (
     <div className="p-5 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Vardiyalarım</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tab === "mine" ? "Vardiyalarım" : "Şube Programı"}</h1>
           <p className="text-sm text-slate-500 mt-1">{getWeekLabel()}</p>
         </div>
       </div>
@@ -150,7 +127,7 @@ export default function PortalCalendar() {
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex-1">
                           <div className={`font-black text-sm mb-3 tracking-tight ${isOff ? "text-slate-400" : "text-slate-800"}`}>
-                            {getDayName(dayIndex)}
+                            {DAYS[dayIndex]}
                           </div>
 
                           {!isOff ? (
@@ -196,9 +173,57 @@ export default function PortalCalendar() {
           )}
         </div>
       ) : (
-        <div className="text-center py-16 bg-slate-50/50 rounded-[2rem] border border-border/40">
-           <Users size={40} className="mx-auto text-slate-300 mb-4" />
-           <p className="text-muted-foreground text-sm font-bold">Tüm şube vardiyaları yakında eklenecek.</p>
+        /* ── Tüm Şube görünümü ── */
+        <div className="space-y-4">
+          {allShifts.length === 0 ? (
+            <div className="text-center py-16 bg-slate-50/50 rounded-[2rem] border border-border/40">
+              <Users size={40} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış vardiya yok.</p>
+            </div>
+          ) : (
+            DAYS.map((dayName, dayIndex) => {
+              const dayShifts = allShifts
+                .filter((s: any) => s.day === dayIndex)
+                .sort((a: any, b: any) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
+              if (dayShifts.length === 0) return null;
+
+              const dateObj = new Date(`${weekStart}T00:00:00`);
+              dateObj.setDate(dateObj.getDate() + dayIndex);
+              const dateStr = dateObj.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+
+              return (
+                <div key={dayIndex} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-sm font-black text-slate-800">{dayName}</span>
+                    <span className="text-xs text-slate-400 font-medium">{dateStr}</span>
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {dayShifts.map((s: any) => {
+                      const isMe = s.personnel_id === user?.personnel_id;
+                      const name = personnelMap[s.personnel_id] ?? s.personnel_id;
+                      return (
+                        <div key={s.id} className={`flex items-center justify-between px-4 py-3 ${isMe ? "bg-primary/5" : ""}`}>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
+                              {name.charAt(0)}
+                            </div>
+                            <span className={`text-sm font-bold truncate ${isMe ? "text-primary" : "text-slate-700"}`}>
+                              {name}{isMe && <span className="text-[10px] font-normal text-primary/70 ml-1">(ben)</span>}
+                            </span>
+                          </div>
+                          {s.start_time && s.end_time && (
+                            <span className="text-xs font-bold text-slate-500 shrink-0 ml-2">
+                              {s.start_time}–{s.end_time}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>

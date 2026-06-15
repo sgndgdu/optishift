@@ -4,6 +4,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSupervisorAuth } from "@/hooks/useAuth";
+import { getWeekStart } from "@/lib/date";
 import {
   BarChart3, Building2, Users, Clock, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, TrendingUp,
@@ -11,14 +13,6 @@ import {
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-function getWeekStart(offsetWeeks = 0) {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff + offsetWeeks * 7);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function formatWeekLabel(weekStart: string) {
   if (!weekStart) return "";
   const start = new Date(weekStart);
@@ -67,29 +61,12 @@ interface PersonnelRow {
 // ─── page ──────────────────────────────────────────────────────────────────
 export default function SupervisorReports() {
   const router = useRouter();
-  const [user, setUser]       = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = useSupervisorAuth();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading]       = useState(true);
   const [branches, setBranches]     = useState<BranchReport[]>([]);
   const [activeTab, setActiveTab]   = useState<"summary" | "compliance" | "fairness">("summary");
-
-  // ── auth ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_supervisor_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-    } catch {}
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
-    if (user.role !== "supervisor" && user.role !== "admin") { router.push("/login"); return; }
-  }, [mounted, user, router]);
 
   // ── data loading ────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {

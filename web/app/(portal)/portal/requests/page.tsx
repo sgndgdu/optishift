@@ -3,30 +3,24 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { usePortalAuth } from "@/hooks/useAuth";
+import { getWeekStart as libGetWeekStart } from "@/lib/date";
+import { DAY_SHORT } from "@/lib/constants";
 import {
   Inbox, ArrowLeftRight, FileEdit, CalendarOff,
   CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2,
-  AlertCircle
+  AlertCircle, ShieldAlert, Star
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const LEAVE_TYPES = ["Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor"];
-
-function getWeekStart(offsetWeeks = 0) {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff + offsetWeeks * 7);
-  return d.toISOString().slice(0, 10);
-}
 
 function shiftLabel(row: any) {
   if (!row) return "—";
   const weekDate = new Date(row.req_week_start || row.week_start || "");
   weekDate.setDate(weekDate.getDate() + (row.req_day ?? row.day ?? 0));
   const dateStr = weekDate.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
-  const dayName = DAY_NAMES[row.req_day ?? row.day ?? 0] ?? "";
+  const dayName = DAY_SHORT[row.req_day ?? row.day ?? 0] ?? "";
   const time = row.req_start || row.start_time
     ? `${row.req_start || row.start_time}–${row.req_end || row.end_time}`
     : "";
@@ -54,8 +48,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── main page ─────────────────────────────────────────────────────────────
 export default function PortalRequests() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, mounted } = usePortalAuth();
 
   const [activeTab, setActiveTab] = useState<"sent" | "incoming" | "new">("sent");
 
@@ -64,6 +57,7 @@ export default function PortalRequests() {
   const [swapsIn, setSwapsIn]         = useState<any[]>([]);
   const [editReqs, setEditReqs]       = useState<any[]>([]);
   const [leaveReqs, setLeaveReqs]     = useState<any[]>([]);
+  const [forceAssigns, setForceAssigns] = useState<any[]>([]);
 
   // new-form state
   const [newType, setNewType]         = useState<"swap" | "edit" | "leave">("swap");
@@ -95,16 +89,6 @@ export default function PortalRequests() {
   const [toast, setToast]             = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<{ kind: "swap" | "edit" | "leave"; id: number } | null>(null);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_portal_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => { if (!mounted) return; if (!user) router.push("/login"); }, [mounted, user, router]);
 
   // Lokasyonun izin politikasını ve personelin sabit izin gününü yükle
   useEffect(() => {
@@ -138,18 +122,22 @@ export default function PortalRequests() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [ss, si, er, lr] = await Promise.all([
+    const [ss, si, er, lr, fa] = await Promise.all([
       fetch(`/api/swap-requests?requester_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/swap-requests?target_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/shift-edit-requests?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       user.personnel_id
         ? fetch(`/api/leave-requests?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => [])
         : Promise.resolve([]),
+      user.personnel_id
+        ? fetch(`/api/schedule/force-assignments?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => [])
+        : Promise.resolve([]),
     ]);
     setSwapsSent(Array.isArray(ss) ? ss : []);
     setSwapsIn(Array.isArray(si) ? si : []);
     setEditReqs(Array.isArray(er) ? er : []);
     setLeaveReqs(Array.isArray(lr) ? lr : []);
+    setForceAssigns(Array.isArray(fa) ? fa : []);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -160,7 +148,7 @@ export default function PortalRequests() {
     (async () => {
       const weeks = await Promise.all(
         [0, 1, 2].map(w =>
-          fetch(`/api/shifts?personnel_id=${user.personnel_id || ""}&week_start=${getWeekStart(w)}`)
+          fetch(`/api/shifts?personnel_id=${user.personnel_id || ""}&week_start=${libGetWeekStart(w)}`)
             .then(r => r.json()).catch(() => [])
         )
       );
@@ -174,7 +162,7 @@ export default function PortalRequests() {
     (async () => {
       const weeks = await Promise.all(
         [0, 1].map(w =>
-          fetch(`/api/shifts?personnel_id=${user.personnel_id || ""}&week_start=${getWeekStart(w)}`)
+          fetch(`/api/shifts?personnel_id=${user.personnel_id || ""}&week_start=${libGetWeekStart(w)}`)
             .then(r => r.json()).catch(() => [])
         )
       );
@@ -200,7 +188,7 @@ export default function PortalRequests() {
     (async () => {
       const weeks = await Promise.all(
         [0, 1, 2].map(w =>
-          fetch(`/api/shifts?personnel_id=${selMate.id}&week_start=${getWeekStart(w)}`)
+          fetch(`/api/shifts?personnel_id=${selMate.id}&week_start=${libGetWeekStart(w)}`)
             .then(r => r.json()).catch(() => [])
         )
       );
@@ -351,8 +339,8 @@ export default function PortalRequests() {
 
   if (!mounted) return <div className="space-y-4" />;
 
-  // Gelen takas sayısını "pending" olanlar belirler (henüz yanıt verilmemiş)
-  const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length;
+  // Gelen takas + zorunlu atama sayısı
+  const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length + forceAssigns.length;
 
   return (
     <div className="p-5 space-y-4">
@@ -435,12 +423,54 @@ export default function PortalRequests() {
 
       {/* ── INCOMING TAB ── */}
       {activeTab === "incoming" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
+
+          {/* ── Zorunlu Atama Talepleri ── */}
+          {forceAssigns.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5">
+                <ShieldAlert size={14} className="text-amber-600" />
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zorunlu Atama Talepleri</h2>
+                <span className="ml-1 bg-amber-100 text-amber-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{forceAssigns.length}</span>
+              </div>
+              {forceAssigns.map((fa: any) => (
+                <ForceAssignCard
+                  key={fa.id}
+                  item={fa}
+                  onRespond={async (action: "accept" | "reject") => {
+                    const r = await fetch("/api/schedule/force-assignments", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ shift_id: fa.id, action }),
+                    });
+                    if (r.ok) {
+                      showToast(action === "accept" ? `Kabul edildi! ×${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Müdürün bilgilendirildi.");
+                    } else {
+                      const err = await r.json().catch(() => ({}));
+                      showToast(err.error || "İşlem başarısız.", "error");
+                    }
+                    await loadData();
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ── Gelen Takas Teklifleri ── */}
+          <div className="space-y-3">
+            {forceAssigns.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <ArrowLeftRight size={14} className="text-slate-400" />
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gelen Takas Teklifleri</h2>
+              </div>
+            )}
           {swapsIn.length === 0 ? (
+            forceAssigns.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-10 flex flex-col items-center gap-3 text-slate-400">
               <Inbox size={36} strokeWidth={1.5} />
-              <p className="text-sm font-semibold">Gelen takas teklifi yok</p>
+              <p className="text-sm font-semibold">Bekleyen gelen talep yok</p>
             </div>
+            ) : null
           ) : (
             swapsIn.map(s => {
               const isPending = s.status === "pending";
@@ -483,6 +513,7 @@ export default function PortalRequests() {
               );
             })
           )}
+          </div>
         </div>
       )}
 
@@ -908,7 +939,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
 function ShiftOption({ shift, selected, onSelect }: { shift: any; selected: boolean; onSelect: () => void }) {
   const d = new Date(shift.week_start || "");
   d.setDate(d.getDate() + (shift.day ?? 0));
-  const label = `${DAY_NAMES[shift.day ?? 0]} ${d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}`;
+  const label = `${DAY_SHORT[shift.day ?? 0]} ${d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}`;
   const time = shift.start_time && shift.end_time ? ` · ${shift.start_time}–${shift.end_time}` : "";
   return (
     <button
@@ -923,6 +954,60 @@ function ShiftOption({ shift, selected, onSelect }: { shift: any; selected: bool
       </div>
       {selected && <CheckCircle2 size={16} className="text-primary shrink-0" />}
     </button>
+  );
+}
+
+function ForceAssignCard({ item, onRespond }: { item: any; onRespond: (action: "accept" | "reject") => void }) {
+  const [responding, setResponding] = useState(false);
+
+  const handle = async (action: "accept" | "reject") => {
+    setResponding(true);
+    await onRespond(action);
+    setResponding(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border-2 border-amber-200 p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+          <ShieldAlert size={18} className="text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black text-slate-900">Zorunlu Atama Talebi</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {item.date_label}{item.start_time && item.end_time ? ` · ${item.start_time}–${item.end_time}` : ""}
+          </p>
+          {item.location_name && (
+            <p className="text-[10px] text-slate-400 mt-0.5">{item.location_name}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Bonus bilgisi */}
+      <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
+        <Star size={13} className="text-amber-500 shrink-0" />
+        <p className="text-xs text-amber-800">
+          Kabul edersen <strong>×{item.force_bonus_multiplier ?? 1.5} bonus puan</strong> kazanırsın.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          disabled={responding}
+          onClick={() => handle("reject")}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+        >
+          <XCircle size={15} /> Reddet
+        </button>
+        <button
+          disabled={responding}
+          onClick={() => handle("accept")}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-40"
+        >
+          <CheckCircle2 size={15} /> Kabul Et
+        </button>
+      </div>
+    </div>
   );
 }
 

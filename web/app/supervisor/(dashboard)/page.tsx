@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSupervisorAuth } from "@/hooks/useAuth";
 import {
   Building2, Users, CalendarClock, ChevronRight,
   Plus, MapPin, Layers, AlertCircle, Zap, CheckCircle2, X,
@@ -34,24 +35,13 @@ type EditRequest = {
 
 export default function SupervisorDashboard() {
   const router = useRouter();
-  const [user, setUser]         = useState<any>(null);
-  const [mounted, setMounted]   = useState(false);
+  const { user, mounted } = useSupervisorAuth();
   const [org, setOrg]           = useState<any>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading]   = useState(true);
   const [editRequests, setEditRequests] = useState<EditRequest[]>([]);
   const [reviewingId, setReviewingId]   = useState<number | null>(null);
   const [reviewNote, setReviewNote]     = useState("");
-
-  // ── Auth ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_supervisor_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-    } catch {}
-    setMounted(true);
-  }, []);
 
   // ── Onay talepleri ─────────────────────────────────────────────────────
   const loadEditRequests = async (orgId: string) => {
@@ -64,9 +54,7 @@ export default function SupervisorDashboard() {
   };
 
   useEffect(() => {
-    if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
-    if (user.role !== "supervisor" && user.role !== "admin") { router.push("/login"); return; }
+    if (!mounted || !user) return;
     loadData();
     if (user.org_id) loadEditRequests(user.org_id);
   // eslint-disable-next-line react-hooks/exhaustive-deps

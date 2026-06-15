@@ -9,32 +9,10 @@ import {
   Zap, ClipboardList, PlayCircle, StopCircle,
 } from "lucide-react";
 import Link from "next/link";
-
-function getWeekStart(offset: number): string {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth() + 1).padStart(2, "0");
-  const d = String(monday.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-const SHORT     = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-
-function timeAgo(ts: number | null): string {
-  if (!ts) return "";
-  const diff = Date.now() - ts * 1000;
-  const minutes = Math.floor(diff / 60000);
-  const hours   = Math.floor(diff / 3600000);
-  const days    = Math.floor(diff / 86400000);
-  if (minutes < 1)  return "Az önce";
-  if (hours   < 1)  return `${minutes} dk önce`;
-  if (hours   < 24) return `${hours} saat önce`;
-  return `${days} gün önce`;
-}
+import { usePortalAuth } from "@/hooks/useAuth";
+import { getWeekStart, timeAgo } from "@/lib/date";
+import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
+import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
@@ -54,8 +32,7 @@ function elapsedLabel(checkInAt: number): string {
 
 export default function PortalDashboard() {
   const router = useRouter();
-  const [user,          setUser]          = useState<any>(null);
-  const [mounted,       setMounted]       = useState(false);
+  const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
   const [notifs,        setNotifs]        = useState<any[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
@@ -69,20 +46,6 @@ export default function PortalDashboard() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-
-  // auth
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("optishift_portal_user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed) setUser(parsed);
-      setMounted(true);
-    } catch {}
-  }, []);
-  useEffect(() => {
-    if (!mounted) return;
-    if (!user) router.push("/login");
-  }, [mounted, user, router]);
 
   // data
   const loadData = useCallback(async () => {
@@ -142,12 +105,7 @@ export default function PortalDashboard() {
 
   if (!mounted) return <div className="p-5 space-y-5" />;
 
-  const getNotifHref = (n: any) => {
-    if (n.type === "schedule") return "/portal/calendar";
-    if (["leave_approved","leave_rejected","trade_request","open_shift"].includes(n.type)) return "/portal/requests";
-    if (n.type === "availability") return "/portal/availability";
-    return "/portal/notifications";
-  };
+  const getNotifHref = (n: any) => _getNotifHref(n) ?? "/portal/notifications";
 
   // computed
   const shiftDays     = new Set(shifts.map((s: any) => s.day));
