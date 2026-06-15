@@ -287,6 +287,8 @@ export default function PortalRequests() {
   }
 
   async function respondSwap(id: number, status: string) {
+    // Optimistik: anında UI'da güncelle
+    setSwapsIn(prev => prev.map(s => s.id === id ? { ...s, status } : s));
     const r = await fetch("/api/swap-requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -294,13 +296,19 @@ export default function PortalRequests() {
     });
     if (r.ok) {
       showToast(status === "peer_accepted" ? "Takas teklifi kabul edildi!" : "Takas teklifi reddedildi.");
+    } else {
+      showToast("İşlem sırasında hata oluştu.", "error");
+      await loadData(); // hata varsa geri al
     }
-    await loadData();
   }
 
   async function cancelRequest(kind: "swap" | "edit" | "leave", id: number) {
     setCancelConfirm(null);
-    setLoading(true);
+    // Optimistik: anında listeden kaldır
+    if (kind === "swap") setSwapsSent(prev => prev.map(s => s.id === id ? { ...s, status: "cancelled" } : s));
+    else if (kind === "edit") setEditReqs(prev => prev.map(e => e.id === id ? { ...e, status: "cancelled" } : e));
+    else setLeaveReqs(prev => prev.map(l => l.id === id ? { ...l, status: "cancelled" } : l));
+
     try {
       let ok = false;
       if (kind === "swap") {
@@ -326,11 +334,8 @@ export default function PortalRequests() {
         ok = r.ok;
       }
       if (ok) showToast("Talep iptal edildi.");
-      else showToast("İptal sırasında hata oluştu.", "error");
-    } finally {
-      setLoading(false);
-      await loadData();
-    }
+      else { showToast("İptal sırasında hata oluştu.", "error"); await loadData(); }
+    } catch { showToast("İptal sırasında hata oluştu.", "error"); await loadData(); }
   }
 
   function resetSwapWizard() {

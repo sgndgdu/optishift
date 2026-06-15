@@ -29,7 +29,10 @@ function useNotifUnread() {
     }).catch(() => {});
     tick();
     const id = setInterval(tick, 15_000);
-    return () => clearInterval(id);
+    // Bildirim okunduğunda sayfadan event gelirse anında sıfırla
+    const onRead = () => tick();
+    window.addEventListener("notif-read", onRead);
+    return () => { clearInterval(id); window.removeEventListener("notif-read", onRead); };
   }, []);
   return count;
 }

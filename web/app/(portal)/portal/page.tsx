@@ -80,27 +80,35 @@ export default function PortalDashboard() {
   }, [todayShift?.check_in_at, todayShift?.check_out_at]);
 
   const handleCheckIn = async (shiftId: number) => {
+    const ts = Math.floor(Date.now() / 1000);
+    setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
     setCheckInLoading(true);
     try {
-      await fetch("/api/shifts", {
+      const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "check_in", shift_id: shiftId }),
       });
-      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: Math.floor(Date.now() / 1000) } : s));
-    } catch {} finally { setCheckInLoading(false); }
+      if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: null } : s));
+    } catch {
+      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: null } : s));
+    } finally { setCheckInLoading(false); }
   };
 
   const handleCheckOut = async (shiftId: number) => {
+    const ts = Math.floor(Date.now() / 1000);
+    setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: ts } : s));
     setCheckInLoading(true);
     try {
-      await fetch("/api/shifts", {
+      const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "check_out", shift_id: shiftId }),
       });
-      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: Math.floor(Date.now() / 1000) } : s));
-    } catch {} finally { setCheckInLoading(false); }
+      if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
+    } catch {
+      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
+    } finally { setCheckInLoading(false); }
   };
 
   if (!mounted) return <div className="p-5 space-y-5" />;

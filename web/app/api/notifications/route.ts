@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import Database from "better-sqlite3";
+import path from "path";
+
+const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET: Personelin bildirimlerini getir
 export async function GET(req: NextRequest) {
@@ -80,4 +84,33 @@ export async function PUT(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+// DELETE: Bildirimi sil
+export async function DELETE(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  const personnel_id = searchParams.get("personnel_id");
+
+  if (!id || !personnel_id) {
+    return NextResponse.json({ error: "id ve personnel_id zorunlu" }, { status: 400 });
+  }
+
+  // Sadece kendi bildirimini silebilir
+  if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+    return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+  }
+
+  const dbConn = new Database(DB_PATH);
+  try {
+    dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
+    dbConn.close();
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    dbConn.close();
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
