@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     // body can be a single shift or an array of shifts
-    const shifts = Array.isArray(body) ? body : [body];
+    const shifts = Array.isArray(body) ? body : (body.shifts ?? [body]);
+    const forcePublish: boolean = !Array.isArray(body) && body.force === true;
 
     if (shifts.length === 0) {
       return NextResponse.json({ error: "Vardiya verisi boş" }, { status: 400 });
@@ -101,19 +102,32 @@ export async function POST(req: NextRequest) {
     const results: any[] = [];
     const errors: string[] = [];
     const compensations: { personnel_id: string; points: number }[] = [];
+    // Force assignment detection: items collected during transaction, processed after
+    const forceItems: { personnel_id: string; location_id: string; week_start: string; day: number; shift_id_db: number; start_time: string | null; end_time: string | null; prevForceStatus: string | null }[] = [];
 
-    // Lokasyon bazlı telafi puanı kuralı (rules.change_compensation_points, varsayılan 2)
-    const compPointsCache = new Map<string, number>();
-    const getCompPoints = (locId: string): number => {
-      if (compPointsCache.has(locId)) return compPointsCache.get(locId)!;
-      let pts = 2;
+    // Lokasyon kurallarını önbelleğe al
+    const rulesCache = new Map<string, any>();
+    const getLocRules = (locId: string): any => {
+      if (rulesCache.has(locId)) return rulesCache.get(locId)!;
+      let rules: any = {};
       try {
         const row = db.prepare("SELECT rules FROM locations WHERE id = ?").get(locId) as any;
-        const parsed = JSON.parse(row?.rules || "{}");
-        if (typeof parsed.change_compensation_points === "number") pts = parsed.change_compensation_points;
-      } catch { /* varsayılan 2 */ }
-      compPointsCache.set(locId, pts);
-      return pts;
+        rules = JSON.parse(row?.rules || "{}");
+      } catch { /* varsayılan */ }
+      rulesCache.set(locId, rules);
+      return rules;
+    };
+    const getCompPoints = (locId: string): number => {
+      const r = getLocRules(locId);
+      return typeof r.change_compensation_points === "number" ? r.change_compensation_points : 2;
+    };
+    const getMinRestMin = (locId: string): number => {
+      const r = getLocRules(locId);
+      return (typeof r.min_rest_hours === "number" ? r.min_rest_hours : 11) * 60;
+    };
+    const getCompDecay = (locId: string): number => {
+      const r = getLocRules(locId);
+      return typeof r.comp_decay_factor === "number" ? r.comp_decay_factor : 0.8;
     };
 
     const todayStr = new Date().toISOString().split("T")[0];
@@ -127,7 +141,7 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // 1. 11 SAAT DİNLENME KURALI KONTROLÜ
+        // 1. 11 SAAT DİNLENME KURALI KONTROLÜ (force=true ise uyar ama bloklamaz)
         if (start_time && end_time) {
           const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
           const newStart = toMin(start_time);
@@ -142,12 +156,13 @@ export async function POST(req: NextRequest) {
             `).get(personnel_id, week_start, day - 1) as any;
             if (prevShift?.end_time) {
               const prevEnd = toMin(prevShift.end_time);
-              // Gece geçişi: bitiş saati başlangıçtan küçükse ertesi güne geçmiş demektir
               const prevEndAdj = prevEnd <= toMin(prevShift.start_time) ? prevEnd + 1440 : prevEnd;
-              const gap = (newStart + 1440) - prevEndAdj; // ertesi gün başlangıcı
-              if (gap < 11 * 60) {
-                errors.push(`${personnel_id} için dinlenme süresi 11 saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`);
-                continue;
+              const gap = (newStart + 1440) - prevEndAdj;
+              const minRest = getMinRestMin(location_id);
+              if (gap < minRest) {
+                const msg = `${personnel_id} için dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`;
+                if (!forcePublish) { errors.push(msg); continue; }
+                else errors.push(msg);
               }
             }
           }
@@ -163,9 +178,11 @@ export async function POST(req: NextRequest) {
               const nextStart = toMin(nextShift.start_time);
               const curEndAdj = newEnd <= newStart ? newEnd + 1440 : newEnd;
               const gap = (nextStart + 1440) - curEndAdj;
-              if (gap < 11 * 60) {
-                errors.push(`${personnel_id} için ertesi gün vardiyasıyla dinlenme süresi 11 saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`);
-                continue;
+              const minRest = getMinRestMin(location_id);
+              if (gap < minRest) {
+                const msg = `${personnel_id} için ertesi gün vardiyasıyla dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`;
+                if (!forcePublish) { errors.push(msg); continue; }
+                else errors.push(msg);
               }
             }
           }
@@ -210,7 +227,7 @@ export async function POST(req: NextRequest) {
                 if (compPts > 0) {
                   // Hero bonusu emsali: prev_score ağırlıklı ortalama olduğu için ×0.8 ile eklenir
                   db.prepare(`UPDATE personnel SET prev_score = ROUND(COALESCE(prev_score, 0) + ?, 2) WHERE id = ?`)
-                    .run(Math.round(compPts * 0.8 * 100) / 100, personnel_id);
+                    .run(Math.round(compPts * getCompDecay(location_id) * 100) / 100, personnel_id);
                   db.prepare(`
                     INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
                     VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', 0, ?)
@@ -225,6 +242,8 @@ export async function POST(req: NextRequest) {
             }
 
             results.push({ id: existing.id, updated: true });
+            // Force check: collect for post-transaction processing
+            forceItems.push({ personnel_id, location_id, week_start, day, shift_id_db: existing.id, start_time: start_time || null, end_time: end_time || null, prevForceStatus: existing.force_acceptance_status ?? null });
             continue;
           }
         }
@@ -234,10 +253,65 @@ export async function POST(req: NextRequest) {
           INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)
         `).run(personnel_id, location_id, week_start, day, shift_id || 'custom', start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, now);
-        
-        results.push({ id: result.lastInsertRowid, inserted: true });
+
+        const newId = Number(result.lastInsertRowid);
+        results.push({ id: newId, inserted: true });
+        // Force check: collect for post-transaction processing
+        forceItems.push({ personnel_id, location_id, week_start, day, shift_id_db: newId, start_time: start_time || null, end_time: end_time || null, prevForceStatus: null });
       }
     })();
+
+    // ── Force Assignment Detection ──────────────────────────────────────────
+
+    const forceNotifications: { personnel_id: string; shift_id_db: number; multiplier: number; dateLabel: string }[] = [];
+
+    for (const item of forceItems) {
+      // Zaten pending/accepted/rejected → tekrar flaglama
+      if (item.prevForceStatus) continue;
+
+      // Müsaitlik kontrolü
+      const dayKey = `day_${item.day}`;
+      const avail = db.prepare(`SELECT ${dayKey} FROM availability WHERE personnel_id = ? AND week_start = ?`)
+        .get(item.personnel_id, item.week_start) as any;
+      const isUnavailable = avail?.[dayKey] === "unavailable";
+
+      // İzin kontrolü
+      const shiftDate = new Date(`${item.week_start}T00:00:00`);
+      shiftDate.setDate(shiftDate.getDate() + item.day);
+      const shiftDateStr = shiftDate.toISOString().split("T")[0];
+      const onLeave = db.prepare(`
+        SELECT id FROM leave_requests
+        WHERE personnel_id = ? AND status = 'approved' AND start_date <= ? AND end_date >= ?
+      `).get(item.personnel_id, shiftDateStr, shiftDateStr);
+
+      if (!isUnavailable && !onLeave) continue;
+
+      const rules = getLocRules(item.location_id);
+      const multiplier = typeof rules.leave_override_bonus_multiplier === "number" ? rules.leave_override_bonus_multiplier : 1.5;
+
+      db.prepare(`
+        UPDATE shift_assignments
+        SET force_assigned = 1, force_acceptance_status = 'pending', force_bonus_multiplier = ?
+        WHERE id = ?
+      `).run(multiplier, item.shift_id_db);
+
+      const DAY_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+      const dateLabel = `${DAY_TR[item.day]} ${shiftDate.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`;
+      forceNotifications.push({ personnel_id: item.personnel_id, shift_id_db: item.shift_id_db, multiplier, dateLabel });
+    }
+
+    for (const fn of forceNotifications) {
+      const shiftRow = db.prepare(`SELECT start_time, end_time FROM shift_assignments WHERE id = ?`).get(fn.shift_id_db) as any;
+      const timeStr = shiftRow?.start_time && shiftRow?.end_time ? ` ${shiftRow.start_time}–${shiftRow.end_time}` : "";
+      db.prepare(`
+        INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+        VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', 0, ?)
+      `).run(
+        fn.personnel_id,
+        `Müdürünüz sizi ${fn.dateLabel}${timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz ×${fn.multiplier} bonus puan kazanırsınız.`,
+        now,
+      );
+    }
 
     db.close();
 

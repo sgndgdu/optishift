@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [nextWeekPublished, setNextWeekPublished] = useState(true);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(1.5);
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -45,7 +46,7 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const weekStart = getTodayWeekStart();
-      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes, publishStatsRes] = await Promise.all([
+      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes, publishStatsRes, locRes] = await Promise.all([
         fetch(`/api/personnel?location_id=${u.location_id}`),
         fetch(`/api/leave-requests?location_id=${u.location_id}`),
         fetch(`/api/shifts?location_id=${u.location_id}&week_start=${weekStart}`),
@@ -53,6 +54,7 @@ export default function DashboardPage() {
         fetch(`/api/availability/team?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
         fetch(`/api/shifts?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
         fetch(`/api/schedule/publish-stats?location_id=${u.location_id}`),
+        fetch(`/api/locations?id=${u.location_id}`),
       ]);
       const personnelData = await personnelRes.json();
       const leaveData = await leaveRes.json();
@@ -61,6 +63,7 @@ export default function DashboardPage() {
       const availData = await availRes.json();
       const nextShiftsData = await nextShiftsRes.json();
       const publishStatsData = await publishStatsRes.json();
+      const locData = await locRes.json();
 
       setPersonnel(Array.isArray(personnelData) ? personnelData : []);
       setLeaveRequests(Array.isArray(leaveData) ? leaveData.filter((l: any) => l.status === "pending") : []);
@@ -72,6 +75,13 @@ export default function DashboardPage() {
         nextShiftsData.some((s: any) => !s.publication_status || s.publication_status === "published")
       );
       setPublishLead(typeof publishStatsData?.avg_lead_days === "number" ? publishStatsData.avg_lead_days : null);
+      const loc = Array.isArray(locData) ? locData[0] : null;
+      if (loc?.rules) {
+        try {
+          const rules = JSON.parse(loc.rules);
+          if (typeof rules.hero_bonus_multiplier === "number") setHeroBonusMultiplier(rules.hero_bonus_multiplier);
+        } catch {}
+      }
     } catch (e) {
       console.error(e);
     }
@@ -158,7 +168,7 @@ export default function DashboardPage() {
           start_time: s.start_time,
           end_time: s.end_time,
           note: `Otomatik: ${s.personnel_id} check-in yapmadı`,
-          hero_bonus_multiplier: 1.5,
+          hero_bonus_multiplier: heroBonusMultiplier,
         }),
       });
       // Açık vardiya sayısını güncelle

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Coffee, Play, Square, AlertTriangle, Users, Clock, CheckCircle2 } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
 
-const MAX_BREAK_MIN = 15; // aynı anda birden fazla kişi molaya çıkınca uyarı
 
 function elapsed(startAt: number) {
   const sec = Math.floor(Date.now() / 1000) - startAt;
@@ -28,6 +27,7 @@ export default function BreaksPage() {
   const [loading, setLoading]     = useState(true);
   const [toast, setToast]         = useState("");
   const [tick, setTick]           = useState(0);
+  const [maxBreakMin, setMaxBreakMin] = useState(15);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
@@ -38,14 +38,23 @@ export default function BreaksPage() {
     if (!user) return;
     const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
     try {
-      const [sess, ppl] = await Promise.all([
+      const [sess, ppl, locRes] = await Promise.all([
         fetch(`/api/breaks?location_id=${locId}&date=${today}`)
           .then(r => r.json()).catch(() => []),
         fetch(`/api/personnel?location_id=${locId}`)
           .then(r => r.json()).catch(() => []),
+        fetch(`/api/locations?id=${locId}`)
+          .then(r => r.json()).catch(() => []),
       ]);
       setSessions(Array.isArray(sess) ? sess : []);
       setPersonnel(Array.isArray(ppl) ? ppl : []);
+      const locData = Array.isArray(locRes) ? locRes[0] : null;
+      if (locData?.rules) {
+        try {
+          const rules = JSON.parse(locData.rules);
+          if (typeof rules.max_break_duration_min === "number") setMaxBreakMin(rules.max_break_duration_min);
+        } catch {}
+      }
     } finally { setLoading(false); }
   }, [user, today]);
 
@@ -173,7 +182,7 @@ export default function BreaksPage() {
           {active.map(s => {
             const elapsedSec = Math.floor(Date.now() / 1000) - s.start_at;
             const elapsedMin = Math.floor(elapsedSec / 60);
-            const isLong = elapsedMin >= MAX_BREAK_MIN;
+            const isLong = elapsedMin >= maxBreakMin;
             return (
               <div key={s.id} className={`bg-white rounded-2xl border p-4 flex items-center gap-4 ${isLong ? "border-red-200" : "border-amber-200"}`}>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${isLong ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
