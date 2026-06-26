@@ -5,6 +5,8 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { signToken, setCookie } from "@/lib/auth";
+import { logPlatformEvent } from "@/lib/platform-logger";
+import { getDB } from "@/lib/db/client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,6 +72,22 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json(userData);
     setCookie(res, token);
+
+    // Platform event log + last_login_at güncelle (fire-and-forget)
+    const rawDb = getDB();
+    const now = Math.floor(Date.now() / 1000);
+    rawDb.prepare(`UPDATE users SET last_login_at = $1 WHERE id = $2`).run(now, user.id).catch(() => {});
+    // Org adını bulmak için ek sorgu
+    rawDb.prepare(`SELECT name FROM organizations WHERE id = $1`).get(user.org_id)
+      .then((org: any) => {
+        logPlatformEvent("login", user.org_id, org?.name ?? null, {
+          user_id: user.id,
+          user_name: user.name,
+          role: user.role,
+        });
+      })
+      .catch(() => {});
+
     return res;
   } catch (err: any) {
     console.error("Login error:", err);

@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Menu, X, Zap } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-slate-50/50 overflow-hidden">
+      <ImpersonationBanner />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

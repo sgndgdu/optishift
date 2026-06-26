@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getDB } from "@/lib/db/client";
+import { logPlatformEvent } from "@/lib/platform-logger";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -403,7 +404,18 @@ export async function POST(req: NextRequest) {
     };
 
     // FastAPI engine'e HTTP isteği gönder
+    const orToolsStart = Date.now();
     const data = await callEngine(enginePayload);
+    const orToolsLatency = Date.now() - orToolsStart;
+
+    // OR-Tools çağrısını logla (fire-and-forget)
+    const orgRow = (await db.prepare(`SELECT name FROM organizations WHERE id = $1`).get(auth.org_id)) as any;
+    logPlatformEvent("or_tools_call", auth.org_id, orgRow?.name ?? null, {
+      location_id: branchId,
+      week_start,
+      personnel_count: personnelData.length,
+      latency_ms: orToolsLatency,
+    });
 
     // Python motorundan dönen veriyi UI için eşle
     if (data.personnel) {

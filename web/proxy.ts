@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
+import { verifyGodToken } from "./lib/god-auth";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
 const PUBLIC_API_PATHS = [
   "/api/auth/login",
   "/api/register",
   "/api/webhook",
+  "/api/god/auth/login",  // God Mode login herkese açık
 ];
 
 // /api/invites GET isteği: join token sayfası için herkese açık
@@ -26,6 +28,22 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
   if (isPublicInvitesGet(req)) return NextResponse.next();
+
+  // God Mode API'leri — ayrı cookie ile korunur
+  // Banner GET herkese açık (tüm layout'lar okur); diğer metodlar ve tüm /api/god/* god auth gerektirir
+  if (pathname.startsWith("/api/god/")) {
+    const isBannersGet = pathname === "/api/god/banners" && req.method === "GET";
+    if (!isBannersGet) {
+      const ok = await verifyGodToken(req);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "God Mode yetkisi gerekli" },
+          { status: 403 }
+        );
+      }
+    }
+    return NextResponse.next();
+  }
 
   // JWT doğrulama
   const token = req.cookies.get(SESSION_COOKIE)?.value;

@@ -20,6 +20,15 @@ export const organizations = pgTable("organizations", {
   subscription_status: text("subscription_status").default("active"),
   stripe_customer_id: text("stripe_customer_id"),
   trial_ends_at: bigint("trial_ends_at", { mode: "number" }),
+
+  // God Mode Platform Yönetimi
+  suspended_at: bigint("suspended_at", { mode: "number" }),
+  suspended_reason: text("suspended_reason"),
+  notes: text("notes"),                           // admin iç notu
+  feature_flags: text("feature_flags").default("{}"), // JSON
+  max_personnel: integer("max_personnel"),        // null = sınırsız
+  created_at: bigint("created_at", { mode: "number" }),
+  last_activity_at: bigint("last_activity_at", { mode: "number" }),
 });
 
 // ─── Locations (Branches) ────────────────────────────────────────────────────
@@ -67,6 +76,7 @@ export const users = pgTable("users", {
   created_by: text("created_by"), // oluşturan kullanıcının user_id'si
   approved_by: text("approved_by"),
   approved_at: bigint("approved_at", { mode: "number" }),
+  last_login_at: bigint("last_login_at", { mode: "number" }),
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
@@ -499,4 +509,36 @@ export const notifications = pgTable("notifications", {
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
+});
+
+// ─── Platform Events (God Mode telemetri) ────────────────────────────────────
+export const platformEvents = pgTable("platform_events", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "or_tools_call" | "login" | "shift_created" | "api_error"
+  org_id: text("org_id"),
+  org_name: text("org_name"),
+  meta: text("meta"),           // JSON string
+  created_at: bigint("created_at", { mode: "number" }).notNull(),
+});
+
+// ─── Admin Audit Log (God Mode işlem geçmişi) ────────────────────────────────
+export const adminAuditLog = pgTable("admin_audit_log", {
+  id: serial("id").primaryKey(),
+  action: text("action").notNull(),
+  target_org_id: text("target_org_id"),
+  target_user_id: text("target_user_id"),
+  payload: text("payload"),
+  ip_address: text("ip_address"),
+  created_at: bigint("created_at", { mode: "number" }).notNull(),
+});
+
+// ─── System Banners (Platform geneli duyurular) ───────────────────────────────
+export const systemBanners = pgTable("system_banners", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"), // info | warning | error
+  active: integer("active").notNull().default(1),
+  starts_at: bigint("starts_at", { mode: "number" }),
+  ends_at: bigint("ends_at", { mode: "number" }),
+  created_at: bigint("created_at", { mode: "number" }).notNull(),
 });

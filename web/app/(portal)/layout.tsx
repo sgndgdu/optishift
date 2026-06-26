@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, Zap, LogOut, X, BellRing } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -76,6 +77,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex h-screen bg-slate-50/50 overflow-hidden">
+      <ImpersonationBanner />
 
       {/* ── DESKTOP SIDEBAR (md ve üzeri) ─────────────────────────────────── */}
       <aside className="hidden md:flex w-64 h-screen shrink-0 bg-white border-r border-slate-100 flex-col pt-8 pb-6 px-4">
