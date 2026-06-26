@@ -138,7 +138,7 @@ Organization  (Gratis A.Ş. / Hilton İzmir)
 ```
 
 - **Organization:** En üst kiracı. Tüm veriler org_id bazında izole edilir.
-- **Branch (locations tablosu):** Fiziksel lokasyon. `shift_definitions`, `demand_matrix`, `zone_quotas`, `operating_hours`, `rules` JSON alanları burada tutulur.
+- **Branch (locations tablosu):** Fiziksel lokasyon. `shift_definitions`, `demand_matrix`, `zone_quotas`, `operating_hours`, `rules`, `rotation_template` JSON alanları burada tutulur.
 - **Department:** Branch içindeki operasyonel birim.
 - **Personnel:** Her zaman bir branch'e, opsiyonel olarak bir department'a bağlıdır.
 
@@ -288,6 +288,14 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 - [x] Unified login (`/login` → role bazlı redirect)
 - [x] Manager branch restriction (API + Sidebar)
 - [x] Schedule sayfası: yayınlandı göstergesi, vardiya tanımı yoksa hint, part-time saat limiti
+- [x] **Fabrika Modülü (2026-06-17):**
+  - `crews` tablosu + `/api/crews` (GET/POST/PATCH/DELETE) — Ekip yönetimi
+  - `overtime_records` tablosu + `/api/overtime` (GET/POST/PATCH) — Fazla mesai onay akışı
+  - `personnel.crew_id` + `personnel.ytd_overtime_hours` — Ekip ve YTD mesai takibi
+  - `locations.rotation_template` JSON — Döngüsel rotasyon şablonu
+  - OR-Tools motoru: ekip rotasyon kısıtı (hard/soft), YTD mesai üst sınırı (hard), adil mesai dağılımı (soft), mesai özeti çıktısı
+  - Settings UI: "Ekipler" ve "Rotasyon" sekmeleri, Kurallar sekmesine mesai ayarları
+  - `/api/locations` PATCH: `rotation_template` desteği
 
 ---
 

@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -13,21 +11,19 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     let rows;
     // Manager sadece kendi şubesini görebilir
     if (auth.role === "manager" && auth.location_id) {
-      rows = db.prepare("SELECT * FROM locations WHERE id = ? AND org_id = ?").all(auth.location_id, auth.org_id);
+      rows = await db.prepare("SELECT * FROM locations WHERE id = ? AND org_id = ?").all(auth.location_id, auth.org_id);
     } else if (id) {
-      rows = db.prepare("SELECT * FROM locations WHERE id = ? AND org_id = ?").all(id, auth.org_id);
+      rows = await db.prepare("SELECT * FROM locations WHERE id = ? AND org_id = ?").all(id, auth.org_id);
     } else {
-      rows = db.prepare("SELECT * FROM locations WHERE org_id = ?").all(auth.org_id);
+      rows = await db.prepare("SELECT * FROM locations WHERE org_id = ?").all(auth.org_id);
     }
-    db.close();
     return NextResponse.json(rows);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -40,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const body = await req.json();
     const { name } = body;
@@ -49,11 +45,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Plan limit kontrolü: free plan en fazla 1 lokasyon
-    const org = db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
+    const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
     if (!org || org.plan === "free" || !org.plan) {
       const locCount = (db.prepare("SELECT COUNT(*) as cnt FROM locations WHERE org_id = ?").get(auth.org_id) as any).cnt;
       if (locCount >= 1) {
-        db.close();
         return NextResponse.json(
           { error: "Free plan limiti: 1 şube. Daha fazla şube için Pro'ya geçin.", upgrade: true },
           { status: 402 }
@@ -63,11 +58,9 @@ export async function POST(req: NextRequest) {
 
     const id = `L-${Date.now()}`;
     // org_id token'dan alınır
-    db.prepare(`INSERT INTO locations (id, org_id, name) VALUES (?, ?, ?)`).run(id, auth.org_id, name.trim());
-    db.close();
+    await db.prepare(`INSERT INTO locations (id, org_id, name) VALUES (?, ?, ?)`).run(id, auth.org_id, name.trim());
     return NextResponse.json({ success: true, id });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -80,12 +73,11 @@ export async function PATCH(req: NextRequest) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     // Lokasyonun bu org'a ait olduğunu doğrula
-    const existing = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(id, auth.org_id);
+    const existing = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(id, auth.org_id);
     if (!existing) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
     const body = await req.json();
@@ -120,6 +112,10 @@ export async function PATCH(req: NextRequest) {
       updates.push("leave_policy = ?");
       values.push(typeof body.leave_policy === "string" ? body.leave_policy : JSON.stringify(body.leave_policy));
     }
+    if (body.rotation_template !== undefined) {
+      updates.push("rotation_template = ?");
+      values.push(typeof body.rotation_template === "string" ? body.rotation_template : JSON.stringify(body.rotation_template));
+    }
     if (body.latitude !== undefined) {
       updates.push("latitude = ?");
       values.push(body.latitude === null ? null : Number(body.latitude));
@@ -132,11 +128,9 @@ export async function PATCH(req: NextRequest) {
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
 
     values.push(id);
-    db.prepare(`UPDATE locations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
-    db.close();
+    await db.prepare(`UPDATE locations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

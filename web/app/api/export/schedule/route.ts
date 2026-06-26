@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import * as XLSX from "xlsx";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
 export async function GET(req: NextRequest) {
@@ -20,17 +18,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     // Verify location belongs to auth org
-    const locCheck = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    const locCheck = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!locCheck) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     // Fetch shifts + personnel
-    const shifts: any[] = db.prepare(`
+    const shifts: any[] = await db.prepare(`
       SELECT sa.*, p.name as personnel_name, p.title, p.prev_score
       FROM shift_assignments sa
       LEFT JOIN personnel p ON sa.personnel_id = p.id
@@ -38,10 +35,8 @@ export async function GET(req: NextRequest) {
       ORDER BY p.name ASC, sa.day ASC
     `).all(location_id, week_start);
 
-    const location: any = db.prepare(`SELECT * FROM locations WHERE id = ?`).get(location_id);
-    const orgRow: any   = db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(location?.org_id ?? "");
-
-    db.close();
+    const location: any = await db.prepare(`SELECT * FROM locations WHERE id = ?`).get(location_id);
+    const orgRow: any   = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(location?.org_id ?? "");
 
     // ── Sheet 1: Yönetici KPI Özeti ─────────────────────────────────────
     const personnelMap = new Map<string, any>();
@@ -152,7 +147,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

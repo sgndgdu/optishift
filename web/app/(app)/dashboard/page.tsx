@@ -182,6 +182,10 @@ export default function DashboardPage() {
   const scores = personnel.map(p => p.prev_score ?? 0);
   const maxScore = Math.max(...scores, 1);
 
+  // YTD mesai uyarısı: 270 saatin %80'ini (216 saat) aşmış personel
+  const YTD_WARN_THRESHOLD = 216;
+  const overtimeWarning = personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= YTD_WARN_THRESHOLD);
+
   const openCount = openShifts.filter((s: any) => s.status === "open").length;
   const kpi = [
     { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100",  href: "/personnel" },
@@ -292,6 +296,34 @@ export default function DashboardPage() {
             {remindState === "sent" ? <><Check size={14} className="mr-1.5" />Hatırlatma gönderildi</>
               : remindState === "sending" ? "Gönderiliyor…"
               : "Hatırlatma Gönder"}
+          </Button>
+        </div>
+      )}
+
+      {/* YTD Fazla Mesai Uyarısı — Fabrika Modülü */}
+      {!loading && overtimeWarning.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-orange-200 bg-orange-50">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <AlertTriangle size={18} className="text-orange-600 shrink-0" />
+            <div className="min-w-0">
+              <span className="text-sm font-bold text-orange-800">
+                {overtimeWarning.length} personel yıllık mesai limitine yaklaşıyor
+              </span>
+              <p className="text-xs text-orange-700 truncate">
+                {overtimeWarning.map((p: any, i: number) => (
+                  <span key={p.id ?? i}>{i > 0 && ", "}<strong>{p.name}</strong> ({p.ytd_overtime_hours ?? 0}s)</span>
+                ))}
+                {" — "}yasal limit 270 saat/yıl
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => router.push("/personnel")}
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-orange-300 text-orange-800 hover:bg-orange-100"
+          >
+            Personeli Gör <ArrowRight size={14} className="ml-1.5" />
           </Button>
         </div>
       )}

@@ -1,12 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 import { swapReducer, toSwapEvent, SwapStatus } from "@/lib/swapReducer";
 import { sendPushToPersonnel } from "@/lib/notifications";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET:
 // ?requester_id=...           → benim gönderdiklerim
@@ -23,16 +21,15 @@ export async function GET(req: NextRequest) {
   const status       = searchParams.get("status");
   const org_id       = auth.org_id;
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     let rows: any[];
 
     if (location_id && status) {
       if (auth.role === "employee") {
-        db.close();
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
       }
-      rows = db.prepare(`
+      rows = await db.prepare(`
         SELECT sr.*,
           rs.personnel_id as req_personnel_id, rs.day as req_day, rs.week_start as req_week_start, rs.start_time as req_start, rs.end_time as req_end,
           ts.personnel_id as tgt_personnel_id, ts.day as tgt_day, ts.week_start as tgt_week_start, ts.start_time as tgt_start, ts.end_time as tgt_end
@@ -45,10 +42,9 @@ export async function GET(req: NextRequest) {
     } else if (requester_id) {
       // Employee can only read their own requests
       if (auth.role === "employee" && auth.personnel_id !== requester_id) {
-        db.close();
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = db.prepare(`
+      rows = await db.prepare(`
         SELECT sr.*,
           rs.day as req_day, rs.week_start as req_week_start, rs.start_time as req_start, rs.end_time as req_end,
           ts.day as tgt_day, ts.week_start as tgt_week_start, ts.start_time as tgt_start, ts.end_time as tgt_end
@@ -60,10 +56,9 @@ export async function GET(req: NextRequest) {
       `).all(org_id, requester_id);
     } else if (target_id) {
       if (auth.role === "employee" && auth.personnel_id !== target_id) {
-        db.close();
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = db.prepare(`
+      rows = await db.prepare(`
         SELECT sr.*,
           rs.day as req_day, rs.week_start as req_week_start, rs.start_time as req_start, rs.end_time as req_end,
           ts.day as tgt_day, ts.week_start as tgt_week_start, ts.start_time as tgt_start, ts.end_time as tgt_end
@@ -74,14 +69,10 @@ export async function GET(req: NextRequest) {
         ORDER BY sr.created_at DESC
       `).all(org_id, target_id);
     } else {
-      db.close();
       return NextResponse.json({ error: "requester_id, target_id veya location_id+status zorunlu" }, { status: 400 });
     }
-
-    db.close();
     return NextResponse.json(rows);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -91,31 +82,29 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, note } = await req.json();
     const org_id = auth.org_id;
 
     if (!requester_id || !target_id || !requester_shift_id || !target_shift_id) {
-      db.close();
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
     // Employee can only submit requests for themselves
     if (auth.role === "employee" && auth.personnel_id !== requester_id) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     `).run(org_id, requester_id, requester_name ?? null, target_id, target_name ?? null, requester_shift_id, target_shift_id, note ?? null, now);
 
     // Hedef personele bildirim gönder
     const rName = requester_name ?? "Bir personel";
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
       VALUES (?, 'trade_request', 'Vardiya Takas Teklifi', ?, 0, '/portal/requests', ?)
     `).run(
@@ -123,11 +112,8 @@ export async function POST(req: NextRequest) {
       `${rName} sizinle vardiya takas etmek istiyor. Talepler sayfasından yanıtlayın.`,
       now
     );
-
-    db.close();
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -139,40 +125,36 @@ export async function PATCH(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { id, status } = await req.json();
 
     if (!id || !status) {
-      db.close();
       return NextResponse.json({ error: "id ve status zorunlu" }, { status: 400 });
     }
 
     // Manager statüslerini sadece manager/admin/supervisor kullanabilir
     const managerStatuses = ["manager_approved", "manager_rejected"];
     if (managerStatuses.includes(status) && auth.role === "employee") {
-      db.close();
       return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
     }
 
-    const existing = db.prepare(
+    const existing = await db.prepare(
       `SELECT * FROM shift_swap_requests WHERE id = ? AND org_id = ?`
     ).get(id, auth.org_id) as any;
 
     if (!existing) {
-      db.close();
       return NextResponse.json({ error: "Talep bulunamadı" }, { status: 404 });
     }
 
     // API body → SwapEvent
     const event = toSwapEvent(status, auth.personnel_id);
     if (!event) {
-      db.close();
       return NextResponse.json({ error: "Geçersiz durum değeri" }, { status: 400 });
     }
 
     // location_id'yi requester shift'ten al (Factor 6: hangi lokasyonun müdürüne gideceğini bilmek için)
-    const requesterShift = db.prepare(
+    const requesterShift = await db.prepare(
       `SELECT location_id FROM shift_assignments WHERE id = ?`
     ).get(existing.requester_shift_id) as any;
     const location_id = requesterShift?.location_id ?? "";
@@ -193,12 +175,11 @@ export async function PATCH(req: NextRequest) {
     );
 
     if (!result.ok) {
-      db.close();
       return NextResponse.json({ error: result.error }, { status: result.httpStatus });
     }
 
     // Durum güncelle
-    db.prepare(`UPDATE shift_swap_requests SET status = ? WHERE id = ?`)
+    await db.prepare(`UPDATE shift_swap_requests SET status = ? WHERE id = ?`)
       .run(result.newStatus, id);
 
     // Yan etkileri uygula
@@ -207,18 +188,18 @@ export async function PATCH(req: NextRequest) {
 
     for (const effect of result.sideEffects) {
       if (effect.type === "SWAP_SHIFTS") {
-        const sa_r = db.prepare(`SELECT * FROM shift_assignments WHERE id = ?`).get(effect.requester_shift_id) as any;
-        const sa_t = db.prepare(`SELECT * FROM shift_assignments WHERE id = ?`).get(effect.target_shift_id) as any;
+        const sa_r = await db.prepare(`SELECT * FROM shift_assignments WHERE id = ?`).get(effect.requester_shift_id) as any;
+        const sa_t = await db.prepare(`SELECT * FROM shift_assignments WHERE id = ?`).get(effect.target_shift_id) as any;
         if (sa_r && sa_t) {
-          db.prepare(`UPDATE shift_assignments SET personnel_id = ?, status = 'scheduled' WHERE id = ?`)
+          await db.prepare(`UPDATE shift_assignments SET personnel_id = ?, status = 'scheduled' WHERE id = ?`)
             .run(sa_t.personnel_id, sa_r.id);
-          db.prepare(`UPDATE shift_assignments SET personnel_id = ?, status = 'scheduled' WHERE id = ?`)
+          await db.prepare(`UPDATE shift_assignments SET personnel_id = ?, status = 'scheduled' WHERE id = ?`)
             .run(sa_r.personnel_id, sa_t.id);
         }
       }
 
       if (effect.type === "NOTIFY") {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
           VALUES (?, 'trade_request', ?, ?, 0, ?)
         `).run(effect.personnel_id, effect.title, effect.message, now);
@@ -235,13 +216,13 @@ export async function PATCH(req: NextRequest) {
 
       // Factor 7: akış duraklar → müdürü bul → bildir (Launch/Pause → insana araç gibi sor)
       if (effect.type === "NOTIFY_MANAGER") {
-        const managers = db.prepare(`
+        const managers = await db.prepare(`
           SELECT personnel_id FROM users
           WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
         `).all(effect.location_id) as any[];
 
         for (const mgr of managers) {
-          db.prepare(`
+          await db.prepare(`
             INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
             VALUES (?, 'trade_request', ?, ?, 0, ?)
           `).run(mgr.personnel_id, effect.title, effect.message, now);
@@ -257,14 +238,11 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    db.close();
-
     // Push bildirimleri DB kapandıktan sonra async gönder — HTTP yanıtını bloklamaz
     Promise.allSettled(pushPromises);
 
     return NextResponse.json({ success: true, newStatus: result.newStatus });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

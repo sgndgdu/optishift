@@ -18,29 +18,46 @@ function useChatUnread() {
   }, []);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2 } from "lucide-react";
+
+function usePendingAccounts(isAdmin: boolean) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    const tick = () => fetch("/api/users?approval_status=pending")
+      .then(r => r.json())
+      .then(d => setCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, [isAdmin]);
+  return count;
+}
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard",    label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/personnel",    label: "Personel",        icon: Users },
-  { href: "/schedule",     label: "Vardiya Planı",   icon: CalendarClock },
-  { href: "/fairness",     label: "Adalet Puanı",    icon: Star },
-  { href: "/requests",     label: "Onay Kutusu",      icon: ClipboardList },
-  { href: "/open-shifts",  label: "Açık Vardiyalar",  icon: Megaphone },
-  { href: "/breaks",       label: "Mola Takibi",      icon: Coffee },
-  { href: "/reports",      label: "Raporlar",         icon: BarChart2 },
-  { href: "/chat",         label: "Mesajlaşma",       icon: MessageSquare },
-  { href: "/integrations", label: "Entegrasyonlar",  icon: Plug },
-  { href: "/billing",      label: "Faturalandırma",  icon: CreditCard },
-  { href: "/settings",     label: "Ayarlar",         icon: Settings },
-];
+  { href: "/dashboard",    label: "Dashboard",       icon: LayoutDashboard },
+  { href: "/personnel",    label: "Personel & Hesaplar", icon: Users },
+  { href: "/schedule",         label: "Vardiya Planı",  icon: CalendarClock },
+  { href: "/schedule/archive", label: "Yayın Arşivi",   icon: Archive },
+  { href: "/fairness",         label: "Adalet Puanı",   icon: Star },
+  { href: "/requests",     label: "Onay Kutusu",       icon: ClipboardList },
+  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone },
+  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee },
+  { href: "/reports",      label: "Raporlar",          icon: BarChart2 },
+  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare },
+  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug },
+  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard },
+  { href: "/settings",     label: "Ayarlar",          icon: Settings },
+] as const;
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const chatUnread = useChatUnread();
+  const pendingAccounts = usePendingAccounts(user?.role === "admin" || user?.role === "supervisor");
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -197,9 +214,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active  = pathname.startsWith(href);
-          const isChat  = href === "/chat";
+        {NAV.filter(item => !("adminOnly" in item && item.adminOnly) || (user?.role === "admin" || user?.role === "supervisor")).map(({ href, label, icon: Icon }) => {
+          const active       = pathname.startsWith(href);
+          const isChat       = href === "/chat";
+          const isAccounts   = href === "/personnel";
           return (
             <Link
               key={href}
@@ -220,10 +238,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {isChat && chatUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
                 )}
+                {isAccounts && pendingAccounts > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
+                )}
               </div>
               {label}
               {isChat && chatUnread > 0 && (
                 <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
+              )}
+              {isAccounts && pendingAccounts > 0 && (
+                <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
               )}
             </Link>
           );

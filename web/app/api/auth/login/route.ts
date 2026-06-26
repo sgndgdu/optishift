@@ -38,6 +38,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Kullanıcı adı veya şifre hatalı" }, { status: 401 });
     }
 
+    // Onay bekleyen hesaplar giriş yapamaz
+    if (user.approval_status === "pending") {
+      return NextResponse.json({ error: "Hesabınız henüz onaylanmadı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+    }
+    if (user.approval_status === "rejected") {
+      return NextResponse.json({ error: "Hesabınız reddedildi. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+    }
+
     const userData = {
       id: user.id,
       personnel_id: user.personnel_id ?? null,
@@ -48,6 +56,7 @@ export async function POST(req: NextRequest) {
       location_id: user.location_id ?? null,
       department_id: user.department_id ?? null,
       name: user.name,
+      is_temp_password: !!(user.is_temp_password),
     };
 
     const token = await signToken({

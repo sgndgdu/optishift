@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, CalendarClock, Settings,
-  Zap, LogOut, MessageSquare, Building2, BarChart3, X
+  Zap, LogOut, MessageSquare, Building2, BarChart3, X, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,10 +24,24 @@ function useChatUnread() {
   return count;
 }
 
+function usePendingAccounts() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const tick = () => fetch("/api/users?approval_status=pending")
+      .then(r => r.json())
+      .then(d => setCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, []);
+  return count;
+}
+
 const NAV = [
   { href: "/supervisor",            label: "Genel Bakış",    icon: LayoutDashboard, exact: true },
   { href: "/supervisor/schedule",   label: "Vardiya Planı",  icon: CalendarClock },
-  { href: "/supervisor/personnel",  label: "Personel",       icon: Users },
+  { href: "/supervisor/personnel",  label: "Personel & Hesaplar", icon: Users },
   { href: "/supervisor/reports",    label: "Raporlar",       icon: BarChart3 },
   { href: "/supervisor/chat",       label: "Mesajlaşma",     icon: MessageSquare },
   { href: "/supervisor/settings",   label: "Ayarlar",        icon: Settings },
@@ -39,6 +53,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
   const [user, setUser]       = useState<any>(null);
   const [orgName, setOrgName] = useState<string>("");
   const chatUnread = useChatUnread();
+  const pendingAccounts = usePendingAccounts();
 
   useEffect(() => {
     try {
@@ -105,8 +120,9 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
       {/* Navigation */}
       <nav className="flex-1 space-y-1.5 px-1">
         {NAV.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href);
-          const isChat = href === "/supervisor/chat";
+          const active      = exact ? pathname === href : pathname.startsWith(href);
+          const isChat      = href === "/supervisor/chat";
+          const isAccounts  = href === "/supervisor/personnel";
           return (
             <Link
               key={href}
@@ -126,10 +142,16 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
                 {isChat && chatUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
                 )}
+                {isAccounts && pendingAccounts > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
+                )}
               </div>
               {label}
               {isChat && chatUnread > 0 && (
                 <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
+              )}
+              {isAccounts && pendingAccounts > 0 && (
+                <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
               )}
             </Link>
           );

@@ -47,16 +47,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id, location_id, name: name.trim(), manager: null, personnel_count: 0 });
 }
 
-// PATCH /api/departments?id=X — departman adını güncelle
+// PATCH /api/departments?id=X — departman adı veya demand_matrix güncelle
 export async function PATCH(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
 
-  const { name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: "name gerekli" }, { status: 400 });
+  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateData: Record<string, any> = {};
+  if (body.name?.trim()) updateData.name = body.name.trim();
+  if (body.demand_matrix !== undefined) updateData.demand_matrix = JSON.stringify(body.demand_matrix);
 
-  await db.update(departments).set({ name: name.trim() }).where(eq(departments.id, id));
+  if (Object.keys(updateData).length === 0)
+    return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
+
+  await db.update(departments).set(updateData).where(eq(departments.id, id));
   return NextResponse.json({ ok: true });
 }
 

@@ -1,15 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import path from "path";
 import { signToken, setCookie } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 export async function POST(req: NextRequest) {
-  const db = new Database(DB_PATH);
-  db.pragma("foreign_keys = ON");
+  const db = getDB();
 
   try {
     const { org_name, owner_name, username, email, password } = await req.json();
@@ -26,13 +23,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Kullanıcı adı en az 3 karakter olmalı" }, { status: 400 });
     }
 
-    const existingUsername = db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername);
+    const existingUsername = await db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername);
     if (existingUsername) {
       return NextResponse.json({ error: "Bu kullanıcı adı zaten alınmış" }, { status: 409 });
     }
 
     if (email?.trim()) {
-      const existingEmail = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
+      const existingEmail = await db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
       if (existingEmail) {
         return NextResponse.json({ error: "Bu e-posta adresi zaten kayıtlı" }, { status: 409 });
       }
@@ -43,15 +40,13 @@ export async function POST(req: NextRequest) {
     const userId = `U-${Date.now()}`;
     const passwordHash = await bcrypt.hash(password, 10);
 
-    db.transaction(() => {
-      db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(orgId, org_name.trim());
-      db.prepare(`
+    (async () => {
+      await db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(orgId, org_name.trim());
+      await db.prepare(`
         INSERT INTO users (id, username, email, password_hash, role, org_id, name, created_at)
         VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)
       `).run(userId, cleanUsername, email?.trim()?.toLowerCase() || null, passwordHash, orgId, owner_name.trim(), now);
     })();
-
-    db.close();
 
     const token = await signToken({
       id: userId,
@@ -79,7 +74,6 @@ export async function POST(req: NextRequest) {
     setCookie(res, token);
     return res;
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: "Kayıt hatası: " + err.message }, { status: 500 });
   }
 }

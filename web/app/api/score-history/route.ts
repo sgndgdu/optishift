@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET: ?location_id=...&weeks=8
 // Döner: { personnel_id: [{ week_start, burden_score, total_hours, ... }] }
@@ -20,15 +18,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
-    const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT
         personnel_id, personnel_name, week_start,
         burden_score, total_hours, raw_score,
@@ -40,8 +37,6 @@ export async function GET(req: NextRequest) {
       WHERE org_id = ? AND location_id = ?
       ORDER BY week_start ASC
     `).all(auth.org_id, location_id) as any[];
-
-    db.close();
 
     const byPerson: Record<string, any[]> = {};
     for (const row of rows) {
@@ -56,7 +51,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

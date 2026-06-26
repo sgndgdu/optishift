@@ -33,6 +33,13 @@ export default function LoginPage() {
         return;
       }
 
+      // İlk giriş: şifre belirleme sayfasına yönlendir
+      if (data.is_temp_password) {
+        localStorage.setItem("optishift_setup_user", JSON.stringify(data));
+        router.push("/setup");
+        return;
+      }
+
       if (data.role === "supervisor" || (data.role === "admin" && !data.location_id)) {
         localStorage.removeItem("optishift_portal_user");
         localStorage.removeItem("optishift_manager_user");

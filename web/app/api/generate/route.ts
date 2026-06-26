@@ -1,46 +1,38 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { spawn } from "child_process";
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import Database from "better-sqlite3";
 import { requireAuth } from "@/lib/auth";
+import { getDB } from "@/lib/db/client";
 
-const ENGINE_PATH = path.resolve(process.cwd(), "../engine/optishift_engine.py");
-const ENGINE_TIMEOUT_MS = 15_000;
+// Railway'de çalışan FastAPI engine servisinin URL'i
+const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
+const ENGINE_TIMEOUT_MS = 30_000;
 
-function runEngine(payload: unknown): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("python3", [ENGINE_PATH, "--api"]);
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
+async function callEngine(payload: unknown): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ENGINE_TIMEOUT_MS);
 
-    const finish = (err?: Error, out?: string) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      err ? reject(err) : resolve(out!);
-    };
-
-    const timer = setTimeout(() => {
-      proc.kill();
-      finish(new Error("Optimizasyon motoru zaman aşımına uğradı (15s)"));
-    }, ENGINE_TIMEOUT_MS);
-
-    proc.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-    proc.on("error", (err) => finish(err));
-    proc.on("close", (code) => {
-      if (code !== 0 && code !== null) {
-        finish(new Error(stderr || `Engine çıkış kodu: ${code}`));
-      } else {
-        finish(undefined, stdout);
-      }
+  try {
+    const res = await fetch(`${ENGINE_URL}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
     });
-
-    proc.stdin.write(JSON.stringify(payload));
-    proc.stdin.end();
-  });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || `Engine HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new Error(
+        "Optimizasyon motoru zaman aşımına uğradı (30s). Personel sayısı veya kısıtlamalar çok fazla olabilir."
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -52,29 +44,32 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  // Diğer API'larla tutarlılık için snake_case da kabul edilir
   const branchId: string | undefined = body.locationId ?? body.location_id;
   if (!branchId) {
-    return NextResponse.json({ error: "locationId (veya location_id) zorunlu" }, { status: 400 });
+    return NextResponse.json(
+      { error: "locationId (veya location_id) zorunlu" },
+      { status: 400 }
+    );
   }
-  // week_start: schedule sayfasından ISO Pazartesi tarihi gelir (YYYY-MM-DD)
-  // Gelmezse otomatik olarak bu haftanın Pazartesisini hesapla
+
   const week_start: string = (() => {
-    if (body.week_start && /^\d{4}-\d{2}-\d{2}$/.test(body.week_start)) return body.week_start;
+    if (body.week_start && /^\d{4}-\d{2}-\d{2}$/.test(body.week_start))
+      return body.week_start;
     const now = new Date();
-    const day = now.getDay(); // 0=Pazar
-    const diff = day === 0 ? -6 : 1 - day; // Pazartesi'ye geri git
+    const day = now.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
     now.setDate(now.getDate() + diff);
     return now.toISOString().split("T")[0];
   })();
 
   try {
-    const db = new Database(path.join(process.cwd(), "optishift.db"));
+    const db = getDB();
 
     // Location'ı DB'den çek ve org'a ait olduğunu doğrula
-    const locationRow = db.prepare(`SELECT * FROM locations WHERE id = ? AND org_id = ?`).get(branchId, auth.org_id) as any;
+    const locationRow = (await db
+      .prepare(`SELECT * FROM locations WHERE id = $1 AND org_id = $2`)
+      .get(branchId, auth.org_id)) as any;
     if (!locationRow) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
     const orgId: string = auth.org_id;
@@ -90,83 +85,120 @@ export async function POST(req: NextRequest) {
         const defs = JSON.parse(locationRow.shift_definitions);
         if (Array.isArray(defs) && defs.length > 0) {
           shiftsPayload = defs.map((d: any) => ({
-            id:          String(d.id ?? d.name ?? ""),
-            name:        String(d.name ?? "Vardiya"),
-            start:       String(d.start ?? "08:00"),
-            end:         String(d.end   ?? "16:00"),
+            id: String(d.id ?? d.name ?? ""),
+            name: String(d.name ?? "Vardiya"),
+            start: String(d.start ?? "08:00"),
+            end: String(d.end ?? "16:00"),
             base_points: Number(d.base_points ?? 5),
           }));
         }
-      } catch { /* parse hatası → varsayılan shifts kullan */ }
+      } catch {
+        /* parse hatası → varsayılan shifts kullan */
+      }
+    }
+
+    // Ekipleri çek (fabrika modülü)
+    let crewRows: any[] = [];
+    try {
+      crewRows = (await db
+        .prepare(
+          `SELECT * FROM crews WHERE location_id = $1 AND org_id = $2`
+        )
+        .all(branchId, auth.org_id)) as any[];
+    } catch {
+      /* crews tablosu yoksa atla */
+    }
+    void crewRows; // kullanılmayabilir, ileride eklenebilir
+
+    // Rotasyon şablonunu parse et
+    let rotationTemplate: any = null;
+    if (locationRow?.rotation_template) {
+      try {
+        rotationTemplate = JSON.parse(locationRow.rotation_template);
+      } catch {
+        /* ignore */
+      }
     }
 
     // Aktif personeli çek
-    let personnelRows = db.prepare(`SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`).all(`%"${branchId}"%`) as any[];
+    let personnelRows = (await db
+      .prepare(
+        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active'`
+      )
+      .all(`%"${branchId}"%`)) as any[];
 
-    // Müdür/admin varsayılan olarak otomatik planlamaya dahil edilmez (locations.rules toggle'ı)
+    // Müdür/admin varsayılan olarak otomatik planlamaya dahil edilmez
     let includeManagersInSchedule = false;
     if (locationRow?.rules) {
       try {
-        includeManagersInSchedule = !!JSON.parse(locationRow.rules)?.include_managers_in_schedule;
-      } catch { /* ignore */ }
+        includeManagersInSchedule = !!JSON.parse(locationRow.rules)
+          ?.include_managers_in_schedule;
+      } catch {
+        /* ignore */
+      }
     }
     if (!includeManagersInSchedule) {
       personnelRows = personnelRows.filter(
-        (p: any) => !["manager", "admin", "supervisor"].includes(p.user_access_level)
+        (p: any) =>
+          !["manager", "admin", "supervisor"].includes(p.user_access_level)
       );
     }
 
-    // Müsaitlik verilerini çek — hedef haftaya göre filtrele
+    // Müsaitlik verilerini çek
     const personnelIds = personnelRows.map((p: any) => p.id);
     let availabilityRows: any[] = [];
     if (personnelIds.length > 0) {
-      const placeholders = personnelIds.map(() => '?').join(',');
-      availabilityRows = db.prepare(
-        `SELECT * FROM availability WHERE personnel_id IN (${placeholders}) AND week_start = ?`
-      ).all(...personnelIds, week_start);
+      const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+      availabilityRows = (await db
+        .prepare(
+          `SELECT * FROM availability WHERE personnel_id IN (${placeholders}) AND week_start = $${personnelIds.length + 1}`
+        )
+        .all(...personnelIds, week_start)) as any[];
     }
 
-    // Onaylı izin taleplerini çek — bu haftaya düşen günleri hard "unavailable" olarak blokla
+    // Onaylı izin taleplerini çek
     let approvedLeaveRows: any[] = [];
     if (personnelIds.length > 0) {
       try {
-        const weekEndDate = new Date(week_start + 'T00:00:00Z');
+        const weekEndDate = new Date(week_start + "T00:00:00Z");
         weekEndDate.setDate(weekEndDate.getDate() + 6);
-        const week_end = weekEndDate.toISOString().split('T')[0];
-        const leavePlaceholders = personnelIds.map(() => '?').join(',');
-        approvedLeaveRows = db.prepare(
-          `SELECT personnel_id, start_date, end_date
-           FROM leave_requests
-           WHERE personnel_id IN (${leavePlaceholders})
-             AND status = 'approved'
-             AND start_date <= ? AND end_date >= ?`
-        ).all(...personnelIds, week_end, week_start) as any[];
-      } catch { /* leave_requests tablosu yoksa atla */ }
+        const week_end = weekEndDate.toISOString().split("T")[0];
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        approvedLeaveRows = (await db
+          .prepare(
+            `SELECT personnel_id, start_date, end_date
+             FROM leave_requests
+             WHERE personnel_id IN (${placeholders})
+               AND status = 'approved'
+               AND start_date <= $${personnelIds.length + 1}
+               AND end_date >= $${personnelIds.length + 2}`
+          )
+          .all(...personnelIds, week_end, week_start)) as any[];
+      } catch {
+        /* leave_requests tablosu yoksa atla */
+      }
     }
 
-    db.close();
-
-    // prevScores: DB'deki değerleri kullan (client'tan override almıyoruz)
+    // prevScores
     const prevScores: Record<string, number> = {};
     for (const p of personnelRows) {
-      prevScores[p.id] = p.prev_score ?? 0; // prev_score = cumulative_burden (adalet motoru v2)
+      prevScores[p.id] = p.prev_score ?? 0;
     }
 
-    // Verileri formatla
+    // Personel verisini formatla
     const personnelData = personnelRows.map((p: any) => {
-      // role_levels: { "barista": "primary", "kasa": "secondary" }
-      // Herhangi bir değer "primary" ise personel primary kabul edilir
       let role_level = "secondary";
       try {
         const rls = JSON.parse(p.role_levels || "{}");
         if (Object.values(rls).includes("primary")) role_level = "primary";
-      } catch { /* ignore */ }
-
+      } catch {
+        /* ignore */
+      }
       return {
         id: p.id,
         name: p.name,
         skills: JSON.parse(p.roles || "[]"),
-        prev_score: prevScores[p.id] ?? 0,        // engine'e cumulative_burden olarak geçiyor
+        prev_score: prevScores[p.id] ?? 0,
         cumulative_burden: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
         max_weekly_hours: p.max_weekly_hours ?? 45,
@@ -174,13 +206,19 @@ export async function POST(req: NextRequest) {
         branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
         org_id: p.org_id,
         role_level,
+        crew_id: p.crew_id ?? null,
+        ytd_overtime_hours: p.ytd_overtime_hours ?? 0,
       };
     });
 
     const parseAvail = (val: any) => {
       if (!val) return "available";
-      if (typeof val === 'string' && val.startsWith("{")) {
-        try { return JSON.parse(val); } catch(e) { return "available"; }
+      if (typeof val === "string" && val.startsWith("{")) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return "available";
+        }
       }
       return val;
     };
@@ -198,34 +236,34 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // Haftalık sabit izin günlerini hard "unavailable" olarak işaretle
+    // Haftalık sabit izin günleri
     for (const p of personnelRows) {
       if (p.weekly_off_day !== null && p.weekly_off_day !== undefined) {
         const d = Number(p.weekly_off_day);
         if (d >= 0 && d <= 6) {
           if (!availabilityData[p.id]) availabilityData[p.id] = {};
-          availabilityData[p.id][d] = 'unavailable';
+          availabilityData[p.id][d] = "unavailable";
         }
       }
     }
 
-    // Onaylı izin günlerini hard "unavailable" olarak üst yaz
-    const wsDate = new Date(week_start + 'T00:00:00Z');
+    // Onaylı izin günleri
+    const wsDate = new Date(week_start + "T00:00:00Z");
     for (const leave of approvedLeaveRows) {
       const pid = leave.personnel_id;
-      const leaveStart = new Date(leave.start_date + 'T00:00:00Z');
-      const leaveEnd   = new Date(leave.end_date   + 'T00:00:00Z');
+      const leaveStart = new Date(leave.start_date + "T00:00:00Z");
+      const leaveEnd = new Date(leave.end_date + "T00:00:00Z");
       if (!availabilityData[pid]) availabilityData[pid] = {};
       for (let d = 0; d < 7; d++) {
         const dayDate = new Date(wsDate);
         dayDate.setDate(wsDate.getDate() + d);
         if (dayDate >= leaveStart && dayDate <= leaveEnd) {
-          availabilityData[pid][d] = 'unavailable';
+          availabilityData[pid][d] = "unavailable";
         }
       }
     }
 
-    // Bölge kotalarını parse et; yoksa boş gönder (engine global defaultlara düşer)
+    // Bölge kotaları
     let zoneQuotasPayload: Record<string, number> = {};
     if (locationRow?.zone_quotas) {
       try {
@@ -233,10 +271,12 @@ export async function POST(req: NextRequest) {
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           zoneQuotasPayload = parsed;
         }
-      } catch { /* parse hatası → boş bırak */ }
+      } catch {
+        /* parse hatası */
+      }
     }
 
-    // Kapasite matrisini parse et — demand-based scheduling
+    // Kapasite matrisi
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
     if (locationRow?.demand_matrix) {
       try {
@@ -244,67 +284,172 @@ export async function POST(req: NextRequest) {
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           demandMatrixPayload = parsed;
         }
-      } catch { /* parse hatası → boş bırak */ }
+      } catch {
+        /* parse hatası */
+      }
     }
 
-    // Kural toggle'ları — locations.rules'dan oku
+    // Kural toggle'ları
     let ensureSeniorPerShift = false;
     let maxConsecutiveDays = 6;
     let noNightToMorning = false;
     let preferredNotMultiplier = 1.5;
     let clopeningMinRestHours = 13;
+    let overtimeThresholdHours = 45.0;
+    let maxYtdOvertimeHours = 270.0;
+    let overtimeFairDistribution = true;
+    let crewSameShiftHard = false;
+    let weekendMultiplierEnabled = true;
+    let nightMultiplierEnabled = true;
+    let preferredNotEnabled = true;
+    let clopeningEnabled = true;
+    let weekendMultiplier = 1.2;
+    let nightMultiplier = 1.3;
     if (locationRow?.rules) {
       try {
-        const parsedRules = JSON.parse(locationRow.rules);
-        ensureSeniorPerShift = !!parsedRules?.ensure_senior_per_shift;
-        if (typeof parsedRules?.max_consecutive_days === 'number') {
-          maxConsecutiveDays = parsedRules.max_consecutive_days;
-        }
-        noNightToMorning = !!parsedRules?.no_night_to_morning;
-        if (typeof parsedRules?.preferred_not_multiplier === 'number') {
-          preferredNotMultiplier = parsedRules.preferred_not_multiplier;
-        }
-        if (typeof parsedRules?.clopening_min_rest_hours === 'number') {
-          clopeningMinRestHours = parsedRules.clopening_min_rest_hours;
-        }
-      } catch { /* ignore */ }
+        const pr = JSON.parse(locationRow.rules);
+        ensureSeniorPerShift = !!pr?.ensure_senior_per_shift;
+        if (typeof pr?.max_consecutive_days === "number")
+          maxConsecutiveDays = pr.max_consecutive_days;
+        noNightToMorning = !!pr?.no_night_to_morning;
+        if (typeof pr?.preferred_not_multiplier === "number")
+          preferredNotMultiplier = pr.preferred_not_multiplier;
+        if (typeof pr?.clopening_min_rest_hours === "number")
+          clopeningMinRestHours = pr.clopening_min_rest_hours;
+        if (typeof pr?.overtime_threshold_hours === "number")
+          overtimeThresholdHours = pr.overtime_threshold_hours;
+        if (typeof pr?.max_ytd_overtime_hours === "number")
+          maxYtdOvertimeHours = pr.max_ytd_overtime_hours;
+        if (typeof pr?.overtime_fair_distribution === "boolean")
+          overtimeFairDistribution = pr.overtime_fair_distribution;
+        if (typeof pr?.crew_same_shift_hard === "boolean")
+          crewSameShiftHard = pr.crew_same_shift_hard;
+        if (typeof pr?.weekend_multiplier_enabled === "boolean")
+          weekendMultiplierEnabled = pr.weekend_multiplier_enabled;
+        if (typeof pr?.night_multiplier_enabled === "boolean")
+          nightMultiplierEnabled = pr.night_multiplier_enabled;
+        if (typeof pr?.preferred_not_enabled === "boolean")
+          preferredNotEnabled = pr.preferred_not_enabled;
+        if (typeof pr?.clopening_enabled === "boolean")
+          clopeningEnabled = pr.clopening_enabled;
+        if (typeof pr?.weekend_multiplier === "number")
+          weekendMultiplier = pr.weekend_multiplier;
+        if (typeof pr?.night_multiplier === "number")
+          nightMultiplier = pr.night_multiplier;
+      } catch {
+        /* ignore */
+      }
     }
 
-    const payload = {
+    // Rotasyon şablonu
+    const crewRotation: Record<string, string> = {};
+    if (rotationTemplate?.enabled && rotationTemplate?.pattern && week_start) {
+      const refDate = new Date(
+        rotationTemplate.reference_week + "T00:00:00Z"
+      );
+      const curDate = new Date(week_start + "T00:00:00Z");
+      const weeksElapsed = Math.floor(
+        (curDate.getTime() - refDate.getTime()) / (7 * 24 * 3600 * 1000)
+      );
+      const cycleWeeks = rotationTemplate.cycle_weeks || 1;
+      const weekOffset = ((weeksElapsed % cycleWeeks) + cycleWeeks) % cycleWeeks;
+      for (const [crewId, shiftPattern] of Object.entries(
+        rotationTemplate.pattern as Record<string, string[]>
+      )) {
+        if (Array.isArray(shiftPattern) && shiftPattern[weekOffset] != null) {
+          crewRotation[crewId] = shiftPattern[weekOffset];
+        }
+      }
+    }
+
+    // Personel→ekip haritası
+    const personnelCrews: Record<string, string> = {};
+    for (const p of personnelData) {
+      if ((p as any).crew_id)
+        personnelCrews[(p as any).id] = (p as any).crew_id;
+    }
+
+    const enginePayload = {
       prevScores,
       branchId,
       orgId,
       week_start,
-      personnel:               personnelData,
-      availability:            availabilityData,
-      shifts:                  shiftsPayload,
-      zone_quotas:             zoneQuotasPayload,
-      demand_matrix:           demandMatrixPayload,
+      personnel: personnelData,
+      availability: availabilityData,
+      shifts: shiftsPayload,
+      zone_quotas: zoneQuotasPayload,
+      demand_matrix: demandMatrixPayload,
       ensure_senior_per_shift: ensureSeniorPerShift,
-      max_consecutive_days:    maxConsecutiveDays,
-      no_night_to_morning:     noNightToMorning,
+      max_consecutive_days: maxConsecutiveDays,
+      no_night_to_morning: noNightToMorning,
       preferred_not_multiplier: preferredNotMultiplier,
+      crew_rotation: crewRotation,
+      personnel_crews: personnelCrews,
+      crew_same_shift_hard: crewSameShiftHard,
       rules: {
         max_weekly_hours: 45,
-        min_rest_hours:   11,
+        min_rest_hours: 11,
         clopening_min_rest_hours: clopeningMinRestHours,
+        overtime_threshold_hours: overtimeThresholdHours,
+        max_ytd_overtime_hours: maxYtdOvertimeHours,
+        overtime_fair_distribution: overtimeFairDistribution,
+        weekend_multiplier_enabled: weekendMultiplierEnabled,
+        night_multiplier_enabled: nightMultiplierEnabled,
+        preferred_not_enabled: preferredNotEnabled,
+        clopening_enabled: clopeningEnabled,
+        weekend_multiplier: weekendMultiplier,
+        night_multiplier: nightMultiplier,
       },
     };
 
-    const stdout = await runEngine(payload);
+    // FastAPI engine'e HTTP isteği gönder
+    const data = await callEngine(enginePayload);
 
-    // stdout'ta yalnızca son satır JSON — debug satırlarını atla
-    const jsonLine = stdout.trim().split("\n").filter((l) => l.startsWith("{")).at(-1) ?? stdout;
-    const data = JSON.parse(jsonLine);
-    
     // Python motorundan dönen veriyi UI için eşle
     if (data.personnel) {
       data.personnel = data.personnel.map((p: any) => ({
         ...p,
-        roles: p.skills || []
+        roles: p.skills || [],
       }));
     }
-    
+
+    // Motor fazla mesai özeti döndürdüyse overtime_records tablosuna kaydet
+    if (Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        for (const ot of data.overtime_summary) {
+          if ((ot.overtime_hours ?? 0) > 0) {
+            const exists = await db
+              .prepare(
+                `SELECT id FROM overtime_records WHERE location_id = $1 AND personnel_id = $2 AND week_start = $3 AND status = 'pending'`
+              )
+              .get(branchId, ot.personnelId, week_start);
+            if (!exists) {
+              await db
+                .prepare(
+                  `INSERT INTO overtime_records
+                   (org_id, location_id, personnel_id, personnel_name, week_start, scheduled_hours, overtime_hours, status, note, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NULL, $8)
+                   ON CONFLICT DO NOTHING`
+                )
+                .run(
+                  auth.org_id,
+                  branchId,
+                  ot.personnelId,
+                  ot.name ?? null,
+                  week_start,
+                  ot.scheduled_hours ?? 0,
+                  ot.overtime_hours,
+                  now
+                );
+            }
+          }
+        }
+      } catch {
+        /* sessizce atla */
+      }
+    }
+
     return NextResponse.json(data);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

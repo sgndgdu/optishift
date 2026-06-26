@@ -1,20 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check } from "lucide-react";
-import type { Location, ShiftDefinition, Department, Role } from "@/lib/types";
+import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, RefreshCw, Scale } from "lucide-react";
+import type { Location, ShiftDefinition, Department, Role, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
-type TabKey = "shifts" | "rules" | "zones" | "account";
+const CREW_COLORS = [
+  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
+  "#8b5cf6", "#f97316", "#14b8a6", "#ef4444", "#84cc16",
+];
+
+type TabKey = "shifts" | "rules" | "fairness" | "zones" | "crews" | "rotation" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "shifts",  label: "Vardiyalar" },
-  { key: "rules",   label: "Kurallar" },
-  { key: "zones",   label: "Bölgeler" },
-  { key: "account", label: "Hesap & Bildirimler" },
+  { key: "shifts",   label: "Vardiyalar" },
+  { key: "rules",    label: "Kurallar" },
+  { key: "fairness", label: "Adalet Puanı" },
+  { key: "zones",    label: "Bölgeler" },
+  { key: "crews",    label: "Ekipler" },
+  { key: "rotation", label: "Rotasyon" },
+  { key: "account",  label: "Hesap & Bildirimler" },
 ];
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -149,9 +157,42 @@ export default function SettingsPage() {
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
   const [prePublishCheckEnabled, setPrePublishCheckEnabled]       = useState(true);
   const [heroBonusEnabled, setHeroBonusEnabled]                   = useState(true);
+  const [heroBonusMultiplier, setHeroBonusMultiplier]             = useState(1.5);
   const [weekendMultiplierEnabled, setWeekendMultiplierEnabled]   = useState(true);
   const [nightMultiplierEnabled, setNightMultiplierEnabled]       = useState(true);
+  const [preferredNotEnabled, setPreferredNotEnabled]             = useState(true);
+  const [changeCompensationEnabled, setChangeCompensationEnabled] = useState(true);
+  const [leaveOverrideBonusEnabled, setLeaveOverrideBonusEnabled] = useState(true);
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled]         = useState(true);
+  const [maxBreakDurationMin, setMaxBreakDurationMin]             = useState(15);
+  const [compDecayFactor, setCompDecayFactor]                     = useState(0.8);
+  const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
+  const [partTimeWeightFactor, setPartTimeWeightFactor]           = useState(6);
+
+  // Fazla mesai kuralları
+  const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
+  const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
+  const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
+  const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
+
+  // Ekip (Crew) yönetimi
+  const [crews, setCrews]                 = useState<Crew[]>([]);
+  const [crewsLoading, setCrewsLoading]   = useState(false);
+  const [newCrewName, setNewCrewName]     = useState("");
+  const [newCrewColor, setNewCrewColor]   = useState(CREW_COLORS[0]);
+  const [editingCrewId, setEditingCrewId] = useState<string | null>(null);
+  const [editingCrewName, setEditingCrewName] = useState("");
+
+  // Rotasyon şablonu
+  const [rotationEnabled, setRotationEnabled]       = useState(false);
+  const [rotationType, setRotationType]             = useState<RotationTemplate["type"]>("3-shift");
+  const [cycleWeeks, setCycleWeeks]                 = useState(3);
+  const [referenceWeek, setReferenceWeek]           = useState("");
+  const [rotationPattern, setRotationPattern]       = useState<Record<string, string[]>>({}); // crew_id → shift_def_id[]
+  const [rotationSaving, setRotationSaving]         = useState(false);
+
+  const savedSnapshot = useRef<string>("");
+  const [isDirty, setIsDirty] = useState(false);
 
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason] = useState(false);
@@ -222,7 +263,39 @@ export default function SettingsPage() {
           setHeroBonusEnabled(loc.rules?.hero_bonus_enabled !== false);
           setWeekendMultiplierEnabled(loc.rules?.weekend_multiplier_enabled !== false);
           setNightMultiplierEnabled(loc.rules?.night_multiplier_enabled !== false);
+          setPreferredNotEnabled(loc.rules?.preferred_not_enabled !== false);
+          setChangeCompensationEnabled(loc.rules?.change_compensation_enabled !== false);
+          setLeaveOverrideBonusEnabled(loc.rules?.leave_override_bonus_enabled !== false);
           setPublishLeadKpiEnabled(loc.rules?.publish_lead_kpi_enabled !== false);
+          if (typeof loc.rules?.hero_bonus_multiplier === "number")     setHeroBonusMultiplier(loc.rules.hero_bonus_multiplier);
+          if (typeof loc.rules?.max_break_duration_min === "number")    setMaxBreakDurationMin(loc.rules.max_break_duration_min);
+          if (typeof loc.rules?.comp_decay_factor === "number")         setCompDecayFactor(loc.rules.comp_decay_factor);
+          if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
+          if (typeof loc.rules?.part_time_weight_factor === "number")   setPartTimeWeightFactor(loc.rules.part_time_weight_factor);
+          if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
+          if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
+          if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
+          if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
+
+          // Rotasyon şablonu
+          if (typeof loc.rotation_template === "string") {
+            try { loc.rotation_template = JSON.parse(loc.rotation_template); } catch { loc.rotation_template = undefined; }
+          }
+          if (loc.rotation_template) {
+            const rt = loc.rotation_template as RotationTemplate;
+            setRotationEnabled(!!rt.enabled);
+            setRotationType(rt.type ?? "3-shift");
+            setCycleWeeks(rt.cycle_weeks ?? 3);
+            setReferenceWeek(rt.reference_week ?? "");
+            setRotationPattern(rt.pattern ?? {});
+          }
+
+          // Ekipleri yükle
+          try {
+            setCrewsLoading(true);
+            const cres = await fetch(`/api/crews?location_id=${finalId}`);
+            if (cres.ok) { const cdata = await cres.json(); if (Array.isArray(cdata)) setCrews(cdata); }
+          } catch { /* ignore */ } finally { setCrewsLoading(false); }
 
           if (typeof loc.leave_policy === "string") { try { loc.leave_policy = JSON.parse(loc.leave_policy); } catch { loc.leave_policy = {}; } }
           const lat = loc.latitude != null ? String(loc.latitude) : "";
@@ -263,6 +336,49 @@ export default function SettingsPage() {
           }
           setDepartments(depts);
           setRoles(locRoles);
+
+          savedSnapshot.current = JSON.stringify({
+            shift_definitions: loc.shift_definitions ?? [],
+            operating_hours: loc.operating_hours ?? {},
+            zone_quotas: Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })),
+            departments: depts.map((d: Department) => ({ id: d.id, name: d.name })),
+            ensureSeniorPerShift: !!loc.rules?.ensure_senior_per_shift,
+            maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
+            noNightToMorning: !!loc.rules?.no_night_to_morning,
+            includeManagersInSchedule: !!loc.rules?.include_managers_in_schedule,
+            preferredNotMultiplier: typeof loc.rules?.preferred_not_multiplier === "number" ? loc.rules.preferred_not_multiplier : 1.5,
+            maxPreferredNotDays: typeof loc.rules?.max_preferred_not_days === "number" ? loc.rules.max_preferred_not_days : 1,
+            clopeningMinRestHours: typeof loc.rules?.clopening_min_rest_hours === "number" ? loc.rules.clopening_min_rest_hours : 13,
+            maxWeeklyHours: typeof loc.rules?.max_weekly_hours === "number" ? loc.rules.max_weekly_hours : 45,
+            minRestHours: typeof loc.rules?.min_rest_hours === "number" ? loc.rules.min_rest_hours : 11,
+            changeCompensationPoints: typeof loc.rules?.change_compensation_points === "number" ? loc.rules.change_compensation_points : 2,
+            leaveOverrideBonus: typeof loc.rules?.leave_override_bonus_multiplier === "number" ? loc.rules.leave_override_bonus_multiplier : 1.5,
+            weekendMultiplier: typeof loc.rules?.weekend_multiplier === "number" ? loc.rules.weekend_multiplier : 1.2,
+            nightMultiplier: typeof loc.rules?.night_multiplier === "number" ? loc.rules.night_multiplier : 1.3,
+            clopeningEnabled: loc.rules?.clopening_enabled !== false,
+            swapRequestsEnabled: loc.rules?.swap_requests_enabled !== false,
+            editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
+            checkinRequired: !!loc.rules?.checkin_required,
+            autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
+            lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
+            maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
+            prePublishCheckEnabled: loc.rules?.pre_publish_check !== false,
+            heroBonusEnabled: loc.rules?.hero_bonus_enabled !== false,
+            heroBonusMultiplier: typeof loc.rules?.hero_bonus_multiplier === "number" ? loc.rules.hero_bonus_multiplier : 1.5,
+            weekendMultiplierEnabled: loc.rules?.weekend_multiplier_enabled !== false,
+            nightMultiplierEnabled: loc.rules?.night_multiplier_enabled !== false,
+            publishLeadKpiEnabled: loc.rules?.publish_lead_kpi_enabled !== false,
+            maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
+            compDecayFactor: typeof loc.rules?.comp_decay_factor === "number" ? loc.rules.comp_decay_factor : 0.8,
+            clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
+            partTimeWeightFactor: typeof loc.rules?.part_time_weight_factor === "number" ? loc.rules.part_time_weight_factor : 6,
+            leaveRequireReason: !!(lp?.require_reason),
+            leaveAllowMultiDay: !!(lp?.allow_multi_day),
+            leaveMaxDays: lp?.max_days_per_request ?? 1,
+            locationLat: lat,
+            locationLon: lon,
+          });
+          setIsDirty(false);
         }
       } catch (err) {
         console.error("Settings load error:", err);
@@ -273,6 +389,38 @@ export default function SettingsPage() {
     window.addEventListener("optishift_location_changed", init);
     return () => window.removeEventListener("optishift_location_changed", init);
   }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!savedSnapshot.current || !locationData) return;
+    const current = JSON.stringify({
+      shift_definitions: locationData.shift_definitions ?? [],
+      operating_hours: locationData.operating_hours ?? {},
+      zone_quotas: zoneQuotas,
+      departments: departments.map(d => ({ id: d.id, name: d.name })),
+      ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+      preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
+      maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
+      weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+      editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+      maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
+      weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
+      maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+      leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+    });
+    setIsDirty(current !== savedSnapshot.current);
+  }, [
+    locationData, zoneQuotas, departments,
+    ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+    preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
+    maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
+    weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+    editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+    maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
+    weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
+    maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+    leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+  ]);
 
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
     try {
@@ -366,7 +514,19 @@ export default function SettingsPage() {
             hero_bonus_enabled:                 heroBonusEnabled,
             weekend_multiplier_enabled:         weekendMultiplierEnabled,
             night_multiplier_enabled:           nightMultiplierEnabled,
+            preferred_not_enabled:              preferredNotEnabled,
+            change_compensation_enabled:        changeCompensationEnabled,
+            leave_override_bonus_enabled:       leaveOverrideBonusEnabled,
             publish_lead_kpi_enabled:           publishLeadKpiEnabled,
+            hero_bonus_multiplier:              heroBonusMultiplier,
+            max_break_duration_min:             maxBreakDurationMin,
+            comp_decay_factor:                  compDecayFactor,
+            clopening_penalty_weight:           clopeningPenaltyWeight,
+            part_time_weight_factor:            partTimeWeightFactor,
+            overtime_threshold_hours:           overtimeThresholdHours,
+            max_ytd_overtime_hours:             maxYtdOvertimeHours,
+            overtime_fair_distribution:         overtimeFairDistribution,
+            crew_same_shift_hard:               crewSameShiftHard,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -380,6 +540,24 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error("Sunucu hatası");
       localStorage.setItem(`optishift_settings_mock_${locationData.id}`, JSON.stringify({ locationData, departments, roles }));
       localStorage.removeItem("optishift_schedule_config_v2");
+      savedSnapshot.current = JSON.stringify({
+        shift_definitions: locationData.shift_definitions ?? [],
+        operating_hours: locationData.operating_hours ?? {},
+        zone_quotas: zoneQuotas,
+        departments: departments.map(d => ({ id: d.id, name: d.name })),
+        ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+        preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
+        maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
+        weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+        editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+        maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
+        weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
+        maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+        leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
+        locationLat: finalLat,
+        locationLon: finalLon,
+      });
+      setIsDirty(false);
       alert("Ayarlar kaydedildi!");
     } catch {
       alert("Kaydetme sırasında hata oluştu.");
@@ -402,6 +580,9 @@ export default function SettingsPage() {
           }`}
         >
           {tab.key === "account" && <UserCircle size={13} />}
+          {tab.key === "fairness" && <Scale size={13} />}
+          {tab.key === "crews" && <Users size={13} />}
+          {tab.key === "rotation" && <RefreshCw size={13} />}
           {tab.label}
         </button>
       ))}
@@ -587,97 +768,12 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <hr className="border-slate-100" />
-
-              {/* 3. Yük Çarpanları */}
-              <div>
-                <SectionLabel>Yük Çarpanları</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Hafta sonu ve gece vardiyaları adalet hesabında daha ağır sayılır. Kapalıysa o tip vardiyalar normal puan alır.</p>
-                <div className="space-y-3">
-                  <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Toggle on={weekendMultiplierEnabled} onToggle={() => setWeekendMultiplierEnabled(v => !v)} />
-                      <div className={weekendMultiplierEnabled ? "" : "opacity-40"}>
-                        <p className="text-sm font-semibold text-slate-800">Hafta Sonu Çarpanı</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Cmt–Paz vardiyelerin yük katsayısı</p>
-                      </div>
-                    </div>
-                    <div className={weekendMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
-                      <NumberInput value={weekendMultiplier} onChange={setWeekendMultiplier} min={1} max={3} step={0.1} prefix="×" />
-                    </div>
-                  </div>
-                  <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Toggle on={nightMultiplierEnabled} onToggle={() => setNightMultiplierEnabled(v => !v)} />
-                      <div className={nightMultiplierEnabled ? "" : "opacity-40"}>
-                        <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-                          <Moon size={13} className="text-indigo-400" /> Gece Vardiyası Çarpanı
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">"Gece" işaretli vardiyaların yük katsayısı</p>
-                      </div>
-                    </div>
-                    <div className={nightMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
-                      <NumberInput value={nightMultiplier} onChange={setNightMultiplier} min={1} max={3} step={0.1} prefix="×" />
-                    </div>
-                  </div>
-                  <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Toggle on={heroBonusEnabled} onToggle={() => setHeroBonusEnabled(v => !v)} />
-                      <div className={heroBonusEnabled ? "" : "opacity-40"}>
-                        <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-                          ⭐ Kahraman Bonusu
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personele 1.5× puan bonusu verilir</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
-              {/* 4. Adalet & Telafi */}
-              <div>
-                <SectionLabel>Adalet & Telafi</SectionLabel>
-                <div className="space-y-0 border border-slate-200 rounded-xl overflow-hidden">
-                  <RuleRow
-                    label="Tercih Edilmeyen Gün Çarpanı"
-                    description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır.</>}
-                    right={<NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />}
-                  />
-                  <div className="border-t border-slate-100">
-                    <RuleRow
-                      label="Haftalık Sarı Gün Hakkı"
-                      description="Personel haftada en fazla bu kadar günü 'tercih etmiyorum' olarak işaretleyebilir."
-                      right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
-                    />
-                  </div>
-                  <div className="border-t border-slate-100">
-                    <RuleRow
-                      label="Clopening Eşiği"
-                      description="Kapanış→Açılış geçişinde bu saatin altında dinlenme varsa ihlal modalında işaretlenir."
-                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
-                    />
-                  </div>
-                  <div className="border-t border-slate-100">
-                    <RuleRow
-                      label="Yayın Sonrası Değişiklik Telafisi"
-                      description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele verilecek telafi puanı."
-                      right={<NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />}
-                    />
-                  </div>
-                  <div className="border-t border-slate-100">
-                    <RuleRow
-                      label="Zorunlu Atama Bonus Çarpanı"
-                      description="İzinliyken müdür tarafından atanan personel kabul ederse puan yükü bu katsayıyla çarpılır."
-                      right={<NumberInput value={leaveOverrideBonus} onChange={setLeaveOverrideBonus} min={1} max={3} step={0.25} prefix="×" />}
-                    />
-                  </div>
-                </div>
-              </div>
-
               <div className="flex justify-end">
-                <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+                <button
+                  onClick={handleSave}
+                  disabled={!isDirty}
+                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+                >
                   <Save size={16} /> Vardiyaları Kaydet
                 </button>
               </div>
@@ -705,8 +801,8 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Clopening Uyarısı"
-                  description={<>Kapanış→açılış geçişinde <span className="font-semibold">{clopeningMinRestHours} saat</span> altında dinlenme varsa ihlal modalında işaretlenir ve OR-Tools cezalandırır.</>}
-                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
+                  description={<>Kapanış→açılış geçişinde <span className="font-semibold">{clopeningMinRestHours} saat</span> altında dinlenme varsa ihlal modalında işaretlenir. Adalet Puanı sekmesinden açılıp kapatılabilir.</>}
+                  right={<span className={`text-xs font-semibold px-2 py-1 rounded-full ${clopeningEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>{clopeningEnabled ? "Açık" : "Kapalı"}</span>}
                 />
                 <RuleRow
                   label="Haftalık Maksimum Çalışma"
@@ -768,6 +864,11 @@ export default function SettingsPage() {
                   label="Eş Zamanlı Mola Limiti"
                   description="Aynı anda molaya çıkabilecek maksimum kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
                   right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
+                />
+                <RuleRow
+                  label="Uzun Mola Uyarı Eşiği"
+                  description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
+                  right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
                 />
               </SectionCard>
 
@@ -872,9 +973,195 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
+              {/* ─── FABRİKA MODÜLÜ: FAZLA MESAİ ─── */}
+              <SectionCard title="Fazla Mesai Yönetimi — Fabrika Modülü">
+                <RuleRow
+                  label="Haftalık Mesai Eşiği"
+                  description="Bu saati aşan çalışma saatleri fazla mesai sayılır ve onay akışına girer."
+                  right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
+                />
+                <RuleRow
+                  label="Yıllık Maksimum Fazla Mesai"
+                  description="İş Kanunu 41. madde — kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
+                  right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
+                />
+                <RuleRow
+                  label="Adil Mesai Dağılımı"
+                  description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
+                  right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
+                />
+                <RuleRow
+                  label="Ekip Vardiyası — Kesin Kural"
+                  description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa soft tercih olarak uygulanır."
+                  right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
+                />
+              </SectionCard>
+
               <div className="flex justify-end">
-                <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+                <button
+                  onClick={handleSave}
+                  disabled={!isDirty}
+                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+                >
                   <Save size={16} /> Kuralları Kaydet
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ─── ADALET PUANI ─── */}
+          {activeTab === "fairness" && (
+            <div className="space-y-4">
+
+              {/* Açıklama banner */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex gap-3">
+                <Scale size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-indigo-800">Adalet Puanı Sistemi</p>
+                  <p className="text-xs text-indigo-600 mt-0.5">
+                    OR-Tools, tüm personelin birikimli puan farkını minimize eder. Aşağıdaki bileşenler bu hesabı etkiler — her birini ayrı ayrı açıp kapatabilirsiniz.
+                  </p>
+                </div>
+              </div>
+
+              {/* 1. PUAN AĞIRLIKLARI */}
+              <SectionCard title="Puan Ağırlıklandırması">
+                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı vardiya tanımındaki zorluk değerinden (1–10) gelir. Bu çarpanlar onu modifiye eder.</div>
+                {/* Hafta Sonu */}
+                <RuleRow
+                  label="Hafta Sonu Çarpanı"
+                  description="Cumartesi–Pazar vardiyelerin yük katsayısı. Kapalıysa hafta sonu vardiyeleri normal puan alır."
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={weekendMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={weekendMultiplier} onChange={setWeekendMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                      </div>
+                      <Toggle on={weekendMultiplierEnabled} onToggle={() => setWeekendMultiplierEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+                {/* Gece Vardiyası */}
+                <RuleRow
+                  label="Gece Vardiyası Çarpanı"
+                  description={<><Moon size={11} className="text-indigo-400 inline mr-1" />&ldquo;Gece&rdquo; işaretli vardiyaların yük katsayısı. Kapalıysa gece vardiyeleri normal puan alır.</>}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={nightMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={nightMultiplier} onChange={setNightMultiplier} min={1} max={3} step={0.1} prefix="×" />
+                      </div>
+                      <Toggle on={nightMultiplierEnabled} onToggle={() => setNightMultiplierEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+                {/* Sarı Gün Çarpanı */}
+                <RuleRow
+                  label="Tercih Edilmeyen Gün Çarpanı"
+                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır. Kapalıysa sarı gün fedakarlığı puana yansımaz.</>}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={preferredNotEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />
+                      </div>
+                      <Toggle on={preferredNotEnabled} onToggle={() => setPreferredNotEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+                {preferredNotEnabled && (
+                  <RuleRow
+                    label="Haftalık Sarı Gün Hakkı"
+                    description="Personel haftada en fazla bu kadar günü 'tercih etmiyorum' olarak işaretleyebilir (kötüye kullanım koruması)."
+                    right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
+                  />
+                )}
+              </SectionCard>
+
+              {/* 2. TELAFİ & BONUS */}
+              <SectionCard title="Telafi & Bonus Puanları">
+                {/* Kahraman Bonusu */}
+                <RuleRow
+                  label="⭐ Kahraman Bonusu"
+                  description="Açık vardiyayı gönüllü üstlenen personele ekstra puan bonusu verilir."
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={heroBonusEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={heroBonusMultiplier} onChange={setHeroBonusMultiplier} min={1} max={3} step={0.25} prefix="×" />
+                      </div>
+                      <Toggle on={heroBonusEnabled} onToggle={() => setHeroBonusEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+                {/* Değişiklik Telafisi */}
+                <RuleRow
+                  label="Yayın Sonrası Değişiklik Telafisi"
+                  description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />
+                      </div>
+                      <Toggle on={changeCompensationEnabled} onToggle={() => setChangeCompensationEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+                {/* Zorunlu Atama Bonusu */}
+                <RuleRow
+                  label="Zorunlu Atama Bonusu"
+                  description="İzinliyken müdür tarafından atanan personel kabul ederse puan yükü bu katsayıyla çarpılır. Kapalıysa bonus uygulanmaz."
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className={leaveOverrideBonusEnabled ? "" : "opacity-40 pointer-events-none"}>
+                        <NumberInput value={leaveOverrideBonus} onChange={setLeaveOverrideBonus} min={1} max={3} step={0.25} prefix="×" />
+                      </div>
+                      <Toggle on={leaveOverrideBonusEnabled} onToggle={() => setLeaveOverrideBonusEnabled(v => !v)} />
+                    </div>
+                  }
+                />
+              </SectionCard>
+
+              {/* 3. CLOPENING */}
+              <SectionCard title="Clopening Penalizasyonu">
+                <RuleRow
+                  label="Clopening Tespiti"
+                  description="Kapanış→Açılış geçişinde kısa dinlenme süresi varsa OR-Tools bu geçişten kaçınır ve ihlal modalında işaretlenir."
+                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
+                />
+                {clopeningEnabled && (
+                  <>
+                    <RuleRow
+                      label="Clopening Eşiği"
+                      description="Kapanış→Açılış arasında bu saatten az dinlenme varsa clopening sayılır (yasal minimum 11 saatten fazla olmalı)."
+                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
+                    />
+                    <RuleRow
+                      label="OR-Tools Ceza Ağırlığı"
+                      description="Clopening geçişine motorun hedef fonksiyonunda uyguladığı ceza. Yükseldikçe motor daha çok kaçınmaya çalışır."
+                      right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
+                    />
+                  </>
+                )}
+              </SectionCard>
+
+              {/* 4. GELİŞMİŞ */}
+              <SectionCard title="Gelişmiş Ayarlar">
+                <RuleRow
+                  label="Telafi Puanı Bozunma Faktörü"
+                  description="Aylık dönem geçişinde eski birikimli puan bu katsayıyla ağırlıklandırılır. Düşürdükçe geçmiş yük daha hızlı silinir."
+                  right={<NumberInput value={compDecayFactor} onChange={setCompDecayFactor} min={0.1} max={1} step={0.05} prefix="×" />}
+                />
+                <RuleRow
+                  label="Part-Time Adalet Ağırlığı"
+                  description="Tam zamanlı personel 10 birimle normalleştirilir. Part-time için bu değeri düşürünce puan karşılaştırması saate orantılı olur."
+                  right={<NumberInput value={partTimeWeightFactor} onChange={setPartTimeWeightFactor} min={1} max={10} suffix="birim" />}
+                />
+              </SectionCard>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSave}
+                  disabled={!isDirty}
+                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+                >
+                  <Save size={16} /> Adalet Ayarlarını Kaydet
                 </button>
               </div>
             </div>
@@ -1005,7 +1292,11 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex justify-end">
-                <button onClick={handleSave} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+                <button
+                  onClick={handleSave}
+                  disabled={!isDirty}
+                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+                >
                   <Save size={16} /> Bölgeleri Kaydet
                 </button>
               </div>
@@ -1096,6 +1387,266 @@ export default function SettingsPage() {
                 <div className="max-w-2xl">
                   <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── EKİPLER ─── */}
+          {activeTab === "crews" && (
+            <div className="space-y-6">
+              <p className="text-sm text-slate-500">
+                Ekipler, personeli vardiya gruplarına ayırmanızı sağlar. Fabrika ortamında A/B/C ekibi gibi rotasyonlu gruplar oluşturun.
+              </p>
+
+              {/* Ekip Ekle */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Ekip</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Ekip Adı</label>
+                    <input
+                      value={newCrewName}
+                      onChange={e => setNewCrewName(e.target.value)}
+                      placeholder="A Ekibi, Sabah Grubu…"
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Renk</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {CREW_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewCrewColor(c)}
+                          style={{ backgroundColor: c }}
+                          className={`w-6 h-6 rounded-full border-2 transition-transform ${newCrewColor === c ? "border-slate-700 scale-110" : "border-transparent"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    disabled={!newCrewName.trim()}
+                    onClick={async () => {
+                      if (!newCrewName.trim() || !selectedLocationId) return;
+                      try {
+                        const res = await fetch("/api/crews", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setCrews(prev => [...prev, { id: data.id, org_id: "", location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }]);
+                          setNewCrewName("");
+                        }
+                      } catch { /* ignore */ }
+                    }}
+                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Plus size={14} /> Ekle
+                  </button>
+                </div>
+              </div>
+
+              {/* Ekip Listesi */}
+              {crewsLoading ? (
+                <p className="text-sm text-slate-400">Yükleniyor…</p>
+              ) : crews.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">Henüz ekip oluşturulmamış.</p>
+              ) : (
+                <div className="space-y-2">
+                  {crews.map(crew => (
+                    <div key={crew.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                      <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
+                      {editingCrewId === crew.id ? (
+                        <input
+                          value={editingCrewName}
+                          onChange={e => setEditingCrewName(e.target.value)}
+                          autoFocus
+                          className="flex-1 px-2 py-1 text-sm border border-indigo-400 rounded-lg outline-none"
+                        />
+                      ) : (
+                        <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
+                      )}
+                      {(crew as any).member_count !== undefined && (
+                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{(crew as any).member_count} üye</span>
+                      )}
+                      {editingCrewId === crew.id ? (
+                        <>
+                          <button onClick={async () => {
+                            await fetch("/api/crews", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: crew.id, name: editingCrewName }) });
+                            setCrews(prev => prev.map(c => c.id === crew.id ? { ...c, name: editingCrewName } : c));
+                            setEditingCrewId(null);
+                          }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={14} /></button>
+                          <button onClick={() => setEditingCrewId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={14} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => { setEditingCrewId(crew.id); setEditingCrewName(crew.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><Pencil size={13} /></button>
+                          <button onClick={async () => {
+                            if (!confirm(`"${crew.name}" ekibini silmek istediğinize emin misiniz? Üyelerden ekip ataması kaldırılır.`)) return;
+                            await fetch(`/api/crews?id=${crew.id}`, { method: "DELETE" });
+                            setCrews(prev => prev.filter(c => c.id !== crew.id));
+                            // Rotasyon şablonundan da kaldır
+                            setRotationPattern(prev => { const next = { ...prev }; delete next[crew.id]; return next; });
+                          }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── ROTASYON ─── */}
+          {activeTab === "rotation" && (
+            <div className="space-y-6">
+              <p className="text-sm text-slate-500">
+                Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
+                Motor, rotasyon aktifken ekip atamasını otomatik uygular.
+              </p>
+
+              <SectionCard title="Rotasyon Ayarları">
+                <RuleRow
+                  label="Rotasyonu Etkinleştir"
+                  description="Açıkken OR-Tools motoru her ekibi bu haftaki rotasyon vardiyasına yönlendirir."
+                  right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
+                />
+                {rotationEnabled && (
+                  <>
+                    <RuleRow
+                      label="Rotasyon Tipi"
+                      description="3-vardiyalı, Continental veya özel döngü."
+                      right={
+                        <select
+                          value={rotationType}
+                          onChange={e => {
+                            const t = e.target.value as RotationTemplate["type"];
+                            setRotationType(t);
+                            if (t === "3-shift") setCycleWeeks(3);
+                            else if (t === "continental") setCycleWeeks(4);
+                            else if (t === "4x10") setCycleWeeks(1);
+                          }}
+                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                        >
+                          <option value="3-shift">3 Vardiyalı (Sabah / Öğleden Sonra / Gece)</option>
+                          <option value="continental">Continental (2 çalış – 2 dinlen – 3 çalış)</option>
+                          <option value="4x10">4×10 Saat (Cuma serbest)</option>
+                          <option value="custom">Özel</option>
+                        </select>
+                      }
+                    />
+                    <RuleRow
+                      label="Döngü Uzunluğu"
+                      description="Kaç hafta sonra rotasyon başa döner."
+                      right={<NumberInput value={cycleWeeks} onChange={setCycleWeeks} min={1} max={12} suffix="hafta" />}
+                    />
+                    <RuleRow
+                      label="Başlangıç Haftası"
+                      description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi ekip 0. pozisyonda sayılır."
+                      right={
+                        <input
+                          type="date"
+                          value={referenceWeek}
+                          onChange={e => setReferenceWeek(e.target.value)}
+                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                        />
+                      }
+                    />
+                  </>
+                )}
+              </SectionCard>
+
+              {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip — Vardiya Ataması (Hafta Bazında)</h3>
+                  </div>
+                  <div className="p-5 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Ekip</th>
+                          {Array.from({ length: cycleWeeks }, (_, i) => (
+                            <th key={i} className="text-center text-xs text-slate-400 font-medium pb-3 px-2 min-w-[120px]">Hafta {i + 1}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {crews.map(crew => (
+                          <tr key={crew.id}>
+                            <td className="pr-4 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
+                                <span className="font-medium text-slate-700 text-xs">{crew.name}</span>
+                              </div>
+                            </td>
+                            {Array.from({ length: cycleWeeks }, (_, weekIdx) => (
+                              <td key={weekIdx} className="px-2 py-2">
+                                <select
+                                  value={(rotationPattern[crew.id] ?? [])[weekIdx] ?? ""}
+                                  onChange={e => {
+                                    setRotationPattern(prev => {
+                                      const arr = [...(prev[crew.id] ?? Array(cycleWeeks).fill(""))];
+                                      while (arr.length < cycleWeeks) arr.push("");
+                                      arr[weekIdx] = e.target.value;
+                                      return { ...prev, [crew.id]: arr };
+                                    });
+                                  }}
+                                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                                >
+                                  <option value="">— İzin / Serbest —</option>
+                                  {locationData.shift_definitions.map(sd => (
+                                    <option key={sd.id} value={sd.id}>{sd.name} ({sd.start}–{sd.end})</option>
+                                  ))}
+                                </select>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {rotationEnabled && crews.length === 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+                  Rotasyon şablonu için önce <strong>Ekipler</strong> sekmesinden ekip oluşturun.
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  disabled={rotationSaving}
+                  onClick={async () => {
+                    if (!selectedLocationId) return;
+                    setRotationSaving(true);
+                    try {
+                      const template: RotationTemplate = {
+                        enabled: rotationEnabled,
+                        type: rotationType,
+                        cycle_weeks: cycleWeeks,
+                        reference_week: referenceWeek,
+                        pattern: rotationPattern,
+                      };
+                      await fetch(`/api/locations?id=${selectedLocationId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ rotation_template: template }),
+                      });
+                      alert("Rotasyon şablonu kaydedildi!");
+                    } catch {
+                      alert("Kaydetme sırasında hata oluştu.");
+                    }
+                    setRotationSaving(false);
+                  }}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Save size={14} /> {rotationSaving ? "Kaydediliyor…" : "Rotasyonu Kaydet"}
+                </button>
               </div>
             </div>
           )}

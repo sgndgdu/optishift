@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 /**
  * Yayın öncülüğü KPI'ı (OPTI-023): her hafta için programın hafta başlangıcından
@@ -29,15 +27,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
-    const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT week_start, MIN(published_at) AS first_published_at
       FROM shift_assignments
       WHERE location_id = ? AND published_at IS NOT NULL
@@ -45,7 +42,6 @@ export async function GET(req: NextRequest) {
       ORDER BY week_start DESC
       LIMIT ?
     `).all(location_id, weeksLimit) as any[];
-    db.close();
 
     const weeks = rows.map((r) => {
       const weekStartMs = new Date(`${r.week_start}T00:00:00`).getTime();
@@ -63,7 +59,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ location_id, weeks, avg_lead_days: avg });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

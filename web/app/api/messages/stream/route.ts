@@ -1,9 +1,7 @@
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -31,16 +29,14 @@ export async function GET(req: NextRequest) {
       // Send a heartbeat immediately so the client knows it's connected
       controller.enqueue(encoder.encode(": connected\n\n"));
 
-      const db = new Database(DB_PATH);
-      db.pragma("journal_mode = WAL");
-      db.pragma("foreign_keys = OFF");
+      const db = getDB();
 
-      const poll = () => {
+      const poll = async () => {
         try {
           let rows: Record<string, unknown>[];
 
           if (group_id) {
-            rows = db.prepare(
+            rows = await db.prepare(
               `SELECT m.*, u.name as sender_name
                FROM messages m
                LEFT JOIN users u ON u.id = m.from_user_id
@@ -50,13 +46,13 @@ export async function GET(req: NextRequest) {
 
             if (rows.length > 0) {
               // Mark group messages as read
-              db.prepare(
+              await db.prepare(
                 `UPDATE messages SET is_read = 1
                  WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = 0`
               ).run(org_id, group_id, me);
             }
           } else {
-            rows = db.prepare(
+            rows = await db.prepare(
               `SELECT m.*, u.name as sender_name
                FROM messages m
                LEFT JOIN users u ON u.id = m.from_user_id
@@ -69,7 +65,7 @@ export async function GET(req: NextRequest) {
 
             if (rows.length > 0) {
               // Mark incoming messages as read
-              db.prepare(
+              await db.prepare(
                 `UPDATE messages SET is_read = 1
                  WHERE org_id = ? AND from_user_id = ? AND to_user_id = ? AND is_read = 0`
               ).run(org_id, to_user_id, me);

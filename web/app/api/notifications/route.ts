@@ -1,12 +1,10 @@
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
-import Database from "better-sqlite3";
-import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET: Personelin bildirimlerini getir
 export async function GET(req: NextRequest) {
@@ -104,7 +102,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 
-  const dbConn = new Database(DB_PATH);
+  const dbConn = getDB();
   try {
     dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
     dbConn.close();

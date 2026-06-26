@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET /api/availability/team?location_id=L-001&week_start=2026-06-02
 // Müdür için tüm personelin o haftaki müsaitliğini döndürür
@@ -20,24 +18,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
 
   try {
     // Verify location belongs to auth org
-    const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     // Get all personnel for this location
-    const personnel = db.prepare(
+    const personnel = await db.prepare(
       `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
     ).all(location_id) as any[];
 
     // Get their availability for this week
-    const results = personnel.map((p) => {
-      const avail = db.prepare(
+    const results = await Promise.all(personnel.map(async (p) => {
+      const avail = await db.prepare(
         `SELECT * FROM availability WHERE personnel_id = ? AND week_start = ?`
       ).get(p.id, week_start) as any;
 
@@ -55,12 +52,9 @@ export async function GET(req: NextRequest) {
         submitted_at: avail?.submitted_at ?? null,
         days,
       };
-    });
-
-    db.close();
+    }));
     return NextResponse.json({ week_start, location_id, personnel: results });
   } catch (err) {
-    db.close();
     console.error("Team availability error:", err);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }

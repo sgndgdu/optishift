@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET /api/admin/organizations — tüm organizasyonları listele veya ?id= ile tek org
 export async function GET(req: NextRequest) {
@@ -16,36 +14,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     // Supervisor sadece kendi org'una erişebilir
     if (auth.role === "supervisor") {
-      const org = db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(auth.org_id) as any;
-      db.close();
+      const org = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(auth.org_id) as any;
       return NextResponse.json(org ? [org] : []);
     }
 
     if (id) {
-      const org = db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(id) as any;
-      db.close();
+      const org = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(id) as any;
       return NextResponse.json(org ? [org] : []);
     }
 
-    const orgs = db.prepare(`SELECT * FROM organizations ORDER BY rowid DESC`).all() as any[];
-    const result = orgs.map((org) => {
-      const locations = db.prepare(`SELECT id, name FROM locations WHERE org_id = ?`).all(org.id);
-      const userCount = (db.prepare(`SELECT count(*) as cnt FROM users WHERE org_id = ?`).get(org.id) as any).cnt;
-      const personnelCount = (db.prepare(`SELECT count(*) as cnt FROM personnel WHERE org_id = ? AND status='active'`).get(org.id) as any).cnt;
-      return { ...org, locations, userCount, personnelCount };
-    });
-
-    db.close();
+    const orgs = await db.prepare(`SELECT * FROM organizations ORDER BY rowid DESC`).all() as any[];
+    const result = await Promise.all(orgs.map(async (org) => {
+      const locations = await db.prepare(`SELECT id, name FROM locations WHERE org_id = ?`).all(org.id);
+      const userCountRow = await db.prepare(`SELECT count(*) as cnt FROM users WHERE org_id = ?`).get(org.id) as any;
+      const personnelCountRow = await db.prepare(`SELECT count(*) as cnt FROM personnel WHERE org_id = ? AND status='active'`).get(org.id) as any;
+      return { ...org, locations, userCount: userCountRow?.cnt ?? 0, personnelCount: personnelCountRow?.cnt ?? 0 };
+    }));
     return NextResponse.json(result);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -58,7 +51,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Sadece admin erişebilir" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -74,11 +67,9 @@ export async function PATCH(req: NextRequest) {
 
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
     values.push(id);
-    db.prepare(`UPDATE organizations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
-    db.close();
+    await db.prepare(`UPDATE organizations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -91,18 +82,16 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Sadece admin erişebilir" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
     // Mark all personnel as inactive
-    db.prepare("UPDATE personnel SET status='inactive' WHERE org_id=?").run(id);
-    db.close();
+    await db.prepare("UPDATE personnel SET status='inactive' WHERE org_id=?").run(id);
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

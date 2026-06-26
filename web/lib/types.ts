@@ -16,6 +16,45 @@ export interface DailyHours {
   close: string;
 }
 
+// ─── Ekip (Crew) — Fabrika Modülü ────────────────────────────────────────────
+export interface Crew {
+  id: string;
+  org_id: string;
+  location_id: string;
+  name: string;
+  color: string;           // #hex badge rengi
+  shift_preference?: string; // tercih edilen shift_def_id
+  created_at?: number;
+}
+
+// ─── Rotasyon Şablonu — Fabrika Modülü ───────────────────────────────────────
+export interface RotationTemplate {
+  enabled: boolean;
+  type: "3-shift" | "continental" | "4x10" | "custom";
+  cycle_weeks: number;          // döngü uzunluğu (hafta)
+  reference_week: string;       // döngünün başlangıç haftası (ISO Pazartesi)
+  // crew_id → haftaya göre (0-based) atanan shift_def_id listesi
+  // Örn: { "crew-a": ["shift-1", "shift-2", "shift-3"] }
+  pattern: Record<string, string[]>;
+}
+
+// ─── Fazla Mesai Kaydı — Fabrika Modülü ──────────────────────────────────────
+export interface OvertimeRecord {
+  id: number;
+  org_id: string;
+  location_id: string;
+  personnel_id: string;
+  personnel_name?: string;
+  week_start: string;
+  scheduled_hours: number;
+  overtime_hours: number;
+  status: "pending" | "approved" | "rejected";
+  approved_by?: string;
+  approved_at?: number;
+  note?: string;
+  created_at: number;
+}
+
 export interface Location {
   id: string;
   org_id: string;
@@ -26,6 +65,7 @@ export interface Location {
   rules?: { max_weekly_hours: number; min_rest_hours: number; force_skills_match: boolean };
   // Kapasite matrisi: shiftDefId → { day(0-6) → gerekli kişi sayısı }
   demand_matrix?: Record<string, Record<number, number>>;
+  rotation_template?: RotationTemplate;
   latitude?: number;
   longitude?: number;
 }
@@ -48,6 +88,7 @@ export interface Department {
   id: string;
   location_id: string;
   name: string;
+  demand_matrix?: Record<string, Record<number, number>>; // shiftDefId → {day(0-6) → count}
 }
 
 export interface Role {
@@ -101,8 +142,23 @@ export interface ScheduleRules {
   max_weekly_hours: number;   // yasal üst sınır, varsayılan 45
   min_rest_hours: number;     // iki vardiya arası min dinlenme, varsayılan 11
   skills_match: SkillsMatchMode;
-  clopening_min_rest_hours?: number;   // bu saatin altındaki ardışık gün geçişi "clopening" sayılır, varsayılan 13
-  change_compensation_points?: number; // yayınlanmış vardiya değişince personele yazılan telafi puanı, varsayılan 2
+  clopening_min_rest_hours?: number;        // bu saatin altındaki ardışık gün geçişi "clopening" sayılır, varsayılan 13
+  change_compensation_points?: number;      // yayınlanmış vardiya değişince personele yazılan telafi puanı, varsayılan 2
+  leave_override_bonus_multiplier?: number; // izinliyken zorunlu atamayı kabul eden personele puan çarpanı, varsayılan 1.5
+  // Adalet puanı — bileşen toggle'ları
+  weekend_multiplier_enabled?: boolean;
+  night_multiplier_enabled?: boolean;
+  preferred_not_enabled?: boolean;          // sarı gün çarpanı + soft penalty on/off
+  hero_bonus_enabled?: boolean;
+  change_compensation_enabled?: boolean;    // değişiklik telafisi on/off
+  leave_override_bonus_enabled?: boolean;   // zorunlu atama bonusu on/off
+  clopening_enabled?: boolean;
+  // Fabrika modülü — fazla mesai
+  overtime_threshold_hours?: number;   // günlük eşik: bu saatin üzeri mesai sayılır (varsayılan 7.5)
+  max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)
+  overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
+  // Fabrika modülü — ekip/rotasyon
+  crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
 }
 
 // ─── Personel ─────────────────────────────────────────────────────────────────
@@ -112,7 +168,8 @@ export interface Personnel {
   org_id: string;
   assigned_location_ids: string[]; // Artık personel birden çok lokasyonda çalışabilir
   primary_location_id: string;
-  department_id?: string;
+  department_id?: string;          // birincil departman (geriye dönük uyumluluk)
+  assigned_department_ids?: string[]; // birden fazla departman atanabilir
   user_access_level: UserRole; // role yerine user_access_level
   name: string;
   employee_id: string;
@@ -134,6 +191,8 @@ export interface Personnel {
   max_weekly_hours: number;
   min_weekly_hours?: number; // part-time alt sınır garantisi, 0/undefined = kapalı
   overtime_approved: boolean;
+  crew_id?: string;              // crews tablosuna referans (fabrika modülü)
+  ytd_overtime_hours?: number;   // yılbaşından bu yana fazla mesai saati
   prev_score: number;
   hero_count: number;
   no_show_count: number;

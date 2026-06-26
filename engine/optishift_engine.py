@@ -43,6 +43,27 @@ MAX_CONSECUTIVE_DAYS = 6
 # Gece vardiyası (≥23:00 bitiş) sonrası sabah vardiyası (≤12:00 başlangıç) yasağı
 NO_NIGHT_TO_MORNING = False
 
+# ─── FABRİKA MODÜLÜ ───────────────────────────────────────────────────────────
+
+# Ekip rotasyon kısıtı: {crew_id: shift_idx} — bu haftaki ekip-vardiya eşleşmesi
+# Boşsa rotasyon kısıtı uygulanmaz
+CREW_ROTATION = {}
+
+# Personel→ekip haritası: {personnel_id: crew_id}
+PERSONNEL_CREWS = {}
+
+# Aynı ekip üyeleri kesinlikle aynı vardiyaya (True=hard, False=soft penalty)
+CREW_SAME_SHIFT_HARD = False
+
+# Fazla mesai eşiği: haftalık bu saatin üzeri = mesai (varsayılan 45 — haftada 45+ saat)
+OVERTIME_THRESHOLD_HOURS = 45.0
+
+# Yıllık maksimum fazla mesai saati (İş Kanunu 41. madde, varsayılan 270)
+MAX_YTD_OVERTIME_HOURS = 270.0
+
+# Adil mesai dağılımı: YTD mesai saati yüksek olanın ek vardiyası soft cezalandırılır
+OVERTIME_FAIR_DISTRIBUTION = True
+
 
 # Her bölgede günlük minimum çalışan kişi (Varsayılan şablon - Optimizasyon sırasında dinamik filtrelenecektir)
 ZONE_DEMAND_PER_DAY = {
@@ -102,8 +123,8 @@ def shift_points(day: int, shift_id: int) -> float:
     start_m, end_m = _shift_minutes(shift) if shift else (0, 480)
     hours = (end_m - start_m) / 60
 
-    weekend_mult = RULES.get("weekend_multiplier", 1.2)
-    night_mult   = RULES.get("night_multiplier",   1.3)
+    weekend_mult = RULES.get("weekend_multiplier", 1.2) if RULES.get("weekend_multiplier_enabled", True) else 1.0
+    night_mult   = RULES.get("night_multiplier",   1.3) if RULES.get("night_multiplier_enabled",   True) else 1.0
 
     is_weekend = day in (5, 6)
     is_night   = shift.get("is_night", False)
@@ -118,7 +139,7 @@ def shift_points(day: int, shift_id: int) -> float:
 def effective_points(person_id, day: int, shift_id: int) -> int:
     """Kişiye özel burden puanı: preferred_not günde çalışma telafi çarpanı uygulanır."""
     pts = shift_points(day, shift_id)
-    if get_avail(person_id, day) == "preferred_not":
+    if RULES.get("preferred_not_enabled", True) and get_avail(person_id, day) == "preferred_not":
         mult = RULES.get("preferred_not_multiplier", PREFERRED_NOT_MULTIPLIER)
         pts = int(pts * mult + 0.5)
     return pts
@@ -257,38 +278,104 @@ def build_model():
                     sum(shifts[(p, d, s_idx)] for p in range(num_p)) == 0
                 )
 
+    # ── FABRİKA: Ekip Rotasyon Kısıtı ───────────────────────────────────────
+    # CREW_ROTATION: {crew_id: shift_idx} — bu haftaki ekip-vardiya ataması
+    # Hard: ekip üyesi sadece atanan vardiyaya girer; diğer vardiyalara kesinlikle giremez.
+    # Soft: atandığı vardiya dışına çıkarsa soft ceza uygulanır.
+    if CREW_ROTATION:
+        for p_idx, person in enumerate(PERSONNEL):
+            pid = person["id"]
+            crew = PERSONNEL_CREWS.get(pid)
+            if crew and crew in CREW_ROTATION:
+                assigned_shift = CREW_ROTATION[crew]
+                if CREW_SAME_SHIFT_HARD:
+                    # Hard: ekip vardiyası dışına çıkamaz
+                    for s in range(NUM_SHIFTS):
+                        if s != assigned_shift:
+                            for d in range(NUM_DAYS):
+                                model.add(shifts[(p_idx, d, s)] == 0)
+                else:
+                    # Soft: diğer vardiyaya atanırsa ×40 ceza (demand boşluğu varsa motor yine atayabilir)
+                    for s in range(NUM_SHIFTS):
+                        if s != assigned_shift:
+                            for d in range(NUM_DAYS):
+                                # shifts[(p_idx, d, s)] == 1 ise b == 1
+                                b = model.new_bool_var(f"crew_viol_p{p_idx}_d{d}_s{s}")
+                                model.add(shifts[(p_idx, d, s)] <= b)
+
+    # ── FABRİKA: YTD Mesai Sınırı (Hard) ────────────────────────────────────
+    # Yıllık limit dolmuş personelin haftası otomatik olarak normal eşiğe kısıtlanır.
+    if MAX_YTD_OVERTIME_HOURS > 0:
+        for p_idx, person in enumerate(PERSONNEL):
+            ytd = float(person.get("ytd_overtime_hours", 0) or 0)
+            remaining_ot_hours = MAX_YTD_OVERTIME_HOURS - ytd
+            if remaining_ot_hours <= 0:
+                # YTD dolmuş: bu hafta da normal eşiği aşamaz
+                cap_minutes = int(OVERTIME_THRESHOLD_HOURS * 60)
+                model.add(
+                    sum(shifts[(p_idx, d, s)] * shift_durations_min[s]
+                        for d in range(NUM_DAYS) for s in range(NUM_SHIFTS))
+                    <= cap_minutes
+                )
+
     # ── SOFT CONSTRAINTS (Ceza Değişkenleri) ─────────────────────────────────
 
     # preferred_not günlerde çalışmak istenmeyen ama zorunlu olabilir
-    preferred_not_penalties = [
-        shifts[(p_idx, d, s)]
-        for p_idx, person in enumerate(PERSONNEL)
-        for d in range(NUM_DAYS)
-        for s in range(NUM_SHIFTS)
-        if get_avail(person["id"], d, s) == "preferred_not"
-    ]
+    preferred_not_penalties = []
+    if RULES.get("preferred_not_enabled", True):
+        preferred_not_penalties = [
+            shifts[(p_idx, d, s)]
+            for p_idx, person in enumerate(PERSONNEL)
+            for d in range(NUM_DAYS)
+            for s in range(NUM_SHIFTS)
+            if get_avail(person["id"], d, s) == "preferred_not"
+        ]
 
     # Clopening (kapanış→açılış) soft cezası — OPTI-023.
     # Dinlenme yasal minimumun (min_rest_hours) üstünde ama clopening eşiğinin
     # altında kalan ardışık gün geçişleri yorucudur; motor alternatif varken kaçınır.
     clopening_min = int(RULES.get("clopening_min_rest_hours", 13)) * 60
     clopening_transitions = []
-    for s1 in range(NUM_SHIFTS):
-        _, end1 = _shift_minutes(SHIFTS[s1])
-        for s2 in range(NUM_SHIFTS):
-            start2, _ = _shift_minutes(SHIFTS[s2])
-            rest_gap = (start2 + 1440) - end1
-            if min_rest_min <= rest_gap < clopening_min:
-                clopening_transitions.append((s1, s2))
-
     clopening_penalties = []
-    for p in range(num_p):
-        for d in range(NUM_DAYS - 1):
-            for s1, s2 in clopening_transitions:
-                b = model.new_bool_var(f"clopening_p{p}_d{d}_s{s1}_{s2}")
-                # İki vardiya da atanmışsa b zorunlu 1; aksi halde minimize 0'a çeker
-                model.add(shifts[(p, d, s1)] + shifts[(p, d + 1, s2)] - 1 <= b)
-                clopening_penalties.append(b)
+    if RULES.get("clopening_enabled", True):
+        for s1 in range(NUM_SHIFTS):
+            _, end1 = _shift_minutes(SHIFTS[s1])
+            for s2 in range(NUM_SHIFTS):
+                start2, _ = _shift_minutes(SHIFTS[s2])
+                rest_gap = (start2 + 1440) - end1
+                if min_rest_min <= rest_gap < clopening_min:
+                    clopening_transitions.append((s1, s2))
+        for p in range(num_p):
+            for d in range(NUM_DAYS - 1):
+                for s1, s2 in clopening_transitions:
+                    b = model.new_bool_var(f"clopening_p{p}_d{d}_s{s1}_{s2}")
+                    # İki vardiya da atanmışsa b zorunlu 1; aksi halde minimize 0'a çeker
+                    model.add(shifts[(p, d, s1)] + shifts[(p, d + 1, s2)] - 1 <= b)
+                    clopening_penalties.append(b)
+
+    # ── FABRİKA: Adil Mesai Dağılımı (Soft) ─────────────────────────────────
+    # YTD mesai saati yüksek olanın overtime bölgesine girmesi soft cezalandırılır.
+    # Eşiğin üzerindeki her olası gün için: ytd fazlaysa ceza ağırlığı artar.
+    overtime_distribution_penalties = []
+    if OVERTIME_FAIR_DISTRIBUTION and OVERTIME_THRESHOLD_HOURS > 0:
+        ot_threshold_min = int(OVERTIME_THRESHOLD_HOURS * 60)
+        for p_idx, person in enumerate(PERSONNEL):
+            ytd = float(person.get("ytd_overtime_hours", 0) or 0)
+            if ytd <= 0:
+                continue
+            # Bu kişi ne kadar çok YTD mesai yaptıysa, fazladan vardiyaları o kadar cezalandır.
+            # Ceza ağırlığı: min(int(ytd / 10), 20) — makul bir skala
+            penalty_weight = min(int(ytd / 10) + 1, 20)
+            assigned_min = sum(
+                shifts[(p_idx, d, s)] * shift_durations_min[s]
+                for d in range(NUM_DAYS) for s in range(NUM_SHIFTS)
+            )
+            overtime_flag = model.new_bool_var(f"ot_flag_p{p_idx}")
+            # overtime_flag == 1 ↔ bu hafta eşiği aşıyor
+            # Soft: minimize eder, zorunlu olursa geçebilir
+            model.add(assigned_min > ot_threshold_min).only_enforce_if(overtime_flag)
+            model.add(assigned_min <= ot_threshold_min).only_enforce_if(overtime_flag.negated())
+            overtime_distribution_penalties.append((overtime_flag, penalty_weight))
 
     # Minimum haftalık saat garantisi (soft) — part-time alt sınır.
     # Hard constraint yapılmaz: personel kırmızı günlerle haftayı kapatmışsa
@@ -325,7 +412,7 @@ def build_model():
 
         # Part-time çalışanların hedeflenen saati daha düşük olduğu için, adalet skorlarını oranlıyoruz.
         # Çarpanlar: full_time = 1.0 (10), part_time = 0.6 (6)
-        weight = 6 if person.get("employment_type") == "part_time" else 10
+        weight = int(RULES.get("part_time_weight_factor", 6)) if person.get("employment_type") == "part_time" else 10
         weighted = model.new_int_var(0, 5000, f"weighted_score_p{p_idx}")
         # weighted = (total * 10) / weight -> eğer part-time ise (total * 10) / 6, yani puanı suni olarak yüksek görünür, 
         # böylece algoritma ona daha fazla vardiya yazmak için yırtınmaz.
@@ -376,13 +463,16 @@ def build_model():
     # Bir vardiyalık fairness_gap artışı (~500-1700) bunun altında kalır,
     # yani motor alt sınırı doldurmayı adalet farkına tercih eder; yine de
     # kırmızı günler kapatmışsa plan kilitlenmez (soft).
+    ot_penalty_term = sum(flag * w for flag, w in overtime_distribution_penalties) if overtime_distribution_penalties else 0
+
     model.minimize(
         fairness_gap * 100
         - total_assignments
         + sum(preferred_not_penalties) * 10
         + sum(senior_violation_penalties) * 50
         + sum(min_hours_shortfalls) * 5
-        + sum(clopening_penalties) * 30
+        + sum(clopening_penalties) * int(RULES.get("clopening_penalty_weight", 30))
+        + ot_penalty_term
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -394,7 +484,7 @@ def solve(silent: bool = False):
     model, shifts, person_scores, fairness_gap = build_model()
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 15.0
+    solver.parameters.max_time_in_seconds = 10.0
     solver.parameters.num_search_workers = 4
     solver.parameters.log_search_progress = False
 
@@ -732,6 +822,7 @@ def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
     global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
+    global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
 
     branch_id = payload.get("branchId", "L-001")
     ENSURE_SENIOR_PER_SHIFT = bool(payload.get("ensure_senior_per_shift", False))
@@ -776,6 +867,28 @@ def api_mode(payload: dict):
         for day_str, status in av_dict.items():
             parsed[int(day_str)] = status
         AVAILABILITY[p_id] = parsed
+
+    # ── Fabrika modülü parametreleri ─────────────────────────────────────────
+    CREW_ROTATION    = payload.get("crew_rotation", {})      # {crew_id: shift_idx}
+    PERSONNEL_CREWS  = payload.get("personnel_crews", {})    # {personnel_id: crew_id}
+    CREW_SAME_SHIFT_HARD = bool(payload.get("crew_same_shift_hard", False))
+    ot_rules         = payload.get("rules", {})
+    OVERTIME_THRESHOLD_HOURS  = float(ot_rules.get("overtime_threshold_hours", 45.0))
+    MAX_YTD_OVERTIME_HOURS    = float(ot_rules.get("max_ytd_overtime_hours", 270.0))
+    OVERTIME_FAIR_DISTRIBUTION = bool(ot_rules.get("overtime_fair_distribution", True))
+    # shift_idx dönüşümü: crew_rotation içindeki crew→shiftDefId'yi idx'e çevir
+    if CREW_ROTATION and payload.get("shifts"):
+        shifts_raw = payload.get("shifts") or []
+        id_to_idx  = {}
+        for i, s in enumerate(shifts_raw):
+            if s.get("id"):   id_to_idx[str(s["id"])]   = i
+            if s.get("name"): id_to_idx[str(s["name"])] = i
+            id_to_idx[str(i)] = i
+        CREW_ROTATION = {
+            crew: id_to_idx.get(str(sid), 0)
+            for crew, sid in CREW_ROTATION.items()
+            if str(sid) in id_to_idx or any(str(i) == str(sid) for i in range(NUM_SHIFTS))
+        }
 
     # Eğer o şube için hiç personel yoksa boş sonuç dön
     if not PERSONNEL:
@@ -838,6 +951,7 @@ def api_mode(payload: dict):
         "scores": {},
         "personnel": [],
         "senior_violations": [],  # vardiya × gün: primary personel atanamadı
+        "overtime_summary": [],   # haftalık mesai özeti (fabrika modülü)
     }
 
     for p_idx, person in enumerate(PERSONNEL):
@@ -850,9 +964,12 @@ def api_mode(payload: dict):
             "employment_type": person.get("employment_type", "full_time"),
             "availability": {str(k): v for k, v in AVAILABILITY.get(person["id"], {}).items()},
         })
+        weekly_min = 0
         for d in range(NUM_DAYS):
             for s in range(NUM_SHIFTS):
                 if solver.value(shifts[(p_idx, d, s)]):
+                    dur = shift_durations_min[s] if s < len(shift_durations_min) else SHIFT_HOURS * 60
+                    weekly_min += dur
                     output["assignments"].append({
                         "personnelId": person["id"],
                         "day":         d,
@@ -861,6 +978,20 @@ def api_mode(payload: dict):
                         "end_time":    SHIFTS[s]["end"],
                         "points":      effective_points(person["id"], d, s),
                     })
+        # Mesai özeti: eşiği aşan personeli raporla
+        threshold_min = int(OVERTIME_THRESHOLD_HOURS * 60)
+        if weekly_min > threshold_min:
+            ot_hours = round((weekly_min - threshold_min) / 60, 2)
+            ytd      = float(person.get("ytd_overtime_hours", 0) or 0)
+            output["overtime_summary"].append({
+                "personnelId":   person["id"],
+                "name":          person["name"],
+                "scheduled_hours": round(weekly_min / 60, 2),
+                "overtime_hours":  ot_hours,
+                "ytd_overtime_hours": ytd,
+                "ytd_after":     round(ytd + ot_hours, 2),
+                "at_limit":      (ytd + ot_hours) >= MAX_YTD_OVERTIME_HOURS,
+            })
 
     # Kıdemli kısıt ihlallerini tespit et (primary atanamamış vardiya/gün kombinasyonları)
     if ENSURE_SENIOR_PER_SHIFT:

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import {
@@ -14,7 +13,6 @@ import {
   type AvailabilityInput,
 } from "@/lib/fairness";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
@@ -24,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const body = await req.json();
     const { location_id, week_start } = body;
@@ -33,10 +31,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
     }
 
-    const loc = db.prepare("SELECT id, shift_definitions, rules FROM locations WHERE id = ? AND org_id = ?")
+    const loc = await db.prepare("SELECT id, shift_definitions, rules FROM locations WHERE id = ? AND org_id = ?")
       .get(location_id, auth.org_id) as any;
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
@@ -48,7 +45,7 @@ export async function POST(req: NextRequest) {
       : {};
 
     // ── 1. Bu haftanın atamaları ─────────────────────────────────────────────
-    const weekRows = db.prepare(`
+    const weekRows = await db.prepare(`
       SELECT sa.personnel_id, sa.day, sa.shift_id, sa.start_time, sa.end_time
       FROM shift_assignments sa
       WHERE sa.location_id = ? AND sa.week_start = ?
@@ -57,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Kahraman bonuslu atamaları bul (open_shifts'ten claim edilenler)
     const heroShiftIds = new Set<number>(
-      (db.prepare(`
+      (await db.prepare(`
         SELECT sa.id FROM shift_assignments sa
         JOIN open_shifts os ON os.location_id = sa.location_id AND os.date = ?
         WHERE os.status = 'claimed' AND os.claimed_by = sa.personnel_id
@@ -77,7 +74,7 @@ export async function POST(req: NextRequest) {
     // ── 2. Müsaitlik bilgileri ────────────────────────────────────────────────
     const personnelIds = [...new Set(assignments.map(a => a.personnel_id))];
     const availRows: AvailabilityInput[] = personnelIds.length
-      ? (db.prepare(`
+      ? (await db.prepare(`
           SELECT personnel_id, day_0, day_1, day_2, day_3, day_4, day_5, day_6
           FROM availability
           WHERE personnel_id IN (${personnelIds.map(() => "?").join(",")}) AND week_start = ?
@@ -88,7 +85,7 @@ export async function POST(req: NextRequest) {
     const weeklyBreakdowns = calcWeeklyBurden(assignments, shiftDefs, availRows, rules);
 
     // ── 4. Her personel için rolling cumulative burden hesapla ────────────────
-    const alreadyScored = db.prepare(
+    const alreadyScored = await db.prepare(
       `SELECT 1 FROM score_history WHERE location_id = ? AND week_start = ? LIMIT 1`
     ).get(location_id, week_start);
 
@@ -99,7 +96,7 @@ export async function POST(req: NextRequest) {
         const pid = breakdown.personnel_id;
 
         // Son 7 haftanın geçmişi (bu hafta hariç)
-        const history = db.prepare(`
+        const history = await db.prepare(`
           SELECT week_start, burden_score
           FROM score_history
           WHERE personnel_id = ? AND location_id = ? AND week_start < ?
@@ -118,7 +115,7 @@ export async function POST(req: NextRequest) {
       const zScores = calcFairnessZ(cumulativeByPid);
 
       // ── 6. score_history + personnel güncelle ─────────────────────────────
-      const insertHistory = db.prepare(`
+      const insertHistory = await db.prepare(`
         INSERT INTO score_history (
           org_id, location_id, personnel_id, personnel_name, week_start,
           score, total_hours, raw_score, burden_score,
@@ -128,57 +125,48 @@ export async function POST(req: NextRequest) {
         ON CONFLICT DO NOTHING
       `);
 
-      const updatePersonnel = db.prepare(`
+      const updatePersonnel = await db.prepare(`
         UPDATE personnel SET prev_score = ?, fairness_z_score = ? WHERE id = ?
       `);
 
       const personnelNames: Record<string, string> = {};
-      for (const row of db.prepare(`SELECT id, name, hero_count, no_show_count FROM personnel WHERE org_id = ?`).all(auth.org_id) as any[]) {
+      for (const row of await db.prepare(`SELECT id, name, hero_count, no_show_count FROM personnel WHERE org_id = ?`).all(auth.org_id) as any[]) {
         personnelNames[row.id] = row.name;
       }
 
-      const runInserts = db.transaction(() => {
-        for (const bd of weeklyBreakdowns) {
-          const pid = bd.personnel_id;
-          const cumulative = cumulativeByPid[pid] ?? bd.burden_score;
-          const z = zScores[pid] ?? 0;
-          const pRow = db.prepare(`SELECT hero_count, no_show_count FROM personnel WHERE id = ?`).get(pid) as any;
+      for (const bd of weeklyBreakdowns) {
+        const pid = bd.personnel_id;
+        const cumulative = cumulativeByPid[pid] ?? bd.burden_score;
+        const z = zScores[pid] ?? 0;
+        const pRow = await db.prepare(`SELECT hero_count, no_show_count FROM personnel WHERE id = ?`).get(pid) as any;
 
-          insertHistory.run(
-            auth.org_id, location_id, pid, personnelNames[pid] ?? pid, week_start,
-            bd.burden_score, // score alanı (eski uyumluluk)
-            bd.total_hours, bd.raw_score, bd.burden_score,
-            bd.weekend_shifts, bd.night_shifts, bd.pref_not_shifts, bd.clopening_count,
-            cumulative, z,
-            pRow?.hero_count ?? 0, pRow?.no_show_count ?? 0,
-          );
+        await insertHistory.run(
+          auth.org_id, location_id, pid, personnelNames[pid] ?? pid, week_start,
+          bd.burden_score, // score alanı (eski uyumluluk)
+          bd.total_hours, bd.raw_score, bd.burden_score,
+          bd.weekend_shifts, bd.night_shifts, bd.pref_not_shifts, bd.clopening_count,
+          cumulative, z,
+          pRow?.hero_count ?? 0, pRow?.no_show_count ?? 0,
+        );
 
-          updatePersonnel.run(cumulative, z, pid);
-        }
-      });
-      runInserts();
+        await updatePersonnel.run(cumulative, z, pid);
+      }
     }
 
     // ── 7. Bildirimler ────────────────────────────────────────────────────────
-    const activePersonnel = db.prepare(`
+    const activePersonnel = await db.prepare(`
       SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'
     `).all(`%"${location_id}"%`) as any[];
 
     let sentCount = 0;
     for (const p of activePersonnel) {
-      const cnt = db.prepare(`
-        SELECT count(*) as c FROM shift_assignments
-        WHERE personnel_id = ? AND week_start = ? AND location_id = ?
-      `).get(p.id, week_start, location_id) as any;
-      if (!cnt?.c) continue;
-
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
         VALUES (?, 'schedule', ?, ?, '/portal/calendar', 0, ?)
       `).run(
         p.id,
-        "Vardiya Programın Yayınlandı 📅",
-        `${week_start} haftası için vardiya programın hazır. Takvimini kontrol et!`,
+        "Vardiya Programı Yayınlandı 📅",
+        `${week_start} haftası için vardiya programı hazır. Takvimini kontrol et!`,
         Math.floor(Date.now() / 1000),
       );
       if (p.phone)  await sendSMS(p.phone, `Merhaba ${p.name}, ${week_start} haftası vardiya programın yayınlandı.`);
@@ -191,10 +179,51 @@ export async function POST(req: NextRequest) {
       sentCount++;
     }
 
-    db.close();
-    return NextResponse.json({ success: true, message: `${sentCount} personele bildirim gönderildi.` });
+    // ── 8. Yayın kaydı — revision takibi + snapshot ──────────────────────────
+    const prevPub = await db.prepare(
+      `SELECT MAX(revision) as max_rev FROM schedule_publications WHERE org_id = ? AND location_id = ? AND week_start = ?`
+    ).get(auth.org_id, location_id, week_start) as any;
+    const revision = prevPub?.max_rev != null ? prevPub.max_rev + 1 : 0;
+
+    // Snapshot: atamalar + personel + departman bilgileri
+    const locInfo = await db.prepare(`SELECT name FROM locations WHERE id = ?`).get(location_id) as any;
+    const personnelRows2 = await db.prepare(
+      `SELECT id, name, department_id FROM personnel WHERE org_id = ? AND assigned_location_ids LIKE ?`
+    ).all(auth.org_id, `%"${location_id}"%`) as any[];
+    const deptInfo = await db.prepare(`SELECT id, name FROM departments WHERE location_id = ?`).all(location_id) as any[];
+    const pubAssignments = await db.prepare(
+      `SELECT personnel_id, day, start_time, end_time, shift_id, points
+       FROM shift_assignments WHERE location_id = ? AND week_start = ? AND publication_status = 'published'`
+    ).all(location_id, week_start) as any[];
+
+    const deptMap: Record<string, string> = {};
+    for (const d of deptInfo) deptMap[d.id] = d.name;
+    const personnelMap: Record<string, { name: string; dept_id: string }> = {};
+    for (const p of personnelRows2) personnelMap[p.id] = { name: p.name, dept_id: p.department_id };
+
+    const snapshot = JSON.stringify({
+      locationName: locInfo?.name ?? "",
+      shiftDefs,
+      departments: deptInfo,
+      assignments: pubAssignments.map((a: any) => ({
+        personnelId: a.personnel_id,
+        personnelName: personnelMap[a.personnel_id]?.name ?? a.personnel_id,
+        departmentId: personnelMap[a.personnel_id]?.dept_id ?? null,
+        departmentName: deptMap[personnelMap[a.personnel_id]?.dept_id ?? ""] ?? "Diğer",
+        day: a.day,
+        startTime: a.start_time,
+        endTime: a.end_time,
+        shiftId: a.shift_id,
+        points: a.points,
+      })),
+    });
+
+    await db.prepare(
+      `INSERT INTO schedule_publications (org_id, location_id, week_start, revision, published_by, published_by_name, published_at, snapshot)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(auth.org_id, location_id, week_start, revision, auth.id, auth.name ?? "Yönetici", Math.floor(Date.now() / 1000), snapshot);
+    return NextResponse.json({ success: true, message: `${sentCount} personele bildirim gönderildi.`, revision });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -3,18 +3,19 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
+import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, ArrowLeft, Trash2, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
 import { getNotifHref } from "@/lib/notif";
 
 const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
-  schedule:       { Icon: CalendarDays,  color: "bg-blue-100 text-blue-600" },
-  leave_approved: { Icon: CheckCircle2,  color: "bg-emerald-100 text-emerald-600" },
-  leave_rejected: { Icon: AlertTriangle, color: "bg-red-100 text-red-600" },
-  trade_request:  { Icon: RefreshCw,     color: "bg-purple-100 text-purple-600" },
-  alert:          { Icon: AlertTriangle, color: "bg-amber-100 text-amber-600" },
+  schedule:        { Icon: CalendarDays,    color: "bg-blue-100 text-blue-600" },
+  leave_approved:  { Icon: CheckCircle2,    color: "bg-emerald-100 text-emerald-600" },
+  leave_rejected:  { Icon: AlertTriangle,   color: "bg-red-100 text-red-600" },
+  trade_request:   { Icon: RefreshCw,       color: "bg-purple-100 text-purple-600" },
+  alert:           { Icon: AlertTriangle,   color: "bg-amber-100 text-amber-600" },
+  shift_proposal:  { Icon: ArrowRightLeft,  color: "bg-sky-100 text-sky-600" },
 };
 
 const SWIPE_THRESHOLD = 72; // px sola kaydırma silme eşiği
@@ -24,11 +25,13 @@ function NotifCard({
   onRead,
   onDelete,
   onNavigate,
+  onProposalRespond,
 }: {
   notif: any;
   onRead: (id: number) => void;
   onDelete: (id: number) => void;
   onNavigate: (href: string | null) => void;
+  onProposalRespond: (notifId: number, proposalId: string, status: "accepted" | "rejected") => void;
 }) {
   const cfg = TYPE_CONFIG[notif.type] ?? TYPE_CONFIG.alert;
   const Icon = cfg.Icon;
@@ -103,6 +106,24 @@ function NotifCard({
             {notif.message}
           </p>
 
+          {notif.type === "shift_proposal" && notif.link && !notif.responded && (
+            <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => onProposalRespond(notif.id, notif.link, "rejected")}
+                className="flex-1 bg-white border border-red-200 text-red-600 py-1.5 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors"
+              >
+                Reddet
+              </button>
+              <button
+                onClick={() => onProposalRespond(notif.id, notif.link, "accepted")}
+                className="flex-1 bg-sky-600 text-white py-1.5 text-xs font-bold rounded-lg hover:bg-sky-700 transition-colors"
+              >
+                Kabul Et
+              </button>
+            </div>
+          )}
+          {notif.responded === "accepted" && <p className="text-[11px] text-emerald-600 font-semibold mt-2">✓ Kabul edildi</p>}
+          {notif.responded === "rejected" && <p className="text-[11px] text-red-500 font-semibold mt-2">✗ Reddedildi</p>}
           {!notif.is_read && notif.type === "trade_request" && (
             <div className="flex gap-2 mt-3">
               <button className="flex-1 bg-white border border-slate-200 text-slate-600 py-1.5 text-xs font-bold rounded-lg hover:bg-slate-50">Reddet</button>
@@ -151,6 +172,22 @@ export default function NotificationsPage() {
   const handleNavigate = (href: string | null) => {
     if (href) router.push(href);
   };
+
+  const handleProposalRespond = useCallback(async (notifId: number, proposalId: string, status: "accepted" | "rejected") => {
+    setNotifs(prev => prev.map(n => n.id === notifId ? { ...n, responded: status } : n));
+    try {
+      const res = await fetch("/api/schedule/shift-proposals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: proposalId, status }),
+      });
+      if (!res.ok) throw new Error();
+      markRead(notifId);
+    } catch {
+      setNotifs(prev => prev.map(n => n.id === notifId ? { ...n, responded: undefined } : n));
+      alert("İşlem başarısız, tekrar deneyin.");
+    }
+  }, [markRead]);
 
   if (!mounted) return <div className="space-y-4" />;
 
@@ -203,6 +240,7 @@ export default function NotificationsPage() {
               onRead={markRead}
               onDelete={deleteNotif}
               onNavigate={handleNavigate}
+              onProposalRespond={handleProposalRespond}
             />
           ))}
         </div>

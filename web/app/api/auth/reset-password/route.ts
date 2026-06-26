@@ -1,9 +1,7 @@
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import bcrypt from "bcryptjs";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // POST /api/auth/reset-password
 // Body: { token, new_password }
@@ -19,11 +17,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Şifre en az 6 karakter olmalı" }, { status: 400 });
     }
 
-    const db = new Database(DB_PATH);
+    const db = getDB();
     try {
       const now = Math.floor(Date.now() / 1000);
 
-      const row = db.prepare(
+      const row = await db.prepare(
         `SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL AND expires_at > ?`
       ).get(token, now) as any;
 
@@ -35,12 +33,11 @@ export async function POST(req: NextRequest) {
       }
 
       const hash = await bcrypt.hash(new_password, 10);
-      db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hash, row.user_id);
-      db.prepare(`UPDATE password_reset_tokens SET used_at = ? WHERE token = ?`).run(now, token);
+      await db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hash, row.user_id);
+      await db.prepare(`UPDATE password_reset_tokens SET used_at = ? WHERE token = ?`).run(now, token);
 
       return NextResponse.json({ ok: true });
     } finally {
-      db.close();
     }
   } catch (err: any) {
     console.error("reset-password error:", err);
@@ -53,10 +50,10 @@ export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get("token");
   if (!token) return NextResponse.json({ valid: false });
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const now = Math.floor(Date.now() / 1000);
-    const row = db.prepare(
+    const row = await db.prepare(
       `SELECT prt.token, u.name FROM password_reset_tokens prt
        JOIN users u ON u.id = prt.user_id
        WHERE prt.token = ? AND prt.used_at IS NULL AND prt.expires_at > ?`
@@ -64,6 +61,5 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ valid: !!row, name: row?.name ?? null });
   } finally {
-    db.close();
   }
 }

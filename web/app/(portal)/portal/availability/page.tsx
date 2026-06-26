@@ -52,7 +52,10 @@ function weekStart(offset: number) {
   const diff = now.getDay() === 0 ? -6 : 1 - now.getDay();
   const mon = new Date(now);
   mon.setDate(now.getDate() + diff + offset * 7);
-  return mon.toISOString().split("T")[0];
+  const y = mon.getFullYear();
+  const m = String(mon.getMonth() + 1).padStart(2, "0");
+  const d = String(mon.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 function weekLabel(ws: string) {
   const s = new Date(ws + "T00:00:00"), e = new Date(ws + "T00:00:00");
@@ -344,6 +347,13 @@ export default function PortalAvailability() {
 
   if (!mounted) return null;
 
+  // Her gün için tarih hesapla (ws = Pazartesi tarihi, YYYY-MM-DD)
+  const [wsY, wsM, wsD] = ws.split("-").map(Number);
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(wsY, wsM - 1, wsD + i);
+    return date.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  });
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-5 space-y-5 animate-in fade-in duration-300">
@@ -372,8 +382,9 @@ export default function PortalAvailability() {
       {/* ── Haftalık durum şeridi ───────────────────────────────────────────── */}
       <div className="grid grid-cols-7 gap-1.5">
         {days.map((d, i) => (
-          <div key={i} className={`flex flex-col items-center gap-1.5 py-2 rounded-xl ${S[d.status].light}`}>
+          <div key={i} className={`flex flex-col items-center gap-1 py-2 rounded-xl ${S[d.status].light}`}>
             <span className="text-[9px] font-bold text-slate-500">{SHORT[i]}</span>
+            <span className="text-[8px] font-semibold text-slate-400 leading-tight">{weekDates[i]}</span>
             <div className={`w-2 h-2 rounded-full ${S[d.status].dot}`} />
           </div>
         ))}
@@ -422,7 +433,10 @@ export default function PortalAvailability() {
                 <div className="px-4 pt-3 pb-4">
                   {/* Başlık satırı */}
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="font-black text-slate-800 text-[15px] shrink-0 min-w-[90px]">{name}</span>
+                    <div className="shrink-0 min-w-[90px]">
+                      <span className="font-black text-slate-800 text-[15px] block leading-tight">{name}</span>
+                      <span className="text-[11px] font-semibold text-slate-400">{weekDates[i]}</span>
+                    </div>
                     <div className="flex gap-1.5 flex-1">
                       {(["available","preferred_not","unavailable"] as Status[]).map(s => {
                         const c = S[s];
@@ -533,7 +547,10 @@ export default function PortalAvailability() {
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${cfg.bg} ${cfg.text} shrink-0`}>
                       {cfg.icon}
                     </div>
-                    <span className="text-sm font-bold text-slate-800 flex-1">{DAYS[i]}</span>
+                    <div className="flex-1">
+                      <span className="text-sm font-bold text-slate-800 block leading-tight">{DAYS[i]}</span>
+                      <span className="text-[11px] font-medium text-slate-400">{weekDates[i]}</span>
+                    </div>
                     <span className={`text-xs font-semibold tabular-nums ${cfg.ltext}`}>
                       {d.status === "unavailable"
                         ? "Gelemiyorum"

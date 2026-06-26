@@ -8,13 +8,11 @@
 //   3. Claude'a gönder (Factor 2: own your prompts)
 //   4. Yanıtı stream'le döndür
 
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 const DAYS_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -104,16 +102,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "week_start ve location_id zorunlu" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   let context: string;
   try {
     // Lokasyon bilgisi + shift tanımları
-    const loc = db.prepare(
+    const loc = await db.prepare(
       `SELECT name, shift_definitions FROM locations WHERE id = ? AND org_id = ?`
     ).get(location_id, auth.org_id) as any;
 
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Lokasyon bulunamadı" }, { status: 404 });
     }
 
@@ -122,25 +119,22 @@ export async function POST(req: NextRequest) {
       : [];
 
     // Bu haftanın atamaları
-    const shifts = db.prepare(`
+    const shifts = await db.prepare(`
       SELECT personnel_id, day, shift_id, start_time, end_time
       FROM shift_assignments
       WHERE location_id = ? AND week_start = ?
     `).all(location_id, week_start) as any[];
 
     // Personel isimleri + adalet puanları
-    const personnel = db.prepare(`
+    const personnel = await db.prepare(`
       SELECT id, name, prev_score
       FROM personnel
       WHERE primary_location_id = ? AND org_id = ?
     `).all(location_id, auth.org_id) as any[];
 
-    db.close();
-
     // Adım 2: sıkıştırılmış bağlam oluştur
     context = buildContext(week_start, loc.name, shifts, personnel, shiftDefs);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 

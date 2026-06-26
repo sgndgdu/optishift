@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leaveRequests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
-import Database from "better-sqlite3";
-import pathMod from "path";
 import { requireAuth } from "@/lib/auth";
 
 // GET: Personelin izin taleplerini listele (veya location'daki tüm personelin)
@@ -31,18 +30,16 @@ export async function GET(req: NextRequest) {
   }
 
   if (location_id) {
-    const dbRaw = new Database(pathMod.join(process.cwd(), "optishift.db"));
+    const rawDb = getDB();
     try {
-      const rows = dbRaw.prepare(`
+      const rows = await rawDb.prepare(`
         SELECT lr.*, p.name as personnel_name FROM leave_requests lr
         JOIN personnel p ON p.id = lr.personnel_id
         WHERE p.primary_location_id = ?
         ORDER BY lr.created_at DESC
       `).all(location_id);
-      dbRaw.close();
       return NextResponse.json(rows);
     } catch (err: any) {
-      dbRaw.close();
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
   }
@@ -69,44 +66,37 @@ export async function POST(req: NextRequest) {
     }
 
     // İzin politikası doğrulaması — personelin bulunduğu lokasyonun politikası esas alınır
-    const dbRaw2 = new Database(pathMod.join(process.cwd(), "optishift.db"));
-    try {
-      const personnelRow = dbRaw2.prepare("SELECT primary_location_id FROM personnel WHERE id = ?").get(personnel_id) as any;
-      if (personnelRow?.primary_location_id) {
-        const locRow = dbRaw2.prepare("SELECT leave_policy FROM locations WHERE id = ?").get(personnelRow.primary_location_id) as any;
-        if (locRow?.leave_policy) {
-          let policy: any = {};
-          try { policy = JSON.parse(locRow.leave_policy); } catch { /* geçersiz JSON → atla */ }
+    const rawDb = getDB();
+    const personnelRow = await rawDb.prepare("SELECT primary_location_id FROM personnel WHERE id = ?").get(personnel_id) as any;
+    if (personnelRow?.primary_location_id) {
+      const locRow = await rawDb.prepare("SELECT leave_policy FROM locations WHERE id = ?").get(personnelRow.primary_location_id) as any;
+      if (locRow?.leave_policy) {
+        let policy: any = {};
+        try { policy = JSON.parse(locRow.leave_policy); } catch { /* geçersiz JSON → atla */ }
 
-          // Mazeret zorunluluğu
-          if (policy.require_reason && !note?.trim()) {
-            dbRaw2.close();
-            return NextResponse.json({ error: "Bu lokasyonda izin talebi için mazeret zorunludur." }, { status: 422 });
-          }
+        // Mazeret zorunluluğu
+        if (policy.require_reason && !note?.trim()) {
+          return NextResponse.json({ error: "Bu lokasyonda izin talebi için mazeret zorunludur." }, { status: 422 });
+        }
 
-          // Çoklu gün yasağı
-          if (!policy.allow_multi_day && start_date !== end_date) {
-            dbRaw2.close();
-            return NextResponse.json({ error: "Bu lokasyonda birden fazla gün izin talep edilemez." }, { status: 422 });
-          }
+        // Çoklu gün yasağı
+        if (!policy.allow_multi_day && start_date !== end_date) {
+          return NextResponse.json({ error: "Bu lokasyonda birden fazla gün izin talep edilemez." }, { status: 422 });
+        }
 
-          // Maksimum gün kontrolü
-          if (policy.allow_multi_day && policy.max_days_per_request) {
-            const start = new Date(start_date);
-            const end = new Date(end_date);
-            const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-            if (dayCount > policy.max_days_per_request) {
-              dbRaw2.close();
-              return NextResponse.json(
-                { error: `Bu lokasyonda tek bir talep için en fazla ${policy.max_days_per_request} gün izin alınabilir.` },
-                { status: 422 }
-              );
-            }
+        // Maksimum gün kontrolü
+        if (policy.allow_multi_day && policy.max_days_per_request) {
+          const start = new Date(start_date);
+          const end = new Date(end_date);
+          const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+          if (dayCount > policy.max_days_per_request) {
+            return NextResponse.json(
+              { error: `Bu lokasyonda tek bir talep için en fazla ${policy.max_days_per_request} gün izin alınabilir.` },
+              { status: 422 }
+            );
           }
         }
       }
-    } finally {
-      dbRaw2.close();
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -126,24 +116,19 @@ export async function POST(req: NextRequest) {
 
     // Müdüre bildirim gönder
     if (auth.location_id) {
-      const dbRaw = new Database(pathMod.join(process.cwd(), "optishift.db"));
-      try {
-        const managers = dbRaw.prepare(`
-          SELECT personnel_id FROM users
-          WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
-        `).all(auth.location_id) as any[];
+      const managers = await rawDb.prepare(`
+        SELECT personnel_id FROM users
+        WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
+      `).all(auth.location_id) as any[];
 
-        const personnelRow = dbRaw.prepare(`SELECT name FROM personnel WHERE id = ?`).get(personnel_id) as any;
-        const pName = personnelRow?.name ?? "Personel";
+      const pRow = await rawDb.prepare(`SELECT name FROM personnel WHERE id = ?`).get(personnel_id) as any;
+      const pName = pRow?.name ?? "Personel";
 
-        for (const mgr of managers) {
-          dbRaw.prepare(`
-            INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-            VALUES (?, 'leave_request', ?, ?, 0, ?)
-          `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${type} — ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
-        }
-      } finally {
-        dbRaw.close();
+      for (const mgr of managers) {
+        await rawDb.prepare(`
+          INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
+          VALUES (?, 'leave_request', ?, ?, 0, ?)
+        `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${type} — ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
       }
     }
 

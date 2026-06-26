@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // GET /api/reports/monthly?location_id=X&month=YYYY-MM
 // Returns per-person monthly hours summary (published shifts only)
@@ -28,10 +26,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "month formatı YYYY-MM olmalı" }, { status: 400 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     // Verify location belongs to this org
-    const loc = db.prepare("SELECT id, name FROM locations WHERE id = ? AND org_id = ?")
+    const loc = await db.prepare("SELECT id, name FROM locations WHERE id = ? AND org_id = ?")
       .get(location_id, auth.org_id) as { id: string; name: string } | undefined;
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
@@ -50,7 +48,7 @@ export async function GET(req: NextRequest) {
     weekRangeStart.setDate(weekRangeStart.getDate() - 6);
     const weekRangeStartStr = weekRangeStart.toISOString().split("T")[0];
 
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT
         sa.personnel_id,
         p.name AS personnel_name,
@@ -135,6 +133,5 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ month, location: loc.name, rows: result });
   } finally {
-    db.close();
   }
 }

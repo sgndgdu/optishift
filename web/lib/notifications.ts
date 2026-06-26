@@ -2,11 +2,9 @@
 // SMS, E-posta ve Web Push bildirim wrapper'ları.
 // SMS/E-posta mock; Web Push gerçek VAPID ile çalışır.
 
+import { getDB } from "@/lib/db/client";
 import webpush from "web-push";
-import Database from "better-sqlite3";
-import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 if (process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -27,14 +25,13 @@ export async function sendPushToPersonnel(
 ) {
   if (!process.env.VAPID_PRIVATE_KEY) return;
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   let subs: any[] = [];
   try {
-    subs = db.prepare(
+    subs = await db.prepare(
       "SELECT * FROM push_subscriptions WHERE personnel_id = ? AND org_id = ?"
     ).all(personnelId, orgId) as any[];
   } finally {
-    db.close();
   }
 
   await Promise.allSettled(
@@ -46,9 +43,8 @@ export async function sendPushToPersonnel(
         );
       } catch {
         // Geçersiz / süresi dolmuş subscription'ı sil
-        const db2 = new Database(DB_PATH);
-        db2.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(sub.endpoint);
-        db2.close();
+        const db2 = getDB();
+        await db2.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(sub.endpoint);
       }
     })
   );

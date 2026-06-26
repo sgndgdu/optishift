@@ -37,6 +37,7 @@ export default function PortalDashboard() {
   const [notifs,        setNotifs]        = useState<any[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
+  const [crewName,      setCrewName]      = useState<string | null>(null);
   const [checkInLoading,setCheckInLoading]= useState(false);
   const [elapsed,       setElapsed]       = useState("");
   const [now,           setNow]           = useState(new Date());
@@ -54,14 +55,24 @@ export default function PortalDashboard() {
     const ws  = getWeekStart(0);
     const nws = getWeekStart(1);
     try {
-      const [shiftData, notifData, availData] = await Promise.all([
+      const [shiftData, notifData, availData, personnelData] = await Promise.all([
         fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}`).then(r => r.json()),
         fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
+        fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
       ]);
       setShifts(Array.isArray(shiftData) ? shiftData : []);
       setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
+      // Ekip adını yükle
+      const pData = Array.isArray(personnelData) ? personnelData[0] : personnelData;
+      if (pData?.crew_id && pData?.primary_location_id) {
+        try {
+          const crewData = await fetch(`/api/crews?location_id=${pData.primary_location_id}`).then(r => r.json());
+          const myCrew = Array.isArray(crewData) ? crewData.find((c: any) => c.id === pData.crew_id) : null;
+          setCrewName(myCrew?.name ?? null);
+        } catch { /* ignore */ }
+      }
     } catch {} finally { setDataLoading(false); }
   }, [user?.personnel_id]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -152,9 +163,16 @@ export default function PortalDashboard() {
 
           {/* label */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1.5 text-indigo-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
-              {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
-              {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? "Vardiya bitti" : "Bugün"}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-indigo-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
+                {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
+                {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? "Vardiya bitti" : "Bugün"}
+              </div>
+              {crewName && (
+                <div className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20 text-white/80">
+                  {crewName}
+                </div>
+              )}
             </div>
             {todayShift && (
               <span className={`text-[11px] font-bold px-3 py-1.5 rounded-full border ${

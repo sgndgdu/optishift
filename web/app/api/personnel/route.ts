@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
 const ROLE_RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
@@ -22,7 +20,7 @@ export async function GET(req: NextRequest) {
   const department_id = searchParams.get("department_id");
   const location_id = searchParams.get("location_id");
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const baseSelect = `
       SELECT p.*, u.username, u.id as user_id
@@ -32,43 +30,39 @@ export async function GET(req: NextRequest) {
     let rows;
     if (department_id) {
       // Departmanın bu org'a ait olduğunu doğrula
-      const dept = db.prepare(`
+      const dept = await db.prepare(`
         SELECT d.id FROM departments d
         JOIN locations l ON d.location_id = l.id
         WHERE d.id = ? AND l.org_id = ?
       `).get(department_id, auth.org_id);
       if (!dept) {
-        db.close();
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = db.prepare(`${baseSelect} WHERE p.department_id = ? ORDER BY p.name ASC`).all(department_id);
+      rows = await db.prepare(`${baseSelect} WHERE p.department_id = ? ORDER BY p.name ASC`).all(department_id);
     } else if (location_id) {
       // Lokasyonun bu org'a ait olduğunu doğrula
-      const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+      const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
       if (!loc) {
-        db.close();
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = db.prepare(`${baseSelect} WHERE p.assigned_location_ids LIKE ? ORDER BY p.name ASC`).all(`%"${location_id}"%`);
+      rows = await db.prepare(`${baseSelect} WHERE p.assigned_location_ids LIKE ? ORDER BY p.name ASC`).all(`%"${location_id}"%`);
     } else {
       // org_id token'dan gelir — query param'a güvenilmez
-      rows = db.prepare(`${baseSelect} WHERE p.org_id = ? ORDER BY p.name ASC`).all(auth.org_id);
+      rows = await db.prepare(`${baseSelect} WHERE p.org_id = ? ORDER BY p.name ASC`).all(auth.org_id);
     }
 
     const parsed = (rows as any[]).map((p) => ({
       ...p,
       assigned_location_ids: JSON.parse(p.assigned_location_ids || "[]"),
+      assigned_department_ids: JSON.parse(p.assigned_department_ids || "[]"),
       roles: JSON.parse(p.roles || "[]"),
       role_levels: JSON.parse(p.role_levels || "{}"),
       preferred_shift_ids: JSON.parse(p.preferred_shift_ids || "[]"),
       preferred_days: JSON.parse(p.preferred_days || "[]"),
       preferred_roles: JSON.parse(p.preferred_roles || "[]"),
     }));
-
-    db.close();
     return NextResponse.json(parsed);
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -83,10 +77,10 @@ function toUsername(name: string): string {
     .replace(/^\.|\.$/g, "");
 }
 
-function findAvailableUsername(db: Database.Database, base: string): string {
+async function findAvailableUsername(db: any, base: string): Promise<string> {
   let candidate = base;
   let n = 1;
-  while (db.prepare("SELECT id FROM users WHERE username = ?").get(candidate)) {
+  while (await db.prepare("SELECT id FROM users WHERE username = ?").get(candidate)) {
     candidate = `${base}${n++}`;
   }
   return candidate;
@@ -102,7 +96,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const body = await req.json();
     const { location_id, name, email, phone, title, employment_type, role, temp_password } = body;
@@ -114,29 +108,25 @@ export async function POST(req: NextRequest) {
     // Atanan rol, atayan kişinin rolünü aşamaz
     const requestedRole = role ?? "employee";
     if (!canAssignRole(auth.role, requestedRole)) {
-      db.close();
       return NextResponse.json({ error: `${auth.role} rolü, ${requestedRole} rolü atayamaz` }, { status: 403 });
     }
 
     // Manager sadece kendi şubesine personel ekleyebilir
     if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
-      db.close();
       return NextResponse.json({ error: "Sadece kendi şubenize personel ekleyebilirsiniz" }, { status: 403 });
     }
 
     // location_id'nin bu org'a ait olduğunu doğrula
-    const loc = db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
     if (!loc) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     // Plan limit kontrolü: free plan en fazla 10 aktif personel
-    const org = db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
+    const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
     if (!org || org.plan === "free" || !org.plan) {
       const personnelCount = (db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id) as any).cnt;
       if (personnelCount >= 10) {
-        db.close();
         return NextResponse.json(
           { error: "Free plan limiti: 10 personel. Daha fazlası için Pro'ya geçin.", upgrade: true },
           { status: 402 }
@@ -145,9 +135,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (email?.trim()) {
-      const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
+      const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
       if (existingUser) {
-        db.close();
         return NextResponse.json({ error: "Bu e-posta zaten kayıtlı" }, { status: 409 });
       }
     }
@@ -158,24 +147,21 @@ export async function POST(req: NextRequest) {
     const password = temp_password || Math.random().toString(36).slice(-8);
     const passwordHash = await bcrypt.hash(password, 10);
     const employeeId = `EMP-${Math.floor(Math.random() * 90000) + 10000}`;
-    const username = findAvailableUsername(db, toUsername(name) || `user${Date.now()}`);
+    const username = await findAvailableUsername(db, toUsername(name) || `user${Date.now()}`);
 
-    db.transaction(() => {
-      db.prepare(`
+    (async () => {
+      await db.prepare(`
         INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 45, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
       `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", now, now);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, now);
     })();
-
-    db.close();
     return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -189,36 +175,33 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
     // Personelin bu org'a ait olduğunu doğrula
-    const existing = db.prepare("SELECT id, primary_location_id, user_access_level FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
+    const existing = await db.prepare("SELECT id, primary_location_id, user_access_level FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
     if (!existing) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     // Manager sadece kendi şubesindeki personeli düzenleyebilir
     if (auth.role === "manager" && auth.location_id && existing.primary_location_id !== auth.location_id) {
-      db.close();
       return NextResponse.json({ error: "Sadece kendi şubenizin personelini düzenleyebilirsiniz" }, { status: 403 });
     }
 
     const body = await req.json();
-    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, prev_score, roles, weekly_off_day } = body;
+    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, prev_score, roles, weekly_off_day, crew_id } = body;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
-      db.close();
       return NextResponse.json({ error: `${auth.role} rolü, ${user_access_level} rolü atayamaz` }, { status: 403 });
     }
 
     const now = Math.floor(Date.now() / 1000);
-    db.prepare(`
+    await db.prepare(`
       UPDATE personnel SET name=COALESCE(?,name), phone=COALESCE(?,phone), title=COALESCE(?,title),
       employment_type=COALESCE(?,employment_type), status=COALESCE(?,status),
       max_weekly_hours=COALESCE(?,max_weekly_hours), min_weekly_hours=COALESCE(?,min_weekly_hours),
@@ -232,9 +215,14 @@ export async function PATCH(req: NextRequest) {
 
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata
     if (weekly_off_day !== undefined) {
-      db.prepare("UPDATE personnel SET weekly_off_day=? WHERE id=?").run(
+      await db.prepare("UPDATE personnel SET weekly_off_day=? WHERE id=?").run(
         weekly_off_day === null ? null : Number(weekly_off_day), id
       );
+    }
+
+    // crew_id: undefined → dokunma, null → ekipten çıkar, string → ekip ata
+    if (crew_id !== undefined) {
+      await db.prepare("UPDATE personnel SET crew_id=? WHERE id=?").run(crew_id ?? null, id);
     }
 
     if (name) db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);
@@ -244,7 +232,7 @@ export async function PATCH(req: NextRequest) {
     if (user_access_level && user_access_level !== existing.user_access_level) {
       const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Süpervizör", admin: "Admin" };
       const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
         VALUES (?, 'alert', 'Sistem Rolünüz Güncellendi', ?, '/portal', 0, ?)
       `).run(
@@ -253,11 +241,8 @@ export async function PATCH(req: NextRequest) {
         now
       );
     }
-
-    db.close();
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -271,25 +256,22 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
     // Personelin bu org'a ait olduğunu doğrula
-    const existing = db.prepare("SELECT id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id);
+    const existing = await db.prepare("SELECT id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id);
     if (!existing) {
-      db.close();
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     const now = Math.floor(Date.now() / 1000);
-    db.prepare("UPDATE personnel SET status='inactive', updated_at=? WHERE id=?").run(now, id);
-    db.close();
+    await db.prepare("UPDATE personnel SET status='inactive', updated_at=? WHERE id=?").run(now, id);
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

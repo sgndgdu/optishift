@@ -1,12 +1,10 @@
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leaveRequests, notifications } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 /**
  * İzin tarihleri arasındaki her gün için { week_start: string, day: number } listesi döndürür.
@@ -82,13 +80,13 @@ export async function PATCH(req: NextRequest) {
       // Onaylandıysa: shift_assignments ve availability'yi güncelle
       if (isApproved) {
         const affectedDays = getAffectedDays(request.start_date, request.end_date);
-        const raw = new Database(DB_PATH);
+        const raw = getDB();
         let affectedShiftCount = 0;
 
         try {
           for (const { week_start, day } of affectedDays) {
             // shift_assignments: o personelin o gün planlanan vardiyalarını absent yap
-            const saResult = raw.prepare(`
+            const saResult = await raw.prepare(`
               UPDATE shift_assignments
               SET status = 'absent'
               WHERE personnel_id = ? AND week_start = ? AND day = ? AND status != 'absent'
@@ -99,19 +97,19 @@ export async function PATCH(req: NextRequest) {
             // day_N sütununu dinamik olarak güncelliyoruz (day 0-6 → day_0…day_6)
             const dayCol = `day_${day}`;
             // Mevcut availability kaydı varsa güncelle, yoksa insert et
-            const existing = raw.prepare(
+            const existing = await raw.prepare(
               `SELECT id FROM availability WHERE personnel_id = ? AND week_start = ?`
             ).get(request.personnel_id, week_start) as { id: number } | undefined;
 
             if (existing) {
-              raw.prepare(
+              await raw.prepare(
                 `UPDATE availability SET ${dayCol} = 'unavailable' WHERE personnel_id = ? AND week_start = ?`
               ).run(request.personnel_id, week_start);
             } else {
               // Yeni kayıt: varsayılan available, sadece izin günü unavailable
               const cols = ["day_0", "day_1", "day_2", "day_3", "day_4", "day_5", "day_6"];
               const vals = cols.map((c) => (c === dayCol ? "'unavailable'" : "'available'")).join(", ");
-              raw.prepare(
+              await raw.prepare(
                 `INSERT INTO availability (personnel_id, week_start, ${cols.join(", ")}) VALUES (?, ?, ${vals})`
               ).run(request.personnel_id, week_start);
             }

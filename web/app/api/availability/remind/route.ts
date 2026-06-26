@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
 
-const DB_PATH = path.join(process.cwd(), "optishift.db");
 
 function getWeekStart(): string {
   const d = new Date();
@@ -25,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
-  const db = new Database(DB_PATH);
+  const db = getDB();
   try {
     const body = await req.json().catch(() => ({}));
     const org_id = auth.org_id;
@@ -35,17 +33,16 @@ export async function POST(req: NextRequest) {
     // Fetch active personnel — availability tablosunda org_id yok, personnel üzerinden filtrele
     let personnel: any[];
     if (location_id) {
-      personnel = db
+      personnel = await db
         .prepare(`SELECT id FROM personnel WHERE org_id = ? AND primary_location_id = ? AND status = 'active'`)
         .all(org_id, location_id) as any[];
     } else {
-      personnel = db
+      personnel = await db
         .prepare(`SELECT id FROM personnel WHERE org_id = ? AND status = 'active'`)
         .all(org_id) as any[];
     }
 
     if (personnel.length === 0) {
-      db.close();
       return NextResponse.json({ sent: 0 });
     }
 
@@ -54,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Find who already has availability for this week — org_id yoktur, personnel_id ile filtrele
     const placeholders = personnelIds.map(() => "?").join(",");
     const submitted = new Set<string>(
-      (db
+      (await db
         .prepare(`SELECT personnel_id FROM availability WHERE personnel_id IN (${placeholders}) AND week_start = ?`)
         .all(...personnelIds, week_start) as any[])
         .map((r: any) => r.personnel_id)
@@ -63,37 +60,29 @@ export async function POST(req: NextRequest) {
     const missing = personnelIds.filter((id: string) => !submitted.has(id));
 
     if (missing.length === 0) {
-      db.close();
       return NextResponse.json({ sent: 0 });
     }
-
-    // notifications tablosunda org_id sütunu yok — sadece mevcut sütunları kullan
-    const insert = db.prepare(
-      `INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-       VALUES (?, 'alert', ?, ?, '/portal/availability', 0, strftime('%s','now'))`
-    );
 
     const weekLabel = new Date(week_start + "T00:00:00").toLocaleDateString("tr-TR", {
       day: "numeric",
       month: "long",
     });
 
-    const insertMany = db.transaction((ids: string[]) => {
-      for (const id of ids) {
-        insert.run(
-          id,
-          "Müsaitlik Bildiriminizi Girin",
-          `${weekLabel} haftası için müsaitlik bilginizi girmeniz bekleniyor.`
-        );
-      }
-    });
-
-    insertMany(missing);
-    db.close();
+    const now = Math.floor(Date.now() / 1000);
+    for (const id of missing) {
+      await db.prepare(
+        `INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+         VALUES (?, 'alert', ?, ?, '/portal/availability', 0, ?)`
+      ).run(
+        id,
+        "Müsaitlik Bildiriminizi Girin",
+        `${weekLabel} haftası için müsaitlik bilginizi girmeniz bekleniyor.`,
+        now,
+      );
+    }
 
     return NextResponse.json({ sent: missing.length });
   } catch (err: any) {
-    db.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
