@@ -300,32 +300,20 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* YTD Fazla Mesai Uyarısı — Fabrika Modülü */}
+      {/* YTD Fazla Mesai Uyarısı — kompakt link */}
       {!loading && overtimeWarning.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-orange-200 bg-orange-50">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <AlertTriangle size={18} className="text-orange-600 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-sm font-bold text-orange-800">
-                {overtimeWarning.length} personel yıllık mesai limitine yaklaşıyor
-              </span>
-              <p className="text-xs text-orange-700 truncate">
-                {overtimeWarning.map((p: any, i: number) => (
-                  <span key={p.id ?? i}>{i > 0 && ", "}<strong>{p.name}</strong> ({p.ytd_overtime_hours ?? 0}s)</span>
-                ))}
-                {" — "}yasal limit 270 saat/yıl
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => router.push("/personnel")}
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-orange-300 text-orange-800 hover:bg-orange-100"
-          >
-            Personeli Gör <ArrowRight size={14} className="ml-1.5" />
-          </Button>
-        </div>
+        <button
+          onClick={() => router.push("/overtime#warnings")}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
+        >
+          <AlertTriangle size={16} className="text-orange-500 shrink-0" />
+          <span className="text-sm font-semibold text-orange-800 flex-1">
+            {overtimeWarning.length} mesai uyarısı var
+          </span>
+          <span className="text-xs text-orange-600 font-medium flex items-center gap-1">
+            Fazla Mesai → Uyarılar <ArrowRight size={12} />
+          </span>
+        </button>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

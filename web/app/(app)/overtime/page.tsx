@@ -51,7 +51,13 @@ export default function OvertimePage() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
 
-  const [tab, setTab] = useState<"pending" | "status" | "warnings">("pending");
+  const [tab, setTab] = useState<"pending" | "status" | "warnings">(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash === "#warnings") return "warnings";
+    }
+    return "pending";
+  });
   const [pending, setPending] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [personnel, setPersonnel] = useState<any[]>([]);
