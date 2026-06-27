@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, Bell, ShieldAlert, Info } from "lucide-react";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -51,7 +51,7 @@ export default function OvertimePage() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
 
-  const [tab, setTab] = useState<"pending" | "status">("pending");
+  const [tab, setTab] = useState<"pending" | "status" | "warnings">("pending");
   const [pending, setPending] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [personnel, setPersonnel] = useState<any[]>([]);
@@ -152,6 +152,9 @@ export default function OvertimePage() {
 
   const atLimitCount = personnel.filter(p => (p.ytd_overtime_hours ?? 0) >= maxYtd * 0.9).length;
 
+  // Uyarı listesi — mevcut veriden türetilir, ek API çağrısı gerekmez
+  const warnings = buildWarnings(personnel, history, maxYtd);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,7 +202,7 @@ export default function OvertimePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-        {(["pending", "status"] as const).map(t => (
+        {(["pending", "status", "warnings"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -207,10 +210,15 @@ export default function OvertimePage() {
               tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            {t === "pending" ? "Bekleyen Onaylar" : "Personel Durumu"}
+            {t === "pending" ? "Bekleyen Onaylar" : t === "status" ? "Personel Durumu" : "Uyarılar"}
             {t === "pending" && pending.length > 0 && (
               <span className="ml-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                 {pending.length}
+              </span>
+            )}
+            {t === "warnings" && warnings.length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {warnings.length}
               </span>
             )}
           </button>
@@ -221,8 +229,10 @@ export default function OvertimePage() {
         <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>
       ) : tab === "pending" ? (
         <PendingTab pending={pending} history={history} onDecision={handleDecision} />
-      ) : (
+      ) : tab === "status" ? (
         <StatusTab personnel={personnel} maxYtd={maxYtd} />
+      ) : (
+        <WarningsTab warnings={warnings} />
       )}
 
       {/* Yeni Kayıt Modal */}
@@ -318,6 +328,63 @@ export default function OvertimePage() {
       )}
     </div>
   );
+}
+
+// ─── Uyarı Üretici ───────────────────────────────────────────────────────────
+
+type WarningLevel = "critical" | "high" | "info";
+interface Warning {
+  id: string;
+  level: WarningLevel;
+  title: string;
+  detail: string;
+  personnelName?: string;
+}
+
+function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warning[] {
+  const list: Warning[] = [];
+
+  for (const p of personnel) {
+    const ytd = p.ytd_overtime_hours ?? 0;
+    const pct = ytd / maxYtd;
+
+    if (ytd >= maxYtd) {
+      list.push({
+        id: `ytd-over-${p.id}`,
+        level: "critical",
+        title: "Yıllık mesai limiti aşıldı",
+        detail: `${ytd.toFixed(0)} / ${maxYtd} saat — yasal sınır (İş K. m.41) geçildi`,
+        personnelName: p.name,
+      });
+    } else if (pct >= 0.9) {
+      list.push({
+        id: `ytd-near-${p.id}`,
+        level: "high",
+        title: "Yıllık mesai limitine yaklaşıyor",
+        detail: `${ytd.toFixed(0)} / ${maxYtd} saat — limitin %${Math.round(pct * 100)}'inde`,
+        personnelName: p.name,
+      });
+    }
+
+    // Yüksek mesai frekansı: son 4 haftada 3+ onaylı mesai kaydı
+    const recentApproved = history.filter(
+      r => r.personnel_id === p.id && r.status === "approved" &&
+        r.created_at > Math.floor(Date.now() / 1000) - 28 * 86400
+    );
+    if (recentApproved.length >= 3) {
+      list.push({
+        id: `freq-${p.id}`,
+        level: "info",
+        title: "Yüksek mesai frekansı",
+        detail: `Son 28 günde ${recentApproved.length} onaylı mesai kaydı`,
+        personnelName: p.name,
+      });
+    }
+  }
+
+  // Sıralama: critical → high → info
+  const order: Record<WarningLevel, number> = { critical: 0, high: 1, info: 2 };
+  return list.sort((a, b) => order[a.level] - order[b.level]);
 }
 
 // ─── Alt Bileşenler ──────────────────────────────────────────────────────────
@@ -427,6 +494,79 @@ function OvertimeRow({ record: r, onDecision, readonly }: {
       {readonly && (
         <TrendingUp size={14} className="text-slate-300 shrink-0" />
       )}
+    </div>
+  );
+}
+
+function WarningsTab({ warnings }: { warnings: Warning[] }) {
+  if (warnings.length === 0) {
+    return (
+      <div className="text-center py-16 text-slate-400">
+        <CheckCircle2 size={40} className="mx-auto mb-3 opacity-30" />
+        <p className="text-sm font-medium">Aktif uyarı yok</p>
+        <p className="text-xs mt-1">Tüm personel yasal limitler içinde</p>
+      </div>
+    );
+  }
+
+  const cfg: Record<WarningLevel, { icon: React.ReactNode; bg: string; border: string; badge: string; badgeTxt: string; label: string }> = {
+    critical: {
+      icon: <ShieldAlert size={18} className="text-red-500 shrink-0" />,
+      bg: "bg-red-50/60", border: "border-red-200",
+      badge: "bg-red-100 text-red-700 border-red-300", badgeTxt: "Kritik", label: "KRİTİK",
+    },
+    high: {
+      icon: <AlertTriangle size={18} className="text-amber-500 shrink-0" />,
+      bg: "bg-amber-50/60", border: "border-amber-200",
+      badge: "bg-amber-100 text-amber-700 border-amber-300", badgeTxt: "Yüksek", label: "YÜKSEK",
+    },
+    info: {
+      icon: <Info size={18} className="text-blue-400 shrink-0" />,
+      bg: "bg-blue-50/40", border: "border-blue-200",
+      badge: "bg-blue-100 text-blue-700 border-blue-200", badgeTxt: "Bilgi", label: "BİLGİ",
+    },
+  };
+
+  const groups = (["critical", "high", "info"] as WarningLevel[]).map(level => ({
+    level,
+    items: warnings.filter(w => w.level === level),
+  })).filter(g => g.items.length > 0);
+
+  return (
+    <div className="space-y-5">
+      {groups.map(({ level, items }) => {
+        const c = cfg[level];
+        return (
+          <div key={level}>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              {c.icon} {c.label} — {items.length} uyarı
+            </p>
+            <div className="space-y-2">
+              {items.map(w => (
+                <div key={w.id} className={`flex items-start gap-4 rounded-2xl border px-5 py-4 ${c.bg} ${c.border}`}>
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-slate-100 shadow-sm">
+                    <span className="text-xs font-bold text-slate-600">
+                      {(w.personnelName ?? "?").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      {w.personnelName && (
+                        <span className="font-bold text-slate-800 text-sm">{w.personnelName}</span>
+                      )}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${c.badge}`}>
+                        {c.badgeTxt}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">{w.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{w.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
