@@ -33,7 +33,22 @@ function usePendingAccounts(isAdmin: boolean) {
   }, [isAdmin]);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive } from "lucide-react";
+
+function usePendingOvertime() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const locId = localStorage.getItem("optishift_selected_location") || "";
+    const tick = () => fetch(`/api/overtime?location_id=${locId}&status=pending`)
+      .then(r => r.json())
+      .then(d => setCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return count;
+}
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -44,6 +59,7 @@ const NAV = [
   { href: "/fairness",         label: "Adalet Puanı",   icon: Star },
   { href: "/requests",     label: "Onay Kutusu",       icon: ClipboardList },
   { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone },
+  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer },
   { href: "/breaks",       label: "Mola Takibi",       icon: Coffee },
   { href: "/reports",      label: "Raporlar",          icon: BarChart2 },
   { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare },
@@ -58,6 +74,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const [user, setUser] = useState<any>(null);
   const chatUnread = useChatUnread();
   const pendingAccounts = usePendingAccounts(user?.role === "admin" || user?.role === "supervisor");
+  const pendingOvertime = usePendingOvertime();
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -218,6 +235,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           const active       = pathname.startsWith(href);
           const isChat       = href === "/chat";
           const isAccounts   = href === "/personnel";
+          const isOvertime   = href === "/overtime";
           return (
             <Link
               key={href}
@@ -241,6 +259,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {isAccounts && pendingAccounts > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
                 )}
+                {isOvertime && pendingOvertime > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingOvertime}</span>
+                )}
               </div>
               {label}
               {isChat && chatUnread > 0 && (
@@ -248,6 +269,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               )}
               {isAccounts && pendingAccounts > 0 && (
                 <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
+              )}
+              {isOvertime && pendingOvertime > 0 && (
+                <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingOvertime}</span>
               )}
             </Link>
           );

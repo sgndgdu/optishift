@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       for (const mgr of managers) {
         await rawDb.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-          VALUES (?, 'leave_request', ?, ?, 0, ?)
+          VALUES (?, 'leave_request', ?, ?, false, ?)
         `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${type} — ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
       }
     }

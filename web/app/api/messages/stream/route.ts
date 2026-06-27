@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
             if (rows.length > 0) {
               // Mark group messages as read
               await db.prepare(
-                `UPDATE messages SET is_read = 1
-                 WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = 0`
+                `UPDATE messages SET is_read = true
+                 WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = false`
               ).run(org_id, group_id, me);
             }
           } else {
@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
             if (rows.length > 0) {
               // Mark incoming messages as read
               await db.prepare(
-                `UPDATE messages SET is_read = 1
-                 WHERE org_id = ? AND from_user_id = ? AND to_user_id = ? AND is_read = 0`
+                `UPDATE messages SET is_read = true
+                 WHERE org_id = ? AND from_user_id = ? AND to_user_id = ? AND is_read = false`
               ).run(org_id, to_user_id, me);
             }
           }

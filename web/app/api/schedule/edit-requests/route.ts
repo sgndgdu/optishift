@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       if (sup.personnel_id) {
         await db.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-          VALUES (?, 'alert', ?, ?, ?, 0, ?)
+          VALUES (?, 'alert', ?, ?, ?, false, ?)
         `).run(
           sup.personnel_id,
           "Vardiya Düzenleme Onayı Gerekiyor",

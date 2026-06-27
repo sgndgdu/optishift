@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
 
       // Mark group messages from others as read
       await db.prepare(`
-        UPDATE messages SET is_read = 1
-        WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = 0
+        UPDATE messages SET is_read = true
+        WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = false
       `).run(org_id, group_id, me);
     } else if (to_user_id) {
       rows = await db.prepare(`
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
 
       // Mark incoming messages as read
       await db.prepare(`
-        UPDATE messages SET is_read = 1
-        WHERE org_id = ? AND from_user_id = ? AND to_user_id = ? AND is_read = 0
+        UPDATE messages SET is_read = true
+        WHERE org_id = ? AND from_user_id = ? AND to_user_id = ? AND is_read = false
       `).run(org_id, to_user_id, me);
     } else {
       return NextResponse.json({ error: "group_id veya to_user_id zorunlu" }, { status: 400 });
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO messages (org_id, from_user_id, to_user_id, group_id, content, is_read, created_at)
-      VALUES (?, ?, ?, ?, ?, 0, ?)
+      VALUES (?, ?, ?, ?, ?, false, ?)
     `).run(org_id, from_user_id, to_user_id ?? null, group_id ?? null, content.trim(), now);
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch (err: any) {

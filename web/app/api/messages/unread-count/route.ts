@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const row = await db.prepare(
-      `SELECT COUNT(*) as count FROM messages WHERE org_id = ? AND to_user_id = ? AND is_read = 0`
+      `SELECT COUNT(*) as count FROM messages WHERE org_id = ? AND to_user_id = ? AND is_read = false`
     ).get(auth.org_id, auth.id) as { count: number };
     return NextResponse.json({ count: row?.count ?? 0 });
   } catch {

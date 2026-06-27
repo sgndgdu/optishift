@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const insertNotif = await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
-      VALUES (?, 'schedule', ?, ?, 0, '/portal/calendar', ?)
+      VALUES (?, 'schedule', ?, ?, false, '/portal/calendar', ?)
     `);
 
     (async () => {

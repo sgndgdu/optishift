@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const dmUnreadRows = await db.prepare(`
       SELECT from_user_id as partner_id, COUNT(*) as unread
       FROM messages
-      WHERE org_id = ? AND to_user_id = ? AND is_read = 0 AND group_id IS NULL
+      WHERE org_id = ? AND to_user_id = ? AND is_read = false AND group_id IS NULL
       GROUP BY from_user_id
     `).all(orgId, userId) as any[];
     const dmUnread: Record<string, number> = {};
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const grpUnreadRows = await db.prepare(`
       SELECT group_id, COUNT(*) as unread
       FROM messages
-      WHERE org_id = ? AND from_user_id != ? AND is_read = 0 AND group_id IS NOT NULL
+      WHERE org_id = ? AND from_user_id != ? AND is_read = false AND group_id IS NOT NULL
       GROUP BY group_id
     `).all(orgId, userId) as any[];
     const grpUnread: Record<string, number> = {};

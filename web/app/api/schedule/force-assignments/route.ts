@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest) {
       // Personele onay bildirimi
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-        VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', 0, ?)
+        VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', false, ?)
       `).run(
         shiftRow.personnel_id,
         `${dateLabel}${timeStr} vardiyasını kabul ettin. +${bonusPoints} bonus puan hesabına eklendi.`,
@@ -134,7 +134,7 @@ export async function PATCH(req: NextRequest) {
         if (m.personnel_id) {
           await db.prepare(`
             INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-            VALUES (?, 'alert', 'Zorunlu Atama Kabul Edildi', ?, '/schedule', 0, ?)
+            VALUES (?, 'alert', 'Zorunlu Atama Kabul Edildi', ?, '/schedule', false, ?)
           `).run(
             m.personnel_id,
             `${shiftRow.personnel_name} — ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`,
@@ -153,7 +153,7 @@ export async function PATCH(req: NextRequest) {
     // Personele red bildirimi
     await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-      VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/portal/calendar', 0, ?)
+      VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/portal/calendar', false, ?)
     `).run(
       shiftRow.personnel_id,
       `${dateLabel}${timeStr} zorunlu atamasını reddedин. Müdürün bilgilendirildi.`,
@@ -170,7 +170,7 @@ export async function PATCH(req: NextRequest) {
       if (m.personnel_id) {
         await db.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-          VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/', 0, ?)
+          VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/', false, ?)
         `).run(
           m.personnel_id,
           `${shiftRow.personnel_name} — ${dateLabel}${timeStr} zorunlu atamasını reddetti. İlgili vardiya açık bırakıldı.`,

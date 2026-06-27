@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     for (const p of activePersonnel) {
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-        VALUES (?, 'schedule', ?, ?, '/portal/calendar', 0, ?)
+        VALUES (?, 'schedule', ?, ?, '/portal/calendar', false, ?)
       `).run(
         p.id,
         "Vardiya Programı Yayınlandı 📅",

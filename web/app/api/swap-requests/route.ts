@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     const rName = requester_name ?? "Bir personel";
     await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
-      VALUES (?, 'trade_request', 'Vardiya Takas Teklifi', ?, 0, '/portal/requests', ?)
+      VALUES (?, 'trade_request', 'Vardiya Takas Teklifi', ?, false, '/portal/requests', ?)
     `).run(
       target_id,
       `${rName} sizinle vardiya takas etmek istiyor. Talepler sayfasından yanıtlayın.`,
@@ -201,7 +201,7 @@ export async function PATCH(req: NextRequest) {
       if (effect.type === "NOTIFY") {
         await db.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-          VALUES (?, 'trade_request', ?, ?, 0, ?)
+          VALUES (?, 'trade_request', ?, ?, false, ?)
         `).run(effect.personnel_id, effect.title, effect.message, now);
 
         // Push bildirimi de gönder (VAPID yapılandırıldıysa)
@@ -224,7 +224,7 @@ export async function PATCH(req: NextRequest) {
         for (const mgr of managers) {
           await db.prepare(`
             INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-            VALUES (?, 'trade_request', ?, ?, 0, ?)
+            VALUES (?, 'trade_request', ?, ?, false, ?)
           `).run(mgr.personnel_id, effect.title, effect.message, now);
 
           pushPromises.push(

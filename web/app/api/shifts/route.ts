@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
                     .run(Math.round(compPts * (await getCompDecay(location_id)) * 100) / 100, personnel_id);
                   await db.prepare(`
                     INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-                    VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', 0, ?)
+                    VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', false, ?)
                   `).run(
                     personnel_id,
                     `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Son dakika değişikliği için +${compPts} telafi puanı hesabına eklendi.`,
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
       const timeStr = shiftRow?.start_time && shiftRow?.end_time ? ` ${shiftRow.start_time}–${shiftRow.end_time}` : "";
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-        VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', 0, ?)
+        VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
         `Müdürünüz sizi ${fn.dateLabel}${timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz ×${fn.multiplier} bonus puan kazanırsınız.`,

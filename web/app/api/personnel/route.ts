@@ -234,7 +234,7 @@ export async function PATCH(req: NextRequest) {
       const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-        VALUES (?, 'alert', 'Sistem Rolünüz Güncellendi', ?, '/portal', 0, ?)
+        VALUES (?, 'alert', 'Sistem Rolünüz Güncellendi', ?, '/portal', false, ?)
       `).run(
         id,
         `Sistem rolünüz "${newLabel}" olarak güncellendi. Yeni yetkileriniz için çıkış yapıp tekrar giriş yapın.`,

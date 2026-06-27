@@ -626,7 +626,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-400 mb-3">Lokasyonun her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
                 <div className="space-y-1">
                   {DAYS.map((dayName, idx) => {
-                    const dayData = locationData.operating_hours[idx];
+                    const dayData = (locationData.operating_hours ?? {})[idx] ?? { isOpen: true, open: "00:00", close: "23:59" };
                     return (
                       <div key={idx} className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
                         <label className="flex items-center gap-2 cursor-pointer w-32">

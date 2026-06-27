@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     for (const id of missing) {
       await db.prepare(
         `INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-         VALUES (?, 'alert', ?, ?, '/portal/availability', 0, ?)`
+         VALUES (?, 'alert', ?, ?, '/portal/availability', false, ?)`
       ).run(
         id,
         "Müsaitlik Bildiriminizi Girin",
