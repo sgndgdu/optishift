@@ -104,11 +104,9 @@ export async function DELETE(req: NextRequest) {
 
   const dbConn = getDB();
   try {
-    dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
-    dbConn.close();
+    await dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    dbConn.close();
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

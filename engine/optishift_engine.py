@@ -954,6 +954,14 @@ def api_mode(payload: dict):
         "overtime_summary": [],   # haftalık mesai özeti (fabrika modülü)
     }
 
+    shift_durations_min = []
+    for s in range(NUM_SHIFTS):
+        if s < len(SHIFTS):
+            start_m, end_m = _shift_minutes(SHIFTS[s])
+            shift_durations_min.append(end_m - start_m)
+        else:
+            shift_durations_min.append(SHIFT_HOURS * 60)
+
     for p_idx, person in enumerate(PERSONNEL):
         output["scores"][person["id"]] = solver.value(person_scores[p_idx])
         output["personnel"].append({

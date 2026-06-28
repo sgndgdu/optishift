@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     // Plan limit kontrolü: free plan en fazla 10 aktif personel
     const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
     if (!org || org.plan === "free" || !org.plan) {
-      const personnelCount = (db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id) as any).cnt;
+      const personnelCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any).cnt;
       if (personnelCount >= 10) {
         return NextResponse.json(
           { error: "Free plan limiti: 10 personel. Daha fazlası için Pro'ya geçin.", upgrade: true },
@@ -149,17 +149,16 @@ export async function POST(req: NextRequest) {
     const employeeId = `EMP-${Math.floor(Math.random() * 90000) + 10000}`;
     const username = await findAvailableUsername(db, toUsername(name) || `user${Date.now()}`);
 
-    (async () => {
-      await db.prepare(`
-        INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 45, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
-      `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", now, now);
+    await db.prepare(`
+      INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 45, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
+    `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", now, now);
 
-      await db.prepare(`
-        INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, now);
-    })();
+    await db.prepare(`
+      INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, now);
+
     return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -225,8 +224,8 @@ export async function PATCH(req: NextRequest) {
       await db.prepare("UPDATE personnel SET crew_id=? WHERE id=?").run(crew_id ?? null, id);
     }
 
-    if (name) db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);
-    if (user_access_level) db.prepare("UPDATE users SET role=? WHERE personnel_id=?").run(user_access_level, id);
+    if (name) await db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);
+    if (user_access_level) await db.prepare("UPDATE users SET role=? WHERE personnel_id=?").run(user_access_level, id);
 
     // Terfi/rol değişikliği bildirimi — eski rol farklıysa kişiye bildir
     if (user_access_level && user_access_level !== existing.user_access_level) {

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     // Plan limit kontrolü: free plan en fazla 1 lokasyon
     const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
     if (!org || org.plan === "free" || !org.plan) {
-      const locCount = (db.prepare("SELECT COUNT(*) as cnt FROM locations WHERE org_id = ?").get(auth.org_id) as any).cnt;
+      const locCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM locations WHERE org_id = ?").get(auth.org_id)) as any).cnt;
       if (locCount >= 1) {
         return NextResponse.json(
           { error: "Free plan limiti: 1 şube. Daha fazla şube için Pro'ya geçin.", upgrade: true },
