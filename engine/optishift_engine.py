@@ -503,7 +503,8 @@ def solve(silent: bool = False):
         print(f"Çözüm süresi : {solver.wall_time:.3f}s")
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        print("\nHATA: Geçerli bir çözüm bulunamadı. Kısıtları gözden geçirin.")
+        if not silent:
+            print("\nHATA: Geçerli bir çözüm bulunamadı. Kısıtları gözden geçirin.")
         return None
 
     return solver, shifts, person_scores, fairness_gap
