@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
 
       await db.prepare(`
         UPDATE shift_assignments
-        SET force_assigned = 1, force_acceptance_status = 'pending', force_bonus_multiplier = ?
+        SET force_assigned = true, force_acceptance_status = 'pending', force_bonus_multiplier = ?
         WHERE id = ?
       `).run(multiplier, item.shift_id_db);
 

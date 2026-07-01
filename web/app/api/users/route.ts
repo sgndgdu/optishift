@@ -157,10 +157,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await db.prepare(`
-      INSERT INTO users (id, personnel_id, username, email, phone, password_hash, role, display_title, org_id, location_id, department_id, name, is_temp_password, approval_status, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-    `).run(userId, personnelId, username, email?.trim()?.toLowerCase() ?? null, phone?.trim() ?? null, passwordHash, role ?? "employee", display_title ?? null, auth.org_id, primaryLocId ?? null, effDeptIds[0] ?? department_id ?? null, name.trim(), approvalStatus, auth.id, now);
+    try {
+      await db.prepare(`
+        INSERT INTO users (id, personnel_id, username, email, phone, password_hash, role, display_title, org_id, location_id, department_id, name, is_temp_password, approval_status, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)
+      `).run(userId, personnelId, username, email?.trim()?.toLowerCase() ?? null, phone?.trim() ?? null, passwordHash, role ?? "employee", display_title ?? null, auth.org_id, primaryLocId ?? null, effDeptIds[0] ?? department_id ?? null, name.trim(), approvalStatus, auth.id, now);
+    } catch (userInsertErr) {
+      // users INSERT başarısız olduysa orphan personnel kaydını temizle
+      if (personnelId) {
+        await db.prepare("DELETE FROM personnel WHERE id = ?").run(personnelId).catch(() => undefined);
+      }
+      throw userInsertErr;
+    }
 
     // Departman müdürü ise departments tablosunu güncelle
     const primaryDeptId = effDeptIds[0] ?? department_id;

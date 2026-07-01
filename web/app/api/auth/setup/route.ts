@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(new_password, 10);
-    const updates: any = { password_hash: passwordHash, is_temp_password: 0 };
+    const updates: any = { password_hash: passwordHash, is_temp_password: false };
     if (name?.trim()) updates.name = name.trim();
     if (phone?.trim()) updates.phone = phone.trim();
 

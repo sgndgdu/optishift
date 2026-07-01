@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       personnel_id,
       week_start,
       submitted_at: Math.floor(Date.now() / 1000),
-      is_locked: 0,
+      is_locked: false,
     };
 
     for (let i = 0; i < 7; i++) {

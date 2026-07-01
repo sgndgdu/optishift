@@ -230,7 +230,9 @@ export default function SettingsPage() {
 
           const loc = JSON.parse(JSON.stringify(targetLoc));
           if (typeof loc.shift_definitions === "string") { try { loc.shift_definitions = JSON.parse(loc.shift_definitions); } catch { loc.shift_definitions = []; } }
+          if (!loc.shift_definitions) loc.shift_definitions = [];
           if (typeof loc.operating_hours === "string")   { try { loc.operating_hours   = JSON.parse(loc.operating_hours);   } catch { loc.operating_hours = {};   } }
+          if (!loc.operating_hours) loc.operating_hours = {};
           if (typeof loc.zone_quotas === "string")       { try { loc.zone_quotas       = JSON.parse(loc.zone_quotas);       } catch { loc.zone_quotas = {};       } }
           if (!loc.zone_quotas) loc.zone_quotas = {};
           if (typeof loc.rules === "string")             { try { loc.rules             = JSON.parse(loc.rules);             } catch { loc.rules = {};             } }
@@ -669,7 +671,7 @@ export default function SettingsPage() {
                 <SectionLabel>Vardiya Tanımları</SectionLabel>
                 <p className="text-xs text-slate-400 mb-3">Her vardiya bloğunun adını, saatlerini ve zorluk ağırlığını tanımlayın.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {locationData.shift_definitions.map((shift: ShiftDefinition, idx: number) => (
+                  {(locationData.shift_definitions ?? []).map((shift: ShiftDefinition, idx: number) => (
                     <div key={shift.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
                       {/* Ad + Gece badge + Sil */}
                       <div className="flex items-center gap-2">

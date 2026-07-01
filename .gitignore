@@ -19,3 +19,5 @@ _references/
 # Motor çıktıları (her çalıştırmada yeniden üretilir)
 engine/optishift_result.json
 engine/optishift_schedule.xlsx
+.vercel
+.env*

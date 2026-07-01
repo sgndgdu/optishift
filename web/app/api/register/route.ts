@@ -40,13 +40,11 @@ export async function POST(req: NextRequest) {
     const userId = `U-${Date.now()}`;
     const passwordHash = await bcrypt.hash(password, 10);
 
-    (async () => {
-      await db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(orgId, org_name.trim());
-      await db.prepare(`
-        INSERT INTO users (id, username, email, password_hash, role, org_id, name, created_at)
-        VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)
-      `).run(userId, cleanUsername, email?.trim()?.toLowerCase() || null, passwordHash, orgId, owner_name.trim(), now);
-    })();
+    await db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(orgId, org_name.trim());
+    await db.prepare(`
+      INSERT INTO users (id, username, email, password_hash, role, org_id, name, created_at)
+      VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)
+    `).run(userId, cleanUsername, email?.trim()?.toLowerCase() || null, passwordHash, orgId, owner_name.trim(), now);
 
     const token = await signToken({
       id: userId,

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
              l.name as location_name
       FROM shift_assignments sa
       LEFT JOIN locations l ON sa.location_id = l.id
-      WHERE sa.personnel_id = ? AND sa.force_assigned = 1 AND sa.force_acceptance_status = 'pending'
+      WHERE sa.personnel_id = ? AND sa.force_assigned = true AND sa.force_acceptance_status = 'pending'
       ORDER BY sa.week_start, sa.day
     `).all(personnel_id) as any[];
 
