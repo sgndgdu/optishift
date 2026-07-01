@@ -6,7 +6,7 @@ import { logPlatformEvent } from "@/lib/platform-logger";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
-const ENGINE_TIMEOUT_MS = 30_000;
+const ENGINE_TIMEOUT_MS = 55_000;
 
 async function callEngine(payload: unknown): Promise<any> {
   const controller = new AbortController();
@@ -27,7 +27,7 @@ async function callEngine(payload: unknown): Promise<any> {
   } catch (err: any) {
     if (err.name === "AbortError") {
       throw new Error(
-        "Optimizasyon motoru zaman aşımına uğradı (30s). Personel sayısı veya kısıtlamalar çok fazla olabilir."
+        "Optimizasyon motoru ilk çağrıda başlatılıyor olabilir (soğuk başlangıç) ya da personel sayısı/kısıtlamalar çok fazla. Lütfen birkaç saniye içinde tekrar deneyin."
       );
     }
     throw err;
@@ -110,6 +110,16 @@ export async function POST(req: NextRequest) {
       /* crews tablosu yoksa atla */
     }
     void crewRows; // kullanılmayabilir, ileride eklenebilir
+
+    // Departmanları çek (departman bazlı kapasite matrisi için)
+    let departmentRows: any[] = [];
+    try {
+      departmentRows = (await db
+        .prepare(`SELECT * FROM departments WHERE location_id = $1`)
+        .all(branchId)) as any[];
+    } catch {
+      /* departments tablosu yoksa atla */
+    }
 
     // Rotasyon şablonunu parse et
     let rotationTemplate: any = null;
@@ -199,6 +209,7 @@ export async function POST(req: NextRequest) {
         id: p.id,
         name: p.name,
         skills: JSON.parse(p.roles || "[]"),
+        department_id: p.department_id ?? null,
         prev_score: prevScores[p.id] ?? 0,
         cumulative_burden: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
@@ -277,13 +288,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Kapasite matrisi
+    // Kapasite matrisi (departmansız lokasyonlar / eski format)
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
     if (locationRow?.demand_matrix) {
       try {
         const parsed = JSON.parse(locationRow.demand_matrix);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           demandMatrixPayload = parsed;
+        }
+      } catch {
+        /* parse hatası */
+      }
+    }
+
+    // Departman bazlı kapasite matrisi — schedule sayfası departmanlı lokasyonlarda
+    // talebi buraya (departments.demand_matrix) kaydediyor, motora burada aktarılır.
+    const departmentDemandMatrixPayload: Record<string, Record<string, Record<string, number>>> = {};
+    for (const dept of departmentRows) {
+      if (!dept?.demand_matrix) continue;
+      try {
+        const parsed = JSON.parse(dept.demand_matrix);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+          departmentDemandMatrixPayload[dept.id] = parsed;
         }
       } catch {
         /* parse hatası */
@@ -380,6 +406,7 @@ export async function POST(req: NextRequest) {
       shifts: shiftsPayload,
       zone_quotas: zoneQuotasPayload,
       demand_matrix: demandMatrixPayload,
+      department_demand_matrix: departmentDemandMatrixPayload,
       ensure_senior_per_shift: ensureSeniorPerShift,
       max_consecutive_days: maxConsecutiveDays,
       no_night_to_morning: noNightToMorning,

@@ -31,6 +31,11 @@ AVAILABILITY = {}
 # Boşsa motor coverage-max moduna düşer
 DEMAND_MATRIX = {}
 
+# Departman bazlı Kapasite Matrisi: {department_id: {shift_idx: {day(0-6): exact_count}}}
+# Departmanlı lokasyonlarda kullanılır; personel department_id'sine göre gruplanıp
+# her (department, shift_idx, day) hücresi kendi personel alt kümesi içinde hard constraint olur.
+DEPARTMENT_DEMAND_MATRIX = {}
+
 # Tercih edilmeyen (sarı) günde çalıştırılan personelin puan telafi çarpanı
 PREFERRED_NOT_MULTIPLIER = 1.5
 
@@ -277,6 +282,32 @@ def build_model():
                 model.add(
                     sum(shifts[(p, d, s_idx)] for p in range(num_p)) == 0
                 )
+
+    # Departman bazlı exact coverage: DEPARTMENT_DEMAND_MATRIX[dept_id][shift_idx][day] = exact_count
+    # Aynı mantık ama toplam num_p yerine sadece o departmandaki personel alt kümesi üzerinden.
+    if DEPARTMENT_DEMAND_MATRIX:
+        dept_personnel: dict[str, list[int]] = {}
+        for p_idx, person in enumerate(PERSONNEL):
+            dept_id = person.get("department_id")
+            if dept_id:
+                dept_personnel.setdefault(dept_id, []).append(p_idx)
+
+        for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
+            members = dept_personnel.get(dept_id, [])
+            if not members:
+                # Departmanda hiç personel yoksa kısıtı atla — aksi halde
+                # karşılanamaz bir hard constraint tüm haftayı infeasible yapar.
+                continue
+            for s_idx, day_counts in shift_day_map.items():
+                for d, exact_count in day_counts.items():
+                    if exact_count > 0:
+                        model.add(
+                            sum(shifts[(p, d, s_idx)] for p in members) == exact_count
+                        )
+                    else:
+                        model.add(
+                            sum(shifts[(p, d, s_idx)] for p in members) == 0
+                        )
 
     # ── FABRİKA: Ekip Rotasyon Kısıtı ───────────────────────────────────────
     # CREW_ROTATION: {crew_id: shift_idx} — bu haftaki ekip-vardiya ataması
@@ -822,7 +853,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
 
     branch_id = payload.get("branchId", "L-001")
@@ -927,6 +958,40 @@ def api_mode(payload: dict):
                 except: pass
             if parsed_days:
                 DEMAND_MATRIX[s_idx] = parsed_days
+
+    # Departman bazlı kapasite matrisi: {department_id → {shiftDefId → {day → exact_count}}}
+    # Departmanlı lokasyonlarda schedule sayfası talebi buraya kaydeder (departments.demand_matrix).
+    DEPARTMENT_DEMAND_MATRIX = {}
+    raw_dept_demand = payload.get("department_demand_matrix")
+    if raw_dept_demand and isinstance(raw_dept_demand, dict):
+        shifts_raw = payload.get("shifts") or []
+        id_to_idx = {}
+        for i, s in enumerate(shifts_raw):
+            if s.get("id"):
+                id_to_idx[str(s["id"])] = i
+            if s.get("name"):
+                id_to_idx[str(s["name"])] = i
+            id_to_idx[str(i)] = i
+        for dept_id, shift_map in raw_dept_demand.items():
+            if not isinstance(shift_map, dict):
+                continue
+            parsed_shifts = {}
+            for shift_key, day_map in shift_map.items():
+                s_idx = id_to_idx.get(str(shift_key))
+                if s_idx is None:
+                    try: s_idx = int(shift_key)
+                    except: continue
+                if s_idx >= NUM_SHIFTS:
+                    continue
+                parsed_days = {}
+                for day_str, cnt in day_map.items():
+                    try:
+                        parsed_days[int(day_str)] = int(cnt)
+                    except: pass
+                if parsed_days:
+                    parsed_shifts[s_idx] = parsed_days
+            if parsed_shifts:
+                DEPARTMENT_DEMAND_MATRIX[str(dept_id)] = parsed_shifts
 
     # Bölge kotaları: payload'dan gel, yoksa global defaultlara dön
     # Format: {"Kasa": 2, "Reyon": 1} — skill adı → günlük minimum çalışan

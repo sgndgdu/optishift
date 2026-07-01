@@ -148,7 +148,7 @@ export default function PortalCalendar() {
                           ) : (
                             <div className="text-muted-foreground text-sm font-semibold italic flex items-center gap-2">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                              Haftalık İzin / Atanmadı
+                              Bu gün için vardiya yok
                             </div>
                           )}
                         </div>

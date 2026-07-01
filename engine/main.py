@@ -45,6 +45,7 @@ class GenerateRequest(BaseModel):
     rules: dict[str, Any] = {}
     zone_quotas: dict[str, Any] = {}
     demand_matrix: dict[str, Any] = {}
+    department_demand_matrix: dict[str, Any] = {}
     branchId: str = "L-001"
     orgId: str = ""
     week_start: str = ""

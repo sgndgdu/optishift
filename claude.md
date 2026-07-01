@@ -50,25 +50,34 @@ OptiShift; köşedeki kafeden 750 şubeli perakende zincirine, butik otelden zin
 ### B. Kapasite Matrisi (Demand Template) — ÇEKİRDEK ÖZELLİK
 Müdürün OR-Tools motoruna "ne istediğini" söyleyebildiği birincil giriş yüzeyi. Availability-based değil, **demand-based** planlama.
 
-**Veri yapısı:**
+**Veri yapısı — iki seviye:**
 ```
+// Departmansız lokasyon: locations.demand_matrix
 demand_matrix: {
   [shiftDefId: string]: {   // "sabah", "aksam", vb. (locations.shift_definitions'tan)
     [day: number]: number   // 0=Pzt … 6=Paz → o gün o vardiyaya kaç kişi lazım
   }
 }
+
+// Departmanlı lokasyon: departments.demand_matrix (her departmanın kendi satırı)
+demand_matrix: {
+  [shiftDefId: string]: {
+    [day: number]: number   // o departmanda o gün o vardiyaya kaç kişi lazım
+  }
+}
 ```
 
 **Nasıl çalışır:**
-1. Müdür schedule sayfasının üstündeki "Kapasite Planı" panelinde her gün × her vardiya tipi için ihtiyaç sayısı girer
-2. Bu matris `locations.demand_matrix` JSON alanında saklanır (haftalık olarak üzerine yazılabilir)
-3. OR-Tools motoru bu sayıları `exact_coverage` hard constraint olarak alır: o gün o vardiyaya tam N kişi atanır
+1. Müdür schedule sayfasının üstündeki "Kapasite Planı" panelinde her gün × her vardiya tipi için ihtiyaç sayısı girer. Lokasyonda departman tanımlıysa (`departments` tablosunda satır varsa) tablo **departman bazlı** gösterilir ve her departmanın talebi kendi `departments.demand_matrix` alanına ayrı ayrı kaydedilir; departman yoksa tek düz `locations.demand_matrix` kullanılır.
+2. `/api/generate` route'u her iki seviyeyi de motora gönderir: düz talep `demand_matrix` payload alanında, departman bazlı talep `department_demand_matrix: { [departmentId]: { [shiftDefId]: { [day]: count } } }` payload alanında. Personel objelerine `department_id` de eklenir.
+3. OR-Tools motoru (`optishift_engine.py`) düz talebi tüm personel üzerinden, departman talebini ise sadece o `department_id`'ye sahip personel alt kümesi üzerinden `exact_coverage` hard constraint olarak uygular: o gün o vardiyaya (o departmanda) tam N kişi atanır — ne fazla ne eksik, ve başka bir vardiya tipine kaydırılamaz.
 4. Motor kapasite matrisini karşıladıktan sonra kalan capacity için fairness optimizasyonu yapar
-5. Kapasite matrisi boşsa motor eski davranışa (coverage-max) döner
+5. Kapasite matrisi (her iki seviye de) boşsa motor eski davranışa (coverage-max) döner
+6. **Dikkat:** Departmanlı bir lokasyonda `locations.demand_matrix`'e yazmak motoru etkilemez — departman satırları varsa talep mutlaka ilgili `departments.demand_matrix`'e gitmelidir.
 
 **Schedule sayfasındaki akış:**
-- Grid'in üstünde kompakt bir matris tablosu: satırlar = shift tanımları, sütunlar = 7 gün, hücreler = sayı input
-- "Kaydet ve Oluştur" → matris kaydedilir → OR-Tools çalışır
+- Grid'in üstünde kompakt bir matris tablosu: satırlar = shift tanımları (departman varsa departman başlığı altında gruplu), sütunlar = 7 gün, hücreler = sayı input
+- Hücre `onBlur`'da otomatik kaydedilir (`handleDemandSave` / `handleDeptDemandSave`) → OR-Tools bir sonraki "Otomatik Oluştur"da bu talebi kullanır
 - Grid'de her gün/shift kolonunda "atanan/gereken" sayacı gösterilir: `2/3 🔴` eksik, `3/3 ✅` tam, `4/3 🔵` fazla
 
 ### C. Shift Öncesi Müsaitlik Toplama
@@ -202,7 +211,7 @@ Admin
 
   **Akış (sırasıyla):**
   1. **Hafta seçimi** — hafta navigasyonu (önceki/sonraki)
-  2. **Kapasite Matrisi (Demand Template):** Grid üstünde kompakt tablo. Satırlar = shift tanımları, sütunlar = 7 gün, hücreler = sayı input. "Pzt Sabah: 2, Pzt Akşam: 3" gibi. Önceki haftanın matrisi varsayılan olarak doldurulur. "Kaydet" ile `locations.demand_matrix` güncellenir.
+  2. **Kapasite Matrisi (Demand Template):** Grid üstünde kompakt tablo. Satırlar = shift tanımları (departman varsa departman gruplu), sütunlar = 7 gün, hücreler = sayı input. "Pzt Sabah: 2, Pzt Akşam: 3" gibi. Önceki haftanın matrisi varsayılan olarak doldurulur. Hücre `onBlur`'da otomatik kaydedilir — departman yoksa `locations.demand_matrix`, departman varsa ilgili `departments.demand_matrix` güncellenir (bkz. §3.B).
   3. **Müsaitlik Toplama:** "Müsaitlik İste" butonu → o haftanın müsaitliğini girmemiş personele bildirim. Tablo hücrelerinde müsaitlik renk kodları görünür.
   4. **Otomatik Oluştur (OR-Tools):** Kapasite matrisini + müsaitliği + kural kısıtlarını + adalet puanını birleştirerek taslak üretir.
   5. **Manuel Düzeltme:** Her hücreye tıklayarak şablondan seç veya slider ile saat ayarla. Hücrelerde `atanan/gereken` sayacı canlı gösterilir.
@@ -233,7 +242,7 @@ Admin
 - `/supervisor` — Ana panel: tüm şubelerin özet kartları ✅
 - `/supervisor/schedule` — Şube bazlı vardiya görüntüleyici (read-only) ✅
 - `/supervisor/personnel` — Organizasyon genelinde personel listesi ✅
-- `/supervisor/reports` — **Çapraz şube raporları** ❌ (sayfa yok — P2)
+- `/supervisor/reports` — **Çapraz şube raporları** ✅ (haftalık özet, şube bazlı KPI, uyumluluk sekmeleri)
 - `/supervisor/chat` — Müdürlerle mesajlaşma ✅
 - `/supervisor/settings` — Organizasyon geneli ayarlar ✅
 
@@ -247,7 +256,8 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 `organizations`, `locations`, `departments`, `users`, `personnel`, `shift_assignments`, `availability`, `notifications`, `leave_requests`, `messages`, `invite_tokens`, `score_history`
 
 **Kritik alan eklemeleri:**
-- `locations.demand_matrix` — JSON: `{ [shiftDefId]: { [day: 0-6]: count } }` — haftalık kapasite matrisi
+- `locations.demand_matrix` — JSON: `{ [shiftDefId]: { [day: 0-6]: count } }` — haftalık kapasite matrisi (departmansız lokasyonlar için)
+- `departments.demand_matrix` — JSON: `{ [shiftDefId]: { [day: 0-6]: count } }` — departman bazlı kapasite matrisi; lokasyonda departman varsa schedule sayfası talebi buraya yazar. `/api/generate` bunu `department_demand_matrix: { [departmentId]: {...} }` olarak motora gönderir, motor `personnel.department_id` ile eşleştirip departman-scoped `exact_coverage` hard constraint uygular.
 - `shift_assignments.status` — `'draft' | 'published'` (varsayılan `'published'` — mevcut kayıtlar için)
 - `shift_assignments.published_at` — nullable unix timestamp, haftanın ilk yayın anı (yayın öncülüğü KPI'ı)
 - `shift_assignments.check_in_at` — nullable timestamp
@@ -358,7 +368,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 
 - [ ] Haftalık bütçe/maliyet takibi: personele saatlik ücret + schedule'da toplam maliyet paneli
 - [ ] Geçen haftayı kopyala / şablon kaydet
-- [ ] `/supervisor/reports` sayfası: çapraz şube KPI raporları
+- [x] `/supervisor/reports` sayfası: çapraz şube KPI raporları ✅ (canlıda çalışıyor)
 - [ ] Fairness sayfasında gerçek kümülatif grafik (`score_history` verisinden)
 - [ ] Onboarding wizard: 5 adımlı org kurulum akışı
 - [ ] Billing: Stripe entegrasyonu + plan limiti
