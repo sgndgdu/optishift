@@ -21,7 +21,15 @@ async function callEngine(payload: unknown): Promise<any> {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(text || `Engine HTTP ${res.status}`);
+      // FastAPI hataları {"detail": "..."} şeklinde gelir — kullanıcıya ham JSON göstermek yerine mesajı ayıkla
+      let message = text || `Engine HTTP ${res.status}`;
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed?.detail === "string") message = parsed.detail;
+      } catch {
+        /* JSON değilse ham metni kullan */
+      }
+      throw new Error(message);
     }
     return await res.json();
   } catch (err: any) {
@@ -304,7 +312,9 @@ export async function POST(req: NextRequest) {
     // Departman bazlı kapasite matrisi — schedule sayfası departmanlı lokasyonlarda
     // talebi buraya (departments.demand_matrix) kaydediyor, motora burada aktarılır.
     const departmentDemandMatrixPayload: Record<string, Record<string, Record<string, number>>> = {};
+    const departmentNamesPayload: Record<string, string> = {};
     for (const dept of departmentRows) {
+      departmentNamesPayload[dept.id] = dept.name ?? dept.id;
       if (!dept?.demand_matrix) continue;
       try {
         const parsed = JSON.parse(dept.demand_matrix);
@@ -407,6 +417,7 @@ export async function POST(req: NextRequest) {
       zone_quotas: zoneQuotasPayload,
       demand_matrix: demandMatrixPayload,
       department_demand_matrix: departmentDemandMatrixPayload,
+      department_names: departmentNamesPayload,
       ensure_senior_per_shift: ensureSeniorPerShift,
       max_consecutive_days: maxConsecutiveDays,
       no_night_to_morning: noNightToMorning,

@@ -1499,7 +1499,56 @@ export default function SchedulePage() {
   }
 
   // Müsaitlik bilgisi girilmemiş personel sayısı
+  // Not: müsaitlik girilmemesi otomatik oluşturmayı ENGELLEMEZ — motor eksik
+  // müsaitliği "tam müsait" kabul eder (get_avail default). Bu sayaç sadece bilgilendirme amaçlıdır.
   const noAvailCount = personnel.filter(p => !availMap[p.id]).length;
+
+  // Kapasite matrisi ile mevcut personel sayısı çelişiyor mu? (herkes günde yalnızca
+  // 1 vardiyaya girebildiği için bir günün toplam talebi o gün müsait personel sayısını
+  // aşarsa OR-Tools kesinlikle çözüm bulamaz — bunu motor çağrılmadan önce tespit edip
+  // kullanıcıya somut bir uyarı gösteriyoruz.
+  const capacityWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    const isUnavailable = (personId: string, day: number) => availMap[personId]?.[day]?.status === 'unavailable';
+
+    const sumDayTotals = (matrix: Record<string, Record<number, number>>) => {
+      const totals: Record<number, number> = {};
+      for (const days of Object.values(matrix)) {
+        for (const [day, count] of Object.entries(days)) {
+          const d = parseInt(day);
+          totals[d] = (totals[d] || 0) + (Number(count) || 0);
+        }
+      }
+      return totals;
+    };
+
+    if (hasDeptDemand) {
+      for (const [deptId, matrix] of Object.entries(deptDemandMatrix)) {
+        const members = personnel.filter(p => (p.department_id || '__none__') === deptId);
+        const deptName = departments.find(d => d.id === deptId)?.name || deptId;
+        const dayTotals = sumDayTotals(matrix);
+        for (const [dayStr, total] of Object.entries(dayTotals)) {
+          const d = parseInt(dayStr);
+          if (total <= 0) continue;
+          const availableCount = members.filter(p => !isUnavailable(p.id, d)).length;
+          if (total > availableCount) {
+            warnings.push(`${DAYS[d]} — ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} müsait personel var (toplam ${members.length} kişi).`);
+          }
+        }
+      }
+    } else if (Object.keys(demandMatrix).length > 0) {
+      const dayTotals = sumDayTotals(demandMatrix);
+      for (const [dayStr, total] of Object.entries(dayTotals)) {
+        const d = parseInt(dayStr);
+        if (total <= 0) continue;
+        const availableCount = personnel.filter(p => !isUnavailable(p.id, d)).length;
+        if (total > availableCount) {
+          warnings.push(`${DAYS[d]}: ${total} kişi isteniyor, ${availableCount} müsait personel var (toplam ${personnel.length} kişi).`);
+        }
+      }
+    }
+    return warnings;
+  }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap]);
 
   // Personel filtresi
   const filteredPersonnel = personnelFilter.trim()
@@ -1810,10 +1859,22 @@ export default function SchedulePage() {
           </div>
 
           {/* ── Uyarı bannerları ── */}
+          {capacityWarnings.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
+              <p className="font-bold mb-1 flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                Kapasite matrisi mevcut personel sayısından fazla kişi istiyor
+              </p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+              <p className="mt-1 text-red-500">Bu günlerde herkes müsait olsa bile Otomatik Oluştur çözüm bulamaz — kapasite matrisindeki sayıları azaltın.</p>
+            </div>
+          )}
           {noAvailCount > 0 && personnel.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-600">
               <AlertCircle size={13} className="shrink-0 text-blue-400" />
-              <span><span className="font-bold">{noAvailCount} personel</span> müsaitlik bilgisi girmemiş.</span>
+              <span><span className="font-bold">{noAvailCount} personel</span> müsaitlik bilgisi girmemiş — bu kişiler otomatik oluşturmada tam müsait kabul edilir, planlama engellenmez.</span>
               <button onClick={handleRequestAvailability} className="ml-auto underline font-semibold hover:text-blue-900">Müsaitlik İste</button>
             </div>
           )}

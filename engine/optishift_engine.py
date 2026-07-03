@@ -509,6 +509,69 @@ def build_model():
     return model, shifts, person_scores, fairness_gap
 
 
+# ─── INFEASIBLE TEŞHİSİ ────────────────────────────────────────────────────
+
+DEPARTMENT_NAMES: dict = {}
+
+
+def diagnose_infeasibility() -> str | None:
+    """INFEASIBLE durumunda en olası nedeni tespit edip Türkçe, aksiyona dönük
+    bir mesaj üretir.
+
+    En sık neden: bir günün toplam exact_coverage talebi, o gün müsait olan
+    personel sayısını aşıyor. Her personel günde en fazla 1 vardiyaya
+    girebildiği için (add_at_most_one) bu matematiksel olarak imkansızdır —
+    müsaitlik/kural esnetmesi bu durumu değiştirmez, kapasite matrisi
+    düzeltilmelidir.
+    """
+    problems = []
+
+    def available_pool(day, pool_ids):
+        return [pid for pid in pool_ids if get_avail(pid, day) != "unavailable"]
+
+    all_ids = [p["id"] for p in PERSONNEL]
+
+    if DEMAND_MATRIX:
+        day_totals: dict = {}
+        for _s_idx, day_counts in DEMAND_MATRIX.items():
+            for d, cnt in day_counts.items():
+                day_totals[d] = day_totals.get(d, 0) + cnt
+        for d, total in day_totals.items():
+            pool = available_pool(d, all_ids)
+            if total > len(pool):
+                problems.append(
+                    f"{DAYS[d]}: {total} kişi isteniyor ama sadece {len(pool)} personel müsait "
+                    f"(toplam {len(all_ids)} personel var, biri günde yalnızca 1 vardiyaya girebilir)."
+                )
+
+    if DEPARTMENT_DEMAND_MATRIX:
+        dept_personnel: dict = {}
+        for person in PERSONNEL:
+            dept_id = person.get("department_id")
+            if dept_id:
+                dept_personnel.setdefault(dept_id, []).append(person["id"])
+
+        for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
+            members = dept_personnel.get(dept_id, [])
+            dept_label = DEPARTMENT_NAMES.get(dept_id, dept_id)
+            day_totals = {}
+            for _s_idx, day_counts in shift_day_map.items():
+                for d, cnt in day_counts.items():
+                    day_totals[d] = day_totals.get(d, 0) + cnt
+            for d, total in day_totals.items():
+                pool = available_pool(d, members)
+                if total > len(pool):
+                    problems.append(
+                        f"{DAYS[d]} — {dept_label}: {total} kişi isteniyor ama bu departmanda "
+                        f"sadece {len(pool)} müsait personel var (toplam {len(members)} personel)."
+                    )
+
+    if problems:
+        header = "Kapasite matrisi bazı günler için mevcut personel sayısından fazla kişi istiyor:\n"
+        return header + "\n".join(f"• {p}" for p in problems[:6])
+    return None
+
+
 # ─── ÇÖZÜCÜ ──────────────────────────────────────────────────────────────────
 
 def solve(silent: bool = False):
@@ -853,7 +916,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
 
     branch_id = payload.get("branchId", "L-001")
@@ -993,6 +1056,8 @@ def api_mode(payload: dict):
             if parsed_shifts:
                 DEPARTMENT_DEMAND_MATRIX[str(dept_id)] = parsed_shifts
 
+    DEPARTMENT_NAMES = {str(k): str(v) for k, v in (payload.get("department_names") or {}).items()}
+
     # Bölge kotaları: payload'dan gel, yoksa global defaultlara dön
     # Format: {"Kasa": 2, "Reyon": 1} — skill adı → günlük minimum çalışan
     payload_quotas = payload.get("zone_quotas")
@@ -1006,7 +1071,12 @@ def api_mode(payload: dict):
 
     result = solve(silent=True)
     if result is None:
-        print(json.dumps({"error": "Optimizasyon için uygun bir çözüm bulunamadı. Kısıtlamaları esnetmeyi deneyin."}))
+        diagnosis = diagnose_infeasibility()
+        message = diagnosis or (
+            "Optimizasyon için uygun bir çözüm bulunamadı. Haftalık saat limiti, "
+            "dinlenme süresi veya kapasite matrisi kısıtlarını gözden geçirin."
+        )
+        print(json.dumps({"error": message}))
         return
 
     solver, shifts, person_scores, fairness_gap = result
