@@ -306,18 +306,25 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - OR-Tools motoru: ekip rotasyon kısıtı (hard/soft), YTD mesai üst sınırı (hard), adil mesai dağılımı (soft), mesai özeti çıktısı
   - Settings UI: "Ekipler" ve "Rotasyon" sekmeleri, Kurallar sekmesine mesai ayarları
   - `/api/locations` PATCH: `rotation_template` desteği
+- [x] **Kapasite Matrisi Sağlamlaştırma & Departman Ayrımı (2026-07-03):**
+  - `diagnose_infeasibility()` (`engine/optishift_engine.py`): INFEASIBLE durumunda hangi gün/departmanda talebin mevcut personel sayısını aştığını Türkçe, somut bir mesajla raporluyor — genel "kısıtlamaları esnetin" mesajı yerine (örn. "Cumartesi — Hat-A: 10 kişi isteniyor ama bu departmanda sadece 5 müsait personel var")
+  - `/api/generate`: lokasyonda departman satırları varsa artık `locations.demand_matrix` (departmanlar eklenmeden önceki eski/hayalet veri) motora hiç gönderilmiyor — talep sadece ilgili `departments.demand_matrix` üzerinden yönetiliyor (bkz. §3.B)
+  - Kök sebep: departman sorgusu `getDB()` raw-SQL uyumluluk katmanı üzerinden çekiliyordu ve production'da sessizce hata verip boş dizi döndürüyordu, guard'ı etkisiz kılıyordu. `/api/departments`'ın kullandığı kanıtlanmış Drizzle sorgusuna geçildi; hata artık `console.error` ile loglanıyor. `personnel.department_id` varlığı ikinci bir güvenlik katmanı olarak eklendi.
+  - FastAPI'nin ham `{"detail": "..."}` hata gövdesi artık ayrıştırılıp kullanıcıya temiz mesaj gösteriliyor (`callEngine` içinde)
+  - Schedule sayfası: motor çağrılmadan önce aynı kapasite/personel çelişkisini tespit eden client-side ön-kontrol (`capacityWarnings`) + kırmızı uyarı bandı; "müsaitlik girilmemiş" banner'ı artık bunun engelleyici olmadığını açıkça belirtiyor
+  - Kapasite Planı hücrelerinde "maks N kişi" ipucu — hücre başına değil, satır/departman başlığında bir kez gösteriliyor (görsel kalabalığı önlemek için); bir hücre değeri, aynı günün aynı departmandaki diğer vardiyalarına zaten girilmiş sayı düşülerek hesaplanan "kalan kapasite"yi aşarsa kırmızıya dönüyor
 
 ---
 
 ### Tier 1 — Değer Öldüren Eksiklikler (Bunlar olmadan ürün gerçekten yetersiz)
 
-**T1-A: Kapasite Matrisi (Demand Template) + OR-Tools entegrasyonu**
-- [ ] `locations.demand_matrix` alanı — schema.ts + migration (`npx drizzle-kit push`)
-- [ ] Schedule sayfasına "Kapasite Planı" paneli: gün × vardiya bazlı sayı input
-- [ ] `/api/locations` PATCH: `demand_matrix` alanı desteklenmeli (zaten destekleniyor, sadece frontend bağlantısı gerekli)
-- [ ] OR-Tools motoru (`optishift_engine.py`): `demand_coverage` hard constraint — o gün o vardiyaya tam N kişi atanır
-- [ ] `/api/generate` route: `demand_matrix` payload'a eklenmeli
-- [ ] Grid'de coverage gap sayacı: her gün/shift kolonunda `(atanan)/(gereken)` badge
+**T1-A: Kapasite Matrisi (Demand Template) + OR-Tools entegrasyonu** ✅ Tamamlandı (bkz. §8 Tamamlanan — 2026-07-03 sağlamlaştırma dahil)
+- [x] `locations.demand_matrix` alanı — schema.ts + migration (`npx drizzle-kit push`)
+- [x] Schedule sayfasına "Kapasite Planı" paneli: gün × vardiya bazlı sayı input
+- [x] `/api/locations` PATCH: `demand_matrix` alanı desteklenmeli (zaten destekleniyor, sadece frontend bağlantısı gerekli)
+- [x] OR-Tools motoru (`optishift_engine.py`): `demand_coverage` hard constraint — o gün o vardiyaya tam N kişi atanır
+- [x] `/api/generate` route: `demand_matrix` payload'a eklenmeli
+- [x] Grid'de coverage gap sayacı: her gün/shift kolonunda `(atanan)/(gereken)` badge
 
 **T1-B: Shift Swap + Edit + Open Shifts Backend**
 - [ ] `shift_swap_requests` tablosu: schema.ts + migration
@@ -381,6 +388,8 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 - Gece geçişi vardiyasında negatif puan → `+1440` düzeltmesi
 - Portal auth race condition → `mounted` guard
 - `/api/availability` güvenlik açığı → 403 ile izole
+- Departmanlı lokasyonda eski `locations.demand_matrix` verisi motora "hayalet talep" olarak gidiyordu (departmanlar eklenmeden önceki artık veri) → departman satırı varsa flat matris artık `/api/generate`'den hiç gönderilmiyor (2026-07-03)
+- `/api/generate`'deki departman sorgusu raw-SQL uyumluluk katmanında (`getDB()`) production'da sessizce hata verip boş dönüyordu → `/api/departments`'ın kullandığı Drizzle sorgusuna geçildi, hata artık loglanıyor (2026-07-03)
 - Manager branch restriction → API + Sidebar
 
 ---
