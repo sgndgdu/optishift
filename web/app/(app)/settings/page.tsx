@@ -150,6 +150,7 @@ export default function SettingsPage() {
   // Ek toggle'lar
   const [clopeningEnabled, setClopeningEnabled]                   = useState(true);
   const [swapRequestsEnabled, setSwapRequestsEnabled]             = useState(true);
+  const [availabilityCollectionEnabled, setAvailabilityCollectionEnabled] = useState(true);
   const [editRequestsEnabled, setEditRequestsEnabled]             = useState(true);
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
@@ -256,6 +257,7 @@ export default function SettingsPage() {
 
           setClopeningEnabled(loc.rules?.clopening_enabled !== false);
           setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
+          setAvailabilityCollectionEnabled(loc.rules?.availability_collection_enabled !== false);
           setEditRequestsEnabled(loc.rules?.edit_requests_enabled !== false);
           setCheckinRequired(!!loc.rules?.checkin_required);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -359,6 +361,7 @@ export default function SettingsPage() {
             nightMultiplier: typeof loc.rules?.night_multiplier === "number" ? loc.rules.night_multiplier : 1.3,
             clopeningEnabled: loc.rules?.clopening_enabled !== false,
             swapRequestsEnabled: loc.rules?.swap_requests_enabled !== false,
+            availabilityCollectionEnabled: loc.rules?.availability_collection_enabled !== false,
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
@@ -404,6 +407,7 @@ export default function SettingsPage() {
       preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
       weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+      availabilityCollectionEnabled,
       editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
       maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
       weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
@@ -417,6 +421,7 @@ export default function SettingsPage() {
     preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
     weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+    availabilityCollectionEnabled,
     editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
     maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
     weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
@@ -507,6 +512,7 @@ export default function SettingsPage() {
             night_multiplier:                   nightMultiplier,
             clopening_enabled:                  clopeningEnabled,
             swap_requests_enabled:              swapRequestsEnabled,
+            availability_collection_enabled:    availabilityCollectionEnabled,
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -551,6 +557,7 @@ export default function SettingsPage() {
         preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
         weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+        availabilityCollectionEnabled,
         editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
         maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
         weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
@@ -824,6 +831,11 @@ export default function SettingsPage() {
               </SectionCard>
 
               <SectionCard title="Personel Talepleri">
+                <RuleRow
+                  label="Müsaitlik Toplama"
+                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden müsaitlik istenmez ve personel portalında müsaitlik girişi kapatılır."
+                  right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
+                />
                 <RuleRow
                   label="Vardiya Takas Talebi"
                   description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
@@ -1320,6 +1332,7 @@ export default function SettingsPage() {
                       <Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />
                     </div>
                   </div>
+                  {availabilityCollectionEnabled && (<>
                   <div className="bg-white border border-slate-200 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -1379,6 +1392,7 @@ export default function SettingsPage() {
                       <Send size={14} /> {reminding ? "Gönderiliyor…" : "Hatırlatma Gönder"}
                     </button>
                   </div>
+                  </>)}
                 </div>
               </div>
 

@@ -81,6 +81,7 @@ demand_matrix: {
 - Grid'de her gün/shift kolonunda "atanan/gereken" sayacı gösterilir: `2/3 🔴` eksik, `3/3 ✅` tam, `4/3 🔵` fazla
 
 ### C. Shift Öncesi Müsaitlik Toplama
+- **Müsaitlik toplama OPSİYONELDİR (2026-07-03):** `locations.rules.availability_collection_enabled` (varsayılan `true`, her yerde `!== false` ile okunur). Settings → Kurallar → Personel Talepleri'nde "Müsaitlik Toplama" toggle'ı. Kapalıyken müdür vardiyaları tek başına planlar: schedule sayfasındaki "X personel müsaitlik girmemiş" bandı, ⋯ menüdeki "Müsaitlik İste", popover uyarısı ve yayın öncesi "müsaitlik girilmemiş" ihlal maddesi gizlenir; personel portalında Müsaitlik nav linki kalkar ve `/portal/availability` bilgi kartı gösterir ("Bu işletmede vardiyaları müdürünüz planlıyor"); `/api/availability/remind` o lokasyon için `{ sent: 0, disabled: true }` döner. Motor değişmedi — eksik müsaitlik zaten "tam müsait" kabul edilir; girilmiş kırmızı/sarı günler kapalıyken de saygı görmeye devam eder.
 - Müdür tek tıkla personele "Haftalık Müsaitlik İsteği" gönderir.
 - **Otomatik Hatırlatma:** Sistem her pazar 18:00'de henüz müsaitlik girmemiş personele push notification gönderir (müdür toggle ile açar/kapar).
 - Personel mobil arayüzden günleri/saatleri 3 renkli boyar:
@@ -313,6 +314,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - FastAPI'nin ham `{"detail": "..."}` hata gövdesi artık ayrıştırılıp kullanıcıya temiz mesaj gösteriliyor (`callEngine` içinde)
   - Schedule sayfası: motor çağrılmadan önce aynı kapasite/personel çelişkisini tespit eden client-side ön-kontrol (`capacityWarnings`) + kırmızı uyarı bandı; "müsaitlik girilmemiş" banner'ı artık bunun engelleyici olmadığını açıkça belirtiyor
   - Kapasite Planı hücrelerinde "maks N kişi" ipucu — hücre başına değil, satır/departman başlığında bir kez gösteriliyor (görsel kalabalığı önlemek için); bir hücre değeri, aynı günün aynı departmandaki diğer vardiyalarına zaten girilmiş sayı düşülerek hesaplanan "kalan kapasite"yi aşarsa kırmızıya dönüyor
+- [x] **"Müsaitlik Toplama" Toggle — Müdürün Tek Başına Planlama Modu (2026-07-03):** `rules.availability_collection_enabled` alanı + Settings toggle'ı; kapalıyken schedule sayfası müsaitlik uyarıları susturulur, portal Müsaitlik nav/sayfası kapatılır, remind endpoint'i inert olur (bkz. §3.C ilk madde). Motor ve `/api/generate` değişmedi.
 
 ---
 

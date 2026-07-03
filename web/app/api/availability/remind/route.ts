@@ -30,6 +30,21 @@ export async function POST(req: NextRequest) {
     const location_id = body.location_id ?? "";
     const week_start = body.week_start ?? getWeekStart();
 
+    // Müsaitlik toplama kapalıysa (locations.rules.availability_collection_enabled === false) hatırlatma gönderme
+    if (location_id) {
+      const locRow = await db
+        .prepare(`SELECT rules FROM locations WHERE id = ? AND org_id = ?`)
+        .get(location_id, org_id) as any;
+      if (locRow?.rules) {
+        try {
+          const rules = typeof locRow.rules === "string" ? JSON.parse(locRow.rules) : locRow.rules;
+          if (rules?.availability_collection_enabled === false) {
+            return NextResponse.json({ sent: 0, disabled: true });
+          }
+        } catch { /* rules parse edilemedi — varsayılan: açık */ }
+      }
+    }
+
     // Fetch active personnel — availability tablosunda org_id yok, personnel üzerinden filtrele
     let personnel: any[];
     if (location_id) {

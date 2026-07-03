@@ -50,23 +50,40 @@ const NAV = [
   { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },
 ];
 
-const BOTTOM_NAV = NAV.slice(0, 5);
-
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true);
   const chatUnread = useChatUnread();
   const notifUnread = useNotifUnread();
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("optishift_portal_user");
-      if (raw) setUser(JSON.parse(raw));
+      if (raw) {
+        const u = JSON.parse(raw);
+        setUser(u);
+        // Müsaitlik toplama kapalıysa nav'dan Müsaitlik linkini gizle (locations.rules)
+        if (u?.location_id) {
+          fetch(`/api/locations?id=${u.location_id}`)
+            .then(r => r.json())
+            .then(data => {
+              const loc = Array.isArray(data) ? data[0] : null;
+              if (!loc?.rules) return;
+              const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
+              setAvailCollectionEnabled(rules?.availability_collection_enabled !== false);
+            })
+            .catch(() => {});
+        }
+      }
     } catch {}
     setMounted(true);
   }, []);
+
+  const nav = NAV.filter(i => availCollectionEnabled || i.href !== "/portal/availability");
+  const bottomNav = nav.slice(0, 5);
 
   if (!mounted) return null;
 
@@ -92,7 +109,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </Link>
 
         <nav className="flex-1 space-y-1 px-1 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon, exact }) => {
+          {nav.map(({ href, label, icon: Icon, exact }) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             const badge =
               href === "/portal/chat" ? chatUnread :
@@ -180,7 +197,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         {/* Mobil Alt Nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-border/40 px-3 py-2 z-50">
           <ul className="flex items-center justify-around">
-            {BOTTOM_NAV.map(({ href, label, icon: Icon, exact }) => {
+            {bottomNav.map(({ href, label, icon: Icon, exact }) => {
               const isActive = exact ? pathname === href : pathname.startsWith(href);
               const isChat   = href === "/portal/chat";
               return (

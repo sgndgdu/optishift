@@ -310,6 +310,7 @@ export default function SchedulePage() {
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [prefNotMult, setPrefNotMult]             = useState(1.5);
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
+  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, müsaitlik uyarıları susturulur
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
   const [generating, setGenerating]               = useState(false);
@@ -513,18 +514,21 @@ export default function SchedulePage() {
           setDemandMatrix({});
         }
 
-        // Tercih edilmeyen gün telafi çarpanı + clopening eşiği (locations.rules)
+        // Tercih edilmeyen gün telafi çarpanı + clopening eşiği + müsaitlik toplama (locations.rules)
         let mult = 1.5;
         let clopeningRest = 13;
+        let collectAvail = true;
         if (Array.isArray(locData) && locData[0]?.rules) {
           try {
             const r = typeof locData[0].rules === "string" ? JSON.parse(locData[0].rules) : locData[0].rules;
             if (typeof r?.preferred_not_multiplier === "number") mult = r.preferred_not_multiplier;
             if (typeof r?.clopening_min_rest_hours === "number") clopeningRest = r.clopening_min_rest_hours;
+            collectAvail = r?.availability_collection_enabled !== false;
           } catch { /* varsayılanlar */ }
         }
         setPrefNotMult(mult);
         setClopeningMinRest(clopeningRest);
+        setAvailCollectionEnabled(collectAvail);
 
         // Koordinatlar (hava durumu için)
         const rawLat = Array.isArray(locData) ? locData[0]?.latitude : null;
@@ -1193,8 +1197,8 @@ export default function SchedulePage() {
           violations.push(`${p.name}: ${DAYS[d]} günü "kesinlikle gelemem" olarak işaretli ama vardiya atandı`);
         }
       }
-      // Müsaitlik bilgisi girilmemiş ama vardiya atanmış
-      if (!availMap[p.id]) {
+      // Müsaitlik bilgisi girilmemiş ama vardiya atanmış (müsaitlik toplama kapalıysa beklenen durum, uyarma)
+      if (availCollectionEnabled && !availMap[p.id]) {
         const hasShift = Object.keys(cellMap).some(k => k.startsWith(`${p.id}-`));
         if (hasShift) {
           violations.push(`${p.name}: müsaitlik bilgisi girilmemiş, vardiya atanmış`);
@@ -1498,7 +1502,7 @@ export default function SchedulePage() {
       popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle müsait değil (kırmızı)' });
     } else if (dayAvail?.status === 'preferred_not') {
       popoverWarnings.push({ type: 'warn', msg: 'Bu günü tercih etmiyor (sarı)' });
-    } else if (!pAvail) {
+    } else if (!pAvail && availCollectionEnabled) {
       popoverWarnings.push({ type: 'warn', msg: 'Müsaitlik bilgisi girilmemiş' });
     }
   }
@@ -1821,10 +1825,12 @@ export default function SchedulePage() {
                         <Zap size={13} className="text-indigo-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur (OR-Tools)"}
                       </button>
                     )}
-                    <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <Bell size={13} className="text-amber-500" /> Müsaitlik İste
-                    </button>
+                    {availCollectionEnabled && (
+                      <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Bell size={13} className="text-amber-500" /> Müsaitlik İste
+                      </button>
+                    )}
                     <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
@@ -1898,7 +1904,7 @@ export default function SchedulePage() {
               <p className="mt-1 text-red-500">Bu günlerde herkes müsait olsa bile Otomatik Oluştur çözüm bulamaz — kapasite matrisindeki sayıları azaltın.</p>
             </div>
           )}
-          {noAvailCount > 0 && personnel.length > 0 && (
+          {availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-600">
               <AlertCircle size={13} className="shrink-0 text-blue-400" />
               <span><span className="font-bold">{noAvailCount} personel</span> müsaitlik bilgisi girmemiş — bu kişiler otomatik oluşturmada tam müsait kabul edilir, planlama engellenmez.</span>
@@ -2454,7 +2460,7 @@ export default function SchedulePage() {
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                   className="w-full h-11 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-all flex items-center justify-center"
-                                  title="Müsaitlik girilmemiş — vardiya ekle"
+                                  title={availCollectionEnabled ? "Müsaitlik girilmemiş — vardiya ekle" : "Vardiya ekle"}
                                 >
                                   <Plus size={13} />
                                 </button>

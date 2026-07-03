@@ -153,6 +153,7 @@ export interface ScheduleRules {
   change_compensation_enabled?: boolean;    // değişiklik telafisi on/off
   leave_override_bonus_enabled?: boolean;   // zorunlu atama bonusu on/off
   clopening_enabled?: boolean;
+  availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden müsaitlik istenmez
   // Fabrika modülü — fazla mesai
   overtime_threshold_hours?: number;   // günlük eşik: bu saatin üzeri mesai sayılır (varsayılan 7.5)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)

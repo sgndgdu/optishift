@@ -1,0 +1,8 @@
+{
+  "experimentalServices": {
+    "engine": {
+      "entrypoint": "engine",
+      "routePrefix": "/"
+    }
+  }
+}

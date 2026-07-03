@@ -4,7 +4,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X } from "lucide-react";
+import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X, CalendarCheck } from "lucide-react";
+import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Status = "available" | "preferred_not" | "unavailable";
@@ -237,6 +238,7 @@ export default function PortalAvailability() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [shiftDefs,   setShiftDefs]   = useState<ShiftDef[]>([]);
   const [maxYellow,   setMaxYellow]   = useState(1);
+  const [collectionEnabled, setCollectionEnabled] = useState(true); // müsaitlik toplama kapalıysa giriş UI'ı gösterilmez
   const [yellowWarn,  setYellowWarn]  = useState<string | null>(null);
 
   const ws = weekStart(weekOffset);
@@ -278,6 +280,12 @@ export default function PortalAvailability() {
                   ? JSON.parse(loc.shift_definitions)
                   : loc.shift_definitions;
                 setShiftDefs(Array.isArray(raw) ? raw : []);
+              }
+              if (loc?.rules) {
+                try {
+                  const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
+                  setCollectionEnabled(rules?.availability_collection_enabled !== false);
+                } catch { /* varsayılan: açık */ }
               }
             })
             .catch(() => {});
@@ -346,6 +354,27 @@ export default function PortalAvailability() {
   };
 
   if (!mounted) return null;
+
+  // Müsaitlik toplama bu işletmede kapalı — giriş UI'ı yerine bilgi kartı
+  if (!collectionEnabled) {
+    return (
+      <div className="p-5 animate-in fade-in duration-300">
+        <div className="flex flex-col items-center text-center gap-3 bg-white border border-slate-200 rounded-2xl px-6 py-10 mt-6">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+            <CalendarCheck size={22} className="text-indigo-500" />
+          </div>
+          <h1 className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</h1>
+          <p className="text-sm text-slate-500 max-w-xs">
+            Müsaitlik girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
+          </p>
+          <Link href="/portal/calendar"
+            className="mt-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 rounded-xl transition-colors">
+            Vardiyalarımı Gör
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Her gün için tarih hesapla (ws = Pazartesi tarihi, YYYY-MM-DD)
   const [wsY, wsM, wsD] = ws.split("-").map(Number);
