@@ -220,6 +220,24 @@ export interface WeekSchedule {
   scores: Record<string, number>;
 }
 
+// ─── Puan Olayları (score_adjustments) ────────────────────────────────────────
+// Vardiyaya bağlı olmayan telafi/bonus puanları; prev_score'a doğrudan yazılmaz,
+// kümülatif skor lib/scoring.ts tarafından bu olaylardan yeniden hesaplanır.
+
+export interface ScoreAdjustment {
+  id: number;
+  org_id: string;
+  location_id: string;
+  personnel_id: string;
+  type: "change_comp" | "manual";
+  points: number;
+  week_start: string; // ISO Pazartesi, YYYY-MM-DD
+  ref_id?: string | null;
+  note?: string | null;
+  created_by?: string | null;
+  created_at: number;
+}
+
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
 export const DAYS = [

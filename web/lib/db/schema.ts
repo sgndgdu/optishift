@@ -6,6 +6,7 @@ import {
   serial,
   boolean,
   bigint,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ─── Organizations ────────────────────────────────────────────────────────────
@@ -332,6 +333,31 @@ export const scoreHistory = pgTable("score_history", {
     () => Math.floor(Date.now() / 1000),
   ),
 });
+
+// ─── Score Adjustments (Vardiya Dışı Puan Olayları) ──────────────────────────
+// prev_score'a doğrudan += yazmak yasaktır; vardiyaya bağlı olmayan telafi/bonus
+// puanları buraya olay olarak yazılır ve kümülatif skor lib/scoring.ts tarafından
+// deterministik olarak yeniden hesaplanır.
+export const scoreAdjustments = pgTable("score_adjustments", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  personnel_id: text("personnel_id")
+    .notNull()
+    .references(() => personnel.id),
+  type: text("type").notNull(), // 'change_comp' | 'manual'
+  points: doublePrecision("points").notNull(),
+  week_start: text("week_start").notNull(), // ISO Monday date, YYYY-MM-DD
+  ref_id: text("ref_id"), // örn. shift_assignments.id
+  note: text("note"),
+  created_by: text("created_by"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+}, (t) => [
+  index("idx_score_adj_person_week").on(t.personnel_id, t.week_start),
+  index("idx_score_adj_loc_week").on(t.location_id, t.week_start),
+]);
 
 // ─── Break Sessions (Canlı Mola Takibi) ──────────────────────────────────────
 export const breakSessions = pgTable("break_sessions", {

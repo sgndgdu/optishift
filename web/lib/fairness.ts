@@ -23,6 +23,15 @@ export interface Rules {
   clopening_multiplier?: number;     // varsayılan 1.2
   hero_multiplier?: number;          // varsayılan 1.5
   clopening_min_rest_hours?: number; // varsayılan 13
+  // Bileşen toggle'ları (settings ile aynı anahtarlar; motor da bunları okur)
+  weekend_multiplier_enabled?: boolean;
+  night_multiplier_enabled?: boolean;
+  preferred_not_enabled?: boolean;
+  clopening_enabled?: boolean;
+  hero_bonus_enabled?: boolean;
+  // Kümülatif pencere ayarları
+  fairness_decay_factor?: number;    // varsayılan 0.85
+  fairness_window_weeks?: number;    // varsayılan 8
 }
 
 export interface AssignmentInput {
@@ -32,6 +41,8 @@ export interface AssignmentInput {
   start_time: string;    // "HH:MM"
   end_time: string;      // "HH:MM"
   is_hero?: boolean;
+  hero_multiplier?: number;  // open_shift bazlı override (os.hero_bonus_multiplier)
+  force_multiplier?: number; // kabul edilmiş zorunlu atama çarpanı (force_bonus_multiplier)
 }
 
 export interface AvailabilityInput {
@@ -77,6 +88,71 @@ function restGapMin(end1: string, start2: string): number {
 
 // ─── Ana Hesaplama ────────────────────────────────────────────────────────────
 
+export interface AssignmentBurdenInput {
+  day: number;                  // 0=Pzt … 6=Paz
+  start_time: string;           // "HH:MM"
+  end_time: string;             // "HH:MM"
+  base_points: number;          // vardiya zorluğu (1–10)
+  is_night?: boolean;
+  is_pref_not?: boolean;        // o gün sarı (preferred_not) işaretli mi
+  is_hero?: boolean;
+  hero_multiplier?: number;     // open_shift bazlı override
+  force_multiplier?: number;    // kabul edilmiş zorunlu atama çarpanı
+  prev_day_end_time?: string | null; // clopening tespiti için önceki günün bitişi (client canlı hesapta verilmez)
+}
+
+export interface AssignmentBurden {
+  hours: number;
+  raw: number;    // difficulty × hours
+  burden: number; // çarpanlı
+  flags: { weekend: boolean; night: boolean; prefNot: boolean; clopening: boolean; hero: boolean; force: boolean };
+}
+
+/**
+ * TEK vardiyanın yük puanı — resmi formülün çekirdeği. calcWeeklyBurden ve
+ * schedule sayfasının canlı hücre hesabı aynı fonksiyonu kullanır.
+ * Çarpanlar yalnızca ilgili `*_enabled` toggle'ı kapalı DEĞİLSE uygulanır.
+ */
+export function calcAssignmentBurden(input: AssignmentBurdenInput, rules: Rules): AssignmentBurden {
+  const weekendMult   = rules.weekend_multiplier       ?? 1.2;
+  const nightMult     = rules.night_multiplier         ?? 1.3;
+  const prefNotMult   = rules.preferred_not_multiplier ?? 1.5;
+  const clOpenMult    = rules.clopening_multiplier     ?? 1.2;
+  const heroMult      = input.hero_multiplier ?? rules.hero_multiplier ?? 1.5;
+  const clOpenMinRest = (rules.clopening_min_rest_hours ?? 13) * 60;
+  const legalMinRest  = 11 * 60;
+
+  const hours = durationHours(input.start_time, input.end_time);
+  const raw = input.base_points * hours;
+
+  const isWeekend = (input.day === 5 || input.day === 6) && rules.weekend_multiplier_enabled !== false;
+  const isNight   = (input.is_night ?? false) && rules.night_multiplier_enabled !== false;
+  const isPrefNot = (input.is_pref_not ?? false) && rules.preferred_not_enabled !== false;
+  const isHero    = (input.is_hero ?? false) && rules.hero_bonus_enabled !== false;
+  const isForce   = typeof input.force_multiplier === "number" && input.force_multiplier > 1;
+  const isClopening = input.prev_day_end_time != null && rules.clopening_enabled !== false
+    ? (() => {
+        const gap = restGapMin(input.prev_day_end_time!, input.start_time);
+        return gap >= legalMinRest && gap < clOpenMinRest;
+      })()
+    : false;
+
+  let burden = raw;
+  if (isWeekend)   burden *= weekendMult;
+  if (isNight)     burden *= nightMult;
+  if (isPrefNot)   burden *= prefNotMult;
+  if (isClopening) burden *= clOpenMult;
+  if (isHero)      burden *= heroMult;
+  if (isForce)     burden *= input.force_multiplier!;
+
+  return {
+    hours,
+    raw,
+    burden,
+    flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, clopening: isClopening, hero: isHero, force: isForce },
+  };
+}
+
 /**
  * Bir haftanın tüm atamaları için kişi bazlı burden breakdown döner.
  */
@@ -86,14 +162,6 @@ export function calcWeeklyBurden(
   availability: AvailabilityInput[],
   rules: Rules,
 ): BurdenBreakdown[] {
-  const weekendMult   = rules.weekend_multiplier       ?? 1.2;
-  const nightMult     = rules.night_multiplier         ?? 1.3;
-  const prefNotMult   = rules.preferred_not_multiplier ?? 1.5;
-  const clOpenMult    = rules.clopening_multiplier     ?? 1.2;
-  const heroMult      = rules.hero_multiplier          ?? 1.5;
-  const clOpenMinRest = (rules.clopening_min_rest_hours ?? 13) * 60;
-  const legalMinRest  = 11 * 60;
-
   const defById = Object.fromEntries(shiftDefs.map(d => [d.id, d]));
   const availById = Object.fromEntries(availability.map(a => [a.personnel_id, a]));
 
@@ -121,34 +189,29 @@ export function calcWeeklyBurden(
 
     for (const a of pAssignments) {
       const def = defById[a.shift_id];
-      const difficulty = def?.base_points ?? 5;
-      const hours = durationHours(a.start_time, a.end_time);
-      const isWeekend = a.day === 5 || a.day === 6;
-      const isNight = def?.is_night ?? false;
-      const isPrefNot = avail[`day_${a.day}`] === "preferred_not";
-      const isHero = a.is_hero ?? false;
-
-      // Clopening: bir önceki günün bitiş saatiyle bu günün başlangıcı arasındaki dinlenme
       const prev = byDay[a.day - 1];
-      const isClopening = prev
-        ? (() => {
-            const gap = restGapMin(prev.end_time, a.start_time);
-            return gap >= legalMinRest && gap < clOpenMinRest;
-          })()
-        : false;
 
-      totalHours += hours;
-      const raw = difficulty * hours;
-      rawScore += raw;
+      const result = calcAssignmentBurden({
+        day: a.day,
+        start_time: a.start_time,
+        end_time: a.end_time,
+        base_points: def?.base_points ?? 5,
+        is_night: def?.is_night ?? false,
+        is_pref_not: avail[`day_${a.day}`] === "preferred_not",
+        is_hero: a.is_hero ?? false,
+        hero_multiplier: a.hero_multiplier,
+        force_multiplier: a.force_multiplier,
+        prev_day_end_time: prev ? prev.end_time : null,
+      }, rules);
 
-      let burden = raw;
-      if (isWeekend)  { burden *= weekendMult;  weekendShifts++; }
-      if (isNight)    { burden *= nightMult;     nightShifts++; }
-      if (isPrefNot)  { burden *= prefNotMult;   prefNotShifts++; }
-      if (isClopening){ burden *= clOpenMult;    clOpenCount++; }
-      if (isHero)     { burden *= heroMult;      heroCount++; }
-
-      burdenScore += burden;
+      totalHours += result.hours;
+      rawScore += result.raw;
+      burdenScore += result.burden;
+      if (result.flags.weekend)   weekendShifts++;
+      if (result.flags.night)     nightShifts++;
+      if (result.flags.prefNot)   prefNotShifts++;
+      if (result.flags.clopening) clOpenCount++;
+      if (result.flags.hero)      heroCount++;
     }
 
     return {
@@ -169,18 +232,25 @@ export function calcWeeklyBurden(
  * Rolling decay kümülatif burden hesabı.
  * history: kronolojik sırada (en eski önce), son eleman bu haftayı içermez.
  * currentWeekBurden: bu haftanın burden_score'u (index 0 = en yeni).
+ * adjustmentsByWeek: { week_start → Σ score_adjustments.points } — bu haftanın
+ * anahtarı `currentWeekStart` ile verilirse i=0'da tam ağırlıkla katılır (D4).
  */
 export function calcCumulativeRolling(
   history: ScoreHistoryEntry[],
   currentWeekBurden: number,
   decayFactor = 0.85,
   windowWeeks = 8,
+  adjustmentsByWeek?: Record<string, number>,
+  currentWeekStart?: string,
 ): number {
   // Sondan al (en yeni önce), window kadar
   const recent = [...history].reverse().slice(0, windowWeeks - 1);
-  let cumulative = currentWeekBurden; // i=0 → × 0.85^0 = 1
+  const adjFor = (week: string | undefined) =>
+    week && adjustmentsByWeek ? (adjustmentsByWeek[week] ?? 0) : 0;
+
+  let cumulative = currentWeekBurden + adjFor(currentWeekStart); // i=0 → × decay^0 = 1
   for (let i = 0; i < recent.length; i++) {
-    cumulative += recent[i].burden_score * Math.pow(decayFactor, i + 1);
+    cumulative += (recent[i].burden_score + adjFor(recent[i].week_start)) * Math.pow(decayFactor, i + 1);
   }
   return Math.round(cumulative * 100) / 100;
 }
