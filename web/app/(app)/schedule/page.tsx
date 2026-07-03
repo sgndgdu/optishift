@@ -1555,6 +1555,13 @@ export default function SchedulePage() {
     return warnings;
   }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap]);
 
+  // Kapasite Planı hücrelerinde "bu gün en fazla kaç kişi girilebilir" ipucu için —
+  // departman verilmezse lokasyon geneli, verilirse sadece o departmanın personeli sayılır.
+  const maxAvailableFor = (day: number, deptId?: string) => {
+    const pool = deptId ? personnel.filter(p => p.department_id === deptId) : personnel;
+    return pool.filter(p => availMap[p.id]?.[day]?.status !== 'unavailable').length;
+  };
+
   // Personel filtresi
   const filteredPersonnel = personnelFilter.trim()
     ? personnel.filter(p => p.name.toLowerCase().includes(personnelFilter.toLowerCase()))
@@ -2032,12 +2039,14 @@ export default function SchedulePage() {
                             const val = demandMatrix[def.id]?.[day] ?? 0;
                             const assigned = assignedCounts[def.id]?.[day] ?? 0;
                             const isWeekend = day === 5 || day === 6;
+                            const maxAvail = maxAvailableFor(day);
+                            const overLimit = val > maxAvail;
                             const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
                             return (
                               <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
                                 <div className="flex flex-col items-center gap-0.5">
                                   <input
-                                    type="number" min={0} max={99}
+                                    type="number" min={0} max={maxAvail}
                                     value={val === 0 ? "" : val}
                                     placeholder="—"
                                     disabled={isPublishedWeek && !editUnlocked}
@@ -2046,15 +2055,23 @@ export default function SchedulePage() {
                                       setDemandMatrix(prev => ({ ...prev, [def.id]: { ...(prev[def.id] ?? {}), [day]: n } }));
                                     }}
                                     onBlur={() => handleDemandSave(true)}
-                                    className="w-11 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50"
+                                    title={`Bu gün en fazla ${maxAvail} personel müsait`}
+                                    className={cn(
+                                      "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
+                                      overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-indigo-300 text-indigo-700"
+                                    )}
                                   />
-                                  {val > 0 && (
+                                  {overLimit ? (
+                                    <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvail}</span>
+                                  ) : val > 0 ? (
                                     <span className={cn(
                                       "text-[10px] font-bold leading-tight",
                                       coverState === "under" && "text-red-500",
                                       coverState === "ok"    && "text-emerald-600",
                                       coverState === "over"  && "text-sky-500",
                                     )}>{assigned}/{val}</span>
+                                  ) : (
+                                    <span className="text-[9px] font-medium leading-tight text-slate-300">maks {maxAvail}</span>
                                   )}
                                 </div>
                               </td>
@@ -2085,12 +2102,14 @@ export default function SchedulePage() {
                                   const val = deptRow[day] ?? 0;
                                   const assigned = deptAssignedCounts[dept.id]?.[def.id]?.[day] ?? 0;
                                   const isWeekend = day === 5 || day === 6;
+                                  const maxAvail = maxAvailableFor(day, dept.id);
+                                  const overLimit = val > maxAvail;
                                   const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
                                   return (
                                     <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
                                       <div className="flex flex-col items-center gap-0.5">
                                         <input
-                                          type="number" min={0} max={99}
+                                          type="number" min={0} max={maxAvail}
                                           value={val === 0 ? "" : val}
                                           placeholder="—"
                                           disabled={isPublishedWeek && !editUnlocked}
@@ -2102,15 +2121,23 @@ export default function SchedulePage() {
                                             }));
                                           }}
                                           onBlur={() => handleDeptDemandSave(dept.id)}
-                                          className="w-11 h-8 text-center text-sm font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-indigo-700 placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50"
+                                          title={`${dept.name}: bu gün en fazla ${maxAvail} personel müsait`}
+                                          className={cn(
+                                            "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
+                                            overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-indigo-300 text-indigo-700"
+                                          )}
                                         />
-                                        {val > 0 && (
+                                        {overLimit ? (
+                                          <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvail}</span>
+                                        ) : val > 0 ? (
                                           <span className={cn(
                                             "text-[10px] font-bold leading-tight",
                                             coverState === "under" && "text-red-500",
                                             coverState === "ok"    && "text-emerald-600",
                                             coverState === "over"  && "text-sky-500",
                                           )}>{assigned}/{val}</span>
+                                        ) : (
+                                          <span className="text-[9px] font-medium leading-tight text-slate-300">maks {maxAvail}</span>
                                         )}
                                       </div>
                                     </td>
