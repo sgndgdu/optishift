@@ -11,6 +11,7 @@ import {
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
+import { calcAssignmentBurden, type Rules as FairnessRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
@@ -45,18 +46,27 @@ function getWeekLabel(offset: number): { label: string; dates: string[] } {
   return { label: `${start} – ${end}`, dates };
 }
 
-// day: 0=Mon … 5=Sat, 6=Sun
-function calcPoints(startMin: number, endMin: number, day: number): number {
-  const adjEnd = endMin <= startMin ? endMin + 1440 : endMin; // gece geçişi
-  const hours = (adjEnd - startMin) / 60;
-  const dayMultiplier = day === 5 || day === 6 ? 1.5 : 1;
-  const lateBonus = adjEnd > 22 * 60 ? 2 : 0;
-  return Math.round(hours * dayMultiplier + lateBonus);
-}
-
-/** Sarı (tercih edilmeyen) günde çalışan personele telafi çarpanı uygular. */
-function withPrefNotBonus(pts: number, am: AvailMap, pid: string, day: number, mult: number): number {
-  return am[pid]?.[day]?.status === "preferred_not" ? Math.round(pts * mult) : pts;
+/**
+ * Bir hücrenin canlı yük puanı — resmi formül (lib/fairness.ts calcAssignmentBurden).
+ * Vardiya tanımı ±10 dk toleransla eşleştirilir; eşleşmezse base_points=5 varsayılır.
+ * Clopening çarpanı canlı hesapta uygulanmaz (hücreler bağımsız kalsın diye) —
+ * kesin puan yayında calcWeeklyBurden ile hesaplanır.
+ */
+function cellBurden(
+  startMin: number, endMin: number, day: number,
+  am: AvailMap, pid: string,
+  rules: FairnessRules, defs: ShiftDefinition[],
+): number {
+  const def = matchShiftDef(startMin, endMin, defs);
+  const r = calcAssignmentBurden({
+    day,
+    start_time: minToHHMM(startMin),
+    end_time: minToHHMM(endMin % 1440),
+    base_points: def?.base_points ?? 5,
+    is_night: def?.is_night ?? false,
+    is_pref_not: am[pid]?.[day]?.status === "preferred_not",
+  }, rules);
+  return Math.round(r.burden * 10) / 10;
 }
 
 /** Bir hücrenin başlangıç/bitiş dakikalarını shift tanımlarıyla eşleştirir (±10 dk tolerans). */
@@ -308,8 +318,9 @@ export default function SchedulePage() {
   const [cellMap, setCellMap]                     = useState<CellMap>({});
   const [forceAssignMap, setForceAssignMap]       = useState<Record<string, { status: string; multiplier: number }>>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
-  const [prefNotMult, setPrefNotMult]             = useState(1.5);
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
+  const [locRules, setLocRules]                   = useState<FairnessRules>({}); // tam rules objesi — canlı yük hesabı (cellBurden) için
+  const [scoredWeekBurden, setScoredWeekBurden]   = useState<Record<string, number>>({}); // bu haftanın score_history'deki yükü — çift sayım düzeltmesi
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, müsaitlik uyarıları susturulur
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
@@ -460,7 +471,7 @@ export default function SchedulePage() {
     (async () => {
       setLoading(true);
       try {
-        const [pRes, aRes, sRes, locRes, deptRes, evRes, pubRes] = await Promise.all([
+        const [pRes, aRes, sRes, locRes, deptRes, evRes, pubRes, shRes] = await Promise.all([
           fetch(`/api/personnel?location_id=${activeLocationId}`),
           fetch(`/api/availability/team?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${weekStart}`),
@@ -468,6 +479,7 @@ export default function SchedulePage() {
           fetch(`/api/departments?location_id=${activeLocationId}`),
           fetch(`/api/events?location_id=${activeLocationId}&week_start=${weekStart}`),
           fetch(`/api/schedule/publications?location_id=${activeLocationId}&week_start=${weekStart}`),
+          fetch(`/api/score-history?location_id=${activeLocationId}&weeks=52`),
         ]);
         const pData = await pRes.json();
         const aData = await aRes.json();
@@ -490,16 +502,16 @@ export default function SchedulePage() {
         setDeptDemandMatrix(deptDemands);
 
         // Shift tanımlarını yükle
+        let weekDefs: ShiftDefinition[] = [];
         if (Array.isArray(locData) && locData[0]?.shift_definitions) {
           try {
             const rawDefs = typeof locData[0].shift_definitions === "string"
               ? JSON.parse(locData[0].shift_definitions)
               : locData[0].shift_definitions;
-            setShiftDefs(Array.isArray(rawDefs) ? rawDefs : []);
-          } catch { setShiftDefs([]); }
-        } else {
-          setShiftDefs([]);
+            weekDefs = Array.isArray(rawDefs) ? rawDefs : [];
+          } catch { weekDefs = []; }
         }
+        setShiftDefs(weekDefs);
 
         // Kapasite matrisini yükle
         if (Array.isArray(locData) && locData[0]?.demand_matrix) {
@@ -514,21 +526,21 @@ export default function SchedulePage() {
           setDemandMatrix({});
         }
 
-        // Tercih edilmeyen gün telafi çarpanı + clopening eşiği + müsaitlik toplama (locations.rules)
-        let mult = 1.5;
+        // Tam kural objesi + clopening eşiği + müsaitlik toplama (locations.rules)
         let clopeningRest = 13;
         let collectAvail = true;
+        let parsedRules: FairnessRules = {};
         if (Array.isArray(locData) && locData[0]?.rules) {
           try {
             const r = typeof locData[0].rules === "string" ? JSON.parse(locData[0].rules) : locData[0].rules;
-            if (typeof r?.preferred_not_multiplier === "number") mult = r.preferred_not_multiplier;
+            if (r && typeof r === "object") parsedRules = r;
             if (typeof r?.clopening_min_rest_hours === "number") clopeningRest = r.clopening_min_rest_hours;
             collectAvail = r?.availability_collection_enabled !== false;
           } catch { /* varsayılanlar */ }
         }
-        setPrefNotMult(mult);
         setClopeningMinRest(clopeningRest);
         setAvailCollectionEnabled(collectAvail);
+        setLocRules(parsedRules);
 
         // Koordinatlar (hava durumu için)
         const rawLat = Array.isArray(locData) ? locData[0]?.latitude : null;
@@ -538,6 +550,20 @@ export default function SchedulePage() {
         // Etkinlikler
         const evData = await evRes.json();
         setEvents(Array.isArray(evData) ? evData : []);
+
+        // Bu haftanın score_history yükü (yayınlanmışsa) — çift sayım düzeltmesi için
+        try {
+          const shData = await shRes.json();
+          const swb: Record<string, number> = {};
+          if (shData && typeof shData === "object" && !Array.isArray(shData)) {
+            for (const [pid, entries] of Object.entries(shData)) {
+              if (!Array.isArray(entries)) continue;
+              const thisWeek = entries.find((e: any) => e.week_start === weekStart);
+              if (thisWeek) swb[pid] = thisWeek.burden_score ?? 0;
+            }
+          }
+          setScoredWeekBurden(swb);
+        } catch { setScoredWeekBurden({}); }
 
         // Mevcut yayın revizyonu
         const pubData = await pubRes.json();
@@ -578,7 +604,7 @@ export default function SchedulePage() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, s.day), newAvailMap, s.personnel_id, s.day, mult) };
+              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs) };
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
                 newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 1.5 };
@@ -629,6 +655,8 @@ export default function SchedulePage() {
               return {
                 personnel_id: key.slice(0, lastDash),
                 day:          parseInt(key.slice(lastDash + 1)),
+                // shift_id olmadan publish puanlaması vardiya zorluğunu (base_points) bulamaz
+                shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
                 start_time:   minToHHMM(val.startMin),
                 end_time:     minToHHMM(val.endMin),
               };
@@ -844,11 +872,14 @@ export default function SchedulePage() {
   }, [weekStart]);
 
   // Computed per-person scores (live, based on cellMap)
+  // Çift sayım düzeltmesi: hafta yayınlandıysa bu haftanın yükü prev_score'un
+  // içindedir (decay^0 = 1) — canlı hücre puanını eklemeden önce düşülür.
   const personScores = personnel.map(p => {
     const weekPoints = Object.entries(cellMap)
       .filter(([k]) => k.startsWith(`${p.id}-`))
       .reduce((sum, [, v]) => sum + v.points, 0);
-    return { id: p.id, name: p.name, score: (p.prev_score || 0) + weekPoints };
+    const base = (p.prev_score || 0) - (scoredWeekBurden[p.id] ?? 0);
+    return { id: p.id, name: p.name, score: Math.round((base + weekPoints) * 10) / 10 };
   });
   const maxScore = Math.max(...personScores.map(s => s.score), 1);
 
@@ -891,7 +922,7 @@ export default function SchedulePage() {
       [key]: {
         startMin: popover.startMin,
         endMin:   popover.endMin,
-        points:   withPrefNotBonus(calcPoints(popover.startMin, popover.endMin, popover.day), availMap, popover.personnelId, popover.day, prefNotMult),
+        points:   cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs),
       },
     });
     setPopover(null);
@@ -935,7 +966,7 @@ export default function SchedulePage() {
           const startMin = hhmmToMin(a.start_time);
           const rawEnd   = hhmmToMin(a.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-          newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, a.day), availMap, a.personnelId, a.day, prefNotMult) };
+          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs) };
         }
       }
       pushCellMap(newCellMap);
@@ -1216,6 +1247,8 @@ export default function SchedulePage() {
         location_id:        activeLocationId,
         week_start:         weekStart,
         day:                parseInt(key.slice(lastDash + 1)),
+        // shift_id olmadan publish puanlaması vardiya zorluğunu (base_points) bulamaz
+        shift_id:           matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
         start_time:         minToHHMM(val.startMin),
         end_time:           minToHHMM(val.endMin),
         publication_status: pubStatus,
@@ -1278,7 +1311,7 @@ export default function SchedulePage() {
           const startMin = hhmmToMin(s.start_time);
           const rawEnd   = hhmmToMin(s.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd;
-          newCellMap[key] = { startMin, endMin, points: withPrefNotBonus(calcPoints(startMin, endMin, s.day), availMap, s.personnel_id, s.day, prefNotMult) };
+          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, availMap, s.personnel_id, locRules, shiftDefs) };
         }
       }
       pushCellMap(newCellMap);
@@ -1306,7 +1339,7 @@ export default function SchedulePage() {
       const key = `${personId}-${day}`;
       const isWeekOff = person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === day;
       if (!newMap[key] && availMap[personId]?.[day]?.status !== 'unavailable' && !isWeekOff) {
-        newMap[key] = { startMin: ds, endMin: de, points: withPrefNotBonus(calcPoints(ds, de, day), availMap, personId, day, prefNotMult) };
+        newMap[key] = { startMin: ds, endMin: de, points: cellBurden(ds, de, day, availMap, personId, locRules, shiftDefs) };
         added++;
       }
     }
@@ -1457,7 +1490,7 @@ export default function SchedulePage() {
   const isoDates = getWeekIsoDates(weekStart);
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
-  const popoverPoints = popover ? withPrefNotBonus(calcPoints(popover.startMin, popover.endMin, popover.day), availMap, popover.personnelId, popover.day, prefNotMult) : 0;
+  const popoverPoints = popover ? cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs) : 0;
   const hasExisting   = popover ? !!cellMap[`${popover.personnelId}-${popover.day}`] : false;
   const popoverHours  = popover ? Math.round((popover.endMin - popover.startMin) / 60 * 10) / 10 : 0;
 
@@ -1700,7 +1733,7 @@ export default function SchedulePage() {
         newMap[`${personId}-${targetDay}`] = {
           startMin,
           endMin,
-          points: withPrefNotBonus(calcPoints(startMin, endMin, targetDay), availMap, personId, targetDay, prefNotMult)
+          points: cellBurden(startMin, endMin, targetDay, availMap, personId, locRules, shiftDefs)
         };
         pushCellMap(newMap);
       }
@@ -1728,7 +1761,7 @@ export default function SchedulePage() {
 
     newMap[targetId] = {
       ...sourceCell,
-      points: withPrefNotBonus(calcPoints(sourceCell.startMin, sourceCell.endMin, targetDay), availMap, targetPId, targetDay, prefNotMult)
+      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs)
     };
     delete newMap[sourceId];
     
@@ -2671,8 +2704,8 @@ export default function SchedulePage() {
           )}
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
-          <p>Puan = birikimli puan + bu haftanın vardiya puanları.</p>
-          <p>Cumartesi/Pazar ×1.5 · 22:00 sonrası +2 bonus.</p>
+          <p>Puan = birikimli yük + bu haftanın canlı yükü (zorluk × saat × çarpanlar).</p>
+          <p>Hafta sonu ×{locRules.weekend_multiplier ?? 1.2} · gece ×{locRules.night_multiplier ?? 1.3} · sarı gün ×{locRules.preferred_not_multiplier ?? 1.5}. Kesin puan yayında hesaplanır.</p>
         </div>
       </div>
 
@@ -2727,13 +2760,20 @@ export default function SchedulePage() {
             <span className="text-sm font-bold text-slate-800">{minToHHMM(popover.startMin)} – {minToHHMM(popover.endMin, popover.endMin >= 1440)}</span>
             <span className="text-xs text-slate-500 tabular-nums">{popoverHours} saat · {popoverPoints} puan</span>
           </div>
-          {(popover.day === 5 || popover.day === 6 || popover.endMin > 22 * 60) && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {(popover.day === 5 || popover.day === 6) && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu ×1.5</span>}
-              {popover.endMin > 22 * 60 && popover.endMin < 1440 && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-100">Gece +2 bonus</span>}
-              {popover.endMin >= 1440 && <span className="text-[10px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-semibold border border-violet-100">🌙 Gece geçişi +2 bonus</span>}
-            </div>
-          )}
+          {(() => {
+            const matchedDef = matchShiftDef(popover.startMin, popover.endMin, shiftDefs);
+            const isWknd = (popover.day === 5 || popover.day === 6) && locRules.weekend_multiplier_enabled !== false;
+            const isNght = (matchedDef?.is_night ?? false) && locRules.night_multiplier_enabled !== false;
+            const isPrfN = availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not" && locRules.preferred_not_enabled !== false;
+            if (!isWknd && !isNght && !isPrfN) return null;
+            return (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {isWknd && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu ×{locRules.weekend_multiplier ?? 1.2}</span>}
+                {isNght && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-100">🌙 Gece ×{locRules.night_multiplier ?? 1.3}</span>}
+                {isPrfN && <span className="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold border border-yellow-100">Sarı gün ×{locRules.preferred_not_multiplier ?? 1.5}</span>}
+              </div>
+            );
+          })()}
           {popoverWarnings.length > 0 && (
             <div className="mt-2 space-y-1">
               {popoverWarnings.map((w, i) => (

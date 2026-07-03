@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireAuth } from "@/lib/auth";
+import { computeWeekBreakdowns } from "@/lib/scoring";
 
 const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -39,31 +40,32 @@ export async function GET(req: NextRequest) {
     const orgRow: any   = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(location?.org_id ?? "");
 
     // ── Sheet 1: Yönetici KPI Özeti ─────────────────────────────────────
+    // Haftalık yük resmi formülle hesaplanır (lib/fairness.ts calcWeeklyBurden —
+    // zorluk × saat × çarpanlar); kümülatif puan yayınlanmışsa score_history'den okunur.
+    const breakdowns = await computeWeekBreakdowns(auth.org_id, location_id, week_start);
+    const burdenByPid = Object.fromEntries(breakdowns.map(b => [b.personnel_id, b]));
+
+    const scoredRows = await db.prepare(
+      `SELECT personnel_id, cumulative_burden FROM score_history WHERE location_id = ? AND week_start = ?`
+    ).all(location_id, week_start) as any[];
+    const cumulativeByPid: Record<string, number> = {};
+    for (const r of scoredRows) cumulativeByPid[r.personnel_id] = r.cumulative_burden ?? 0;
+
     const personnelMap = new Map<string, any>();
     for (const s of shifts) {
       if (!personnelMap.has(s.personnel_id)) {
+        const bd = burdenByPid[s.personnel_id];
         personnelMap.set(s.personnel_id, {
           name: s.personnel_name ?? s.personnel_id,
           title: s.title ?? "",
           shifts: [],
-          total_hours: 0,
-          prev_score: s.prev_score ?? 0,
-          week_points: 0,
+          total_hours: bd?.total_hours ?? 0,
+          week_burden: bd?.burden_score ?? 0,
+          // Yayınlanmış hafta: kesin kümülatif; değilse önizleme (birikimli + bu haftanın yükü)
+          cumulative: cumulativeByPid[s.personnel_id] ?? Math.round(((s.prev_score ?? 0) + (bd?.burden_score ?? 0)) * 10) / 10,
         });
       }
-      const p = personnelMap.get(s.personnel_id);
-      p.shifts.push(s);
-      if (s.start_time && s.end_time) {
-        const [sh, sm] = s.start_time.split(":").map(Number);
-        const [eh, em] = s.end_time.split(":").map(Number);
-        const hours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-        p.total_hours += Math.max(0, hours);
-        // Bu haftanın puan hesabı (hafta sonu ×1.5, gece 22:00+ +2)
-        const endMin = eh * 60 + em;
-        const isWeekend = s.day === 5 || s.day === 6;
-        const lateBonus = endMin > 22 * 60 ? 2 : 0;
-        p.week_points += Math.round(hours * (isWeekend ? 1.5 : 1)) + lateBonus;
-      }
+      personnelMap.get(s.personnel_id).shifts.push(s);
     }
 
     const weekDate = new Date(week_start);
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
       [`Organizasyon: ${orgRow?.name ?? "—"}`],
       [`Hafta: ${weekDate.toLocaleDateString("tr-TR")} – ${weekEnd.toLocaleDateString("tr-TR")}`],
       [],
-      ["Ad Soyad", "Unvan", "Toplam Vardiya", "Toplam Saat", "Adalet Puanı", "Durum"],
+      ["Ad Soyad", "Unvan", "Toplam Vardiya", "Toplam Saat", "Haftalık Yük Puanı", "Kümülatif Adalet Puanı", "Durum"],
     ];
 
     let totalShifts = 0, totalHours = 0;
@@ -86,7 +88,8 @@ export async function GET(req: NextRequest) {
         p.title,
         p.shifts.length,
         Math.round(p.total_hours * 10) / 10,
-        Math.round((p.prev_score + p.week_points) * 10) / 10,
+        Math.round(p.week_burden * 10) / 10,
+        Math.round(p.cumulative * 10) / 10,
         p.total_hours > 45 ? "⚠ Fazla Mesai" : "✓ Normal",
       ]);
       totalShifts += p.shifts.length;
@@ -94,7 +97,7 @@ export async function GET(req: NextRequest) {
     }
 
     kpiRows.push([]);
-    kpiRows.push(["TOPLAM", "", totalShifts, Math.round(totalHours * 10) / 10, "", ""]);
+    kpiRows.push(["TOPLAM", "", totalShifts, Math.round(totalHours * 10) / 10, "", "", ""]);
 
     // ── Sheet 2: Haftalık Matris ─────────────────────────────────────────
     const personnel = [...personnelMap.entries()];
@@ -125,7 +128,7 @@ export async function GET(req: NextRequest) {
     const wb = XLSX.utils.book_new();
 
     const ws1 = XLSX.utils.aoa_to_sheet(kpiRows);
-    ws1["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+    ws1["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 14 }];
     XLSX.utils.book_append_sheet(wb, ws1, "Yönetici Özeti");
 
     const ws2 = XLSX.utils.aoa_to_sheet(matrixRows);
