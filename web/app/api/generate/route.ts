@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getDB } from "@/lib/db/client";
+import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import { logPlatformEvent } from "@/lib/platform-logger";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
@@ -119,14 +121,20 @@ export async function POST(req: NextRequest) {
     }
     void crewRows; // kullanılmayabilir, ileride eklenebilir
 
-    // Departmanları çek (departman bazlı kapasite matrisi için)
+    // Departmanları çek (departman bazlı kapasite matrisi için).
+    // /api/departments (frontend'in kullandığı, kanıtlanmış çalışan yol) ile aynı
+    // Drizzle sorgusu kullanılıyor — buradaki raw SQL uyumluluk katmanı üzerinden
+    // sessizce yutulan bir hata departmanlı lokasyonlarda departmentRows'un boş
+    // dönmesine ve locations.demand_matrix'in (hayalet talep) tekrar motora
+    // gönderilmesine yol açıyordu.
     let departmentRows: any[] = [];
     try {
-      departmentRows = (await db
-        .prepare(`SELECT * FROM departments WHERE location_id = $1`)
-        .all(branchId)) as any[];
-    } catch {
-      /* departments tablosu yoksa atla */
+      departmentRows = await drizzleDb
+        .select()
+        .from(departmentsTable)
+        .where(eq(departmentsTable.location_id, branchId));
+    } catch (err) {
+      console.error("[/api/generate] departments sorgusu başarısız:", err);
     }
 
     // Rotasyon şablonunu parse et
@@ -302,8 +310,13 @@ export async function POST(req: NextRequest) {
     // departmanlar eklenmeden önce girilmiş eski/artık veri, kullanıcının schedule
     // sayfasında hiç görmediği "hayalet" bir exact_coverage kısıtı olarak motora gidip
     // gereksiz INFEASIBLE sonuçlarına yol açıyordu.
+    // hasDepartments: departmentRows sorgusu (geçici bir sebeple) boş dönerse bile,
+    // personelin department_id'si varsa yine de departmanlı say — flat matrisi
+    // yanlışlıkla tekrar göndermeyi engelleyen ikinci bir güvenlik katmanı.
+    const hasDepartments =
+      departmentRows.length > 0 || personnelData.some((p) => !!p.department_id);
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
-    if (locationRow?.demand_matrix && departmentRows.length === 0) {
+    if (locationRow?.demand_matrix && !hasDepartments) {
       try {
         const parsed = JSON.parse(locationRow.demand_matrix);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
