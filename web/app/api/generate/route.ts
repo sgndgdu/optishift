@@ -296,9 +296,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Kapasite matrisi (departmansız lokasyonlar / eski format)
+    // Kapasite matrisi (departmansız lokasyonlar / eski format).
+    // Lokasyonda departman satırları varsa bu alan motora GÖNDERİLMEZ — talep artık
+    // departments.demand_matrix üzerinden yönetiliyor (bkz. CLAUDE.md §3.B). Aksi halde
+    // departmanlar eklenmeden önce girilmiş eski/artık veri, kullanıcının schedule
+    // sayfasında hiç görmediği "hayalet" bir exact_coverage kısıtı olarak motora gidip
+    // gereksiz INFEASIBLE sonuçlarına yol açıyordu.
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
-    if (locationRow?.demand_matrix) {
+    if (locationRow?.demand_matrix && departmentRows.length === 0) {
       try {
         const parsed = JSON.parse(locationRow.demand_matrix);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {

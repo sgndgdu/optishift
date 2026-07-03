@@ -1430,8 +1430,13 @@ export default function SchedulePage() {
     }
   }
 
-  // ShiftBoard için toplam talep (tüm dept matrislerinin toplamı; yoksa lokasyon geneli)
-  const hasDeptDemand = Object.keys(deptDemandMatrix).length > 0;
+  // ShiftBoard için toplam talep (tüm dept matrislerinin toplamı; yoksa lokasyon geneli).
+  // Departman VARLIĞINA bakılır, dolu olup olmamasına değil: lokasyonda departman satırları
+  // varsa talep her zaman departments.demand_matrix üzerinden yönetilir (bkz. CLAUDE.md §3.B).
+  // Aksi halde departmanlar henüz demand girilmemişken (hepsi boş), departmanlar eklenmeden
+  // önce girilmiş eski/artık lokasyon-geneli matris "hayalet" talep olarak görünürdü —
+  // hem UI'da hem /api/generate'e giden payload'da bu tutarsızlığa yol açıyordu.
+  const hasDeptDemand = departments.length > 0;
   const effectiveDemandMatrix: Record<string, Record<number, number>> = hasDeptDemand
     ? Object.values(deptDemandMatrix).reduce<Record<string, Record<number, number>>>((acc, matrix) => {
         for (const [defId, days] of Object.entries(matrix)) {
