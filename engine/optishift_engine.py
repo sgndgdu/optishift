@@ -117,6 +117,16 @@ def _shift_minutes(shift: dict) -> tuple:
     return start_min, end_min
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
+#
+# RESMİ FORMÜLÜN PLANLAMA-ANI YAKLAŞIMI (kaynak: web/lib/fairness.ts calcAssignmentBurden)
+# Bilinçli farklar — bunlar bug değildir, CP-SAT modeli gereğidir:
+#   1. int(round()) yuvarlama: CP-SAT tamsayı ister; TS tarafı ondalık tutar.
+#   2. Clopening çarpanı puana UYGULANMAZ — clopening ayrı bir soft ceza terimi
+#      olarak (×clopening_penalty_weight, varsayılan 30) objective'e girer.
+#   3. Kahraman (open shift claim) ve zorunlu atama çarpanları modellenmez —
+#      bunlar plan üretildikten SONRA oluşan olaylardır; kesin puan yayında
+#      web/lib/scoring.ts rescoreWeek() ile hesaplanır.
+# Çarpan değerleri ve *_enabled toggle'ları TS tarafıyla aynı rules anahtarlarından okunur.
 
 def shift_points(day: int, shift_id: int) -> float:
     """

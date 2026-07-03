@@ -99,7 +99,7 @@ Müdürün vardiyayı oluşturmadan önce esnetebileceği veya katılaştırabil
 - *Not:* Kurallar "Kritik" (Değiştirilemez) ve "Esnek" (Uyar ama izin ver) olarak ayrılır.
 - **Yayınlama Öncesi İhlal Özeti:** "Yayınla" öncesinde sistem tüm kural ihlallerini tarar ve bir modal gösterir: "3 personelde 11 saat ihlali, 1 personel 45 saati aşacak. Devam etmek istiyor musunuz?"
 - **Clopening Tespiti (OPTI-023):** Ardışık gün geçişinde dinlenme `rules.clopening_min_rest_hours` (varsayılan 13) saatin altındaysa (ama yasal 11 saatin üstündeyse) ihlal modalında "clopening (kapanış→açılış)" olarak isimlendirilir; kişi başı haftada 2+ clopening ayrıca özetlenir. OR-Tools motoru her clopening geçişine soft ceza (×30) uygular — alternatif varken kaçınır, mecbursa izin verir.
-- **Yayın Sonrası Değişiklik Telafisi (OPTI-023):** Yayınlanmış (published) bir vardiyanın saati değişirse — bugün veya gelecekteki vardiyalar için — personele `rules.change_compensation_points` (varsayılan 2) telafi puanı yazılır (`prev_score += puan × 0.8`, kahraman bonusu emsali) ve bildirim gider. Predictability pay'in puan karşılığıdır; geçmiş hafta düzeltmeleri telafi tetiklemez.
+- **Yayın Sonrası Değişiklik Telafisi (OPTI-023, 2026-07-03 rewrite):** Yayınlanmış (published) bir vardiyanın saati değişirse — bugün veya gelecekteki vardiyalar için — `score_adjustments` tablosuna `change_comp` olayı yazılır (`points = rules.change_compensation_points`, varsayılan 2) ve bildirim gider; kümülatif skor `recomputeLocationFairness()` ile deterministik olarak tazelenir. Predictability pay'in puan karşılığıdır; geçmiş hafta düzeltmeleri telafi tetiklemez.
 - **Yayın Öncülüğü KPI'ı (OPTI-023):** `shift_assignments.published_at` haftanın ilk yayın anını tutar. `/api/schedule/publish-stats?location_id=` son 8 haftanın `lead_days` (hafta başlangıcı − ilk yayın) ortalamasını döner. Müdür dashboard'unda KPI kartı, supervisor panelinde şube kartı sayacı olarak gösterilir: ≥7 gün yeşil, 3–7 amber, <3 kırmızı.
 
 ### E. Dinamik Mola (Break) Yönetimi
@@ -124,12 +124,21 @@ Vardiya oluşturma tek adımlı "Yayınla" değildir. Üç aşama desteklenir:
 Personel portalı sadece `status = 'published'` vardiyeleri gösterir.
 
 ### H. Adil Vardiya Puanı (Fairness Score) & Gamification
-- Her vardiya tipinin zorluk puanı vardır (müdür tanımlar: 1–10).
-- **Optimizasyon Hedefi:** OR-Tools, tüm personellerin toplam puanları arasındaki farkı (max − min) minimize eder.
-- **Tercih Edilmeyen Gün Telafisi:** Personelin sarı (preferred_not) işaretlediği güne atama yapılırsa vardiya puanı `rules.preferred_not_multiplier` ile çarpılır (varsayılan 1.5, settings'ten 1.0–3.0 ayarlanır). Motor sarı günden kaçınır (soft penalty) ama mecbur kalırsa fedakarlığı puanla telafi eder. Çarpan motor, publish fallback hesabı ve schedule sayfası client hesabının üçünde de uygulanır.
-- **Sarı Gün Hakkı (kötüye kullanım koruması):** Personel haftada en fazla `rules.max_preferred_not_days` gün sarı işaretleyebilir (varsayılan 1). Tüm haftayı sarıya boyayıp bedava çarpan toplamak engellenir. Hem portal UI'da (sayaç + uyarı) hem `/api/availability` POST'ta (400) uygulanır.
-- **Kriz Yönetimi:** Personel gelememe bildirimi yapınca shift "Açık Vardiya"ya düşer. Kabul eden personele 1.5x "Kahraman Bonusu" puanı verilir.
-- **Kümülatif Grafik:** Fairness sayfasında `score_history` tablosundan çekilen aylık trend grafiği gösterilir.
+
+**Resmi puan modeli (2026-07-03 rewrite — tek kaynak: `web/lib/fairness.ts`):**
+```
+yük (burden)  = zorluk(1-10) × saat × [hafta sonu ×1.2][gece ×1.3][sarı gün ×1.5][clopening ×1.2][kahraman ×1.5][zorunlu atama ×çarpan]
+kümülatif     = Σ(i=0..pencere-1) (haftalık_yük[i] + adjustment[i]) × decay^i   (varsayılan decay 0.85, pencere 8 hafta — rules.fairness_decay_factor / fairness_window_weeks)
+fairness_z    = (takım_ort − kişi_kümülatif) / stddev  →  fairnessLabel() Türkçe etiket
+```
+- Tüm çarpanlar ve `*_enabled` toggle'ları `locations.rules`'tan okunur; formülün çekirdeği `calcAssignmentBurden()`.
+- **Tek yazar kuralı:** `personnel.prev_score` türetilmiş bir ÖNBELLEKTİR — asla doğrudan `+=` yazılmaz. Tek yazar `web/lib/scoring.ts`: `rescoreWeek()` (haftayı deterministik puanlar, score_history DELETE+INSERT — re-publish idempotent) ve `recomputeLocationFairness()` (kümülatif + z recompute).
+- **Vardiyaya bağlı bonuslar çarpandır:** kahraman (open shift claim → o vardiyanın yükü ×hero_bonus_multiplier) ve kabul edilmiş zorunlu atama (×force_bonus_multiplier) yük formülünün içindedir; claim/kabul anında `rescoreWeek()` çağrılır.
+- **Vardiyaya bağlı olmayan puanlar olaydır:** `score_adjustments` tablosu (type: `change_comp` | `manual`) — örn. yayın sonrası saat değişikliği telafisi. Kümülatif hesap adjustment'ları haftasına göre decay penceresine katar.
+- **Motor (planlama-anı yaklaşımı):** OR-Tools aynı çarpanları kullanır ama int yuvarlar, clopening'i puana değil ayrı soft cezaya koyar, kahraman/zorunlu atamayı modellemez (bunlar plan sonrası olaylardır) — bilinçli farklar `optishift_engine.py` başındaki blokta belgelidir. Optimizasyon hedefi: part-time ağırlıklı toplam puanların (max − min) farkını minimize etmek.
+- **Tercih Edilmeyen Gün Telafisi:** Sarı güne atama → yük ×`rules.preferred_not_multiplier` (varsayılan 1.5). Motor sarı günden kaçınır (soft penalty), mecbursa puanla telafi eder.
+- **Sarı Gün Hakkı:** Haftada en fazla `rules.max_preferred_not_days` gün (varsayılan 1); portal UI + `/api/availability` POST (400) uygular.
+- **Kümülatif Grafik:** Fairness sayfasında `score_history`'den trend; schedule sayfası canlı hücre puanını `cellBurden()` (aynı çekirdek) ile gösterir, "kesin puan yayında hesaplanır".
 
 ### I. Raporlama & Dışa Aktarma (Export)
 - Oluşturulan vardiya tek tıkla iki sekmeli **Excel (.xlsx)** olarak indirilir.
@@ -315,6 +324,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - Schedule sayfası: motor çağrılmadan önce aynı kapasite/personel çelişkisini tespit eden client-side ön-kontrol (`capacityWarnings`) + kırmızı uyarı bandı; "müsaitlik girilmemiş" banner'ı artık bunun engelleyici olmadığını açıkça belirtiyor
   - Kapasite Planı hücrelerinde "maks N kişi" ipucu — hücre başına değil, satır/departman başlığında bir kez gösteriliyor (görsel kalabalığı önlemek için); bir hücre değeri, aynı günün aynı departmandaki diğer vardiyalarına zaten girilmiş sayı düşülerek hesaplanan "kalan kapasite"yi aşarsa kırmızıya dönüyor
 - [x] **"Müsaitlik Toplama" Toggle — Müdürün Tek Başına Planlama Modu (2026-07-03):** `rules.availability_collection_enabled` alanı + Settings toggle'ı; kapalıyken schedule sayfası müsaitlik uyarıları susturulur, portal Müsaitlik nav/sayfası kapatılır, remind endpoint'i inert olur (bkz. §3.C ilk madde). Motor ve `/api/generate` değişmedi.
+- [x] **Adalet Motoru Rewrite — Faz 1: Tutarlılık Çekirdeği (2026-07-03):** Resmi model §3.H'de. Düzeltilen gizli buglar: (1) schedule + Excel'deki efsane formül (`saat×1.5+2`, base_points'siz) → `calcAssignmentBurden`; (2) publish'te kahraman çarpanı hiç işlemiyordu (`sa.id` seçilmiyordu, `os.date=Pazartesi` join'i) → `rescoreWeek` içinde kişi|gün|saat eşlemesi; (3) client taslakları `shift_id` göndermiyordu → publish puanlaması herkese base_points=5 uyguluyordu; (4) dört ad-hoc `prev_score` yazarı (kahraman ×0.8, telafi +1.6, zorunlu atama +12, personnel PATCH ham yazma) → tek yazar `lib/scoring.ts` + `score_adjustments` olay tablosu. Re-publish artık idempotent rescore (eskiden `alreadyScored` kalıcı engeldi). Vitest kuruldu (`npm test`, `lib/__tests__/fairness.test.ts`, 22 test). **Faz 2 (şeffaflık UI) bekliyor:** `/api/fairness/me` + portal puan kartı + fairness sayfası kırılım satırları + popover "neden bu puan" dökümü.
 
 ---
 
@@ -406,7 +416,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 - **Rol kontrolü:** Backend `user.role` mutlaka kontrol eder. Frontend güvenlik değil, gösterim kolaylığı içindir.
 - **Shift saatleri:** Hardcoded "sabah/akşam" yok. Her zaman `HH:MM` formatında `start_time` / `end_time`. Shift tipleri müdür tanımlar.
 - **Status:** Yeni shift'ler `status = 'draft'` ile kaydedilebilir; personel portalı sadece `published` görür.
-- **Adalet puanı:** `prev_score` kümülatif toplam değil, ağırlıklı dönem ortalaması. Her ay eski puan %20 ağırlıkla taşınır.
+- **Adalet puanı:** `prev_score` türetilmiş bir ÖNBELLEKTİR — asla doğrudan `+=` yazılmaz. Tek yazar `web/lib/scoring.ts` (`rescoreWeek` / `recomputeLocationFairness`); formülün tek kaynağı `web/lib/fairness.ts`. Vardiya dışı puanlar `score_adjustments` olayı olarak yazılır (bkz. §3.H).
 - **Yeni tablo:** `schema.ts` → `types.ts` → `npx drizzle-kit push`.
 - **Bileşenler:** `shadcn/ui`. Stil için `globals.css` CSS variable'ları. Inline Tailwind renk hardcode etme.
 - **Demand matrix:** OR-Tools'a gönderilirken format: `{ [shiftDefId]: { [day: 0-6]: exactCount } }`. Motor `exact_coverage` constraint ile çalışır.
