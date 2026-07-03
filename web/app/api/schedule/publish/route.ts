@@ -3,15 +3,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
-import {
-  calcWeeklyBurden,
-  calcCumulativeRolling,
-  calcFairnessZ,
-  type ShiftDef,
-  type Rules,
-  type AssignmentInput,
-  type AvailabilityInput,
-} from "@/lib/fairness";
+import { rescoreWeek } from "@/lib/scoring";
+import { type ShiftDef } from "@/lib/fairness";
 
 
 export async function POST(req: NextRequest) {
@@ -40,118 +33,11 @@ export async function POST(req: NextRequest) {
     const shiftDefs: ShiftDef[] = loc.shift_definitions
       ? (typeof loc.shift_definitions === "string" ? JSON.parse(loc.shift_definitions) : loc.shift_definitions)
       : [];
-    const rules: Rules = loc.rules
-      ? (typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules)
-      : {};
 
-    // ── 1. Bu haftanın atamaları ─────────────────────────────────────────────
-    const weekRows = await db.prepare(`
-      SELECT sa.personnel_id, sa.day, sa.shift_id, sa.start_time, sa.end_time
-      FROM shift_assignments sa
-      WHERE sa.location_id = ? AND sa.week_start = ?
-        AND sa.start_time IS NOT NULL AND sa.end_time IS NOT NULL
-    `).all(location_id, week_start) as any[];
-
-    // Kahraman bonuslu atamaları bul (open_shifts'ten claim edilenler)
-    const heroShiftIds = new Set<number>(
-      (await db.prepare(`
-        SELECT sa.id FROM shift_assignments sa
-        JOIN open_shifts os ON os.location_id = sa.location_id AND os.date = ?
-        WHERE os.status = 'claimed' AND os.claimed_by = sa.personnel_id
-          AND sa.week_start = ?
-      `).all(week_start.slice(0, 10), week_start) as any[]).map((r: any) => r.id)
-    );
-
-    const assignments: AssignmentInput[] = weekRows.map((r: any) => ({
-      personnel_id: r.personnel_id,
-      day: r.day,
-      shift_id: r.shift_id,
-      start_time: r.start_time,
-      end_time: r.end_time,
-      is_hero: heroShiftIds.has(r.id),
-    }));
-
-    // ── 2. Müsaitlik bilgileri ────────────────────────────────────────────────
-    const personnelIds = [...new Set(assignments.map(a => a.personnel_id))];
-    const availRows: AvailabilityInput[] = personnelIds.length
-      ? (await db.prepare(`
-          SELECT personnel_id, day_0, day_1, day_2, day_3, day_4, day_5, day_6
-          FROM availability
-          WHERE personnel_id IN (${personnelIds.map(() => "?").join(",")}) AND week_start = ?
-        `).all(...personnelIds, week_start) as any[])
-      : [];
-
-    // ── 3. Bu haftanın burden breakdown'ı ────────────────────────────────────
-    const weeklyBreakdowns = calcWeeklyBurden(assignments, shiftDefs, availRows, rules);
-
-    // ── 4. Her personel için rolling cumulative burden hesapla ────────────────
-    const alreadyScored = await db.prepare(
-      `SELECT 1 FROM score_history WHERE location_id = ? AND week_start = ? LIMIT 1`
-    ).get(location_id, week_start);
-
-    if (!alreadyScored) {
-      const cumulativeByPid: Record<string, number> = {};
-
-      for (const breakdown of weeklyBreakdowns) {
-        const pid = breakdown.personnel_id;
-
-        // Son 7 haftanın geçmişi (bu hafta hariç)
-        const history = await db.prepare(`
-          SELECT week_start, burden_score
-          FROM score_history
-          WHERE personnel_id = ? AND location_id = ? AND week_start < ?
-          ORDER BY week_start DESC
-          LIMIT 7
-        `).all(pid, location_id, week_start) as any[];
-
-        const cumulative = calcCumulativeRolling(
-          history.map((h: any) => ({ week_start: h.week_start, burden_score: h.burden_score ?? h.score ?? 0 })).reverse(),
-          breakdown.burden_score,
-        );
-        cumulativeByPid[pid] = cumulative;
-      }
-
-      // ── 5. Fairness z-score (tüm takım için aynı anda) ───────────────────
-      const zScores = calcFairnessZ(cumulativeByPid);
-
-      // ── 6. score_history + personnel güncelle ─────────────────────────────
-      const insertHistory = await db.prepare(`
-        INSERT INTO score_history (
-          org_id, location_id, personnel_id, personnel_name, week_start,
-          score, total_hours, raw_score, burden_score,
-          weekend_shifts, night_shifts, pref_not_shifts, clopening_count,
-          cumulative_burden, fairness_z_score, hero_count, no_show_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT DO NOTHING
-      `);
-
-      const updatePersonnel = await db.prepare(`
-        UPDATE personnel SET prev_score = ?, fairness_z_score = ? WHERE id = ?
-      `);
-
-      const personnelNames: Record<string, string> = {};
-      for (const row of await db.prepare(`SELECT id, name, hero_count, no_show_count FROM personnel WHERE org_id = ?`).all(auth.org_id) as any[]) {
-        personnelNames[row.id] = row.name;
-      }
-
-      for (const bd of weeklyBreakdowns) {
-        const pid = bd.personnel_id;
-        const cumulative = cumulativeByPid[pid] ?? bd.burden_score;
-        const z = zScores[pid] ?? 0;
-        const pRow = await db.prepare(`SELECT hero_count, no_show_count FROM personnel WHERE id = ?`).get(pid) as any;
-
-        await insertHistory.run(
-          auth.org_id, location_id, pid, personnelNames[pid] ?? pid, week_start,
-          bd.burden_score, // score alanı (eski uyumluluk)
-          bd.total_hours, bd.raw_score, bd.burden_score,
-          bd.weekend_shifts, bd.night_shifts, bd.pref_not_shifts, bd.clopening_count,
-          cumulative, z,
-          pRow?.hero_count ?? 0, pRow?.no_show_count ?? 0,
-        );
-
-        await updatePersonnel.run(cumulative, z, pid);
-      }
-    }
+    // ── 1-6. Haftayı deterministik olarak puanla ─────────────────────────────
+    // score_history DELETE+INSERT + kümülatif/z recompute — re-publish idempotent.
+    // Kahraman ve zorunlu atama çarpanları lib/scoring.ts içinde uygulanır.
+    await rescoreWeek(auth.org_id, location_id, week_start);
 
     // ── 7. Bildirimler ────────────────────────────────────────────────────────
     const activePersonnel = await db.prepare(`

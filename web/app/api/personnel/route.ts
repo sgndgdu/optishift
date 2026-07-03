@@ -192,7 +192,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, prev_score, roles, weekly_off_day, crew_id } = body;
+    // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
+    // lib/scoring.ts recompute'udur. Manuel düzeltme için score_adjustments (type: manual).
+    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id } = body;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -205,11 +207,10 @@ export async function PATCH(req: NextRequest) {
       employment_type=COALESCE(?,employment_type), status=COALESCE(?,status),
       max_weekly_hours=COALESCE(?,max_weekly_hours), min_weekly_hours=COALESCE(?,min_weekly_hours),
       user_access_level=COALESCE(?,user_access_level),
-      prev_score=COALESCE(?,prev_score),
       roles=COALESCE(?,roles),
       updated_at=? WHERE id=?
     `).run(name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours ?? null,
-      user_access_level, prev_score ?? null,
+      user_access_level,
       roles !== undefined ? JSON.stringify(roles) : null, now, id);
 
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata

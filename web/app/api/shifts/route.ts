@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
+import { db as drizzleDb } from "@/lib/db";
+import { scoreAdjustments } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { recomputeLocationFairness } from "@/lib/scoring";
+import { getWeekStart } from "@/lib/date";
 
 
 // GET: Personelin vardiyalarını getir
@@ -95,6 +99,8 @@ export async function POST(req: NextRequest) {
     const results: any[] = [];
     const errors: string[] = [];
     const compensations: { personnel_id: string; points: number }[] = [];
+    // Telafi olayı yazılan lokasyonlar — dönüş öncesi kümülatif skorları tazelenir
+    const compAffectedLocations = new Set<string>();
     // Force assignment detection: items collected during transaction, processed after
     const forceItems: { personnel_id: string; location_id: string; week_start: string; day: number; shift_id_db: number; start_time: string | null; end_time: string | null; prevForceStatus: string | null }[] = [];
 
@@ -117,10 +123,6 @@ export async function POST(req: NextRequest) {
     const getMinRestMin = async (locId: string): Promise<number> => {
       const r = await getLocRules(locId);
       return (typeof r.min_rest_hours === "number" ? r.min_rest_hours : 11) * 60;
-    };
-    const getCompDecay = async (locId: string): Promise<number> => {
-      const r = await getLocRules(locId);
-      return typeof r.comp_decay_factor === "number" ? r.comp_decay_factor : 0.8;
     };
 
     const todayStr = new Date().toISOString().split("T")[0];
@@ -219,9 +221,20 @@ export async function POST(req: NextRequest) {
               if (shiftDate.toISOString().split("T")[0] >= todayStr && compEnabled) {
                 const compPts = await getCompPoints(location_id);
                 if (compPts > 0) {
-                  // Hero bonusu emsali: prev_score ağırlıklı ortalama olduğu için ×0.8 ile eklenir
-                  await db.prepare(`UPDATE personnel SET prev_score = ROUND(COALESCE(prev_score, 0) + ?, 2) WHERE id = ?`)
-                    .run(Math.round(compPts * (await getCompDecay(location_id)) * 100) / 100, personnel_id);
+                  // Telafi bir puan OLAYIDIR: score_adjustments'a yazılır, kümülatif
+                  // skor recompute ile güncellenir — prev_score'a doğrudan += yok.
+                  await drizzleDb.insert(scoreAdjustments).values({
+                    org_id: auth.org_id,
+                    location_id,
+                    personnel_id,
+                    type: "change_comp",
+                    points: compPts,
+                    week_start,
+                    ref_id: String(existing.id),
+                    note: `Yayın sonrası saat değişikliği: ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time}`,
+                    created_by: auth.id,
+                  });
+                  compAffectedLocations.add(location_id);
                   await db.prepare(`
                     INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
                     VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', false, ?)
@@ -308,6 +321,11 @@ export async function POST(req: NextRequest) {
         `Müdürünüz sizi ${fn.dateLabel}${timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz ×${fn.multiplier} bonus puan kazanırsınız.`,
         now,
       );
+    }
+
+    // Telafi olayları yazıldıysa kümülatif skorları (prev_score önbelleği) tazele
+    for (const locId of compAffectedLocations) {
+      await recomputeLocationFairness(auth.org_id, locId, getWeekStart());
     }
 
     if (errors.length > 0) {

@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { rescoreWeek } from "@/lib/scoring";
 
 
 const DAY_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -100,19 +101,18 @@ export async function PATCH(req: NextRequest) {
 
     if (action === "accept") {
       const multiplier = shiftRow.force_bonus_multiplier ?? 1.5;
-      // Hero bonus: mevcut puana ×0.8 ile eklenir (open shift kahraman bonusu emsali)
-      const bonusPoints = Math.round(multiplier * 10 * 0.8 * 100) / 100; // 1.5 multiplier → +12 puan emsali
 
       await db.prepare(`
         UPDATE shift_assignments SET force_acceptance_status = 'accepted' WHERE id = ?
       `).run(shift_id);
 
       await db.prepare(`
-        UPDATE personnel SET
-          hero_count = COALESCE(hero_count, 0) + 1,
-          prev_score = ROUND(COALESCE(prev_score, 0) + ?, 2)
-        WHERE id = ?
-      `).run(bonusPoints, shiftRow.personnel_id);
+        UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?
+      `).run(shiftRow.personnel_id);
+
+      // Bonus, o vardiyanın yük puanına ×force_bonus_multiplier çarpanı olarak işlenir —
+      // prev_score'a düz puan eklenmez, hafta deterministik yeniden puanlanır.
+      await rescoreWeek(auth.org_id, shiftRow.location_id, shiftRow.week_start);
 
       // Personele onay bildirimi
       await db.prepare(`
@@ -120,7 +120,7 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', false, ?)
       `).run(
         shiftRow.personnel_id,
-        `${dateLabel}${timeStr} vardiyasını kabul ettin. +${bonusPoints} bonus puan hesabına eklendi.`,
+        `${dateLabel}${timeStr} vardiyasını kabul ettin. Bu vardiyanın puanı ×${multiplier} bonus çarpanıyla hesaplanacak.`,
         now,
       );
 
@@ -142,7 +142,7 @@ export async function PATCH(req: NextRequest) {
           );
         }
       }
-      return NextResponse.json({ success: true, action: "accepted", bonus_points: bonusPoints });
+      return NextResponse.json({ success: true, action: "accepted", bonus_multiplier: multiplier });
     }
 
     // Reject

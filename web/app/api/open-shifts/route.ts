@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendPushToPersonnel } from "@/lib/notifications";
+import { rescoreWeek } from "@/lib/scoring";
 
 
 function getDb() {
@@ -142,29 +143,15 @@ export async function PATCH(req: NextRequest) {
         WHERE personnel_id = ? AND week_start = ? AND day = ? AND start_time = ?
       `).get(claimed_by, week_start, dayIdx, os.start_time);
       if (!dup) {
-        // Kahraman bonusu puanı: vardiya tanımındaki base_points × bonus çarpanı
-        const heroMult = os.hero_bonus_multiplier ?? 1.5;
-        let heroPts = 0;
-        try {
-          const locRow = await db.prepare(`SELECT shift_definitions FROM locations WHERE id = ?`).get(os.location_id) as any;
-          const defs = JSON.parse(locRow?.shift_definitions || "[]");
-          const def = defs.find((x: any) => x.start === os.start_time && x.end === os.end_time)
-                   ?? defs.find((x: any) => x.start === os.start_time);
-          heroPts = Math.round((def?.base_points ?? 5) * heroMult * 10) / 10;
-        } catch { heroPts = 0; }
-
         await db.prepare(`
           INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, points, status, publication_status, created_at)
-          VALUES (?, ?, ?, ?, 'open-shift', ?, ?, ?, 'scheduled', 'published', ?)
-        `).run(claimed_by, os.location_id, week_start, dayIdx, os.start_time, os.end_time, heroPts, now);
-
-        // Puanı adalet skoruna işle — haftalık formülle tutarlı (yeni = eski×0.2 + hafta×0.8
-        // olduğundan, hafta puanına sonradan eklenen k puan skora k×0.8 olarak yansır)
-        if (heroPts > 0) {
-          await db.prepare(`UPDATE personnel SET prev_score = ROUND(COALESCE(prev_score, 0) + ?, 2) WHERE id = ?`)
-            .run(Math.round(heroPts * 0.8 * 100) / 100, claimed_by);
-        }
+          VALUES (?, ?, ?, ?, 'open-shift', ?, ?, 0, 'scheduled', 'published', ?)
+        `).run(claimed_by, os.location_id, week_start, dayIdx, os.start_time, os.end_time, now);
       }
+
+      // Kahraman çarpanı (×hero_bonus_multiplier) yük formülünde uygulanır —
+      // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
+      await rescoreWeek(auth.org_id, os.location_id, week_start);
 
       // Kahramana onay bildirimi
       await db.prepare(`
