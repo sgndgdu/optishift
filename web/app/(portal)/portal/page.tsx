@@ -41,6 +41,8 @@ export default function PortalDashboard() {
   const [checkInLoading,setCheckInLoading]= useState(false);
   const [elapsed,       setElapsed]       = useState("");
   const [now,           setNow]           = useState(new Date());
+  const [fairness,      setFairness]      = useState<any>(null); // /api/fairness/me — kendi puanı + etiket + döküm
+  const [fairnessOpen,  setFairnessOpen]  = useState(false);
 
   // clock tick
   useEffect(() => {
@@ -55,12 +57,14 @@ export default function PortalDashboard() {
     const ws  = getWeekStart(0);
     const nws = getWeekStart(1);
     try {
-      const [shiftData, notifData, availData, personnelData] = await Promise.all([
+      const [shiftData, notifData, availData, personnelData, fairnessData] = await Promise.all([
         fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}`).then(r => r.json()),
         fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
         fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
+        fetch(`/api/fairness/me`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
+      setFairness(fairnessData && !fairnessData.error ? fairnessData : null);
       setShifts(Array.isArray(shiftData) ? shiftData : []);
       setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
@@ -367,13 +371,25 @@ export default function PortalDashboard() {
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <button
+          onClick={() => fairness && setFairnessOpen(o => !o)}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-left hover:shadow-md transition-shadow"
+        >
           <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-3">
             <TrendingUp size={18} />
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{user.prev_score ?? 0}</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">
+            {Math.round(((fairness?.score ?? user.prev_score) ?? 0) * 10) / 10}
+          </p>
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Adalet Puanı</p>
-        </div>
+          {fairness?.label && (
+            <span className={`inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              fairness.label.level === "high" ? "bg-red-50 text-red-600"
+              : fairness.label.level === "low" ? "bg-emerald-50 text-emerald-600"
+              : "bg-slate-100 text-slate-500"
+            }`}>{fairness.label.text}</span>
+          )}
+        </button>
         <Link href="/portal/calendar" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 block hover:shadow-md transition-shadow">
           <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">
             <Clock size={18} />
@@ -389,6 +405,73 @@ export default function PortalDashboard() {
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Bu Hafta</p>
         </Link>
       </div>
+
+      {/* ── Adalet puanı dökümü (karta tıklayınca açılır) ────────────────── */}
+      {fairnessOpen && fairness && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-slate-900 text-sm">Puanın nasıl oluştu?</h3>
+            <span className="text-[10px] text-slate-400 font-medium">Son 8 hafta · yeni haftalar daha ağır sayılır</span>
+          </div>
+
+          {fairness.history.length > 0 ? (
+            <>
+              {/* Haftalık yük mini grafiği */}
+              <div className="flex items-end gap-1.5 h-16">
+                {fairness.history.map((h: any) => {
+                  const max = Math.max(...fairness.history.map((x: any) => x.burden_score), 1);
+                  return (
+                    <div key={h.week_start} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full bg-indigo-100 rounded-md relative overflow-hidden" style={{ height: "100%" }}>
+                        <div className="absolute bottom-0 w-full bg-indigo-400 rounded-md" style={{ height: `${(h.burden_score / max) * 100}%` }} />
+                      </div>
+                      <span className="text-[8px] text-slate-400 font-semibold">
+                        {new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "numeric" })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Son haftanın kırılımı */}
+              {(() => {
+                const last = fairness.history[fairness.history.length - 1];
+                return (
+                  <div className="text-xs text-slate-500 space-y-1">
+                    <p className="font-bold text-slate-700">Son hafta ({new Date(last.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}): {Math.round(last.burden_score * 10) / 10} yük puanı · {Math.round(last.total_hours * 10) / 10} saat</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {last.weekend_shifts > 0 && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.weekend_shifts} hafta sonu</span>}
+                      {last.night_shifts > 0 && <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.night_shifts} gece</span>}
+                      {(last.pref_not_shifts ?? 0) > 0 && <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.pref_not_shifts} sarı gün (telafili)</span>}
+                      {last.clopening_count > 0 && <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.clopening_count} kapanış→açılış</span>}
+                      {fairness.hero_count > 0 && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">🦸 {fairness.hero_count} kahramanlık</span>}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <p className="text-xs text-slate-400">Henüz yayınlanmış bir haftan yok — ilk vardiya haftan yayınlanınca puanın burada oluşmaya başlar.</p>
+          )}
+
+          {/* Telafi / bonus olayları */}
+          {fairness.adjustments.length > 0 && (
+            <div className="border-t border-slate-100 pt-3 space-y-1.5">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Telafi Puanları</p>
+              {fairness.adjustments.slice(0, 5).map((a: any, i: number) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Son dakika değişiklik telafisi" : "Manuel düzeltme")}</span>
+                  <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-[10px] text-slate-300 leading-relaxed">
+            Puan = vardiya zorluğu × saat × çarpanlar (hafta sonu, gece{fairness.history.some((h: any) => "pref_not_shifts" in h) ? ", tercih etmediğin günler" : ""}). Yüksek puan = daha çok yük taşıdın; sistem yeni haftalarda dengeyi senin lehine kurar.
+          </p>
+        </div>
+      )}
 
       {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
       <div>

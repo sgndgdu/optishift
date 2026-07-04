@@ -35,6 +35,7 @@ export default function FairnessPage() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [scoreHist, setScoreHist] = useState<Record<string, any[]>>({});
   const [heroEvents, setHeroEvents] = useState<any[]>([]);
+  const [adjustments, setAdjustments] = useState<any[]>([]);
   const [shiftDefs, setShiftDefs] = useState<any[]>([]);
   const [rules, setRules] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -64,16 +65,19 @@ export default function FairnessPage() {
   async function load(lid: string) {
     setLoading(true);
     try {
-      const [locRes, pRes, osRes, histRes] = await Promise.all([
+      const [locRes, pRes, osRes, histRes, adjRes] = await Promise.all([
         fetch(`/api/locations?id=${lid}`),
         fetch(`/api/personnel?location_id=${lid}`),
         fetch(`/api/open-shifts?location_id=${lid}`),
         fetch(`/api/score-history?location_id=${lid}&weeks=8`),
+        fetch(`/api/score-adjustments?location_id=${lid}`),
       ]);
       const locData  = await locRes.json();
       const pData    = await pRes.json();
       const osData   = await osRes.json();
       const histData = await histRes.json();
+      const adjData  = await adjRes.json();
+      setAdjustments(Array.isArray(adjData) ? adjData : []);
 
       const loc = Array.isArray(locData) ? locData[0] : locData;
       const defs = loc?.shift_definitions
@@ -194,7 +198,7 @@ export default function FairnessPage() {
               <p className="font-semibold">Henüz veri yok.</p>
             </div>
           ) : view === "current" ? (
-            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} liveZ={liveZ} />
+            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} liveZ={liveZ} scoreHist={scoreHist} adjustments={adjustments} />
           ) : (
             <HistoryView personnel={personnel} scoreHist={scoreHist} />
           )}
@@ -315,25 +319,40 @@ function CurrentView({
   maxBurden,
   gap,
   liveZ,
+  scoreHist,
+  adjustments,
 }: {
   personnel: any[];
   avgBurden: number;
   maxBurden: number;
   gap: number;
   liveZ: Record<string, number>;
+  scoreHist: Record<string, any[]>;
+  adjustments: any[];
 }) {
   const sorted = [...personnel].sort((a, b) => (b.prev_score ?? 0) - (a.prev_score ?? 0));
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-2.5">
       {sorted.map(p => {
         const burden = p.prev_score ?? 0;
-        const z = liveZ[p.id] ?? p.fairness_z_score ?? 0;
+        // Rescore sonrası stored z otoritedir; hiç puanlanmamış lokasyonda canlı hesaba düşülür
+        const z = (typeof p.fairness_z_score === "number" && p.fairness_z_score !== 0)
+          ? p.fairness_z_score
+          : (liveZ[p.id] ?? 0);
         const { text: fairnessText, level } = fairnessLabel(z);
         const color = burdenColor(burden, avgBurden);
+        const isExpanded = expandedId === p.id;
+        const pHist = scoreHist[p.id] ?? [];
+        const pAdjs = adjustments.filter(a => a.personnel_id === p.id);
 
         return (
-          <div key={p.id} className="flex items-center gap-2 md:gap-3">
+          <div key={p.id}>
+          <button
+            onClick={() => setExpandedId(isExpanded ? null : p.id)}
+            className={cn("w-full flex items-center gap-2 md:gap-3 rounded-xl px-1 py-0.5 transition-colors text-left", isExpanded ? "bg-indigo-50/60" : "hover:bg-slate-50")}
+          >
             {/* Avatar */}
             <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0">
               {p.name.charAt(0)}
@@ -382,6 +401,56 @@ function CurrentView({
                 </span>
               )}
             </div>
+          </button>
+
+          {/* Kırılım — neden bu puan? */}
+          {isExpanded && (
+            <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
+              {pHist.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-slate-400 font-semibold text-left">
+                        <th className="pr-3 pb-1 font-semibold">Hafta</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Yük</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Saat</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Hf.sonu</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Gece</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Sarı</th>
+                        <th className="pb-1 font-semibold text-right">Clopening</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-600 tabular-nums">
+                      {[...pHist].slice(-4).reverse().map((h: any) => (
+                        <tr key={h.week_start} className="border-t border-slate-100">
+                          <td className="pr-3 py-1">{new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}</td>
+                          <td className="pr-3 py-1 text-right font-bold">{Math.round((h.burden_score ?? 0) * 10) / 10}</td>
+                          <td className="pr-3 py-1 text-right">{Math.round((h.total_hours ?? 0) * 10) / 10}</td>
+                          <td className="pr-3 py-1 text-right">{h.weekend_shifts ?? 0}</td>
+                          <td className="pr-3 py-1 text-right">{h.night_shifts ?? 0}</td>
+                          <td className="pr-3 py-1 text-right">{h.pref_not_shifts ?? 0}</td>
+                          <td className="py-1 text-right">{h.clopening_count ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400">Henüz yayınlanmış hafta puanı yok.</p>
+              )}
+              {pAdjs.length > 0 && (
+                <div className="border-t border-slate-200/60 pt-2 space-y-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Puan Olayları</p>
+                  {pAdjs.slice(0, 5).map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Manuel düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
+                      <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           </div>
         );
       })}

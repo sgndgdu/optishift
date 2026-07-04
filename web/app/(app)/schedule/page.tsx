@@ -2689,17 +2689,33 @@ export default function SchedulePage() {
             <p className="text-xs text-slate-400 text-center py-6">Personel yok</p>
           ) : (
             <div className="space-y-3.5">
-              {[...personScores].sort((a, b) => b.score - a.score).map(s => (
+              {[...personScores].sort((a, b) => b.score - a.score).map(s => {
+                // Bu haftanın canlı çarpan sayaçları — hücrelerden türetilir
+                let wknd = 0, nght = 0, prfn = 0;
+                for (const [key, val] of Object.entries(cellMap)) {
+                  if (!key.startsWith(`${s.id}-`)) continue;
+                  const day = parseInt(key.slice(key.lastIndexOf("-") + 1));
+                  if (day === 5 || day === 6) wknd++;
+                  if (matchShiftDef(val.startMin, val.endMin, shiftDefs)?.is_night) nght++;
+                  if (availMap[s.id]?.[day]?.status === "preferred_not") prfn++;
+                }
+                return (
                 <div key={s.id}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{s.name}</span>
-                    <span className="text-xs font-bold text-slate-400 tabular-nums">{Math.round(s.score * 10) / 10}</span>
+                    <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{s.name}</span>
+                    <span className="flex items-center gap-1">
+                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd}hs</span>}
+                      {nght > 0 && <span className="text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
+                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} sarı gün ataması (telafili)`}>{prfn}!</span>}
+                      <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5">{Math.round(s.score * 10) / 10}</span>
+                    </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all duration-300", scoreColor(s.score, maxScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
