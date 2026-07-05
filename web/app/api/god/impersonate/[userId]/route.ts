@@ -44,8 +44,23 @@ export async function POST(
     if (user.role === "employee") redirect = "/portal";
     else if (user.role === "supervisor") redirect = "/supervisor";
 
+    // Client, portal localStorage anahtarını doldurabilsin diye login yanıtıyla
+    // aynı şekilde user objesi de döndürülür
+    const userData = {
+      id: user.id,
+      personnel_id: user.personnel_id ?? null,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      org_id: user.org_id,
+      location_id: user.location_id ?? null,
+      department_id: user.department_id ?? null,
+      name: user.name,
+      is_temp_password: !!user.is_temp_password,
+    };
+
     // Oturum cookie'si ile impersonation cookie'si birlikte set
-    const res = NextResponse.json({ ok: true, redirect });
+    const res = NextResponse.json({ ok: true, redirect, user: userData });
     res.cookies.set("optishift_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

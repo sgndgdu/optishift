@@ -8,16 +8,11 @@ import AccountTab from "@/components/AccountTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ERP_SYSTEMS } from "@/lib/erp";
 
 const ERP_OPTIONS = [
-  { value: "none",               label: "Bağlı Değil",           desc: "ERP entegrasyonu yok" },
-  { value: "SAP_SuccessFactors", label: "SAP SuccessFactors",     desc: "SAP S/4HANA & SuccessFactors REST API" },
-  { value: "SAP_ECC",            label: "SAP ECC",                desc: "SAP ECC 6.0 / R/3 RFC/BAPI" },
-  { value: "Nebim_V3",           label: "Nebim V3",               desc: "Nebim V3 REST API" },
-  { value: "Logo",               label: "Logo Yazılım",           desc: "Logo / Netsis n8n entegrasyon şablonu" },
-  { value: "Mikro",              label: "Mikro ERP",              desc: "Mikro ERP MSSQL tünel" },
-  { value: "Luca",               label: "Luca",                   desc: "Luca Bulut API" },
-  { value: "Orka",               label: "Orka",                   desc: "Orka Bordro API + Excel/CSV aktarımı" },
+  { value: "none", label: "Bağlı Değil", desc: "ERP entegrasyonu yok" },
+  ...ERP_SYSTEMS.map(({ value, label, desc }) => ({ value, label, desc })),
 ];
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -46,6 +41,7 @@ export default function SupervisorSettingsPage() {
   const [selectedErp, setSelectedErp] = useState("none");
   const [erpSaving, setErpSaving] = useState(false);
   const [erpSaved, setErpSaved] = useState(false);
+  const [erpError, setErpError] = useState("");
 
 
   useEffect(() => {
@@ -110,15 +106,22 @@ export default function SupervisorSettingsPage() {
 
   const handleSaveErp = async () => {
     setErpSaving(true);
+    setErpError("");
     try {
-      await fetch(`/api/admin/organizations?id=${user.org_id}`, {
+      const res = await fetch("/api/organizations", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connected_erp: selectedErp === "none" ? null : selectedErp }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? "Kaydedilemedi");
+      }
       setErpSaved(true);
       setTimeout(() => setErpSaved(false), 2000);
-    } catch {}
+    } catch (err) {
+      setErpError(err instanceof Error ? err.message : "Kaydedilemedi");
+    }
     setErpSaving(false);
   };
 
@@ -309,6 +312,9 @@ export default function SupervisorSettingsPage() {
               </button>
             ))}
           </div>
+          {erpError && (
+            <p className="text-sm text-red-600 font-medium">{erpError}</p>
+          )}
           <div className="flex justify-end pt-2">
             <Button
               onClick={handleSaveErp}

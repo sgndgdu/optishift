@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, RefreshCw, Scale } from "lucide-react";
-import type { Location, ShiftDefinition, Department, Role, Crew, RotationTemplate } from "@/lib/types";
+import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, Scale } from "lucide-react";
+import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 
@@ -13,16 +13,16 @@ const CREW_COLORS = [
   "#8b5cf6", "#f97316", "#14b8a6", "#ef4444", "#84cc16",
 ];
 
-type TabKey = "shifts" | "rules" | "fairness" | "zones" | "crews" | "rotation" | "account";
+type TabKey = "shifts" | "rules" | "requests" | "fairness" | "zones" | "crews" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "shifts",   label: "Vardiyalar" },
   { key: "rules",    label: "Kurallar" },
+  { key: "requests", label: "Personel Talepleri" },
   { key: "fairness", label: "Adalet Puanı" },
-  { key: "zones",    label: "Bölgeler" },
-  { key: "crews",    label: "Ekipler" },
-  { key: "rotation", label: "Rotasyon" },
-  { key: "account",  label: "Hesap & Bildirimler" },
+  { key: "zones",    label: "Departmanlar & Alanlar" },
+  { key: "crews",    label: "Ekipler & Rotasyon" },
+  { key: "account",  label: "Hesap" },
 ];
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -115,8 +115,12 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("shifts");
-  const [editingDeptIdx, setEditingDeptIdx] = useState<number | null>(null);
-  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Departman yönetimi — anında DB'ye kaydedilir (/api/departments)
+  const [newDeptName, setNewDeptName] = useState("");
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
+  const [editingDeptName, setEditingDeptName] = useState("");
+  const [deptError, setDeptError] = useState<string | null>(null);
 
   // Bildirim state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -129,7 +133,6 @@ export default function SettingsPage() {
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [locationData, setLocationData] = useState<Location | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [zoneQuotas, setZoneQuotas] = useState<{ zone: string; min: number }[]>([]);
 
   // Kural toggle'ları
@@ -190,10 +193,24 @@ export default function SettingsPage() {
   const [cycleWeeks, setCycleWeeks]                 = useState(3);
   const [referenceWeek, setReferenceWeek]           = useState("");
   const [rotationPattern, setRotationPattern]       = useState<Record<string, string[]>>({}); // crew_id → shift_def_id[]
-  const [rotationSaving, setRotationSaving]         = useState(false);
 
   const savedSnapshot = useRef<string>("");
   const [isDirty, setIsDirty] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const [toast, setToast] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (type: "ok" | "error", text: string) => {
+    setToast({ type, text });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  };
+
+  // Değişiklikleri geri al — init'i yeniden tetikler, tüm state sunucudan tazelenir
+  const discardChanges = () => {
+    window.dispatchEvent(new Event("optishift_location_changed"));
+    showToast("ok", "Değişiklikler geri alındı");
+  };
 
   // İzin politikası
   const [leaveRequireReason, setLeaveRequireReason] = useState(false);
@@ -258,6 +275,12 @@ export default function SettingsPage() {
           setClopeningEnabled(loc.rules?.clopening_enabled !== false);
           setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
           setAvailabilityCollectionEnabled(loc.rules?.availability_collection_enabled !== false);
+          const ar = loc.rules?.availability_reminder;
+          if (ar) {
+            setReminderEnabled(!!ar.enabled);
+            if (typeof ar.day === "number") setReminderDay(String(ar.day));
+            if (typeof ar.time === "string") setReminderTime(ar.time);
+          }
           setEditRequestsEnabled(loc.rules?.edit_requests_enabled !== false);
           setCheckinRequired(!!loc.rules?.checkin_required);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -328,24 +351,12 @@ export default function SettingsPage() {
             const dres = await fetch(`/api/departments?location_id=${finalId}`);
             if (dres.ok) { const draw = await dres.json(); if (Array.isArray(draw)) depts = draw; }
           } catch { /* empty */ }
-          let locRoles: Role[] = [];
-
-          const savedRaw = finalId ? localStorage.getItem(`optishift_settings_mock_${finalId}`) : null;
-          if (savedRaw) {
-            try {
-              const saved = JSON.parse(savedRaw);
-              if (saved.departments) depts = saved.departments;
-              if (saved.roles) locRoles = saved.roles;
-            } catch { /* empty */ }
-          }
           setDepartments(depts);
-          setRoles(locRoles);
 
           savedSnapshot.current = JSON.stringify({
             shift_definitions: loc.shift_definitions ?? [],
             operating_hours: loc.operating_hours ?? {},
             zone_quotas: Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })),
-            departments: depts.map((d: Department) => ({ id: d.id, name: d.name })),
             ensureSeniorPerShift: !!loc.rules?.ensure_senior_per_shift,
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
@@ -362,6 +373,9 @@ export default function SettingsPage() {
             clopeningEnabled: loc.rules?.clopening_enabled !== false,
             swapRequestsEnabled: loc.rules?.swap_requests_enabled !== false,
             availabilityCollectionEnabled: loc.rules?.availability_collection_enabled !== false,
+            reminderEnabled: !!loc.rules?.availability_reminder?.enabled,
+            reminderDay: String(loc.rules?.availability_reminder?.day ?? 0),
+            reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
@@ -382,6 +396,18 @@ export default function SettingsPage() {
             leaveMaxDays: lp?.max_days_per_request ?? 1,
             locationLat: lat,
             locationLon: lon,
+            preferredNotEnabled: loc.rules?.preferred_not_enabled !== false,
+            changeCompensationEnabled: loc.rules?.change_compensation_enabled !== false,
+            leaveOverrideBonusEnabled: loc.rules?.leave_override_bonus_enabled !== false,
+            overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
+            maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
+            overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
+            crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
+            rotationEnabled: !!loc.rotation_template?.enabled,
+            rotationType: loc.rotation_template?.type ?? "3-shift",
+            cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
+            referenceWeek: loc.rotation_template?.reference_week ?? "",
+            rotationPattern: loc.rotation_template?.pattern ?? {},
           });
           setIsDirty(false);
         }
@@ -402,31 +428,38 @@ export default function SettingsPage() {
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
       zone_quotas: zoneQuotas,
-      departments: departments.map(d => ({ id: d.id, name: d.name })),
       ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
       preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
       weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
+      reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
       maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
       weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
       maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+      preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+      rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
   }, [
-    locationData, zoneQuotas, departments,
+    locationData, zoneQuotas,
     ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
     preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
     weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
+    reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
     maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
     weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+    preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+    rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
@@ -467,8 +500,17 @@ export default function SettingsPage() {
     );
   };
 
+  // Kaydedilmemiş değişiklik varken sayfadan çıkışta uyar
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   const handleSave = async () => {
     if (!locationData) return;
+    setSavingAll(true);
 
     // Şehir adı girildiyse önce geocode et
     let finalLat = locationLat;
@@ -513,6 +555,12 @@ export default function SettingsPage() {
             clopening_enabled:                  clopeningEnabled,
             swap_requests_enabled:              swapRequestsEnabled,
             availability_collection_enabled:    availabilityCollectionEnabled,
+            availability_reminder: {
+              enabled: reminderEnabled,
+              day: parseInt(reminderDay) || 0,
+              time: reminderTime,
+              last_sent_week: locationData.rules?.availability_reminder?.last_sent_week,
+            },
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -541,23 +589,29 @@ export default function SettingsPage() {
             allow_multi_day:      leaveAllowMultiDay,
             max_days_per_request: leaveAllowMultiDay ? leaveMaxDays : 1,
           },
+          rotation_template: {
+            enabled:        rotationEnabled,
+            type:           rotationType,
+            cycle_weeks:    cycleWeeks,
+            reference_week: referenceWeek,
+            pattern:        rotationPattern,
+          },
           latitude:  finalLat ? parseFloat(finalLat) : null,
           longitude: finalLon ? parseFloat(finalLon) : null,
         }),
       });
       if (!res.ok) throw new Error("Sunucu hatası");
-      localStorage.setItem(`optishift_settings_mock_${locationData.id}`, JSON.stringify({ locationData, departments, roles }));
       localStorage.removeItem("optishift_schedule_config_v2");
       savedSnapshot.current = JSON.stringify({
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
         zone_quotas: zoneQuotas,
-        departments: departments.map(d => ({ id: d.id, name: d.name })),
         ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
         preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
         weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
+        reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
         maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
         weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
@@ -565,11 +619,71 @@ export default function SettingsPage() {
         leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
+        preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+        overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+        rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
-      alert("Ayarlar kaydedildi!");
+      showToast("ok", "Ayarlar kaydedildi");
     } catch {
-      alert("Kaydetme sırasında hata oluştu.");
+      showToast("error", "Kaydetme sırasında hata oluştu");
+    }
+    setSavingAll(false);
+  };
+
+  // ── Departman CRUD — anında DB'ye yazılır, handleSave'den bağımsız ──
+  const handleAddDepartment = async () => {
+    const name = newDeptName.trim();
+    if (!name || !selectedLocationId) return;
+    setDeptError(null);
+    try {
+      const res = await fetch("/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: selectedLocationId, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sunucu hatası");
+      setDepartments(prev => [...prev, data]);
+      setNewDeptName("");
+    } catch (err) {
+      setDeptError(err instanceof Error && err.message ? err.message : "Departman eklenemedi.");
+    }
+  };
+
+  const handleRenameDepartment = async (id: string) => {
+    const name = editingDeptName.trim();
+    const dept = departments.find(d => d.id === id);
+    setEditingDeptId(null);
+    if (!name || !dept || name === dept.name) return;
+    setDeptError(null);
+    try {
+      const res = await fetch(`/api/departments?id=${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error();
+      setDepartments(prev => prev.map(d => (d.id === id ? { ...d, name } : d)));
+    } catch {
+      setDeptError("Departman adı güncellenemedi.");
+    }
+  };
+
+  const handleDeleteDepartment = async (dept: Department) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const count = (dept as any).personnel_count ?? 0;
+    const msg = count > 0
+      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} personelin departman ataması kaldırılır ve bu departmanın kapasite planı silinir.`
+      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın kapasite planı da silinir.`;
+    if (!confirm(msg)) return;
+    setDeptError(null);
+    try {
+      const res = await fetch(`/api/departments?id=${dept.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setDepartments(prev => prev.filter(d => d.id !== dept.id));
+    } catch {
+      setDeptError("Departman silinemedi.");
     }
   };
 
@@ -591,7 +705,6 @@ export default function SettingsPage() {
           {tab.key === "account" && <UserCircle size={13} />}
           {tab.key === "fairness" && <Scale size={13} />}
           {tab.key === "crews" && <Users size={13} />}
-          {tab.key === "rotation" && <RefreshCw size={13} />}
           {tab.label}
         </button>
       ))}
@@ -777,15 +890,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={!isDirty}
-                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
-                >
-                  <Save size={16} /> Vardiyaları Kaydet
-                </button>
-              </div>
             </div>
           )}
 
@@ -809,10 +913,24 @@ export default function SettingsPage() {
                   right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
                 />
                 <RuleRow
-                  label="Clopening Uyarısı"
-                  description={<>Kapanış→açılış geçişinde <span className="font-semibold">{clopeningMinRestHours} saat</span> altında dinlenme varsa ihlal modalında işaretlenir. Adalet Puanı sekmesinden açılıp kapatılabilir.</>}
-                  right={<span className={`text-xs font-semibold px-2 py-1 rounded-full ${clopeningEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>{clopeningEnabled ? "Açık" : "Kapalı"}</span>}
+                  label="Clopening Tespiti"
+                  description="Kapanış→açılış geçişinde kısa dinlenme (clopening) tespit edilir: OR-Tools bu geçişten kaçınır ve yayın öncesi ihlal modalında işaretlenir."
+                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
                 />
+                {clopeningEnabled && (
+                  <>
+                    <RuleRow
+                      label="Clopening Eşiği"
+                      description="Kapanış→açılış arasında bu saatten az dinlenme varsa clopening sayılır (yasal minimum 11 saatten fazla olmalı)."
+                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
+                    />
+                    <RuleRow
+                      label="Clopening Ceza Ağırlığı"
+                      description="Motorun hedef fonksiyonunda clopening geçişine uygulanan ceza. Yükseldikçe motor bu geçişten daha çok kaçınır."
+                      right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
+                    />
+                  </>
+                )}
                 <RuleRow
                   label="Haftalık Maksimum Çalışma"
                   description="Personelin haftada çalışabileceği yasal üst sınır. OR-Tools bu saati aşan atama yapmaz."
@@ -827,24 +945,6 @@ export default function SettingsPage() {
                   label="Maks. Ardışık Çalışma"
                   description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
                   right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
-                />
-              </SectionCard>
-
-              <SectionCard title="Personel Talepleri">
-                <RuleRow
-                  label="Müsaitlik Toplama"
-                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden müsaitlik istenmez ve personel portalında müsaitlik girişi kapatılır."
-                  right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Vardiya Takas Talebi"
-                  description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
-                  right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Vardiya Değişiklik Talebi"
-                  description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
-                  right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                 />
               </SectionCard>
 
@@ -892,33 +992,10 @@ export default function SettingsPage() {
                   description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
                   right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
                 />
-              </SectionCard>
-
-              <SectionCard title="İzin Politikası">
                 <RuleRow
-                  label="İzin İçin Mazeret Zorunlu"
-                  description="Personel izin talebi oluştururken mazeret girmeden gönderemez."
-                  right={<Toggle on={leaveRequireReason} onToggle={() => setLeaveRequireReason(v => !v)} />}
-                />
-                <RuleRow
-                  label="Çoklu Gün İzin Talebi"
-                  description={
-                    <span>
-                      Personel birden fazla günü kapsayan izin talebi oluşturabilir.
-                      {leaveAllowMultiDay && (
-                        <span className="flex items-center gap-2 mt-2">
-                          <span>Tek talep için max:</span>
-                          <input
-                            type="number" min={2} max={30} value={leaveMaxDays}
-                            onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
-                            className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
-                          />
-                          <span>gün</span>
-                        </span>
-                      )}
-                    </span>
-                  }
-                  right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
+                  label="Yayın Öncülüğü KPI"
+                  description="Müdür panelinde 'vardiya planı kaç gün önceden yayınlandı' KPI kartı gösterilir."
+                  right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
                 />
               </SectionCard>
 
@@ -1011,15 +1088,125 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={!isDirty}
-                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
-                >
-                  <Save size={16} /> Kuralları Kaydet
-                </button>
-              </div>
+            </div>
+          )}
+
+          {/* ─── PERSONEL TALEPLERİ ─── */}
+          {activeTab === "requests" && (
+            <div className="space-y-4">
+              <SectionCard title="Müsaitlik">
+                <RuleRow
+                  label="Müsaitlik Toplama"
+                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden müsaitlik istenmez ve personel portalında müsaitlik girişi kapatılır."
+                  right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
+                />
+                {availabilityCollectionEnabled && preferredNotEnabled && (
+                  <RuleRow
+                    label="Haftalık Sarı Gün Hakkı"
+                    description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">tercih etmiyorum</span> (sarı) olarak işaretleyebilir. Sarı güne atamanın puan karşılığı Adalet Puanı sekmesindedir.</>}
+                    right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
+                  />
+                )}
+                {availabilityCollectionEnabled && (
+                  <RuleRow
+                    label="Otomatik Müsaitlik Hatırlatması"
+                    description={
+                      <span>
+                        Planlanan saatten sonra, gelecek haftanın müsaitliğini girmemiş personele haftada bir kez bildirim gönderilir.
+                        {reminderEnabled && (
+                          <span className="flex flex-wrap items-center gap-2 mt-2">
+                            <span>Her</span>
+                            <select
+                              value={reminderDay}
+                              onChange={e => setReminderDay(e.target.value)}
+                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 bg-white"
+                            >
+                              {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
+                            </select>
+                            <span>günü saat</span>
+                            <TimeInput value={reminderTime} onChange={setReminderTime} />
+                          </span>
+                        )}
+                      </span>
+                    }
+                    right={<Toggle on={reminderEnabled} onToggle={() => setReminderEnabled(v => !v)} />}
+                  />
+                )}
+                {availabilityCollectionEnabled && (
+                  <RuleRow
+                    label="Şimdi Hatırlatma Gönder"
+                    description={remindResult ?? "Bu haftanın müsaitliğini henüz girmemiş tüm personele anında bildirim gönderir."}
+                    right={
+                      <button
+                        disabled={reminding}
+                        onClick={async () => {
+                          setReminding(true);
+                          setRemindResult(null);
+                          try {
+                            const userRaw = localStorage.getItem("optishift_manager_user");
+                            const u = userRaw ? JSON.parse(userRaw) : null;
+                            const locId = localStorage.getItem("optishift_selected_location") || u?.location_id || "";
+                            const res = await fetch("/api/availability/remind", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
+                            });
+                            const data = await res.json();
+                            setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten müsaitliğini girmiş.");
+                          } catch {
+                            setRemindResult("Hata oluştu, tekrar deneyin.");
+                          }
+                          setReminding(false);
+                        }}
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        <Send size={14} /> {reminding ? "Gönderiliyor…" : "Gönder"}
+                      </button>
+                    }
+                  />
+                )}
+              </SectionCard>
+
+              <SectionCard title="Vardiya Talepleri">
+                <RuleRow
+                  label="Vardiya Takas Talebi"
+                  description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
+                  right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Vardiya Değişiklik Talebi"
+                  description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
+                  right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
+                />
+              </SectionCard>
+
+              <SectionCard title="İzin Politikası">
+                <RuleRow
+                  label="İzin İçin Mazeret Zorunlu"
+                  description="Personel izin talebi oluştururken mazeret girmeden gönderemez."
+                  right={<Toggle on={leaveRequireReason} onToggle={() => setLeaveRequireReason(v => !v)} />}
+                />
+                <RuleRow
+                  label="Çoklu Gün İzin Talebi"
+                  description={
+                    <span>
+                      Personel birden fazla günü kapsayan izin talebi oluşturabilir.
+                      {leaveAllowMultiDay && (
+                        <span className="flex items-center gap-2 mt-2">
+                          <span>Tek talep için max:</span>
+                          <input
+                            type="number" min={2} max={30} value={leaveMaxDays}
+                            onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
+                            className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
+                          />
+                          <span>gün</span>
+                        </span>
+                      )}
+                    </span>
+                  }
+                  right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
+                />
+              </SectionCard>
             </div>
           )}
 
@@ -1070,7 +1257,7 @@ export default function SettingsPage() {
                 {/* Sarı Gün Çarpanı */}
                 <RuleRow
                   label="Tercih Edilmeyen Gün Çarpanı"
-                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır. Kapalıysa sarı gün fedakarlığı puana yansımaz.</>}
+                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır. Kapalıysa sarı gün fedakarlığı puana yansımaz. Haftalık sarı gün hakkı Personel Talepleri sekmesindedir.</>}
                   right={
                     <div className="flex items-center gap-2">
                       <div className={preferredNotEnabled ? "" : "opacity-40 pointer-events-none"}>
@@ -1080,13 +1267,6 @@ export default function SettingsPage() {
                     </div>
                   }
                 />
-                {preferredNotEnabled && (
-                  <RuleRow
-                    label="Haftalık Sarı Gün Hakkı"
-                    description="Personel haftada en fazla bu kadar günü 'tercih etmiyorum' olarak işaretleyebilir (kötüye kullanım koruması)."
-                    right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
-                  />
-                )}
               </SectionCard>
 
               {/* 2. TELAFİ & BONUS */}
@@ -1132,30 +1312,7 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              {/* 3. CLOPENING */}
-              <SectionCard title="Clopening Penalizasyonu">
-                <RuleRow
-                  label="Clopening Tespiti"
-                  description="Kapanış→Açılış geçişinde kısa dinlenme süresi varsa OR-Tools bu geçişten kaçınır ve ihlal modalında işaretlenir."
-                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
-                />
-                {clopeningEnabled && (
-                  <>
-                    <RuleRow
-                      label="Clopening Eşiği"
-                      description="Kapanış→Açılış arasında bu saatten az dinlenme varsa clopening sayılır (yasal minimum 11 saatten fazla olmalı)."
-                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
-                    />
-                    <RuleRow
-                      label="OR-Tools Ceza Ağırlığı"
-                      description="Clopening geçişine motorun hedef fonksiyonunda uyguladığı ceza. Yükseldikçe motor daha çok kaçınmaya çalışır."
-                      right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
-                    />
-                  </>
-                )}
-              </SectionCard>
-
-              {/* 4. GELİŞMİŞ */}
+              {/* 3. GELİŞMİŞ */}
               <SectionCard title="Gelişmiş Ayarlar">
                 <RuleRow
                   label="Telafi Puanı Bozunma Faktörü"
@@ -1169,110 +1326,102 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={!isDirty}
-                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
-                >
-                  <Save size={16} /> Adalet Ayarlarını Kaydet
-                </button>
-              </div>
             </div>
           )}
 
-          {/* ─── BÖLGELER ─── */}
+          {/* ─── DEPARTMANLAR & ALAN KOTALARI ─── */}
           {activeTab === "zones" && (
-            <div className="space-y-6">
-              <p className="text-sm text-slate-500">
-                Lokasyondaki fiziksel alanları tanımlayın (Bar, Mutfak, Kasa vb.). Personel bu bölgelere atanabilir.
-                İsim değiştirmek için kalem ikonuna tıklayın.
-              </p>
+            <div className="space-y-8">
 
-              {/* Bölge listesi — read-only by default, explicit edit to change name */}
-              <div className="space-y-2">
-                {departments.map((dept, dIdx) => (
-                  <div
-                    key={dept.id}
-                    className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 group"
+              {/* 1. Departmanlar — anında DB'ye kaydedilir */}
+              <div>
+                <SectionLabel>Departmanlar</SectionLabel>
+                <p className="text-xs text-slate-400 mb-3">
+                  Departmanlar (Kasa, Mutfak, Hat-A…) planlamanın çalıştığı operasyonel birimlerdir: personel bir
+                  departmana atanır, kapasite planı departman bazında girilir ve otomatik oluşturma talebi departman
+                  içinde karşılar. Değişiklikler anında kaydedilir.
+                </p>
+
+                {deptError && (
+                  <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{deptError}</div>
+                )}
+
+                {/* Yeni departman */}
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    value={newDeptName}
+                    onChange={e => setNewDeptName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
+                    placeholder="Yeni departman adı (örn: Kasa)"
+                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  <button
+                    disabled={!newDeptName.trim()}
+                    onClick={handleAddDepartment}
+                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
                   >
-                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0" />
+                    <Plus size={14} /> Ekle
+                  </button>
+                </div>
 
-                    {editingDeptIdx === dIdx ? (
-                      <input
-                        ref={editInputRef}
-                        value={dept.name}
-                        onChange={e => {
-                          const next = [...departments];
-                          next[dIdx] = { ...next[dIdx], name: e.target.value };
-                          setDepartments(next);
-                        }}
-                        onBlur={() => setEditingDeptIdx(null)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" || e.key === "Escape") setEditingDeptIdx(null);
-                        }}
-                        className="flex-1 font-semibold text-slate-800 bg-transparent outline-none text-sm border-b-2 border-indigo-400 py-0.5"
-                      />
-                    ) : (
-                      <span className="flex-1 font-semibold text-slate-800 text-sm select-none">{dept.name}</span>
-                    )}
-
-                    {editingDeptIdx === dIdx ? (
-                      <button
-                        onClick={() => setEditingDeptIdx(null)}
-                        className="p-1 text-indigo-600 hover:text-indigo-800 transition-colors shrink-0"
-                        title="Tamam"
-                      >
-                        <Check size={15} />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingDeptIdx(dIdx);
-                          setTimeout(() => editInputRef.current?.focus(), 0);
-                        }}
-                        className="p-1 text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                        title="İsmi düzenle"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setDepartments(departments.filter((_, i) => i !== dIdx));
-                        if (editingDeptIdx === dIdx) setEditingDeptIdx(null);
-                      }}
-                      className="p-1 text-slate-300 hover:text-red-400 transition-colors shrink-0"
-                      title="Sil"
-                    >
-                      <X size={15} />
-                    </button>
+                {/* Departman listesi */}
+                {departments.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
+                    Henüz departman yok. Departmansız lokasyonlarda kapasite planı tek düz tablo olarak çalışır.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {departments.map(dept => (
+                      <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0" />
+                        {editingDeptId === dept.id ? (
+                          <input
+                            value={editingDeptName}
+                            onChange={e => setEditingDeptName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") handleRenameDepartment(dept.id);
+                              if (e.key === "Escape") setEditingDeptId(null);
+                            }}
+                            autoFocus
+                            className="flex-1 px-2 py-1 text-sm border border-indigo-400 rounded-lg outline-none"
+                          />
+                        ) : (
+                          <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
+                        )}
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {(dept as any).personnel_count !== undefined && (
+                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {(dept as any).personnel_count} personel
+                          </span>
+                        )}
+                        {editingDeptId === dept.id ? (
+                          <>
+                            <button onClick={() => handleRenameDepartment(dept.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0" title="Kaydet"><Check size={14} /></button>
+                            <button onClick={() => setEditingDeptId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="Vazgeç"><X size={14} /></button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
+                            <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-
-                <button
-                  onClick={() => {
-                    const newIdx = departments.length;
-                    setDepartments([...departments, { id: `d${Date.now()}`, location_id: locationData.id, name: "Yeni Bölge" }]);
-                    setTimeout(() => {
-                      setEditingDeptIdx(newIdx);
-                      editInputRef.current?.focus();
-                    }, 50);
-                  }}
-                  className="w-full border-2 border-dashed border-slate-200 rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-sm font-medium"
-                >
-                  <Plus size={16} /> Yeni Bölge Ekle
-                </button>
+                )}
               </div>
 
               <hr className="border-slate-100" />
 
-              {/* Günlük Alan Kotaları */}
+              {/* 2. Günlük Alan Kotaları — lokasyon ayarı, Kaydet butonu ile */}
               <div>
                 <div className="mb-3">
-                  <p className="text-sm font-semibold text-slate-700">Günlük Alan Kotaları</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Her bölgede günde en az kaç kişi çalışmalı? OR-Tools bu kısıtı zorunlu tutar.</p>
+                  <SectionLabel>Günlük Alan Kotaları</SectionLabel>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Departmanlardan bağımsız, serbest tanımlı fiziksel alanlardır (Teras, Depo…). Personelin yetenek
+                    etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; kısıtını OR-Tools zorunlu tutar.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   {zoneQuotas.map((entry, idx) => (
@@ -1305,99 +1454,12 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={!isDirty}
-                  className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm ${isDirty ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
-                >
-                  <Save size={16} /> Bölgeleri Kaydet
-                </button>
-              </div>
             </div>
           )}
 
-          {/* ─── HESAP & BİLDİRİMLER ─── */}
+          {/* ─── HESAP ─── */}
           {activeTab === "account" && (
             <div className="space-y-8">
-              <div>
-                <SectionLabel>Bildirimler</SectionLabel>
-                <div className="space-y-3">
-                  <div className="bg-white border border-slate-200 rounded-xl p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-700 text-sm">Yayın Öncülüğü KPI</div>
-                        <div className="text-xs text-slate-400 mt-0.5">Müdür dashboard'unda "kaç gün önceden yayınlandı" KPI kartı gösterilir</div>
-                      </div>
-                      <Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />
-                    </div>
-                  </div>
-                  {availabilityCollectionEnabled && (<>
-                  <div className="bg-white border border-slate-200 rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="font-semibold text-slate-700 text-sm">Otomatik Müsaitlik Hatırlatması</div>
-                        <div className="text-xs text-slate-400 mt-0.5">Müsaitlik girmeyen personele haftada bir bildirim gönderilir</div>
-                      </div>
-                      <Toggle on={reminderEnabled} onToggle={() => setReminderEnabled(v => !v)} />
-                    </div>
-                    {reminderEnabled && (
-                      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100 text-sm text-slate-600">
-                        <span>Her</span>
-                        <select
-                          value={reminderDay}
-                          onChange={e => setReminderDay(e.target.value)}
-                          className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 bg-white"
-                        >
-                          {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
-                        </select>
-                        <span>günü saat</span>
-                        <TimeInput value={reminderTime} onChange={setReminderTime} />
-                        <span>hatırlatma gönder</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-5">
-                    <div className="font-semibold text-slate-700 text-sm mb-1">Şimdi Hatırlatma Gönder</div>
-                    <p className="text-xs text-slate-400 mb-4">Bu haftanın müsaitliğini henüz girmemiş tüm personele anında bildirim gönderir.</p>
-                    {remindResult && (
-                      <div className="mb-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5">
-                        {remindResult}
-                      </div>
-                    )}
-                    <button
-                      disabled={reminding}
-                      onClick={async () => {
-                        setReminding(true);
-                        setRemindResult(null);
-                        try {
-                          const userRaw = localStorage.getItem("optishift_manager_user");
-                          const u = userRaw ? JSON.parse(userRaw) : null;
-                          const locId = localStorage.getItem("optishift_selected_location") || u?.location_id || "";
-                          const res = await fetch("/api/availability/remind", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
-                          });
-                          const data = await res.json();
-                          setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten müsaitliğini girmiş.");
-                        } catch {
-                          setRemindResult("Hata oluştu, tekrar deneyin.");
-                        }
-                        setReminding(false);
-                      }}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                    >
-                      <Send size={14} /> {reminding ? "Gönderiliyor…" : "Hatırlatma Gönder"}
-                    </button>
-                  </div>
-                  </>)}
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
               <div>
                 <SectionLabel>Hesabım</SectionLabel>
                 <div className="max-w-2xl">
@@ -1516,13 +1578,16 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ─── ROTASYON ─── */}
-          {activeTab === "rotation" && (
-            <div className="space-y-6">
-              <p className="text-sm text-slate-500">
-                Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
-                Motor, rotasyon aktifken ekip atamasını otomatik uygular.
-              </p>
+          {/* ─── ROTASYON (Ekipler sekmesinin devamı) ─── */}
+          {activeTab === "crews" && (
+            <div className="space-y-6 mt-10 pt-8 border-t border-slate-100">
+              <div>
+                <SectionLabel>Rotasyon</SectionLabel>
+                <p className="text-sm text-slate-500">
+                  Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
+                  Motor, rotasyon aktifken ekip atamasını otomatik uygular.
+                </p>
+              </div>
 
               <SectionCard title="Rotasyon Ayarları">
                 <RuleRow
@@ -1630,45 +1695,48 @@ export default function SettingsPage() {
 
               {rotationEnabled && crews.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                  Rotasyon şablonu için önce <strong>Ekipler</strong> sekmesinden ekip oluşturun.
+                  Rotasyon şablonu için önce yukarıdan bir ekip oluşturun.
                 </div>
               )}
 
-              <div className="flex justify-end">
-                <button
-                  disabled={rotationSaving}
-                  onClick={async () => {
-                    if (!selectedLocationId) return;
-                    setRotationSaving(true);
-                    try {
-                      const template: RotationTemplate = {
-                        enabled: rotationEnabled,
-                        type: rotationType,
-                        cycle_weeks: cycleWeeks,
-                        reference_week: referenceWeek,
-                        pattern: rotationPattern,
-                      };
-                      await fetch(`/api/locations?id=${selectedLocationId}`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ rotation_template: template }),
-                      });
-                      alert("Rotasyon şablonu kaydedildi!");
-                    } catch {
-                      alert("Kaydetme sırasında hata oluştu.");
-                    }
-                    setRotationSaving(false);
-                  }}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                >
-                  <Save size={14} /> {rotationSaving ? "Kaydediliyor…" : "Rotasyonu Kaydet"}
-                </button>
-              </div>
             </div>
           )}
 
         </div>
       </div>
+
+      {/* Kayıt geri bildirimi */}
+      {toast && (
+        <div className="sticky bottom-20 z-30 flex justify-center pointer-events-none">
+          <div className={`rounded-xl shadow-lg px-5 py-2.5 text-sm font-medium text-white ${toast.type === "ok" ? "bg-emerald-600" : "bg-red-600"}`}>
+            {toast.text}
+          </div>
+        </div>
+      )}
+
+      {/* Yapışkan kayıt barı — hangi sekmede olunursa olunsun tüm değişiklikler birlikte kaydedilir */}
+      {isDirty && (
+        <div className="sticky bottom-4 z-30">
+          <div className="flex items-center justify-between gap-4 bg-slate-900 text-white rounded-2xl shadow-xl px-5 py-3">
+            <span className="text-sm font-medium">Kaydedilmemiş değişiklikler var</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={discardChanges}
+                className="text-sm text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={savingAll}
+                className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors"
+              >
+                <Save size={14} /> {savingAll ? "Kaydediliyor…" : "Kaydet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

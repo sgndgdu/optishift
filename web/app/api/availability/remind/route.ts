@@ -28,21 +28,47 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const org_id = auth.org_id;
     const location_id = body.location_id ?? "";
-    const week_start = body.week_start ?? getWeekStart();
+    let week_start = body.week_start ?? getWeekStart();
 
     // Müsaitlik toplama kapalıysa (locations.rules.availability_collection_enabled === false) hatırlatma gönderme
+    let rules: any = null;
     if (location_id) {
       const locRow = await db
         .prepare(`SELECT rules FROM locations WHERE id = ? AND org_id = ?`)
         .get(location_id, org_id) as any;
       if (locRow?.rules) {
         try {
-          const rules = typeof locRow.rules === "string" ? JSON.parse(locRow.rules) : locRow.rules;
+          rules = typeof locRow.rules === "string" ? JSON.parse(locRow.rules) : locRow.rules;
           if (rules?.availability_collection_enabled === false) {
             return NextResponse.json({ sent: 0, disabled: true });
           }
         } catch { /* rules parse edilemedi — varsayılan: açık */ }
       }
+    }
+
+    // ── Otomatik mod: rules.availability_reminder planına göre haftada bir kez ──
+    // Cron altyapısı olmadığı için müdür paneli yüklenirken çağrılır; vadesi
+    // gelmediyse veya bu hafta zaten gönderildiyse hiçbir şey yapmaz.
+    if (body.auto === true) {
+      if (!location_id) return NextResponse.json({ sent: 0, skipped: "no_location" });
+      const ar = rules?.availability_reminder;
+      if (!ar?.enabled) return NextResponse.json({ sent: 0, skipped: "disabled" });
+
+      const thisMonday = getWeekStart();
+      const scheduled = new Date(`${thisMonday}T${ar.time ?? "18:00"}:00`);
+      scheduled.setDate(scheduled.getDate() + (typeof ar.day === "number" ? ar.day : 0));
+      if (new Date() < scheduled) return NextResponse.json({ sent: 0, skipped: "not_due" });
+      if (ar.last_sent_week === thisMonday) return NextResponse.json({ sent: 0, skipped: "already_sent" });
+
+      // Hatırlatma gelecek haftanın müsaitliği içindir
+      const nextMonday = new Date(thisMonday + "T00:00:00");
+      nextMonday.setDate(nextMonday.getDate() + 7);
+      week_start = nextMonday.toISOString().split("T")[0];
+
+      // Aynı hafta içinde tekrar tetiklenmemesi için işaretle (gönderim sayısından bağımsız)
+      const nextRules = { ...rules, availability_reminder: { ...ar, last_sent_week: thisMonday } };
+      await db.prepare(`UPDATE locations SET rules = ? WHERE id = ? AND org_id = ?`)
+        .run(JSON.stringify(nextRules), location_id, org_id);
     }
 
     // Fetch active personnel — availability tablosunda org_id yok, personnel üzerinden filtrele

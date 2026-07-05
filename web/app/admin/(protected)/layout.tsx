@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { jwtVerify } from "jose";
 import Link from "next/link";
-import { LayoutDashboard, Building2, ClipboardList, Shield } from "lucide-react";
+import { LayoutDashboard, Building2, ClipboardList, Shield, Users, Megaphone } from "lucide-react";
 
 async function verifyGodCookie(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -20,9 +20,11 @@ async function verifyGodCookie(): Promise<boolean> {
 }
 
 const NAV = [
-  { href: "/admin",       label: "Genel Bakis",      icon: LayoutDashboard },
-  { href: "/admin/orgs",  label: "Organizasyonlar",  icon: Building2 },
-  { href: "/admin/audit", label: "Audit Logu",       icon: ClipboardList },
+  { href: "/admin",         label: "Genel Bakis",      icon: LayoutDashboard },
+  { href: "/admin/orgs",    label: "Organizasyonlar",  icon: Building2 },
+  { href: "/admin/users",   label: "Kullanicilar",     icon: Users },
+  { href: "/admin/banners", label: "Duyurular",        icon: Megaphone },
+  { href: "/admin/audit",   label: "Audit Logu",       icon: ClipboardList },
 ];
 
 export default async function AdminProtectedLayout({ children }: { children: React.ReactNode }) {

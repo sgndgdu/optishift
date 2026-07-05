@@ -62,7 +62,9 @@ export interface Location {
   operating_hours: Record<number, DailyHours>;
   shift_definitions: ShiftDefinition[];
   zone_quotas: Record<string, number>; // {"Kasa": 2, "Reyon": 1}
-  rules?: { max_weekly_hours: number; min_rest_hours: number; force_skills_match: boolean };
+  // Kural motoru — resmi alanlar ScheduleRules'ta; UI'nın yazdığı ek ad-hoc
+  // alanlar (çarpanlar, toggle'lar) için index signature ile genişletilir
+  rules?: Partial<ScheduleRules> & Record<string, unknown>;
   // Kapasite matrisi: shiftDefId → { day(0-6) → gerekli kişi sayısı }
   demand_matrix?: Record<string, Record<number, number>>;
   rotation_template?: RotationTemplate;
@@ -154,6 +156,12 @@ export interface ScheduleRules {
   leave_override_bonus_enabled?: boolean;   // zorunlu atama bonusu on/off
   clopening_enabled?: boolean;
   availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden müsaitlik istenmez
+  availability_reminder?: {
+    enabled: boolean;
+    day: number;             // 0=Pzt … 6=Paz — hatırlatmanın planlandığı gün
+    time: string;            // "HH:MM"
+    last_sent_week?: string; // ISO Pazartesi (YYYY-MM-DD) — bu hafta gönderildiyse tekrar gönderilmez
+  };
   // Fabrika modülü — fazla mesai
   overtime_threshold_hours?: number;   // günlük eşik: bu saatin üzeri mesai sayılır (varsayılan 7.5)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)

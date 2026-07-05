@@ -6,6 +6,7 @@ import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, Zap, LogOut, X
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+import SystemBanner from "@/components/SystemBanner";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -94,6 +95,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex h-screen bg-slate-50/50 overflow-hidden">
+      <SystemBanner />
       <ImpersonationBanner />
 
       {/* ── DESKTOP SIDEBAR (md ve üzeri) ─────────────────────────────────── */}

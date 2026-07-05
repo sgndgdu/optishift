@@ -4,6 +4,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, MapPin, Activity, Settings, Loader2 } from "lucide-react";
+import UserActions from "../../_components/UserActions";
 
 type OrgDetail = {
   org: any;
@@ -36,11 +37,11 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("genel");
   const [saving, setSaving] = useState(false);
-  const [impersonating, setImpersonating] = useState<string | null>(null);
 
   // Form state
   const [plan, setPlan] = useState("free");
   const [notes, setNotes] = useState("");
+  const [maxPersonnel, setMaxPersonnel] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
         setData(d);
         setPlan(d.org.plan ?? "free");
         setNotes(d.org.notes ?? "");
+        setMaxPersonnel(d.org.max_personnel != null ? String(d.org.max_personnel) : "");
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -73,20 +75,11 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
 
   const handleSuspend = () => save({ suspend: true, suspend_reason: suspendReason });
   const handleUnsuspend = () => save({ suspend: false });
-  const handleSavePlan = () => save({ plan, notes });
-
-  const handleImpersonate = async (userId: string) => {
-    setImpersonating(userId);
-    try {
-      const r = await fetch(`/api/god/impersonate/${userId}`, { method: "POST" });
-      const d = await r.json();
-      if (d.redirect) {
-        window.location.href = d.redirect;
-      }
-    } finally {
-      setImpersonating(null);
-    }
-  };
+  const handleSavePlan = () => save({
+    plan,
+    notes,
+    max_personnel: maxPersonnel === "" ? null : parseInt(maxPersonnel, 10),
+  });
 
   if (loading) {
     return (
@@ -162,6 +155,17 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   <option value="pro">Pro</option>
                   <option value="enterprise">Enterprise</option>
                 </select>
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-xs text-slate-500 mb-1.5">Maks. Personel (boş = sınırsız)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxPersonnel}
+                  onChange={(e) => setMaxPersonnel(e.target.value)}
+                  placeholder="Sınırsız"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
+                />
               </div>
               <div className="flex-1 min-w-[200px]">
                 <label className="block text-xs text-slate-500 mb-1.5">Dahili Not</label>
@@ -302,18 +306,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                     {timeAgo(u.last_login_at)}
                   </td>
                   <td className="px-4 py-4">
-                    <button
-                      onClick={() => handleImpersonate(u.id)}
-                      disabled={impersonating === u.id}
-                      className="flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      {impersonating === u.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <User size={12} />
-                      )}
-                      Impersonate
-                    </button>
+                    <UserActions user={u} />
                   </td>
                 </tr>
               ))}

@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Menu, Zap } from "lucide-react";
 import SupervisorSidebar from "@/components/SupervisorSidebar";
+import SystemBanner from "@/components/SystemBanner";
 
 export default function SupervisorLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-slate-50/50 overflow-hidden">
+      <SystemBanner />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

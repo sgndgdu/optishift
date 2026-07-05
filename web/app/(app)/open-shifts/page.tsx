@@ -32,6 +32,7 @@ export default function OpenShiftsPage() {
   const [endTime, setEndTime]       = useState("17:00");
   const [note, setNote]             = useState("");
   const [bonus, setBonus]           = useState(1.5);
+  const [defaultBonus, setDefaultBonus] = useState(1.5); // Ayarlar → Adalet Puanı'ndaki varsayılan çarpan
   const [saving, setSaving]         = useState(false);
 
   // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
@@ -66,6 +67,24 @@ export default function OpenShiftsPage() {
     } finally { setLoading(false); }
   }, [user]);
 
+  // Varsayılan kahraman çarpanını Ayarlar'daki kuraldan al (tek kaynak: rules.hero_bonus_multiplier)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/locations?org_id=${user.org_id}`);
+        const locs = await res.json();
+        const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
+        const loc = Array.isArray(locs) ? (locs.find((l: any) => l.id === locId) ?? locs[0]) : null;
+        const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
+        if (typeof rules?.hero_bonus_multiplier === "number") {
+          setDefaultBonus(rules.hero_bonus_multiplier);
+          setBonus(rules.hero_bonus_multiplier);
+        }
+      } catch { /* varsayılan 1.5 kalır */ }
+    })();
+  }, [user]);
+
   useEffect(() => { load(); }, [load]);
 
   async function handleCreate() {
@@ -85,7 +104,7 @@ export default function OpenShiftsPage() {
       if (r.ok) {
         showToast("Açık vardiya ilanı oluşturuldu!");
         setShowForm(false);
-        setDate(""); setNote(""); setBonus(1.5);
+        setDate(""); setNote(""); setBonus(defaultBonus);
         await load();
       }
     } finally { setSaving(false); }
@@ -181,7 +200,7 @@ export default function OpenShiftsPage() {
               <Star size={10} className="text-amber-500" /> Kahraman Bonusu Çarpanı
             </label>
             <div className="flex gap-2">
-              {[1.0, 1.25, 1.5, 2.0].map(b => (
+              {Array.from(new Set([1.0, 1.25, 1.5, 2.0, defaultBonus])).sort((a, b) => a - b).map(b => (
                 <button
                   key={b}
                   onClick={() => setBonus(b)}
@@ -189,10 +208,11 @@ export default function OpenShiftsPage() {
                     bonus === b ? "border-amber-400 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:border-amber-300"
                   }`}
                 >
-                  {b === 1.0 ? "Normal" : `×${b}`}
+                  {b === 1.0 ? "Normal" : `×${b}`}{b === defaultBonus && b !== 1.0 ? " •" : ""}
                 </button>
               ))}
             </div>
+            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Adalet Puanı&apos;ndaki varsayılan çarpan</p>
             <p className="text-xs text-slate-400 mt-1.5">
               {bonus === 1.0 ? "Standart puan" : `Bu vardiyayı üstlenen personel ${bonus}x kahraman puanı kazanır`}
             </p>

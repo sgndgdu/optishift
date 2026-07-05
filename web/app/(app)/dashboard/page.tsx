@@ -93,6 +93,15 @@ export default function DashboardPage() {
     if (!mounted || !user) return;
     if (!user.location_id) { router.push("/onboarding"); return; }
     loadData(user);
+
+    // Otomatik müsaitlik hatırlatması — vadesi geldiyse haftada bir kez tetiklenir
+    // (cron yok; endpoint kendi içinde "vadesi geldi mi / bu hafta gönderildi mi" kontrolü yapar)
+    const locId = localStorage.getItem("optishift_selected_location") || user.location_id;
+    fetch("/api/availability/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location_id: locId, auto: true }),
+    }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user]);
 

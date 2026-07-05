@@ -1,12 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
+import { verifyGodToken } from "@/lib/god-auth";
 
-// GET — herkese açık (tüm layout'lar okur)
-export async function GET() {
+// GET — herkese açık (tüm layout'lar okur); ?all=1 sadece God Mode (pasifler dahil yönetim listesi)
+export async function GET(req: NextRequest) {
   try {
     const db = getDB();
     const now = Math.floor(Date.now() / 1000);
+    const { searchParams } = new URL(req.url);
+
+    if (searchParams.get("all") === "1") {
+      const isGod = await verifyGodToken(req);
+      if (!isGod) return NextResponse.json({ error: "God Mode yetkisi gerekli" }, { status: 403 });
+      const rows = (await db.prepare(
+        `SELECT * FROM system_banners ORDER BY created_at DESC LIMIT 100`
+      ).all()) as any[];
+      return NextResponse.json(rows);
+    }
+
     const rows = (await db.prepare(
       `SELECT * FROM system_banners
        WHERE active = 1

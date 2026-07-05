@@ -36,7 +36,7 @@ export async function GET(
 
     // Admin/manager kullanıcılar
     const adminUsers = (await db.prepare(
-      `SELECT id, name, email, role, last_login_at FROM users WHERE org_id = $1 AND role IN ('admin','manager','supervisor') ORDER BY created_at ASC`
+      `SELECT id, name, username, email, role, approval_status, last_login_at FROM users WHERE org_id = $1 ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'supervisor' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, created_at ASC`
     ).all(id)) as any[];
 
     // Son 20 platform event
