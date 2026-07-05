@@ -12,6 +12,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // SessionGuard oturum düşünce ?expired=1 ile yönlendirir
+  const [sessionExpired] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "1"
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +84,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {sessionExpired && !error && (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-700 font-medium flex items-center gap-3">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0" />
+                Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-red-600 rounded-full shrink-0" />

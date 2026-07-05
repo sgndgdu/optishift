@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PWARegister } from "@/components/PWARegister";
+import SessionGuard from "@/components/SessionGuard";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         {children}
         <PWARegister />
+        <SessionGuard />
       </body>
     </html>
   );
