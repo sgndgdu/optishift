@@ -6,6 +6,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { getWeekStart } from "@/lib/date";
+import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
+
+// Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
+// shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
+// client'ta tanımlar geç yüklendiyse (race) veri yine de doğru yazılır.
+async function loadLocDefs(db: any, locId: string): Promise<ShiftDef[]> {
+  try {
+    const row = await db.prepare("SELECT shift_definitions FROM locations WHERE id = ?").get(locId) as any;
+    const defs = typeof row?.shift_definitions === "string" ? JSON.parse(row.shift_definitions) : row?.shift_definitions;
+    return Array.isArray(defs) ? defs : [];
+  } catch { return []; }
+}
+
+// Verilen shift_id geçerliyse korur; "custom"/boş ise saate göre çözer; çözemezse "custom".
+function finalizeShiftId(
+  shiftId: string | null | undefined,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  defs: ShiftDef[],
+): string {
+  const resolved = resolveShiftDef(shiftId === "custom" ? null : shiftId, startTime, endTime, defs);
+  if (resolved) return resolved.id;
+  return shiftId && shiftId !== "custom" ? shiftId : "custom";
+}
 
 
 // GET: Personelin vardiyalarını getir
@@ -104,6 +128,13 @@ export async function POST(req: NextRequest) {
     // Force assignment detection: items collected during transaction, processed after
     const forceItems: { personnel_id: string; location_id: string; week_start: string; day: number; shift_id_db: number; start_time: string | null; end_time: string | null; prevForceStatus: string | null }[] = [];
 
+    // Lokasyon shift tanımlarını önbelleğe al (shift_id çözümlemesi için)
+    const defsCache = new Map<string, ShiftDef[]>();
+    const getLocDefs = async (locId: string): Promise<ShiftDef[]> => {
+      if (!defsCache.has(locId)) defsCache.set(locId, await loadLocDefs(db, locId));
+      return defsCache.get(locId)!;
+    };
+
     // Lokasyon kurallarını önbelleğe al (async)
     const rulesCache = new Map<string, any>();
     const getLocRules = async (locId: string): Promise<any> => {
@@ -130,11 +161,14 @@ export async function POST(req: NextRequest) {
     await (async () => {
       for (const shift of shifts) {
         const { personnel_id, location_id, week_start, day, shift_id, start_time, end_time } = shift;
-        
+
         if (!personnel_id || !location_id || !week_start || day === undefined) {
           errors.push("Eksik veri: personnel_id, location_id, week_start, day zorunlu");
           continue;
         }
+
+        // shift_id güvencesi: "custom"/boş geldiyse saate göre gerçek tanıma bağla
+        const finalShiftId = finalizeShiftId(shift_id, start_time, end_time, await getLocDefs(location_id));
 
         // 1. 11 SAAT DİNLENME KURALI KONTROLÜ (force=true ise uyar ama bloklamaz)
         if (start_time && end_time) {
@@ -211,7 +245,7 @@ export async function POST(req: NextRequest) {
               SET shift_id = ?, start_time = ?, end_time = ?, status = 'scheduled', publication_status = ?,
                   published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, ?) ELSE published_at END
               WHERE id = ?
-            `).run(shift_id || 'custom', start_time || null, end_time || null, pubStatus, pubStatus, now, existing.id);
+            `).run(finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus, now, existing.id);
 
             if (timeChanged && pubStatus === "published") {
               // Sadece bugün veya gelecekteki vardiyalar için telafi (geçmiş düzeltmeleri hariç)
@@ -259,7 +293,7 @@ export async function POST(req: NextRequest) {
         const result = await db.prepare(`
           INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)
-        `).run(personnel_id, location_id, week_start, day, shift_id || 'custom', start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, now);
+        `).run(personnel_id, location_id, week_start, day, finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, now);
 
         const newId = Number(result.lastInsertRowid);
         results.push({ id: newId, inserted: true });
@@ -385,6 +419,7 @@ export async function PATCH(req: NextRequest) {
       if (!loc) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
+      const locDefs = await loadLocDefs(db, location_id);
       const now = Math.floor(Date.now() / 1000);
       let synced = 0;
       await (async () => {
@@ -404,7 +439,7 @@ export async function PATCH(req: NextRequest) {
           if (!s?.personnel_id || s.day === undefined || !s.start_time || !s.end_time) continue;
           // Yayınlanmış satır varsa (bu veya başka şubede) draft kopya yazma
           if (await hasPublished.get(s.personnel_id, week_start, s.day)) continue;
-          await insert.run(s.personnel_id, location_id, week_start, s.day, s.shift_id || "custom", s.start_time, s.end_time, now);
+          await insert.run(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs), s.start_time, s.end_time, now);
           synced++;
         }
       })();

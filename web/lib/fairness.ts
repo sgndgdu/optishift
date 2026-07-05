@@ -86,6 +86,35 @@ function restGapMin(end1: string, start2: string): number {
   return toMin(start2) + 1440 - toMin(end1);
 }
 
+/**
+ * Bir atamanın vardiya tanımını çözer: önce id ile, bulunamazsa (örn. eski
+ * kayıtlarda kalan "custom" sentineli) saat eşleşmesiyle (±10 dk, gece geçişi
+ * dahil). Hâlâ yoksa null — gerçekten özel saatli bir atamadır.
+ * Tek kaynak: schedule sayfası, /api/shifts ve arşiv görünümü de bunu kullanır.
+ */
+export function resolveShiftDef<T extends { id: string; start: string; end: string }>(
+  shiftId: string | null | undefined,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  defs: T[],
+): T | null {
+  if (shiftId) {
+    const byId = defs.find(d => d.id === shiftId);
+    if (byId) return byId;
+  }
+  if (!startTime || !endTime) return null;
+  const s = toMin(startTime);
+  let e = toMin(endTime);
+  if (e <= s) e += 1440;
+  for (const d of defs) {
+    const ds = toMin(d.start);
+    let de = toMin(d.end);
+    if (de <= ds) de += 1440;
+    if (Math.abs(s - ds) <= 10 && Math.abs(e - de) <= 10) return d;
+  }
+  return null;
+}
+
 // ─── Ana Hesaplama ────────────────────────────────────────────────────────────
 
 export interface AssignmentBurdenInput {
@@ -188,7 +217,7 @@ export function calcWeeklyBurden(
     let heroCount      = 0;
 
     for (const a of pAssignments) {
-      const def = defById[a.shift_id];
+      const def = defById[a.shift_id] ?? resolveShiftDef(null, a.start_time, a.end_time, shiftDefs);
       const prev = byDay[a.day - 1];
 
       const result = calcAssignmentBurden({

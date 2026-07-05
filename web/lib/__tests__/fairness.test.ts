@@ -5,6 +5,7 @@ import {
   calcCumulativeRolling,
   calcFairnessZ,
   fairnessLabel,
+  resolveShiftDef,
   type AssignmentInput,
   type ShiftDef,
   type Rules,
@@ -227,5 +228,36 @@ describe("fairnessLabel", () => {
     expect(fairnessLabel(-0.5).level).toBe("ok");
     expect(fairnessLabel(-1.5).level).toBe("high");
     expect(fairnessLabel(-1.5).text).toContain("Çok yüklü");
+  });
+});
+
+describe("resolveShiftDef", () => {
+  const defs = [
+    { id: "SD-SABAH", name: "Sabah", start: "06:00", end: "14:00", base_points: 4 },
+    { id: "SD-AKSAM", name: "Akşam", start: "14:00", end: "22:00", base_points: 5 },
+    { id: "SD-GECE",  name: "Gece",  start: "22:00", end: "06:00", base_points: 7, is_night: true },
+  ];
+
+  it("geçerli id → doğrudan id ile bulur", () => {
+    expect(resolveShiftDef("SD-AKSAM", "09:00", "17:00", defs)?.id).toBe("SD-AKSAM");
+  });
+
+  it("'custom' id lookup'ı atlanır, saate göre çözülür (eski kayıt onarımı)", () => {
+    expect(resolveShiftDef(null, "06:00", "14:00", defs)?.id).toBe("SD-SABAH");
+    expect(resolveShiftDef("bilinmeyen-id", "14:00", "22:00", defs)?.id).toBe("SD-AKSAM");
+  });
+
+  it("gece geçişi vardiyası saate göre eşleşir", () => {
+    expect(resolveShiftDef(null, "22:00", "06:00", defs)?.id).toBe("SD-GECE");
+  });
+
+  it("±10 dk tolerans", () => {
+    expect(resolveShiftDef(null, "06:05", "13:55", defs)?.id).toBe("SD-SABAH");
+    expect(resolveShiftDef(null, "06:20", "14:00", defs)).toBeNull();
+  });
+
+  it("gerçekten özel saat → null", () => {
+    expect(resolveShiftDef(null, "10:00", "16:00", defs)).toBeNull();
+    expect(resolveShiftDef(null, null, null, defs)).toBeNull();
   });
 });

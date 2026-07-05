@@ -7,6 +7,7 @@ import {
   Archive, Calendar, Clock, User, ChevronDown, ChevronUp,
   CheckCircle2, RefreshCw, ArrowLeft, History, AlertCircle,
 } from "lucide-react";
+import { resolveShiftDef } from "@/lib/fairness";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -218,13 +219,17 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                       {/* Günler */}
                       {Array.from({ length: 7 }, (_, d) => {
                         const cell = cellMap[`${p.id}-${d}`];
-                        const sd = cell ? snapshot.shiftDefs.find(s => s.id === cell.shiftId) : null;
-                        const color = cell ? shiftColor[cell.shiftId] : null;
+                        // shiftId eşleşmezse (eski kayıtlardaki "custom" sentineli) saate göre çöz;
+                        // gerçekten özel saatliyse nötr "Özel" chip'i — atama asla görünmez kalmaz
+                        const sd = cell
+                          ? resolveShiftDef(cell.shiftId, cell.startTime, cell.endTime, snapshot.shiftDefs)
+                          : null;
+                        const color = sd ? shiftColor[sd.id] : null;
                         return (
                           <td key={d} className={`py-1.5 px-1 text-center align-middle ${WEEKEND_DAYS.includes(d) ? "bg-indigo-50/30" : ""}`}>
-                            {cell && color ? (
-                              <div className={`rounded-lg py-1 px-1.5 border ${color.chip}`}>
-                                <div className="font-bold text-[10px] leading-snug">{sd?.name ?? "—"}</div>
+                            {cell ? (
+                              <div className={`rounded-lg py-1 px-1.5 border ${color ? color.chip : "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                                <div className="font-bold text-[10px] leading-snug">{sd?.name ?? "Özel"}</div>
                                 <div className="text-[9px] opacity-70 leading-snug">{cell.startTime}–{cell.endTime}</div>
                               </div>
                             ) : (
