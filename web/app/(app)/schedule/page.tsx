@@ -25,6 +25,7 @@ import {
   closestCenter,
 } from "@dnd-kit/core";
 import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
+import QuickSetup from "@/components/schedule/QuickSetup";
 
 const DAYS = DAY_SHORT;
 
@@ -1962,11 +1963,13 @@ export default function SchedulePage() {
               <button onClick={handleRequestAvailability} className="ml-auto underline font-semibold hover:text-blue-900">Müsaitlik İste</button>
             </div>
           )}
-          {!loading && shiftDefs.length === 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
-              <BookOpen size={15} className="shrink-0" />
-              <span>Vardiya şablonu tanımlı değil. <a href="/settings" className="font-bold underline hover:text-amber-900">Ayarlar&apos;dan ekleyin</a></span>
-            </div>
+          {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
+            <QuickSetup
+              locationId={activeLocationId}
+              shiftDefsCount={shiftDefs.length}
+              personnelCount={personnel.length}
+              demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
+            />
           )}
           {publishSuccess && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
@@ -2069,19 +2072,19 @@ export default function SchedulePage() {
             >
               <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", demandOpen && "rotate-180")} />
               <div className="flex-1">
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Kapasite Planı</p>
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Kapasite Planı — kaç kişi gerekli?</p>
                 {!demandOpen && (
-                  <p className="text-xs text-slate-400 mt-0.5">Her vardiya için günlük kişi sayısını belirle</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Her gün, her vardiyada kaç kişiye ihtiyacınız olduğunu girin — Otomatik Oluştur tam bu sayıda kişi atar</p>
                 )}
               </div>
               {shiftDefs.length === 0 && (
-                <a href="/settings" onClick={e => e.stopPropagation()} className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1 shrink-0"><BookOpen size={12} /> Vardiya tanımla</a>
+                <a href="/settings?tab=shifts" onClick={e => e.stopPropagation()} className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1 shrink-0"><BookOpen size={12} /> Vardiya tanımla</a>
               )}
             </button>
             {demandOpen && (loading ? (
               <div className="p-4 space-y-2 border-t border-slate-100">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}</div>
             ) : shiftDefs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya şablonu tanımlı değil.</div>
+              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya şablonu tanımlı değil — yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px]">

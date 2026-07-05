@@ -196,6 +196,20 @@ export default function DashboardPage() {
   const overtimeWarning = personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= YTD_WARN_THRESHOLD);
 
   const openCount = openShifts.filter((s: any) => s.status === "open").length;
+
+  // "Sıradaki adım" — müdürün şu an yapması gereken en öncelikli tek iş
+  const nextStep = loading ? null : (() => {
+    if (personnel.length === 0)
+      return { title: "Ekibinizi ekleyin", desc: "Plan yapabilmek için önce personel ekleyin — sadece isim yeterli.", cta: "Personel Ekle", href: "/personnel" };
+    if (!nextWeekPublished)
+      return { title: "Gelecek haftayı planlayın", desc: "Gelecek haftanın programı henüz yayınlanmadı. Personel plan yapabilsin diye erken yayınlayın.", cta: "Haftayı Planla", href: "/schedule" };
+    if (leaveRequests.length > 0)
+      return { title: `${leaveRequests.length} izin talebi onay bekliyor`, desc: "Personel yanıtınızı bekliyor.", cta: "Onaylara Git", href: "/requests" };
+    if (availMissing.length > 0)
+      return { title: `${availMissing.length} personel müsaitlik girmedi`, desc: "Gelecek haftanın müsaitliği eksik — hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
+    return null;
+  })();
+
   const kpi = [
     { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100",  href: "/personnel" },
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100", href: "/requests" },
@@ -229,6 +243,28 @@ export default function DashboardPage() {
           <CalendarCheck size={16} className="mr-2" /> Açık Vardiya Oluştur
         </Button>
       </div>
+
+      {/* Sıradaki adım — tek öncelikli aksiyon */}
+      {nextStep && (
+        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Sıradaki Adım</p>
+            <p className="text-sm font-bold text-slate-900">{nextStep.title}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{nextStep.desc}</p>
+          </div>
+          {nextStep.href && (
+            <Link
+              href={nextStep.href}
+              className="flex items-center justify-center gap-1.5 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors shrink-0"
+            >
+              {nextStep.cta} <ArrowRight size={14} />
+            </Link>
+          )}
+          {!nextStep.href && (
+            <span className="text-xs font-bold text-indigo-500 shrink-0">{nextStep.cta}</span>
+          )}
+        </div>
+      )}
 
       {/* KPI Kartları */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">

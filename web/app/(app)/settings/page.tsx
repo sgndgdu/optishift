@@ -114,7 +114,14 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("shifts");
+  // ?tab=shifts gibi derin linkler desteklenir (boş durum yönlendirmeleri buraya iner)
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t && TABS.some(x => x.key === t)) return t as TabKey;
+    }
+    return "shifts";
+  });
 
   // Departman yönetimi — anında DB'ye kaydedilir (/api/departments)
   const [newDeptName, setNewDeptName] = useState("");
@@ -172,6 +179,18 @@ export default function SettingsPage() {
   const [compDecayFactor, setCompDecayFactor]                     = useState(0.8);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
   const [partTimeWeightFactor, setPartTimeWeightFactor]           = useState(6);
+
+  // Basit mod — sidebar/ayarlar sade görünüm (rules.simple_mode, batched save)
+  const [simpleMode, setSimpleMode]           = useState(false);
+  const [showAdvancedTabs, setShowAdvancedTabs] = useState(false); // oturumluk "tümünü göster"
+
+  // Derin link gizli bir sekmeye geldiyse (örn. ?tab=rules) gelişmiş görünümü otomatik aç
+  useEffect(() => {
+    if (simpleMode && !showAdvancedTabs && !["shifts", "requests", "account"].includes(activeTab)) {
+      setShowAdvancedTabs(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simpleMode, activeTab]);
 
   // Fazla mesai kuralları
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
@@ -300,6 +319,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.comp_decay_factor === "number")         setCompDecayFactor(loc.rules.comp_decay_factor);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
           if (typeof loc.rules?.part_time_weight_factor === "number")   setPartTimeWeightFactor(loc.rules.part_time_weight_factor);
+          if (typeof loc.rules?.simple_mode === "boolean")              setSimpleMode(loc.rules.simple_mode);
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
@@ -401,6 +421,7 @@ export default function SettingsPage() {
             preferredNotEnabled: loc.rules?.preferred_not_enabled !== false,
             changeCompensationEnabled: loc.rules?.change_compensation_enabled !== false,
             leaveOverrideBonusEnabled: loc.rules?.leave_override_bonus_enabled !== false,
+            simpleMode: typeof loc.rules?.simple_mode === "boolean" ? loc.rules.simple_mode : false,
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
@@ -443,6 +464,7 @@ export default function SettingsPage() {
       maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+      simpleMode,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
@@ -584,6 +606,7 @@ export default function SettingsPage() {
             part_time_weight_factor:            partTimeWeightFactor,
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
+            simple_mode:                        simpleMode,
             overtime_fair_distribution:         overtimeFairDistribution,
             weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             crew_same_shift_hard:               crewSameShiftHard,
@@ -624,7 +647,8 @@ export default function SettingsPage() {
         locationLat: finalLat,
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-        overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
+        simpleMode,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -694,9 +718,15 @@ export default function SettingsPage() {
   const pointsColor = (v: number) =>
     v <= 3 ? "text-emerald-600" : v <= 6 ? "text-amber-600" : v <= 8 ? "text-orange-600" : "text-red-600";
 
+  // Basit modda çekirdek sekmeler; "Gelişmiş ayarları göster" ile tamamı açılır (oturumluk)
+  const SIMPLE_TAB_KEYS: TabKey[] = ["shifts", "requests", "account"];
+  const visibleTabs = simpleMode && !showAdvancedTabs
+    ? TABS.filter(t => SIMPLE_TAB_KEYS.includes(t.key))
+    : TABS;
+
   const TabBar = () => (
-    <div className="flex border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
-      {TABS.map(tab => (
+    <div className="flex items-center border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
+      {visibleTabs.map(tab => (
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
@@ -712,6 +742,14 @@ export default function SettingsPage() {
           {tab.label}
         </button>
       ))}
+      {simpleMode && (
+        <button
+          onClick={() => setShowAdvancedTabs(v => !v)}
+          className="ml-auto mr-2 text-xs font-semibold text-slate-400 hover:text-indigo-600 whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
+        >
+          {showAdvancedTabs ? "Sade görünüme dön" : "Gelişmiş ayarları göster"}
+        </button>
+      )}
     </div>
   );
 
@@ -900,6 +938,13 @@ export default function SettingsPage() {
           {/* ─── KURALLAR ─── */}
           {activeTab === "rules" && (
             <div className="space-y-4">
+              <SectionCard title="Görünüm">
+                <RuleRow
+                  label="Basit Mod"
+                  description="Açıkken menü ve ayarlar sadeleşir: sadece günlük işler için gereken sayfalar görünür. Gelişmiş özellikler (adalet ayarları, rotasyon, entegrasyonlar) gizlenir ama tek tıkla erişilebilir kalır."
+                  right={<Toggle on={simpleMode} onToggle={() => setSimpleMode(v => !v)} />}
+                />
+              </SectionCard>
               <SectionCard title="Planlama Kısıtları">
                 <RuleRow
                   label="Kıdemli Personel Kısıtı"

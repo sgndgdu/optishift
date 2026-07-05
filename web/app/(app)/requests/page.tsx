@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   ClipboardList, ArrowLeftRight, FileEdit, CalendarOff,
-  CheckCircle2, XCircle, Clock, History
+  CheckCircle2, XCircle, Clock, History, Timer
 } from "lucide-react";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -57,7 +57,8 @@ export default function ManagerRequestsPage() {
   const [swaps, setSwaps]     = useState<any[]>([]);
   const [edits, setEdits]     = useState<any[]>([]);
   const [leaves, setLeaves]   = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"swap" | "edit" | "leave">("swap");
+  const [overtimes, setOvertimes] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"swap" | "edit" | "leave" | "overtime">("swap");
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast]     = useState("");
@@ -71,14 +72,16 @@ export default function ManagerRequestsPage() {
     setLoading(true);
     const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
     try {
-      const [sw, ed, lv] = await Promise.all([
+      const [sw, ed, lv, ot] = await Promise.all([
         fetch(`/api/swap-requests?org_id=${user.org_id}&location_id=${locId}&status=peer_accepted`).then(r => r.json()).catch(() => []),
         fetch(`/api/shift-edit-requests?org_id=${user.org_id}&location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/leave-requests?location_id=${locId}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/overtime?location_id=${locId}`).then(r => r.json()).catch(() => []),
       ]);
       setSwaps(Array.isArray(sw) ? sw : []);
       setEdits(Array.isArray(ed) ? ed : []);
       setLeaves(Array.isArray(lv) ? lv : []);
+      setOvertimes(Array.isArray(ot) ? ot : []);
     } finally { setLoading(false); }
   }, [user]);
 
@@ -154,12 +157,32 @@ export default function ManagerRequestsPage() {
   const pendingSwaps  = swaps.filter(s => s.status === "peer_accepted");
   const pendingEdits  = edits.filter(e => e.status === "pending");
   const pendingLeaves = leaves.filter((l: any) => l.status === "pending");
-  const totalPending  = pendingSwaps.length + pendingEdits.length + pendingLeaves.length;
+  const pendingOvertimes = overtimes.filter((o: any) => o.status === "pending");
+  const totalPending  = pendingSwaps.length + pendingEdits.length + pendingLeaves.length + pendingOvertimes.length;
 
   // Filtered lists based on showHistory toggle
   const visibleSwaps  = showHistory ? swaps  : pendingSwaps;
   const visibleEdits  = showHistory ? edits  : pendingEdits;
   const visibleLeaves = showHistory ? leaves : pendingLeaves;
+  const visibleOvertimes = showHistory ? overtimes : pendingOvertimes;
+
+  async function decideOvertime(id: number, status: "approved" | "rejected") {
+    const res = await fetch("/api/overtime", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) { showToast(status === "approved" ? "Mesai onaylandı ✓" : "Mesai reddedildi"); load(); }
+    else showToast("Bir hata oluştu");
+  }
+
+  function otWeekLabel(iso: string) {
+    const d = new Date(iso + "T00:00:00");
+    const end = new Date(d);
+    end.setDate(d.getDate() + 6);
+    const fmt = (dt: Date) => dt.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+    return `${fmt(d)} – ${fmt(end)}`;
+  }
 
   if (!mounted) return <div className="space-y-6" />;
 
@@ -172,7 +195,7 @@ export default function ManagerRequestsPage() {
             <ClipboardList size={20} className="text-primary" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Onay Kutusu</h1>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Onaylar</h1>
             <p className="text-sm text-slate-500">
               {totalPending > 0 ? `${totalPending} bekleyen talep` : "Bekleyen talep yok"}
             </p>
@@ -195,6 +218,7 @@ export default function ManagerRequestsPage() {
           { id: "swap",  label: "Takas",      count: pendingSwaps.length,  icon: ArrowLeftRight },
           { id: "edit",  label: "Düzenleme",  count: pendingEdits.length,  icon: FileEdit },
           { id: "leave", label: "İzin",       count: pendingLeaves.length, icon: CalendarOff },
+          { id: "overtime", label: "Mesai",   count: pendingOvertimes.length, icon: Timer },
         ] as const).map(t => (
           <button
             key={t.id}
@@ -362,6 +386,60 @@ export default function ManagerRequestsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── OVERTIME TAB ── */}
+      {!loading && activeTab === "overtime" && (
+        <div className="space-y-3">
+          {visibleOvertimes.length === 0 && <EmptyState text={showHistory ? "Mesai kaydı yok" : "Onay bekleyen mesai kaydı yok"} />}
+          {(visibleOvertimes as any[]).map((o: any) => {
+            const pending = o.status === "pending";
+            const empChip = o.employee_status === "accepted"
+              ? { label: `Personel kabul ✓ · ${o.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret"}`, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+              : o.employee_status === "declined"
+                ? { label: "Personel reddetti ✗", cls: "bg-red-50 text-red-600 border-red-200" }
+                : { label: "Personel onayı bekleniyor", cls: "bg-slate-50 text-slate-500 border-slate-200" };
+            return (
+              <div key={o.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-amber-200" : "border-slate-100"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <Timer size={13} className="text-amber-600 shrink-0" />
+                      <span className="text-sm font-black text-slate-900">{o.personnel_name ?? "—"}</span>
+                      <StatusBadge status={o.status} />
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${empChip.cls}`}>{empChip.label}</span>
+                    </div>
+                    <p className="text-xs text-slate-600 font-semibold">{o.overtime_hours} saat fazla mesai</p>
+                    <p className="text-xs text-slate-500">{o.week_start ? otWeekLabel(o.week_start) : "—"} haftası · {o.scheduled_hours} saat planlı</p>
+                    {o.note && <p className="text-xs text-slate-400 mt-1 italic">{o.note}</p>}
+                  </div>
+                  {o.created_at && (
+                    <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(o.created_at)}</span>
+                  )}
+                </div>
+                {pending && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => decideOvertime(o.id, "rejected")}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <XCircle size={15} /> Reddet
+                    </button>
+                    <button
+                      onClick={() => decideOvertime(o.id, "approved")}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                    >
+                      <CheckCircle2 size={15} /> Onayla
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-slate-400 text-center pt-1">
+            YTD limitleri, maliyet ve serbest zaman takibi için <Link href="/overtime" className="underline hover:text-slate-600">Fazla Mesai sayfası</Link>na bakın.
+          </p>
         </div>
       )}
 

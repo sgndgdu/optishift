@@ -51,21 +51,22 @@ function usePendingOvertime() {
 import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// simple: true → Basit Mod'da (rules.simple_mode) her zaman görünür; kalanlar "Gelişmiş" grubuna katlanır
 const NAV = [
-  { href: "/dashboard",    label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/personnel",    label: "Personel & Hesaplar", icon: Users },
-  { href: "/schedule",         label: "Vardiya Planı",  icon: CalendarClock },
-  { href: "/schedule/archive", label: "Yayın Arşivi",   icon: Archive },
-  { href: "/fairness",         label: "Adalet Puanı",   icon: Star },
-  { href: "/requests",     label: "Onay Kutusu",       icon: ClipboardList },
-  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone },
-  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer },
-  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee },
-  { href: "/reports",      label: "Raporlar",          icon: BarChart2 },
-  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare },
-  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug },
-  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard },
-  { href: "/settings",     label: "Ayarlar",          icon: Settings },
+  { href: "/dashboard",    label: "Dashboard",       icon: LayoutDashboard, simple: true },
+  { href: "/personnel",    label: "Personel & Hesaplar", icon: Users,       simple: true },
+  { href: "/schedule",         label: "Vardiya Planı",  icon: CalendarClock, simple: true },
+  { href: "/schedule/archive", label: "Yayın Arşivi",   icon: Archive,       simple: false },
+  { href: "/fairness",         label: "Adalet Puanı",   icon: Star,          simple: false },
+  { href: "/requests",     label: "Onaylar",           icon: ClipboardList,  simple: true },
+  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false },
+  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false },
+  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false },
+  { href: "/reports",      label: "Raporlar",          icon: BarChart2,      simple: false },
+  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true },
+  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug,            simple: false },
+  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard,      simple: false },
+  { href: "/settings",     label: "Ayarlar",          icon: Settings,        simple: true },
 ] as const;
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -77,6 +78,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pendingOvertime = usePendingOvertime();
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [showAdvancedNav, setShowAdvancedNav] = useState(false); // Basit Mod'da "Gelişmiş" grubu
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -153,6 +155,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   const activeLocation = locations.find(l => l.id === selectedLocationId);
+
+  // Basit Mod: aktif lokasyonun rules.simple_mode alanından okunur
+  const simpleMode = (() => {
+    try {
+      const r = typeof activeLocation?.rules === "string" ? JSON.parse(activeLocation.rules) : activeLocation?.rules;
+      return r?.simple_mode === true;
+    } catch { return false; }
+  })();
 
   return (
     <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
@@ -231,51 +241,79 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
-        {NAV.filter(item => !("adminOnly" in item && item.adminOnly) || (user?.role === "admin" || user?.role === "supervisor")).map(({ href, label, icon: Icon }) => {
-          const active       = pathname.startsWith(href);
-          const isChat       = href === "/chat";
-          const isAccounts   = href === "/personnel";
-          const isOvertime   = href === "/overtime";
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
-                active
-                  ? "bg-primary/5 text-primary"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
-              )}
-              <div className="relative shrink-0">
-                <Icon size={18} className={cn("transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+        {(() => {
+          const items = NAV.filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
+          const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
+            const active       = pathname.startsWith(href);
+            const isChat       = href === "/chat";
+            const isAccounts   = href === "/personnel";
+            const isOvertime   = href === "/overtime";
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+                  active
+                    ? "bg-primary/5 text-primary"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                {active && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                )}
+                <div className="relative shrink-0">
+                  <Icon size={18} className={cn("transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+                  {isChat && chatUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
+                  )}
+                  {isAccounts && pendingAccounts > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
+                  )}
+                  {isOvertime && pendingOvertime > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingOvertime}</span>
+                  )}
+                </div>
+                {label}
                 {isChat && chatUnread > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
+                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
                 )}
                 {isAccounts && pendingAccounts > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
+                  <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
                 )}
                 {isOvertime && pendingOvertime > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingOvertime}</span>
+                  <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingOvertime}</span>
                 )}
-              </div>
-              {label}
-              {isChat && chatUnread > 0 && (
-                <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
-              )}
-              {isAccounts && pendingAccounts > 0 && (
-                <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
-              )}
-              {isOvertime && pendingOvertime > 0 && (
-                <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingOvertime}</span>
-              )}
-            </Link>
+              </Link>
+            );
+          };
+
+          if (!simpleMode) return items.map(renderItem);
+
+          // Basit Mod: çekirdek sayfalar + katlanır "Gelişmiş" grubu.
+          // Gelişmiş grupta bekleyen mesai onayı varsa veya aktif sayfa oradaysa grup açık başlar.
+          const core = items.filter(i => i.simple);
+          const advanced = items.filter(i => !i.simple);
+          const advancedActive = advanced.some(i => pathname.startsWith(i.href));
+          const open = showAdvancedNav || advancedActive || pendingOvertime > 0;
+          return (
+            <>
+              {core.map(renderItem)}
+              <button
+                onClick={() => setShowAdvancedNav(v => !v)}
+                className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+              >
+                Gelişmiş
+                <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+                {!open && pendingOvertime > 0 && (
+                  <span className="ml-auto bg-amber-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{pendingOvertime}</span>
+                )}
+              </button>
+              {open && advanced.map(renderItem)}
+            </>
           );
-        })}
+        })()}
       </nav>
 
       {/* User Profile & Logout */}

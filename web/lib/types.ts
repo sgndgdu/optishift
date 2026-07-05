@@ -169,6 +169,7 @@ export interface ScheduleRules {
     last_sent_week?: string; // ISO Pazartesi (YYYY-MM-DD) — bu hafta gönderildiyse tekrar gönderilmez
   };
   // Fabrika modülü — fazla mesai
+  simple_mode?: boolean;               // basit mod: sidebar 6 öğe + sade ayarlar (KOBİ varsayılanı; sektör preset'i belirler)
   overtime_threshold_hours?: number;   // haftalık eşik: bu saatin üzeri mesai sayılır (varsayılan 45)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)
   weekly_overtime_budget_hours?: number; // tüm personelin haftalık toplam mesai bütçesi (0/undefined = limitsiz)

@@ -4,12 +4,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Store, Users, CalendarClock, Settings2, Sparkles, MapPin,
-  ArrowRight, ArrowLeft, Plus, Trash2, Check, Zap, X,
-  Coffee, ShoppingBag, Hotel, UtensilsCrossed, Factory, Copy,
+  Store, CalendarClock, Sparkles, MapPin,
+  ArrowRight, ArrowLeft, Plus, Trash2, Check, Zap,
+  Coffee, ShoppingBag, Hotel, UtensilsCrossed, Factory,
 } from "lucide-react";
+import { getSectorPreset } from "@/lib/presets";
+import type { ShiftDefinition } from "@/lib/types";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
+// Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
 
 const SECTORS = [
   { id: "cafe",       label: "Kafe / Bar",      icon: Coffee,          color: "bg-amber-100 text-amber-700" },
@@ -19,56 +22,10 @@ const SECTORS = [
   { id: "factory",    label: "Fabrika / Üretim", icon: Factory,         color: "bg-slate-200 text-slate-700" },
 ];
 
-const DEPT_PRESETS: Record<string, string[]> = {
-  cafe:       ["Mutfak", "Bar", "Salon", "Kasa"],
-  retail:     ["Kasa", "Reyon", "Depo", "Güvenlik"],
-  hotel:      ["Resepsiyon", "Kat Hizmetleri", "Restaurant", "Bar", "Mutfak"],
-  restaurant: ["Mutfak", "Servis", "Bar", "Kasa"],
-  factory:    ["Üretim", "Kalite Kontrol", "Depo", "Bakım"],
-};
-
-const SHIFT_PRESETS: Record<string, ShiftDef[]> = {
-  cafe: [
-    { id: "s1", name: "Açılış",  start: "07:00", end: "13:00", base_points: 5 },
-    { id: "s2", name: "Öğlen",   start: "11:00", end: "17:00", base_points: 3 },
-    { id: "s3", name: "Kapanış", start: "15:00", end: "22:00", base_points: 8 },
-  ],
-  retail: [
-    { id: "s1", name: "Sabah",      start: "09:00", end: "17:00", base_points: 3 },
-    { id: "s2", name: "Akşam",      start: "14:00", end: "22:00", base_points: 5 },
-    { id: "s3", name: "Hafta Sonu", start: "10:00", end: "19:00", base_points: 8 },
-  ],
-  hotel: [
-    { id: "s1", name: "Gündüz", start: "07:00", end: "15:00", base_points: 3 },
-    { id: "s2", name: "Akşam",  start: "15:00", end: "23:00", base_points: 5 },
-    { id: "s3", name: "Gece",   start: "23:00", end: "07:00", base_points: 10 },
-  ],
-  restaurant: [
-    { id: "s1", name: "Öğle Servisi",  start: "10:00", end: "16:00", base_points: 3 },
-    { id: "s2", name: "Akşam Servisi", start: "17:00", end: "24:00", base_points: 7 },
-  ],
-  factory: [
-    { id: "s1", name: "Sabah Vardiyası",  start: "06:00", end: "14:00", base_points: 5 },
-    { id: "s2", name: "Öğleden Sonra",    start: "14:00", end: "22:00", base_points: 7 },
-    { id: "s3", name: "Gece Vardiyası",   start: "22:00", end: "06:00", base_points: 10 },
-  ],
-};
-
 const STEPS = [
-  { label: "Sektör",      icon: Store },
-  { label: "Şubeler",     icon: MapPin },
-  { label: "Departmanlar",icon: Users },
-  { label: "Vardiyalar",  icon: CalendarClock },
-  { label: "Kurallar",    icon: Settings2 },
+  { label: "İşletmeniz", icon: Store },
+  { label: "Vardiyalar", icon: CalendarClock },
 ];
-
-interface ShiftDef {
-  id: string;
-  name: string;
-  start: string;
-  end: string;
-  base_points: number;
-}
 
 // ─── Bileşen ─────────────────────────────────────────────────────────────────
 
@@ -80,23 +37,12 @@ export default function OnboardingWizard() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
 
-  // Adım 0 — Sektör
+  // Adım 0 — Sektör + şubeler
   const [sector, setSector] = useState("cafe");
-
-  // Adım 1 — Şubeler
   const [branches, setBranches] = useState<string[]>([""]);
 
-  // Adım 2 — Her şube için departmanlar
-  const [deptsByBranch, setDeptsByBranch] = useState<string[][]>([[]]);
-  const [deptInputs, setDeptInputs]       = useState<string[]>([""]);
-
-  // Adım 3 — Vardiya tanımları
-  const [shifts, setShifts] = useState<ShiftDef[]>(SHIFT_PRESETS.cafe);
-
-  // Adım 4 — Kurallar
-  const [maxWeeklyHours, setMaxWeeklyHours]       = useState(45);
-  const [minRestHours, setMinRestHours]             = useState(11);
-  const [forceSkillsMatch, setForceSkillsMatch]   = useState(false);
+  // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
+  const [shifts, setShifts] = useState<ShiftDefinition[]>(getSectorPreset("cafe").shiftDefs);
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -116,59 +62,25 @@ export default function OnboardingWizard() {
 
   // Sektör değişince vardiya öneri seti güncelle
   useEffect(() => {
-    setShifts(SHIFT_PRESETS[sector] ?? SHIFT_PRESETS.cafe);
+    setShifts(getSectorPreset(sector).shiftDefs.map(d => ({ ...d })));
   }, [sector]);
-
-  // Şube sayısı değişince departman dizilerini senkronize et
-  useEffect(() => {
-    setDeptsByBranch(prev => {
-      const next: string[][] = [];
-      for (let i = 0; i < branches.length; i++) {
-        next.push(prev[i] ?? [...(DEPT_PRESETS[sector] ?? [])]);
-      }
-      return next;
-    });
-    setDeptInputs(prev => {
-      const next = [...prev];
-      while (next.length < branches.length) next.push("");
-      return next.slice(0, branches.length);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branches.length]);
 
   // ── Şube işlemleri ────────────────────────────────────────────────────────
   const addBranch = () => setBranches(p => [...p, ""]);
   const removeBranch = (i: number) => {
     if (branches.length <= 1) return;
     setBranches(p => p.filter((_, j) => j !== i));
-    setDeptsByBranch(p => p.filter((_, j) => j !== i));
   };
   const updateBranch = (i: number, val: string) =>
     setBranches(p => p.map((b, j) => (j === i ? val : b)));
-
-  // ── Departman işlemleri ───────────────────────────────────────────────────
-  const addDept = (bi: number, name: string) => {
-    if (!name.trim()) return;
-    setDeptsByBranch(p => {
-      const next = p.map(a => [...a]);
-      if (!next[bi].includes(name.trim())) next[bi].push(name.trim());
-      return next;
-    });
-    setDeptInputs(p => p.map((v, i) => (i === bi ? "" : v)));
-  };
-  const removeDept = (bi: number, di: number) =>
-    setDeptsByBranch(p => p.map((a, i) => (i === bi ? a.filter((_, j) => j !== di) : a)));
-  const copyFromFirst = (bi: number) =>
-    setDeptsByBranch(p => p.map((a, i) => (i === bi ? [...p[0]] : a)));
 
   // ── Kaydet (son adımda) ───────────────────────────────────────────────────
   const saveAll = async () => {
     setSaving(true);
     setError("");
     try {
-      const validBranches = branches
-        .map((name, i) => ({ name: name.trim(), depts: deptsByBranch[i] ?? [] }))
-        .filter(b => b.name);
+      const preset = getSectorPreset(sector);
+      const validBranches = branches.map(n => n.trim()).filter(Boolean);
 
       // Mevcut şubeleri çek — aynı isme sahip olanları yeniden oluşturma (idempotent)
       const existingRes = await fetch("/api/locations");
@@ -181,10 +93,10 @@ export default function OnboardingWizard() {
           : []
       );
 
-      // 1. Şubeleri oluştur (sıralı — ID'ler departman için gerekli)
+      // 1. Şubeleri oluştur
       const locationIds: string[] = [];
-      for (const branch of validBranches) {
-        const existingId = existingByName.get(branch.name.toLowerCase());
+      for (const name of validBranches) {
+        const existingId = existingByName.get(name.toLowerCase());
         if (existingId) {
           locationIds.push(existingId);
           continue;
@@ -192,14 +104,16 @@ export default function OnboardingWizard() {
         const res = await fetch("/api/locations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ org_id: user.org_id, name: branch.name }),
+          body: JSON.stringify({ org_id: user.org_id, name }),
         });
         const data = await res.json();
-        if (!data.id) throw new Error(data.error ?? ("Şube oluşturulamadı: " + branch.name));
+        if (!data.id) throw new Error(data.error ?? ("Şube oluşturulamadı: " + name));
         locationIds.push(data.id);
       }
 
-      // 2. Her şubeye vardiya tanımlarını ve çalışma saatlerini ata (paralel)
+      // 2. Vardiyalar + çalışma saatleri + sektör kuralları.
+      // Departman kurulumda oluşturulmaz — KOBİ akışını basit tutar (kapasite
+      // matrisi düz kalır); ihtiyacı olan Ayarlar → Departmanlar'dan ekler.
       const defaultHours: Record<string, unknown> = {};
       for (let i = 0; i < 7; i++) defaultHours[i] = { isOpen: true, open: "09:00", close: "22:00" };
 
@@ -209,30 +123,19 @@ export default function OnboardingWizard() {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              shift_definitions: shifts,
+              shift_definitions: shifts.filter(s => s.name.trim()),
               operating_hours: defaultHours,
               rules: {
-                max_weekly_hours: maxWeeklyHours,
-                min_rest_hours: minRestHours,
-                force_skills_match: forceSkillsMatch,
+                max_weekly_hours: 45,
+                min_rest_hours: 11,
+                simple_mode: preset.simpleMode,
               },
             }),
           })
         )
       );
 
-      // 3. Departmanları oluştur
-      for (let i = 0; i < validBranches.length; i++) {
-        for (const deptName of validBranches[i].depts.filter(d => d.trim())) {
-          await fetch("/api/departments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ location_id: locationIds[i], name: deptName }),
-          });
-        }
-      }
-
-      setStep(5);
+      setStep(2);
     } catch (e: any) {
       setError(e.message ?? "Beklenmedik bir hata oluştu.");
     } finally {
@@ -241,18 +144,13 @@ export default function OnboardingWizard() {
   };
 
   // ── Navigasyon ────────────────────────────────────────────────────────────
-  const validate = (): boolean => {
-    if (step === 1 && !branches.some(b => b.trim())) {
-      setError("En az bir şube adı girin.");
-      return false;
-    }
-    return true;
-  };
-
   const next = async () => {
     setError("");
-    if (!validate()) return;
-    if (step === 4) await saveAll();
+    if (step === 0 && !branches.some(b => b.trim())) {
+      setError("En az bir şube adı girin.");
+      return;
+    }
+    if (step === 1) await saveAll();
     else setStep(s => s + 1);
   };
 
@@ -263,7 +161,7 @@ export default function OnboardingWizard() {
       <div className="w-full max-w-2xl">
 
         {/* Progress bar */}
-        {step < 5 && (
+        {step < 2 && (
           <div className="flex items-center mb-6 md:mb-8">
             {STEPS.map((s, i) => {
               const Icon = s.icon;
@@ -296,11 +194,11 @@ export default function OnboardingWizard() {
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100">
           <div className="p-5 md:p-8 lg:p-10">
 
-            {/* ── Adım 0: Sektör ── */}
+            {/* ── Adım 0: Sektör + Şubeler ── */}
             {step === 0 && (
               <Shell icon={<Store size={24} />} color="bg-indigo-100 text-indigo-600"
-                title="Sektörünüzü Seçin"
-                sub="Vardiya şablonları ve departman önerileri buna göre hazırlanır.">
+                title="İşletmenizi Tanıyalım"
+                sub="Sektörünüzü seçin, şubenizi adlandırın — vardiya şablonları ve ayarlar buna göre hazırlanır.">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-2.5">
                   {SECTORS.map(s => {
                     const Icon = s.icon;
@@ -319,15 +217,9 @@ export default function OnboardingWizard() {
                     );
                   })}
                 </div>
-              </Shell>
-            )}
 
-            {/* ── Adım 1: Şubeler ── */}
-            {step === 1 && (
-              <Shell icon={<MapPin size={24} />} color="bg-sky-100 text-sky-600"
-                title="Şubelerinizi Ekleyin"
-                sub="Tek şube de olabilir, 50 şube de. Sonradan da ekleyebilirsiniz.">
                 <div className="space-y-2.5">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Şubeler — tek şube de olabilir, sonradan da eklenebilir</p>
                   {branches.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500 shrink-0">
@@ -345,101 +237,21 @@ export default function OnboardingWizard() {
                       </button>
                     </div>
                   ))}
-                </div>
-                {branches.length < 30 && (
-                  <button onClick={addBranch}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors">
-                    <Plus size={15} /> Şube Ekle
-                  </button>
-                )}
-              </Shell>
-            )}
-
-            {/* ── Adım 2: Departmanlar ── */}
-            {step === 2 && (
-              <Shell icon={<Users size={24} />} color="bg-emerald-100 text-emerald-600"
-                title="Departmanlar"
-                sub="Her şube için bölümleri tanımlayın. Departmansız da bırakabilirsiniz.">
-                <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
-                  {branches.filter(b => b.trim()).map((branchName, bi) => (
-                    <div key={bi} className="border-2 border-slate-100 rounded-2xl p-4 space-y-3">
-                      {/* Başlık */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <MapPin size={13} className="text-slate-400" />
-                          <span className="text-sm font-black text-slate-700">{branchName}</span>
-                        </div>
-                        {bi > 0 && (
-                          <button onClick={() => copyFromFirst(bi)}
-                            className="flex items-center gap-1 text-[11px] text-indigo-500 hover:text-indigo-700 font-bold transition-colors">
-                            <Copy size={11} /> 1. şubeden kopyala
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Hızlı ekle (sektör önerileri) */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {(DEPT_PRESETS[sector] ?? []).map(preset => {
-                          const added = deptsByBranch[bi]?.includes(preset);
-                          return (
-                            <button key={preset}
-                              onClick={() => added
-                                ? removeDept(bi, deptsByBranch[bi].indexOf(preset))
-                                : addDept(bi, preset)}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                                added
-                                  ? "bg-primary border-primary text-white"
-                                  : "border-slate-200 text-slate-500 hover:border-primary hover:text-primary"
-                              }`}>
-                              {added ? <><Check size={9} className="inline mr-0.5" />{preset}</> : `+ ${preset}`}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Özel departmanlar (preset dışı) */}
-                      {(deptsByBranch[bi] ?? []).filter(d => !(DEPT_PRESETS[sector] ?? []).includes(d)).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {(deptsByBranch[bi] ?? [])
-                            .filter(d => !(DEPT_PRESETS[sector] ?? []).includes(d))
-                            .map((dept, di) => (
-                              <span key={di}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700">
-                                {dept}
-                                <button onClick={() => removeDept(bi, deptsByBranch[bi].indexOf(dept))}
-                                  className="text-slate-400 hover:text-red-500">
-                                  <X size={10} />
-                                </button>
-                              </span>
-                            ))}
-                        </div>
-                      )}
-
-                      {/* Özel departman girişi */}
-                      <div className="flex gap-2">
-                        <input
-                          value={deptInputs[bi] ?? ""}
-                          onChange={e => setDeptInputs(p => p.map((v, i) => i === bi ? e.target.value : v))}
-                          onKeyDown={e => e.key === "Enter" && addDept(bi, deptInputs[bi])}
-                          placeholder="Özel departman ekle..."
-                          className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-primary transition-colors"
-                        />
-                        <button onClick={() => addDept(bi, deptInputs[bi])}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-primary hover:text-white rounded-lg text-xs font-bold text-slate-600 transition-colors">
-                          Ekle
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  {branches.length < 30 && (
+                    <button onClick={addBranch}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors">
+                      <Plus size={15} /> Şube Ekle
+                    </button>
+                  )}
                 </div>
               </Shell>
             )}
 
-            {/* ── Adım 3: Vardiya Tanımları ── */}
-            {step === 3 && (
+            {/* ── Adım 1: Vardiya Tanımları ── */}
+            {step === 1 && (
               <Shell icon={<CalendarClock size={24} />} color="bg-violet-100 text-violet-600"
                 title="Vardiya Tanımları"
-                sub="Tüm şubelerinizde kullanılacak vardiya tiplerini belirleyin. Sektörünüze özel öneriler yüklendi.">
+                sub="Sektörünüze özel öneriler yüklendi — saatleri işletmenize göre düzenlemeniz yeterli.">
                 <div className="space-y-3">
                   {shifts.map((s, i) => (
                     <div key={i} className="flex flex-wrap md:grid md:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-3">
@@ -475,59 +287,13 @@ export default function OnboardingWizard() {
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Puan değerleri adalet motorunun vardiyaları dengeli dağıtmak için kullandığı ağırlıklardır.
+                  Puan değeri, vardiyanın zorluğudur — adalet motoru yükü buna göre dengeler. Emin değilseniz olduğu gibi bırakın.
                 </p>
               </Shell>
             )}
 
-            {/* ── Adım 4: Kurallar ── */}
-            {step === 4 && (
-              <Shell icon={<Settings2 size={24} />} color="bg-amber-100 text-amber-600"
-                title="Kural Motoru"
-                sub="Bu ayarları istediğiniz zaman Ayarlar sayfasından değiştirebilirsiniz.">
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label>Haftalık Maksimum Çalışma Saati</Label>
-                      <span className="text-sm font-black text-primary">{maxWeeklyHours} saat</span>
-                    </div>
-                    <input type="range" min={20} max={60} step={1} value={maxWeeklyHours}
-                      onChange={e => setMaxWeeklyHours(+e.target.value)}
-                      className="w-full accent-primary h-2 rounded-full" />
-                    <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
-                      <span>20 sa</span><span>Türkiye yasal sınır: 45 sa</span><span>60 sa</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label>Vardiyalar Arası Minimum Dinlenme</Label>
-                      <span className="text-sm font-black text-primary">{minRestHours} saat</span>
-                    </div>
-                    <input type="range" min={8} max={16} step={1} value={minRestHours}
-                      onChange={e => setMinRestHours(+e.target.value)}
-                      className="w-full accent-primary h-2 rounded-full" />
-                    <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
-                      <span>8 sa</span><span>Türkiye yasal minimum: 11 sa</span><span>16 sa</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 rounded-2xl px-4 py-4 border border-slate-200">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">Yetenek Eşleştirmesi</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Personelin yeteneği yoksa uyarı ver, engelleme</p>
-                    </div>
-                    <button onClick={() => setForceSkillsMatch(v => !v)}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${forceSkillsMatch ? "bg-primary" : "bg-slate-200"}`}>
-                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${forceSkillsMatch ? "left-5" : "left-0.5"}`} />
-                    </button>
-                  </div>
-                </div>
-              </Shell>
-            )}
-
-            {/* ── Adım 5: Tamamlandı ── */}
-            {step === 5 && (
+            {/* ── Adım 2: Tamamlandı ── */}
+            {step === 2 && (
               <div className="text-center space-y-6 py-4">
                 <div className="relative inline-block">
                   <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
@@ -543,7 +309,8 @@ export default function OnboardingWizard() {
                 <div>
                   <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
-                    <strong>{branches.filter(b => b.trim()).length} şube</strong> oluşturuldu. Artık her şubeye müdür atayıp personel ekleyebilirsiniz.
+                    <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.
+                    Sırada personel eklemek var — Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.
                   </p>
                 </div>
 
@@ -566,7 +333,7 @@ export default function OnboardingWizard() {
             )}
 
             {/* Navigasyon */}
-            {step < 5 && (
+            {step < 2 && (
               <div className="flex gap-3 mt-8">
                 {step > 0 && (
                   <button onClick={() => setStep(s => s - 1)}
@@ -579,7 +346,7 @@ export default function OnboardingWizard() {
                   {saving ? (
                     <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Kaydediliyor…</>
                   ) : (
-                    <>{step === 4 ? "Tamamla ve Başla" : "Devam Et"} <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" /></>
+                    <>{step === 1 ? "Tamamla ve Başla" : "Devam Et"} <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" /></>
                   )}
                 </button>
               </div>
@@ -588,7 +355,7 @@ export default function OnboardingWizard() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6 font-medium">
-          Bu adımları istediğiniz zaman Ayarlar sayfasından değiştirebilirsiniz.
+          Departman, kural ve diğer tüm detayları istediğiniz zaman Ayarlar sayfasından ekleyebilirsiniz.
         </p>
       </div>
     </div>
@@ -616,8 +383,4 @@ function Shell({ icon, color, title, sub, children }: {
       <div className="space-y-5">{children}</div>
     </div>
   );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{children}</p>;
 }
