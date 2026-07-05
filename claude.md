@@ -406,6 +406,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 ---
 
 ### Bilinen Teknik Borçlar (çözüldü)
+- `shift_id: "custom"` sentineli (client'ta tanımlar geç yüklenince her atamaya yazılıyordu) → arşiv grid'i boş görünüyor, rescore tüm vardiyaları zorluk-5/gecesiz puanlıyordu. Üç katmanda çözüldü: `resolveShiftDef()` (lib/fairness.ts — id→saat fallback), `/api/shifts` sunucu tarafı çözümleme, arşiv SnapshotGrid saat fallback + "Özel" chip. Prod'da 83 satır onarıldı, 2 yayınlanmış hafta `/api/god/rescore` ile yeniden puanlandı (2026-07-05)
 - cellMap key multi-dash ID split → `lastIndexOf("-")` düzeltildi
 - Gece geçişi vardiyasında negatif puan → `+1440` düzeltmesi
 - Portal auth race condition → `mounted` guard
