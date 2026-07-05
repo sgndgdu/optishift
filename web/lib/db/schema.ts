@@ -40,7 +40,7 @@ export const locations = pgTable("locations", {
   operating_hours: text("operating_hours"), // JSON string
   shift_definitions: text("shift_definitions"), // JSON string
   zone_quotas: text("zone_quotas"), // JSON: {"Kasa": 2, "Reyon": 1}
-  rules: text("rules"), // JSON: {max_weekly_hours, min_rest_hours, force_skills_match}
+  rules: text("rules"), // JSON — tam şema: lib/types.ts ScheduleRules. DİKKAT: PATCH replace eder, merge etmez; yazan taraf mevcut rules'u spread etmeli
   demand_matrix: text("demand_matrix"), // JSON: {shiftDefId: {day(0-6): count}}
   leave_policy: text("leave_policy"), // JSON: {require_reason, allow_multi_day, max_days_per_request}
   rotation_template: text("rotation_template"), // JSON: RotationTemplate — crew bazlı döngüsel rotasyon

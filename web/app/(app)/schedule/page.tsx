@@ -1213,12 +1213,18 @@ export default function SchedulePage() {
         violations.push(`Haftalık mesai bütçesi aşılıyor: toplam ${Math.round(totalOT * 10) / 10}s fazla mesai — bütçe ${otBudget}s`);
       }
     }
+
+    // Lokasyon kurallarından limitler (hardcoded 45/11 değil — Ayarlar'daki değer geçerli)
+    const ruleMaxWeekly = typeof (locRules as Record<string, unknown>)?.max_weekly_hours === "number"
+      ? (locRules as Record<string, number>).max_weekly_hours : 45;
+    const ruleMinRest = typeof (locRules as Record<string, unknown>)?.min_rest_hours === "number"
+      ? (locRules as Record<string, number>).min_rest_hours : 11;
     for (const p of personnel) {
       // Haftalık saat limiti
       const totalHours = Object.entries(cellMap)
         .filter(([k]) => k.startsWith(`${p.id}-`))
         .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-      const maxH = p.max_weekly_hours ?? 45;
+      const maxH = p.max_weekly_hours ?? ruleMaxWeekly;
       if (totalHours > maxH) {
         violations.push(`${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s — limit ${maxH}s aşıldı`);
       }
@@ -1230,8 +1236,8 @@ export default function SchedulePage() {
         if (!cur || !next) continue;
         const adjEnd = cur.endMin;
         const gap    = (next.startMin + 1440) - adjEnd;
-        if (gap < 11 * 60) {
-          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} arası dinlenme ${Math.round(gap / 60 * 10) / 10}s (min 11s)`);
+        if (gap < ruleMinRest * 60) {
+          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} arası dinlenme ${Math.round(gap / 60 * 10) / 10}s (min ${ruleMinRest}s)`);
         } else if (gap < clopeningMinRest * 60) {
           clopeningCount++;
           violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} clopening (kapanış→açılış) — dinlenme ${Math.round(gap / 60 * 10) / 10}s, ${clopeningMinRest}s önerilir`);

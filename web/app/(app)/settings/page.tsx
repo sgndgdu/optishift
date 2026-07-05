@@ -555,6 +555,18 @@ export default function SettingsPage() {
       const t = zone.trim();
       if (t) quotasObj[t] = Math.max(0, Math.floor(min));
     }
+
+    // Kaydetme anında taze rules çek: sayfa açıkken sunucunun yazdığı anahtarlar
+    // (örn. availability_reminder.last_sent_week) bayat kopyayla ezilmesin.
+    // locations PATCH rules'u merge etmez — replace eder; koruma buradadır.
+    let baseRules: Record<string, unknown> =
+      locationData.rules && typeof locationData.rules === "object" ? { ...locationData.rules } : {};
+    try {
+      const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
+      const fr = Array.isArray(fresh) ? fresh[0]?.rules : null;
+      if (fr) baseRules = typeof fr === "string" ? JSON.parse(fr) : { ...fr };
+    } catch { /* taze çekilemezse load-anı kopyası kullanılır */ }
+
     try {
       const res = await fetch(`/api/locations?id=${locationData.id}`, {
         method: "PATCH",
@@ -564,6 +576,9 @@ export default function SettingsPage() {
           operating_hours:   locationData.operating_hours,
           zone_quotas:       quotasObj,
           rules: {
+            // Önce mevcut rules yayılır: bu sayfanın state'inde temsil edilmeyen
+            // anahtarlar (sunucu tarafının yazdıkları dahil) kaydetmede silinmez
+            ...baseRules,
             ensure_senior_per_shift:      ensureSeniorPerShift,
             max_consecutive_days:         maxConsecutiveDays,
             no_night_to_morning:          noNightToMorning,
@@ -584,7 +599,7 @@ export default function SettingsPage() {
               enabled: reminderEnabled,
               day: parseInt(reminderDay) || 0,
               time: reminderTime,
-              last_sent_week: locationData.rules?.availability_reminder?.last_sent_week,
+              last_sent_week: (baseRules.availability_reminder as { last_sent_week?: string } | undefined)?.last_sent_week,
             },
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
@@ -1117,7 +1132,7 @@ export default function SettingsPage() {
               <SectionCard title="Fazla Mesai Yönetimi — Fabrika Modülü">
                 <RuleRow
                   label="Haftalık Mesai Eşiği"
-                  description="Bu saati aşan çalışma saatleri fazla mesai sayılır ve onay akışına girer."
+                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık Maksimum Saat'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir — çoğu işletmede ikisi de 45'tir."
                   right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
                 />
                 <RuleRow

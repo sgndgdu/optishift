@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(1.5);
+  const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -80,6 +81,7 @@ export default function DashboardPage() {
         try {
           const rules = JSON.parse(loc.rules);
           if (typeof rules.hero_bonus_multiplier === "number") setHeroBonusMultiplier(rules.hero_bonus_multiplier);
+          if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
         } catch {}
       }
     } catch (e) {
@@ -191,9 +193,8 @@ export default function DashboardPage() {
   const scores = personnel.map(p => p.prev_score ?? 0);
   const maxScore = Math.max(...scores, 1);
 
-  // YTD mesai uyarısı: 270 saatin %80'ini (216 saat) aşmış personel
-  const YTD_WARN_THRESHOLD = 216;
-  const overtimeWarning = personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= YTD_WARN_THRESHOLD);
+  // YTD mesai uyarısı: lokasyon limitinin (rules.max_ytd_overtime_hours) %80'ini aşmış personel
+  const overtimeWarning = personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= maxYtdOvertime * 0.8);
 
   const openCount = openShifts.filter((s: any) => s.status === "open").length;
 

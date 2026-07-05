@@ -93,14 +93,12 @@ export default function OnboardingWizard() {
           : []
       );
 
-      // 1. Şubeleri oluştur
-      const locationIds: string[] = [];
+      // 1. Şubeleri oluştur. Aynı isimli şube zaten varsa DOKUNULMAZ:
+      // locations PATCH rules'u merge değil replace eder — kurulu bir şubenin
+      // tüm ayarlarını 3 anahtarlı wizard objesiyle ezmek veri kaybıdır.
+      const newLocationIds: string[] = [];
       for (const name of validBranches) {
-        const existingId = existingByName.get(name.toLowerCase());
-        if (existingId) {
-          locationIds.push(existingId);
-          continue;
-        }
+        if (existingByName.has(name.toLowerCase())) continue;
         const res = await fetch("/api/locations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -108,17 +106,17 @@ export default function OnboardingWizard() {
         });
         const data = await res.json();
         if (!data.id) throw new Error(data.error ?? ("Şube oluşturulamadı: " + name));
-        locationIds.push(data.id);
+        newLocationIds.push(data.id);
       }
 
-      // 2. Vardiyalar + çalışma saatleri + sektör kuralları.
+      // 2. Sadece YENİ şubelere vardiyalar + çalışma saatleri + sektör kuralları.
       // Departman kurulumda oluşturulmaz — KOBİ akışını basit tutar (kapasite
       // matrisi düz kalır); ihtiyacı olan Ayarlar → Departmanlar'dan ekler.
       const defaultHours: Record<string, unknown> = {};
       for (let i = 0; i < 7; i++) defaultHours[i] = { isOpen: true, open: "09:00", close: "22:00" };
 
       await Promise.all(
-        locationIds.map(id =>
+        newLocationIds.map(id =>
           fetch(`/api/locations?id=${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
