@@ -29,11 +29,18 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     // Verify location belongs to this org
-    const loc = await db.prepare("SELECT id, name FROM locations WHERE id = ? AND org_id = ?")
-      .get(location_id, auth.org_id) as { id: string; name: string } | undefined;
+    const loc = await db.prepare("SELECT id, name, rules FROM locations WHERE id = ? AND org_id = ?")
+      .get(location_id, auth.org_id) as { id: string; name: string; rules?: unknown } | undefined;
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
+
+    // Mesai eşiği lokasyon kuralından (varsayılan 45s/hafta)
+    let overtimeThresholdHours = 45;
+    try {
+      const r = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
+      if (typeof r?.overtime_threshold_hours === "number") overtimeThresholdHours = r.overtime_threshold_hours;
+    } catch { /* varsayılan */ }
 
     // Calculate month boundaries
     const [year, mon] = month.split("-").map(Number);
@@ -53,6 +60,7 @@ export async function GET(req: NextRequest) {
         sa.personnel_id,
         p.name AS personnel_name,
         p.title,
+        p.hourly_wage,
         sa.start_time,
         sa.end_time,
         sa.day,
@@ -75,6 +83,7 @@ export async function GET(req: NextRequest) {
       shift_count: number;
       total_minutes: number;
       overtime_minutes: number;
+      hourly_wage: number | null;
       week_hours: Map<string, number>;
     }>();
 
@@ -87,6 +96,7 @@ export async function GET(req: NextRequest) {
           shift_count: 0,
           total_minutes: 0,
           overtime_minutes: 0,
+          hourly_wage: typeof row.hourly_wage === "number" ? row.hourly_wage : null,
           week_hours: new Map(),
         });
       }
@@ -111,8 +121,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Calculate overtime: per week, hours over 45h = overtime
-    const WEEKLY_LIMIT = 45 * 60;
+    // Calculate overtime: per week, hours over threshold = overtime
+    const WEEKLY_LIMIT = overtimeThresholdHours * 60;
     for (const person of personMap.values()) {
       for (const weekMinutes of person.week_hours.values()) {
         if (weekMinutes > WEEKLY_LIMIT) {
@@ -121,17 +131,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Build output
-    const result = Array.from(personMap.values()).map(p => ({
-      personnel_id: p.personnel_id,
-      name: p.name,
-      title: p.title,
-      shift_count: p.shift_count,
-      total_hours: Math.round((p.total_minutes / 60) * 10) / 10,
-      overtime_hours: Math.round((p.overtime_minutes / 60) * 10) / 10,
-    }));
+    // Build output — maliyet: mesai saati × saatlik ücret × 1,5 (%50 zamlı)
+    const result = Array.from(personMap.values()).map(p => {
+      const overtime_hours = Math.round((p.overtime_minutes / 60) * 10) / 10;
+      return {
+        personnel_id: p.personnel_id,
+        name: p.name,
+        title: p.title,
+        shift_count: p.shift_count,
+        total_hours: Math.round((p.total_minutes / 60) * 10) / 10,
+        overtime_hours,
+        overtime_cost: p.hourly_wage ? Math.round(overtime_hours * p.hourly_wage * 1.5) : null,
+      };
+    });
 
-    return NextResponse.json({ month, location: loc.name, rows: result });
+    return NextResponse.json({ month, location: loc.name, overtime_threshold_hours: overtimeThresholdHours, rows: result });
   } finally {
   }
 }

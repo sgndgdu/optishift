@@ -5,6 +5,7 @@ import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { logPlatformEvent } from "@/lib/platform-logger";
+import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -212,6 +213,15 @@ export async function POST(req: NextRequest) {
       prevScores[p.id] = p.prev_score ?? 0;
     }
 
+    // YTD mesai önbelleğini tazele (yıl devrilmesi dahil) — motor YTD hard cap'i
+    // taze değerle kursun diye bayat personnel cache'ine güvenilmez
+    let ytdFresh: Record<string, number> = {};
+    try {
+      ytdFresh = await recomputeYtdOvertime(auth.org_id, personnelRows.map((p: any) => p.id));
+    } catch (e) {
+      console.error("[generate] YTD mesai recompute hatası:", e);
+    }
+
     // Personel verisini formatla
     const personnelData = personnelRows.map((p: any) => {
       let role_level = "secondary";
@@ -235,7 +245,7 @@ export async function POST(req: NextRequest) {
         org_id: p.org_id,
         role_level,
         crew_id: p.crew_id ?? null,
-        ytd_overtime_hours: p.ytd_overtime_hours ?? 0,
+        ytd_overtime_hours: ytdFresh[p.id] ?? p.ytd_overtime_hours ?? 0,
       };
     });
 
@@ -481,40 +491,25 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // Motor fazla mesai özeti döndürdüyse overtime_records tablosuna kaydet
+    // Motor fazla mesai özeti döndürdüyse overtime_records'a upsert et.
+    // Hafta başına tek kayıt: re-generate çift kayıt/çift YTD saymaz; müdürün
+    // karara bağladığı kayıtlar ezilmez. Nihai otorite yayın anındaki derive'dır.
     if (Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
-      try {
-        const now = Math.floor(Date.now() / 1000);
-        for (const ot of data.overtime_summary) {
-          if ((ot.overtime_hours ?? 0) > 0) {
-            const exists = await db
-              .prepare(
-                `SELECT id FROM overtime_records WHERE location_id = $1 AND personnel_id = $2 AND week_start = $3 AND status = 'pending'`
-              )
-              .get(branchId, ot.personnelId, week_start);
-            if (!exists) {
-              await db
-                .prepare(
-                  `INSERT INTO overtime_records
-                   (org_id, location_id, personnel_id, personnel_name, week_start, scheduled_hours, overtime_hours, status, note, created_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NULL, $8)
-                   ON CONFLICT DO NOTHING`
-                )
-                .run(
-                  auth.org_id,
-                  branchId,
-                  ot.personnelId,
-                  ot.name ?? null,
-                  week_start,
-                  ot.scheduled_hours ?? 0,
-                  ot.overtime_hours,
-                  now
-                );
-            }
-          }
+      for (const ot of data.overtime_summary) {
+        try {
+          await upsertPendingOvertime({
+            orgId: auth.org_id,
+            locationId: branchId,
+            personnelId: ot.personnelId,
+            personnelName: ot.name ?? null,
+            weekStart: week_start,
+            scheduledHours: ot.scheduled_hours ?? 0,
+            overtimeHours: ot.overtime_hours ?? 0,
+            note: "OR-Tools taslağından otomatik hesaplandı",
+          });
+        } catch (e) {
+          console.error("[generate] overtime upsert hatası:", e);
         }
-      } catch {
-        /* sessizce atla */
       }
     }
 

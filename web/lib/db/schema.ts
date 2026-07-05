@@ -132,6 +132,7 @@ export const personnel = pgTable("personnel", {
   overtime_approved: boolean("overtime_approved").default(false),
   crew_id: text("crew_id"), // crews tablosuna foreign key (opsiyonel)
   ytd_overtime_hours: doublePrecision("ytd_overtime_hours").default(0), // yılbaşından bu yana fazla mesai saati
+  hourly_wage: doublePrecision("hourly_wage"), // saatlik brüt ücret (₺) — mesai maliyeti hesabı için, null = tanımsız
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
   prev_score: doublePrecision("prev_score").default(0), // cumulative_burden olarak kullanılıyor (rolling decay)
   fairness_z_score: doublePrecision("fairness_z_score").default(0),
@@ -515,6 +516,11 @@ export const overtimeRecords = pgTable("overtime_records", {
   status: text("status").notNull().default("pending"), // pending | approved | rejected
   approved_by: text("approved_by"), // user_id
   approved_at: bigint("approved_at", { mode: "number" }),
+  // İş Kanunu m.41: fazla mesai işçi onayına tabidir; telafi türünü işçi seçer
+  employee_status: text("employee_status").notNull().default("pending"), // pending | accepted | declined
+  employee_responded_at: bigint("employee_responded_at", { mode: "number" }),
+  compensation_type: text("compensation_type").notNull().default("paid"), // paid (%50 zamlı ücret) | time_off (1 saat → 1,5 saat serbest zaman)
+  comp_time_used_at: bigint("comp_time_used_at", { mode: "number" }), // serbest zaman kullandırıldı işareti
   note: text("note"),
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),

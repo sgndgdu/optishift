@@ -194,7 +194,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Manuel düzeltme için score_adjustments (type: manual).
-    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id } = body;
+    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, hourly_wage } = body;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -212,6 +212,13 @@ export async function PATCH(req: NextRequest) {
     `).run(name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours ?? null,
       user_access_level,
       roles !== undefined ? JSON.stringify(roles) : null, now, id);
+
+    // hourly_wage: undefined → dokunma, null → temizle, sayı → ata
+    if (hourly_wage !== undefined) {
+      await db.prepare("UPDATE personnel SET hourly_wage=? WHERE id=?").run(
+        hourly_wage === null ? null : Number(hourly_wage), id
+      );
+    }
 
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata
     if (weekly_off_day !== undefined) {

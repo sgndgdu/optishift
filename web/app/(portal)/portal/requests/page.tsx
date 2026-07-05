@@ -45,6 +45,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function otWeekLabel(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  const end = new Date(d);
+  end.setDate(d.getDate() + 6);
+  const fmt = (dt: Date) => dt.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+  return `${fmt(d)} – ${fmt(end)}`;
+}
+
 // ─── main page ─────────────────────────────────────────────────────────────
 export default function PortalRequests() {
   const router = useRouter();
@@ -58,6 +66,7 @@ export default function PortalRequests() {
   const [editReqs, setEditReqs]       = useState<any[]>([]);
   const [leaveReqs, setLeaveReqs]     = useState<any[]>([]);
   const [forceAssigns, setForceAssigns] = useState<any[]>([]);
+  const [overtimeMe, setOvertimeMe]   = useState<any>(null);
 
   // new-form state
   const [newType, setNewType]         = useState<"swap" | "edit" | "leave">("swap");
@@ -122,7 +131,7 @@ export default function PortalRequests() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [ss, si, er, lr, fa] = await Promise.all([
+    const [ss, si, er, lr, fa, ot] = await Promise.all([
       fetch(`/api/swap-requests?requester_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/swap-requests?target_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/shift-edit-requests?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
@@ -132,12 +141,16 @@ export default function PortalRequests() {
       user.personnel_id
         ? fetch(`/api/schedule/force-assignments?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => [])
         : Promise.resolve([]),
+      user.personnel_id
+        ? fetch(`/api/overtime/me`).then(r => r.ok ? r.json() : null).catch(() => null)
+        : Promise.resolve(null),
     ]);
     setSwapsSent(Array.isArray(ss) ? ss : []);
     setSwapsIn(Array.isArray(si) ? si : []);
     setEditReqs(Array.isArray(er) ? er : []);
     setLeaveReqs(Array.isArray(lr) ? lr : []);
     setForceAssigns(Array.isArray(fa) ? fa : []);
+    setOvertimeMe(ot && !ot.error ? ot : null);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -344,8 +357,34 @@ export default function PortalRequests() {
 
   if (!mounted) return <div className="space-y-4" />;
 
-  // Gelen takas + zorunlu atama sayısı
-  const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length + forceAssigns.length;
+  // Personel onayı bekleyen fazla mesai kayıtları (İş K. m.41)
+  const overtimePending: any[] = (overtimeMe?.records ?? []).filter(
+    (r: any) => r.status === "pending" && r.employee_status === "pending"
+  );
+
+  async function respondOvertime(id: number, employee_status: "accepted" | "declined", compensation_type?: "paid" | "time_off") {
+    const res = await fetch("/api/overtime/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, employee_status, compensation_type }),
+    });
+    if (res.ok) {
+      showToast(
+        employee_status === "declined"
+          ? "Mesai reddedildi. Müdürün bilgilendirildi."
+          : compensation_type === "time_off"
+            ? "Kabul edildi — serbest zaman (1,5 kat izin) olarak işlenecek."
+            : "Kabul edildi — zamlı ücret olarak işlenecek."
+      );
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || "İşlem başarısız.", "error");
+    }
+    await loadData();
+  }
+
+  // Gelen takas + zorunlu atama + mesai onayı sayısı
+  const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length + forceAssigns.length + overtimePending.length;
 
   return (
     <div className="p-5 space-y-4">
@@ -430,6 +469,66 @@ export default function PortalRequests() {
       {activeTab === "incoming" && (
         <div className="space-y-4">
 
+          {/* ── Fazla Mesai Onayları (İş K. m.41 — işçi onayı) ── */}
+          {overtimePending.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Clock size={14} className="text-indigo-600" />
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fazla Mesai Onayları</h2>
+                <span className="ml-1 bg-indigo-100 text-indigo-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{overtimePending.length}</span>
+              </div>
+              {overtimePending.map((r: any) => (
+                <div key={r.id} className="bg-white rounded-2xl border border-indigo-200 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">
+                        {r.overtime_hours} saat fazla mesai
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {otWeekLabel(r.week_start)} haftası · toplam {r.scheduled_hours} saat planlı
+                      </p>
+                      {r.note && <p className="text-xs text-slate-400 mt-1 italic">{r.note}</p>}
+                    </div>
+                    <Clock size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+                  </div>
+                  <p className="text-[11px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                    Kabul edersen telafi türünü sen seçersin: <b>zamlı ücret</b> (%50 artırımlı) veya <b>serbest zaman</b> (1 saat mesai = 1,5 saat izin).
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => respondOvertime(r.id, "accepted", "paid")}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors"
+                    >
+                      <CheckCircle2 size={14} /> Kabul — Zamlı Ücret
+                    </button>
+                    <button
+                      onClick={() => respondOvertime(r.id, "accepted", "time_off")}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/5 transition-colors"
+                    >
+                      <CalendarOff size={14} /> Kabul — Serbest Zaman
+                    </button>
+                    <button
+                      onClick={() => respondOvertime(r.id, "declined")}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <XCircle size={14} /> Reddet
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Serbest zaman bakiyesi ── */}
+          {(overtimeMe?.comp_time_balance_hours ?? 0) > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+              <CalendarOff size={16} className="text-emerald-600 shrink-0" />
+              <p className="text-xs text-emerald-800">
+                <b>{overtimeMe.comp_time_balance_hours} saat</b> kullanılmamış serbest zaman bakiyen var — müdürünle planlayabilirsin.
+              </p>
+            </div>
+          )}
+
           {/* ── Zorunlu Atama Talepleri ── */}
           {forceAssigns.length > 0 && (
             <div className="space-y-3">
@@ -463,14 +562,14 @@ export default function PortalRequests() {
 
           {/* ── Gelen Takas Teklifleri ── */}
           <div className="space-y-3">
-            {forceAssigns.length > 0 && (
+            {(forceAssigns.length > 0 || overtimePending.length > 0) && (
               <div className="flex items-center gap-1.5">
                 <ArrowLeftRight size={14} className="text-slate-400" />
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gelen Takas Teklifleri</h2>
               </div>
             )}
           {swapsIn.length === 0 ? (
-            forceAssigns.length === 0 ? (
+            forceAssigns.length === 0 && overtimePending.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-10 flex flex-col items-center gap-3 text-slate-400">
               <Inbox size={36} strokeWidth={1.5} />
               <p className="text-sm font-semibold">Bekleyen gelen talep yok</p>

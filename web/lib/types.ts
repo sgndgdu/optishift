@@ -51,6 +51,12 @@ export interface OvertimeRecord {
   status: "pending" | "approved" | "rejected";
   approved_by?: string;
   approved_at?: number;
+  /** İş K. m.41 — personel onayı: fazla mesai işçinin kabulüne tabidir */
+  employee_status: "pending" | "accepted" | "declined";
+  employee_responded_at?: number;
+  /** Telafi türü (işçi seçer): zamlı ücret (%50) veya serbest zaman (1s → 1,5s izin) */
+  compensation_type: "paid" | "time_off";
+  comp_time_used_at?: number;
   note?: string;
   created_at: number;
 }
@@ -163,8 +169,9 @@ export interface ScheduleRules {
     last_sent_week?: string; // ISO Pazartesi (YYYY-MM-DD) — bu hafta gönderildiyse tekrar gönderilmez
   };
   // Fabrika modülü — fazla mesai
-  overtime_threshold_hours?: number;   // günlük eşik: bu saatin üzeri mesai sayılır (varsayılan 7.5)
+  overtime_threshold_hours?: number;   // haftalık eşik: bu saatin üzeri mesai sayılır (varsayılan 45)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)
+  weekly_overtime_budget_hours?: number; // tüm personelin haftalık toplam mesai bütçesi (0/undefined = limitsiz)
   overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
   // Fabrika modülü — ekip/rotasyon
   crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
@@ -202,6 +209,7 @@ export interface Personnel {
   overtime_approved: boolean;
   crew_id?: string;              // crews tablosuna referans (fabrika modülü)
   ytd_overtime_hours?: number;   // yılbaşından bu yana fazla mesai saati
+  hourly_wage?: number | null;   // saatlik brüt ücret (₺) — mesai maliyeti hesabı için
   prev_score: number;
   hero_count: number;
   no_show_count: number;

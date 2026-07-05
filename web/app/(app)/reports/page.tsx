@@ -11,6 +11,7 @@ interface ReportRow {
   shift_count: number;
   total_hours: number;
   overtime_hours: number;
+  overtime_cost: number | null;
 }
 
 function getMonthLabel(month: string) {
@@ -78,19 +79,20 @@ export default function ReportsPage() {
       [`Şube: ${locationName}`],
       [`Dönem: ${getMonthLabel(month)}`],
       [],
-      ["Ad Soyad", "Unvan", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)"],
-      ...rows.map(r => [r.name, r.title, r.shift_count, r.total_hours, r.overtime_hours]),
+      ["Ad Soyad", "Unvan", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)", "Mesai Maliyeti (₺, ×1,5)"],
+      ...rows.map(r => [r.name, r.title, r.shift_count, r.total_hours, r.overtime_hours, r.overtime_cost ?? ""]),
       [],
       ["TOPLAM", "", rows.reduce((s, r) => s + r.shift_count, 0),
         Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10,
-        Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10],
+        Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10,
+        rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0)],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 26 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 18 }];
+    ws["!cols"] = [{ wch: 26 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 20 }];
 
     // Bold headers
-    ["A1", "A5", "B5", "C5", "D5", "E5"].forEach(cell => {
+    ["A1", "A5", "B5", "C5", "D5", "E5", "F5"].forEach(cell => {
       if (ws[cell]) ws[cell].s = { font: { bold: true } };
     });
 
@@ -102,6 +104,8 @@ export default function ReportsPage() {
   const totalShifts = rows.reduce((s, r) => s + r.shift_count, 0);
   const totalHours = Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10;
   const totalOvertime = Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10;
+  const totalOvertimeCost = rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0);
+  const hasCost = rows.some(r => r.overtime_cost !== null && r.overtime_cost !== undefined);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -149,7 +153,7 @@ export default function ReportsPage() {
 
       {/* Summary Cards */}
       {rows.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className={`grid ${hasCost ? "grid-cols-4" : "grid-cols-3"} gap-4`}>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
             <p className="text-2xl font-bold text-slate-900">{rows.length}</p>
             <p className="text-xs text-slate-500 mt-1">Personel</p>
@@ -164,6 +168,14 @@ export default function ReportsPage() {
             </p>
             <p className="text-xs text-slate-500 mt-1">Fazla Mesai</p>
           </div>
+          {hasCost && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
+              <p className={`text-2xl font-bold ${totalOvertimeCost > 0 ? "text-red-600" : "text-slate-900"}`}>
+                ₺{totalOvertimeCost.toLocaleString("tr-TR")}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Mesai Maliyeti (×1,5)</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -190,6 +202,7 @@ export default function ReportsPage() {
                 <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Vardiya</th>
                 <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Toplam Saat</th>
                 <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Fazla Mesai</th>
+                {hasCost && <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Maliyet</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -208,6 +221,11 @@ export default function ReportsPage() {
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
+                  {hasCost && (
+                    <td className="px-5 py-3.5 text-right text-slate-700">
+                      {row.overtime_cost ? `₺${row.overtime_cost.toLocaleString("tr-TR")}` : <span className="text-slate-400">—</span>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -217,6 +235,7 @@ export default function ReportsPage() {
                 <td className="px-5 py-3.5 text-right font-bold text-slate-900">{totalShifts}</td>
                 <td className="px-5 py-3.5 text-right font-bold text-slate-900">{totalHours} sa</td>
                 <td className="px-5 py-3.5 text-right font-bold text-amber-700">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
+                {hasCost && <td className="px-5 py-3.5 text-right font-bold text-red-700">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
               </tr>
             </tfoot>
           </table>
@@ -224,7 +243,7 @@ export default function ReportsPage() {
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        Fazla mesai hesabı: haftalık 45 saati aşan çalışma süresi — yasal eşiği aşan haftalar işaretlenir.
+        Fazla mesai hesabı: lokasyon ayarlarındaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
       </p>
     </div>
   );

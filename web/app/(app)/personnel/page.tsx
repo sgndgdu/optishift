@@ -30,6 +30,7 @@ type MergedPerson = {
   location_id: string | null;
   crew_id: string | null;
   ytd_overtime_hours: number | null;
+  hourly_wage: number | null;
 };
 
 const ROLE_DEFS = [
@@ -80,7 +81,7 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -126,6 +127,7 @@ export default function PersonnelPage() {
           min_weekly_hours: p?.min_weekly_hours ?? null, location_id: u.location_id,
           crew_id: p?.crew_id ?? null,
           ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
+          hourly_wage: p?.hourly_wage ?? null,
         };
       });
       setPersons(merged);
@@ -248,7 +250,7 @@ export default function PersonnelPage() {
 
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null });
+    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null });
     setEditError("");
   };
 
@@ -259,7 +261,7 @@ export default function PersonnelPage() {
     try {
       await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
       if (editingPerson.personnelId) {
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id }) });
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -659,6 +661,11 @@ export default function PersonnelPage() {
                         {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Saatlik Ücret (₺, brüt)</label>
+                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    <p className="text-[10px] text-slate-400 mt-1">Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez.</p>
                   </div>
                   {crewList.length > 0 && (
                     <div>

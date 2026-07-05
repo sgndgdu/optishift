@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
+import { deriveOvertimeForWeek } from "@/lib/overtime";
 import { type ShiftDef } from "@/lib/fairness";
 
 
@@ -38,6 +39,27 @@ export async function POST(req: NextRequest) {
     // score_history DELETE+INSERT + kümülatif/z recompute — re-publish idempotent.
     // Kahraman ve zorunlu atama çarpanları lib/scoring.ts içinde uygulanır.
     await rescoreWeek(auth.org_id, location_id, week_start);
+
+    // ── Mesai derive: yayınlanan saatlerden kişi başı haftalık toplam →
+    // eşik üstü pending overtime_records (upsert — re-publish idempotent).
+    // Yayınlanan plan otoritedir; motor taslağının kaydını günceller/temizler.
+    // Mesaisi doğan personele onay bildirimi gider (İş K. m.41 — işçi onayı).
+    try {
+      const derivedOT = await deriveOvertimeForWeek(auth.org_id, location_id, week_start);
+      for (const d of derivedOT) {
+        await db.prepare(`
+          INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+          VALUES (?, 'overtime', ?, ?, '/portal/requests', false, ?)
+        `).run(
+          d.personnelId,
+          "Fazla Mesai Onayın Gerekiyor ⏰",
+          `${week_start} haftasında ${d.overtimeHours} saat fazla mesain planlandı. Talepler sayfasından onayla ve telafi türünü seç (zamlı ücret / serbest zaman).`,
+          Math.floor(Date.now() / 1000),
+        );
+      }
+    } catch (e) {
+      console.error("[publish] mesai derive hatası:", e);
+    }
 
     // ── 7. Bildirimler ────────────────────────────────────────────────────────
     const activePersonnel = await db.prepare(`

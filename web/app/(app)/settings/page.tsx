@@ -177,6 +177,7 @@ export default function SettingsPage() {
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
+  const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
   const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
   // Ekip (Crew) yönetimi
@@ -302,6 +303,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
+          if (typeof loc.rules?.weekly_overtime_budget_hours === "number") setWeeklyOvertimeBudgetHours(loc.rules.weekly_overtime_budget_hours);
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
 
           // Rotasyon şablonu
@@ -402,6 +404,7 @@ export default function SettingsPage() {
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
+            weeklyOvertimeBudgetHours: typeof loc.rules?.weekly_overtime_budget_hours === "number" ? loc.rules.weekly_overtime_budget_hours : 0,
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             rotationEnabled: !!loc.rotation_template?.enabled,
             rotationType: loc.rotation_template?.type ?? "3-shift",
@@ -440,7 +443,7 @@ export default function SettingsPage() {
       maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -582,6 +585,7 @@ export default function SettingsPage() {
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             overtime_fair_distribution:         overtimeFairDistribution,
+            weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             crew_same_shift_hard:               crewSameShiftHard,
           },
           leave_policy: {
@@ -620,7 +624,7 @@ export default function SettingsPage() {
         locationLat: finalLat,
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-        overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+        overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -1080,6 +1084,11 @@ export default function SettingsPage() {
                   label="Adil Mesai Dağılımı"
                   description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
                   right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
+                />
+                <RuleRow
+                  label="Haftalık Mesai Bütçesi"
+                  description="Tüm personelin haftalık toplam fazla mesai saati bu sınırı aşarsa yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
+                  right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
                 />
                 <RuleRow
                   label="Ekip Vardiyası — Kesin Kural"

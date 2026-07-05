@@ -1194,6 +1194,24 @@ export default function SchedulePage() {
   // Kural ihlali kontrolü — yayınlamadan önce çalıştırılır
   const checkViolations = (): string[] => {
     const violations: string[] = [];
+
+    // Haftalık mesai bütçesi: tüm personelin eşik üstü saat toplamı sınırı aşıyor mu?
+    const otThreshold = typeof (locRules as Record<string, unknown>)?.overtime_threshold_hours === "number"
+      ? (locRules as Record<string, number>).overtime_threshold_hours : 45;
+    const otBudget = typeof (locRules as Record<string, unknown>)?.weekly_overtime_budget_hours === "number"
+      ? (locRules as Record<string, number>).weekly_overtime_budget_hours : 0;
+    if (otBudget > 0) {
+      let totalOT = 0;
+      for (const p of personnel) {
+        const hours = Object.entries(cellMap)
+          .filter(([k]) => k.startsWith(`${p.id}-`))
+          .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
+        totalOT += Math.max(0, hours - otThreshold);
+      }
+      if (totalOT > otBudget) {
+        violations.push(`Haftalık mesai bütçesi aşılıyor: toplam ${Math.round(totalOT * 10) / 10}s fazla mesai — bütçe ${otBudget}s`);
+      }
+    }
     for (const p of personnel) {
       // Haftalık saat limiti
       const totalHours = Object.entries(cellMap)

@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, Bell, ShieldAlert, Info } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, Bell, ShieldAlert, Info, RotateCcw } from "lucide-react";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -118,13 +118,26 @@ export default function OvertimePage() {
     return () => window.removeEventListener("optishift_location_changed", h);
   }, [load]);
 
-  async function handleDecision(id: number, status: "approved" | "rejected") {
+  async function handleDecision(id: number, status: "approved" | "rejected" | "pending") {
     const res = await fetch("/api/overtime", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    if (res.ok) { showToast(status === "approved" ? "Onaylandı ✓" : "Reddedildi"); load(); }
+    if (res.ok) {
+      showToast(status === "approved" ? "Onaylandı ✓" : status === "rejected" ? "Reddedildi" : "Geri alındı — tekrar beklemede");
+      load();
+    }
+    else showToast("Bir hata oluştu");
+  }
+
+  async function handleCompTime(id: number, used: boolean) {
+    const res = await fetch("/api/overtime", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: used ? "comp_time_used" : "comp_time_unused" }),
+    });
+    if (res.ok) { showToast(used ? "Serbest zaman kullandırıldı olarak işaretlendi" : "İşaret kaldırıldı"); load(); }
     else showToast("Bir hata oluştu");
   }
 
@@ -157,6 +170,14 @@ export default function OvertimePage() {
   if (!mounted) return null;
 
   const atLimitCount = personnel.filter(p => (p.ytd_overtime_hours ?? 0) >= maxYtd * 0.9).length;
+
+  // Mesai maliyeti: saat × saatlik ücret × 1,5 (%50 zamlı) — serbest zaman seçilenler hariç
+  const wageById: Record<string, number> = {};
+  for (const p of personnel) if (typeof p.hourly_wage === "number" && p.hourly_wage > 0) wageById[p.id] = p.hourly_wage;
+  const monthCost = history
+    .filter(r => r.status === "approved" && r.compensation_type !== "time_off" && isThisMonth(r.created_at) && wageById[r.personnel_id])
+    .reduce((s, r) => s + r.overtime_hours * wageById[r.personnel_id] * 1.5, 0);
+  const hasWages = Object.keys(wageById).length > 0;
 
   // Uyarı listesi — mevcut veriden türetilir, ek API çağrısı gerekmez
   const warnings = buildWarnings(personnel, history, maxYtd);
@@ -199,10 +220,11 @@ export default function OvertimePage() {
           accent="red"
         />
         <SummaryCard
-          label="Toplam Personel"
-          value={personnel.length}
-          icon={<User size={18} className="text-blue-500" />}
+          label="Bu Ay Mesai Maliyeti"
+          value={hasWages ? `₺${Math.round(monthCost).toLocaleString("tr-TR")}` : "—"}
+          icon={<TrendingUp size={18} className="text-blue-500" />}
           accent="blue"
+          hint={hasWages ? "onaylı · zamlı ücret ×1,5" : "personele saatlik ücret girin"}
         />
       </div>
 
@@ -234,7 +256,7 @@ export default function OvertimePage() {
       {loading ? (
         <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>
       ) : tab === "pending" ? (
-        <PendingTab pending={pending} history={history} onDecision={handleDecision} />
+        <PendingTab pending={pending} history={history} onDecision={handleDecision} onCompTime={handleCompTime} wageById={wageById} />
       ) : tab === "status" ? (
         <StatusTab personnel={personnel} maxYtd={maxYtd} />
       ) : (
@@ -395,7 +417,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
 
 // ─── Alt Bileşenler ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, icon, accent }: { label: string; value: number; icon: React.ReactNode; accent: string }) {
+function SummaryCard({ label, value, icon, accent, hint }: { label: string; value: number | string; icon: React.ReactNode; accent: string; hint?: string }) {
   const bg: Record<string, string> = {
     amber: "bg-amber-50 border-amber-100",
     emerald: "bg-emerald-50 border-emerald-100",
@@ -409,14 +431,17 @@ function SummaryCard({ label, value, icon, accent }: { label: string; value: num
         {icon}
       </div>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
+      {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
     </div>
   );
 }
 
-function PendingTab({ pending, history, onDecision }: {
+function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   pending: any[];
   history: any[];
-  onDecision: (id: number, status: "approved" | "rejected") => void;
+  onDecision: (id: number, status: "approved" | "rejected" | "pending") => void;
+  onCompTime: (id: number, used: boolean) => void;
+  wageById: Record<string, number>;
 }) {
   return (
     <div className="space-y-6">
@@ -428,7 +453,7 @@ function PendingTab({ pending, history, onDecision }: {
       ) : (
         <div className="space-y-2">
           {pending.map(r => (
-            <OvertimeRow key={r.id} record={r} onDecision={onDecision} />
+            <OvertimeRow key={r.id} record={r} onDecision={onDecision} wage={wageById[r.personnel_id]} />
           ))}
         </div>
       )}
@@ -438,7 +463,7 @@ function PendingTab({ pending, history, onDecision }: {
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Geçmiş</p>
           <div className="space-y-2">
             {history.slice(0, 10).map(r => (
-              <OvertimeRow key={r.id} record={r} readonly />
+              <OvertimeRow key={r.id} record={r} readonly onUndo={onDecision} onCompTime={onCompTime} wage={wageById[r.personnel_id]} />
             ))}
           </div>
         </div>
@@ -447,10 +472,13 @@ function PendingTab({ pending, history, onDecision }: {
   );
 }
 
-function OvertimeRow({ record: r, onDecision, readonly }: {
+function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage }: {
   record: any;
   onDecision?: (id: number, status: "approved" | "rejected") => void;
   readonly?: boolean;
+  onUndo?: (id: number, status: "pending") => void;
+  onCompTime?: (id: number, used: boolean) => void;
+  wage?: number;
 }) {
   const statusMap: Record<string, { label: string; cls: string }> = {
     pending:  { label: "Bekliyor",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -459,20 +487,41 @@ function OvertimeRow({ record: r, onDecision, readonly }: {
   };
   const st = statusMap[r.status] ?? { label: r.status, cls: "bg-slate-100 text-slate-500 border-slate-200" };
 
+  // Personel onayı (İş K. m.41) — kabulde telafi türü de gösterilir
+  const compLabel = r.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret";
+  const empChip =
+    r.employee_status === "accepted"
+      ? { label: `Personel kabul ✓ · ${compLabel}`, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      : r.employee_status === "declined"
+        ? { label: "Personel reddetti ✗", cls: "bg-red-50 text-red-600 border-red-200" }
+        : { label: "Personel onayı bekleniyor", cls: "bg-slate-50 text-slate-500 border-slate-200" };
+
+  const isCompTimeRecord = r.status === "approved" && r.compensation_type === "time_off";
+
   return (
     <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-slate-200 transition-colors">
       <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
         <span className="text-sm font-bold text-indigo-600">{(r.personnel_name ?? "?").charAt(0).toUpperCase()}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <span className="font-semibold text-slate-900 text-sm">{r.personnel_name ?? "—"}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${empChip.cls}`}>{empChip.label}</span>
+          {isCompTimeRecord && r.comp_time_used_at && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">İzin kullandırıldı ✓</span>
+          )}
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span>{r.week_start ? weekLabel(r.week_start) : "—"}</span>
           <span className="text-slate-300">·</span>
           <span><b className="text-slate-700">{r.overtime_hours}s</b> mesai</span>
+          {wage && r.compensation_type !== "time_off" && (
+            <>
+              <span className="text-slate-300">·</span>
+              <span title="mesai saati × saatlik ücret × 1,5 (%50 zamlı)">≈ <b className="text-slate-700">₺{Math.round(r.overtime_hours * wage * 1.5).toLocaleString("tr-TR")}</b></span>
+            </>
+          )}
           <span className="text-slate-300">·</span>
           <span>{r.scheduled_hours}s planlı</span>
           {r.created_at && <><span className="text-slate-300">·</span><span>{timeAgo(r.created_at)}</span></>}
@@ -497,9 +546,32 @@ function OvertimeRow({ record: r, onDecision, readonly }: {
           </button>
         </div>
       )}
-      {readonly && (
+      {readonly && (r.status === "approved" || r.status === "rejected") ? (
+        <div className="flex items-center gap-2 shrink-0">
+          {isCompTimeRecord && !r.comp_time_used_at && onCompTime && (
+            <button
+              onClick={() => onCompTime(r.id, true)}
+              title="Serbest zaman iznini kullandırdığını işaretle — bakiyeden düşer"
+              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+            >
+              <CheckCircle2 size={13} />
+              İzin Kullandırıldı
+            </button>
+          )}
+          {onUndo && (
+            <button
+              onClick={() => onUndo(r.id, "pending")}
+              title="Kararı geri al — kayıt tekrar beklemeye düşer, YTD yeniden hesaplanır"
+              className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+            >
+              <RotateCcw size={13} />
+              Geri Al
+            </button>
+          )}
+        </div>
+      ) : readonly ? (
         <TrendingUp size={14} className="text-slate-300 shrink-0" />
-      )}
+      ) : null}
     </div>
   );
 }
