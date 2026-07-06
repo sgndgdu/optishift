@@ -221,6 +221,7 @@ export const shiftAssignments = pgTable("shift_assignments", {
   published_at: bigint("published_at", { mode: "number" }), // unix timestamp — haftanın ilk yayın anı
   check_in_at: bigint("check_in_at", { mode: "number" }), // unix timestamp
   check_out_at: bigint("check_out_at", { mode: "number" }), // unix timestamp
+  handover_note: text("handover_note"), // vardiya devri notu — check-out'ta yazılır, sonraki vardiya check-in'de görür
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'

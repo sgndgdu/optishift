@@ -467,7 +467,7 @@ export async function PATCH(req: NextRequest) {
 
     // ── Check-out ────────────────────────────────────────────────────
     if (action === "check_out") {
-      const { shift_id } = body;
+      const { shift_id, handover_note } = body;
       if (!shift_id) {
         return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
       }
@@ -479,7 +479,10 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       const now = Math.floor(Date.now() / 1000);
-      await db.prepare("UPDATE shift_assignments SET check_out_at = ?, status = 'completed' WHERE id = ?").run(now, shift_id);
+      const note = typeof handover_note === "string" && handover_note.trim()
+        ? handover_note.trim().slice(0, 500)
+        : null;
+      await db.prepare("UPDATE shift_assignments SET check_out_at = ?, status = 'completed', handover_note = ? WHERE id = ?").run(now, note, shift_id);
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "Geçersiz action" }, { status: 400 });

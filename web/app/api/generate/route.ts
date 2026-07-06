@@ -368,6 +368,9 @@ export async function POST(req: NextRequest) {
     let overtimeFairDistribution = true;
     let crewSameShiftHard = false;
     let consecutiveNightWeeksEnabled = false;
+    let balancingPeriodWeeks = 0;
+    let ruleMaxWeeklyHours = 45;
+    let ruleMinRestHours = 11;
     let weekendMultiplierEnabled = true;
     let nightMultiplierEnabled = true;
     let preferredNotEnabled = true;
@@ -395,6 +398,12 @@ export async function POST(req: NextRequest) {
           crewSameShiftHard = pr.crew_same_shift_hard;
         if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
           consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;
+        if (typeof pr?.balancing_period_weeks === "number")
+          balancingPeriodWeeks = Math.max(0, Math.min(8, Math.round(pr.balancing_period_weeks)));
+        if (typeof pr?.max_weekly_hours === "number")
+          ruleMaxWeeklyHours = pr.max_weekly_hours;
+        if (typeof pr?.min_rest_hours === "number")
+          ruleMinRestHours = pr.min_rest_hours;
         if (typeof pr?.weekend_multiplier_enabled === "boolean")
           weekendMultiplierEnabled = pr.weekend_multiplier_enabled;
         if (typeof pr?.night_multiplier_enabled === "boolean")
@@ -438,6 +447,49 @@ export async function POST(req: NextRequest) {
     for (const p of personnelData) {
       if ((p as any).crew_id)
         personnelCrews[(p as any).id] = (p as any).crew_id;
+    }
+
+    // Denkleştirme dönemi (İş K. m.63): son N-1 haftanın yayınlanmış saatlerine göre
+    // her personelin bu haftaki kalan hakkı hesaplanır. N ardışık haftanın ortalaması
+    // max_weekly_hours'u aşamaz; tek hafta tavanı yasal 66 saattir. Kişi bazlı hak,
+    // motora max_weekly_hours override'ı olarak gönderilir.
+    const BALANCING_SINGLE_WEEK_CAP = 66;
+    if (balancingPeriodWeeks >= 2) {
+      try {
+        const prevWeeks: string[] = [];
+        for (let w = 1; w < balancingPeriodWeeks; w++) {
+          const d = new Date(week_start + "T00:00:00Z");
+          d.setUTCDate(d.getUTCDate() - 7 * w);
+          prevWeeks.push(d.toISOString().split("T")[0]);
+        }
+        const ph = prevWeeks.map((_, i) => `$${i + 2}`).join(",");
+        const rows = (await db
+          .prepare(
+            `SELECT personnel_id, start_time, end_time FROM shift_assignments
+             WHERE location_id = $1 AND week_start IN (${ph}) AND publication_status = 'published'`
+          )
+          .all(branchId, ...prevWeeks)) as any[];
+        const workedMin: Record<string, number> = {};
+        for (const r of rows) {
+          if (!r.start_time || !r.end_time) continue;
+          const [sh, sm] = String(r.start_time).split(":").map(Number);
+          const [eh, em] = String(r.end_time).split(":").map(Number);
+          if ([sh, sm, eh, em].some(Number.isNaN)) continue;
+          let dur = (eh * 60 + em) - (sh * 60 + sm);
+          if (dur <= 0) dur += 1440;
+          workedMin[r.personnel_id] = (workedMin[r.personnel_id] ?? 0) + dur;
+        }
+        for (const p of personnelData as any[]) {
+          const pMax = p.max_weekly_hours ?? ruleMaxWeeklyHours;
+          // Part-time sözleşme limiti (kuraldan düşükse) denkleştirmede de korunur;
+          // full-time kişi tek haftada yasal 66'ya kadar esneyebilir.
+          const weekCap = pMax < ruleMaxWeeklyHours ? pMax : BALANCING_SINGLE_WEEK_CAP;
+          const allowance = ruleMaxWeeklyHours * balancingPeriodWeeks - (workedMin[p.id] ?? 0) / 60;
+          p.max_weekly_hours = Math.max(0, Math.floor(Math.min(weekCap, allowance)));
+        }
+      } catch (e) {
+        console.error("[generate] denkleştirme hesabı hatası:", e);
+      }
     }
 
     // Gece koruması: gece kısıtlı personel (gebe/emziren/18 yaş altı/sağlık)
@@ -508,8 +560,10 @@ export async function POST(req: NextRequest) {
       prev_week_night_ids: prevWeekNightIds,
       consecutive_night_weeks_enabled: consecutiveNightWeeksEnabled,
       rules: {
-        max_weekly_hours: 45,
-        min_rest_hours: 11,
+        // Denkleştirme açıkken hafta tavanı yasal 66'ya çıkar — kişi bazlı hak
+        // yukarıda max_weekly_hours override'ı olarak zaten daraltıldı
+        max_weekly_hours: balancingPeriodWeeks >= 2 ? 66 : ruleMaxWeeklyHours,
+        min_rest_hours: ruleMinRestHours,
         clopening_min_rest_hours: clopeningMinRestHours,
         overtime_threshold_hours: overtimeThresholdHours,
         max_ytd_overtime_hours: maxYtdOvertimeHours,

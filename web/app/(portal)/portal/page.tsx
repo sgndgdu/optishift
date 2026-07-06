@@ -35,6 +35,9 @@ export default function PortalDashboard() {
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
   const [notifs,        setNotifs]        = useState<any[]>([]);
+  const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
+  const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
+  const [handoverDraft, setHandoverDraft]  = useState("");
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
   const [crewName,      setCrewName]      = useState<string | null>(null);
@@ -81,6 +84,15 @@ export default function PortalDashboard() {
   }, [user?.personnel_id]);
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Önceki vardiyanın devir notları — bugün vardiyam varsa göster
+  useEffect(() => {
+    if (!user?.personnel_id) return;
+    fetch("/api/shifts/handover")
+      .then(r => r.ok ? r.json() : { notes: [] })
+      .then(d => setHandoverNotes(Array.isArray(d?.notes) ? d.notes : []))
+      .catch(() => {});
+  }, [user]);
+
   // today
   const todayIdx   = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const todayShift = shifts.find(s => s.day === todayIdx) ?? null;
@@ -110,15 +122,16 @@ export default function PortalDashboard() {
     } finally { setCheckInLoading(false); }
   };
 
-  const handleCheckOut = async (shiftId: number) => {
+  const handleCheckOut = async (shiftId: number, handoverNote?: string) => {
     const ts = Math.floor(Date.now() / 1000);
     setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: ts } : s));
     setCheckInLoading(true);
+    setCheckoutModal(null);
     try {
       const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check_out", shift_id: shiftId }),
+        body: JSON.stringify({ action: "check_out", shift_id: shiftId, handover_note: handoverNote || undefined }),
       });
       if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
     } catch {
@@ -245,7 +258,7 @@ export default function PortalDashboard() {
               </button>
             )}
             {todayShift && isCheckedIn && (
-              <button onClick={() => handleCheckOut(todayShift.id)} disabled={checkInLoading}
+              <button onClick={() => { setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
                 className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
                 <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
               </button>
@@ -259,6 +272,54 @@ export default function PortalDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Önceki vardiyadan devir notu ─────────────────────────────────── */}
+      {todayShift && !isCompleted && handoverNotes.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+          <p className="text-xs font-black text-amber-800 uppercase tracking-wider">📋 Önceki Vardiyadan Devir Notu</p>
+          {handoverNotes.map((n, i) => (
+            <div key={i} className="bg-white/70 rounded-xl px-3 py-2">
+              <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
+              <p className="text-[10px] text-amber-600 font-semibold mt-1">{n.author} · {n.shift}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Check-out devir notu modalı ──────────────────────────────────── */}
+      {checkoutModal !== null && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckoutModal(null)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Vardiyadan Çıkış</h3>
+              <p className="text-xs text-slate-500 mt-1">Sonraki vardiyaya iletmek istediğin bir not var mı? (isteğe bağlı)</p>
+            </div>
+            <textarea
+              value={handoverDraft}
+              onChange={e => setHandoverDraft(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Örn: 3 no'lu pres arızalı, teknik servis çağrıldı. Sevkiyat paletleri hazır."
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-amber-400 focus:bg-white resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleCheckOut(checkoutModal)}
+                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Notsuz Çık
+              </button>
+              <button
+                onClick={() => handleCheckOut(checkoutModal, handoverDraft)}
+                disabled={!handoverDraft.trim()}
+                className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-40"
+              >
+                Notu Bırak ve Çık
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bu Hafta mini takvim ─────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

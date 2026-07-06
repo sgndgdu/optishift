@@ -266,6 +266,7 @@ export default function SettingsPage() {
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
   const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
   const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
+  const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
   const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
   // Ekip (Crew) yönetimi
@@ -395,6 +396,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.weekly_overtime_budget_hours === "number") setWeeklyOvertimeBudgetHours(loc.rules.weekly_overtime_budget_hours);
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
+          if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
 
           // Rotasyon şablonu
           if (typeof loc.rotation_template === "string") {
@@ -498,6 +500,7 @@ export default function SettingsPage() {
             weeklyOvertimeBudgetHours: typeof loc.rules?.weekly_overtime_budget_hours === "number" ? loc.rules.weekly_overtime_budget_hours : 0,
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
+            balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             rotationEnabled: !!loc.rotation_template?.enabled,
             rotationType: loc.rotation_template?.type ?? "3-shift",
             cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
@@ -536,7 +539,7 @@ export default function SettingsPage() {
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -554,7 +557,7 @@ export default function SettingsPage() {
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -697,6 +700,7 @@ export default function SettingsPage() {
             weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             crew_same_shift_hard:               crewSameShiftHard,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
+            balancing_period_weeks:             balancingPeriodWeeks,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -735,7 +739,7 @@ export default function SettingsPage() {
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
         simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -1112,6 +1116,11 @@ export default function SettingsPage() {
                   label="Minimum Dinlenme Süresi"
                   description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
                   right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
+                />
+                <RuleRow
+                  label="Denkleştirme Dönemi"
+                  description="0 = kapalı (haftalık limit katı uygulanır). 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir: dönem ortalaması haftalık limiti aşamaz, tek hafta en fazla 66 saat olabilir (İş K. m.63)."
+                  right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
                 />
                 <RuleRow
                   label="Maks. Ardışık Çalışma"

@@ -1259,9 +1259,15 @@ export default function SchedulePage() {
       const totalHours = Object.entries(cellMap)
         .filter(([k]) => k.startsWith(`${p.id}-`))
         .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-      const maxH = p.max_weekly_hours ?? ruleMaxWeekly;
+      const balancingWeeks = typeof (locRules as Record<string, unknown>)?.balancing_period_weeks === "number"
+        ? (locRules as Record<string, number>).balancing_period_weeks : 0;
+      const pMax = p.max_weekly_hours ?? ruleMaxWeekly;
+      // Denkleştirme açıkken tam zamanlı personel tek haftada yasal 66 saate kadar esneyebilir
+      const maxH = balancingWeeks >= 2 && pMax >= ruleMaxWeekly ? 66 : pMax;
       if (totalHours > maxH) {
-        violations.push(`${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s — limit ${maxH}s aşıldı`);
+        violations.push(balancingWeeks >= 2 && maxH === 66
+          ? `${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s — denkleştirmede bile tek hafta tavanı olan 66s aşıldı`
+          : `${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s — limit ${maxH}s aşıldı`);
       }
       // 11 saatlik dinlenme kuralı + clopening tespiti (kapanış→açılış yorucu geçişi)
       let clopeningCount = 0;

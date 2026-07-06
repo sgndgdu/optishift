@@ -179,6 +179,9 @@ export interface ScheduleRules {
   crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
   // Gece koruması (Postalar Yönetmeliği)
   consecutive_night_weeks_enabled?: boolean; // true → geçen hafta gece çalışan bu hafta gece vardiyası alamaz (m.8)
+  // Denkleştirme dönemi (İş K. m.63): N haftalık pencerede ortalama max_weekly_hours garantisi;
+  // tek hafta tavanı 66 saat. 0/undefined = kapalı (haftalık katı limit geçerli)
+  balancing_period_weeks?: number;
 }
 
 // Gece çalışma yasağı nedeni (İş K. m.73 + Postalar Yönetmeliği)
