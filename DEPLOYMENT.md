@@ -79,9 +79,27 @@ Tanımlanmazsa motor eskisi gibi açık çalışır (yerel geliştirme için uyg
 | `ENGINE_SHARED_SECRET` | Same value set on the Render engine service (see Step 2) |
 | `GOD_MODE_PASSWORD` | Password for `/admin` God Mode panel |
 | `GOD_MODE_JWT_SECRET` | A separate random 64-char string for God Mode sessions |
+| `NEXT_PUBLIC_APP_URL` | Your production URL (e.g. `https://your-project.vercel.app`) |
+| `GOOGLE_CLIENT_ID` | Optional — see "Google ile Giriş Kurulumu" below |
+| `GOOGLE_CLIENT_SECRET` | Optional — see "Google ile Giriş Kurulumu" below |
 
 5. Click **Deploy**
 6. After deploy, your app is live at `https://your-project.vercel.app`
+
+---
+
+### Google ile Giriş Kurulumu (opsiyonel)
+
+Admin/manager/supervisor giriş ve kayıt sayfalarına "Google ile devam et" seçeneği eklemek için:
+
+1. https://console.cloud.google.com/apis/credentials → yeni proje (veya mevcut) seç
+2. **OAuth consent screen** oluştur (External, uygulama adı: OptiShift, gerekli alanları doldur)
+3. **Credentials → Create Credentials → OAuth client ID → Web application**
+4. **Authorized redirect URIs**'e ekle: `{NEXT_PUBLIC_APP_URL}/api/auth/google/callback` (örn. `https://your-project.vercel.app/api/auth/google/callback`; local geliştirme için ayrıca `http://localhost:3000/api/auth/google/callback` de eklenebilir)
+5. Oluşan **Client ID** ve **Client Secret**'ı Vercel env değişkenlerine (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) ve `web/.env.local`'e ekle
+6. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` tanımlı değilse buton `/api/auth/google/start` çağrıldığında 503 döner — sistemin geri kalanı etkilenmez
+
+Ayrıca bu özellik `users` tablosuna `auth_provider`/`google_id` kolonu ve `password_hash`'in nullable yapılmasını gerektirir — bkz. Step 1'deki `npx drizzle-kit push` (yeni migration otomatik uygulanır).
 
 ---
 

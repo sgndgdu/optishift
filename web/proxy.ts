@@ -9,6 +9,11 @@ const PUBLIC_API_PATHS = [
   "/api/webhook",
   "/api/god/auth/login",  // God Mode login herkese açık
   "/api/cron/",  // Vercel Cron — kendi CRON_SECRET kontrolüyle korunur, JWT gerekmez
+  "/api/auth/google/start",              // Google OAuth başlatma — henüz oturum yok
+  "/api/auth/google/callback",           // Google'ın geri döndüğü nokta — henüz oturum yok
+  "/api/auth/google/complete-registration", // pending_token'ın kendisi doğrulama sağlar
+  // DİKKAT: /api/auth/google/session buraya EKLENMEMELİ — callback'in az önce
+  // set ettiği oturum cookie'sini JWT doğrulamasıyla okumak zorunda.
 ];
 
 // /api/invites GET isteği: join token sayfası için herkese açık

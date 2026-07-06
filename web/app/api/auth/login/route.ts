@@ -55,6 +55,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "E-posta veya şifre hatalı" }, { status: 401 });
     }
 
+    if (!user.password_hash) {
+      // Google ile kayıtlı hesap — şifre yok, kullanıcı "Google ile Giriş Yap"a yönlendirilmeli
+      return NextResponse.json(
+        { error: "Bu hesap Google ile bağlı. Lütfen 'Google ile Giriş Yap' seçeneğini kullanın." },
+        { status: 401 }
+      );
+    }
+
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       return NextResponse.json({ error: "Kullanıcı adı veya şifre hatalı" }, { status: 401 });

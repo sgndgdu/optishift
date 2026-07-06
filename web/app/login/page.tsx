@@ -4,6 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, AtSign, Eye, EyeOff, Zap, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+  denied: "Google girişi iptal edildi.",
+  invalid_request: "Google girişi başarısız oldu, lütfen tekrar deneyin.",
+  invalid_state: "Oturum süresi doldu, lütfen tekrar deneyin.",
+  exchange_failed: "Google ile bağlantı kurulamadı, lütfen tekrar deneyin.",
+  account_pending: "Hesabınız henüz onaylanmadı. Lütfen yöneticinizle iletişime geçin.",
+  account_rejected: "Hesabınız reddedildi. Lütfen yöneticinizle iletişime geçin.",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +26,11 @@ export default function LoginPage() {
   const [sessionExpired] = useState(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "1"
   );
+  const [googleError] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const code = new URLSearchParams(window.location.search).get("google_error");
+    return code ? (GOOGLE_ERROR_MESSAGES[code] ?? "Google girişi başarısız oldu.") : "";
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +98,15 @@ export default function LoginPage() {
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın — doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
 
+          <div className="space-y-5 mb-5">
+            <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />
+            <div className="flex items-center gap-3">
+              <div className="h-px bg-slate-200 flex-1" />
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+              <div className="h-px bg-slate-200 flex-1" />
+            </div>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-5">
             {sessionExpired && !error && (
               <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-700 font-medium flex items-center gap-3">
@@ -90,10 +114,10 @@ export default function LoginPage() {
                 Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.
               </div>
             )}
-            {error && (
+            {(error || googleError) && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-red-600 rounded-full shrink-0" />
-                {error}
+                {error || googleError}
               </div>
             )}
 

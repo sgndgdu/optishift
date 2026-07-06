@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, ArrowRight, Check, Eye, EyeOff, Store, User, AtSign } from "lucide-react";
 import Link from "next/link";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,6 +15,20 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({ org_name: "", owner_name: "", username: "", email: "", password: "" });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Google ile "yeni işletme kur" akışı: callback bu üç query param'ı ile geri döner.
+  const [googlePending] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("google_pending");
+    if (!token) return null;
+    return {
+      token,
+      name: params.get("google_name") ?? "",
+      email: params.get("google_email") ?? "",
+    };
+  });
+  const [googleForm, setGoogleForm] = useState({ org_name: "", username: "" });
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +56,41 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
+      setRegisteredUser(data.user);
+    } catch {
+      setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
+    }
+    setLoading(false);
+  };
+
+  const handleGoogleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!googlePending) return;
+
+    if (!googleForm.org_name.trim() || !googleForm.username.trim()) {
+      setError("Lütfen tüm alanları doldurun.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/google/complete-registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pending_token: googlePending.token,
+          org_name: googleForm.org_name,
+          username: googleForm.username,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error);
+        setLoading(false);
+        return;
+      }
+      setForm((f) => ({ ...f, org_name: googleForm.org_name }));
       setRegisteredUser(data.user);
     } catch {
       setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
@@ -107,11 +157,77 @@ export default function RegisterPage() {
             <span className="text-xl font-bold tracking-tight text-slate-900">OptiShift</span>
           </div>
 
-          {!registeredUser ? (
+          {!registeredUser && googlePending ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Son Bir Adım</h1>
+                <p className="text-slate-500 font-medium text-sm sm:text-base">
+                  <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz — işletmenizin adını ve bir kullanıcı adı belirleyin.
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium flex items-center gap-3">
+                  <div className="w-1.5 h-1.5 bg-red-600 rounded-full shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleGoogleRegister} className="space-y-5">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Store size={14} className="text-indigo-500" />
+                    İşletme Adı
+                  </label>
+                  <input
+                    value={googleForm.org_name}
+                    onChange={(e) => setGoogleForm((f) => ({ ...f, org_name: e.target.value }))}
+                    placeholder="Örn: Cup & Go Cafe"
+                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium bg-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <AtSign size={14} className="text-indigo-500" />
+                    Kullanıcı Adı
+                  </label>
+                  <input
+                    value={googleForm.username}
+                    onChange={(e) => setGoogleForm((f) => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "") }))}
+                    placeholder="ahmet.yilmaz"
+                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium font-mono bg-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1.5">Giriş yaparken kullanacaksınız (Google ile de giriş yapabilirsiniz). Sadece harf, rakam, nokta ve tire.</p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-slate-950 hover:bg-black active:bg-slate-900 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 mt-4 group"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>Hesabı Oluştur <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                  )}
+                </button>
+              </form>
+            </div>
+          ) : !registeredUser ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="mb-6 sm:mb-8">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Ücretsiz Hesap Oluştur</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">İşletmenizi 1 dakikadan kısa sürede sisteme kaydedin.</p>
+              </div>
+
+              <div className="space-y-5 mb-5">
+                <GoogleAuthButton intent="register" label="Google ile Kaydol" />
+                <div className="flex items-center gap-3">
+                  <div className="h-px bg-slate-200 flex-1" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+                  <div className="h-px bg-slate-200 flex-1" />
+                </div>
               </div>
 
               {error && (

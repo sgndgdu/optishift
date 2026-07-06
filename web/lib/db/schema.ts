@@ -64,7 +64,9 @@ export const users = pgTable("users", {
   personnel_id: text("personnel_id"),
   username: text("username").notNull().unique(),
   email: text("email").unique(),
-  password_hash: text("password_hash").notNull(),
+  password_hash: text("password_hash"), // Google ile kayıtlı kullanıcılarda null olabilir (auth_provider='google')
+  auth_provider: text("auth_provider").notNull().default("password"), // password | google
+  google_id: text("google_id").unique(), // Google'ın "sub" claim'i — hesap eşleştirme/giriş için
   role: text("role").notNull().default("employee"), // admin | supervisor | manager | employee
   display_title: text("display_title"), // "Müdür" | "Müdür Yardımcısı" | "Departman Müdürü" | "Personel"
   org_id: text("org_id").notNull(),

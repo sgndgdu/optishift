@@ -35,8 +35,16 @@ export async function PATCH(req: NextRequest) {
   const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(auth.id) as any;
   if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
 
-  // Profil bilgisi değişikliğinde şifre onayı gerekli
+  // Google ile bağlı hesaplarda şifre yok — profil/şifre değişikliği bu akıştan yapılamaz
   const isProfileChange = name !== undefined || email !== undefined || username !== undefined;
+  if (!user.password_hash && (isProfileChange || newPassword)) {
+    return NextResponse.json(
+      { error: "Bu hesap Google ile bağlı — profil bilgileri Google hesabınızdan yönetilir." },
+      { status: 400 }
+    );
+  }
+
+  // Profil bilgisi değişikliğinde şifre onayı gerekli
   if (isProfileChange && !newPassword) {
     if (!confirmPassword) return NextResponse.json({ error: "Şifre onayı gerekli" }, { status: 400 });
     const valid = await bcrypt.compare(confirmPassword, user.password_hash);
