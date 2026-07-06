@@ -7,7 +7,7 @@
  * Test tohumları: 1 gebe operatör (gece yasağı), 1 çırak (18 yaş altı),
  * 1 YTD 250 saatlik "mesai gönüllüsü", gece vardiyasında zorunlu ≥1 bakımcı.
  *
- * Çalıştırma: cd web && node seed_ege_metal.mjs
+ * Çalıştırma: cd web && node scripts/seed_ege_metal.mjs
  * Idempotent: org-ege-metal'e ait tüm veriyi silip yeniden kurar.
  */
 import { neon } from "@neondatabase/serverless";
@@ -15,7 +15,7 @@ import bcrypt from "bcryptjs";
 import { readFileSync } from "fs";
 
 // .env.local'dan DATABASE_URL oku
-const env = readFileSync(new URL("./.env.local", import.meta.url), "utf-8");
+const env = readFileSync(new URL("../.env.local", import.meta.url), "utf-8");
 const dbUrl = env.match(/^DATABASE_URL="?([^"\n]+)"?/m)?.[1];
 if (!dbUrl) throw new Error("DATABASE_URL bulunamadı (.env.local)");
 const sql = neon(dbUrl);
