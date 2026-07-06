@@ -13,6 +13,9 @@ __pycache__/
 # Geçici / artık dosyalar
 .fuse_hidden*
 
+# Next.js build çıktısı (kök dizinde yanlışlıkla oluşmuş — asıl build web/.next altında)
+/.next/
+
 # Referans amaçlı kopyalanan dış repolar (git'e dahil edilmez)
 _references/
 

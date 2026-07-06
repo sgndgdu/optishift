@@ -25,8 +25,8 @@ export DATABASE_URL="postgresql://user:pass@ep-xxx.region.neon.tech/neondb?sslmo
 # Push the schema (creates all tables)
 npx drizzle-kit push
 
-# Optionally seed a demo organization (edit seed_brulee.js with real data first)
-node ../seed_brulee.js
+# Optionally seed a demo organization (edit scripts/seed_brulee.js with real data first)
+node scripts/seed_brulee.js
 ```
 
 ---
