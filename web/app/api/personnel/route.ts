@@ -232,6 +232,18 @@ export async function PATCH(req: NextRequest) {
       await db.prepare("UPDATE personnel SET crew_id=? WHERE id=?").run(crew_id ?? null, id);
     }
 
+    // Yıllık izin alanları: sabit yıllık hak + elle düzeltme günü (kalan izin türetilir, doğrudan yazılmaz)
+    if (body.annual_leave_days_total !== undefined) {
+      await db.prepare("UPDATE personnel SET annual_leave_days_total=? WHERE id=?").run(Math.max(0, Number(body.annual_leave_days_total) || 0), id);
+    }
+    if (body.leave_adjustment_days !== undefined) {
+      await db.prepare("UPDATE personnel SET leave_adjustment_days=? WHERE id=?").run(Number(body.leave_adjustment_days) || 0, id);
+    }
+    if (body.hire_date !== undefined) {
+      const hd = typeof body.hire_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.hire_date) ? body.hire_date : null;
+      await db.prepare("UPDATE personnel SET hire_date=? WHERE id=?").run(hd, id);
+    }
+
     // night_restriction: undefined → dokunma, null/"" → kaldır, geçerli neden → ata
     if (night_restriction !== undefined) {
       const validReasons = ["pregnant", "nursing", "under18", "medical"];

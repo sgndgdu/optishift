@@ -269,6 +269,7 @@ export default function SettingsPage() {
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
   const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
   const [handoverNotesEnabled, setHandoverNotesEnabled]           = useState(true);
+  const [autoLeaveEntitlement, setAutoLeaveEntitlement]           = useState(false);
   const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
   // Ekip (Crew) yönetimi
@@ -401,6 +402,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
           setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
           setHandoverNotesEnabled(loc.rules?.handover_notes_enabled !== false);
+          setAutoLeaveEntitlement(loc.rules?.auto_leave_entitlement_enabled === true);
 
           // Rotasyon şablonu
           if (typeof loc.rotation_template === "string") {
@@ -507,6 +509,7 @@ export default function SettingsPage() {
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
             handoverNotesEnabled: loc.rules?.handover_notes_enabled !== false,
+            autoLeaveEntitlement: loc.rules?.auto_leave_entitlement_enabled === true,
             rotationEnabled: !!loc.rotation_template?.enabled,
             rotationType: loc.rotation_template?.type ?? "3-shift",
             cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
@@ -545,7 +548,7 @@ export default function SettingsPage() {
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -563,7 +566,7 @@ export default function SettingsPage() {
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -709,6 +712,7 @@ export default function SettingsPage() {
             balancing_period_weeks:             balancingPeriodWeeks,
             night_legal_warning_enabled:        nightLegalWarning,
             handover_notes_enabled:             handoverNotesEnabled,
+            auto_leave_entitlement_enabled:     autoLeaveEntitlement,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -747,7 +751,7 @@ export default function SettingsPage() {
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
         simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -1385,6 +1389,11 @@ export default function SettingsPage() {
               </SectionCard>
 
               <SectionCard title="İzin Politikası">
+                <RuleRow
+                  label="Kıdeme Göre İzin Hak Edişi"
+                  description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken personel kartındaki sabit gün geçerlidir."
+                  right={<Toggle on={autoLeaveEntitlement} onToggle={() => setAutoLeaveEntitlement(v => !v)} />}
+                />
                 <RuleRow
                   label="İzin İçin Mazeret Zorunlu"
                   description="Personel izin talebi oluştururken mazeret girmeden gönderemez."

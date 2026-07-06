@@ -184,6 +184,7 @@ export interface ScheduleRules {
   balancing_period_weeks?: number;
   night_legal_warning_enabled?: boolean; // varsayılan true — gece vardiyası >7,5s uyarısı (editör + yayın ihlali)
   handover_notes_enabled?: boolean;      // varsayılan true — check-out'ta devir notu modalı + sonraki vardiyaya not kartı
+  auto_leave_entitlement_enabled?: boolean; // varsayılan false — açıkken yıllık izin hakkı kıdeme göre otomatik (İş K. m.53, kümülatif devir); kapalıyken sabit annual_leave_days_total
 }
 
 // Gece çalışma yasağı nedeni (İş K. m.73 + Postalar Yönetmeliği)
@@ -223,6 +224,7 @@ export interface Personnel {
   ytd_overtime_hours?: number;   // yılbaşından bu yana fazla mesai saati
   hourly_wage?: number | null;   // saatlik brüt ücret (₺) — mesai maliyeti hesabı için
   night_restriction?: NightRestriction | null; // gece çalışma yasağı — motor gece vardiyasına atamaz
+  leave_adjustment_days?: number; // yıllık izin elle düzeltme (±gün) — kalan izin lib/leave.ts'ten türetilir
   prev_score: number;
   hero_count: number;
   no_show_count: number;

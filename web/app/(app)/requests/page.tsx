@@ -57,6 +57,7 @@ export default function ManagerRequestsPage() {
   const [swaps, setSwaps]     = useState<any[]>([]);
   const [edits, setEdits]     = useState<any[]>([]);
   const [leaves, setLeaves]   = useState<any[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<Record<string, any>>({}); // personnel_id → kalan yıllık izin
   const [overtimes, setOvertimes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"swap" | "edit" | "leave" | "overtime">("swap");
   const [showHistory, setShowHistory] = useState(false);
@@ -128,6 +129,22 @@ export default function ManagerRequestsPage() {
     setRejectModal(null); setRejectNote("");
     await load();
   }
+
+  // Bekleyen yıllık izin taleplerinin sahiplerinin bakiyelerini yükle (onay kararı için)
+  useEffect(() => {
+    const ids = [...new Set(
+      leaves.filter((l: any) => l.status === "pending" && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık"))
+        .map((l: any) => l.personnel_id)
+    )].filter(Boolean);
+    if (ids.length === 0) return;
+    Promise.all(ids.map(id =>
+      fetch(`/api/leave-requests/balance?personnel_id=${id}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    )).then(results => {
+      const map: Record<string, any> = {};
+      results.forEach((b, i) => { if (b && !b.error) map[ids[i] as string] = b; });
+      setLeaveBalances(map);
+    });
+  }, [leaves]);
 
   async function reviewLeave(id: number, status: "approved" | "rejected", note?: string) {
     const r = await fetch(`/api/leave-requests/review?id=${id}`, {
@@ -361,6 +378,12 @@ export default function ManagerRequestsPage() {
                     </div>
                     <p className="text-xs text-slate-600 font-semibold">{l.type}</p>
                     <p className="text-xs text-slate-500">{l.start_date} → {l.end_date} ({l.days} gün)</p>
+                    {pending && leaveBalances[l.personnel_id] && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                      <p className={`text-[11px] font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
+                        Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
+                        {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " — talep bakiyeyi aşıyor!"}
+                      </p>
+                    )}
                     {l.note && <p className="text-xs text-slate-400 mt-1 italic">"{l.note}"</p>}
                   </div>
                   {l.created_at && (

@@ -93,6 +93,7 @@ export default function PortalRequests() {
   // leave policy (lokasyondan çekilir)
   const [leavePolicy, setLeavePolicy] = useState<{ require_reason: boolean; allow_multi_day: boolean; max_days_per_request: number } | null>(null);
   const [weeklyOffDay, setWeeklyOffDay] = useState<number | null>(null);
+  const [leaveBalance, setLeaveBalance] = useState<any>(null); // /api/leave-requests/balance — kalan yıllık izin
 
   const [loading, setLoading]         = useState(false);
   const [toast, setToast]             = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -122,6 +123,15 @@ export default function PortalRequests() {
           }
         }).catch(() => {});
     }
+  }, [user]);
+
+  // Kalan yıllık izin bakiyesi (türetilmiş — lib/leave.ts)
+  useEffect(() => {
+    if (!user?.personnel_id) return;
+    fetch("/api/leave-requests/balance")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setLeaveBalance(d && !d.error ? d : null))
+      .catch(() => {});
   }, [user]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -792,6 +802,23 @@ export default function PortalRequests() {
                     Sabit izin günün: <strong>{["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][weeklyOffDay]}</strong>.
                     Bu gün her hafta senin için otomatik olarak kapalı tutulur — ayrıca izin talebi oluşturmana gerek yok.
                   </p>
+                </div>
+              )}
+
+              {/* Kalan yıllık izin */}
+              {leaveBalance && (
+                <div className={`rounded-xl p-3 flex items-start gap-2.5 border ${leaveBalance.remaining <= 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
+                  <CalendarOff size={15} className={`shrink-0 mt-0.5 ${leaveBalance.remaining <= 0 ? "text-red-500" : "text-emerald-600"}`} />
+                  <div className="text-xs">
+                    <p className={`font-bold ${leaveBalance.remaining <= 0 ? "text-red-700" : "text-emerald-800"}`}>
+                      Kalan yıllık iznin: {leaveBalance.remaining} gün
+                    </p>
+                    <p className="text-slate-500 mt-0.5">
+                      {leaveBalance.mode === "seniority"
+                        ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün${leaveBalance.entitledTotal === 0 ? ` — ilk iznin ${leaveBalance.nextAccrualDate} tarihinde doğacak` : ""}`
+                        : `Yıllık hak ${leaveBalance.entitledTotal} gün · bu yıl kullanılan ${leaveBalance.usedDays} gün`}
+                    </p>
+                  </div>
                 </div>
               )}
 

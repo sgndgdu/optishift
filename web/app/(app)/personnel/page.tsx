@@ -32,6 +32,9 @@ type MergedPerson = {
   ytd_overtime_hours: number | null;
   hourly_wage: number | null;
   night_restriction: string | null;
+  hire_date: string | null;
+  annual_leave_days_total: number | null;
+  leave_adjustment_days: number | null;
 };
 
 const ROLE_DEFS = [
@@ -82,7 +85,7 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0 });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -130,6 +133,9 @@ export default function PersonnelPage() {
           ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
           hourly_wage: p?.hourly_wage ?? null,
           night_restriction: p?.night_restriction ?? null,
+          hire_date: p?.hire_date ?? null,
+          annual_leave_days_total: p?.annual_leave_days_total ?? null,
+          leave_adjustment_days: p?.leave_adjustment_days ?? null,
         };
       });
       setPersons(merged);
@@ -252,7 +258,7 @@ export default function PersonnelPage() {
 
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null });
+    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0 });
     setEditError("");
   };
 
@@ -263,7 +269,7 @@ export default function PersonnelPage() {
     try {
       await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
       if (editingPerson.personnelId) {
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction }) });
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -684,6 +690,21 @@ export default function PersonnelPage() {
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1">Kısıt seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşe Giriş Tarihi</label>
+                      <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Yıllık İzin (gün)</label>
+                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">İzin Düzeltme (±)</label>
+                      <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
                   {crewList.length > 0 && (
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ekip Ataması</label>
