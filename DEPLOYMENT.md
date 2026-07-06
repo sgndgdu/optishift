@@ -148,3 +148,17 @@ Render FastAPI (ücretsiz)
 **"ENGINE_URL not responding"** — Render servisi uyuyor olabilir (ilk istek ~30 sn sürer), ya da URL yanlış  
 **Schema out of sync** — Re-run `npx drizzle-kit push` with the Neon DATABASE_URL set  
 **Auth failures** — Ensure `JWT_SECRET` is the same in all environments  
+
+### Motor Keep-Warm (Cold Start)
+
+Render'ın free tier'ı ~15 dk hareketsizlikten sonra servisi uyutur; bir sonraki istek 30+ saniye
+sürebilir. `/api/generate` bunu 55 sn timeout + "motor uyanıyor" mesajıyla zaten tolere ediyor
+(`web/app/api/generate/route.ts`), ama gerçek çözüm motoru uyanık tutmaktır:
+
+- `web/vercel.json`'daki cron `/api/cron/keep-warm`'ı günde bir kez tetikler (Vercel **Hobby**
+  planı cron'ları günde bire sınırlar — daha sık çalıştıramaz).
+- 15 dakikadan daha sık ping için ücretsiz harici bir servis kullan (ör. [cron-job.org](https://cron-job.org)
+  veya UptimeRobot, 5 dk aralıkla) ve doğrudan Render URL'inin `/health` endpoint'ini hedefle
+  (`https://optishift-engine.onrender.com/health`) — Vercel'e uğramasına gerek yok.
+- Cron endpoint'ini yetkisiz çağrılara karşı korumak istersen Vercel'de `CRON_SECRET` env var'ı
+  tanımla; Vercel Cron bu değeri otomatik olarak `Authorization: Bearer` header'ında gönderir.

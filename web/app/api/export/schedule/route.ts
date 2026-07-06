@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { requireAuth } from "@/lib/auth";
 import { computeWeekBreakdowns } from "@/lib/scoring";
 
@@ -125,17 +125,17 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Build workbook ───────────────────────────────────────────────────
-    const wb = XLSX.utils.book_new();
+    const wb = new ExcelJS.Workbook();
 
-    const ws1 = XLSX.utils.aoa_to_sheet(kpiRows);
-    ws1["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws1, "Yönetici Özeti");
+    const ws1 = wb.addWorksheet("Yönetici Özeti");
+    ws1.columns = [{ width: 22 }, { width: 16 }, { width: 14 }, { width: 12 }, { width: 16 }, { width: 20 }, { width: 14 }];
+    ws1.addRows(kpiRows);
 
-    const ws2 = XLSX.utils.aoa_to_sheet(matrixRows);
-    ws2["!cols"] = [{ wch: 22 }, { wch: 14 }, ...Array(7).fill({ wch: 14 })];
-    XLSX.utils.book_append_sheet(wb, ws2, "Haftalık Plan");
+    const ws2 = wb.addWorksheet("Haftalık Plan");
+    ws2.columns = [{ width: 22 }, { width: 14 }, ...Array(7).fill({ width: 14 })];
+    ws2.addRows(matrixRows);
 
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
 
     // Content-Disposition header ASCII-only gerektirir; Türkçe karakterleri kaldır
     const safeLocName = (location?.name ?? location_id)

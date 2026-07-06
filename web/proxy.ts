@@ -8,6 +8,7 @@ const PUBLIC_API_PATHS = [
   "/api/register",
   "/api/webhook",
   "/api/god/auth/login",  // God Mode login herkese açık
+  "/api/cron/",  // Vercel Cron — kendi CRON_SECRET kontrolüyle korunur, JWT gerekmez
 ];
 
 // /api/invites GET isteği: join token sayfası için herkese açık

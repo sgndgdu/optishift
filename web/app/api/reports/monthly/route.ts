@@ -1,7 +1,43 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
+import ExcelJS from "exceljs";
 import { requireAuth } from "@/lib/auth";
+
+function monthLabel(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
+}
+
+async function buildMonthlyReportXlsx(
+  locationName: string,
+  month: string,
+  rows: { name: string; title: string; shift_count: number; total_hours: number; overtime_hours: number; overtime_cost: number | null }[],
+) {
+  const wsData: any[][] = [
+    [`OptiShift — Aylık Çalışma Saati Raporu`],
+    [`Şube: ${locationName}`],
+    [`Dönem: ${monthLabel(month)}`],
+    [],
+    ["Ad Soyad", "Unvan", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)", "Mesai Maliyeti (₺, ×1,5)"],
+    ...rows.map(r => [r.name, r.title, r.shift_count, r.total_hours, r.overtime_hours, r.overtime_cost ?? ""]),
+    [],
+    ["TOPLAM", "", rows.reduce((s, r) => s + r.shift_count, 0),
+      Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10,
+      Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10,
+      rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0)],
+  ];
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Aylık Rapor");
+  ws.columns = [{ width: 26 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 20 }];
+  ws.addRows(wsData);
+  ["A1", "A5", "B5", "C5", "D5", "E5", "F5"].forEach(cell => {
+    ws.getCell(cell).font = { bold: true };
+  });
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
 
 
 // GET /api/reports/monthly?location_id=X&month=YYYY-MM
@@ -144,6 +180,16 @@ export async function GET(req: NextRequest) {
         overtime_cost: p.hourly_wage ? Math.round(overtime_hours * p.hourly_wage * 1.5) : null,
       };
     });
+
+    if (searchParams.get("format") === "xlsx") {
+      const buf = await buildMonthlyReportXlsx(loc.name, month, result);
+      return new NextResponse(buf, {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="optishift-rapor-${month}.xlsx"`,
+        },
+      });
+    }
 
     return NextResponse.json({ month, location: loc.name, overtime_threshold_hours: overtimeThresholdHours, rows: result });
   } finally {

@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
-import * as XLSX from "xlsx";
 
 interface ReportRow {
   personnel_id: string;
@@ -73,32 +72,11 @@ export default function ReportsPage() {
 
   const handleExport = () => {
     if (rows.length === 0) return;
-
-    const wsData: any[][] = [
-      [`OptiShift — Aylık Çalışma Saati Raporu`],
-      [`Şube: ${locationName}`],
-      [`Dönem: ${getMonthLabel(month)}`],
-      [],
-      ["Ad Soyad", "Unvan", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)", "Mesai Maliyeti (₺, ×1,5)"],
-      ...rows.map(r => [r.name, r.title, r.shift_count, r.total_hours, r.overtime_hours, r.overtime_cost ?? ""]),
-      [],
-      ["TOPLAM", "", rows.reduce((s, r) => s + r.shift_count, 0),
-        Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10,
-        Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10,
-        rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0)],
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 26 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 20 }];
-
-    // Bold headers
-    ["A1", "A5", "B5", "C5", "D5", "E5", "F5"].forEach(cell => {
-      if (ws[cell]) ws[cell].s = { font: { bold: true } };
-    });
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Aylık Rapor");
-    XLSX.writeFile(wb, `optishift-rapor-${month}.xlsx`);
+    const location_id = getLocationId();
+    if (!location_id) return;
+    // Excel sunucu tarafında (exceljs) üretilir — aynı /api/reports/monthly endpoint'i,
+    // ?format=xlsx ile aynı veriyi indirilebilir dosya olarak döner.
+    window.location.href = `/api/reports/monthly?location_id=${location_id}&month=${month}&format=xlsx`;
   };
 
   const totalShifts = rows.reduce((s, r) => s + r.shift_count, 0);
