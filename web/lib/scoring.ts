@@ -37,7 +37,7 @@ function parseJSON<T>(raw: unknown, fallback: T): T {
 }
 
 /** Availability hücresi düz string ("preferred_not") veya JSON ({"status":...}) olabilir — normalize et. */
-function normalizeAvailCell(v: unknown): string {
+export function normalizeAvailCell(v: unknown): string {
   if (typeof v !== "string") return "available";
   if (v.startsWith("{")) {
     try { return (JSON.parse(v) as { status?: string }).status ?? "available"; } catch { return "available"; }
@@ -45,14 +45,14 @@ function normalizeAvailCell(v: unknown): string {
   return v;
 }
 
-function addDays(isoDate: string, days: number): string {
+export function addDays(isoDate: string, days: number): string {
   const [y, m, d] = isoDate.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));
   return dt.toISOString().slice(0, 10);
 }
 
 /** week_start'tan `windowWeeks` hafta geriye giden ISO Pazartesi tarihi. */
-function windowStart(weekStart: string, windowWeeks: number): string {
+export function windowStart(weekStart: string, windowWeeks: number): string {
   return addDays(weekStart, -7 * (windowWeeks - 1));
 }
 

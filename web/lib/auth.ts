@@ -1,18 +1,25 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-function resolveJwtSecret(): string {
+// Lazy: build sırasında (Next.js "collecting page data" adımı route dosyalarını
+// import eder) JWT_SECRET henüz mevcut olmayabilir — secret sadece gerçekten
+// sign/verify çağrıldığında (runtime'da) çözülür, import anında değil.
+let _jwtSecret: Uint8Array | null = null;
+function getJwtSecret(): Uint8Array {
+  if (_jwtSecret) return _jwtSecret;
   const secret = process.env.JWT_SECRET;
-  if (secret) return secret;
+  if (secret) {
+    _jwtSecret = new TextEncoder().encode(secret);
+    return _jwtSecret;
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error(
       "JWT_SECRET ortam değişkeni prod'da zorunludur — oturum güvenliği için tanımlanmadan uygulama başlatılamaz."
     );
   }
-  return "optishift-dev-secret-change-in-production";
+  _jwtSecret = new TextEncoder().encode("optishift-dev-secret-change-in-production");
+  return _jwtSecret;
 }
-
-const JWT_SECRET = new TextEncoder().encode(resolveJwtSecret());
 
 export const SESSION_COOKIE = "optishift_session";
 
@@ -30,12 +37,12 @@ export async function signToken(user: AuthUser): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     return payload as unknown as AuthUser;
   } catch {
     return null;

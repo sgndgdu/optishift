@@ -27,11 +27,11 @@ function parseJSON<T>(raw: unknown, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+export const round1 = (n: number) => Math.round(n * 10) / 10;
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 /** "HH:MM"–"HH:MM" arası dakika; gece geçişinde +1440. */
-function shiftMinutes(start: string, end: string): number {
+export function shiftMinutes(start: string, end: string): number {
   const toMin = (t: string) => {
     const [h, m] = t.split(":").map(Number);
     return h * 60 + (m || 0);
@@ -117,6 +117,59 @@ export async function getCompTimeBalanceHours(
 
 export type OvertimeUpsertResult = "inserted" | "updated" | "deleted" | "skipped_decided" | "skipped_zero";
 
+export interface ExistingOvertimeRow {
+  id: number;
+  status: string;
+  overtime_hours: number | null;
+}
+
+export type OvertimeUpsertAction =
+  | { type: "skip_decided"; extraPendingIdsToDelete: number[] }
+  | { type: "skip_zero" }
+  | { type: "delete"; ids: number[] }
+  | { type: "update"; keepId: number; extraIdsToDelete: number[]; hoursChanged: boolean; newHours: number }
+  | { type: "insert"; newHours: number };
+
+/**
+ * Saf karar fonksiyonu — (lokasyon, personel, hafta) başına EN FAZLA BİR kayıt
+ * kuralının mantığı. DB'den bağımsızdır, bu yüzden birim testle doğrudan
+ * doğrulanabilir. `upsertPendingOvertime` bu kararı DB IO'suna çevirir.
+ */
+export function decideOvertimeUpsert(
+  existing: ExistingOvertimeRow[],
+  overtimeHours: number,
+): OvertimeUpsertAction {
+  const decided = existing.find(r => r.status !== "pending");
+  const pendings = existing.filter(r => r.status === "pending");
+
+  if (decided) {
+    // Müdür karar vermiş — otomatik türetme onu ezmez; artık pending kopyaları temizle.
+    return { type: "skip_decided", extraPendingIdsToDelete: pendings.map(p => p.id) };
+  }
+
+  if (overtimeHours <= 0) {
+    if (pendings.length > 0) {
+      return { type: "delete", ids: pendings.map(p => p.id) };
+    }
+    return { type: "skip_zero" };
+  }
+
+  if (pendings.length > 0) {
+    const [keep, ...extras] = pendings;
+    const newHours = round1(overtimeHours);
+    const hoursChanged = round1(keep.overtime_hours ?? 0) !== newHours;
+    return {
+      type: "update",
+      keepId: keep.id,
+      extraIdsToDelete: extras.map(p => p.id),
+      hoursChanged,
+      newHours,
+    };
+  }
+
+  return { type: "insert", newHours: round1(overtimeHours) };
+}
+
 /**
  * (lokasyon, personel, hafta) başına EN FAZLA BİR kayıt kuralını uygular.
  * - Karara bağlanmış (approved/rejected) kayıt varsa dokunmaz — müdür kararı korunur.
@@ -143,58 +196,53 @@ export async function upsertPendingOvertime(args: {
       eq(overtimeRecords.week_start, args.weekStart),
     ));
 
-  const decided = existing.find(r => r.status !== "pending");
-  const pendings = existing.filter(r => r.status === "pending");
+  const action = decideOvertimeUpsert(existing, args.overtimeHours);
 
-  if (decided) {
-    // Müdür karar vermiş — otomatik türetme onu ezmez; artık pending kopyaları temizle.
-    if (pendings.length > 0) {
-      await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, pendings.map(p => p.id)));
+  switch (action.type) {
+    case "skip_decided": {
+      if (action.extraPendingIdsToDelete.length > 0) {
+        await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, action.extraPendingIdsToDelete));
+      }
+      return "skipped_decided";
     }
-    return "skipped_decided";
-  }
-
-  if (args.overtimeHours <= 0) {
-    if (pendings.length > 0) {
-      await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, pendings.map(p => p.id)));
+    case "skip_zero":
+      return "skipped_zero";
+    case "delete": {
+      await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, action.ids));
       return "deleted";
     }
-    return "skipped_zero";
-  }
-
-  if (pendings.length > 0) {
-    const [keep, ...extras] = pendings;
-    if (extras.length > 0) {
-      await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, extras.map(p => p.id)));
+    case "update": {
+      if (action.extraIdsToDelete.length > 0) {
+        await db.delete(overtimeRecords).where(inArray(overtimeRecords.id, action.extraIdsToDelete));
+      }
+      await db
+        .update(overtimeRecords)
+        .set({
+          scheduled_hours: round1(args.scheduledHours),
+          overtime_hours: action.newHours,
+          note: args.note ?? null,
+          // Saat değiştiyse eski personel onayı yeni saate uygulanamaz — sıfırla
+          ...(action.hoursChanged ? { employee_status: "pending", employee_responded_at: null } : {}),
+        })
+        .where(eq(overtimeRecords.id, action.keepId));
+      return "updated";
     }
-    const newHours = round1(args.overtimeHours);
-    const hoursChanged = round1(keep.overtime_hours ?? 0) !== newHours;
-    await db
-      .update(overtimeRecords)
-      .set({
+    case "insert": {
+      await db.insert(overtimeRecords).values({
+        org_id: args.orgId,
+        location_id: args.locationId,
+        personnel_id: args.personnelId,
+        personnel_name: args.personnelName ?? null,
+        week_start: args.weekStart,
         scheduled_hours: round1(args.scheduledHours),
-        overtime_hours: newHours,
+        overtime_hours: action.newHours,
+        status: "pending",
         note: args.note ?? null,
-        // Saat değiştiyse eski personel onayı yeni saate uygulanamaz — sıfırla
-        ...(hoursChanged ? { employee_status: "pending", employee_responded_at: null } : {}),
-      })
-      .where(eq(overtimeRecords.id, keep.id));
-    return "updated";
+        created_at: nowSec(),
+      });
+      return "inserted";
+    }
   }
-
-  await db.insert(overtimeRecords).values({
-    org_id: args.orgId,
-    location_id: args.locationId,
-    personnel_id: args.personnelId,
-    personnel_name: args.personnelName ?? null,
-    week_start: args.weekStart,
-    scheduled_hours: round1(args.scheduledHours),
-    overtime_hours: round1(args.overtimeHours),
-    status: "pending",
-    note: args.note ?? null,
-    created_at: nowSec(),
-  });
-  return "inserted";
 }
 
 // ─── Yayın anında derive ──────────────────────────────────────────────────────
