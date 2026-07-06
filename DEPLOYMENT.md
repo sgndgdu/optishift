@@ -49,7 +49,14 @@ node ../seed_brulee.js
 6. Deploy bittikten sonra Render sana bir URL verir: `https://optishift-engine.onrender.com`
 7. Test: `curl https://optishift-engine.onrender.com/health` → `{"status":"ok"}` dönmeli
 
-**Environment variables:** Engine stateless, ek env var gerektirmez.
+**Environment variables:** Engine stateless çalışır ama şu ikisi güvenlik için önerilir:
+
+| Key | Value |
+|-----|-------|
+| `ENGINE_SHARED_SECRET` | Next.js ile aynı rastgele sır (`openssl rand -hex 32`) — motoru sadece backend'in çağırabilmesini sağlar |
+| `ENGINE_ALLOWED_ORIGINS` | `https://your-project.vercel.app` (virgülle birden fazla origin desteklenir) |
+
+Tanımlanmazsa motor eskisi gibi açık çalışır (yerel geliştirme için uygundur, prod için önerilmez).
 
 ---
 
@@ -69,6 +76,9 @@ node ../seed_brulee.js
 | `VAPID_PRIVATE_KEY` | From your `.env.local` |
 | `VAPID_SUBJECT` | `mailto:sgndgdu@gmail.com` |
 | `ANTHROPIC_API_KEY` | Your Anthropic API key (for AI summary feature) |
+| `ENGINE_SHARED_SECRET` | Same value set on the Render engine service (see Step 2) |
+| `GOD_MODE_PASSWORD` | Password for `/admin` God Mode panel |
+| `GOD_MODE_JWT_SECRET` | A separate random 64-char string for God Mode sessions |
 
 5. Click **Deploy**
 6. After deploy, your app is live at `https://your-project.vercel.app`

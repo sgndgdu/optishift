@@ -16,9 +16,13 @@ async function callEngine(payload: unknown): Promise<any> {
   const timer = setTimeout(() => controller.abort(), ENGINE_TIMEOUT_MS);
 
   try {
+    const engineSecret = process.env.ENGINE_SHARED_SECRET;
     const res = await fetch(`${ENGINE_URL}/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(engineSecret ? { "x-engine-secret": engineSecret } : {}),
+      },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });

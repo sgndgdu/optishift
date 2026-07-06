@@ -7,6 +7,10 @@ import bcrypt from "bcryptjs";
 import { signToken, setCookie } from "@/lib/auth";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { getDB } from "@/lib/db/client";
+import { checkRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const LOGIN_ATTEMPT_LIMIT = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +21,22 @@ export async function POST(req: NextRequest) {
     }
 
     const normalized = username.trim().toLowerCase();
+    const clientIp = getClientIp(req);
+    const ipKey = `login:ip:${clientIp}`;
+    const userKey = `login:user:${normalized}`;
+
+    const ipCheck = checkRateLimit(ipKey, LOGIN_ATTEMPT_LIMIT, LOGIN_WINDOW_MS);
+    const userCheck = checkRateLimit(userKey, LOGIN_ATTEMPT_LIMIT, LOGIN_WINDOW_MS);
+    if (!ipCheck.allowed || !userCheck.allowed) {
+      const retryAfter = Math.max(ipCheck.retryAfterSec, userCheck.retryAfterSec);
+      return NextResponse.json(
+        {
+          error: `Çok fazla başarısız deneme. Lütfen ${Math.ceil(retryAfter / 60)} dakika sonra tekrar deneyin.`,
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      );
+    }
+
     let [user] = await db
       .select()
       .from(users)
@@ -69,6 +89,9 @@ export async function POST(req: NextRequest) {
       personnel_id: user.personnel_id ?? null,
       name: user.name,
     });
+
+    resetRateLimit(ipKey);
+    resetRateLimit(userKey);
 
     const res = NextResponse.json(userData);
     setCookie(res, token);

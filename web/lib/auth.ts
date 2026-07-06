@@ -1,9 +1,18 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "optishift-dev-secret-change-in-production"
-);
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_SECRET ortam değişkeni prod'da zorunludur — oturum güvenliği için tanımlanmadan uygulama başlatılamaz."
+    );
+  }
+  return "optishift-dev-secret-change-in-production";
+}
+
+const JWT_SECRET = new TextEncoder().encode(resolveJwtSecret());
 
 export const SESSION_COOKIE = "optishift_session";
 

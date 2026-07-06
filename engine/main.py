@@ -12,13 +12,14 @@ Ortam Değişkeni:
     PORT (Railway otomatik atar, varsayılan 8000)
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
 import os
 import sys
 import json
+import hmac
 
 # optishift_engine.py aynı klasörde
 sys.path.insert(0, os.path.dirname(__file__))
@@ -26,14 +27,37 @@ import optishift_engine as engine
 
 app = FastAPI(title="OptiShift Engine", version="1.0.0")
 
-# Vercel'den gelen istekler için CORS
+# İzin verilen origin'ler ENGINE_ALLOWED_ORIGINS ile (virgülle ayrılmış) kısıtlanabilir;
+# tanımlanmazsa geliştirme kolaylığı için "*" kalır (credentials kapalı, zaten header tabanlı auth var).
+_allowed_origins_env = os.environ.get("ENGINE_ALLOWED_ORIGINS", "").strip()
+_allowed_origins = (
+    [o.strip() for o in _allowed_origins_env.split(",") if o.strip()]
+    if _allowed_origins_env
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_allowed_origins,
+    allow_credentials=False,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
+# Motor sadece Next.js backend'inden çağrılmalı — paylaşılan sır ile korunur.
+# ENGINE_SHARED_SECRET tanımlı değilse (yerel geliştirme) kontrol devre dışı kalır.
+ENGINE_SHARED_SECRET = os.environ.get("ENGINE_SHARED_SECRET", "")
+
+
+@app.middleware("http")
+async def verify_shared_secret(request: Request, call_next):
+    if ENGINE_SHARED_SECRET and request.url.path not in ("/health",):
+        provided = request.headers.get("x-engine-secret", "")
+        if not hmac.compare_digest(provided, ENGINE_SHARED_SECRET):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(status_code=403, content={"detail": "Yetkisiz istemci"})
+    return await call_next(request)
 
 
 class GenerateRequest(BaseModel):

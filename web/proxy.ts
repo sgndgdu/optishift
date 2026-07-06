@@ -17,17 +17,37 @@ function isPublicInvitesGet(req: NextRequest): boolean {
   );
 }
 
+const SPOOFABLE_AUTH_HEADERS = [
+  "x-auth-user-id",
+  "x-auth-org-id",
+  "x-auth-role",
+  "x-auth-location-id",
+  "x-auth-personnel-id",
+  "x-auth-name",
+];
+
+// İstemcinin bu header'ları doğrudan göndermesini engeller — route handler'lar bu
+// header'lara güvenerek yetki kararı aldığı için, doğrulanmamış bir istekte asla
+// istemciden gelen değerlerle geçmemeli.
+function stripSpoofableHeaders(req: NextRequest): Headers {
+  const headers = new Headers(req.headers);
+  for (const h of SPOOFABLE_AUTH_HEADERS) headers.delete(h);
+  return headers;
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Sadece /api/* route'larını koru
   if (!pathname.startsWith("/api/")) return NextResponse.next();
 
-  // Herkese açık endpoint'ler
+  // Herkese açık endpoint'ler — yine de istemciden gelen sahte auth header'ları temizlenir
   if (PUBLIC_API_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
-  if (isPublicInvitesGet(req)) return NextResponse.next();
+  if (isPublicInvitesGet(req)) {
+    return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
+  }
 
   // God Mode API'leri — ayrı cookie ile korunur
   // Banner GET herkese açık (tüm layout'lar okur); diğer metodlar ve tüm /api/god/* god auth gerektirir
@@ -42,7 +62,7 @@ export async function proxy(req: NextRequest) {
         );
       }
     }
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
 
   // JWT doğrulama
@@ -64,7 +84,7 @@ export async function proxy(req: NextRequest) {
 
   // Doğrulanmış kullanıcı bilgisini route handler'a header üzerinden ilet.
   // HTTP header'lar ASCII-only; Türkçe karakterleri encodeURIComponent ile encode et.
-  const headers = new Headers(req.headers);
+  const headers = stripSpoofableHeaders(req);
   headers.set("x-auth-user-id", user.id);
   headers.set("x-auth-org-id", user.org_id);
   headers.set("x-auth-role", user.role);

@@ -4,8 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 const GOD_COOKIE = "optishift_god_session";
 
 function getGodSecret(): Uint8Array {
-  const secret = process.env.GOD_MODE_JWT_SECRET ?? "god-mode-dev-secret-change-in-production";
-  return new TextEncoder().encode(secret);
+  const secret = process.env.GOD_MODE_JWT_SECRET;
+  if (secret) return new TextEncoder().encode(secret);
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "GOD_MODE_JWT_SECRET ortam değişkeni prod'da zorunludur — God Mode güvenliği için tanımlanmadan kullanılamaz."
+    );
+  }
+  return new TextEncoder().encode("god-mode-dev-secret-change-in-production");
 }
 
 export async function signGodToken(): Promise<string> {
