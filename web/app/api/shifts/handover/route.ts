@@ -26,7 +26,13 @@ export async function GET(req: NextRequest) {
       WHERE personnel_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
       LIMIT 1
     `).get(auth.personnel_id, week_start, dayIdx) as any;
-    if (!mine || !mine.start_time) return NextResponse.json({ notes: [] });
+    if (!mine || !mine.start_time) return NextResponse.json({ notes: [], enabled: true });
+
+    // Lokasyon toggle'ı: rules.handover_notes_enabled === false ise özellik kapalı
+    const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(mine.location_id) as any;
+    let enabled = true;
+    try { enabled = JSON.parse(locRow?.rules || "{}")?.handover_notes_enabled !== false; } catch { /* varsayılan açık */ }
+    if (!enabled) return NextResponse.json({ notes: [], enabled: false });
 
     const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
     const myStart = toMin(mine.start_time);
@@ -61,7 +67,7 @@ export async function GET(req: NextRequest) {
       note: r.handover_note,
     }));
 
-    return NextResponse.json({ notes });
+    return NextResponse.json({ notes, enabled: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

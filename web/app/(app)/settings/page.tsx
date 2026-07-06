@@ -267,6 +267,8 @@ export default function SettingsPage() {
   const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
   const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
+  const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
+  const [handoverNotesEnabled, setHandoverNotesEnabled]           = useState(true);
   const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
   // Ekip (Crew) yönetimi
@@ -397,6 +399,8 @@ export default function SettingsPage() {
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
+          setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
+          setHandoverNotesEnabled(loc.rules?.handover_notes_enabled !== false);
 
           // Rotasyon şablonu
           if (typeof loc.rotation_template === "string") {
@@ -501,6 +505,8 @@ export default function SettingsPage() {
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
+            nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
+            handoverNotesEnabled: loc.rules?.handover_notes_enabled !== false,
             rotationEnabled: !!loc.rotation_template?.enabled,
             rotationType: loc.rotation_template?.type ?? "3-shift",
             cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
@@ -539,7 +545,7 @@ export default function SettingsPage() {
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -557,7 +563,7 @@ export default function SettingsPage() {
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -701,6 +707,8 @@ export default function SettingsPage() {
             crew_same_shift_hard:               crewSameShiftHard,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
             balancing_period_weeks:             balancingPeriodWeeks,
+            night_legal_warning_enabled:        nightLegalWarning,
+            handover_notes_enabled:             handoverNotesEnabled,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -739,7 +747,7 @@ export default function SettingsPage() {
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
         simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -990,7 +998,7 @@ export default function SettingsPage() {
                           setLocationData({ ...locationData, shift_definitions: next });
                         }} />
                       </div>
-                      {shift.is_night && shiftDurationHours(shift) > 7.5 && (
+                      {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
                         <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Gece vardiyası {shiftDurationHours(shift)} saat — yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
                         </p>
@@ -1082,6 +1090,16 @@ export default function SettingsPage() {
                   label="Arka Arkaya İki Hafta Gece Yasağı"
                   description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
                   right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
+                />
+                <RuleRow
+                  label="Gece 7,5 Saat Uyarısı"
+                  description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
+                  right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
+                />
+                <RuleRow
+                  label="Vardiya Devri Notu"
+                  description="Personel çıkış yaparken sonraki vardiyaya not bırakabilir; not, sonraki vardiyanın personeline ana sayfada gösterilir. Kapalıysa çıkışta not sorulmaz."
+                  right={<Toggle on={handoverNotesEnabled} onToggle={() => setHandoverNotesEnabled(v => !v)} />}
                 />
                 <RuleRow
                   label="Müdürü Planlamaya Dahil Et"

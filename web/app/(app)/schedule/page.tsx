@@ -1421,16 +1421,19 @@ export default function SchedulePage() {
         }
       }
     }
-    // Gece vardiyası yasal süre sınırı: 7,5 saati aşan gece vardiyaları (vardiya deseni başına tek uyarı)
-    const longNightPatterns = new Set<string>();
-    for (const c of Object.values(cellMap)) {
-      if (isNightCell(c) && c.endMin - c.startMin > 7.5 * 60) {
-        const hours = Math.round(((c.endMin - c.startMin) / 60) * 10) / 10;
-        longNightPatterns.add(`${hours}`);
+    // Gece vardiyası yasal süre sınırı: 7,5 saati aşan gece vardiyaları (vardiya deseni başına
+    // tek uyarı; rules.night_legal_warning_enabled ile kapatılabilir)
+    if ((locRules as Record<string, unknown>)?.night_legal_warning_enabled !== false) {
+      const longNightPatterns = new Set<string>();
+      for (const c of Object.values(cellMap)) {
+        if (isNightCell(c) && c.endMin - c.startMin > 7.5 * 60) {
+          const hours = Math.round(((c.endMin - c.startMin) / 60) * 10) / 10;
+          longNightPatterns.add(`${hours}`);
+        }
       }
-    }
-    for (const hours of longNightPatterns) {
-      violations.push(`Gece vardiyası ${hours} saat sürüyor — yasal sınır 7,5 saattir (Postalar Yönetmeliği)`);
+      for (const hours of longNightPatterns) {
+        violations.push(`Gece vardiyası ${hours} saat sürüyor — yasal sınır 7,5 saattir (Postalar Yönetmeliği)`);
+      }
     }
     return violations;
   };

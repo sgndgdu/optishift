@@ -182,6 +182,8 @@ export interface ScheduleRules {
   // Denkleştirme dönemi (İş K. m.63): N haftalık pencerede ortalama max_weekly_hours garantisi;
   // tek hafta tavanı 66 saat. 0/undefined = kapalı (haftalık katı limit geçerli)
   balancing_period_weeks?: number;
+  night_legal_warning_enabled?: boolean; // varsayılan true — gece vardiyası >7,5s uyarısı (editör + yayın ihlali)
+  handover_notes_enabled?: boolean;      // varsayılan true — check-out'ta devir notu modalı + sonraki vardiyaya not kartı
 }
 
 // Gece çalışma yasağı nedeni (İş K. m.73 + Postalar Yönetmeliği)

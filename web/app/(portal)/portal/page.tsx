@@ -38,6 +38,7 @@ export default function PortalDashboard() {
   const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
   const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
   const [handoverDraft, setHandoverDraft]  = useState("");
+  const [handoverEnabled, setHandoverEnabled] = useState(true); // rules.handover_notes_enabled
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
   const [crewName,      setCrewName]      = useState<string | null>(null);
@@ -88,8 +89,11 @@ export default function PortalDashboard() {
   useEffect(() => {
     if (!user?.personnel_id) return;
     fetch("/api/shifts/handover")
-      .then(r => r.ok ? r.json() : { notes: [] })
-      .then(d => setHandoverNotes(Array.isArray(d?.notes) ? d.notes : []))
+      .then(r => r.ok ? r.json() : { notes: [], enabled: true })
+      .then(d => {
+        setHandoverNotes(Array.isArray(d?.notes) ? d.notes : []);
+        setHandoverEnabled(d?.enabled !== false);
+      })
       .catch(() => {});
   }, [user]);
 
@@ -258,7 +262,7 @@ export default function PortalDashboard() {
               </button>
             )}
             {todayShift && isCheckedIn && (
-              <button onClick={() => { setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
+              <button onClick={() => { if (!handoverEnabled) { handleCheckOut(todayShift.id); return; } setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
                 className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
                 <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
               </button>
