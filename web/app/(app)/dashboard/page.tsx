@@ -25,6 +25,8 @@ export default function DashboardPage() {
   const [now, setNow] = useState(() => new Date());
   const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(1.5);
   const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
+  const [autoOpenOnLate, setAutoOpenOnLate] = useState(true); // rules.auto_open_shift_on_late
+  const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -82,6 +84,8 @@ export default function DashboardPage() {
           const rules = JSON.parse(loc.rules);
           if (typeof rules.hero_bonus_multiplier === "number") setHeroBonusMultiplier(rules.hero_bonus_multiplier);
           if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
+          setAutoOpenOnLate(rules.auto_open_shift_on_late !== false);
+          if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);
         } catch {}
       }
     } catch (e) {
@@ -155,36 +159,35 @@ export default function DashboardPage() {
     }
   };
 
-  // Vardiya başlangıcından 30 dk geçmiş, henüz check-in yok → geç kalan
+  // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz check-in yok → geç kalan
   const isLate = (s: any): boolean => {
     if (s.check_in_at || !s.start_time) return false;
     const [h, m] = s.start_time.split(":").map(Number);
     const shiftStartMin = h * 60 + m;
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    return nowMin >= shiftStartMin + 30;
+    return nowMin >= shiftStartMin + lateThresholdMin;
   };
 
-  // Geç kalan vardiyalar için otomatik açık vardiya oluştur (tek seferlik)
-  const autoCreateOpenShift = async (s: any) => {
+  // Gelmeyen personelin vardiyasını açık vardiyaya dönüştür: atama kişinin
+  // takviminden düşer, ilan havuzuna girer, kişiye + ekibe bildirim gider.
+  const convertToOpenShift = async (s: any, auto: boolean) => {
     if (lateAutoCreated.current.has(s.id) || !user?.location_id) return;
     lateAutoCreated.current.add(s.id);
-    const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
     try {
-      await fetch("/api/open-shifts", {
+      const res = await fetch("/api/open-shifts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          location_id: user.location_id,
-          date: today,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          note: `Otomatik: ${s.personnel_id} check-in yapmadı`,
+          convert_assignment_id: s.id,
+          reason: auto ? "no_show" : "absence",
           hero_bonus_multiplier: heroBonusMultiplier,
         }),
       });
-      // Açık vardiya sayısını güncelle
+      if (!res.ok) { lateAutoCreated.current.delete(s.id); return; }
+      // Atama artık ilanda — canlı listeden düşür, açık vardiya sayısını güncelle
+      setTodayShifts(prev => prev.filter((x: any) => x.id !== s.id));
       setOpenShifts(prev => [...prev, { status: "open", id: Date.now() }]);
-    } catch {}
+    } catch { lateAutoCreated.current.delete(s.id); }
   };
 
   if (!mounted || !user) return <div className="space-y-8" />;
@@ -477,8 +480,8 @@ export default function DashboardPage() {
         const lateShifts = todayShifts.filter(s => !s.check_in_at && isLate(s));
         const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s));
 
-        // Geç kalanlar için açık vardiya oluştur
-        lateShifts.forEach(s => autoCreateOpenShift(s));
+        // Geç kalanların vardiyasını otomatik açığa çıkar (Ayarlar → Kurallar → Canlı Operasyon toggle'ı)
+        if (autoOpenOnLate) lateShifts.forEach(s => convertToOpenShift(s, true));
 
         return (
           <Card className="stripe-card border-0 shadow-none">
@@ -537,7 +540,7 @@ export default function DashboardPage() {
                       }`}>
                         {isCheckedOut ? <X size={14} /> : isCheckedIn ? <Check size={14} /> : late ? <AlertTriangle size={14} /> : <Clock size={14} />}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-slate-800 truncate">{p?.name ?? s.personnel_id}</div>
                         <div className="text-xs text-slate-500">{s.start_time}–{s.end_time}
                           {isCheckedOut && <span className="ml-1 text-slate-400">• Çıktı</span>}
@@ -546,6 +549,15 @@ export default function DashboardPage() {
                           {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
                         </div>
                       </div>
+                      {!isCheckedIn && !isCheckedOut && late && !autoOpenOnLate && (
+                        <button
+                          onClick={e => { e.preventDefault(); e.stopPropagation(); convertToOpenShift(s, false); }}
+                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                          title="Vardiyayı açık ilana dönüştür — ekip üstlenebilir"
+                        >
+                          Açığa Çıkar
+                        </button>
+                      )}
                     </Link>
                   );
                 })}

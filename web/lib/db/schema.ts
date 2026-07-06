@@ -133,6 +133,7 @@ export const personnel = pgTable("personnel", {
   crew_id: text("crew_id"), // crews tablosuna foreign key (opsiyonel)
   ytd_overtime_hours: doublePrecision("ytd_overtime_hours").default(0), // yılbaşından bu yana fazla mesai saati
   hourly_wage: doublePrecision("hourly_wage"), // saatlik brüt ücret (₺) — mesai maliyeti hesabı için, null = tanımsız
+  night_restriction: text("night_restriction"), // gece çalışma yasağı nedeni: 'pregnant' | 'nursing' | 'under18' | 'medical' | null = yok — motor gece vardiyasına atamaz
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
   prev_score: doublePrecision("prev_score").default(0), // cumulative_burden olarak kullanılıyor (rolling decay)
   fairness_z_score: doublePrecision("fairness_z_score").default(0),

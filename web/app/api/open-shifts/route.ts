@@ -48,7 +48,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Yeni açık vardiya ilanı (müdür)
+// POST: Yeni açık vardiya ilanı (müdür).
+// Alternatif mod — convert_assignment_id: mevcut (gelinmeyen/raporlu) bir vardiya
+// atamasını tek adımda açık vardiyaya dönüştürür: atama silinir, ilan oluşur,
+// kişiye ve ekibe bildirim gider. reason: 'no_show' → no_show_count artar.
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -59,8 +62,47 @@ export async function POST(req: NextRequest) {
 
   const db = getDB();
   try {
-    const { location_id, date, start_time, end_time, note, hero_bonus_multiplier } = await req.json();
+    const body = await req.json();
+    let { location_id, date, start_time, end_time, note } = body;
+    const { hero_bonus_multiplier, convert_assignment_id, reason } = body;
     const org_id = auth.org_id;
+
+    if (convert_assignment_id) {
+      const asg = await db.prepare(`
+        SELECT sa.*, p.name AS p_name, p.org_id AS p_org
+        FROM shift_assignments sa
+        JOIN personnel p ON p.id = sa.personnel_id
+        WHERE sa.id = ?
+      `).get(convert_assignment_id) as any;
+      if (!asg || asg.p_org !== org_id) {
+        return NextResponse.json({ error: "Vardiya ataması bulunamadı" }, { status: 404 });
+      }
+      const dt = new Date(asg.week_start + "T00:00:00Z");
+      dt.setUTCDate(dt.getUTCDate() + Number(asg.day ?? 0));
+      location_id = asg.location_id;
+      date = dt.toISOString().split("T")[0];
+      start_time = asg.start_time;
+      end_time = asg.end_time;
+      note = note ?? (reason === "no_show"
+        ? `${asg.p_name} vardiyaya gelmedi — otomatik açığa çıkarıldı`
+        : `${asg.p_name} gelemiyor — vardiya açığa çıkarıldı`);
+
+      // Atamayı kaldır: vardiya artık kişinin takviminde değil, ilan havuzunda
+      await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);
+      if (reason === "no_show") {
+        await db.prepare(`UPDATE personnel SET no_show_count = COALESCE(no_show_count, 0) + 1 WHERE id = ?`).run(asg.personnel_id);
+      }
+      // Vardiyası düşen kişiye bildirim
+      await db.prepare(`
+        INSERT INTO notifications (personnel_id, type, title, message, created_at)
+        VALUES (?, 'shift_change', ?, ?, ?)
+      `).run(
+        asg.personnel_id,
+        "Vardiyan açığa çıkarıldı",
+        `${date} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan müdürünle iletişime geç.`,
+        Math.floor(Date.now() / 1000)
+      );
+    }
 
     if (!location_id || !date || !start_time || !end_time) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
@@ -109,7 +151,7 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const body = await req.json();
-    const { id, claimed_by, claimed_by_name, status } = body;
+    const { id, claimed_by, claimed_by_name, status, assigned_by_manager } = body;
 
     if (!id) {
       return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
@@ -153,13 +195,16 @@ export async function PATCH(req: NextRequest) {
       // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
       await rescoreWeek(auth.org_id, os.location_id, week_start);
 
-      // Kahramana onay bildirimi
+      // Kahramana onay bildirimi (müdür atadıysa farklı dil)
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, created_at)
-        VALUES (?, 'hero_bonus', '🦸 Kahraman Bonusu Kazandın!', ?, ?)
+        VALUES (?, 'hero_bonus', ?, ?, ?)
       `).run(
         claimed_by,
-        `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
+        assigned_by_manager ? "📋 Açık Vardiyaya Atandın" : "🦸 Kahraman Bonusu Kazandın!",
+        assigned_by_manager
+          ? `Müdürün seni ${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ekstra kahraman puanı kazanacaksın.`
+          : `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
         Math.floor(Date.now() / 1000)
       );
     } else if (status) {

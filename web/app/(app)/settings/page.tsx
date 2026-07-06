@@ -113,6 +113,74 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
+// Vardiya bazlı zorunlu yetkinlik editörü — "her gece vardiyasında en az 1 bakımcı" gibi
+// kuralları vardiya tanımına işler; otomatik planlama bunu kesin kural olarak uygular.
+function RequiredSkillsEditor({
+  skills,
+  knownSkills,
+  onChange,
+}: {
+  skills: { skill: string; count: number }[];
+  knownSkills: string[];
+  onChange: (next: { skill: string; count: number }[]) => void;
+}) {
+  const [newSkill, setNewSkill] = useState("");
+  const [newCount, setNewCount] = useState(1);
+  const add = () => {
+    const name = newSkill.trim();
+    if (!name || skills.some(s => s.skill === name)) return;
+    onChange([...skills, { skill: name, count: Math.max(1, newCount) }]);
+    setNewSkill("");
+    setNewCount(1);
+  };
+  return (
+    <div className="space-y-1.5 pt-1 border-t border-slate-100">
+      <span className="text-xs text-slate-400">Zorunlu yetkinlik <span className="text-slate-300">— bu vardiyada mutlaka bulunmalı</span></span>
+      {skills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {skills.map((rs, i) => (
+            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700">
+              ≥{rs.count} {rs.skill}
+              <button
+                type="button"
+                onClick={() => onChange(skills.filter((_, j) => j !== i))}
+                className="text-indigo-300 hover:text-red-500 transition-colors"
+              >
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        <input
+          value={newSkill}
+          onChange={e => setNewSkill(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          list="known-skills-list"
+          placeholder="Yetkinlik (örn. bakımcı)"
+          className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-indigo-400"
+        />
+        <datalist id="known-skills-list">
+          {knownSkills.map(s => <option key={s} value={s} />)}
+        </datalist>
+        <input
+          type="number" min={1} max={20} value={newCount}
+          onChange={e => setNewCount(Number(e.target.value) || 1)}
+          className="w-14 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-indigo-400"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="text-[10px] font-bold px-2 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shrink-0"
+        >
+          Ekle
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   // ?tab=shifts gibi derin linkler desteklenir (boş durum yönlendirmeleri buraya iner)
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -197,6 +265,7 @@ export default function SettingsPage() {
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
   const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
+  const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
   // Ekip (Crew) yönetimi
@@ -325,6 +394,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
           if (typeof loc.rules?.weekly_overtime_budget_hours === "number") setWeeklyOvertimeBudgetHours(loc.rules.weekly_overtime_budget_hours);
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
+          setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
 
           // Rotasyon şablonu
           if (typeof loc.rotation_template === "string") {
@@ -427,6 +497,7 @@ export default function SettingsPage() {
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
             weeklyOvertimeBudgetHours: typeof loc.rules?.weekly_overtime_budget_hours === "number" ? loc.rules.weekly_overtime_budget_hours : 0,
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
+            consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             rotationEnabled: !!loc.rotation_template?.enabled,
             rotationType: loc.rotation_template?.type ?? "3-shift",
             cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
@@ -465,7 +536,7 @@ export default function SettingsPage() {
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -483,7 +554,7 @@ export default function SettingsPage() {
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -625,6 +696,7 @@ export default function SettingsPage() {
             overtime_fair_distribution:         overtimeFairDistribution,
             weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             crew_same_shift_hard:               crewSameShiftHard,
+            consecutive_night_weeks_enabled:    consecutiveNightWeeks,
           },
           leave_policy: {
             require_reason:       leaveRequireReason,
@@ -663,7 +735,7 @@ export default function SettingsPage() {
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
         simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -732,6 +804,17 @@ export default function SettingsPage() {
 
   const pointsColor = (v: number) =>
     v <= 3 ? "text-emerald-600" : v <= 6 ? "text-amber-600" : v <= 8 ? "text-orange-600" : "text-red-600";
+
+  // Vardiya süresi (saat) — gece geçişini destekler; yasal gece sınırı (7,5s) uyarısında kullanılır
+  const shiftDurationHours = (shift: { start?: string; end?: string }) => {
+    if (!shift.start || !shift.end) return 0;
+    const [sh, sm] = shift.start.split(":").map(Number);
+    const [eh, em] = shift.end.split(":").map(Number);
+    if ([sh, sm, eh, em].some(Number.isNaN)) return 0;
+    let dur = (eh * 60 + em) - (sh * 60 + sm);
+    if (dur <= 0) dur += 1440;
+    return Math.round((dur / 60) * 10) / 10;
+  };
 
   // Basit modda çekirdek sekmeler; "Gelişmiş ayarları göster" ile tamamı açılır (oturumluk)
   const SIMPLE_TAB_KEYS: TabKey[] = ["shifts", "requests", "account"];
@@ -903,6 +986,11 @@ export default function SettingsPage() {
                           setLocationData({ ...locationData, shift_definitions: next });
                         }} />
                       </div>
+                      {shift.is_night && shiftDurationHours(shift) > 7.5 && (
+                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat — yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
+                        </p>
+                      )}
 
                       {/* Zorluk slider */}
                       <div className="space-y-1.5">
@@ -928,6 +1016,21 @@ export default function SettingsPage() {
                           <span>Kolay</span><span>Orta</span><span>Zor</span>
                         </div>
                       </div>
+
+                      {/* Zorunlu yetkinlik karması — "gece vardiyasında en az 1 bakımcı" gibi */}
+                      <RequiredSkillsEditor
+                        skills={shift.required_skills ?? []}
+                        knownSkills={[...new Set([
+                          ...zoneQuotas.map(z => z.zone),
+                          ...(locationData.shift_definitions ?? []).flatMap((sd: ShiftDefinition) => (sd.required_skills ?? []).map(rs => rs.skill)),
+                        ])].filter(Boolean)}
+                        onChange={next => {
+                          const nextDefs = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                            i === idx ? { ...s, required_skills: next } : s
+                          );
+                          setLocationData({ ...locationData, shift_definitions: nextDefs });
+                        }}
+                      />
                     </div>
                   ))}
 
@@ -970,6 +1073,11 @@ export default function SettingsPage() {
                   label="Gececi→Sabahçı Yasağı"
                   description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
                   right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
+                />
+                <RuleRow
+                  label="Arka Arkaya İki Hafta Gece Yasağı"
+                  description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
+                  right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
                 />
                 <RuleRow
                   label="Müdürü Planlamaya Dahil Et"

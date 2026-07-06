@@ -110,6 +110,37 @@ export default function OpenShiftsPage() {
     } finally { setSaving(false); }
   }
 
+  // Akıllı aday önerisi: uygunluk filtreli (o gün boş, kırmızı değil, gece kısıtsız),
+  // adalet puanı sıralı liste — "Ata" ile müdür doğrudan atar
+  const [candidates, setCandidates] = useState<Record<number, { loading: boolean; list: any[] }>>({});
+  const [assigning, setAssigning] = useState<number | null>(null);
+
+  async function loadCandidates(id: number) {
+    setCandidates(prev => ({ ...prev, [id]: { loading: true, list: [] } }));
+    try {
+      const r = await fetch(`/api/open-shifts/candidates?id=${id}`);
+      const data = await r.json();
+      setCandidates(prev => ({ ...prev, [id]: { loading: false, list: Array.isArray(data?.candidates) ? data.candidates : [] } }));
+    } catch {
+      setCandidates(prev => ({ ...prev, [id]: { loading: false, list: [] } }));
+    }
+  }
+
+  async function handleAssign(shift: any, cand: any) {
+    setAssigning(shift.id);
+    try {
+      const r = await fetch("/api/open-shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: shift.id, claimed_by: cand.personnel_id, claimed_by_name: cand.name, assigned_by_manager: true }),
+      });
+      if (r.ok) {
+        showToast(`${cand.name} vardiyaya atandı ve bilgilendirildi.`);
+        await load();
+      }
+    } finally { setAssigning(null); }
+  }
+
   async function handleCancel(id: number) {
     await fetch("/api/open-shifts", {
       method: "PATCH",
@@ -298,9 +329,53 @@ export default function OpenShiftsPage() {
             )}
 
             {s.status === "open" && (
-              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-                <Clock size={13} className="shrink-0" />
-                <span>Personel bildirimi gönderildi, yanıt bekleniyor</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+                  <Clock size={13} className="shrink-0" />
+                  <span className="flex-1">Personel bildirimi gönderildi, yanıt bekleniyor</span>
+                  {!candidates[s.id] && (
+                    <button
+                      onClick={() => loadCandidates(s.id)}
+                      className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                    >
+                      Uygun Adayları Göster
+                    </button>
+                  )}
+                </div>
+                {candidates[s.id]?.loading && (
+                  <p className="text-xs text-slate-400 px-1">Uygun adaylar hesaplanıyor…</p>
+                )}
+                {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length === 0 && (
+                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı — herkes o gün dolu, izinli veya kısıtlı.</p>
+                )}
+                {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length > 0 && (
+                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+                    {candidates[s.id].list.map((c: any, i: number) => (
+                      <div key={c.personnel_id} className="flex items-center gap-3 px-3 py-2 bg-white">
+                        <span className="text-[10px] font-black text-slate-300 w-4 shrink-0">{i + 1}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-800 truncate">
+                            {c.name}
+                            <span className="ml-2 font-medium text-slate-400">{Math.round(c.prev_score)} puan</span>
+                          </p>
+                          {c.warnings.length > 0 && (
+                            <p className="text-[10px] text-amber-600 truncate">⚠ {c.warnings.join(" · ")}</p>
+                          )}
+                        </div>
+                        <button
+                          disabled={assigning === s.id}
+                          onClick={() => handleAssign(s, c)}
+                          className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                          {assigning === s.id ? "Atanıyor…" : "Ata"}
+                        </button>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-400 px-3 py-1.5 bg-slate-50">
+                      Sıralama: en az yük taşıyan önce (adalet puanı). Uyarılı adaylar sona alınır.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

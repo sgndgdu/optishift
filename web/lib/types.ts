@@ -137,6 +137,7 @@ export interface ShiftDefinition {
   base_points: number; // 1–10, bu vardiyayı OR-Tools'a ne kadar "ağır" göstereceği
   is_night?: boolean;  // gece vardiyası — adalet motoru night_multiplier uygular
   coverage?: Record<string, number>; // role_id -> required_count
+  required_skills?: { skill: string; count: number }[]; // bu vardiyada bulunması ZORUNLU yetkinlikler (örn. gece ≥1 bakımcı) — motor hard kısıt uygular
 }
 
 // ─── Eski ZoneConfig yerine yeni Role interface'i yukarı eklendi ──────────────────────────────────────────────────────
@@ -176,7 +177,12 @@ export interface ScheduleRules {
   overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
   // Fabrika modülü — ekip/rotasyon
   crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
+  // Gece koruması (Postalar Yönetmeliği)
+  consecutive_night_weeks_enabled?: boolean; // true → geçen hafta gece çalışan bu hafta gece vardiyası alamaz (m.8)
 }
+
+// Gece çalışma yasağı nedeni (İş K. m.73 + Postalar Yönetmeliği)
+export type NightRestriction = "pregnant" | "nursing" | "under18" | "medical";
 
 // ─── Personel ─────────────────────────────────────────────────────────────────
 
@@ -211,6 +217,7 @@ export interface Personnel {
   crew_id?: string;              // crews tablosuna referans (fabrika modülü)
   ytd_overtime_hours?: number;   // yılbaşından bu yana fazla mesai saati
   hourly_wage?: number | null;   // saatlik brüt ücret (₺) — mesai maliyeti hesabı için
+  night_restriction?: NightRestriction | null; // gece çalışma yasağı — motor gece vardiyasına atamaz
   prev_score: number;
   hero_count: number;
   no_show_count: number;

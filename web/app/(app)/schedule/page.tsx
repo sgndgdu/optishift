@@ -352,6 +352,7 @@ export default function SchedulePage() {
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ violations: string[]; onConfirm: () => void } | null>(null);
+  const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
   const [aiSummary, setAiSummary]                 = useState<string | null>(null);
   const [aiLoading, setAiLoading]                 = useState(false);
   const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
@@ -542,6 +543,33 @@ export default function SchedulePage() {
         setClopeningMinRest(clopeningRest);
         setAvailCollectionEnabled(collectAvail);
         setLocRules(parsedRules);
+
+        // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
+        if ((parsedRules as Record<string, unknown>)?.consecutive_night_weeks_enabled === true) {
+          try {
+            const prevD = new Date(weekStart + "T00:00:00");
+            prevD.setDate(prevD.getDate() - 7);
+            const prevWs = prevD.toISOString().split("T")[0];
+            const pr = await fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${prevWs}`);
+            const prevRows = await pr.json();
+            const ids = new Set<string>();
+            if (Array.isArray(prevRows)) {
+              for (const r of prevRows) {
+                if (r.publication_status !== "published" || !r.start_time || !r.end_time) continue;
+                const [sh, sm] = String(r.start_time).split(":").map(Number);
+                const [eh, em] = String(r.end_time).split(":").map(Number);
+                if ([sh, sm, eh, em].some(Number.isNaN)) continue;
+                const startMin = sh * 60 + sm;
+                let endMin = eh * 60 + em;
+                if (endMin <= startMin) endMin += 1440;
+                if (startMin >= 22 * 60 || endMin > 24 * 60) ids.add(r.personnel_id);
+              }
+            }
+            setPrevWeekNightIds(ids);
+          } catch { setPrevWeekNightIds(new Set()); }
+        } else {
+          setPrevWeekNightIds(new Set());
+        }
 
         // Koordinatlar (hava durumu için)
         const rawLat = Array.isArray(locData) ? locData[0]?.latitude : null;
@@ -1192,6 +1220,13 @@ export default function SchedulePage() {
     } catch { /* sessiz hata */ }
   };
 
+  // Gece vardiyası sezgisi — motorla aynı: 22:00+ başlayan veya gece yarısını aşan
+  const isNightCell = (c: CellData) => c.startMin >= 22 * 60 || c.endMin > 24 * 60;
+
+  const NIGHT_RESTRICTION_LABELS: Record<string, string> = {
+    pregnant: "gebe", nursing: "emziren", under18: "18 yaş altı", medical: "sağlık raporu",
+  };
+
   // Kural ihlali kontrolü — yayınlamadan önce çalıştırılır
   const checkViolations = (): string[] => {
     const violations: string[] = [];
@@ -1260,6 +1295,56 @@ export default function SchedulePage() {
           violations.push(`${p.name}: müsaitlik bilgisi girilmemiş, vardiya atanmış`);
         }
       }
+      // Gece koruması: gece kısıtlı personel + ardışık hafta gece yasağı
+      const nightDays: number[] = [];
+      for (let d = 0; d < 7; d++) {
+        const c = cellMap[`${p.id}-${d}`];
+        if (c && isNightCell(c)) nightDays.push(d);
+      }
+      if (nightDays.length > 0 && p.night_restriction) {
+        const label = NIGHT_RESTRICTION_LABELS[p.night_restriction] ?? p.night_restriction;
+        violations.push(`${p.name}: gece vardiyasına atanmış ama gece çalışma kısıtı var (${label}) — İş K. m.73 gereği gece çalıştırılamaz`);
+      }
+      if (nightDays.length > 0 && prevWeekNightIds.has(p.id) && !p.night_restriction) {
+        violations.push(`${p.name}: geçen hafta gece çalıştı, bu hafta yine gece vardiyası var — arka arkaya iki hafta gece yasağı (Postalar Yönetmeliği m.8)`);
+      }
+    }
+    // Zorunlu yetkinlik: her gün, her vardiya tanımı için atananlar arasında gerekli
+    // yetkinlik sayısı var mı? (hücreler saat eşleşmesiyle tanıma bağlanır, ±10 dk)
+    const defsWithReqs = shiftDefs.filter(d => (d.required_skills ?? []).length > 0);
+    if (defsWithReqs.length > 0) {
+      const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+      const parseRolesV = (p: any): string[] => {
+        if (Array.isArray(p.roles)) return p.roles;
+        try { return JSON.parse(p.roles || "[]"); } catch { return []; }
+      };
+      for (const def of defsWithReqs) {
+        const defStart = toMin(def.start);
+        for (let d = 0; d < 7; d++) {
+          const assigned = personnel.filter(p => {
+            const c = cellMap[`${p.id}-${d}`];
+            return c && Math.abs(c.startMin - defStart) <= 10;
+          });
+          if (assigned.length === 0) continue;
+          for (const req of def.required_skills ?? []) {
+            const skilledCount = assigned.filter(p => parseRolesV(p).includes(req.skill)).length;
+            if (skilledCount < req.count) {
+              violations.push(`${DAYS[d]} ${def.name}: en az ${req.count} "${req.skill}" gerekli — atananlar arasında ${skilledCount} kişi var`);
+            }
+          }
+        }
+      }
+    }
+    // Gece vardiyası yasal süre sınırı: 7,5 saati aşan gece vardiyaları (vardiya deseni başına tek uyarı)
+    const longNightPatterns = new Set<string>();
+    for (const c of Object.values(cellMap)) {
+      if (isNightCell(c) && c.endMin - c.startMin > 7.5 * 60) {
+        const hours = Math.round(((c.endMin - c.startMin) / 60) * 10) / 10;
+        longNightPatterns.add(`${hours}`);
+      }
+    }
+    for (const hours of longNightPatterns) {
+      violations.push(`Gece vardiyası ${hours} saat sürüyor — yasal sınır 7,5 saattir (Postalar Yönetmeliği)`);
     }
     return violations;
   };
@@ -1614,8 +1699,39 @@ export default function SchedulePage() {
         }
       }
     }
+    // Zorunlu yetkinlik ön-kontrolü: talep edilen vardiyada gerekli yetkinliğe sahip
+    // yeterli müsait kişi yoksa motor çözüm bulamaz — kullanıcıyı önceden uyar
+    const parseRoles = (p: any): string[] => {
+      if (Array.isArray(p.roles)) return p.roles;
+      try { return JSON.parse(p.roles || "[]"); } catch { return []; }
+    };
+    for (const def of shiftDefs) {
+      const reqs = def.required_skills ?? [];
+      if (reqs.length === 0) continue;
+      const activeMatrix = hasDeptDemand
+        ? Object.values(deptDemandMatrix).reduce((acc, m) => {
+            for (const [sid, days] of Object.entries(m)) {
+              acc[sid] = acc[sid] ?? {};
+              for (const [d, c] of Object.entries(days)) acc[sid][Number(d)] = (acc[sid][Number(d)] ?? 0) + Number(c || 0);
+            }
+            return acc;
+          }, {} as Record<string, Record<number, number>>)
+        : demandMatrix;
+      const days = activeMatrix[def.id] ?? {};
+      for (const req of reqs) {
+        const skilled = personnel.filter(p => parseRoles(p).includes(req.skill));
+        for (const [dayStr, count] of Object.entries(days)) {
+          const d = parseInt(dayStr);
+          if (Number(count) <= 0) continue;
+          const availSkilled = skilled.filter(p => !isUnavailable(p.id, d)).length;
+          if (availSkilled < req.count) {
+            warnings.push(`${DAYS[d]} — ${def.name}: en az ${req.count} "${req.skill}" yetkinlikli kişi gerekli, o gün yalnızca ${availSkilled} uygun kişi var.`);
+          }
+        }
+      }
+    }
     return warnings;
-  }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap]);
+  }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap, shiftDefs]);
 
   // Kapasite Planı hücrelerinde "bu gün en fazla kaç kişi girilebilir" ipucu için —
   // departman verilmezse lokasyon geneli, verilirse sadece o departmanın personeli sayılır.

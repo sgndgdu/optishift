@@ -102,6 +102,8 @@ export async function POST(req: NextRequest) {
             start: String(d.start ?? "08:00"),
             end: String(d.end ?? "16:00"),
             base_points: Number(d.base_points ?? 5),
+            is_night: !!d.is_night,
+            required_skills: Array.isArray(d.required_skills) ? d.required_skills : [],
           }));
         }
       } catch {
@@ -235,6 +237,7 @@ export async function POST(req: NextRequest) {
         id: p.id,
         name: p.name,
         skills: JSON.parse(p.roles || "[]"),
+        night_restriction: p.night_restriction ?? null,
         department_id: p.department_id ?? null,
         prev_score: prevScores[p.id] ?? 0,
         cumulative_burden: prevScores[p.id] ?? 0,
@@ -364,6 +367,7 @@ export async function POST(req: NextRequest) {
     let maxYtdOvertimeHours = 270.0;
     let overtimeFairDistribution = true;
     let crewSameShiftHard = false;
+    let consecutiveNightWeeksEnabled = false;
     let weekendMultiplierEnabled = true;
     let nightMultiplierEnabled = true;
     let preferredNotEnabled = true;
@@ -389,6 +393,8 @@ export async function POST(req: NextRequest) {
           overtimeFairDistribution = pr.overtime_fair_distribution;
         if (typeof pr?.crew_same_shift_hard === "boolean")
           crewSameShiftHard = pr.crew_same_shift_hard;
+        if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
+          consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;
         if (typeof pr?.weekend_multiplier_enabled === "boolean")
           weekendMultiplierEnabled = pr.weekend_multiplier_enabled;
         if (typeof pr?.night_multiplier_enabled === "boolean")
@@ -434,6 +440,51 @@ export async function POST(req: NextRequest) {
         personnelCrews[(p as any).id] = (p as any).crew_id;
     }
 
+    // Gece koruması: gece kısıtlı personel (gebe/emziren/18 yaş altı/sağlık)
+    const nightRestrictedIds = personnelData
+      .filter((p: any) => !!p.night_restriction)
+      .map((p: any) => p.id);
+
+    // Arka arkaya iki hafta gece yasağı için geçen haftanın gece çalışanları
+    let prevWeekNightIds: string[] = [];
+    if (consecutiveNightWeeksEnabled) {
+      try {
+        const prevDate = new Date(week_start + "T00:00:00Z");
+        prevDate.setUTCDate(prevDate.getUTCDate() - 7);
+        const prev_week_start = prevDate.toISOString().split("T")[0];
+        const prevRows = (await db
+          .prepare(
+            `SELECT DISTINCT personnel_id, shift_id, start_time, end_time
+             FROM shift_assignments
+             WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'`
+          )
+          .all(branchId, prev_week_start)) as any[];
+        const nightDefIds = new Set(
+          shiftsPayload.filter((s: any) => s.is_night).map((s: any) => String(s.id))
+        );
+        // Motorla aynı sezgi: 22:00+ başlayan veya gece yarısını aşan vardiya gece sayılır
+        const isNightTime = (start?: string | null, end?: string | null) => {
+          if (!start || !end) return false;
+          const [sh, sm] = start.split(":").map(Number);
+          const [eh, em] = end.split(":").map(Number);
+          if ([sh, sm, eh, em].some(Number.isNaN)) return false;
+          const startMin = sh * 60 + sm;
+          let endMin = eh * 60 + em;
+          if (endMin <= startMin) endMin += 1440;
+          return startMin >= 22 * 60 || endMin > 24 * 60;
+        };
+        const ids = new Set<string>();
+        for (const r of prevRows) {
+          if (nightDefIds.has(String(r.shift_id)) || isNightTime(r.start_time, r.end_time)) {
+            ids.add(r.personnel_id);
+          }
+        }
+        prevWeekNightIds = [...ids];
+      } catch (e) {
+        console.error("[generate] önceki hafta gece çalışanları sorgusu hatası:", e);
+      }
+    }
+
     const enginePayload = {
       prevScores,
       branchId,
@@ -453,6 +504,9 @@ export async function POST(req: NextRequest) {
       crew_rotation: crewRotation,
       personnel_crews: personnelCrews,
       crew_same_shift_hard: crewSameShiftHard,
+      night_restricted_ids: nightRestrictedIds,
+      prev_week_night_ids: prevWeekNightIds,
+      consecutive_night_weeks_enabled: consecutiveNightWeeksEnabled,
       rules: {
         max_weekly_hours: 45,
         min_rest_hours: 11,

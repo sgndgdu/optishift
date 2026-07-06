@@ -194,7 +194,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Manuel düzeltme için score_adjustments (type: manual).
-    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, hourly_wage } = body;
+    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, hourly_wage, night_restriction } = body;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -230,6 +230,13 @@ export async function PATCH(req: NextRequest) {
     // crew_id: undefined → dokunma, null → ekipten çıkar, string → ekip ata
     if (crew_id !== undefined) {
       await db.prepare("UPDATE personnel SET crew_id=? WHERE id=?").run(crew_id ?? null, id);
+    }
+
+    // night_restriction: undefined → dokunma, null/"" → kaldır, geçerli neden → ata
+    if (night_restriction !== undefined) {
+      const validReasons = ["pregnant", "nursing", "under18", "medical"];
+      const value = validReasons.includes(night_restriction) ? night_restriction : null;
+      await db.prepare("UPDATE personnel SET night_restriction=? WHERE id=?").run(value, id);
     }
 
     if (name) await db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);

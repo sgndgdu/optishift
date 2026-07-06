@@ -48,6 +48,17 @@ MAX_CONSECUTIVE_DAYS = 6
 # Gece vardiyası (≥23:00 bitiş) sonrası sabah vardiyası (≤12:00 başlangıç) yasağı
 NO_NIGHT_TO_MORNING = False
 
+# ─── GECE KORUMASI (Postalar Yönetmeliği) ────────────────────────────────────
+
+# Gece çalışması yasak personel id'leri (gebe/emziren/18 yaş altı/sağlık raporu)
+NIGHT_RESTRICTED_IDS: set = set()
+
+# Geçen hafta en az bir gece vardiyasında çalışmış personel id'leri
+PREV_WEEK_NIGHT_IDS: set = set()
+
+# Arka arkaya iki hafta gece yasağı (yönetmelik m.8) — rules toggle ile açılır
+CONSECUTIVE_NIGHT_WEEKS_ENABLED = False
+
 # ─── FABRİKA MODÜLÜ ───────────────────────────────────────────────────────────
 
 # Ekip rotasyon kısıtı: {crew_id: shift_idx} — bu haftaki ekip-vardiya eşleşmesi
@@ -115,6 +126,20 @@ def _shift_minutes(shift: dict) -> tuple:
     if end_min <= start_min:   # 16:00–00:00 gibi gece geçişi
         end_min += 24 * 60
     return start_min, end_min
+
+
+def _is_night_shift(s_idx: int) -> bool:
+    """Gece vardiyası tespiti: öncelik müdürün işaretlediği is_night bayrağı;
+    bayrak yoksa saat sezgisi — 22:00 ve sonrası başlayan ya da gece yarısını
+    aşıp ertesi güne sarkan vardiyalar gece sayılır (16:00–00:00 gece DEĞİLDİR,
+    end_min tam 1440 olduğu için sezgiye takılmaz)."""
+    if s_idx < 0 or s_idx >= len(SHIFTS):
+        return False
+    sh = SHIFTS[s_idx]
+    if sh.get("is_night"):
+        return True
+    start_m, end_m = _shift_minutes(sh)
+    return start_m >= 22 * 60 or end_m > 24 * 60
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
 #
@@ -232,6 +257,25 @@ def build_model():
                     <= MAX_CONSECUTIVE_DAYS
                 )
 
+    # ── GECE KORUMASI (Postalar Yönetmeliği) ────────────────────────────────
+    night_shift_idxs = [s for s in range(NUM_SHIFTS) if _is_night_shift(s)]
+    if night_shift_idxs:
+        # Gece çalışması kısıtlı personel (gebe/emziren/18 yaş altı/sağlık raporu)
+        # hiçbir gece vardiyasına atanamaz — hard.
+        for p_idx, person in enumerate(PERSONNEL):
+            if person["id"] in NIGHT_RESTRICTED_IDS:
+                for d in range(NUM_DAYS):
+                    for s in night_shift_idxs:
+                        model.add(shifts[(p_idx, d, s)] == 0)
+        # Arka arkaya iki hafta gece yasağı: geçen hafta gece çalışan personel
+        # bu hafta gece vardiyasına atanamaz — hard (rules toggle ile açılır).
+        if CONSECUTIVE_NIGHT_WEEKS_ENABLED:
+            for p_idx, person in enumerate(PERSONNEL):
+                if person["id"] in PREV_WEEK_NIGHT_IDS and person["id"] not in NIGHT_RESTRICTED_IDS:
+                    for d in range(NUM_DAYS):
+                        for s in night_shift_idxs:
+                            model.add(shifts[(p_idx, d, s)] == 0)
+
     # Gececi→Sabahçı yasak: gece vardiyası (≥23:00 bitiş) → ertesi sabah (≤12:00 başlangıç)
     if NO_NIGHT_TO_MORNING:
         night_idxs = [s for s in range(NUM_SHIFTS) if _shift_minutes(SHIFTS[s])[1] >= 23 * 60]
@@ -264,6 +308,30 @@ def build_model():
                 for s in range(NUM_SHIFTS)
             ) <= effective_max
         )
+
+    # ── Vardiya bazlı zorunlu yetkinlik karması ──────────────────────────────
+    # SHIFTS[s]["required_skills"] = [{"skill": X, "count": N}] → o vardiyaya
+    # herhangi bir gün atama yapıldıysa, atananlar arasında X yetkinliğine sahip
+    # en az N kişi bulunmak ZORUNDA (hard). Vardiya o gün boşsa kısıt uygulanmaz.
+    for s in range(NUM_SHIFTS):
+        req_list = SHIFTS[s].get("required_skills") or []
+        if not req_list:
+            continue
+        for d in range(NUM_DAYS):
+            total = sum(shifts[(p, d, s)] for p in range(num_p))
+            staffed = model.new_bool_var(f"staffed_d{d}_s{s}")
+            model.add(total >= 1).only_enforce_if(staffed)
+            model.add(total == 0).only_enforce_if(staffed.Not())
+            for req in req_list:
+                skilled = [
+                    p_idx for p_idx, person in enumerate(PERSONNEL)
+                    if req["skill"] in (person.get("skills") or [])
+                ]
+                if not skilled:
+                    # Bu yetkinliğe sahip hiç kimse yok → vardiya hiç açılamaz
+                    model.add(staffed == 0)
+                    continue
+                model.add(sum(shifts[(p_idx, d, s)] for p_idx in skilled) >= req["count"]).only_enforce_if(staffed)
 
     # Bölge kotası: her gün yetkin kişi toplamı minimumu (min_per_day)
     # Sabah+akşam vardiyalarının toplamında o gün en az min_count kişi çalışmış olmalı
@@ -576,8 +644,44 @@ def diagnose_infeasibility() -> str | None:
                         f"sadece {len(pool)} müsait personel var (toplam {len(members)} personel)."
                     )
 
+    # Gece koruması: gece vardiyası talebi, gece çalışabilecek personel sayısını aşıyor mu?
+    night_idxs = {s for s in range(NUM_SHIFTS) if _is_night_shift(s)}
+    if night_idxs and (NIGHT_RESTRICTED_IDS or (CONSECUTIVE_NIGHT_WEEKS_ENABLED and PREV_WEEK_NIGHT_IDS)):
+        night_eligible = [
+            p["id"] for p in PERSONNEL
+            if p["id"] not in NIGHT_RESTRICTED_IDS
+            and not (CONSECUTIVE_NIGHT_WEEKS_ENABLED and p["id"] in PREV_WEEK_NIGHT_IDS)
+        ]
+        for s_idx, day_counts in (DEMAND_MATRIX or {}).items():
+            if s_idx not in night_idxs:
+                continue
+            for d, cnt in day_counts.items():
+                pool = available_pool(d, night_eligible)
+                if cnt > len(pool):
+                    problems.append(
+                        f"{DAYS[d]} gece vardiyası: {cnt} kişi isteniyor ama gece çalışabilecek yalnızca "
+                        f"{len(pool)} personel var (gece kısıtlı personel ve geçen hafta gece çalışanlar hariç)."
+                    )
+
+    # Zorunlu yetkinlik: talep edilen vardiyada gerekli yetkinliğe sahip yeterli kişi var mı?
+    for s_idx, day_counts in (DEMAND_MATRIX or {}).items():
+        if s_idx >= len(SHIFTS):
+            continue
+        req_list = SHIFTS[s_idx].get("required_skills") or []
+        for req in req_list:
+            skilled_ids = [p["id"] for p in PERSONNEL if req["skill"] in (p.get("skills") or [])]
+            for d, cnt in day_counts.items():
+                if cnt <= 0:
+                    continue
+                pool = available_pool(d, skilled_ids)
+                if len(pool) < req["count"]:
+                    problems.append(
+                        f"{DAYS[d]} — {SHIFTS[s_idx].get('name', 'Vardiya')}: en az {req['count']} "
+                        f"\"{req['skill']}\" yetkinlikli kişi gerekli ama o gün yalnızca {len(pool)} uygun kişi var."
+                    )
+
     if problems:
-        header = "Kapasite matrisi bazı günler için mevcut personel sayısından fazla kişi istiyor:\n"
+        header = "Kapasite planı bazı günler için mevcut personel sayısından fazla kişi istiyor:\n"
         return header + "\n".join(f"• {p}" for p in problems[:6])
     return None
 
@@ -928,11 +1032,15 @@ def api_mode(payload: dict):
     import sys
     global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
+    global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
 
     branch_id = payload.get("branchId", "L-001")
     ENSURE_SENIOR_PER_SHIFT = bool(payload.get("ensure_senior_per_shift", False))
     MAX_CONSECUTIVE_DAYS = int(payload.get("max_consecutive_days", 6))
     NO_NIGHT_TO_MORNING = bool(payload.get("no_night_to_morning", False))
+    NIGHT_RESTRICTED_IDS = set(payload.get("night_restricted_ids") or [])
+    PREV_WEEK_NIGHT_IDS = set(payload.get("prev_week_night_ids") or [])
+    CONSECUTIVE_NIGHT_WEEKS_ENABLED = bool(payload.get("consecutive_night_weeks_enabled", False))
     try:
         PREFERRED_NOT_MULTIPLIER = max(1.0, float(payload.get("preferred_not_multiplier", 1.5)))
     except (TypeError, ValueError):
@@ -955,6 +1063,13 @@ def api_mode(payload: dict):
                 "start":       s.get("start", "08:00"),
                 "end":         s.get("end",   "16:00"),
                 "base_points": int(s.get("base_points", 5)),
+                "is_night":    bool(s.get("is_night", False)),
+                # Zorunlu yetkinlik karması: [{"skill": "bakımcı", "count": 1}, ...]
+                "required_skills": [
+                    {"skill": str(rs.get("skill", "")).strip(), "count": int(rs.get("count", 1))}
+                    for rs in (s.get("required_skills") or [])
+                    if str(rs.get("skill", "")).strip() and int(rs.get("count", 0)) > 0
+                ],
             }
             for i, s in enumerate(shifts_from_payload)
         ]
