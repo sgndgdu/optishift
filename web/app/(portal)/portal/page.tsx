@@ -468,7 +468,7 @@ export default function PortalDashboard() {
           )}
 
           <p className="text-[10px] text-slate-300 leading-relaxed">
-            Puan = vardiya zorluğu × saat × çarpanlar (hafta sonu, gece{fairness.history.some((h: any) => "pref_not_shifts" in h) ? ", tercih etmediğin günler" : ""}). Yüksek puan = daha çok yük taşıdın; sistem yeni haftalarda dengeyi senin lehine kurar.
+            Zor, uzun, hafta sonu ve gece vardiyaları{fairness.history.some((h: any) => "pref_not_shifts" in h) ? " — ve tercih etmediğin günlerde çalışmak —" : ""} daha çok puan getirir. Puanın yükseldiyse sonraki haftalarda sıra daha hafif vardiyalara sende olur.
           </p>
         </div>
       )}

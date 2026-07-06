@@ -193,7 +193,7 @@ function SetupForm() {
 
             <div>
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
-                Telefon <span className="text-slate-400 font-normal normal-case">(opsiyonel)</span>
+                Telefon <span className="text-slate-400 font-normal normal-case">(isteğe bağlı)</span>
               </label>
               <div className="relative">
                 <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />

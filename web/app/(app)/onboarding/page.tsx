@@ -285,7 +285,7 @@ export default function OnboardingWizard() {
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Puan değeri, vardiyanın zorluğudur — adalet motoru yükü buna göre dengeler. Emin değilseniz olduğu gibi bırakın.
+                  Puan değeri, vardiyanın zorluğudur — vardiyalar bu yüke göre adil dağıtılır. Emin değilseniz olduğu gibi bırakın.
                 </p>
               </Shell>
             )}

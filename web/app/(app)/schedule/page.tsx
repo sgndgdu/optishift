@@ -1240,11 +1240,11 @@ export default function SchedulePage() {
           violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} arası dinlenme ${Math.round(gap / 60 * 10) / 10}s (min ${ruleMinRest}s)`);
         } else if (gap < clopeningMinRest * 60) {
           clopeningCount++;
-          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} clopening (kapanış→açılış) — dinlenme ${Math.round(gap / 60 * 10) / 10}s, ${clopeningMinRest}s önerilir`);
+          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} kapanış→açılış — dinlenme ${Math.round(gap / 60 * 10) / 10}s, ${clopeningMinRest}s önerilir`);
         }
       }
       if (clopeningCount >= 2) {
-        violations.push(`${p.name}: bu hafta ${clopeningCount} clopening — yorgunluk riski yüksek, dağıtmayı düşünün`);
+        violations.push(`${p.name}: bu hafta ${clopeningCount} kez kapanış→açılış — yorgunluk riski yüksek, dağıtmayı düşünün`);
       }
       // Müsaitlik ihlalleri — "unavailable" gün atama
       for (let d = 0; d < 7; d++) {
@@ -1880,7 +1880,7 @@ export default function SchedulePage() {
                     {cellCount > 0 && (
                       <button onClick={() => { setActionsOpen(false); handleGenerateClick(); }} disabled={generating}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Zap size={13} className="text-indigo-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur (OR-Tools)"}
+                        <Zap size={13} className="text-indigo-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur"}
                       </button>
                     )}
                     {availCollectionEnabled && (
@@ -1954,12 +1954,12 @@ export default function SchedulePage() {
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
               <p className="font-bold mb-1 flex items-center gap-2">
                 <AlertCircle size={14} className="shrink-0" />
-                Kapasite matrisi mevcut personel sayısından fazla kişi istiyor
+                Kapasite Planı mevcut personel sayısından fazla kişi istiyor
               </p>
               <ul className="list-disc list-inside space-y-0.5">
                 {capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}
               </ul>
-              <p className="mt-1 text-red-500">Bu günlerde herkes müsait olsa bile Otomatik Oluştur çözüm bulamaz — kapasite matrisindeki sayıları azaltın.</p>
+              <p className="mt-1 text-red-500">Bu günlerde herkes müsait olsa bile Otomatik Oluştur çözüm bulamaz — Kapasite Planı&apos;ndaki sayıları azaltın.</p>
             </div>
           )}
           {availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 && (
@@ -2556,7 +2556,7 @@ export default function SchedulePage() {
                 <Zap size={22} className="text-indigo-600 animate-pulse" />
               </div>
               <div className="text-center">
-                <p className="text-base font-bold text-slate-800">OR-Tools Planlıyor</p>
+                <p className="text-base font-bold text-slate-800">Plan hazırlanıyor</p>
                 <p className="text-sm text-slate-400 mt-0.5">5–15 saniye sürebilir…</p>
               </div>
             </div>
@@ -2960,7 +2960,7 @@ export default function SchedulePage() {
 
             {/* Not */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Not <span className="font-normal normal-case">(opsiyonel)</span></p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Not <span className="font-normal normal-case">(isteğe bağlı)</span></p>
               <input
                 type="text" value={proposalNote} onChange={e => setProposalNote(e.target.value)}
                 placeholder="Neden değişiklik istiyorsunuz?"
@@ -3012,7 +3012,7 @@ export default function SchedulePage() {
                     <input type="date" value={addEventModal.date} readOnly className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-default" />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs font-semibold text-slate-600 block mb-1">Bitiş <span className="font-normal text-slate-400">(opsiyonel)</span></label>
+                    <label className="text-xs font-semibold text-slate-600 block mb-1">Bitiş <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
                     <input type="date" value={newEventEndDate} min={addEventModal.date} onChange={e => setNewEventEndDate(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" />
                   </div>
                 </div>
@@ -3029,7 +3029,7 @@ export default function SchedulePage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Not <span className="font-normal text-slate-400">(opsiyonel)</span></label>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Not <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
                 <input type="text" value={newEventNote} onChange={e => setNewEventNote(e.target.value)} placeholder="Ekstra detay..." className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" />
               </div>
             </div>

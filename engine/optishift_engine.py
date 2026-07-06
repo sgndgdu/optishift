@@ -551,7 +551,7 @@ def diagnose_infeasibility() -> str | None:
             if total > len(pool):
                 problems.append(
                     f"{DAYS[d]}: {total} kişi isteniyor ama sadece {len(pool)} personel müsait "
-                    f"(toplam {len(all_ids)} personel var, biri günde yalnızca 1 vardiyaya girebilir)."
+                    f"(toplam {len(all_ids)} personel var; her personel günde en fazla 1 vardiyaya yazılabilir)."
                 )
 
     if DEPARTMENT_DEMAND_MATRIX:
@@ -1083,8 +1083,8 @@ def api_mode(payload: dict):
     if result is None:
         diagnosis = diagnose_infeasibility()
         message = diagnosis or (
-            "Optimizasyon için uygun bir çözüm bulunamadı. Haftalık saat limiti, "
-            "dinlenme süresi veya kapasite matrisi kısıtlarını gözden geçirin."
+            "Bu kurallarla uygun bir plan bulunamadı. Haftalık saat limitini, "
+            "dinlenme süresini veya Kapasite Planı'ndaki sayıları gözden geçirin."
         )
         print(json.dumps({"error": message}))
         return

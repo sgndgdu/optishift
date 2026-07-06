@@ -183,7 +183,7 @@ export default function SupervisorDashboard() {
                       <p className="text-xs text-slate-400 mt-0.5">{req.week_start} haftası yayınlanmış planı düzenlemek istiyor</p>
                       <input
                         type="text"
-                        placeholder="Not ekle (opsiyonel)…"
+                        placeholder="Not ekle (isteğe bağlı)…"
                         value={reviewNote}
                         onChange={e => setReviewNote(e.target.value)}
                         className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 placeholder-slate-300 outline-none focus:ring-2 focus:ring-indigo-200"

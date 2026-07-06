@@ -57,7 +57,7 @@ function eventIcon(type: string) {
 
 function eventLabel(ev: PlatformEvent): string {
   if (ev.type === "login") return `${ev.meta?.user_name ?? "Kullanici"} giris yapti`;
-  if (ev.type === "or_tools_call") return `OR-Tools calistirdi (${ev.meta?.latency_ms ?? "?"}ms)`;
+  if (ev.type === "or_tools_call") return `OR-Tools çalıştırıldı (${ev.meta?.latency_ms ?? "?"}ms)`;
   if (ev.type === "shift_created") return "Vardiya olusturuldu";
   return ev.type;
 }

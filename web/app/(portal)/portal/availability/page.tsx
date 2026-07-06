@@ -449,7 +449,7 @@ export default function PortalAvailability() {
           )}
           <div className="flex items-center justify-between px-1 text-[11px] text-slate-400 font-medium">
             <span>Esnek (sarı) gün hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span></span>
-            <span>Sarı günde çalışırsan puanın çarpanlı işlenir</span>
+            <span>Sarı günde çalışırsan ekstra puan kazanırsın</span>
           </div>
           {DAYS.map((name, i) => {
             const d = days[i];

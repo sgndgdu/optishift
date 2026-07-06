@@ -960,15 +960,15 @@ export default function SettingsPage() {
                   right={<Toggle on={simpleMode} onToggle={() => setSimpleMode(v => !v)} />}
                 />
               </SectionCard>
-              <SectionCard title="Planlama Kısıtları">
+              <SectionCard title="Planlama Kuralları">
                 <RuleRow
-                  label="Kıdemli Personel Kısıtı"
-                  description={<>Her vardiyaya en az 1 <span className="font-semibold text-indigo-700">primary</span> seviyeli personel atanır (soft constraint).</>}
+                  label="Kıdemli Personel Kuralı"
+                  description={<>Her vardiyada en az 1 <span className="font-semibold text-indigo-700">kıdemli</span> personel bulunmasına çalışılır — zorunlu kalınırsa esnetilebilir.</>}
                   right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                 />
                 <RuleRow
                   label="Gececi→Sabahçı Yasağı"
-                  description="≥23:00 biten gece vardiyasından sonra ≤12:00 başlayan sabah vardiyası atanmaz (hard constraint)."
+                  description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
                   right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
                 />
                 <RuleRow
@@ -977,32 +977,32 @@ export default function SettingsPage() {
                   right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
                 />
                 <RuleRow
-                  label="Clopening Tespiti"
-                  description="Kapanış→açılış geçişinde kısa dinlenme (clopening) tespit edilir: OR-Tools bu geçişten kaçınır ve yayın öncesi ihlal modalında işaretlenir."
+                  label="Kapanış→Açılış Tespiti"
+                  description="Geç çıkıp ertesi sabah erken gelme (kapanış→açılış) tespit edilir: plan oluştururken bu geçişten kaçınılır ve yayınlamadan önce uyarı olarak gösterilir."
                   right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
                 />
                 {clopeningEnabled && (
                   <>
                     <RuleRow
-                      label="Clopening Eşiği"
-                      description="Kapanış→açılış arasında bu saatten az dinlenme varsa clopening sayılır (yasal minimum 11 saatten fazla olmalı)."
+                      label="Kapanış→Açılış Eşiği"
+                      description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal minimum 11 saatten fazla olmalı)."
                       right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
                     />
                     <RuleRow
-                      label="Clopening Ceza Ağırlığı"
-                      description="Motorun hedef fonksiyonunda clopening geçişine uygulanan ceza. Yükseldikçe motor bu geçişten daha çok kaçınır."
+                      label="Kaçınma Hassasiyeti"
+                      description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
                       right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
                     />
                   </>
                 )}
                 <RuleRow
                   label="Haftalık Maksimum Çalışma"
-                  description="Personelin haftada çalışabileceği yasal üst sınır. OR-Tools bu saati aşan atama yapmaz."
+                  description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
                   right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                 />
                 <RuleRow
                   label="Minimum Dinlenme Süresi"
-                  description="İki vardiya arasında bulunması gereken en az dinlenme süresi (hard constraint)."
+                  description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
                   right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                 />
                 <RuleRow
@@ -1152,7 +1152,7 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Ekip Vardiyası — Kesin Kural"
-                  description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa soft tercih olarak uygulanır."
+                  description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
                   right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
                 />
               </SectionCard>
@@ -1289,7 +1289,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-semibold text-indigo-800">Adalet Puanı Sistemi</p>
                   <p className="text-xs text-indigo-600 mt-0.5">
-                    OR-Tools, tüm personelin birikimli puan farkını minimize eder. Aşağıdaki bileşenler bu hesabı etkiler — her birini ayrı ayrı açıp kapatabilirsiniz.
+                    Vardiyalar, personel arasındaki yük farkı en aza inecek şekilde adil dağıtılır. Aşağıdaki bileşenler bu hesabı etkiler — her birini ayrı ayrı açıp kapatabilirsiniz.
                   </p>
                 </div>
               </div>
@@ -1489,7 +1489,7 @@ export default function SettingsPage() {
                   <SectionLabel>Günlük Alan Kotaları</SectionLabel>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Departmanlardan bağımsız, serbest tanımlı fiziksel alanlardır (Teras, Depo…). Personelin yetenek
-                    etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; kısıtını OR-Tools zorunlu tutar.
+                    etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; koşulu her planda garanti edilir.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -1654,14 +1654,14 @@ export default function SettingsPage() {
                 <SectionLabel>Rotasyon</SectionLabel>
                 <p className="text-sm text-slate-500">
                   Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
-                  Motor, rotasyon aktifken ekip atamasını otomatik uygular.
+                  Rotasyon aktifken ekip atamaları otomatik uygulanır.
                 </p>
               </div>
 
               <SectionCard title="Rotasyon Ayarları">
                 <RuleRow
                   label="Rotasyonu Etkinleştir"
-                  description="Açıkken OR-Tools motoru her ekibi bu haftaki rotasyon vardiyasına yönlendirir."
+                  description="Açıkken her ekip, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
                   right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
                 />
                 {rotationEnabled && (

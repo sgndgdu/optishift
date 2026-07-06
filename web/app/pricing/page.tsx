@@ -136,7 +136,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">Gelişmiş Adalet Motoru</span>
+                  <span className="text-slate-700 font-semibold">Gelişmiş Adalet Puanı</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />

@@ -220,7 +220,7 @@ export default function FairnessPage() {
                 <Zap size={15} />
               </div>
               <div>
-                <CardTitle className="text-sm font-bold">Adalet Motoru Ayarları</CardTitle>
+                <CardTitle className="text-sm font-bold">Adalet Puanı Ayarları</CardTitle>
                 <p className="text-xs text-slate-400 mt-0.5">Mevcut yapılandırma — Ayarlar sayfasından değiştirin</p>
               </div>
             </div>
@@ -240,9 +240,9 @@ export default function FairnessPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { label: "Hafta sonu", value: rules.weekend_multiplier ?? 1.2, icon: null, note: "Cmt & Paz" },
-                { label: "Gece vardiyası", value: rules.night_multiplier ?? 1.3, icon: <Moon size={10} className="text-indigo-400" />, note: "is_night=true" },
-                { label: "Sarı gün", value: rules.preferred_not_multiplier ?? 1.5, icon: null, note: "Preferred not" },
-                { label: "Clopening", value: rules.clopening_multiplier ?? 1.2, icon: null, note: "Kapanış→Açılış" },
+                { label: "Gece vardiyası", value: rules.night_multiplier ?? 1.3, icon: <Moon size={10} className="text-indigo-400" />, note: "Gece işaretli" },
+                { label: "Sarı gün", value: rules.preferred_not_multiplier ?? 1.5, icon: null, note: "Tercih edilmeyen" },
+                { label: "Kapanış→Açılış", value: rules.clopening_multiplier ?? 1.2, icon: null, note: "Kısa dinlenme" },
               ].map(({ label, value, icon, note }) => (
                 <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-center">
                   <div className="flex items-center justify-center gap-1 mb-0.5">
@@ -294,10 +294,8 @@ export default function FairnessPage() {
             <Info size={13} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-500 space-y-1 leading-relaxed">
               <p>
-                <strong className="text-slate-700">Yük skoru:</strong>{" "}
-                <code className="bg-white border border-slate-200 rounded px-1 text-[10px]">
-                  difficulty × saat × [hafta_sonu×1.2] × [gece×1.3] × [sarı_gün×1.5] × [kahraman×1.5]
-                </code>
+                <strong className="text-slate-700">Yük puanı:</strong>{" "}
+                vardiya zorluğu × çalışılan saat. Hafta sonu, gece, tercih edilmeyen gün ve kahraman vardiyaları yukarıdaki çarpanlarla daha ağır sayılır.
               </p>
               <p>
                 <strong className="text-slate-700">Kümülatif yük:</strong>{" "}
@@ -417,7 +415,7 @@ function CurrentView({
                         <th className="pr-3 pb-1 font-semibold text-right">Hf.sonu</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Gece</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Sarı</th>
-                        <th className="pb-1 font-semibold text-right">Clopening</th>
+                        <th className="pb-1 font-semibold text-right">Kap→Açl</th>
                       </tr>
                     </thead>
                     <tbody className="text-slate-600 tabular-nums">
@@ -537,7 +535,7 @@ function HistoryView({
                   e.weekend_shifts  ? `Hafta sonu: ${e.weekend_shifts}` : "",
                   e.night_shifts    ? `Gece: ${e.night_shifts}` : "",
                   e.pref_not_shifts ? `Sarı gün: ${e.pref_not_shifts}` : "",
-                  e.clopening_count ? `Clopening: ${e.clopening_count}` : "",
+                  e.clopening_count ? `Kapanış→Açılış: ${e.clopening_count}` : "",
                 ].filter(Boolean).join(" | ");
                 return (
                   <div

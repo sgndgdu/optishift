@@ -80,7 +80,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[400px] mt-10 sm:mt-12 lg:mt-0">
           <div className="mb-8 sm:mb-10 text-center lg:text-left">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Tekrar Hoş Geldiniz</h1>
-            <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın. Rol otomatik tespit edilir.</p>
+            <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın — doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">

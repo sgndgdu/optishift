@@ -38,7 +38,7 @@ async function callEngine(payload: unknown): Promise<any> {
   } catch (err: any) {
     if (err.name === "AbortError") {
       throw new Error(
-        "Optimizasyon motoru ilk çağrıda başlatılıyor olabilir (soğuk başlangıç) ya da personel sayısı/kısıtlamalar çok fazla. Lütfen birkaç saniye içinde tekrar deneyin."
+        "Planlama beklenenden uzun sürdü. Sistem uyanıyor olabilir ya da personel sayısı ve kurallar çok yüklü — lütfen birkaç saniye sonra tekrar deneyin."
       );
     }
     throw err;

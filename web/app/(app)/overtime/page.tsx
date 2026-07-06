@@ -318,7 +318,7 @@ export default function OvertimePage() {
                 </FormField>
               </div>
 
-              <FormField label="Not (opsiyonel)">
+              <FormField label="Not (isteğe bağlı)">
                 <input
                   type="text"
                   placeholder="Üretim hattı fazla mesaisi…"

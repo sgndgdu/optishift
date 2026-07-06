@@ -159,7 +159,7 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'hero_bonus', '🦸 Kahraman Bonusu Kazandın!', ?, ?)
       `).run(
         claimed_by,
-        `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ${os.hero_bonus_multiplier ?? 1.5}x bonus puan uygulandı.`,
+        `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
         Math.floor(Date.now() / 1000)
       );
     } else if (status) {

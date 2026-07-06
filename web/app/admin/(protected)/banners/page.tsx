@@ -118,7 +118,7 @@ export default function AdminBannersPage() {
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              Bitiş (opsiyonel)
+              Bitiş (isteğe bağlı)
             </label>
             <input
               type="datetime-local"

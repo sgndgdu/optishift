@@ -219,7 +219,7 @@ export default function OpenShiftsPage() {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (opsiyonel)</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (isteğe bağlı)</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
               placeholder="Personele ek bilgi..."
               className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors resize-none" />

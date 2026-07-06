@@ -454,7 +454,7 @@ export default function ManagerRequestsPage() {
               value={rejectNote}
               onChange={e => setRejectNote(e.target.value)}
               rows={3}
-              placeholder="Personele iletilecek neden (opsiyonel)..."
+              placeholder="Personele iletilecek neden (isteğe bağlı)..."
               className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors resize-none"
             />
             <div className="flex gap-2">

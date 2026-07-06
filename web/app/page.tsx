@@ -73,7 +73,7 @@ export default function LandingPage() {
 
           <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-white border border-slate-200/60 shadow-sm text-xs sm:text-sm text-primary mb-6 sm:mb-8 font-bold animate-in fade-in slide-in-from-bottom-4 duration-700">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-            Yapay Zeka Destekli Planlama Motoru Yayında
+            Otomatik Vardiya Planlama Yayında
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-[5rem] font-black tracking-tighter mb-6 sm:mb-8 leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 text-slate-900">
@@ -143,7 +143,7 @@ export default function LandingPage() {
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-slate-100 shadow-[0_8px_16px_rgba(0,0,0,0.06)] text-emerald-500 rounded-2xl flex items-center justify-center mb-5 sm:mb-6 relative z-10">
                 <ShieldCheck size={24} />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Adalet Motoru</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Adil Dağıtım</h3>
               <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
                 Ağırlıklı Adalet Skoru ile hafta sonu ve akşam nöbetleri tüm personele tamamen adil bir şekilde dağıtılır.
               </p>

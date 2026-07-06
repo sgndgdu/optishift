@@ -206,7 +206,7 @@ function QuickPersonnelModal({ locationId, onClose }: { locationId: string; onCl
             <input
               value={r.phone}
               onChange={e => update(i, "phone", e.target.value)}
-              placeholder="Telefon (opsiyonel)"
+              placeholder="Telefon (isteğe bağlı)"
               className="w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
             />
           </div>

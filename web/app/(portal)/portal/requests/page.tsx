@@ -720,7 +720,7 @@ export default function PortalRequests() {
                       <p><span className="font-bold">Teklif alıcı:</span> {selMate?.name}</p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (opsiyonel)</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (isteğe bağlı)</label>
                       <textarea
                         value={swapNote}
                         onChange={e => setSwapNote(e.target.value)}
@@ -790,7 +790,7 @@ export default function PortalRequests() {
                   <CalendarOff size={15} className="text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     Sabit izin günün: <strong>{["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][weeklyOffDay]}</strong>.
-                    Bu gün OR-Tools tarafından her hafta otomatik olarak bloke edilir — ayrıca izin talebi oluşturmana gerek yok.
+                    Bu gün her hafta senin için otomatik olarak kapalı tutulur — ayrıca izin talebi oluşturmana gerek yok.
                   </p>
                 </div>
               )}
@@ -801,7 +801,7 @@ export default function PortalRequests() {
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lokasyon İzin Kuralları</p>
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${leavePolicy.require_reason ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
-                      {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret opsiyonel"}
+                      {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret isteğe bağlı"}
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${leavePolicy.allow_multi_day ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
                       {leavePolicy.allow_multi_day ? `Çoklu gün (max ${leavePolicy.max_days_per_request})` : "Yalnızca tek gün"}

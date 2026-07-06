@@ -74,7 +74,7 @@ export default function RegisterPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">tek ekrandan</span> yönetin.
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed mb-8">
-            1 cafe veya 50 şube — fark etmez. OptiShift&apos;in adalet motoru her ölçekte çalışır.
+            1 cafe veya 50 şube — fark etmez. OptiShift&apos;in adil vardiya dağıtımı her ölçekte çalışır.
           </p>
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
