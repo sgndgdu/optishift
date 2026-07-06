@@ -120,14 +120,24 @@ export default function ReportsPage() {
             <p className="text-sm text-slate-500">Personel bazında aylık özet — sadece yayınlanan vardiyalar</p>
           </div>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={rows.length === 0 || loading}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <Download size={15} />
-          Excel İndir
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
+            title="Kişi-gün bazlı giriş/çıkış puantajı — bordro ve muhasebe aktarımı için CSV"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <Download size={15} />
+            Puantaj (CSV)
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={rows.length === 0 || loading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Download size={15} />
+            Excel İndir
+          </button>
+        </div>
       </div>
 
       {/* Month Navigator */}

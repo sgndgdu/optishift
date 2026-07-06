@@ -108,6 +108,10 @@ export async function PATCH(req: NextRequest) {
       updates.push("demand_matrix = ?");
       values.push(typeof body.demand_matrix === "string" ? body.demand_matrix : JSON.stringify(body.demand_matrix));
     }
+    if (body.demand_templates !== undefined) {
+      updates.push("demand_templates = ?");
+      values.push(typeof body.demand_templates === "string" ? body.demand_templates : JSON.stringify(body.demand_templates));
+    }
     if (body.leave_policy !== undefined) {
       updates.push("leave_policy = ?");
       values.push(typeof body.leave_policy === "string" ? body.leave_policy : JSON.stringify(body.leave_policy));

@@ -42,6 +42,7 @@ export const locations = pgTable("locations", {
   zone_quotas: text("zone_quotas"), // JSON: {"Kasa": 2, "Reyon": 1}
   rules: text("rules"), // JSON — tam şema: lib/types.ts ScheduleRules. DİKKAT: PATCH replace eder, merge etmez; yazan taraf mevcut rules'u spread etmeli
   demand_matrix: text("demand_matrix"), // JSON: {shiftDefId: {day(0-6): count}}
+  demand_templates: text("demand_templates"), // JSON: {name: {flat?: matrix, departments?: {deptId: matrix}}} — kaydedilmiş hafta şablonları (normal/bakım/kampanya)
   leave_policy: text("leave_policy"), // JSON: {require_reason, allow_multi_day, max_days_per_request}
   rotation_template: text("rotation_template"), // JSON: RotationTemplate — crew bazlı döngüsel rotasyon
   latitude: doublePrecision("latitude"),

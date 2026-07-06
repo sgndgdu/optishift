@@ -353,6 +353,9 @@ export default function SchedulePage() {
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ violations: string[]; onConfirm: () => void } | null>(null);
   const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
+  const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
+  const [tplName, setTplName]                     = useState("");
+  const [tplBusy, setTplBusy]                     = useState(false);
   const [aiSummary, setAiSummary]                 = useState<string | null>(null);
   const [aiLoading, setAiLoading]                 = useState(false);
   const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
@@ -527,6 +530,14 @@ export default function SchedulePage() {
         } else {
           setDemandMatrix({});
         }
+
+        // Kaydedilmiş hafta şablonlarını yükle (normal/bakım/kampanya)
+        try {
+          const rawTpl = Array.isArray(locData) && locData[0]?.demand_templates
+            ? (typeof locData[0].demand_templates === "string" ? JSON.parse(locData[0].demand_templates) : locData[0].demand_templates)
+            : {};
+          setDemandTemplates(rawTpl && typeof rawTpl === "object" ? rawTpl : {});
+        } catch { setDemandTemplates({}); }
 
         // Tam kural objesi + clopening eşiği + müsaitlik toplama (locations.rules)
         let clopeningRest = 13;
@@ -1207,6 +1218,75 @@ export default function SchedulePage() {
     } catch {
       if (!silent) showToast("Kapasite planı kaydedilemedi.", "error");
     }
+  };
+
+  // ── Hafta şablonları: mevcut Kapasite Planı'nı isimle kaydet / kayıtlı şablonu uygula ──
+  const handleTemplateSave = async () => {
+    const name = tplName.trim();
+    if (!name || !activeLocationId) return;
+    setTplBusy(true);
+    try {
+      const next = {
+        ...demandTemplates,
+        [name]: departments.length > 0 ? { departments: deptDemandMatrix } : { flat: demandMatrix },
+      };
+      const r = await fetch(`/api/locations?id=${activeLocationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_templates: next }),
+      });
+      if (r.ok) {
+        setDemandTemplates(next);
+        setTplName("");
+        showToast(`"${name}" şablonu kaydedildi.`);
+      } else showToast("Şablon kaydedilemedi.", "error");
+    } catch { showToast("Şablon kaydedilemedi.", "error"); }
+    finally { setTplBusy(false); }
+  };
+
+  const handleTemplateApply = async (name: string) => {
+    const t = demandTemplates[name];
+    if (!t || !activeLocationId) return;
+    setTplBusy(true);
+    try {
+      if (departments.length > 0 && t.departments) {
+        setDeptDemandMatrix(t.departments);
+        for (const [deptId, matrix] of Object.entries(t.departments)) {
+          if (!departments.some(d => d.id === deptId)) continue; // silinmiş departmanı atla
+          await fetch(`/api/departments?id=${deptId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ demand_matrix: matrix }),
+          });
+        }
+      } else if (t.flat) {
+        setDemandMatrix(t.flat);
+        await fetch(`/api/locations?id=${activeLocationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ demand_matrix: t.flat }),
+        });
+      } else {
+        showToast("Bu şablon mevcut yapıyla uyumlu değil (departman düzeni değişmiş).", "error");
+        return;
+      }
+      showToast(`"${name}" şablonu uygulandı — Otomatik Oluştur bu talebi kullanır.`);
+    } catch { showToast("Şablon uygulanamadı.", "error"); }
+    finally { setTplBusy(false); }
+  };
+
+  const handleTemplateDelete = async (name: string) => {
+    if (!activeLocationId) return;
+    const next = { ...demandTemplates };
+    delete next[name];
+    setDemandTemplates(next);
+    try {
+      await fetch(`/api/locations?id=${activeLocationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_templates: next }),
+      });
+    } catch { /* sessiz */ }
   };
 
   const handleDeptDemandSave = async (deptId: string) => {
@@ -2215,6 +2295,48 @@ export default function SchedulePage() {
               <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya şablonu tanımlı değil — yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
             ) : (
               <div className="overflow-x-auto">
+                {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
+                <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Şablonlar</span>
+                  {Object.keys(demandTemplates).length === 0 && (
+                    <span className="text-[11px] text-slate-400">Henüz şablon yok — aşağıdaki planı doldurup isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Bakım Duruşu&quot;).</span>
+                  )}
+                  {Object.keys(demandTemplates).map(name => (
+                    <span key={name} className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg pl-2 pr-1 py-1">
+                      <button
+                        onClick={() => handleTemplateApply(name)}
+                        disabled={tplBusy}
+                        title="Bu şablonu Kapasite Planı'na uygula"
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+                      >
+                        {name}
+                      </button>
+                      <button
+                        onClick={() => handleTemplateDelete(name)}
+                        title="Şablonu sil"
+                        className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                  <span className="flex items-center gap-1.5 ml-auto">
+                    <input
+                      value={tplName}
+                      onChange={e => setTplName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleTemplateSave(); }}
+                      placeholder="Şablon adı…"
+                      className="w-32 text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-indigo-400"
+                    />
+                    <button
+                      onClick={handleTemplateSave}
+                      disabled={!tplName.trim() || tplBusy}
+                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      Mevcut Planı Kaydet
+                    </button>
+                  </span>
+                </div>
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-slate-100">
