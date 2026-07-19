@@ -31,7 +31,6 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-10">
             <Link href="#features" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Platform</Link>
             <Link href="/pricing" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Fiyatlandırma</Link>
-            <Link href="#" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Kaynaklar</Link>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-5">
@@ -58,7 +57,6 @@ export default function LandingPage() {
           <div className="md:hidden bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-4 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
             <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Platform</Link>
             <Link href="/pricing" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Fiyatlandırma</Link>
-            <Link href="#" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Kaynaklar</Link>
             <div className="pt-2 flex flex-col gap-2">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center h-11 px-4 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">Giriş Yap</Link>
               <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center h-11 px-4 rounded-xl bg-slate-900 text-sm font-bold text-white hover:bg-slate-800 transition-colors">Hemen Başla</Link>
@@ -223,6 +221,8 @@ export default function LandingPage() {
               <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
               <Link href="/login" className="hover:text-primary transition-colors">Giriş Yap</Link>
               <Link href="/register" className="hover:text-primary transition-colors">Kayıt Ol</Link>
+              <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
+              <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
             </div>
           </div>
           <div className="text-center text-slate-400 text-sm font-medium border-t border-slate-100 pt-8">

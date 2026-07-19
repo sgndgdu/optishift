@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Zap, AtSign, ArrowLeft, CheckCircle2, Copy, Check, AlertCircle, Mail } from "lucide-react";
+import { Zap, AtSign, ArrowLeft, AlertCircle, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading]       = useState(false);
   const [done, setDone]             = useState(false);
-  const [emailSent, setEmailSent]   = useState(false);
-  const [resetUrl, setResetUrl]     = useState<string | null>(null);
-  const [copied, setCopied]         = useState(false);
   const [error, setError]           = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -26,22 +23,12 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Hata oluştu"); return; }
-
       setDone(true);
-      setEmailSent(data.emailSent);
-      if (data.resetUrl) setResetUrl(data.resetUrl);
     } catch {
       setError("Sunucuya bağlanılamadı.");
     } finally {
       setLoading(false);
     }
-  }
-
-  function copyUrl() {
-    if (!resetUrl) return;
-    navigator.clipboard.writeText(resetUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -106,57 +93,22 @@ export default function ForgotPasswordPage() {
                 </button>
               </form>
             </>
-          ) : emailSent ? (
-            /* E-posta gönderildi */
+          ) : (
+            /* Güvenlik: hesap bulunsa da bulunmasa da aynı mesaj */
             <div className="text-center space-y-4">
               <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto">
                 <Mail size={26} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">E-posta Gönderildi</h2>
+                <h2 className="text-lg font-black text-slate-900">Talebiniz Alındı</h2>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                  Kayıtlı e-posta adresinize şifre sıfırlama bağlantısı gönderdik.
-                  Gelen kutunuzu kontrol edin.
+                  Eğer bu e-posta / kullanıcı adı sistemimizde kayıtlıysa, kayıtlı e-posta
+                  adresine bir sıfırlama bağlantısı gönderdik. Bağlantı 1 saat geçerlidir.
                 </p>
               </div>
-              <p className="text-xs text-slate-400">
-                E-posta gelmiyorsa spam klasörünü kontrol edin veya birkaç dakika bekleyin.
-              </p>
-            </div>
-          ) : resetUrl ? (
-            /* E-posta gönderilemiyor — linki göster */
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle2 size={26} className="text-amber-600" />
-                </div>
-                <h2 className="text-lg font-black text-slate-900">Sıfırlama Linki Hazır</h2>
-                <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                  E-posta servisi yapılandırılmamış. Linki kopyalayıp tarayıcınıza yapıştırabilir
-                  ya da yöneticinizden bu linki WhatsApp veya SMS ile almanızı isteyin.
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
-                <p className="text-xs text-slate-600 break-all flex-1 font-mono leading-relaxed">{resetUrl}</p>
-                <button
-                  onClick={copyUrl}
-                  className="shrink-0 p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
-                  title="Kopyala"
-                >
-                  {copied ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
-                </button>
-              </div>
-              <p className="text-xs text-slate-400 text-center">⏱ Bu link 1 saat geçerlidir.</p>
-            </div>
-          ) : (
-            /* Kullanıcı bulunamadı ama güvenlik için aynı mesaj */
-            <div className="text-center space-y-3">
-              <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
-                <CheckCircle2 size={26} className="text-slate-400" />
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Eğer bu e-posta / kullanıcı adı sistemimizde kayıtlıysa, size talimat gönderdik.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                E-posta gelmiyorsa spam klasörünü kontrol edin. Hesabınızda kayıtlı e-posta
+                yoksa yöneticiniz size personel kartından yeni bir geçici şifre oluşturabilir.
               </p>
             </div>
           )}

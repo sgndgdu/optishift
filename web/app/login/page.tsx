@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, AtSign, Eye, EyeOff, Zap, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { FEATURES } from "@/lib/features";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
@@ -98,14 +99,16 @@ export default function LoginPage() {
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın — doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
 
-          <div className="space-y-5 mb-5">
-            <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />
-            <div className="flex items-center gap-3">
-              <div className="h-px bg-slate-200 flex-1" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
-              <div className="h-px bg-slate-200 flex-1" />
+          {FEATURES.googleAuth && (
+            <div className="space-y-5 mb-5">
+              <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />
+              <div className="flex items-center gap-3">
+                <div className="h-px bg-slate-200 flex-1" />
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+                <div className="h-px bg-slate-200 flex-1" />
+              </div>
             </div>
-          </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-5">
             {sessionExpired && !error && (

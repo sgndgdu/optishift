@@ -12,15 +12,23 @@ const PUBLIC_API_PATHS = [
   "/api/auth/google/start",              // Google OAuth başlatma — henüz oturum yok
   "/api/auth/google/callback",           // Google'ın geri döndüğü nokta — henüz oturum yok
   "/api/auth/google/complete-registration", // pending_token'ın kendisi doğrulama sağlar
+  "/api/auth/forgot-password",           // oturumu olmayan kullanıcı içindir
+  "/api/auth/reset-password",            // e-postadaki token'ın kendisi doğrulama sağlar
   // DİKKAT: /api/auth/google/session buraya EKLENMEMELİ — callback'in az önce
   // set ettiği oturum cookie'sini JWT doğrulamasıyla okumak zorunda.
+  // DİKKAT: /api/auth/setup da EKLENMEMELİ — GET /api/invite'ın başlattığı
+  // oturum cookie'siyle çalışır.
 ];
 
-// /api/invites GET isteği: join token sayfası için herkese açık
-function isPublicInvitesGet(req: NextRequest): boolean {
-  return (
-    req.nextUrl.pathname.startsWith("/api/invites") && req.method === "GET"
-  );
+// Davet/katılım istekleri: henüz oturum yok, token'ın kendisi doğrulama sağlar.
+// POST'lar (davet OLUŞTURMA) bilinçli olarak dışarıda — JWT ister.
+function isPublicInviteRequest(req: NextRequest): boolean {
+  const { pathname } = req.nextUrl;
+  // /join sayfası: token doğrula (GET) + kayıt tamamla (PATCH)
+  if (pathname === "/api/invites" && (req.method === "GET" || req.method === "PATCH")) return true;
+  // /setup sayfası: geçici-şifre davet token'ı → oturum başlat
+  if (pathname === "/api/invite" && req.method === "GET") return true;
+  return false;
 }
 
 const SPOOFABLE_AUTH_HEADERS = [
@@ -51,7 +59,7 @@ export async function proxy(req: NextRequest) {
   if (PUBLIC_API_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
-  if (isPublicInvitesGet(req)) {
+  if (isPublicInviteRequest(req)) {
     return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
 

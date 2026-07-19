@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // Güvenlik: kullanıcı bulunamasa bile aynı yanıtı ver (enumeration koruması)
     if (!user) {
-      return NextResponse.json({ ok: true, emailSent: false });
+      return NextResponse.json({ ok: true });
     }
 
     // Önceki kullanılmamış tokenleri temizle
@@ -42,27 +42,21 @@ export async function POST(req: NextRequest) {
         `INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)`
       ).run(token, user.id, expiresAt);
 
+      // GÜVENLİK: resetUrl bu oturumsuz yanıtta ASLA dönmez — dönerse herkes
+      // herhangi bir hesabın sıfırlama linkini alabilir (hesap ele geçirme).
+      // E-postasız kullanıcılar için yol: yönetici, personel kartından geçici
+      // şifre üretir (/api/auth/admin-reset-password).
       const resetUrl = buildResetUrl(token);
-      const hasEmail = !!user.email;
-      const emailConfigured = !!process.env.RESEND_API_KEY;
-
-      if (hasEmail && emailConfigured) {
+      if (user.email && process.env.RESEND_API_KEY) {
         await sendMail({
           to: user.email,
           subject: "OptiShift — Şifre Sıfırlama",
           html: resetPasswordEmailHtml(user.name, resetUrl),
         });
-        return NextResponse.json({ ok: true, emailSent: true });
       }
 
-      // E-posta gönderilemiyorsa: URL'yi döndür (yönetici yönlendirmesi için)
-      return NextResponse.json({
-        ok: true,
-        emailSent: false,
-        resetUrl,
-        noEmail: !hasEmail,
-        noSmtp: !emailConfigured,
-      });
+      // Enumeration koruması: e-posta gitse de gitmese de aynı yanıt
+      return NextResponse.json({ ok: true });
     } finally {
     }
   } catch (err: any) {

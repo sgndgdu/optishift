@@ -11,6 +11,8 @@ export const FEATURES = {
   billing: false,
   /** Canlı mola takibi — backend akışı tamamlanmadı */
   breaks: false,
+  /** Google ile giriş — GOOGLE_CLIENT_ID/SECRET + NEXT_PUBLIC_APP_URL env'leri kurulunca aç */
+  googleAuth: false,
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;

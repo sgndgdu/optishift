@@ -30,7 +30,6 @@ export default function PricingPage() {
           <div className="hidden md:flex items-center gap-10">
             <Link href="/#features" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Platform</Link>
             <Link href="/pricing" className="text-sm font-black text-primary transition-colors">Fiyatlandırma</Link>
-            <Link href="#" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Kaynaklar</Link>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-5">
@@ -204,6 +203,8 @@ export default function PricingPage() {
               <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
               <Link href="/login" className="hover:text-primary transition-colors">Giriş Yap</Link>
               <Link href="/register" className="hover:text-primary transition-colors">Kayıt Ol</Link>
+              <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
+              <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
             </div>
           </div>
           <div className="text-center text-slate-400 text-sm font-medium border-t border-slate-100 pt-8">

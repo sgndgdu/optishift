@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Zap, ArrowRight, Check, Eye, EyeOff, Store, User, AtSign } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { FEATURES } from "@/lib/features";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -221,14 +222,16 @@ export default function RegisterPage() {
                 <p className="text-slate-500 font-medium text-sm sm:text-base">İşletmenizi 1 dakikadan kısa sürede sisteme kaydedin.</p>
               </div>
 
-              <div className="space-y-5 mb-5">
-                <GoogleAuthButton intent="register" label="Google ile Kaydol" />
-                <div className="flex items-center gap-3">
-                  <div className="h-px bg-slate-200 flex-1" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
-                  <div className="h-px bg-slate-200 flex-1" />
+              {FEATURES.googleAuth && (
+                <div className="space-y-5 mb-5">
+                  <GoogleAuthButton intent="register" label="Google ile Kaydol" />
+                  <div className="flex items-center gap-3">
+                    <div className="h-px bg-slate-200 flex-1" />
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+                    <div className="h-px bg-slate-200 flex-1" />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {error && (
                 <div className="mb-6 bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium flex items-center gap-3">
@@ -320,6 +323,14 @@ export default function RegisterPage() {
                     <>Hesabı Oluştur <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
                   )}
                 </button>
+
+                <p className="text-center text-xs text-slate-400 leading-relaxed">
+                  Hesap oluşturarak{" "}
+                  <Link href="/kullanim-sartlari" className="underline hover:text-slate-600">Kullanım Şartları</Link>
+                  {"'nı ve "}
+                  <Link href="/gizlilik" className="underline hover:text-slate-600">Gizlilik Politikası</Link>
+                  {"'nı kabul etmiş olursunuz."}
+                </p>
               </form>
 
               <p className="text-center text-sm text-slate-500 mt-8 font-medium">
