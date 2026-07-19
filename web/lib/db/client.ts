@@ -50,7 +50,9 @@ class AsyncStatement {
 
   /**
    * Değişiklik sorgusu çalıştır (INSERT / UPDATE / DELETE).
-   * INSERT sorgularına otomatik RETURNING id ekler ve lastInsertRowid döner.
+   * INSERT sorgularına otomatik RETURNING * ekler; id kolonu varsa lastInsertRowid döner.
+   * (RETURNING id kullanılamaz: password_reset_tokens gibi id kolonu olmayan
+   * tablolarda 42703 "column id does not exist" ile INSERT'i patlatıyordu.)
    */
   async run(...params: unknown[]): Promise<{ lastInsertRowid?: number; changes: number }> {
     const flat = params.flat() as unknown[];
@@ -58,7 +60,7 @@ class AsyncStatement {
 
     const isInsert = /^\s*INSERT\s+/i.test(query);
     if (isInsert && !/RETURNING/i.test(query)) {
-      query = query.trimEnd().replace(/;?\s*$/, "") + " RETURNING id";
+      query = query.trimEnd().replace(/;?\s*$/, "") + " RETURNING *";
     }
 
     const result = (await getSql()(query, flat)) as Array<{ id?: number }>;
