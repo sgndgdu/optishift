@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Plus, X, Check } from "lucide-react";
 import { ERP_SYSTEMS, erpLabel } from "@/lib/erp";
+import { FEATURES } from "@/lib/features";
+import FeatureDisabled from "@/components/FeatureDisabled";
 
 interface MappedField { erp: string; sys: string }
 
@@ -13,6 +15,11 @@ const DEFAULT_MAPPING: MappedField[] = [
 ];
 
 export default function IntegrationsPage() {
+  if (!FEATURES.integrations) return <FeatureDisabled title="Entegrasyonlar" />;
+  return <IntegrationsPageInner />;
+}
+
+function IntegrationsPageInner() {
   const [connectedErp, setConnectedErp] = useState<string | null>(null);
   const [mapping, setMapping] = useState<MappedField[]>(DEFAULT_MAPPING);
   const [canEdit, setCanEdit] = useState(false);

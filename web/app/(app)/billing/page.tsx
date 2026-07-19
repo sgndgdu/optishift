@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, CreditCard, Zap, Shield, AlertCircle, Sparkles } from "lucide-react";
 import { Suspense } from "react";
+import { FEATURES } from "@/lib/features";
+import FeatureDisabled from "@/components/FeatureDisabled";
 
 const PLANS = [
   {
@@ -239,6 +241,7 @@ function BillingContent() {
 }
 
 export default function BillingPage() {
+  if (!FEATURES.billing) return <FeatureDisabled title="Faturalandırma" />;
   return (
     <Suspense fallback={<div className="p-8 text-slate-400 text-sm">Yükleniyor…</div>}>
       <BillingContent />

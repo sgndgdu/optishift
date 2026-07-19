@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Coffee, Play, Square, AlertTriangle, Users, Clock, CheckCircle2 } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
+import { FEATURES } from "@/lib/features";
+import FeatureDisabled from "@/components/FeatureDisabled";
 
 
 function elapsed(startAt: number) {
@@ -20,6 +22,11 @@ function formatHM(ts: number) {
 }
 
 export default function BreaksPage() {
+  if (!FEATURES.breaks) return <FeatureDisabled title="Mola Takibi" />;
+  return <BreaksPageInner />;
+}
+
+function BreaksPageInner() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
   const [sessions, setSessions]   = useState<any[]>([]);

@@ -50,8 +50,10 @@ function usePendingOvertime() {
 }
 import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FEATURES, type FeatureKey } from "@/lib/features";
 
 // simple: true → Basit Mod'da (rules.simple_mode) her zaman görünür; kalanlar "Gelişmiş" grubuna katlanır
+// feature → lib/features.ts bayrağı kapalıysa link hiç gösterilmez
 const NAV = [
   { href: "/dashboard",    label: "Dashboard",       icon: LayoutDashboard, simple: true },
   { href: "/personnel",    label: "Personel & Hesaplar", icon: Users,       simple: true },
@@ -61,11 +63,11 @@ const NAV = [
   { href: "/requests",     label: "Onaylar",           icon: ClipboardList,  simple: true },
   { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false },
   { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false },
-  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false },
+  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false, feature: "breaks" },
   { href: "/reports",      label: "Raporlar",          icon: BarChart2,      simple: false },
   { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true },
-  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug,            simple: false },
-  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard,      simple: false },
+  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug,            simple: false, feature: "integrations" },
+  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard,      simple: false, feature: "billing" },
   { href: "/settings",     label: "Ayarlar",          icon: Settings,        simple: true },
 ] as const;
 
@@ -242,7 +244,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       {/* Navigation */}
       <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
         {(() => {
-          const items = NAV.filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
+          const items = NAV
+            .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
+            .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
           const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
             const active       = pathname.startsWith(href);
             const isChat       = href === "/chat";
