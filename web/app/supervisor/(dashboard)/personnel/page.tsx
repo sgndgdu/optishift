@@ -32,6 +32,10 @@ const ROLE_DEFS = [
   { label: "Personel",         role: "employee",  display_title: "" },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin", supervisor: "Süpervizör", manager: "Müdür", employee: "Personel",
+};
+
 export default function SupervisorPersonnelPage() {
   return <Suspense><SupervisorPersonnelInner /></Suspense>;
 }
@@ -49,6 +53,10 @@ function SupervisorPersonnelInner() {
   const [crewMap, setCrewMap] = useState<Record<string, { name: string; color: string }>>({});
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Onay bekleyen hesaplar (manager'ın oluşturduğu, henüz aktif olmayan)
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
   // Add modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,6 +107,14 @@ function SupervisorPersonnelInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchPendingUsers = async () => {
+    try {
+      const res = await fetch("/api/users?approval_status=pending");
+      const data = await res.json();
+      setPendingUsers(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
   useEffect(() => {
     if (!mounted) return;
     if (!user) { router.push("/login"); return; }
@@ -115,8 +131,23 @@ function SupervisorPersonnelInner() {
           fetchPersonnel(init);
         }
       }).catch(() => {});
+    fetchPendingUsers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user]);
+
+  const handlePendingReview = async (id: string, approval_status: "active" | "rejected") => {
+    setPendingActionId(id);
+    try {
+      await fetch(`/api/users?id=${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approval_status }),
+      });
+      setPendingUsers(prev => prev.filter(u => u.id !== id));
+    } finally {
+      setPendingActionId(null);
+    }
+  };
 
   useEffect(() => { selLocIds.forEach(id => cacheDept(id)); }, [selLocIds]); // eslint-disable-line
   useEffect(() => { if (singleLocId) cacheDept(singleLocId); }, [singleLocId]); // eslint-disable-line
@@ -253,6 +284,42 @@ function SupervisorPersonnelInner() {
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
       </div>
+
+      {/* Onay Bekleyen Hesaplar */}
+      {pendingUsers.length > 0 && (
+        <Card className="stripe-card border-0 shadow-none border-l-4 border-l-amber-400">
+          <CardHeader className="border-b border-border/40 bg-amber-50/50 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-100 rounded-xl text-amber-600"><Shield size={18} /></div>
+              <CardTitle className="text-base font-bold">Onay Bekleyen Hesaplar</CardTitle>
+              <Badge variant="secondary">{pendingUsers.length}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-slate-50">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm shrink-0">{u.name.charAt(0)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{ROLE_LABELS[u.role] ?? u.role}{u.display_title ? ` — ${u.display_title}` : ""} · {u.username}</p>
+                  </div>
+                  <Button size="sm" variant="outline" disabled={pendingActionId === u.id}
+                    onClick={() => handlePendingReview(u.id, "rejected")}
+                    className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+                    Reddet
+                  </Button>
+                  <Button size="sm" disabled={pendingActionId === u.id}
+                    onClick={() => handlePendingReview(u.id, "active")}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+                    <Check size={14} /> Onayla
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Liste */}
       <Card className="stripe-card border-0 shadow-none">
