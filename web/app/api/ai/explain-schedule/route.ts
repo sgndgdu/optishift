@@ -12,6 +12,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "@/lib/auth";
+import { FEATURES } from "@/lib/features";
 
 
 const DAYS_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -92,9 +93,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
+  if (!FEATURES.aiSummary) {
+    return NextResponse.json({ error: "Bu özellik şu an kullanıma açık değil." }, { status: 503 });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY tanımlı değil" }, { status: 503 });
+    return NextResponse.json({ error: "Bu özellik şu an kullanıma açık değil." }, { status: 503 });
   }
 
   const { week_start, location_id } = await req.json();

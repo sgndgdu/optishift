@@ -13,6 +13,8 @@ export const FEATURES = {
   breaks: false,
   /** Google ile giriş — GOOGLE_CLIENT_ID/SECRET + NEXT_PUBLIC_APP_URL env'leri kurulunca aç */
   googleAuth: false,
+  /** Plan sayfası AI Özet — ANTHROPIC_API_KEY kurulunca aç */
+  aiSummary: false,
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;

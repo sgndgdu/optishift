@@ -15,6 +15,7 @@ import { calcAssignmentBurden, type Rules as FairnessRules } from "@/lib/fairnes
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
+import { FEATURES } from "@/lib/features";
 import {
   DndContext,
   DragEndEvent,
@@ -2103,10 +2104,12 @@ export default function SchedulePage() {
                       <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
                     </button>
                     <div className="my-1 border-t border-slate-100" />
-                    <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Sparkles size={13} className="text-violet-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
-                    </button>
+                    {FEATURES.aiSummary && (
+                      <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Sparkles size={13} className="text-violet-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
+                      </button>
+                    )}
                     <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <Download size={13} className="text-slate-400" /> Excel İndir
