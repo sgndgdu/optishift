@@ -262,7 +262,7 @@ function SupervisorPersonnelInner() {
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Personel & Hesaplar</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">Organizasyon geneli tüm personeli yönetin.</p>
         </div>
-        <Button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="bg-violet-600 hover:bg-violet-700 text-white gap-2">
+        <Button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="bg-ember-600 hover:bg-ember-700 text-white gap-2">
           <Plus size={16} /> Yeni Hesap Ekle
         </Button>
       </div>
@@ -272,12 +272,12 @@ function SupervisorPersonnelInner() {
         <div className="relative flex-1 min-w-[160px]">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500 transition-colors" />
+            className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 transition-colors" />
         </div>
         <div className="relative">
           <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <select value={selectedLocId} onChange={e => { setSelectedLocId(e.target.value); fetchPersonnel(e.target.value); }}
-            className="pl-9 pr-8 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-violet-500 appearance-none cursor-pointer">
+            className="pl-9 pr-8 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-ember-500 appearance-none cursor-pointer">
             <option value="">Tüm Şubeler</option>
             {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
           </select>
@@ -325,7 +325,7 @@ function SupervisorPersonnelInner() {
       <Card className="stripe-card border-0 shadow-none">
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-violet-100 rounded-xl text-violet-600"><Users size={18} /></div>
+            <div className="p-2 bg-ember-100 rounded-xl text-ember-600"><Users size={18} /></div>
             <CardTitle className="text-base font-bold">Personel Listesi</CardTitle>
             <Badge variant="secondary">{filtered.length} kişi</Badge>
           </div>
@@ -344,7 +344,7 @@ function SupervisorPersonnelInner() {
                 const loc = locations.find(l => l.id === p.primary_location_id);
                 return (
                   <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors group">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-sm shrink-0">{p.name.charAt(0)}</div>
+                    <div className="w-10 h-10 rounded-full bg-ember-100 flex items-center justify-center text-ember-600 font-bold text-sm shrink-0">{p.name.charAt(0)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-slate-800 text-sm">{p.name}</span>
@@ -357,7 +357,7 @@ function SupervisorPersonnelInner() {
                         <span className="text-xs text-slate-500 flex items-center gap-1"><Briefcase size={11} /> {p.title || "—"}</span>
                         <span className="text-xs text-slate-500 flex items-center gap-1"><Mail size={11} /> {p.email}</span>
                         {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} /> {p.phone}</span>}
-                        {loc && <span className="text-xs text-violet-600 font-semibold flex items-center gap-1"><Building2 size={11} /> {loc.name}</span>}
+                        {loc && <span className="text-xs text-ember-600 font-semibold flex items-center gap-1"><Building2 size={11} /> {loc.name}</span>}
                         {p.crew_id && crewMap[p.crew_id] && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: crewMap[p.crew_id].color }}>
                             {crewMap[p.crew_id].name}
@@ -376,7 +376,7 @@ function SupervisorPersonnelInner() {
                           {inviteLinkLoading === p.id ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={14} />}
                         </button>
                       )}
-                      <Button variant="outline" size="icon" className="h-8 w-8 text-slate-400 hover:text-violet-600 hover:border-violet-300 opacity-0 group-hover:opacity-100" onClick={() => openEdit(p)}>
+                      <Button variant="outline" size="icon" className="h-8 w-8 text-slate-400 hover:text-ember-600 hover:border-ember-300 opacity-0 group-hover:opacity-100" onClick={() => openEdit(p)}>
                         <Edit2 size={14} />
                       </Button>
                     </div>
@@ -405,7 +405,7 @@ function SupervisorPersonnelInner() {
                 <div className="grid grid-cols-2 gap-2">
                   {ROLE_DEFS.map((rd, i) => (
                     <button key={i} type="button" onClick={() => { setRoleOption(i); setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); }}
-                      className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"}`}>
+                      className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-ember-600 text-white border-ember-600" : "bg-white text-slate-600 border-slate-200 hover:border-ember-300"}`}>
                       {rd.label}
                     </button>
                   ))}
@@ -417,29 +417,29 @@ function SupervisorPersonnelInner() {
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Ad Soyad *</label>
                   <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">E-posta</label>
                   <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ahmet@sirket.com"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Telefon</label>
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="05XX XXX XX XX"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 {isEmployee && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Unvan</label>
                       <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Kasiyer"
-                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Çalışma Tipi</label>
                       <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value }))}
-                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500 appearance-none">
+                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 appearance-none">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
@@ -453,7 +453,7 @@ function SupervisorPersonnelInner() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Şube(ler) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-violet-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-ember-600 hover:underline">Tümünü Seç</button>
                       <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
@@ -461,7 +461,7 @@ function SupervisorPersonnelInner() {
                     {locations.length === 0 ? <span className="text-xs text-slate-400">Şube bulunamadı</span> : locations.map(l => (
                       <button key={l.id} type="button"
                         onClick={() => { setSelLocIds(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id]); setSelDeptIds([]); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"}`}>
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-ember-600 text-white border-ember-600" : "bg-white text-slate-600 border-slate-200 hover:border-ember-300"}`}>
                         {selLocIds.includes(l.id) && <Check size={10} />}{l.name}
                       </button>
                     ))}
@@ -471,7 +471,7 @@ function SupervisorPersonnelInner() {
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Şube *</label>
                   <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500 appearance-none">
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 appearance-none">
                     <option value="">Şube seçin...</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
@@ -484,7 +484,7 @@ function SupervisorPersonnelInner() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Departman(lar) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-violet-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-ember-600 hover:underline">Tümünü Seç</button>
                       <button type="button" onClick={() => setSelDeptIds([])} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
@@ -492,7 +492,7 @@ function SupervisorPersonnelInner() {
                     {allSelectedDepts.length === 0 ? <span className="text-xs text-slate-400">Seçili şubeler için departman bulunamadı</span> : allSelectedDepts.map(d => (
                       <button key={d.id} type="button"
                         onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"}`}>
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-ember-600 text-white border-ember-600" : "bg-white text-slate-600 border-slate-200 hover:border-ember-300"}`}>
                         {selDeptIds.includes(d.id) && <Check size={10} />}{d.name}
                       </button>
                     ))}
@@ -502,7 +502,7 @@ function SupervisorPersonnelInner() {
 
               {addError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600 font-medium">{addError}</div>}
 
-              <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-xs text-violet-700 flex items-center gap-2">
+              <div className="bg-ember-50 border border-ember-100 rounded-xl p-3 text-xs text-ember-700 flex items-center gap-2">
                 <Link size={12} className="shrink-0" />
                 Oluşturduktan sonra <strong className="ml-1">davet linki</strong>&nbsp;ve geçici şifre gösterilecek.
               </div>
@@ -510,7 +510,7 @@ function SupervisorPersonnelInner() {
 
             <div className="flex gap-3 mt-6">
               <Button variant="outline" onClick={() => { setShowAddModal(false); setAddError(""); }} className="flex-1">İptal</Button>
-              <Button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-violet-600 hover:bg-violet-700 text-white gap-2">
+              <Button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-ember-600 hover:bg-ember-700 text-white gap-2">
                 {addLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Hesap Oluştur</>}
               </Button>
             </div>
@@ -538,7 +538,7 @@ function SupervisorPersonnelInner() {
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
                 <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
                 <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
-                  className={cn("shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors", inviteCopied ? "bg-emerald-500 text-white" : "bg-violet-600 text-white hover:bg-violet-700")}>
+                  className={cn("shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors", inviteCopied ? "bg-emerald-500 text-white" : "bg-ember-600 text-white hover:bg-ember-700")}>
                   {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
                 </button>
               </div>
@@ -553,7 +553,7 @@ function SupervisorPersonnelInner() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">Geçici şifre:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-violet-600 text-sm">{inviteModal.tempPassword}</span>
+                    <span className="font-mono font-bold text-ember-600 text-sm">{inviteModal.tempPassword}</span>
                     <button onClick={() => { navigator.clipboard.writeText(inviteModal.tempPassword); setPassCopied(true); setTimeout(() => setPassCopied(false), 2000); }} className={cn("p-1 rounded", passCopied ? "text-emerald-600" : "text-slate-400 hover:text-slate-600")}>
                       {passCopied ? <Check size={13} /> : <Copy size={13} />}
                     </button>
@@ -607,36 +607,36 @@ function SupervisorPersonnelInner() {
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Ad Soyad</label>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Telefon</label>
                   <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Unvan</label>
                   <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Çalışma Tipi</label>
                   <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500 appearance-none">
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 appearance-none">
                     {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Rol / Yetki</label>
                   <select value={editForm.user_access_level} onChange={e => setEditForm(f => ({ ...f, user_access_level: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-violet-500 appearance-none">
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 appearance-none">
                     {ACCESS_LEVELS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                   </select>
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditingPersonnel(null)} className="flex-1">İptal</Button>
-                <Button type="submit" disabled={editLoading} className="flex-1 bg-violet-600 hover:bg-violet-700 text-white">
+                <Button type="submit" disabled={editLoading} className="flex-1 bg-ember-600 hover:bg-ember-700 text-white">
                   {editLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Kaydet"}
                 </Button>
               </div>

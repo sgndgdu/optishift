@@ -56,7 +56,7 @@ export default function AuditPage() {
       <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-ember-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">

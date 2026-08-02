@@ -35,7 +35,7 @@ function HealthOrb({ score }: { score: number }) {
 
 function PlanBadge({ plan }: { plan: string }) {
   const map: Record<string, string> = {
-    enterprise: "bg-violet-500/15 text-violet-300 border-violet-500/20",
+    enterprise: "bg-ember-500/15 text-ember-300 border-ember-500/20",
     pro: "bg-blue-500/15 text-blue-300 border-blue-500/20",
     free: "bg-slate-500/10 text-slate-400 border-slate-500/15",
   };
@@ -107,13 +107,13 @@ export default function OrgsPage() {
             placeholder="Org ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-ember-500/50 transition-colors"
           />
         </div>
         <select
           value={planFilter}
           onChange={(e) => setPlanFilter(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50 transition-colors"
         >
           <option value="all">Tum Planlar</option>
           <option value="free">Free</option>
@@ -126,7 +126,7 @@ export default function OrgsPage() {
       <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-ember-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -151,8 +151,8 @@ export default function OrgsPage() {
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-violet-600/20 flex items-center justify-center shrink-0">
-                          <Building2 size={13} className="text-violet-400" />
+                        <div className="w-7 h-7 rounded-lg bg-ember-600/20 flex items-center justify-center shrink-0">
+                          <Building2 size={13} className="text-ember-400" />
                         </div>
                         <div>
                           <p className="font-medium text-white">{org.name}</p>
@@ -194,7 +194,7 @@ export default function OrgsPage() {
                     <td className="px-4 py-4">
                       <Link
                         href={`/admin/orgs/${org.id}`}
-                        className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors text-xs font-medium opacity-0 group-hover:opacity-100"
+                        className="flex items-center gap-1 text-ember-400 hover:text-ember-300 transition-colors text-xs font-medium opacity-0 group-hover:opacity-100"
                       >
                         Detay <ChevronRight size={12} />
                       </Link>

@@ -44,8 +44,8 @@ const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const WEEKEND_DAYS = [5, 6];
 
 const SHIFT_PALETTE = [
-  { chip: "bg-indigo-100 text-indigo-800 border-indigo-200", dot: "bg-indigo-400" },
-  { chip: "bg-violet-100 text-violet-800 border-violet-200", dot: "bg-violet-400" },
+  { chip: "bg-forest-100 text-forest-800 border-forest-200", dot: "bg-forest-400" },
+  { chip: "bg-ember-100 text-ember-800 border-ember-200", dot: "bg-ember-400" },
   { chip: "bg-emerald-100 text-emerald-800 border-emerald-200", dot: "bg-emerald-400" },
   { chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-400" },
   { chip: "bg-rose-100 text-rose-800 border-rose-200", dot: "bg-rose-400" },
@@ -166,12 +166,12 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
               {columnDates.map((col, i) => (
                 <th
                   key={i}
-                  className={`py-3 px-1 text-center min-w-[88px] ${WEEKEND_DAYS.includes(i) ? "bg-indigo-50/60" : ""}`}
+                  className={`py-3 px-1 text-center min-w-[88px] ${WEEKEND_DAYS.includes(i) ? "bg-forest-50/60" : ""}`}
                 >
-                  <div className={`text-[10px] font-semibold ${WEEKEND_DAYS.includes(i) ? "text-indigo-500" : "text-slate-400"}`}>
+                  <div className={`text-[10px] font-semibold ${WEEKEND_DAYS.includes(i) ? "text-forest-500" : "text-slate-400"}`}>
                     {col.abbr}
                   </div>
-                  <div className={`text-lg font-black leading-none ${WEEKEND_DAYS.includes(i) ? "text-indigo-600" : "text-slate-700"}`}>
+                  <div className={`text-lg font-black leading-none ${WEEKEND_DAYS.includes(i) ? "text-forest-600" : "text-slate-700"}`}>
                     {col.num}
                   </div>
                 </th>
@@ -226,7 +226,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                           : null;
                         const color = sd ? shiftColor[sd.id] : null;
                         return (
-                          <td key={d} className={`py-1.5 px-1 text-center align-middle ${WEEKEND_DAYS.includes(d) ? "bg-indigo-50/30" : ""}`}>
+                          <td key={d} className={`py-1.5 px-1 text-center align-middle ${WEEKEND_DAYS.includes(d) ? "bg-forest-50/30" : ""}`}>
                             {cell ? (
                               <div className={`rounded-lg py-1 px-1.5 border ${color ? color.chip : "bg-slate-100 text-slate-700 border-slate-200"}`}>
                                 <div className="font-bold text-[10px] leading-snug">{sd?.name ?? "Özel"}</div>
@@ -262,7 +262,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                 const dayAssignments = snapshot.assignments.filter(a => a.day === d);
                 const dayHours = dayAssignments.reduce((s, a) => s + calcShiftHours(a.startTime, a.endTime), 0);
                 return (
-                  <td key={d} className={`py-2.5 px-1 text-center ${WEEKEND_DAYS.includes(d) ? "bg-indigo-50/50" : ""}`}>
+                  <td key={d} className={`py-2.5 px-1 text-center ${WEEKEND_DAYS.includes(d) ? "bg-forest-50/50" : ""}`}>
                     {dayAssignments.length > 0 ? (
                       <div>
                         <div className="text-[10px] font-black text-slate-700">{dayAssignments.length} kişi</div>
@@ -464,9 +464,9 @@ export default function ScheduleArchivePage() {
                     className="w-full flex items-center gap-4 px-5 py-4 text-left"
                   >
                     {/* İkon */}
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${hasRevisions ? "bg-violet-50 border border-violet-200" : "bg-emerald-50 border border-emerald-200"}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${hasRevisions ? "bg-ember-50 border border-ember-200" : "bg-emerald-50 border border-emerald-200"}`}>
                       {hasRevisions
-                        ? <RefreshCw size={16} className="text-violet-600" />
+                        ? <RefreshCw size={16} className="text-ember-600" />
                         : <CheckCircle2 size={16} className="text-emerald-600" />
                       }
                     </div>
@@ -476,7 +476,7 @@ export default function ScheduleArchivePage() {
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <span className="font-bold text-slate-900 text-sm">{info.label}</span>
                         {hasRevisions && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-violet-100 text-violet-700 text-[10px] font-black border border-violet-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-ember-100 text-ember-700 text-[10px] font-black border border-ember-200">
                             <History size={9} />
                             {pub.revision + 1} versiyon
                           </span>

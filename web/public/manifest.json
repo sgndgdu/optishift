@@ -4,8 +4,8 @@
   "description": "Akıllı, Adil ve Entegre Vardiya Yönetimi",
   "start_url": "/portal",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "background_color": "#FAF6ED",
+  "theme_color": "#14453D",
   "orientation": "portrait-primary",
   "icons": [
     {

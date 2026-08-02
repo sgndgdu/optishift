@@ -33,10 +33,10 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
 
   return (
     <>
-      <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl px-4 py-3.5">
+      <div className="bg-forest-50/70 border border-forest-100 rounded-2xl px-4 py-3.5">
         <div className="flex items-center gap-2 mb-2.5">
-          <Sparkles size={14} className="text-indigo-500" />
-          <p className="text-xs font-black text-indigo-700 uppercase tracking-wider">Hızlı Kurulum — {steps.filter(s => s.done).length}/3</p>
+          <Sparkles size={14} className="text-forest-500" />
+          <p className="text-xs font-black text-forest-700 uppercase tracking-wider">Hızlı Kurulum — {steps.filter(s => s.done).length}/3</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           {steps.map((s, i) => (
@@ -48,7 +48,7 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
               {!s.done && s.action && (
                 <button
                   onClick={s.action}
-                  className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                  className="text-xs font-bold text-forest-600 bg-forest-50 hover:bg-forest-100 border border-forest-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
                 >
                   Başla
                 </button>
@@ -113,7 +113,7 @@ export function ShiftDefModal({ locationId, onClose }: { locationId: string; onC
           <button
             key={p.key}
             onClick={() => applyPreset(p.key)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-forest-300 hover:text-forest-700 hover:bg-forest-50 transition-colors"
           >
             {p.label}
           </button>
@@ -129,19 +129,19 @@ export function ShiftDefModal({ locationId, onClose }: { locationId: string; onC
             <input
               value={d.name}
               onChange={e => updateDef(i, { name: e.target.value })}
-              className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-medium focus:outline-none focus:border-indigo-400"
+              className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-medium focus:outline-none focus:border-forest-400"
             />
             <input type="time" value={d.start} onChange={e => updateDef(i, { start: e.target.value })}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-indigo-400" />
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-forest-400" />
             <span className="text-slate-300 text-xs">→</span>
             <input type="time" value={d.end} onChange={e => updateDef(i, { end: e.target.value })}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-indigo-400" />
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-forest-400" />
             <button onClick={() => setDefs(prev => prev.filter((_, j) => j !== i))} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors shrink-0">
               <Trash2 size={14} />
             </button>
           </div>
         ))}
-        <button onClick={addDef} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 py-1">
+        <button onClick={addDef} className="flex items-center gap-1.5 text-xs font-bold text-forest-600 hover:text-forest-800 py-1">
           <Plus size={13} /> Vardiya ekle
         </button>
       </div>
@@ -201,17 +201,17 @@ function QuickPersonnelModal({ locationId, onClose }: { locationId: string; onCl
               value={r.name}
               onChange={e => update(i, "name", e.target.value)}
               placeholder="Ad Soyad"
-              className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+              className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-forest-400"
             />
             <input
               value={r.phone}
               onChange={e => update(i, "phone", e.target.value)}
               placeholder="Telefon (isteğe bağlı)"
-              className="w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+              className="w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-forest-400"
             />
           </div>
         ))}
-        <button onClick={() => setRows(prev => [...prev, { name: "", phone: "" }])} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 py-1">
+        <button onClick={() => setRows(prev => [...prev, { name: "", phone: "" }])} className="flex items-center gap-1.5 text-xs font-bold text-forest-600 hover:text-forest-800 py-1">
           <Plus size={13} /> Satır ekle
         </button>
       </div>

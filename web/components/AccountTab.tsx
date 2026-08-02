@@ -114,7 +114,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
       {/* Profil Bilgileri */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 bg-slate-50/70 border-b border-slate-100">
-          <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+          <div className="p-2 bg-forest-100 rounded-xl text-forest-600">
             <User size={16} />
           </div>
           <div>
@@ -203,7 +203,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
             <button
               type="submit"
               disabled={profileSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               {profileSaving ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

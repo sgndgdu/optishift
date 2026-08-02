@@ -39,8 +39,8 @@ export default function GodLoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo + başlık */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center mb-4">
-            <Shield size={28} className="text-violet-400" />
+          <div className="w-14 h-14 rounded-2xl bg-ember-600/20 border border-ember-500/30 flex items-center justify-center mb-4">
+            <Shield size={28} className="text-ember-400" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">God Mode</h1>
           <p className="text-sm text-slate-500 mt-1">OptiShift Platform Yonetimi</p>
@@ -59,7 +59,7 @@ export default function GodLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 autoFocus
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500/50 focus:bg-white/8 transition-all pr-12"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-ember-500/50 focus:bg-white/8 transition-all pr-12"
               />
               <button
                 type="button"
@@ -80,7 +80,7 @@ export default function GodLoginPage() {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-ember-600 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

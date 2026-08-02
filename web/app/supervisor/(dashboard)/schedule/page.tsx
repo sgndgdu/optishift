@@ -115,7 +115,7 @@ function SupervisorScheduleInner() {
           <select
             value={selectedLocId}
             onChange={e => setSelectedLocId(e.target.value)}
-            className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-violet-500 appearance-none cursor-pointer"
+            className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-ember-500 appearance-none cursor-pointer"
           >
             {locations.map(loc => (
               <option key={loc.id} value={loc.id}>{loc.name}</option>
@@ -144,7 +144,7 @@ function SupervisorScheduleInner() {
 
         <button
           onClick={() => setWeekStart(getWeekStart(new Date()))}
-          className="px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-violet-600 bg-violet-50 border border-violet-100 rounded-xl hover:bg-violet-100 transition-colors"
+          className="px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-ember-600 bg-ember-50 border border-ember-100 rounded-xl hover:bg-ember-100 transition-colors"
         >
           Bu Hafta
         </button>
@@ -163,7 +163,7 @@ function SupervisorScheduleInner() {
       <Card className="stripe-card border-0 shadow-none overflow-hidden">
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+            <div className="p-2 bg-ember-100 rounded-xl text-ember-600">
               <CalendarClock size={18} />
             </div>
             <CardTitle className="text-base font-bold">
@@ -202,7 +202,7 @@ function SupervisorScheduleInner() {
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-3 px-5">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-600 font-bold text-xs flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-ember-100 text-ember-600 font-bold text-xs flex items-center justify-center shrink-0">
                           {p.name.charAt(0)}
                         </div>
                         <Link href={`/supervisor/personnel?location_id=${selectedLocId}`} className="text-sm font-semibold text-slate-800 truncate max-w-[100px] hover:underline hover:text-primary">{p.name}</Link>
@@ -217,7 +217,7 @@ function SupervisorScheduleInner() {
                               "inline-flex flex-col items-center px-2.5 py-1.5 rounded-lg text-xs font-bold leading-tight",
                               shift.status === "completed" ? "bg-emerald-100 text-emerald-700" :
                               shift.status === "absent"    ? "bg-red-100 text-red-700" :
-                              "bg-violet-100 text-violet-700"
+                              "bg-ember-100 text-ember-700"
                             )}>
                               <span>{shift.start_time ?? "—"}</span>
                               <span className="text-[10px] font-normal opacity-70">{shift.end_time ?? ""}</span>

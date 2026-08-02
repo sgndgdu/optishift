@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Zap, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -60,8 +61,8 @@ function ResetPasswordForm() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-[400px] space-y-6">
         <div className="text-center">
-          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-indigo-600 transition-colors">
-            <Zap size={20} className="text-indigo-600" />
+          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors">
+            <LogoMark size="md" />
             OptiShift
           </Link>
         </div>
@@ -70,7 +71,7 @@ function ResetPasswordForm() {
           {/* Token kontrol ediliyor */}
           {tokenValid === null && (
             <div className="text-center py-8">
-              <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
               <p className="text-sm text-slate-500 mt-3">Link doğrulanıyor…</p>
             </div>
           )}
@@ -90,7 +91,7 @@ function ResetPasswordForm() {
               </div>
               <Link
                 href="/forgot-password"
-                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-forest-600 font-bold hover:text-forest-700 transition-colors"
               >
                 Yeni Link İste <ArrowRight size={14} />
               </Link>
@@ -116,8 +117,8 @@ function ResetPasswordForm() {
           {tokenValid === true && !success && (
             <>
               <div className="text-center">
-                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Lock size={22} className="text-indigo-600" />
+                <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Lock size={22} className="text-forest-600" />
                 </div>
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">Yeni Şifre Belirle</h1>
                 {name && (
@@ -146,7 +147,7 @@ function ResetPasswordForm() {
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full pl-11 pr-11 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                      className="w-full pl-11 pr-11 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors text-sm"
                     />
                     <button type="button" onClick={() => setShowPw(v => !v)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -176,7 +177,7 @@ function ResetPasswordForm() {
                       onChange={e => setConfirm(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors text-sm"
                     />
                   </div>
                   {confirm && password !== confirm && (
@@ -187,7 +188,7 @@ function ResetPasswordForm() {
                 <button
                   type="submit"
                   disabled={loading || !password || !confirm}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm mt-2"
+                  className="w-full bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm mt-2"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -201,7 +202,7 @@ function ResetPasswordForm() {
 
           {tokenValid !== null && (
             <div className="pt-2 border-t border-slate-100 text-center">
-              <Link href="/login" className="text-sm text-slate-500 hover:text-indigo-600 font-semibold transition-colors">
+              <Link href="/login" className="text-sm text-slate-500 hover:text-forest-600 font-semibold transition-colors">
                 ← Giriş sayfasına dön
               </Link>
             </div>
@@ -214,7 +215,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
       <ResetPasswordForm />
     </Suspense>
   );

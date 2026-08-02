@@ -305,8 +305,8 @@ export default function PersonnelPage() {
 
   const roleBadge = (p: MergedPerson) => {
     if (p.role === "admin") return { label: "Admin", color: "bg-red-50 text-red-700 border-red-100" };
-    if (p.role === "supervisor") return { label: "Süpervizör", color: "bg-violet-50 text-violet-700 border-violet-100" };
-    if (p.display_title) return { label: p.display_title, color: "bg-indigo-50 text-indigo-700 border-indigo-100" };
+    if (p.role === "supervisor") return { label: "Süpervizör", color: "bg-ember-50 text-ember-700 border-ember-100" };
+    if (p.display_title) return { label: p.display_title, color: "bg-forest-50 text-forest-700 border-forest-100" };
     return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
   };
 
@@ -324,7 +324,7 @@ export default function PersonnelPage() {
           <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors shadow-sm">
             <Upload size={16} /> <span className="hidden sm:inline">Toplu Yükle</span>
           </button>
-          <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-3 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-indigo-100">
+          <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-sm font-bold px-3 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-forest-100">
             <Plus size={16} /> <span className="hidden sm:inline">Yeni Hesap Ekle</span><span className="sm:hidden">Ekle</span>
           </button>
         </div>
@@ -333,7 +333,7 @@ export default function PersonnelPage() {
       {/* Search */}
       <div className="relative">
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 shadow-sm" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
       </div>
 
       {/* List */}
@@ -350,7 +350,7 @@ export default function PersonnelPage() {
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
           <Users size={40} className="mx-auto text-slate-300 mb-3" />
           <p className="text-slate-500 font-medium">{search ? "Arama sonucu bulunamadı" : "Henüz hesap yok"}</p>
-          {!search && <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">+ İlk hesabı ekle</button>}
+          {!search && <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="mt-4 text-forest-600 font-bold text-sm hover:underline">+ İlk hesabı ekle</button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -359,7 +359,7 @@ export default function PersonnelPage() {
             const isPending = p.approval_status === "pending";
             return (
               <div key={p.userId} className={`group bg-white rounded-3xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.role === "manager" ? "bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700" : "bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600"}`}>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.role === "manager" ? "bg-gradient-to-br from-forest-100 to-forest-200 text-forest-700" : "bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600"}`}>
                   {p.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0 pt-0.5">
@@ -398,7 +398,7 @@ export default function PersonnelPage() {
 
                   {p.personnelId && p.role === "employee" && (
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <span className="text-xs font-bold text-slate-500">Adalet Skoru: <strong className="text-indigo-600">{p.prev_score}</strong></span>
+                      <span className="text-xs font-bold text-slate-500">Adalet Skoru: <strong className="text-forest-600">{p.prev_score}</strong></span>
                       {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">⭐ {p.hero_count}x</span>}
                       {p.crew_id && (() => { const crew = crewList.find(c => c.id === p.crew_id); return crew ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: crew.color }}>{crew.name}</span> : null; })()}
                       {(p.ytd_overtime_hours ?? 0) > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">⏱ {p.ytd_overtime_hours}s YTD</span>}
@@ -413,7 +413,7 @@ export default function PersonnelPage() {
                   )}
 
                   <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Düzenle"><Edit2 size={15} /></button>
+                    <button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-lg transition-colors" title="Düzenle"><Edit2 size={15} /></button>
                     <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
                       {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}
                     </button>
@@ -442,7 +442,7 @@ export default function PersonnelPage() {
                 <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Rol</label>
                 <div className="grid grid-cols-2 gap-2">
                   {ROLE_DEFS.map((rd, i) => (
-                    <button key={i} type="button" onClick={() => { setRoleOption(i); setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); }} className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>{rd.label}</button>
+                    <button key={i} type="button" onClick={() => { setRoleOption(i); setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); }} className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>{rd.label}</button>
                   ))}
                 </div>
               </div>
@@ -450,36 +450,36 @@ export default function PersonnelPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad *</label>
-                  <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                  <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                 </div>
                 {isEmployee && (
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
-                    <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">E-posta</label>
-                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
-                  <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                  <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                 </div>
               </div>
               {isEmployee && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
-                    <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                    <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                       {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Max Haftalık Saat</label>
-                    <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                   </div>
                 </div>
               )}
@@ -489,13 +489,13 @@ export default function PersonnelPage() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Şube(ler) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-indigo-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
                       <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     {locations.length === 0 ? <span className="text-xs text-slate-400">Şube bulunamadı</span> : locations.map(l => (
-                      <button key={l.id} type="button" onClick={() => toggleLoc(l.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
+                      <button key={l.id} type="button" onClick={() => toggleLoc(l.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                         {selLocIds.includes(l.id) && <Check size={10} />}{l.name}
                       </button>
                     ))}
@@ -504,7 +504,7 @@ export default function PersonnelPage() {
               ) : (
                 <div>
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Şube *</label>
-                  <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                  <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                     <option value="">Şube seçin...</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
@@ -516,13 +516,13 @@ export default function PersonnelPage() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Departman(lar) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-indigo-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
                       <button type="button" onClick={() => setSelDeptIds([])} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     {allSelectedDepts.length === 0 ? <span className="text-xs text-slate-400">Seçili şubeler için departman bulunamadı</span> : allSelectedDepts.map(d => (
-                      <button key={d.id} type="button" onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
+                      <button key={d.id} type="button" onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                         {selDeptIds.includes(d.id) && <Check size={10} />}{d.name}
                       </button>
                     ))}
@@ -530,14 +530,14 @@ export default function PersonnelPage() {
                 </div>
               )}
               {addError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{addError}</div>}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-700 flex items-center gap-2">
+              <div className="bg-forest-50 border border-forest-100 rounded-xl p-3 text-xs text-forest-700 flex items-center gap-2">
                 <Link size={12} className="shrink-0" />
                 Oluşturduktan sonra <strong className="ml-1">davet linki</strong>&nbsp;ve geçici şifre gösterilecek.
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
-              <button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+              <button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
                 {addLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Hesap Oluştur</>}
               </button>
             </div>
@@ -563,7 +563,7 @@ export default function PersonnelPage() {
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
                 <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
-                <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${inviteCopied ? "bg-emerald-500 text-white" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
+                <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${inviteCopied ? "bg-emerald-500 text-white" : "bg-forest-600 text-white hover:bg-forest-700"}`}>
                   {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
                 </button>
               </div>
@@ -579,7 +579,7 @@ export default function PersonnelPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">Geçici şifre:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-indigo-600 text-sm">{inviteModal.tempPassword}</span>
+                    <span className="font-mono font-bold text-forest-600 text-sm">{inviteModal.tempPassword}</span>
                     <button onClick={() => { navigator.clipboard.writeText(inviteModal.tempPassword); setPassCopied(true); setTimeout(() => setPassCopied(false), 2000); }} className={`p-1 rounded ${passCopied ? "text-emerald-600" : "text-slate-400 hover:text-slate-600"}`}>
                       {passCopied ? <Check size={13} /> : <Copy size={13} />}
                     </button>
@@ -632,39 +632,39 @@ export default function PersonnelPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad</label>
-                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
-                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
               </div>
               {editingPerson.personnelId && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
-                      <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                      <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Max Haftalık Saat</label>
-                      <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                      <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Min Haftalık Saat</label>
-                      <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                      <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Sabit İzin Günü</label>
-                      <select value={editForm.weekly_off_day === null ? "" : String(editForm.weekly_off_day)} onChange={e => setEditForm(f => ({ ...f, weekly_off_day: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400">
+                      <select value={editForm.weekly_off_day === null ? "" : String(editForm.weekly_off_day)} onChange={e => setEditForm(f => ({ ...f, weekly_off_day: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                         <option value="">Tanımsız</option>
                         {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                       </select>
@@ -672,7 +672,7 @@ export default function PersonnelPage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Saatlik Ücret (₺, brüt)</label>
-                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     <p className="text-[10px] text-slate-400 mt-1">Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez.</p>
                   </div>
                   <div>
@@ -680,7 +680,7 @@ export default function PersonnelPage() {
                     <select
                       value={editForm.night_restriction ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, night_restriction: e.target.value || null }))}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
                     >
                       <option value="">Yok — gece çalışabilir</option>
                       <option value="pregnant">Gebe — gece çalışamaz</option>
@@ -693,15 +693,15 @@ export default function PersonnelPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşe Giriş Tarihi</label>
-                      <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                      <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Yıllık İzin (gün)</label>
-                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">İzin Düzeltme (±)</label>
-                      <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white" />
+                      <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
@@ -711,7 +711,7 @@ export default function PersonnelPage() {
                       <select
                         value={editForm.crew_id ?? ""}
                         onChange={e => setEditForm(f => ({ ...f, crew_id: e.target.value || null }))}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-indigo-400"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
                       >
                         <option value="">— Ekip Yok —</option>
                         {crewList.map(c => (
@@ -727,7 +727,7 @@ export default function PersonnelPage() {
                         {editDepts.map(dept => {
                           const selected = editForm.roles.includes(dept.name);
                           return (
-                            <button key={dept.id} type="button" onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== dept.name) : [...f.roles, dept.name] }))} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
+                            <button key={dept.id} type="button" onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== dept.name) : [...f.roles, dept.name] }))} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                               {selected && <Check size={10} className="inline mr-1" />}{dept.name}
                             </button>
                           );
@@ -741,7 +741,7 @@ export default function PersonnelPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setEditingPerson(null)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
-              <button onClick={handleEdit} disabled={editLoading} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+              <button onClick={handleEdit} disabled={editLoading} className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
                 {editLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Kaydet</>}
               </button>
             </div>
@@ -767,7 +767,7 @@ export default function PersonnelPage() {
                   {bulkResults.map((r: any, i: number) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm">
                       <div><div className="font-bold text-slate-800">{r.name}</div><div className="text-xs text-slate-500">{r.email}</div></div>
-                      <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-bold text-indigo-600">{r.temp_password}</div>
+                      <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-bold text-forest-600">{r.temp_password}</div>
                     </div>
                   ))}
                 </div>
@@ -784,11 +784,11 @@ export default function PersonnelPage() {
                     <div className="flex-1">Unvan (Ops)</div>
                   </div>
                 </div>
-                <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder="Excel'den buraya yapıştırın..." className="w-full flex-1 min-h-[200px] border border-slate-200 rounded-xl p-4 text-sm font-mono whitespace-pre focus:outline-none focus:border-indigo-400 resize-none" />
+                <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder="Excel'den buraya yapıştırın..." className="w-full flex-1 min-h-[200px] border border-slate-200 rounded-xl p-4 text-sm font-mono whitespace-pre focus:outline-none focus:border-forest-400 resize-none" />
                 {bulkError && <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{bulkError}</div>}
                 <div className="flex gap-3 mt-6">
                   <button onClick={() => setShowBulkModal(false)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
-                  <button onClick={handleBulkUpload} disabled={bulkLoading || !bulkText.trim()} className="flex-[2] bg-indigo-600 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                  <button onClick={handleBulkUpload} disabled={bulkLoading || !bulkText.trim()} className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
                     {bulkLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Upload size={16} /> Kayıtları Yükle</>}
                   </button>
                 </div>

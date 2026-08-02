@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Zap } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
+import { Logo } from "@/components/Logo";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,9 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
-              <Zap size={12} className="text-white" />
-            </div>
+            <Logo size="sm" className="w-6 h-6" />
             <span className="font-bold text-slate-800 text-sm">OptiShift</span>
           </div>
         </div>

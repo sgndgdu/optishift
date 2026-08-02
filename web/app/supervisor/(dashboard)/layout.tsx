@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Zap } from "lucide-react";
+import { Menu } from "lucide-react";
 import SupervisorSidebar from "@/components/SupervisorSidebar";
 import SystemBanner from "@/components/SystemBanner";
+import { Logo } from "@/components/Logo";
 
 export default function SupervisorLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,9 +40,7 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-violet-600 rounded-lg flex items-center justify-center">
-              <Zap size={12} className="text-white" />
-            </div>
+            <Logo size="sm" tone="ember" className="w-6 h-6" />
             <span className="font-bold text-slate-800 text-sm">OptiShift</span>
           </div>
         </div>

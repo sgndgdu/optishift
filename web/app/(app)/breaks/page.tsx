@@ -237,7 +237,7 @@ function BreaksPageInner() {
               onClick={() => startBreak(p)}
               className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all group text-left"
             >
-              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-black text-indigo-600 shrink-0">
+              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center text-xs font-black text-forest-600 shrink-0">
                 {p.name.charAt(0)}
               </div>
               <div className="min-w-0 flex-1">

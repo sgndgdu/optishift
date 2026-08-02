@@ -63,14 +63,14 @@ export default function GoogleAuthCompletePage() {
             <p className="text-red-600 font-semibold mb-2">{error}</p>
             <button
               onClick={() => router.push("/login")}
-              className="text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
+              className="text-forest-600 font-bold hover:text-forest-700 transition-colors"
             >
               Giriş sayfasına dön
             </button>
           </>
         ) : (
           <>
-            <Loader2 size={32} className="animate-spin text-indigo-600 mx-auto mb-4" />
+            <Loader2 size={32} className="animate-spin text-forest-600 mx-auto mb-4" />
             <p className="text-slate-500 font-medium">Google girişiniz tamamlanıyor…</p>
           </>
         )}

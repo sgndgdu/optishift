@@ -90,8 +90,8 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-            <BarChart2 size={20} className="text-violet-600" />
+          <div className="w-10 h-10 rounded-xl bg-ember-100 flex items-center justify-center">
+            <BarChart2 size={20} className="text-ember-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Çalışma Saati Raporu</h1>

@@ -37,8 +37,8 @@ export function KPICards({ fairness_gap, assignments, personnel, scores }: KPICa
       label: "Toplam Vardiya",
       value: String(assignments.length),
       sub: "bu hafta atandı",
-      icon: <CalendarDays size={14} className="text-indigo-500" />,
-      accent: "bg-indigo-50",
+      icon: <CalendarDays size={14} className="text-forest-500" />,
+      accent: "bg-forest-50",
     },
     {
       label: "Adalet Farkı",
@@ -52,8 +52,8 @@ export function KPICards({ fairness_gap, assignments, personnel, scores }: KPICa
       label: "Aktif Personel",
       value: String(personnel.length),
       sub: "çalışan planlandı",
-      icon: <Users size={14} className="text-indigo-500" />,
-      accent: "bg-indigo-50",
+      icon: <Users size={14} className="text-forest-500" />,
+      accent: "bg-forest-50",
     },
     {
       label: "Haftanın En Yüklüsü",

@@ -2,11 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, Zap, LogOut, X, BellRing } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
+import { Logo } from "@/components/Logo";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -101,9 +102,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       {/* ── DESKTOP SIDEBAR (md ve üzeri) ─────────────────────────────────── */}
       <aside className="hidden md:flex w-64 h-screen shrink-0 bg-white border-r border-slate-100 flex-col pt-8 pb-6 px-4">
         <Link href="/portal" className="flex items-center gap-3 px-3 mb-8 group">
-          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
-            <Zap size={18} className="text-white" />
-          </div>
+          <Logo size="md" className="group-hover:shadow-md transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
             <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Personel</p>
@@ -148,8 +147,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         <div className="mt-auto px-3 pt-6">
           <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-indigo-600 uppercase">{user?.name?.charAt(0) ?? "P"}</span>
+              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-forest-600 uppercase">{user?.name?.charAt(0) ?? "P"}</span>
               </div>
               <div className="truncate">
                 <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Personel"}</p>
@@ -172,9 +171,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         {/* Mobil Top Bar */}
         <div className="md:hidden flex items-center justify-between px-4 h-14 shrink-0 bg-white border-b border-slate-100 z-30">
           <Link href="/portal" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-              <Zap size={13} className="text-white" />
-            </div>
+            <Logo size="sm" />
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">

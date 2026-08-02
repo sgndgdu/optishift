@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Zap } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 /** Yasal sayfaların (gizlilik, kullanım şartları) ortak kabuğu. */
 export default function LegalShell({ title, updatedAt, children }: {
@@ -12,9 +12,7 @@ export default function LegalShell({ title, updatedAt, children }: {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Zap size={16} className="text-white" />
-            </div>
+            <Logo size="sm" />
             <span className="text-lg font-black text-slate-900 tracking-tight">OptiShift</span>
           </Link>
           <Link href="/login" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">

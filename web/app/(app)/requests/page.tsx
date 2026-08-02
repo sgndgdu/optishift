@@ -366,11 +366,11 @@ export default function ManagerRequestsPage() {
           {(visibleLeaves as any[]).map((l: any) => {
             const pending = l.status === "pending";
             return (
-              <div key={l.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-violet-200" : "border-slate-100"}`}>
+              <div key={l.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-ember-200" : "border-slate-100"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <CalendarOff size={13} className="text-violet-600 shrink-0" />
+                      <CalendarOff size={13} className="text-ember-600 shrink-0" />
                       <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">
                         {l.personnel_name ?? l.personnel_id}
                       </Link>

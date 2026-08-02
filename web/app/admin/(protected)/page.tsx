@@ -50,7 +50,7 @@ function timeAgo(ts: number): string {
 
 function eventIcon(type: string) {
   if (type === "login") return <LogIn size={13} className="text-blue-400" />;
-  if (type === "or_tools_call") return <Cpu size={13} className="text-violet-400" />;
+  if (type === "or_tools_call") return <Cpu size={13} className="text-ember-400" />;
   if (type === "shift_created") return <Zap size={13} className="text-emerald-400" />;
   return <Activity size={13} className="text-slate-400" />;
 }
@@ -182,7 +182,7 @@ export default function AdminOverviewPage() {
           value={metrics?.total_orgs ?? "—"}
           sub={`${metrics?.pro_orgs ?? 0} Pro, ${metrics?.free_orgs ?? 0} Free`}
           icon={Building2}
-          color="bg-violet-600"
+          color="bg-ember-600"
         />
         <MetricCard
           label="Toplam Kullanici"
@@ -201,7 +201,7 @@ export default function AdminOverviewPage() {
           value={metrics?.or_tools_calls_24h ?? "—"}
           sub={metrics ? `Ort. ${metrics.avg_or_tools_latency}ms` : undefined}
           icon={Cpu}
-          color="bg-indigo-600"
+          color="bg-forest-600"
         />
         <MetricCard
           label="Girisler/24s"
@@ -266,7 +266,7 @@ export default function AdminOverviewPage() {
             <h2 className="text-sm font-semibold text-white">Kayip Riski Radari</h2>
             <Link
               href="/admin/orgs"
-              className="text-[10px] text-violet-400 hover:text-violet-300 transition-colors"
+              className="text-[10px] text-ember-400 hover:text-ember-300 transition-colors"
             >
               Tumunu goster
             </Link>

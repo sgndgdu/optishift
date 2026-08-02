@@ -120,7 +120,7 @@ export function TimeRangeSlider({
     <div className="space-y-2 select-none">
       {/* Gece geçişi uyarısı */}
       {crossesMidnight && (
-        <div className="flex items-center gap-1.5 text-[10px] text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1">
+        <div className="flex items-center gap-1.5 text-[10px] text-forest-600 font-semibold bg-forest-50 border border-forest-100 rounded-lg px-2 py-1">
           <span>🌙</span>
           <span>Gece geçişi — bitiş ertesi güne sarkıyor</span>
         </div>
@@ -175,7 +175,7 @@ export function TimeRangeSlider({
             {minToHHMM(endMin, endMin >= 1440)}
           </div>
           <div
-            className="w-5 h-5 bg-white border-2 border-violet-500 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
+            className="w-5 h-5 bg-white border-2 border-ember-500 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
             onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragging("end"); }}
           />
         </div>

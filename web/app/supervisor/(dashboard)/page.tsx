@@ -140,8 +140,8 @@ export default function SupervisorDashboard() {
       {/* Özet sayılar */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
-          { label: "Şube",       value: locations.length, icon: Building2, color: "text-violet-600", bg: "bg-violet-100", href: "/supervisor" },
-          { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-indigo-600", bg: "bg-indigo-100" },
+          { label: "Şube",       value: locations.length, icon: Building2, color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor" },
+          { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-forest-600", bg: "bg-forest-100" },
           { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-emerald-600", bg: "bg-emerald-100", href: "/supervisor/personnel" },
         ].map(({ label, value, icon: Icon, color, bg, href }) => (
           <Card key={label} className={`border-0 shadow-sm ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
@@ -186,7 +186,7 @@ export default function SupervisorDashboard() {
                         placeholder="Not ekle (isteğe bağlı)…"
                         value={reviewNote}
                         onChange={e => setReviewNote(e.target.value)}
-                        className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 placeholder-slate-300 outline-none focus:ring-2 focus:ring-indigo-200"
+                        className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 placeholder-slate-300 outline-none focus:ring-2 focus:ring-forest-200"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5 shrink-0">
@@ -234,8 +234,8 @@ export default function SupervisorDashboard() {
         ) : locations.length === 0 ? (
           <Card className="border-dashed border-2 border-slate-200">
             <CardContent className="py-16 text-center">
-              <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Zap size={28} className="text-violet-400" />
+              <div className="w-16 h-16 bg-ember-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Zap size={28} className="text-ember-400" />
               </div>
               <p className="font-bold text-slate-600 mb-1">Henüz şube eklenmedi</p>
               <p className="text-sm text-slate-400 mb-5">
@@ -258,8 +258,8 @@ export default function SupervisorDashboard() {
                   {/* Üst satır */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-                        <MapPin size={18} className="text-violet-600" />
+                      <div className="w-11 h-11 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
+                        <MapPin size={18} className="text-ember-600" />
                       </div>
                       <div>
                         <p className="font-black text-slate-800 text-base">{loc.name}</p>
@@ -279,7 +279,7 @@ export default function SupervisorDashboard() {
                   {/* Sayaçlar */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
-                      <p className="text-lg font-black text-indigo-600">{loc.dept_count}</p>
+                      <p className="text-lg font-black text-forest-600">{loc.dept_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Departman</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition-colors"
@@ -287,7 +287,7 @@ export default function SupervisorDashboard() {
                       <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Personel</p>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-violet-50 transition-colors"
+                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-ember-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
                       <p className={`text-lg font-black ${
                         loc.publish_lead === null ? "text-slate-300"
@@ -305,7 +305,7 @@ export default function SupervisorDashboard() {
                   <div className="flex gap-2 pt-1">
                     <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"
                       onClick={e => e.stopPropagation()}>
-                      <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-xl transition-colors">
+                      <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-ember-600 bg-ember-50 hover:bg-ember-100 rounded-xl transition-colors">
                         <CalendarClock size={13} />
                         Vardiya Planı
                       </button>

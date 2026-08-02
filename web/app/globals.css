@@ -2,7 +2,36 @@
 
 @theme {
   --font-sans: var(--font-inter);
-  
+  --font-serif: var(--font-fraunces);
+
+  /* Marka paleti — "forest" (birincil, çam yeşili) + "ember" (vurgu, sıcak turuncu).
+     Tailwind'in kendi amber/violet/purple skalalarına dokunulmadı: amber halihazırda
+     "bekleyen onay/uyarı" anlamında kullanılıyor (bkz. Onay Bekleyen Hesaplar), o yüzden
+     marka vurgu rengi ayrı isimlendirildi. */
+  --color-forest-50: #EAF2EF;
+  --color-forest-100: #D3E5DE;
+  --color-forest-200: #A8CBBE;
+  --color-forest-300: #7BAE9C;
+  --color-forest-400: #52907C;
+  --color-forest-500: #357662;
+  --color-forest-600: #245D4C;
+  --color-forest-700: #14453D;
+  --color-forest-800: #0F332D;
+  --color-forest-900: #0A211E;
+
+  --color-ember-50: #FDF3E9;
+  --color-ember-100: #FAE3CB;
+  --color-ember-200: #F3C495;
+  --color-ember-300: #ECA463;
+  --color-ember-400: #E89A4E;
+  --color-ember-500: #E8873A;
+  --color-ember-600: #D06F26;
+  --color-ember-700: #A9581D;
+  --color-ember-800: #7D4116;
+  --color-ember-900: #4F2A0E;
+
+  --color-cream: #FAF6ED;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -49,8 +78,8 @@
     --popover: #ffffff;
     --popover-foreground: #0f172a;
 
-    /* Energetic Primary (Indigo/Violet) */
-    --primary: #6366f1; /* Indigo 500 */
+    /* Marka rengi — çam yeşili */
+    --primary: #14453D; /* forest-700 */
     --primary-foreground: #ffffff;
 
     --secondary: #f1f5f9; /* Slate 100 */
@@ -67,7 +96,7 @@
 
     --border: #e2e8f0; /* Slate 200 */
     --input: #e2e8f0;
-    --ring: #818cf8; /* Indigo 400 */
+    --ring: #7BAE9C; /* forest-300 */
 
     --radius: 0.75rem;
   }
@@ -83,7 +112,7 @@
     --popover: #0f172a;
     --popover-foreground: #f8fafc;
 
-    --primary: #818cf8;
+    --primary: #52907C; /* forest-400 */
     --primary-foreground: #ffffff;
 
     --secondary: #1e293b;
@@ -100,7 +129,7 @@
 
     --border: #1e293b;
     --input: #1e293b;
-    --ring: #818cf8;
+    --ring: #52907C;
   }
 }
 
@@ -122,7 +151,7 @@
     @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800 shadow-none;
   }
   .stripe-card {
-    @apply bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300;
+    @apply bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(20,69,61,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300;
   }
   .animate-in {
     animation: animate-in 0.4s ease-out both;
@@ -230,8 +259,8 @@
 }
 .field-input:focus {
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
-  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(20, 69, 61, 0.15);
+  border-color: #14453D;
 }
 .field-label {
   display: block;

@@ -15,7 +15,7 @@ export function DroppableCell({ id, children, disabled, className, onClick }: { 
       onClick={onClick}
       className={cn(
         className,
-        isOver && !disabled ? "bg-indigo-50/50 ring-2 ring-inset ring-indigo-200" : ""
+        isOver && !disabled ? "bg-forest-50/50 ring-2 ring-inset ring-forest-200" : ""
       )}
     >
       {children}

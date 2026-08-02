@@ -148,8 +148,8 @@ export default function SupervisorReports() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-            <BarChart3 size={18} className="text-violet-600" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
+            <BarChart3 size={18} className="text-ember-600" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-black text-slate-900">Raporlar</h1>
@@ -193,7 +193,7 @@ export default function SupervisorReports() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KpiCard icon={<Building2 size={16} className="text-blue-600" />} bg="bg-blue-50"
           label="Şube" value={`${branches.length}`} href="/supervisor" />
-        <KpiCard icon={<Users size={16} className="text-indigo-600" />} bg="bg-indigo-50"
+        <KpiCard icon={<Users size={16} className="text-forest-600" />} bg="bg-forest-50"
           label="Personel" value={`${totalPersonnel}`} href="/supervisor/personnel" />
         <KpiCard icon={<Clock size={16} className="text-emerald-600" />} bg="bg-emerald-50"
           label="Toplam Saat" value={`${totalHours} sa`} sub={`${totalShifts} vardiya`} />
@@ -353,7 +353,7 @@ export default function SupervisorReports() {
           {activeTab === "fairness" && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <KpiCard icon={<TrendingUp size={16} className="text-violet-600" />} bg="bg-violet-50"
+                <KpiCard icon={<TrendingUp size={16} className="text-ember-600" />} bg="bg-ember-50"
                   label="Ort. Puan" value={`${avgScore}`} />
                 <KpiCard icon={<TrendingUp size={16} className="text-emerald-600" />} bg="bg-emerald-50"
                   label="En Yüksek"
@@ -386,12 +386,12 @@ export default function SupervisorReports() {
                                 <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-semibold text-slate-800 hover:underline hover:text-primary">{p.name}</Link>
                                 <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-violet-400 rounded-full transition-all"
+                                    className="h-full bg-ember-400 rounded-full transition-all"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
                               </div>
-                              <p className="text-sm font-black text-violet-700 shrink-0 w-10 text-right">
+                              <p className="text-sm font-black text-ember-700 shrink-0 w-10 text-right">
                                 {p.prev_score}
                               </p>
                             </div>

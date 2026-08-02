@@ -138,8 +138,8 @@ export default function FairnessPage() {
           {
             label: "Ort. Kümülatif Yük",
             value: Math.round(avgBurden * 10) / 10,
-            color: "text-indigo-700",
-            bg: "bg-indigo-50 border-indigo-100",
+            color: "text-forest-700",
+            bg: "bg-forest-50 border-forest-100",
           },
           {
             label: "Dağılım Dengesi",
@@ -166,7 +166,7 @@ export default function FairnessPage() {
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
+              <div className="p-1.5 bg-forest-100 rounded-lg text-forest-600">
                 <TrendingUp size={15} />
               </div>
               <CardTitle className="text-sm font-bold">Yük Dağılımı</CardTitle>
@@ -216,7 +216,7 @@ export default function FairnessPage() {
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-violet-100 rounded-lg text-violet-600">
+              <div className="p-1.5 bg-ember-100 rounded-lg text-ember-600">
                 <Zap size={15} />
               </div>
               <div>
@@ -240,7 +240,7 @@ export default function FairnessPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { label: "Hafta sonu", value: rules.weekend_multiplier ?? 1.2, icon: null, note: "Cmt & Paz" },
-                { label: "Gece vardiyası", value: rules.night_multiplier ?? 1.3, icon: <Moon size={10} className="text-indigo-400" />, note: "Gece işaretli" },
+                { label: "Gece vardiyası", value: rules.night_multiplier ?? 1.3, icon: <Moon size={10} className="text-forest-400" />, note: "Gece işaretli" },
                 { label: "Sarı gün", value: rules.preferred_not_multiplier ?? 1.5, icon: null, note: "Tercih edilmeyen" },
                 { label: "Kapanış→Açılış", value: rules.clopening_multiplier ?? 1.2, icon: null, note: "Kısa dinlenme" },
               ].map(({ label, value, icon, note }) => (
@@ -269,11 +269,11 @@ export default function FairnessPage() {
                     <span className="font-semibold text-slate-700">{d.name}</span>
                     <span className="text-xs text-slate-400">{d.start}–{d.end}</span>
                     {d.is_night && (
-                      <span className="flex items-center gap-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md">
+                      <span className="flex items-center gap-0.5 text-[10px] font-bold bg-forest-50 text-forest-600 px-1.5 py-0.5 rounded-md">
                         <Moon size={9} /> Gece
                       </span>
                     )}
-                    <span className="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-ember-600 bg-ember-50 px-1.5 py-0.5 rounded-md">
                       {d.base_points ?? "?"}p
                     </span>
                   </div>
@@ -349,10 +349,10 @@ function CurrentView({
           <div key={p.id}>
           <button
             onClick={() => setExpandedId(isExpanded ? null : p.id)}
-            className={cn("w-full flex items-center gap-2 md:gap-3 rounded-xl px-1 py-0.5 transition-colors text-left", isExpanded ? "bg-indigo-50/60" : "hover:bg-slate-50")}
+            className={cn("w-full flex items-center gap-2 md:gap-3 rounded-xl px-1 py-0.5 transition-colors text-left", isExpanded ? "bg-forest-50/60" : "hover:bg-slate-50")}
           >
             {/* Avatar */}
-            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-600 font-bold text-xs flex items-center justify-center shrink-0">
               {p.name.charAt(0)}
             </div>
 
@@ -515,7 +515,7 @@ function HistoryView({
 
         return (
           <div key={p.id} className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-600 font-bold text-xs flex items-center justify-center shrink-0">
               {p.name.charAt(0)}
             </div>
             <div className="w-24 shrink-0">
@@ -541,7 +541,7 @@ function HistoryView({
                   <div
                     key={i}
                     title={tip}
-                    className={cn("flex-1 rounded-sm transition-all cursor-help", isLast ? "bg-indigo-500" : "bg-indigo-200")}
+                    className={cn("flex-1 rounded-sm transition-all cursor-help", isLast ? "bg-forest-500" : "bg-forest-200")}
                     style={{ height: `${Math.max(pct, 4)}%` }}
                   />
                 );

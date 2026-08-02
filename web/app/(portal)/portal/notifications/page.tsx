@@ -13,7 +13,7 @@ const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
   schedule:        { Icon: CalendarDays,    color: "bg-blue-100 text-blue-600" },
   leave_approved:  { Icon: CheckCircle2,    color: "bg-emerald-100 text-emerald-600" },
   leave_rejected:  { Icon: AlertTriangle,   color: "bg-red-100 text-red-600" },
-  trade_request:   { Icon: RefreshCw,       color: "bg-purple-100 text-purple-600" },
+  trade_request:   { Icon: RefreshCw,       color: "bg-ember-100 text-ember-600" },
   alert:           { Icon: AlertTriangle,   color: "bg-amber-100 text-amber-600" },
   shift_proposal:  { Icon: ArrowRightLeft,  color: "bg-sky-100 text-sky-600" },
 };
@@ -88,7 +88,7 @@ function NotifCard({
         onTouchEnd={handleTouchEnd}
         onClick={handleClick}
         className={`relative p-4 rounded-2xl border flex gap-4 cursor-pointer select-none bg-white ${
-          notif.is_read ? "border-slate-200" : "bg-indigo-50/50 border-indigo-100 shadow-sm"
+          notif.is_read ? "border-slate-200" : "bg-forest-50/50 border-forest-100 shadow-sm"
         }`}
       >
         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${cfg.color}`}>
@@ -96,13 +96,13 @@ function NotifCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-2 mb-1">
-            <h3 className={`text-sm ${notif.is_read ? "font-semibold text-slate-700" : "font-bold text-indigo-900"}`}>
+            <h3 className={`text-sm ${notif.is_read ? "font-semibold text-slate-700" : "font-bold text-forest-900"}`}>
               {notif.title}
-              {!notif.is_read && <span className="ml-2 inline-block w-2 h-2 bg-indigo-500 rounded-full align-middle" />}
+              {!notif.is_read && <span className="ml-2 inline-block w-2 h-2 bg-forest-500 rounded-full align-middle" />}
             </h3>
             <span className="text-[10px] text-slate-400 whitespace-nowrap mt-0.5 shrink-0">{timeAgo(notif.created_at)}</span>
           </div>
-          <p className={`text-xs leading-relaxed ${notif.is_read ? "text-slate-500" : "text-indigo-800/80 font-medium"}`}>
+          <p className={`text-xs leading-relaxed ${notif.is_read ? "text-slate-500" : "text-forest-800/80 font-medium"}`}>
             {notif.message}
           </p>
 
@@ -127,7 +127,7 @@ function NotifCard({
           {!notif.is_read && notif.type === "trade_request" && (
             <div className="flex gap-2 mt-3">
               <button className="flex-1 bg-white border border-slate-200 text-slate-600 py-1.5 text-xs font-bold rounded-lg hover:bg-slate-50">Reddet</button>
-              <button className="flex-1 bg-indigo-600 text-white py-1.5 text-xs font-bold rounded-lg hover:bg-indigo-700">İncele</button>
+              <button className="flex-1 bg-forest-600 text-white py-1.5 text-xs font-bold rounded-lg hover:bg-forest-700">İncele</button>
             </div>
           )}
         </div>
@@ -199,7 +199,7 @@ export default function NotificationsPage() {
         <Link href="/portal" className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors shrink-0">
           <ArrowLeft size={22} />
         </Link>
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-forest-100 rounded-xl flex items-center justify-center text-forest-600 shrink-0">
           <Bell size={18} />
         </div>
         <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ export default function NotificationsPage() {
           <p className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} okunmamış` : "Tümü okundu"}</p>
         </div>
         {unreadCount > 0 && (
-          <button onClick={markAllRead} className="text-xs text-indigo-600 font-bold hover:underline shrink-0">
+          <button onClick={markAllRead} className="text-xs text-forest-600 font-bold hover:underline shrink-0">
             Tümünü Oku
           </button>
         )}

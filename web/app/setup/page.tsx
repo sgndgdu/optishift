@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, User, Phone, Eye, EyeOff, Zap, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
+import { Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 function SetupForm() {
   const router = useRouter();
@@ -66,7 +67,7 @@ function SetupForm() {
           </div>
           <h1 className="text-2xl font-black text-slate-900 mb-2">Davet Linki Geçersiz</h1>
           <p className="text-slate-500 mb-6">{tokenError}</p>
-          <a href="/login" className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl hover:bg-indigo-700 transition-colors">
+          <a href="/login" className="inline-flex items-center gap-2 bg-forest-600 text-white font-bold px-6 py-3 rounded-2xl hover:bg-forest-700 transition-colors">
             Giriş Sayfasına Git
           </a>
         </div>
@@ -153,11 +154,11 @@ function SetupForm() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Zap size={22} className="text-indigo-600" />
+            <LogoMark size="md" />
             <span className="font-black text-slate-900 text-lg">OptiShift</span>
           </div>
-          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Shield size={32} className="text-indigo-600" />
+          <div className="w-16 h-16 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield size={32} className="text-forest-600" />
           </div>
           <h1 className="text-2xl font-black text-slate-900 mb-2">Hesabınızı Kurun</h1>
           <p className="text-slate-500 text-sm">
@@ -186,7 +187,7 @@ function SetupForm() {
                   onChange={e => setName(e.target.value)}
                   placeholder="Adınız Soyadınız"
                   required
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors"
                 />
               </div>
             </div>
@@ -202,7 +203,7 @@ function SetupForm() {
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="0555 123 45 67"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors"
                 />
               </div>
             </div>
@@ -224,7 +225,7 @@ function SetupForm() {
                       placeholder="En az 6 karakter"
                       required
                       autoComplete="new-password"
-                      className="w-full pl-11 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full pl-11 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors"
                     />
                     <button
                       type="button"
@@ -260,7 +261,7 @@ function SetupForm() {
                       className={`w-full pl-11 pr-12 py-3 bg-slate-50 border-2 rounded-2xl text-slate-900 font-medium focus:outline-none transition-colors ${
                         passwordConfirm && password !== passwordConfirm
                           ? "border-red-300 focus:border-red-500"
-                          : "border-slate-200 focus:border-indigo-500"
+                          : "border-slate-200 focus:border-forest-500"
                       }`}
                     />
                     <button
@@ -281,7 +282,7 @@ function SetupForm() {
             <button
               type="submit"
               disabled={loading || (!!passwordConfirm && password !== passwordConfirm)}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-100 mt-2 group"
+              className="w-full bg-forest-600 hover:bg-forest-700 disabled:bg-forest-300 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-forest-100 mt-2 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -5,8 +5,8 @@ export function LoadingState() {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-8 py-14">
       <div className="flex flex-col items-center gap-5">
         <div className="relative w-14 h-14">
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-forest-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-forest-500 border-t-transparent animate-spin" />
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700 mb-1">

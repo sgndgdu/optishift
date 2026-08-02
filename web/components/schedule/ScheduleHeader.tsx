@@ -38,7 +38,7 @@ export function ScheduleHeader({
         <div className="text-center min-w-[140px] md:min-w-[200px]">
           <p className="text-sm font-semibold text-slate-800">{weekLabel}</p>
           {runCount > 0 && (
-            <p className="text-xs text-indigo-400 mt-0.5">#{runCount}. çalıştırma</p>
+            <p className="text-xs text-forest-400 mt-0.5">#{runCount}. çalıştırma</p>
           )}
           {weekOffset !== 0 && runCount === 0 && (
             <p className="text-xs text-slate-400 mt-0.5">
@@ -76,7 +76,7 @@ export function ScheduleHeader({
         <button
           onClick={onGenerate}
           disabled={loading}
-          className="flex items-center gap-1.5 md:gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs md:text-sm font-medium px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-colors shadow-sm"
+          className="flex items-center gap-1.5 md:gap-2 bg-forest-600 hover:bg-forest-700 disabled:opacity-60 text-white text-xs md:text-sm font-medium px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-colors shadow-sm"
         >
           {loading ? (
             <RefreshCw size={15} className="animate-spin" />

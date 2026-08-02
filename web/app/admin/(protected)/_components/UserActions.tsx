@@ -70,7 +70,7 @@ export default function UserActions({ user }: { user: GodUser }) {
         onClick={handleImpersonate}
         disabled={busy !== null}
         title="Bu kullanıcı olarak giriş yap"
-        className="flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-200 border border-violet-500/20 hover:border-violet-400/40 bg-violet-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
+        className="flex items-center gap-1 text-[11px] font-medium text-ember-400 hover:text-ember-200 border border-ember-500/20 hover:border-ember-400/40 bg-ember-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
       >
         <LogIn size={11} /> {busy === "imp" ? "…" : "Gir"}
       </button>

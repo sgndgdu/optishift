@@ -84,7 +84,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full p-12">
-        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-ember-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -127,7 +127,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
             onClick={() => setTab(tid)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               tab === tid
-                ? "bg-violet-600 text-white"
+                ? "bg-ember-600 text-white"
                 : "text-slate-400 hover:text-white"
             }`}
           >
@@ -149,7 +149,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                 <select
                   value={plan}
                   onChange={(e) => setPlan(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50"
                 >
                   <option value="free">Free</option>
                   <option value="pro">Pro</option>
@@ -164,7 +164,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   value={maxPersonnel}
                   onChange={(e) => setMaxPersonnel(e.target.value)}
                   placeholder="Sınırsız"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-ember-500/50"
                 />
               </div>
               <div className="flex-1 min-w-[200px]">
@@ -174,14 +174,14 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Admin notu..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-ember-500/50"
                 />
               </div>
             </div>
             <button
               onClick={handleSavePlan}
               disabled={saving}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors"
+              className="flex items-center gap-2 bg-ember-600 hover:bg-ember-500 disabled:opacity-50 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
               Kaydet
@@ -264,7 +264,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
               {daily_shifts.map((d) => (
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                   <div
-                    className="w-full bg-violet-600/60 rounded-t-sm transition-all hover:bg-violet-500/80"
+                    className="w-full bg-ember-600/60 rounded-t-sm transition-all hover:bg-ember-500/80"
                     style={{ height: `${(Number(d.count) / maxShifts) * 100}%`, minHeight: "4px" }}
                     title={`${d.date}: ${d.count} vardiya`}
                   />
@@ -332,7 +332,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                 key={ev.id}
                 className="flex items-start gap-3 px-3 py-3 bg-white/3 rounded-xl"
               >
-                <div className="w-2 h-2 rounded-full bg-violet-400 mt-1.5 shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-ember-400 mt-1.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-slate-200">{ev.type}</p>
                   {ev.meta && (

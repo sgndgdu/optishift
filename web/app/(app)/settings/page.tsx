@@ -30,7 +30,7 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
     <button
       type="button"
       onClick={onToggle}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? "bg-indigo-600" : "bg-slate-200"}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? "bg-forest-600" : "bg-slate-200"}`}
     >
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
     </button>
@@ -67,7 +67,7 @@ function NumberInput({
           const raw = step && step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value);
           if (!isNaN(raw)) onChange(Math.min(max, Math.max(min, raw)));
         }}
-        className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
       />
       {suffix && <span className="text-xs text-slate-400 font-semibold">{suffix}</span>}
     </div>
@@ -108,7 +108,7 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
       type="time"
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 w-28"
+      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 w-28"
     />
   );
 }
@@ -139,12 +139,12 @@ function RequiredSkillsEditor({
       {skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {skills.map((rs, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700">
+            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-forest-50 border border-forest-200 text-forest-700">
               ≥{rs.count} {rs.skill}
               <button
                 type="button"
                 onClick={() => onChange(skills.filter((_, j) => j !== i))}
-                className="text-indigo-300 hover:text-red-500 transition-colors"
+                className="text-forest-300 hover:text-red-500 transition-colors"
               >
                 <X size={10} />
               </button>
@@ -159,7 +159,7 @@ function RequiredSkillsEditor({
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           list="known-skills-list"
           placeholder="Yetkinlik (örn. bakımcı)"
-          className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-indigo-400"
+          className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
         />
         <datalist id="known-skills-list">
           {knownSkills.map(s => <option key={s} value={s} />)}
@@ -167,12 +167,12 @@ function RequiredSkillsEditor({
         <input
           type="number" min={1} max={20} value={newCount}
           onChange={e => setNewCount(Number(e.target.value) || 1)}
-          className="w-14 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-indigo-400"
+          className="w-14 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
         />
         <button
           type="button"
           onClick={add}
-          className="text-[10px] font-bold px-2 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shrink-0"
+          className="text-[10px] font-bold px-2 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors shrink-0"
         >
           Ekle
         </button>
@@ -846,7 +846,7 @@ export default function SettingsPage() {
           onClick={() => setActiveTab(tab.key)}
           className={`px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
             activeTab === tab.key
-              ? "border-indigo-600 text-indigo-700"
+              ? "border-forest-600 text-forest-700"
               : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
           }`}
         >
@@ -859,7 +859,7 @@ export default function SettingsPage() {
       {simpleMode && (
         <button
           onClick={() => setShowAdvancedTabs(v => !v)}
-          className="ml-auto mr-2 text-xs font-semibold text-slate-400 hover:text-indigo-600 whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
+          className="ml-auto mr-2 text-xs font-semibold text-slate-400 hover:text-forest-600 whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-forest-50 transition-colors"
         >
           {showAdvancedTabs ? "Sade görünüme dön" : "Gelişmiş ayarları göster"}
         </button>
@@ -916,7 +916,7 @@ export default function SettingsPage() {
                               next[idx] = { ...next[idx], isOpen: e.target.checked };
                               setLocationData({ ...locationData, operating_hours: next });
                             }}
-                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-600 cursor-pointer"
+                            className="w-4 h-4 text-forest-600 border-slate-300 rounded focus:ring-forest-600 cursor-pointer"
                           />
                           <span className={`text-sm font-medium ${dayData.isOpen ? "text-slate-700" : "text-slate-400 line-through"}`}>{dayName}</span>
                         </label>
@@ -958,7 +958,7 @@ export default function SettingsPage() {
                             next[idx] = { ...next[idx], name: e.target.value };
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
-                          className="flex-1 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none px-1 py-0.5 text-sm"
+                          className="flex-1 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-forest-500 outline-none px-1 py-0.5 text-sm"
                         />
                         <button
                           type="button"
@@ -971,7 +971,7 @@ export default function SettingsPage() {
                           className={cn(
                             "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
                             shift.is_night
-                              ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                              ? "bg-forest-50 border-forest-300 text-forest-700"
                               : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
                           )}
                         >
@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
                       ];
                       setLocationData({ ...locationData, shift_definitions: next });
                     }}
-                    className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors min-h-[180px]"
+                    className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors min-h-[180px]"
                   >
                     <Plus size={22} className="mb-2" />
                     <span className="font-medium text-sm">Yeni Vardiya Ekle</span>
@@ -1082,7 +1082,7 @@ export default function SettingsPage() {
               <SectionCard title="Planlama Kuralları">
                 <RuleRow
                   label="Kıdemli Personel Kuralı"
-                  description={<>Her vardiyada en az 1 <span className="font-semibold text-indigo-700">kıdemli</span> personel bulunmasına çalışılır — zorunlu kalınırsa esnetilebilir.</>}
+                  description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır — zorunlu kalınırsa esnetilebilir.</>}
                   right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                 />
                 <RuleRow
@@ -1168,7 +1168,7 @@ export default function SettingsPage() {
                           <input
                             type="number" min={10} max={120} value={lateThresholdMin}
                             onChange={e => setLateThresholdMin(Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
-                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
+                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
                           />
                           <span>dakika</span>
                         </span>
@@ -1240,7 +1240,7 @@ export default function SettingsPage() {
                               }
                             }}
                             placeholder="İstanbul, Kadıköy..."
-                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
                           />
                           <button
                             onClick={() => {
@@ -1258,7 +1258,7 @@ export default function SettingsPage() {
                       {/* Cihaz konumu */}
                       <button
                         onClick={useDeviceLocation}
-                        className="flex items-center gap-1.5 text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100 transition-colors w-full justify-center font-medium"
+                        className="flex items-center gap-1.5 text-xs text-forest-600 border border-forest-200 bg-forest-50 rounded-lg px-2.5 py-1.5 hover:bg-forest-100 transition-colors w-full justify-center font-medium"
                       >
                         📍 Cihaz konumumu kullan
                       </button>
@@ -1327,7 +1327,7 @@ export default function SettingsPage() {
                             <select
                               value={reminderDay}
                               onChange={e => setReminderDay(e.target.value)}
-                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 bg-white"
+                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-forest-400 bg-white"
                             >
                               {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
                             </select>
@@ -1366,7 +1366,7 @@ export default function SettingsPage() {
                           }
                           setReminding(false);
                         }}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                        className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                       >
                         <Send size={14} /> {reminding ? "Gönderiliyor…" : "Gönder"}
                       </button>
@@ -1410,7 +1410,7 @@ export default function SettingsPage() {
                           <input
                             type="number" min={2} max={30} value={leaveMaxDays}
                             onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
-                            className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-indigo-500"
+                            className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
                           />
                           <span>gün</span>
                         </span>
@@ -1428,11 +1428,11 @@ export default function SettingsPage() {
             <div className="space-y-4">
 
               {/* Açıklama banner */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex gap-3">
-                <Scale size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+              <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
+                <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-indigo-800">Adalet Puanı Sistemi</p>
-                  <p className="text-xs text-indigo-600 mt-0.5">
+                  <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
+                  <p className="text-xs text-forest-600 mt-0.5">
                     Vardiyalar, personel arasındaki yük farkı en aza inecek şekilde adil dağıtılır. Aşağıdaki bileşenler bu hesabı etkiler — her birini ayrı ayrı açıp kapatabilirsiniz.
                   </p>
                 </div>
@@ -1457,7 +1457,7 @@ export default function SettingsPage() {
                 {/* Gece Vardiyası */}
                 <RuleRow
                   label="Gece Vardiyası Çarpanı"
-                  description={<><Moon size={11} className="text-indigo-400 inline mr-1" />&ldquo;Gece&rdquo; işaretli vardiyaların yük katsayısı. Kapalıysa gece vardiyeleri normal puan alır.</>}
+                  description={<><Moon size={11} className="text-forest-400 inline mr-1" />&ldquo;Gece&rdquo; işaretli vardiyaların yük katsayısı. Kapalıysa gece vardiyeleri normal puan alır.</>}
                   right={
                     <div className="flex items-center gap-2">
                       <div className={nightMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
@@ -1566,12 +1566,12 @@ export default function SettingsPage() {
                     onChange={e => setNewDeptName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
                     placeholder="Yeni departman adı (örn: Kasa)"
-                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
                   />
                   <button
                     disabled={!newDeptName.trim()}
                     onClick={handleAddDepartment}
-                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+                    className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
                   >
                     <Plus size={14} /> Ekle
                   </button>
@@ -1586,7 +1586,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     {departments.map(dept => (
                       <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
                         {editingDeptId === dept.id ? (
                           <input
                             value={editingDeptName}
@@ -1596,7 +1596,7 @@ export default function SettingsPage() {
                               if (e.key === "Escape") setEditingDeptId(null);
                             }}
                             autoFocus
-                            className="flex-1 px-2 py-1 text-sm border border-indigo-400 rounded-lg outline-none"
+                            className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
                           />
                         ) : (
                           <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
@@ -1643,14 +1643,14 @@ export default function SettingsPage() {
                         value={entry.zone}
                         onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
                         placeholder="Bölge adı (Örn: Kasa)"
-                        className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-indigo-500 py-0.5 text-slate-800 font-medium"
+                        className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-forest-500 py-0.5 text-slate-800 font-medium"
                       />
                       <span className="text-xs text-slate-400 shrink-0">min</span>
                       <input
                         type="number" min={0} max={99}
                         value={entry.min}
                         onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
-                        className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-500 font-bold"
+                        className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-forest-500 font-bold"
                       />
                       <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
                       <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
@@ -1660,7 +1660,7 @@ export default function SettingsPage() {
                   ))}
                   <button
                     onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
-                    className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors flex items-center justify-center gap-2"
+                    className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors flex items-center justify-center gap-2"
                   >
                     <Plus size={14} /> Kota Ekle
                   </button>
@@ -1699,7 +1699,7 @@ export default function SettingsPage() {
                       value={newCrewName}
                       onChange={e => setNewCrewName(e.target.value)}
                       placeholder="A Ekibi, Sabah Grubu…"
-                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
                     />
                   </div>
                   <div>
@@ -1733,7 +1733,7 @@ export default function SettingsPage() {
                         }
                       } catch { /* ignore */ }
                     }}
-                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                   >
                     <Plus size={14} /> Ekle
                   </button>
@@ -1755,7 +1755,7 @@ export default function SettingsPage() {
                           value={editingCrewName}
                           onChange={e => setEditingCrewName(e.target.value)}
                           autoFocus
-                          className="flex-1 px-2 py-1 text-sm border border-indigo-400 rounded-lg outline-none"
+                          className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
                         />
                       ) : (
                         <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
@@ -1823,7 +1823,7 @@ export default function SettingsPage() {
                             else if (t === "continental") setCycleWeeks(4);
                             else if (t === "4x10") setCycleWeeks(1);
                           }}
-                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
                         >
                           <option value="3-shift">3 Vardiyalı (Sabah / Öğleden Sonra / Gece)</option>
                           <option value="continental">Continental (2 çalış – 2 dinlen – 3 çalış)</option>
@@ -1845,7 +1845,7 @@ export default function SettingsPage() {
                           type="date"
                           value={referenceWeek}
                           onChange={e => setReferenceWeek(e.target.value)}
-                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
                         />
                       }
                     />
@@ -1889,7 +1889,7 @@ export default function SettingsPage() {
                                       return { ...prev, [crew.id]: arr };
                                     });
                                   }}
-                                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
                                 >
                                   <option value="">— İzin / Serbest —</option>
                                   {locationData.shift_definitions.map(sd => (
@@ -1942,7 +1942,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={savingAll}
-                className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-forest-500 hover:bg-forest-400 disabled:opacity-60 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors"
               >
                 <Save size={14} /> {savingAll ? "Kaydediliyor…" : "Kaydet"}
               </button>

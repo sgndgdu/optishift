@@ -93,13 +93,13 @@ export default function AdminUsersPage() {
             placeholder="İsim, kullanıcı adı veya e-posta ara…"
             value={q}
             onChange={e => setQ(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-ember-500/50 transition-colors"
           />
         </div>
         <select
           value={orgFilter}
           onChange={e => setOrgFilter(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 max-w-[220px]"
+          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50 max-w-[220px]"
         >
           <option value="">Tüm Org&apos;lar</option>
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -107,7 +107,7 @@ export default function AdminUsersPage() {
         <select
           value={roleFilter}
           onChange={e => setRoleFilter(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50"
+          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50"
         >
           <option value="">Tüm Roller</option>
           <option value="admin">Admin</option>
@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
       <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-ember-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -151,7 +151,7 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/admin/orgs/${u.org_id}`} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                      <Link href={`/admin/orgs/${u.org_id}`} className="text-xs text-ember-400 hover:text-ember-300 transition-colors">
                         {u.org_name ?? u.org_id}
                       </Link>
                     </td>

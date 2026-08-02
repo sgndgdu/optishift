@@ -17,7 +17,7 @@ import type { ShiftDefinition } from "@/lib/types";
 const SECTORS = [
   { id: "cafe",       label: "Kafe / Bar",      icon: Coffee,          color: "bg-amber-100 text-amber-700" },
   { id: "retail",     label: "Perakende",        icon: ShoppingBag,    color: "bg-blue-100 text-blue-700" },
-  { id: "hotel",      label: "Otel / Konaklama", icon: Hotel,           color: "bg-violet-100 text-violet-700" },
+  { id: "hotel",      label: "Otel / Konaklama", icon: Hotel,           color: "bg-ember-100 text-ember-700" },
   { id: "restaurant", label: "Restoran",         icon: UtensilsCrossed, color: "bg-rose-100 text-rose-700" },
   { id: "factory",    label: "Fabrika / Üretim", icon: Factory,         color: "bg-slate-200 text-slate-700" },
 ];
@@ -155,7 +155,7 @@ export default function OnboardingWizard() {
   if (!mounted || !user) return <div />;
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-50 to-indigo-50 overflow-auto flex flex-col items-center justify-start md:justify-center p-4 pt-8 md:pt-4">
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-50 to-forest-50 overflow-auto flex flex-col items-center justify-start md:justify-center p-4 pt-8 md:pt-4">
       <div className="w-full max-w-2xl">
 
         {/* Progress bar */}
@@ -194,7 +194,7 @@ export default function OnboardingWizard() {
 
             {/* ── Adım 0: Sektör + Şubeler ── */}
             {step === 0 && (
-              <Shell icon={<Store size={24} />} color="bg-indigo-100 text-indigo-600"
+              <Shell icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
                 sub="Sektörünüzü seçin, şubenizi adlandırın — vardiya şablonları ve ayarlar buna göre hazırlanır.">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-2.5">
@@ -247,7 +247,7 @@ export default function OnboardingWizard() {
 
             {/* ── Adım 1: Vardiya Tanımları ── */}
             {step === 1 && (
-              <Shell icon={<CalendarClock size={24} />} color="bg-violet-100 text-violet-600"
+              <Shell icon={<CalendarClock size={24} />} color="bg-ember-100 text-ember-600"
                 title="Vardiya Tanımları"
                 sub="Sektörünüze özel öneriler yüklendi — saatleri işletmenize göre düzenlemeniz yeterli.">
                 <div className="space-y-3">

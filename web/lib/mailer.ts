@@ -49,13 +49,13 @@ export function resetPasswordEmailHtml(name: string, resetUrl: string): string {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 16px;">
     <tr><td align="center">
       <table width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
-        <tr><td style="background:#4f46e5;padding:28px 32px;">
-          <p style="margin:0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;">⚡ OptiShift</p>
+        <tr><td style="background:#14453D;padding:28px 32px;">
+          <p style="margin:0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;">OptiShift</p>
         </td></tr>
         <tr><td style="padding:32px;">
           <h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#0f172a;">Şifre Sıfırlama</h1>
           <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">Merhaba ${name}, şifre sıfırlama talebinizi aldık. Aşağıdaki butona tıklayarak yeni şifrenizi belirleyebilirsiniz.</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#4f46e5;color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:12px;">Şifremi Sıfırla</a>
+          <a href="${resetUrl}" style="display:inline-block;background:#14453D;color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:12px;">Şifremi Sıfırla</a>
           <p style="margin:24px 0 0;color:#94a3b8;font-size:13px;">Bu link <strong>1 saat</strong> geçerlidir. Talebi siz oluşturmadıysanız bu e-postayı yok sayabilirsiniz.</p>
           <hr style="margin:24px 0;border:none;border-top:1px solid #f1f5f9;">
           <p style="margin:0;color:#cbd5e1;font-size:12px;">OptiShift · Vardiya Yönetim Platformu</p>

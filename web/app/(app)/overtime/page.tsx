@@ -500,8 +500,8 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-slate-200 transition-colors">
-      <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-        <span className="text-sm font-bold text-indigo-600">{(r.personnel_name ?? "?").charAt(0).toUpperCase()}</span>
+      <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
+        <span className="text-sm font-bold text-forest-600">{(r.personnel_name ?? "?").charAt(0).toUpperCase()}</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -676,8 +676,8 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
 
           return (
             <div key={p.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-indigo-600">{(p.name ?? "?").charAt(0).toUpperCase()}</span>
+              <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold text-forest-600">{(p.name ?? "?").charAt(0).toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">

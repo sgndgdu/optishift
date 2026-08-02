@@ -48,7 +48,8 @@ function usePendingOvertime() {
   }, []);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, Zap, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 
@@ -171,9 +172,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       {/* Brand */}
       <div className="flex items-center gap-3 px-3 mb-8">
         <Link href="/dashboard" className="flex items-center gap-3 flex-1 group">
-          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
-            <Zap size={18} className="text-white" />
-          </div>
+          <Logo size="md" className="shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
             <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Yönetim Paneli</p>
@@ -324,8 +323,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="mt-auto px-3 pt-6">
         <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-indigo-600 uppercase">
+            <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-forest-600 uppercase">
                 {user?.name?.charAt(0) ?? "U"}
               </span>
             </div>

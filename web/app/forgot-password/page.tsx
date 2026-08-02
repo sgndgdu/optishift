@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Zap, AtSign, ArrowLeft, AlertCircle, Mail } from "lucide-react";
+import { AtSign, ArrowLeft, AlertCircle, Mail } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 export default function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState("");
@@ -36,8 +37,8 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-[400px] space-y-6">
         {/* Logo */}
         <div className="text-center">
-          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-indigo-600 transition-colors">
-            <Zap size={20} className="text-indigo-600" />
+          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors">
+            <LogoMark size="md" />
             OptiShift
           </Link>
         </div>
@@ -46,8 +47,8 @@ export default function ForgotPasswordPage() {
           {!done ? (
             <>
               <div className="text-center">
-                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <AtSign size={22} className="text-indigo-600" />
+                <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <AtSign size={22} className="text-forest-600" />
                 </div>
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">Şifremi Unuttum</h1>
                 <p className="text-sm text-slate-500 mt-1.5">
@@ -75,7 +76,7 @@ export default function ForgotPasswordPage() {
                       onChange={e => setIdentifier(e.target.value)}
                       placeholder="ornek@email.com veya kullanici_adi"
                       required
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-400 placeholder:font-normal text-sm"
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal text-sm"
                     />
                   </div>
                 </div>
@@ -83,7 +84,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading || !identifier.trim()}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm"
+                  className="w-full bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -116,7 +117,7 @@ export default function ForgotPasswordPage() {
           <div className="pt-2 border-t border-slate-100 text-center">
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-forest-600 font-semibold transition-colors"
             >
               <ArrowLeft size={14} /> Giriş sayfasına dön
             </Link>

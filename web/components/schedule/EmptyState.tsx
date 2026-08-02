@@ -67,7 +67,7 @@ function RulesSection({ rules, onChange }: {
       {/* Alan yetki eşleşmesi */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
-          <CheckCircle2 size={16} className="text-indigo-500 shrink-0" />
+          <CheckCircle2 size={16} className="text-forest-500 shrink-0" />
           <p className="text-sm font-semibold text-slate-700">Rol Yetki Şartı</p>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -76,10 +76,10 @@ function RulesSection({ rules, onChange }: {
               onClick={() => onChange({ ...rules, skills_match: opt.value })}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
                 rules.skills_match === opt.value
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                  ? "bg-forest-50 border-forest-200 text-forest-700"
                   : "bg-transparent border-transparent text-slate-600 hover:bg-slate-50"
               }`}>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${rules.skills_match === opt.value ? "bg-indigo-600" : "bg-slate-300"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${rules.skills_match === opt.value ? "bg-forest-600" : "bg-slate-300"}`} />
               <div>
                 <span className="text-xs font-semibold block">{opt.label}</span>
               </div>
@@ -160,7 +160,7 @@ export function EmptyState({
               1. Lokasyon Uçuş Öncesi Kontrolü
             </SectionTitle>
           </div>
-          <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors shrink-0">
+          <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-forest-600 bg-forest-50 hover:bg-forest-100 px-4 py-2 rounded-lg transition-colors shrink-0">
             <Settings size={16} />
             Lokasyon Ayarlarına Git
           </Link>
@@ -220,7 +220,7 @@ export function EmptyState({
             <button
               type="button"
               onClick={copyToAllDays}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+              className="text-xs font-medium text-forest-600 hover:text-forest-700 bg-forest-50 hover:bg-forest-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
             >
               {DAYS_SHORT[selectedDay]} Değerlerini Tüm Haftaya Kopyala
             </button>
@@ -283,7 +283,7 @@ export function EmptyState({
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button type="button" onClick={onSaveAsDefault}
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-200 px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-forest-600 bg-white border border-slate-200 hover:border-forest-200 px-4 py-2.5 rounded-xl transition-colors shadow-sm">
             <Save size={16} />
             İhtiyaç ve Kuralları Kaydet
           </button>

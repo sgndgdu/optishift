@@ -177,15 +177,15 @@ export default function PortalDashboard() {
       </div>
 
       {/* ── Hero: Bugün ─────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary via-indigo-600 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-primary via-forest-600 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-indigo-400/20 rounded-full blur-2xl" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-forest-400/20 rounded-full blur-2xl" />
         <div className="relative z-10">
 
           {/* label */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-indigo-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
+              <div className="flex items-center gap-1.5 text-forest-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
                 {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
                 {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? "Vardiya bitti" : "Bugün"}
               </div>
@@ -229,7 +229,7 @@ export default function PortalDashboard() {
                   <span className="text-sm font-bold text-emerald-200">{shiftDur(todayShift)} saat çalıştın</span>
                 </div>
               )}
-              <p className="text-indigo-200/70 text-sm flex items-center gap-2">
+              <p className="text-forest-200/70 text-sm flex items-center gap-2">
                 <span>{shiftDur(todayShift)} saatlik vardiya</span>
                 {todayShift.location_name && (
                   <><span className="opacity-40">·</span><MapPin size={11} className="inline -mt-px" /> {todayShift.location_name}</>
@@ -240,11 +240,11 @@ export default function PortalDashboard() {
             <div className="mb-5">
               <div className="text-2xl font-black mb-1 text-white/70">Bugün vardiya yok</div>
               {upcomingShifts.length > 0 ? (
-                <p className="text-indigo-200/70 text-sm">
-                  Sonraki: <span className="font-bold text-indigo-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
+                <p className="text-forest-200/70 text-sm">
+                  Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
                 </p>
               ) : (
-                <p className="text-indigo-200/60 text-sm">Bu hafta başka vardiya yok.</p>
+                <p className="text-forest-200/60 text-sm">Bu hafta başka vardiya yok.</p>
               )}
             </div>
           )}
@@ -348,14 +348,14 @@ export default function PortalDashboard() {
                   <div key={i} onClick={() => router.push("/portal/calendar")}
                     className={`flex flex-col items-center gap-1 py-2.5 px-0.5 rounded-xl cursor-pointer transition-all active:scale-95 ${
                       isToday  ? "bg-primary text-white shadow-md shadow-primary/25" :
-                      hasShift ? "bg-indigo-50 text-indigo-700" :
+                      hasShift ? "bg-forest-50 text-forest-700" :
                                  "bg-slate-50 text-slate-400"
                     }`}>
-                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-indigo-200" : "opacity-60"}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-forest-200" : "opacity-60"}`}>
                       {SHORT[i]}
                     </span>
                     {hasShift ? (
-                      <span className={`text-[9px] font-black leading-none ${isToday ? "text-white" : "text-indigo-600"}`}>
+                      <span className={`text-[9px] font-black leading-none ${isToday ? "text-white" : "text-forest-600"}`}>
                         {dayShift?.start_time?.slice(0, 5) ?? ""}
                       </span>
                     ) : (
@@ -371,7 +371,7 @@ export default function PortalDashboard() {
       {/* ── Hızlı Erişim ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Müsaitlik", color: "text-violet-600 bg-violet-50" },
+          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Müsaitlik", color: "text-ember-600 bg-ember-50" },
           { href: "/portal/requests",     icon: <ClipboardList size={18}/>, label: "Talepler",  color: "text-amber-600  bg-amber-50"  },
           { href: "/portal/calendar",     icon: <CalIcon size={18} />,      label: "Takvim",    color: "text-emerald-600 bg-emerald-50"},
         ].map(item => (
@@ -385,16 +385,16 @@ export default function PortalDashboard() {
 
       {/* ── Müsaitlik hatırlatıcı ────────────────────────────────────────── */}
       {nextWeekAvail === false && (
-        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-2xl px-4 py-3.5">
-          <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-            <AlertCircle size={18} className="text-violet-600" />
+        <div className="flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5">
+          <div className="w-9 h-9 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
+            <AlertCircle size={18} className="text-ember-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-violet-800">Gelecek hafta müsaitliğin eksik</p>
-            <p className="text-xs text-violet-500 mt-0.5">Müdürün planlama yapabilmesi için gir.</p>
+            <p className="text-sm font-bold text-ember-800">Gelecek hafta müsaitliğin eksik</p>
+            <p className="text-xs text-ember-500 mt-0.5">Müdürün planlama yapabilmesi için gir.</p>
           </div>
           <Link href="/portal/availability"
-            className="text-xs font-bold text-violet-700 bg-white border border-violet-200 px-3 py-2 rounded-xl whitespace-nowrap hover:bg-violet-50 transition-colors shrink-0">
+            className="text-xs font-bold text-ember-700 bg-white border border-ember-200 px-3 py-2 rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">
             Gir →
           </Link>
         </div>
@@ -487,8 +487,8 @@ export default function PortalDashboard() {
                   const max = Math.max(...fairness.history.map((x: any) => x.burden_score), 1);
                   return (
                     <div key={h.week_start} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-indigo-100 rounded-md relative overflow-hidden" style={{ height: "100%" }}>
-                        <div className="absolute bottom-0 w-full bg-indigo-400 rounded-md" style={{ height: `${(h.burden_score / max) * 100}%` }} />
+                      <div className="w-full bg-forest-100 rounded-md relative overflow-hidden" style={{ height: "100%" }}>
+                        <div className="absolute bottom-0 w-full bg-forest-400 rounded-md" style={{ height: `${(h.burden_score / max) * 100}%` }} />
                       </div>
                       <span className="text-[8px] text-slate-400 font-semibold">
                         {new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "numeric" })}
@@ -506,10 +506,10 @@ export default function PortalDashboard() {
                     <p className="font-bold text-slate-700">Son hafta ({new Date(last.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}): {Math.round(last.burden_score * 10) / 10} yük puanı · {Math.round(last.total_hours * 10) / 10} saat</p>
                     <div className="flex flex-wrap gap-1.5">
                       {last.weekend_shifts > 0 && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.weekend_shifts} hafta sonu</span>}
-                      {last.night_shifts > 0 && <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.night_shifts} gece</span>}
+                      {last.night_shifts > 0 && <span className="bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.night_shifts} gece</span>}
                       {(last.pref_not_shifts ?? 0) > 0 && <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.pref_not_shifts} sarı gün (telafili)</span>}
                       {last.clopening_count > 0 && <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.clopening_count} kapanış→açılış</span>}
-                      {fairness.hero_count > 0 && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">🦸 {fairness.hero_count} kahramanlık</span>}
+                      {fairness.hero_count > 0 && <span className="bg-ember-50 text-ember-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">🦸 {fairness.hero_count} kahramanlık</span>}
                     </div>
                   </div>
                 );
@@ -562,7 +562,7 @@ export default function PortalDashboard() {
             <div className="divide-y divide-slate-50">
               {notifs.map(n => (
                 <Link key={n.id} href={getNotifHref(n)}
-                  className={`flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors ${!n.is_read ? "bg-indigo-50/40" : ""}`}>
+                  className={`flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors ${!n.is_read ? "bg-forest-50/40" : ""}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                     n.type === "schedule" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
                   }`}>

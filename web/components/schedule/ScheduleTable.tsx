@@ -6,13 +6,13 @@ import { type Role, type ShiftDefinition, calcPoints } from "@/lib/types";
 // ─── Renk yardımcıları ────────────────────────────────────────────────────────
 
 const ZONE_PALETTE: Record<string, { pill: string; dot: string }> = {
-  Kasa:   { pill: "bg-indigo-50 text-indigo-700 border-indigo-200",   dot: "bg-indigo-500"  },
+  Kasa:   { pill: "bg-forest-50 text-forest-700 border-forest-200",   dot: "bg-forest-500"  },
   Reyon:  { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
   Mutfak: { pill: "bg-pink-50 text-pink-700 border-pink-200",         dot: "bg-pink-500"    },
 };
 const FALLBACK_PILLS = [
   { pill: "bg-orange-50 text-orange-700 border-orange-200",  dot: "bg-orange-500"  },
-  { pill: "bg-violet-50 text-violet-700 border-violet-200",  dot: "bg-violet-500"  },
+  { pill: "bg-ember-50 text-ember-700 border-ember-200",  dot: "bg-ember-500"  },
   { pill: "bg-cyan-50 text-cyan-700 border-cyan-200",        dot: "bg-cyan-500"    },
   { pill: "bg-amber-50 text-amber-700 border-amber-200",     dot: "bg-amber-500"   },
   { pill: "bg-rose-50 text-rose-700 border-rose-200",        dot: "bg-rose-500"    },
@@ -342,7 +342,7 @@ export function ScheduleTable({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
-          <button onClick={() => setShowPoints(!showPoints)} className="text-xs text-slate-500 hover:text-indigo-600 font-medium px-2 md:px-3 py-1.5 md:py-2 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-transparent hover:border-indigo-100">
+          <button onClick={() => setShowPoints(!showPoints)} className="text-xs text-slate-500 hover:text-forest-600 font-medium px-2 md:px-3 py-1.5 md:py-2 rounded-lg hover:bg-forest-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-transparent hover:border-forest-100">
             <Info size={13} /> <span className="hidden sm:inline">Puanlama Nasıl Yapılıyor?</span><span className="sm:hidden">Puan</span>
           </button>
 
@@ -398,7 +398,7 @@ export function ScheduleTable({
                 {/* Personel kolonu */}
                 <td className="px-5 py-3" style={{ width: 190 }}>
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-forest-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
                       {initials(p.name)}
                     </div>
                     <div className="min-w-0">
@@ -464,7 +464,7 @@ export function ScheduleTable({
 
                 {/* Puan kolonu */}
                 <td className="text-center px-4 py-3">
-                  <span className="text-base font-bold text-indigo-600 block leading-tight">{scores[p.id] ?? 0}p</span>
+                  <span className="text-base font-bold text-forest-600 block leading-tight">{scores[p.id] ?? 0}p</span>
                   <span className="text-[10px] text-slate-400">önceki: {p.prev_score}p</span>
                 </td>
               </tr>

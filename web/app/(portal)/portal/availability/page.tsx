@@ -89,8 +89,8 @@ function TimePicker({ currentMin, isEnd, statusCfg, onApply, onClose }: {
           <button onClick={() => setHour(h => Math.min(maxHour, h + 1))}
             className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-black text-lg flex items-center justify-center active:scale-95 transition-transform">+</button>
           <div className="text-center min-w-[52px]">
-            {nextDay && <div className="text-[8px] text-violet-500 font-bold mb-0.5">ertesi gün</div>}
-            <div className={`text-3xl font-black tabular-nums leading-none ${nextDay ? "text-violet-700" : "text-slate-800"}`}>
+            {nextDay && <div className="text-[8px] text-ember-500 font-bold mb-0.5">ertesi gün</div>}
+            <div className={`text-3xl font-black tabular-nums leading-none ${nextDay ? "text-ember-700" : "text-slate-800"}`}>
               {String(dispHour).padStart(2, "0")}
             </div>
           </div>
@@ -119,7 +119,7 @@ function TimePicker({ currentMin, isEnd, statusCfg, onApply, onClose }: {
       {/* Önizleme */}
       <div className="text-center text-xs text-slate-400 font-medium mb-3">
         {nextDay
-          ? <span>Ertesi gün <span className="font-bold text-violet-600">{String(dispHour).padStart(2,"0")}:{String(min).padStart(2,"0")}</span></span>
+          ? <span>Ertesi gün <span className="font-bold text-ember-600">{String(dispHour).padStart(2,"0")}:{String(min).padStart(2,"0")}</span></span>
           : <span className="font-bold text-slate-600">{String(dispHour).padStart(2,"0")}:{String(min).padStart(2,"0")}</span>
         }
       </div>
@@ -198,9 +198,9 @@ function RangeSlider({ start, end, status, onChange }: {
           className={`text-right rounded-xl px-2 py-1 -mr-2 transition-colors ${picker === "end" ? cfg.light : "hover:bg-slate-50"}`}>
           <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5 flex items-center justify-end gap-1">
             Bitiş
-            {isNextDay && <span className="bg-violet-100 text-violet-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">+1</span>}
+            {isNextDay && <span className="bg-ember-100 text-ember-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">+1</span>}
           </div>
-          <div className={`text-2xl font-black tabular-nums leading-none ${isNextDay ? "text-violet-700" : "text-slate-800"}`}>
+          <div className={`text-2xl font-black tabular-nums leading-none ${isNextDay ? "text-ember-700" : "text-slate-800"}`}>
             {displayTime(eMin)}
           </div>
         </button>
@@ -360,15 +360,15 @@ export default function PortalAvailability() {
     return (
       <div className="p-5 animate-in fade-in duration-300">
         <div className="flex flex-col items-center text-center gap-3 bg-white border border-slate-200 rounded-2xl px-6 py-10 mt-6">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-            <CalendarCheck size={22} className="text-indigo-500" />
+          <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
+            <CalendarCheck size={22} className="text-forest-500" />
           </div>
           <h1 className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</h1>
           <p className="text-sm text-slate-500 max-w-xs">
             Müsaitlik girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>
           <Link href="/portal/calendar"
-            className="mt-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 rounded-xl transition-colors">
+            className="mt-2 text-sm font-bold text-white bg-forest-600 hover:bg-forest-700 px-5 py-2.5 rounded-xl transition-colors">
             Vardiyalarımı Gör
           </Link>
         </div>

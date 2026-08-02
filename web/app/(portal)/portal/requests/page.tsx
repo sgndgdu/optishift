@@ -483,12 +483,12 @@ export default function PortalRequests() {
           {overtimePending.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
-                <Clock size={14} className="text-indigo-600" />
+                <Clock size={14} className="text-forest-600" />
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fazla Mesai Onayları</h2>
-                <span className="ml-1 bg-indigo-100 text-indigo-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{overtimePending.length}</span>
+                <span className="ml-1 bg-forest-100 text-forest-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{overtimePending.length}</span>
               </div>
               {overtimePending.map((r: any) => (
-                <div key={r.id} className="bg-white rounded-2xl border border-indigo-200 p-4 space-y-3">
+                <div key={r.id} className="bg-white rounded-2xl border border-forest-200 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-black text-slate-900">
@@ -499,7 +499,7 @@ export default function PortalRequests() {
                       </p>
                       {r.note && <p className="text-xs text-slate-400 mt-1 italic">{r.note}</p>}
                     </div>
-                    <Clock size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+                    <Clock size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   </div>
                   <p className="text-[11px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
                     Kabul edersen telafi türünü sen seçersin: <b>zamlı ücret</b> (%50 artırımlı) veya <b>serbest zaman</b> (1 saat mesai = 1,5 saat izin).
@@ -692,7 +692,7 @@ export default function PortalRequests() {
                           selMate?.id === p.id ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0">
                           {p.name.charAt(0)}
                         </div>
                         <div>

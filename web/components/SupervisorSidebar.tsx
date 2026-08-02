@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, CalendarClock, Settings,
-  Zap, LogOut, MessageSquare, Building2, BarChart3, X, UserCog
+  LogOut, MessageSquare, Building2, BarChart3, X, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -83,12 +84,10 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
       {/* Brand */}
       <div className="flex items-center gap-3 px-3 mb-8">
         <Link href="/supervisor" className="flex items-center gap-3 flex-1 group">
-          <div className="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center shadow-md shadow-violet-200 group-hover:shadow-violet-300 transition-shadow">
-            <Zap size={18} className="text-white" />
-          </div>
+          <Logo size="md" tone="ember" className="shadow-md shadow-ember-200 group-hover:shadow-ember-300 transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-[10px] font-medium text-violet-500 mt-1 uppercase tracking-wider">{roleLabel}</p>
+            <p className="text-[10px] font-medium text-ember-500 mt-1 uppercase tracking-wider">{roleLabel}</p>
           </div>
         </Link>
         {onClose && (
@@ -106,7 +105,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
         <div className="px-3 mb-8">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Organizasyon</p>
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-3">
-            <Building2 size={16} className="text-violet-500 shrink-0" />
+            <Building2 size={16} className="text-ember-500 shrink-0" />
             <div className="truncate">
               <span className="text-sm font-semibold text-slate-800 truncate block">
                 {orgName || user?.org_name || "Organizasyon"}
@@ -130,15 +129,15 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
               className={cn(
                 "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                 active
-                  ? "bg-violet-50 text-violet-700"
+                  ? "bg-ember-50 text-ember-700"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-violet-600 rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-ember-600 rounded-r-full" />
               )}
               <div className="relative shrink-0">
-                <Icon size={18} className={cn("transition-colors", active ? "text-violet-600" : "text-slate-400 group-hover:text-slate-600")} />
+                <Icon size={18} className={cn("transition-colors", active ? "text-ember-600" : "text-slate-400 group-hover:text-slate-600")} />
                 {isChat && chatUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
                 )}
@@ -162,8 +161,8 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
       <div className="mt-auto px-3 pt-6">
         <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-violet-600 uppercase">
+            <div className="w-9 h-9 rounded-full bg-ember-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-ember-600 uppercase">
                 {user?.name?.charAt(0) ?? "S"}
               </span>
             </div>

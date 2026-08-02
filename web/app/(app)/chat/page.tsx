@@ -56,8 +56,8 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
         isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
       }`}>
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative ${
-        c.type === "group" ? "bg-violet-100 text-violet-700" :
-        c.role === "supervisor" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+        c.type === "group" ? "bg-ember-100 text-ember-700" :
+        c.role === "supervisor" ? "bg-amber-100 text-amber-700" : "bg-forest-100 text-forest-700"
       }`}>
         {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
         {(c.unread ?? 0) > 0 && (
@@ -391,7 +391,7 @@ export default function ManagerChatPage() {
                 <ChevronRight size={16} className="rotate-180" />
               </button>
               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                selected.type === "group" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
+                selected.type === "group" ? "bg-ember-100 text-ember-700" : "bg-forest-100 text-forest-700"
               }`}>
                 {selected.type === "group" ? <Users size={16} /> : selected.name.charAt(0).toUpperCase()}
               </div>
@@ -437,7 +437,7 @@ export default function ManagerChatPage() {
                       return (
                         <div key={m.id} className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
                           {!isMe && (
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0 mt-0.5">
+                            <div className="w-7 h-7 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0 mt-0.5">
                               {name?.charAt(0)?.toUpperCase() ?? "?"}
                             </div>
                           )}

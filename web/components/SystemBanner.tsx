@@ -7,7 +7,7 @@ import { Info, AlertTriangle, AlertOctagon, X } from "lucide-react";
 type Banner = { id: number; message: string; type: string };
 
 const STYLES: Record<string, { cls: string; icon: React.ElementType }> = {
-  info:     { cls: "bg-indigo-600 text-white",  icon: Info },
+  info:     { cls: "bg-forest-600 text-white",  icon: Info },
   warning:  { cls: "bg-amber-500 text-white",   icon: AlertTriangle },
   critical: { cls: "bg-red-600 text-white",     icon: AlertOctagon },
 };

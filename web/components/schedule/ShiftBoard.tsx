@@ -24,7 +24,7 @@ function segColor(s: string) {
 function Avatar({ name, size = 7 }: { name: string; size?: number }) {
   return (
     <div className={cn(
-      "rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0",
+      "rounded-full bg-forest-100 text-forest-700 font-bold text-xs flex items-center justify-center shrink-0",
       `w-${size} h-${size}`
     )}>
       {name.charAt(0)}
@@ -74,7 +74,7 @@ export function DraggablePersonnelCard({ person, disabled, isWeeklyOff, availDay
       {...attributes}
       className={cn(
         "px-3 py-2 border rounded-xl shadow-sm transition-all select-none",
-        isDragging ? "opacity-60 scale-105 shadow-lg z-50" : "hover:border-indigo-300 hover:shadow-sm",
+        isDragging ? "opacity-60 scale-105 shadow-lg z-50" : "hover:border-forest-300 hover:shadow-sm",
         disabled ? "opacity-40 cursor-not-allowed" : "cursor-grab active:cursor-grabbing",
         borderCls,
       )}
@@ -173,7 +173,7 @@ export function DraggableAssignedCard({ person, day, shiftDef, forceStatus }: {
   const chipCls =
     isPending  ? "bg-amber-50 border-amber-300 text-amber-800" :
     isRejected ? "bg-red-50 border-red-200 text-red-600 opacity-70" :
-                 "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100";
+                 "bg-forest-50 border-forest-200 text-forest-700 hover:bg-forest-100";
 
   return (
     <div
@@ -211,7 +211,7 @@ export function DroppableShiftContainer({ id, children, name, timeRange, require
       className={cn(
         "rounded-xl border transition-all",
         isOver
-          ? "border-indigo-400 bg-indigo-50 ring-2 ring-indigo-200"
+          ? "border-forest-400 bg-forest-50 ring-2 ring-forest-200"
           : "border-slate-200 bg-white hover:border-slate-300",
       )}
     >
@@ -227,7 +227,7 @@ export function DroppableShiftContainer({ id, children, name, timeRange, require
       {/* Drop area */}
       <div className={cn(
         "p-1.5 min-h-[52px] flex flex-col gap-1",
-        isOver && "bg-indigo-50/50"
+        isOver && "bg-forest-50/50"
       )}>
         {children}
         {currentCount === 0 && !isOver && (
@@ -266,7 +266,7 @@ const EV_EMOJI: Record<string, string> = {
   kampanya: "🎯", etkinlik: "🎉", denetim: "📋", kapali: "🔒", diger: "📌",
 };
 const EV_CLS: Record<string, string> = {
-  kampanya: "bg-purple-50 text-purple-700 border-purple-200",
+  kampanya: "bg-ember-50 text-ember-700 border-ember-200",
   etkinlik: "bg-blue-50 text-blue-700 border-blue-200",
   denetim:  "bg-orange-50 text-orange-700 border-orange-200",
   kapali:   "bg-red-50 text-red-700 border-red-200",
@@ -323,13 +323,13 @@ export function ShiftBoard({
               placeholder="Ara…"
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              className="w-full pl-7 pr-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="w-full pl-7 pr-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest-400"
             />
           </div>
           <select
             value={selectedDay}
             onChange={e => setSelectedDay(e.target.value === "all" ? "all" : parseInt(e.target.value))}
-            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer"
+            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-forest-400 cursor-pointer"
           >
             <option value="all">Tüm günler</option>
             {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
@@ -357,7 +357,7 @@ export function ShiftBoard({
                 {hours > 0 && (
                   <span className={cn(
                     "absolute -top-1 -right-1 z-10 text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm text-white",
-                    hours > (p.max_weekly_hours ?? 45) ? "bg-red-500" : "bg-indigo-500"
+                    hours > (p.max_weekly_hours ?? 45) ? "bg-red-500" : "bg-forest-500"
                   )}>
                     {Math.round(hours)}s
                   </span>

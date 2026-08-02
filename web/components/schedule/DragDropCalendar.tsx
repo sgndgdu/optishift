@@ -53,9 +53,9 @@ const WEEKEND = new Set([5, 6]);
 
 const SHIFT_ACCENT = [
   { bar: "bg-amber-400",   light: "bg-amber-50",   text: "text-amber-800",  border: "border-amber-200"  },
-  { bar: "bg-indigo-500",  light: "bg-indigo-50",  text: "text-indigo-800", border: "border-indigo-200" },
+  { bar: "bg-forest-500",  light: "bg-forest-50",  text: "text-forest-800", border: "border-forest-200" },
   { bar: "bg-sky-500",     light: "bg-sky-50",     text: "text-sky-800",    border: "border-sky-200"    },
-  { bar: "bg-violet-500",  light: "bg-violet-50",  text: "text-violet-800", border: "border-violet-200" },
+  { bar: "bg-ember-500",  light: "bg-ember-50",  text: "text-ember-800", border: "border-ember-200" },
   { bar: "bg-teal-500",    light: "bg-teal-50",    text: "text-teal-800",   border: "border-teal-200"   },
 ];
 function sa(i: number) { return SHIFT_ACCENT[i % SHIFT_ACCENT.length]; }
@@ -65,7 +65,7 @@ const ZONE_AVATAR = [
   { bg: "bg-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
   { bg: "bg-amber-200",   text: "text-amber-900",   dot: "bg-amber-500"   },
   { bg: "bg-sky-200",     text: "text-sky-900",     dot: "bg-sky-500"     },
-  { bg: "bg-violet-200",  text: "text-violet-900",  dot: "bg-violet-500"  },
+  { bg: "bg-ember-200",  text: "text-ember-900",  dot: "bg-ember-500"  },
   { bg: "bg-teal-200",    text: "text-teal-900",    dot: "bg-teal-500"    },
 ];
 const DEFAULT_AVATAR = { bg: "bg-slate-100", text: "text-slate-600", dot: "bg-slate-400" };
@@ -282,7 +282,7 @@ function ShiftCell({
     <div
       ref={setNodeRef}
       className={`relative flex-1 min-h-[80px] p-2 border-r border-slate-100 last:border-0 flex flex-col gap-1.5
-        ${isOver ? "bg-indigo-50/60 ring-1 ring-inset ring-indigo-300" : ""}`}
+        ${isOver ? "bg-forest-50/60 ring-1 ring-inset ring-forest-300" : ""}`}
     >
       {hasZones ? (
         <>
@@ -342,7 +342,7 @@ function ShiftCell({
 
       <button
         onClick={() => setShowPicker((v) => !v)}
-        className="mt-auto flex items-center gap-1 text-[10px] text-slate-300 hover:text-indigo-500 transition-colors self-start pt-0.5"
+        className="mt-auto flex items-center gap-1 text-[10px] text-slate-300 hover:text-forest-500 transition-colors self-start pt-0.5"
       >
         <Plus size={11} />
         <span className="font-medium">Ekle</span>
@@ -567,12 +567,12 @@ export function DragDropCalendar({
                     key={d}
                     className={`flex-1 py-3 text-center border-r border-slate-100 last:border-0 ${isWE ? "bg-slate-50/80" : ""}`}
                   >
-                    <div className={`text-[12px] font-extrabold ${isWE ? "text-indigo-600" : "text-slate-700"}`}>{d}</div>
+                    <div className={`text-[12px] font-extrabold ${isWE ? "text-forest-600" : "text-slate-700"}`}>{d}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">{weekDates[i] ?? i + 1}</div>
                     <div className="mt-1.5 h-[18px] flex items-center justify-center">
                       {count > 0 ? (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full
-                          ${isWE ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>
+                          ${isWE ? "bg-forest-100 text-forest-700" : "bg-emerald-100 text-emerald-700"}`}>
                           {count}
                         </span>
                       ) : (
@@ -632,7 +632,7 @@ export function DragDropCalendar({
             ? (() => {
                 const ac = avatarColor(primaryZone(activePerson));
                 return (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-2 border-indigo-300 rounded-xl shadow-2xl cursor-grabbing rotate-2">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-2 border-forest-300 rounded-xl shadow-2xl cursor-grabbing rotate-2">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${ac.bg} ${ac.text}`}>
                       {activePerson.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()}
                     </div>

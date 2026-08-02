@@ -215,7 +215,7 @@ export default function DashboardPage() {
   })();
 
   const kpi = [
-    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-indigo-600", bg: "bg-indigo-100",  href: "/personnel" },
+    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-forest-600", bg: "bg-forest-100",  href: "/personnel" },
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100", href: "/requests" },
     { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
     { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100", href: "/fairness" },
@@ -250,9 +250,9 @@ export default function DashboardPage() {
 
       {/* Sıradaki adım — tek öncelikli aksiyon */}
       {nextStep && (
-        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="bg-gradient-to-r from-forest-50 to-ember-50 border border-forest-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Sıradaki Adım</p>
+            <p className="text-[10px] font-black text-forest-500 uppercase tracking-widest mb-0.5">Sıradaki Adım</p>
             <p className="text-sm font-bold text-slate-900">{nextStep.title}</p>
             <p className="text-xs text-slate-500 mt-0.5">{nextStep.desc}</p>
           </div>
@@ -265,7 +265,7 @@ export default function DashboardPage() {
             </Link>
           )}
           {!nextStep.href && (
-            <span className="text-xs font-bold text-indigo-500 shrink-0">{nextStep.cta}</span>
+            <span className="text-xs font-bold text-forest-500 shrink-0">{nextStep.cta}</span>
           )}
         </div>
       )}
@@ -429,7 +429,7 @@ export default function DashboardPage() {
           <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5 flex-1">
-                <div className="p-2 bg-indigo-100 rounded-xl text-primary">
+                <div className="p-2 bg-forest-100 rounded-xl text-primary">
                   <TrendingUp size={18} />
                 </div>
                 <CardTitle className="text-base font-bold">Adalet Skoru Dağılımı</CardTitle>
@@ -569,7 +569,7 @@ export default function DashboardPage() {
 
       {/* Hızlı Eylemler — Onboarding */}
       {!loading && personnel.filter(p => p.status === "active").length <= 1 && (
-        <Card className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border-indigo-100/50 shadow-none">
+        <Card className="bg-gradient-to-r from-forest-50/50 to-ember-50/50 border-forest-100/50 shadow-none">
           <CardContent className="p-6">
             <h2 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
               <span>🚀</span> Başlangıç Rehberi

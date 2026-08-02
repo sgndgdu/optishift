@@ -90,14 +90,14 @@ export default function AdminBannersPage() {
       {/* Yeni duyuru */}
       <div className="bg-white/3 border border-white/8 rounded-2xl p-5 space-y-4">
         <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          <Plus size={14} className="text-violet-400" /> Yeni Duyuru
+          <Plus size={14} className="text-ember-400" /> Yeni Duyuru
         </h2>
         <textarea
           value={message}
           onChange={e => setMessage(e.target.value)}
           rows={2}
           placeholder="Duyuru metni… (örn: Pazar 02:00-04:00 arası planlı bakım yapılacaktır)"
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50 resize-none"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-ember-500/50 resize-none"
         />
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -124,13 +124,13 @@ export default function AdminBannersPage() {
               type="datetime-local"
               value={endsAt}
               onChange={e => setEndsAt(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/50 [color-scheme:dark]"
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-ember-500/50 [color-scheme:dark]"
             />
           </div>
           <button
             onClick={handleCreate}
             disabled={saving || !message.trim()}
-            className="ml-auto flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+            className="ml-auto flex items-center gap-2 bg-ember-600 hover:bg-ember-500 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
           >
             <Megaphone size={14} /> {saving ? "Yayınlanıyor…" : "Yayınla"}
           </button>
@@ -141,7 +141,7 @@ export default function AdminBannersPage() {
       <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-ember-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : banners.length === 0 ? (
           <div className="px-5 py-12 text-center text-slate-600 text-sm">

@@ -37,7 +37,7 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
       <aside className="w-16 hover:w-56 transition-[width] duration-200 ease-in-out group shrink-0 bg-[#0f0f17] border-r border-white/5 flex flex-col py-6 gap-1 overflow-hidden">
         {/* Logo */}
         <div className="flex items-center justify-center w-16 shrink-0 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-ember-600 flex items-center justify-center">
             <Shield size={16} className="text-white" />
           </div>
         </div>

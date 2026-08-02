@@ -133,7 +133,7 @@ function eventCoversDate(ev: LocationEvent, isoDate: string): boolean {
 }
 
 const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: string }> = {
-  kampanya: { emoji: "🎯", color: "bg-purple-50 text-purple-700 border-purple-200", label: "Kampanya"  },
+  kampanya: { emoji: "🎯", color: "bg-ember-50 text-ember-700 border-ember-200", label: "Kampanya"  },
   etkinlik: { emoji: "🎉", color: "bg-blue-50 text-blue-700 border-blue-200",       label: "Etkinlik"  },
   denetim:  { emoji: "📋", color: "bg-orange-50 text-orange-700 border-orange-200", label: "Denetim"   },
   kapali:   { emoji: "🔒", color: "bg-red-50 text-red-700 border-red-200",          label: "Kapalı"    },
@@ -222,7 +222,7 @@ function SnapshotGrid({ data }: { data: FullPub }) {
           <tr className="bg-slate-50/80 border-b border-slate-200">
             <th className="py-2.5 px-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-40 sticky left-0 bg-slate-50/80 z-10">Personel</th>
             {DAYS_SHORT.map((d, i) => (
-              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-black uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-indigo-500 bg-indigo-50/40" : "text-slate-400")}>
+              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-black uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
                 {d}
               </th>
             ))}
@@ -255,7 +255,7 @@ function SnapshotGrid({ data }: { data: FullPub }) {
                     <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/40 transition-colors">
                       <td className="py-2.5 px-4 sticky left-0 bg-white z-10">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-black flex items-center justify-center shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-forest-100 text-forest-600 text-[10px] font-black flex items-center justify-center shrink-0">
                             {p.name.charAt(0)}
                           </div>
                           <span className="font-semibold text-slate-800 truncate max-w-[90px]">{p.name}</span>
@@ -264,13 +264,13 @@ function SnapshotGrid({ data }: { data: FullPub }) {
                       {Array.from({ length: 7 }, (_, d) => {
                         const cell = cellMap[`${p.id}-${d}`];
                         return (
-                          <td key={d} className={cn("py-1 px-1 text-center", d >= 5 && "bg-indigo-50/20")}>
+                          <td key={d} className={cn("py-1 px-1 text-center", d >= 5 && "bg-forest-50/20")}>
                             {cell ? (
-                              <div className="bg-indigo-50 border border-indigo-200/70 rounded-lg py-1 px-1 mx-auto max-w-[80px]">
-                                <div className="font-bold text-indigo-700 text-[10px] truncate">
+                              <div className="bg-forest-50 border border-forest-200/70 rounded-lg py-1 px-1 mx-auto max-w-[80px]">
+                                <div className="font-bold text-forest-700 text-[10px] truncate">
                                   {snap.shiftDefs.find(s => s.id === cell.shiftId)?.name ?? "—"}
                                 </div>
-                                <div className="text-indigo-400/80 text-[9px]">{cell.startTime}–{cell.endTime}</div>
+                                <div className="text-forest-400/80 text-[9px]">{cell.startTime}–{cell.endTime}</div>
                               </div>
                             ) : <span className="text-slate-200 text-[10px]">—</span>}
                           </td>
@@ -2068,7 +2068,7 @@ export default function SchedulePage() {
               {/* Adalet dağılımı toggle */}
               <button
                 onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı"
-                className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
+                className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
               >
                 <BarChart2 size={15} />
               </button>
@@ -2086,7 +2086,7 @@ export default function SchedulePage() {
                     {cellCount > 0 && (
                       <button onClick={() => { setActionsOpen(false); handleGenerateClick(); }} disabled={generating}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Zap size={13} className="text-indigo-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur"}
+                        <Zap size={13} className="text-forest-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur"}
                       </button>
                     )}
                     {availCollectionEnabled && (
@@ -2107,7 +2107,7 @@ export default function SchedulePage() {
                     {FEATURES.aiSummary && (
                       <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Sparkles size={13} className="text-violet-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
+                        <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
                       </button>
                     )}
                     <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
@@ -2144,7 +2144,7 @@ export default function SchedulePage() {
                 <div className="flex items-center gap-2">
                   {(cellCount === 0 || generating) && !isPublishedWeek && (
                     <button onClick={handleGenerateClick} disabled={generating}
-                      className="px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                      className="px-3 py-2 text-xs font-bold text-forest-700 bg-forest-50 border border-forest-200 rounded-xl hover:bg-forest-100 transition-colors flex items-center gap-1.5 disabled:opacity-50">
                       <Zap size={13} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
                     </button>
                   )}
@@ -2221,10 +2221,10 @@ export default function SchedulePage() {
             </div>
           )}
           {aiSummary !== null && (
-            <div className="bg-violet-50 border border-violet-200 rounded-2xl px-5 py-4 relative">
+            <div className="bg-ember-50 border border-ember-200 rounded-2xl px-5 py-4 relative">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-violet-500" />
-                <span className="text-xs font-bold text-violet-700 uppercase tracking-wide">AI Hafta Özeti</span>
+                <Sparkles size={14} className="text-ember-500" />
+                <span className="text-xs font-bold text-ember-700 uppercase tracking-wide">AI Hafta Özeti</span>
               </div>
               <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiLoading && !aiSummary ? "…" : aiSummary}</p>
               <button onClick={() => setAiSummary(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><X size={14} /></button>
@@ -2292,7 +2292,7 @@ export default function SchedulePage() {
                 )}
               </div>
               {shiftDefs.length === 0 && (
-                <a href="/settings?tab=shifts" onClick={e => e.stopPropagation()} className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1 shrink-0"><BookOpen size={12} /> Vardiya tanımla</a>
+                <a href="/settings?tab=shifts" onClick={e => e.stopPropagation()} className="text-xs font-semibold text-forest-600 hover:underline flex items-center gap-1 shrink-0"><BookOpen size={12} /> Vardiya tanımla</a>
               )}
             </button>
             {demandOpen && (loading ? (
@@ -2313,7 +2313,7 @@ export default function SchedulePage() {
                         onClick={() => handleTemplateApply(name)}
                         disabled={tplBusy}
                         title="Bu şablonu Kapasite Planı'na uygula"
-                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+                        className="text-[11px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
                       >
                         {name}
                       </button>
@@ -2332,12 +2332,12 @@ export default function SchedulePage() {
                       onChange={e => setTplName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") handleTemplateSave(); }}
                       placeholder="Şablon adı…"
-                      className="w-32 text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-indigo-400"
+                      className="w-32 text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-forest-400"
                     />
                     <button
                       onClick={handleTemplateSave}
                       disabled={!tplName.trim() || tplBusy}
-                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40 shrink-0"
+                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors disabled:opacity-40 shrink-0"
                     >
                       Mevcut Planı Kaydet
                     </button>
@@ -2350,9 +2350,9 @@ export default function SchedulePage() {
                       {DAYS.map((d, i) => {
                         const isWeekend = i === 5 || i === 6;
                         return (
-                          <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-black uppercase tracking-widest min-w-[52px]", isWeekend ? "text-indigo-500 bg-indigo-50/40" : "text-slate-400")}>
+                          <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-black uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
                             <div>{d}</div>
-                            <div className={cn("text-[10px] font-semibold mt-0.5", isWeekend ? "text-indigo-300" : "text-slate-300")}>{dates[i]}</div>
+                            <div className={cn("text-[10px] font-semibold mt-0.5", isWeekend ? "text-forest-300" : "text-slate-300")}>{dates[i]}</div>
                           </th>
                         );
                       })}
@@ -2376,7 +2376,7 @@ export default function SchedulePage() {
                             const overLimit = val > 0 && val > maxAvail;
                             const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
                             return (
-                              <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
+                              <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-forest-50/20")}>
                                 <div className="flex flex-col items-center gap-0.5">
                                   <input
                                     type="number" min={0} max={maxAvailDisplay}
@@ -2391,7 +2391,7 @@ export default function SchedulePage() {
                                     title={`Bu vardiya için kalan kapasite: ${maxAvailDisplay} kişi`}
                                     className={cn(
                                       "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
-                                      overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-indigo-300 text-indigo-700"
+                                      overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-forest-300 text-forest-700"
                                     )}
                                   />
                                   {overLimit ? (
@@ -2418,7 +2418,7 @@ export default function SchedulePage() {
                           <tr className="border-t border-slate-200 bg-slate-50/70">
                             <td colSpan={8} className="px-5 py-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-0.5 h-4 rounded-full bg-indigo-400 shrink-0" />
+                                <div className="w-0.5 h-4 rounded-full bg-forest-400 shrink-0" />
                                 <span className="text-xs font-black text-slate-700">{dept.name}</span>
                                 <span className="text-[10px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
                               </div>
@@ -2441,7 +2441,7 @@ export default function SchedulePage() {
                                   const overLimit = val > 0 && val > maxAvail;
                                   const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
                                   return (
-                                    <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-indigo-50/20")}>
+                                    <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-forest-50/20")}>
                                       <div className="flex flex-col items-center gap-0.5">
                                         <input
                                           type="number" min={0} max={maxAvailDisplay}
@@ -2459,7 +2459,7 @@ export default function SchedulePage() {
                                           title={`${dept.name}: bu vardiya için kalan kapasite: ${maxAvailDisplay} kişi`}
                                           className={cn(
                                             "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
-                                            overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-indigo-300 text-indigo-700"
+                                            overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-forest-300 text-forest-700"
                                           )}
                                         />
                                         {overLimit ? (
@@ -2499,7 +2499,7 @@ export default function SchedulePage() {
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => setConfirmGenerate(false)} className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">İptal</button>
-                <button onClick={runGenerate} className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">Evet, Oluştur</button>
+                <button onClick={runGenerate} className="px-3 py-1.5 text-xs font-bold text-white bg-forest-600 rounded-lg hover:bg-forest-700 transition-colors">Evet, Oluştur</button>
               </div>
             </div>
           )}
@@ -2514,7 +2514,7 @@ export default function SchedulePage() {
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => setConfirmCopy(false)} className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">İptal</button>
-                <button onClick={doCopyPrevWeek} className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">Evet, Kopyala</button>
+                <button onClick={doCopyPrevWeek} className="px-3 py-1.5 text-xs font-bold text-white bg-forest-600 rounded-lg hover:bg-forest-700 transition-colors">Evet, Kopyala</button>
               </div>
             </div>
           )}
@@ -2544,7 +2544,7 @@ export default function SchedulePage() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
             {loading && (
               <div className="absolute inset-0 bg-white/70 z-20 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             )}
             <div className="overflow-x-auto">
@@ -2564,9 +2564,9 @@ export default function SchedulePage() {
                       const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       return (
-                        <th key={i} className={cn("py-2 px-1 text-center min-w-[88px] align-top", isWeekend ? "bg-indigo-50/50" : "")}>
-                          <div className={cn("text-[11px] font-black uppercase tracking-wider", isWeekend ? "text-indigo-600" : "text-slate-700")}>{DAYS[i]}</div>
-                          <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-indigo-400" : "text-slate-400")}>{dates[i]}</div>
+                        <th key={i} className={cn("py-2 px-1 text-center min-w-[88px] align-top", isWeekend ? "bg-forest-50/50" : "")}>
+                          <div className={cn("text-[11px] font-black uppercase tracking-wider", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
+                          <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
                           {holiday && (
                             <div className="mt-1 text-[9px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
                               🎌 {holiday.length > 12 ? holiday.slice(0, 10) + "…" : holiday}
@@ -2579,7 +2579,7 @@ export default function SchedulePage() {
                           ))}
                           <button
                             onClick={() => { setAddEventModal({ date: isoDate, dayLabel: `${DAYS[i]} ${dates[i]}` }); setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventEndDate(""); }}
-                            className="mt-0.5 text-[9px] text-slate-200 hover:text-indigo-400 transition-colors block w-full text-center" title="Etkinlik ekle"
+                            className="mt-0.5 text-[9px] text-slate-200 hover:text-forest-400 transition-colors block w-full text-center" title="Etkinlik ekle"
                           >
                             <CalendarPlus size={9} className="inline" />
                           </button>
@@ -2629,7 +2629,7 @@ export default function SchedulePage() {
                               className="flex items-center gap-2 hover:text-slate-900 transition-colors group"
                             >
                               <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-200 group-hover:text-slate-600", isCollapsed && "-rotate-90")} />
-                              <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                              <div className="w-2 h-2 rounded-full bg-forest-400 shrink-0" />
                               <span className="text-xs font-black text-slate-700">{row.dept.name}</span>
                               <span className="text-[10px] text-slate-400 font-semibold">{byDeptCount[deptId]?.length ?? 0} kişi</span>
                             </button>
@@ -2650,7 +2650,7 @@ export default function SchedulePage() {
                       <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
                         <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-3 py-2 h-14">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-bold flex items-center justify-center shrink-0">
                               {p.name.charAt(0)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2663,7 +2663,7 @@ export default function SchedulePage() {
                               </div>
                             </div>
                             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => fillPersonRow(p.id)} title="Tüm müsait günleri doldur" className="p-1 text-slate-300 hover:text-indigo-500 transition-colors">
+                              <button onClick={() => fillPersonRow(p.id)} title="Tüm müsait günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
                                 <CalendarCheck size={13} />
                               </button>
                               <button onClick={() => clearPersonRow(p.id)} title="Temizle" className="p-1 text-slate-300 hover:text-red-400 transition-colors">
@@ -2686,16 +2686,16 @@ export default function SchedulePage() {
 
                           const tdClass = cn(
                             "py-1 px-1 h-14 align-middle",
-                            isWeekend && "bg-indigo-50/20",
+                            isWeekend && "bg-forest-50/20",
                           );
 
                           if (isPublishedWeek && !editUnlocked) {
                             return (
                               <td key={day} className={tdClass}>
                                 {cell ? (
-                                  <div className={cn("mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border", forceData ? "bg-amber-50 border-amber-200" : "bg-indigo-50 border-indigo-200/70")}>
-                                    {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-indigo-700")}>{matchedDef.name}</div>}
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-indigo-400")}>
+                                  <div className={cn("mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border", forceData ? "bg-amber-50 border-amber-200" : "bg-forest-50 border-forest-200/70")}>
+                                    {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-forest-700")}>{matchedDef.name}</div>}
+                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                   </div>
@@ -2716,13 +2716,13 @@ export default function SchedulePage() {
                                     onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                     className={cn(
                                       "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
-                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400"
+                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
                                     )}
                                   >
-                                    <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-indigo-700")}>
+                                    <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-forest-700")}>
                                       {matchedDef ? matchedDef.name : "Özel"}
                                     </div>
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-indigo-400")}>
+                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                     {forceData && (
@@ -2769,7 +2769,7 @@ export default function SchedulePage() {
                               ) : (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-all flex items-center justify-center"
+                                  className="w-full h-11 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-forest-300 hover:text-forest-400 hover:bg-forest-50/30 transition-all flex items-center justify-center"
                                   title={availCollectionEnabled ? "Müsaitlik girilmemiş — vardiya ekle" : "Vardiya ekle"}
                                 >
                                   <Plus size={13} />
@@ -2802,8 +2802,8 @@ export default function SchedulePage() {
           {/* ── OR-Tools oluşturuyor overlay ── */}
           {generating && (
             <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 pointer-events-none">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
-                <Zap size={22} className="text-indigo-600 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-forest-100 flex items-center justify-center">
+                <Zap size={22} className="text-forest-600 animate-pulse" />
               </div>
               <div className="text-center">
                 <p className="text-base font-bold text-slate-800">Plan hazırlanıyor</p>
@@ -2879,7 +2879,7 @@ export default function SchedulePage() {
                 <div className="flex-1 overflow-y-auto">
                   {pubsLoading ? (
                     <div className="py-12 flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                      <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
                       <p className="text-sm text-slate-400">Yükleniyor…</p>
                     </div>
                   ) : publications.length === 0 ? (
@@ -2900,14 +2900,14 @@ export default function SchedulePage() {
                         return (
                           <div key={pub.id}>
                             <button onClick={() => handleExpandPub(pub)} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50/70 transition-colors text-left">
-                              <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", pub.revision === 0 ? "bg-emerald-50 border border-emerald-200" : "bg-violet-50 border border-violet-200")}>
-                                {pub.revision === 0 ? <CheckCircle2 size={14} className="text-emerald-600" /> : <RefreshCw size={14} className="text-violet-600" />}
+                              <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", pub.revision === 0 ? "bg-emerald-50 border border-emerald-200" : "bg-ember-50 border border-ember-200")}>
+                                {pub.revision === 0 ? <CheckCircle2 size={14} className="text-emerald-600" /> : <RefreshCw size={14} className="text-ember-600" />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={cn("font-bold text-sm", isThisWeek ? "text-indigo-700" : "text-slate-800")}>{fullWeekLabel(pub.week_start)}</span>
-                                  {isThisWeek && <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase tracking-wider">Bu Hafta</span>}
-                                  {pub.revision > 0 && <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-violet-100 text-violet-700 border border-violet-200">R{pub.revision}</span>}
+                                  <span className={cn("font-bold text-sm", isThisWeek ? "text-forest-700" : "text-slate-800")}>{fullWeekLabel(pub.week_start)}</span>
+                                  {isThisWeek && <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-forest-100 text-forest-700 border border-forest-200 uppercase tracking-wider">Bu Hafta</span>}
+                                  {pub.revision > 0 && <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-ember-100 text-ember-700 border border-ember-200">R{pub.revision}</span>}
                                 </div>
                                 <p className="text-[11px] text-slate-400 mt-0.5">{pub.published_by_name ?? "Yönetici"} · {timeAgo(pub.published_at)}</p>
                               </div>
@@ -2917,7 +2917,7 @@ export default function SchedulePage() {
                               <div className="border-t border-slate-100">
                                 {expandedPubLoading && expandedPubId === pub.id ? (
                                   <div className="py-10 flex flex-col items-center gap-2">
-                                    <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+                                    <div className="w-6 h-6 border-2 border-forest-200 border-t-indigo-500 rounded-full animate-spin" />
                                     <p className="text-xs text-slate-400">Yükleniyor…</p>
                                   </div>
                                 ) : expandedPubData?.id === pub.id ? (
@@ -2956,7 +2956,7 @@ export default function SchedulePage() {
       )}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <BarChart2 size={15} className="text-indigo-500" />
+            <BarChart2 size={15} className="text-forest-500" />
             <h2 className="text-sm font-bold text-slate-800">Adalet Dağılımı</h2>
           </div>
           <button onClick={() => setFairnessOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
@@ -2982,7 +2982,7 @@ export default function SchedulePage() {
                     <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{s.name}</span>
                     <span className="flex items-center gap-1">
                       {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd}hs</span>}
-                      {nght > 0 && <span className="text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
+                      {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
                       {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} sarı gün ataması (telafili)`}>{prfn}!</span>}
                       <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5">{Math.round(s.score * 10) / 10}</span>
                     </span>
@@ -3036,7 +3036,7 @@ export default function SchedulePage() {
                     <button
                       key={def.id}
                       onClick={() => setPopover(prev => prev ? { ...prev, startMin: ds, endMin: de } : null)}
-                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border transition-colors", isActive ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700")}
+                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border transition-colors", isActive ? "bg-ember-600 text-white border-ember-600" : "bg-white text-slate-600 border-slate-200 hover:bg-ember-50 hover:border-ember-300 hover:text-ember-700")}
                     >
                       {def.name}<span className="ml-1 opacity-60 font-normal">{def.start}–{def.end}</span>
                     </button>
@@ -3062,7 +3062,7 @@ export default function SchedulePage() {
             return (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {isWknd && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu ×{locRules.weekend_multiplier ?? 1.2}</span>}
-                {isNght && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-100">🌙 Gece ×{locRules.night_multiplier ?? 1.3}</span>}
+                {isNght && <span className="text-[10px] bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold border border-forest-100">🌙 Gece ×{locRules.night_multiplier ?? 1.3}</span>}
                 {isPrfN && <span className="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold border border-yellow-100">Sarı gün ×{locRules.preferred_not_multiplier ?? 1.5}</span>}
               </div>
             );
@@ -3252,7 +3252,7 @@ export default function SchedulePage() {
                 <input
                   autoFocus type="text" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && saveEvent()}
                   placeholder={newEventScope === "week" ? "Ramazan dönemi, yoğun sezon..." : "Kampanya başlangıcı, denetim..."}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-forest-400"
                 />
               </div>
               {newEventScope === "day" && (
@@ -3263,7 +3263,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="flex-1">
                     <label className="text-xs font-semibold text-slate-600 block mb-1">Bitiş <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
-                    <input type="date" value={newEventEndDate} min={addEventModal.date} onChange={e => setNewEventEndDate(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" />
+                    <input type="date" value={newEventEndDate} min={addEventModal.date} onChange={e => setNewEventEndDate(e.target.value)} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-forest-400" />
                   </div>
                 </div>
               )}
@@ -3280,12 +3280,12 @@ export default function SchedulePage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Not <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
-                <input type="text" value={newEventNote} onChange={e => setNewEventNote(e.target.value)} placeholder="Ekstra detay..." className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" />
+                <input type="text" value={newEventNote} onChange={e => setNewEventNote(e.target.value)} placeholder="Ekstra detay..." className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-forest-400" />
               </div>
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={() => setAddEventModal(null)} className="flex-1 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">İptal</button>
-              <button onClick={saveEvent} disabled={!newEventTitle.trim() || eventSaving} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={saveEvent} disabled={!newEventTitle.trim() || eventSaving} className="flex-1 py-2 text-sm font-bold text-white bg-forest-600 rounded-xl hover:bg-forest-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {eventSaving ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
@@ -3295,7 +3295,7 @@ export default function SchedulePage() {
 
       <DragOverlay>
         {activeDragData?.type === "grid" ? (
-          <div className="p-2 px-3 bg-white border-2 border-indigo-500 rounded-lg shadow-xl opacity-90 scale-105 text-xs font-bold z-[9999]">Taşınıyor...</div>
+          <div className="p-2 px-3 bg-white border-2 border-forest-500 rounded-lg shadow-xl opacity-90 scale-105 text-xs font-bold z-[9999]">Taşınıyor...</div>
         ) : null}
       </DragOverlay>
     </DndContext>

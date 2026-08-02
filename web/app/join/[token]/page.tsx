@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Zap, Check, Eye, EyeOff, ArrowRight, MapPin, Building2, AlertCircle } from "lucide-react";
+import { Check, Eye, EyeOff, ArrowRight, MapPin, Building2, AlertCircle } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 type InviteInfo = {
   org_name: string;
@@ -76,7 +77,7 @@ export default function JoinPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-forest-300 border-t-indigo-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -91,7 +92,7 @@ export default function JoinPage() {
           <h2 className="text-xl font-black text-slate-900">Davet Linki Geçersiz</h2>
           <p className="text-slate-500 text-sm">{inviteErr}</p>
           <button onClick={() => router.push("/login")}
-            className="text-indigo-600 font-bold text-sm hover:underline">
+            className="text-forest-600 font-bold text-sm hover:underline">
             Giriş sayfasına git
           </button>
         </div>
@@ -117,11 +118,11 @@ export default function JoinPage() {
           </div>
           <div className="bg-slate-50 rounded-2xl px-5 py-4 border border-slate-200 text-left space-y-1">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kullanıcı Adınız</p>
-            <p className="text-lg font-black text-indigo-600 font-mono">{finalUsername}</p>
+            <p className="text-lg font-black text-forest-600 font-mono">{finalUsername}</p>
           </div>
           <button
             onClick={() => router.push("/login")}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-colors group"
+            className="w-full flex items-center justify-center gap-2 py-3.5 bg-forest-600 hover:bg-forest-700 text-white font-bold rounded-2xl transition-colors group"
           >
             Giriş Yap <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
           </button>
@@ -135,16 +136,14 @@ export default function JoinPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Zap size={20} className="text-white" />
-          </div>
+          <Logo size="md" className="w-10 h-10" />
           <span className="text-xl font-bold tracking-tight text-slate-900">OptiShift</span>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-6">
           {/* Davet bilgisi */}
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full w-fit">
+            <div className="flex items-center gap-2 text-xs font-bold text-forest-600 bg-forest-50 px-3 py-1.5 rounded-full w-fit">
               Davet ile katılıyorsunuz
             </div>
             <h1 className="text-2xl font-black text-slate-900 mt-3">Hesabınızı Oluşturun</h1>
@@ -179,7 +178,7 @@ export default function JoinPage() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Zeynep Arslan"
-                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] text-sm font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] text-sm font-medium focus:outline-none focus:border-forest-500 transition-colors"
               />
             </div>
 
@@ -191,7 +190,7 @@ export default function JoinPage() {
                 value={username}
                 onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
                 placeholder="zeynep.arslan"
-                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] text-sm font-medium font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] text-sm font-medium font-mono focus:outline-none focus:border-forest-500 transition-colors"
               />
               <p className="text-[11px] text-slate-400 mt-1">Sadece harf, rakam, nokta ve tire. Giriş yaparken kullanacaksınız.</p>
             </div>
@@ -206,7 +205,7 @@ export default function JoinPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="En az 6 karakter"
-                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 min-h-[44px] pr-12 text-sm font-medium focus:outline-none focus:border-forest-500 transition-colors"
                 />
                 <button type="button" onClick={() => setShowPass(v => !v)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
@@ -218,7 +217,7 @@ export default function JoinPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 py-3.5 min-h-[48px] bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-indigo-200 group mt-2"
+              className="w-full flex items-center justify-center gap-2 py-3.5 min-h-[48px] bg-forest-600 hover:bg-forest-700 disabled:bg-forest-300 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-forest-200 group mt-2"
             >
               {submitting ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

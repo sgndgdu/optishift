@@ -144,7 +144,7 @@ function IntegrationsPageInner() {
                   className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors shrink-0 disabled:opacity-50 ${
                     isConnected
                       ? "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                      : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      : "bg-forest-600 hover:bg-forest-700 text-white"
                   }`}
                 >
                   {isConnected ? "Bağlantıyı Kes" : "Bağlan"}
@@ -172,7 +172,7 @@ function IntegrationsPageInner() {
                 disabled={!canEdit}
                 onChange={e => { const n = [...mapping]; n[idx] = { ...n[idx], erp: e.target.value }; setMapping(n); }}
                 placeholder="ERP alanı (örn: Emp_Name)"
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 font-mono text-xs outline-none focus:border-indigo-400 disabled:opacity-70"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 font-mono text-xs outline-none focus:border-forest-400 disabled:opacity-70"
               />
               <span className="text-slate-400">→</span>
               <input
@@ -180,7 +180,7 @@ function IntegrationsPageInner() {
                 disabled={!canEdit}
                 onChange={e => { const n = [...mapping]; n[idx] = { ...n[idx], sys: e.target.value }; setMapping(n); }}
                 placeholder="OptiShift alanı"
-                className="flex-1 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-indigo-700 font-mono text-xs outline-none focus:border-indigo-400 disabled:opacity-70"
+                className="flex-1 bg-forest-50 border border-forest-200 rounded-lg px-3 py-2 text-forest-700 font-mono text-xs outline-none focus:border-forest-400 disabled:opacity-70"
               />
               {canEdit && (
                 <button
@@ -197,14 +197,14 @@ function IntegrationsPageInner() {
           <div className="flex items-center justify-between mt-4">
             <button
               onClick={() => setMapping([...mapping, { erp: "", sys: "" }])}
-              className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+              className="flex items-center gap-1 text-xs font-medium text-forest-600 hover:text-forest-700"
             >
               <Plus size={13} /> Yeni alan eşleştirme ekle
             </button>
             <button
               onClick={handleSaveMapping}
               disabled={saving}
-              className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-4 py-2 rounded-lg transition-colors"
+              className="text-xs font-semibold text-white bg-forest-600 hover:bg-forest-700 disabled:opacity-50 px-4 py-2 rounded-lg transition-colors"
             >
               {saving ? "Kaydediliyor…" : "Eşleştirmeyi Kaydet"}
             </button>

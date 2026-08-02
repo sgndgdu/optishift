@@ -312,7 +312,7 @@ export default function EmployeeChatPage() {
                   className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl shrink-0 transition-colors relative ${isSelected ? "bg-primary/10" : "hover:bg-slate-50"}`}>
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold relative ${
                     c.type === "group" ? "bg-emerald-100 text-emerald-700" :
-                    c.role === "manager" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
+                    c.role === "manager" ? "bg-ember-100 text-ember-700" : "bg-forest-100 text-forest-700"
                   }`}>
                     {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
                     {(c.unread ?? 0) > 0 && (
@@ -378,7 +378,7 @@ export default function EmployeeChatPage() {
                             isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
                           }`}>
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative ${
-                            c.role === "manager" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
+                            c.role === "manager" ? "bg-ember-100 text-ember-700" : "bg-forest-100 text-forest-700"
                           }`}>
                             {c.name.charAt(0).toUpperCase()}
                             {(c.unread ?? 0) > 0 && (
@@ -427,7 +427,7 @@ export default function EmployeeChatPage() {
                 </button>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                   selected.type === "group" ? "bg-emerald-100 text-emerald-700" :
-                  selected.role === "manager" ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
+                  selected.role === "manager" ? "bg-ember-100 text-ember-700" : "bg-forest-100 text-forest-700"
                 }`}>
                   {selected.type === "group" ? <Users size={14} /> : selected.name.charAt(0).toUpperCase()}
                 </div>
@@ -472,7 +472,7 @@ export default function EmployeeChatPage() {
                       return (
                         <div key={m.id} className={`flex gap-2 mb-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
                           {!isMe && (
-                            <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 shrink-0 mt-0.5">
+                            <div className="w-6 h-6 rounded-full bg-forest-100 flex items-center justify-center text-[10px] font-bold text-forest-600 shrink-0 mt-0.5">
                               {name?.charAt(0)?.toUpperCase() ?? "?"}
                             </div>
                           )}

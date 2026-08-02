@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, AtSign, Eye, EyeOff, Zap, ArrowRight, ShieldCheck } from "lucide-react";
+import { Lock, AtSign, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { LogoMark } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 
@@ -87,8 +88,8 @@ export default function LoginPage() {
       {/* Sol — Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-slate-50 relative">
         <div className="absolute top-4 sm:top-6 left-4 sm:left-6">
-          <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:text-indigo-600 transition-colors text-sm sm:text-base">
-            <Zap size={18} className="text-indigo-600" />
+          <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
+            <LogoMark size="sm" />
             OptiShift
           </Link>
         </div>
@@ -135,7 +136,7 @@ export default function LoginPage() {
                   placeholder="kullanici.adi veya ad@sirket.com"
                   required
                   autoComplete="username"
-                  className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
+                  className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                 />
               </div>
             </div>
@@ -143,7 +144,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Şifre</label>
-                <Link href="/forgot-password" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700 transition-colors">
+                <Link href="/forgot-password" className="text-xs text-forest-600 font-semibold hover:text-forest-700 transition-colors">
                   Şifremi Unuttum
                 </Link>
               </div>
@@ -155,7 +156,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-12 pr-12 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
+                  className="w-full pl-12 pr-12 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                 />
                 <button
                   type="button"
@@ -170,7 +171,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-400 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-indigo-200 mt-4 group"
+              className="w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 disabled:bg-forest-400 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-forest-200 mt-4 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -181,7 +182,7 @@ export default function LoginPage() {
 
             <p className="text-center text-sm text-slate-500 pt-6 font-medium">
               Hesabınız yok mu?{" "}
-              <Link href="/register" className="text-indigo-600 font-bold hover:text-indigo-700 transition-colors">
+              <Link href="/register" className="text-forest-600 font-bold hover:text-forest-700 transition-colors">
                 Kayıt Ol
               </Link>
             </p>
@@ -191,14 +192,14 @@ export default function LoginPage() {
 
       {/* Sağ — Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-slate-950 relative flex-col justify-center items-center p-12 overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-forest-600/30 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-600/20 rounded-full blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-md text-center">
           <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-sm">
-            <ShieldCheck size={40} className="text-indigo-400" />
+            <ShieldCheck size={40} className="text-forest-400" />
           </div>
-          <h2 className="text-3xl font-black text-white mb-4 leading-tight">
+          <h2 className="font-serif text-3xl font-semibold text-white mb-4 leading-tight">
             Herkese Tek Kapı
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed">
