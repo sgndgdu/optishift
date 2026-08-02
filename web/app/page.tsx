@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Zap, CalendarCheck, TrendingUp, ArrowRight, ShieldCheck, Cpu, PlayCircle, Menu, X } from "lucide-react";
+import { Zap, CalendarCheck, ArrowRight, ShieldCheck, ChevronDown, Menu, X, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
@@ -91,9 +91,9 @@ export default function LandingPage() {
                 Ücretsiz Dene <ArrowRight size={18} />
               </Button>
             </Link>
-            <Link href="/pricing" className="w-full sm:w-auto">
+            <Link href="#features" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-bold rounded-full transition-all flex items-center justify-center text-base sm:text-lg shadow-sm hover:shadow-md hover:-translate-y-1 gap-2">
-                <PlayCircle size={18} className="text-slate-400" />
+                <ChevronDown size={18} className="text-slate-400" />
                 Nasıl Çalışır?
               </Button>
             </Link>
@@ -140,9 +140,9 @@ export default function LandingPage() {
             <div className="stripe-card p-7 sm:p-10 relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-[200px] h-[200px] bg-gradient-to-br from-purple-100/80 to-transparent rounded-full blur-[50px] group-hover:scale-110 transition-transform duration-700" />
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-slate-100 shadow-[0_8px_16px_rgba(0,0,0,0.06)] text-purple-500 rounded-2xl flex items-center justify-center mb-5 sm:mb-6 relative z-10">
-                <TrendingUp size={24} />
+                <Smartphone size={24} />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Hazır SaaS Modülü</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Anında Kurulum</h3>
               <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
                 Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Personelinize anında mobil uygulamadan bildirim gitsin.
               </p>

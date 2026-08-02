@@ -33,7 +33,7 @@ export default function PricingPage() {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-5">
-            <Link href="/login" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors hidden sm:block">
+            <Link href="/login" className="text-xs sm:text-sm font-bold text-slate-600 hover:text-primary transition-colors">
               Giriş Yap
             </Link>
             <Link href="/register">
@@ -77,7 +77,7 @@ export default function PricingPage() {
               </div>
               <Link href="/register" className="w-full mb-8">
                 <Button variant="outline" className="w-full h-14 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 rounded-[1rem] font-bold text-lg transition-all shadow-sm">
-                  Hemen Başla
+                  Ücretsiz Dene
                 </Button>
               </Link>
               <div className="space-y-4 flex-1">
@@ -92,7 +92,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">Temel Yapay Zeka Planlaması</span>
+                  <span className="text-slate-700 font-medium">Akıllı Otomatik Planlama</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
@@ -139,11 +139,11 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">SMS & E-Posta Bildirimleri</span>
+                  <span className="text-slate-700 font-semibold">Anlık Bildirimler (Mobil & E-Posta)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">API Erişimi</span>
+                  <span className="text-slate-700 font-semibold">Puantaj & Bordro Raporları (CSV)</span>
                 </div>
               </div>
             </div>
@@ -159,11 +159,11 @@ export default function PricingPage() {
               <div className="mb-8">
                 <span className="text-4xl font-black text-slate-900">Özel Fiyat</span>
               </div>
-              <div className="w-full mb-8">
-                <Button className="w-full h-14 bg-slate-900 text-white hover:bg-slate-800 rounded-[1rem] font-bold text-lg transition-all flex items-center gap-2 shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:-translate-y-0.5" onClick={() => alert("Satış ekibimize yönlendiriliyorsunuz...")}>
+              <a href="mailto:sgndgdu@gmail.com?subject=Kurumsal%20Plan%20Teklif%20Talebi" className="w-full mb-8 block">
+                <Button className="w-full h-14 bg-slate-900 text-white hover:bg-slate-800 rounded-[1rem] font-bold text-lg transition-all flex items-center gap-2 shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:-translate-y-0.5">
                   Teklif Al <ArrowRight size={18} />
                 </Button>
-              </div>
+              </a>
               <div className="space-y-4 flex-1">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">HER ŞEYE EK OLARAK</p>
                 <div className="flex items-center gap-3">
@@ -172,11 +172,11 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-purple-500" />
-                  <span className="text-slate-700 font-medium">Bölge Yöneticisi Rolleri</span>
+                  <span className="text-slate-700 font-medium">Çoklu Departman & Ekip Yönetimi</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-purple-500" />
-                  <span className="text-slate-700 font-medium">Özel SSO Entegrasyonu</span>
+                  <span className="text-slate-700 font-medium">Yasal Uyumluluk Motoru (Fazla Mesai, Gece Vardiyası)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-purple-500" />
