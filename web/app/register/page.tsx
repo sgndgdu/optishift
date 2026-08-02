@@ -129,8 +129,8 @@ export default function RegisterPage() {
           </p>
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="text-2xl font-black text-white mb-1">%90</div>
-              <div className="text-sm text-slate-400 font-medium">Zaman Tasarrufu</div>
+              <div className="text-2xl font-black text-white mb-1">2 dk</div>
+              <div className="text-sm text-slate-400 font-medium">Kurulum Süresi</div>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
               <div className="text-2xl font-black text-white mb-1">0</div>

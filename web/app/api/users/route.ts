@@ -114,7 +114,17 @@ export async function POST(req: NextRequest) {
 
     if (isEmployee) {
       if (!effLocIds.length) return NextResponse.json({ error: "Personel için en az bir şube seçmelisiniz" }, { status: 400 });
-      if (!effDeptIds.length) return NextResponse.json({ error: "Personel için en az bir departman seçmelisiniz" }, { status: 400 });
+      // Departman seçimi sadece seçili şube(ler)de gerçekten departman tanımlıysa zorunlu —
+      // departmansız (Basit Mod) şubelerde department_id null kalır.
+      if (!effDeptIds.length) {
+        const placeholders = effLocIds.map(() => "?").join(",");
+        const existingDepts = await db.prepare(
+          `SELECT id FROM departments WHERE location_id IN (${placeholders}) LIMIT 1`
+        ).all(effLocIds);
+        if (existingDepts.length) {
+          return NextResponse.json({ error: "Personel için en az bir departman seçmelisiniz" }, { status: 400 });
+        }
+      }
     }
 
     // Birincil şube

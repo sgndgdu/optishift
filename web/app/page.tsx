@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Zap, CalendarCheck, TrendingUp, ArrowRight, ShieldCheck, Cpu, Star, PlayCircle, Menu, X } from "lucide-react";
+import { Zap, CalendarCheck, TrendingUp, ArrowRight, ShieldCheck, Cpu, PlayCircle, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
@@ -98,17 +98,6 @@ export default function LandingPage() {
               </Button>
             </Link>
           </div>
-
-          {/* Social Proof */}
-          <div className="mt-14 sm:mt-20 pt-8 sm:pt-10 border-t border-slate-200/60 animate-in fade-in duration-1000 delay-700 w-full max-w-4xl">
-            <p className="text-xs sm:text-sm font-bold text-slate-400 mb-6 sm:mb-8 uppercase tracking-widest">100+ LİDER İŞLETME TARAFINDAN TERCİH EDİLİYOR</p>
-            <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-              <div className="text-base sm:text-xl font-black italic tracking-tighter text-slate-800">COFFEESHOP</div>
-              <div className="text-base sm:text-xl font-black tracking-widest text-slate-800">BURGER.CO</div>
-              <div className="text-base sm:text-xl font-bold flex items-center gap-1 text-slate-800"><Star size={18} className="fill-current"/> RESTAURANT</div>
-              <div className="text-base sm:text-xl font-black font-serif text-slate-800">HOTEL SUITES</div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -172,12 +161,12 @@ export default function LandingPage() {
               </div>
               <div className="w-full md:w-auto grid grid-cols-2 gap-3 sm:gap-4 shrink-0 relative z-10">
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
-                  <div className="text-2xl sm:text-3xl font-black text-primary mb-1">10k+</div>
-                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Vardiya</div>
+                  <div className="text-2xl sm:text-3xl font-black text-primary mb-1">Sınırsız</div>
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Şube</div>
                 </div>
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
                   <div className="text-2xl sm:text-3xl font-black text-emerald-500 mb-1">0</div>
-                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Çakışma</div>
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Çakışma Garantisi</div>
                 </div>
               </div>
             </div>

@@ -88,7 +88,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-[10px] font-medium text-violet-500 mt-1 uppercase tracking-wider">Supervisor</p>
+            <p className="text-[10px] font-medium text-violet-500 mt-1 uppercase tracking-wider">{roleLabel}</p>
           </div>
         </Link>
         {onClose && (

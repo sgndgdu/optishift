@@ -176,7 +176,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Business</p>
+            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Yönetim Paneli</p>
           </div>
         </Link>
         {onClose && (

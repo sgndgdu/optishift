@@ -200,7 +200,7 @@ export default function PersonnelPage() {
     setAddError("");
     if (!addForm.name.trim()) { setAddError("Ad soyad zorunlu"); return; }
     if (useMultiSelect && !selLocIds.length) { setAddError("En az bir şube seçmelisiniz"); return; }
-    if (useMultiSelect && !selDeptIds.length) { setAddError("En az bir departman seçmelisiniz"); return; }
+    if (useMultiSelect && !selDeptIds.length && allSelectedDepts.length > 0) { setAddError("En az bir departman seçmelisiniz"); return; }
     if (!useMultiSelect && !singleLocId) { setAddError("Şube seçmelisiniz"); return; }
     setAddLoading(true);
     try {
