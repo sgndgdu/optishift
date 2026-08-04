@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.optishift.app",
+      "sha256_cert_fingerprints": [
+        "59:20:29:D3:C8:E5:34:0A:1B:C9:E3:5B:D2:47:0E:81:0F:D9:A4:0B:EE:B6:3C:A6:A4:38:06:48:6C:5A:A3:CC"
+      ]
+    }
+  }
+]
