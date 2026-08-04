@@ -9,6 +9,14 @@ const PRICE_IDS: Record<string, string> = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE ?? "",
 };
 
+// Billing sayfası "demo mod" uyarısını buna göre gösterir — Stripe anahtarı
+// yoksa checkout gerçek ödeme almadan doğrudan plan değiştirir.
+export async function GET(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+  return NextResponse.json({ configured: !!process.env.STRIPE_SECRET_KEY });
+}
+
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;

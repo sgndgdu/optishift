@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff, Store, User, AtSign } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Store, User, AtSign, Gift } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
@@ -14,8 +14,15 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [registeredUser, setRegisteredUser] = useState<Record<string, unknown> | null>(null);
+  const [promoResult, setPromoResult] = useState<{ applied: boolean; trial_ends_at: number | null } | null>(null);
 
-  const [form, setForm] = useState({ org_name: "", owner_name: "", username: "", email: "", password: "" });
+  // Reklam kampanyası linki (?ref=KOD) kampanya kodu alanını otomatik doldurur.
+  const [initialPromo] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("ref") ?? "";
+  });
+
+  const [form, setForm] = useState({ org_name: "", owner_name: "", username: "", email: "", password: "", promo_code: initialPromo });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   // Google ile "yeni işletme kur" akışı: callback bu üç query param'ı ile geri döner.
@@ -58,6 +65,7 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
+      setPromoResult({ applied: !!data.promo_applied, trial_ends_at: data.trial_ends_at ?? null });
       setRegisteredUser(data.user);
     } catch {
       setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
@@ -309,6 +317,19 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Gift size={14} className="text-ember-500" />
+                    Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(opsiyonel)</span>
+                  </label>
+                  <input
+                    value={form.promo_code}
+                    onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
+                    placeholder="Örn: OPTI3AY"
+                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none focus:border-ember-500 transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -350,6 +371,18 @@ export default function RegisterPage() {
                   <strong>{form.org_name}</strong> hazır. Şimdi şubelerinizi ve departmanlarınızı kuralım.
                 </p>
               </div>
+              {promoResult?.applied && (
+                <div className="bg-ember-50 border border-ember-200 rounded-2xl p-4 flex items-center gap-3 text-left">
+                  <Gift size={20} className="text-ember-600 shrink-0" />
+                  <p className="text-sm text-ember-800 font-bold">
+                    Kampanya kodu uygulandı — Profesyonel plan{" "}
+                    {promoResult.trial_ends_at
+                      ? new Date(promoResult.trial_ends_at * 1000).toLocaleDateString("tr-TR")
+                      : ""}{" "}
+                    tarihine kadar ücretsiz.
+                  </p>
+                </div>
+              )}
               <div className="pt-2">
                 <button
                   onClick={handleStart}

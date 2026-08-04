@@ -23,11 +23,11 @@ const PLANS = [
   {
     id: "pro",
     name: "Profesyonel",
-    price: "₺999",
+    price: "₺1.299",
     period: "/ay",
     desc: "Büyüyen zincirler için sınırsız erişim.",
     color: "border-primary",
-    features: ["Sınırsız Şube", "Sınırsız Personel", "Gelişmiş Adalet Puanı", "ERP Entegrasyonu (SAP, Nebim)", "SMS + E-posta Bildirimi", "7/24 Telefon Desteği"],
+    features: ["Sınırsız Şube", "Sınırsız Personel", "Gelişmiş Adalet Puanı", "Puantaj & Bordro Raporları (CSV)", "Anlık Bildirimler (Web Push)", "Öncelikli Destek"],
     cta: "Pro'ya Geç",
     dark: true,
   },
@@ -51,6 +51,7 @@ function BillingContent() {
   const [loading, setLoading]         = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [toast, setToast]             = useState("");
+  const [stripeConfigured, setStripeConfigured] = useState(true);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
@@ -73,6 +74,13 @@ function BillingContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { loadOrg(); }, [loadOrg]);
+
+  useEffect(() => {
+    fetch("/api/checkout")
+      .then((r) => r.json())
+      .then((d) => setStripeConfigured(!!d.configured))
+      .catch(() => setStripeConfigured(false));
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("success") === "1") showToast("Ödeme başarılı! Planınız güncellendi.");
@@ -111,7 +119,7 @@ function BillingContent() {
   if (loading) return <div className="p-8 text-slate-400 text-sm animate-pulse">Yükleniyor…</div>;
 
   const currentPlan: string = org?.plan ?? "free";
-  const isStripeConfigured = true; // server-side; shown from /api/checkout response
+  const isStripeConfigured = stripeConfigured;
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 md:space-y-10">
@@ -216,7 +224,7 @@ function BillingContent() {
           {[
             { label: "Şube Limiti",    free: "1",        pro: "Sınırsız" },
             { label: "Personel",       free: "10",       pro: "Sınırsız" },
-            { label: "ERP Entegrasyon",free: "—",        pro: "✓" },
+            { label: "Puantaj CSV",    free: "✓",        pro: "✓" },
             { label: "Excel Export",   free: "✓",        pro: "✓" },
           ].map(row => (
             <div key={row.label} className="bg-white rounded-xl p-3 border border-slate-100">

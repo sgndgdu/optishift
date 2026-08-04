@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { jwtVerify } from "jose";
 import Link from "next/link";
-import { LayoutDashboard, Building2, ClipboardList, Shield, Users, Megaphone } from "lucide-react";
+import { LayoutDashboard, Building2, ClipboardList, Shield, Users, Megaphone, Gift } from "lucide-react";
 
 async function verifyGodCookie(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -24,6 +24,7 @@ const NAV = [
   { href: "/admin/orgs",    label: "Organizasyonlar",  icon: Building2 },
   { href: "/admin/users",   label: "Kullanicilar",     icon: Users },
   { href: "/admin/banners", label: "Duyurular",        icon: Megaphone },
+  { href: "/admin/promo-codes", label: "Kampanya Kodları", icon: Gift },
   { href: "/admin/audit",   label: "Audit Logu",       icon: ClipboardList },
 ];
 

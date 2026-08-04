@@ -50,7 +50,7 @@ export default function PricingPage() {
             </span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 px-2">
-            İşletmenizin büyüklüğüne uygun planı seçin. 14 gün ücretsiz deneyin, kredi kartı gerektirmez.
+            İşletmenizin büyüklüğüne uygun planı seçin. Kredi kartı gerekmez — küçük işletmeler için ücretsiz plan süresiz.
           </p>
         </div>
       </section>
@@ -60,19 +60,19 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             
-            {/* Starter Plan */}
+            {/* Free Plan */}
             <div className="stripe-card p-8 sm:p-10 flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
               <div className="mb-8">
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Başlangıç</h3>
-                <p className="text-slate-500 font-medium h-12">Tek şubeli kafeler ve butik restoranlar için ideal.</p>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">Ücretsiz</h3>
+                <p className="text-slate-500 font-medium h-12">Tek şubeli kafeler ve butik restoranlar için, süresiz.</p>
               </div>
               <div className="mb-8 flex items-baseline gap-2">
-                <span className="text-5xl font-black text-slate-900">₺499</span>
+                <span className="text-5xl font-black text-slate-900">₺0</span>
                 <span className="text-slate-500 font-bold">/ ay</span>
               </div>
               <Link href="/register" className="w-full mb-8">
                 <Button variant="outline" className="w-full h-14 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 rounded-[1rem] font-bold text-lg transition-all shadow-sm">
-                  Ücretsiz Dene
+                  Ücretsiz Başla
                 </Button>
               </Link>
               <div className="space-y-4 flex-1">
@@ -83,7 +83,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">15 Personele kadar</span>
+                  <span className="text-slate-700 font-medium">10 Personele kadar</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
@@ -115,14 +115,14 @@ export default function PricingPage() {
               </div>
               <Link href="/register" className="w-full mb-8 relative z-10">
                 <Button className="w-full h-14 bg-primary hover:bg-forest-600 text-white rounded-[1rem] font-bold text-lg transition-all shadow-[0_8px_20px_rgba(20,69,61,0.25)] hover:shadow-[0_12px_25px_rgba(20,69,61,0.35)] hover:-translate-y-0.5">
-                  Ücretsiz Dene
+                  Ücretsiz Başla
                 </Button>
               </Link>
               <div className="space-y-4 flex-1 relative z-10">
                 <p className="text-xs font-bold text-primary uppercase tracking-widest mb-4">Neler Dahil?</p>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-900 font-bold">10 Şubeye kadar</span>
+                  <span className="text-slate-900 font-bold">Sınırsız Şube</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
@@ -149,7 +149,7 @@ export default function PricingPage() {
                 <h3 className="text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
                   <Building2 size={24} className="text-ember-500"/> Kurumsal
                 </h3>
-                <p className="text-slate-500 font-medium h-12">10&apos;dan fazla şubesi olan kurumsal markalar için.</p>
+                <p className="text-slate-500 font-medium h-12">Büyük zincirler ve özel SLA/on-premise ihtiyacı olan markalar için.</p>
               </div>
               <div className="mb-8">
                 <span className="text-4xl font-black text-slate-900">Özel Fiyat</span>
@@ -163,7 +163,7 @@ export default function PricingPage() {
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">HER ŞEYE EK OLARAK</p>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-ember-500" />
-                  <span className="text-slate-700 font-medium">10+ Şube (Sınırsız)</span>
+                  <span className="text-slate-700 font-medium">Özel SLA & Uptime Garantisi</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-ember-500" />

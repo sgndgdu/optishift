@@ -9,13 +9,25 @@ export async function POST(req: NextRequest) {
   const db = getDB();
 
   try {
-    const { org_name, owner_name, username, email, password } = await req.json();
+    const { org_name, owner_name, username, email, password, promo_code } = await req.json();
 
     if (!org_name?.trim() || !owner_name?.trim() || !username?.trim() || !password) {
       return NextResponse.json({ error: "Tüm alanlar zorunlu" }, { status: 400 });
     }
     if (password.length < 6) {
       return NextResponse.json({ error: "Şifre en az 6 karakter olmalı" }, { status: 400 });
+    }
+
+    // Kampanya kodu — org oluşturulmadan ÖNCE doğrulanır: geçersiz kodda
+    // yarım kayıt (org var ama promo uygulanmadı) oluşmasın.
+    let promo: any = null;
+    const cleanPromoCode = promo_code?.trim()?.toUpperCase();
+    if (cleanPromoCode) {
+      const nowCheck = Math.floor(Date.now() / 1000);
+      promo = await db.prepare(`SELECT * FROM promo_codes WHERE code = ? AND active = true`).get(cleanPromoCode) as any;
+      if (!promo || (promo.expires_at && promo.expires_at < nowCheck) || (promo.max_uses != null && promo.used_count >= promo.max_uses)) {
+        return NextResponse.json({ error: "Kampanya kodu geçersiz veya süresi dolmuş" }, { status: 400 });
+      }
     }
 
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
@@ -46,6 +58,15 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)
     `).run(userId, cleanUsername, email?.trim()?.toLowerCase() || null, passwordHash, orgId, owner_name.trim(), now);
 
+    let trialEndsAt: number | null = null;
+    if (promo) {
+      trialEndsAt = now + promo.free_months * 30 * 86400;
+      await db.prepare(`
+        UPDATE organizations SET plan = ?, subscription_status = 'trialing', trial_ends_at = ? WHERE id = ?
+      `).run(promo.plan, trialEndsAt, orgId);
+      await db.prepare(`UPDATE promo_codes SET used_count = used_count + 1 WHERE id = ?`).run(promo.id);
+    }
+
     const token = await signToken({
       id: userId,
       org_id: orgId,
@@ -57,6 +78,8 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({
       success: true,
+      promo_applied: !!promo,
+      trial_ends_at: trialEndsAt,
       user: {
         id: userId,
         personnel_id: null,

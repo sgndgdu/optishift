@@ -580,3 +580,19 @@ export const systemBanners = pgTable("system_banners", {
   ends_at: bigint("ends_at", { mode: "number" }),
   created_at: bigint("created_at", { mode: "number" }).notNull(),
 });
+
+// ─── Promo Codes (Kampanya / Referans Kodları) ────────────────────────────────
+// Reklam kampanyasıyla dağıtılan kod — kayıt anında organizasyona X ay ücretsiz
+// plan tanımlar. `organizations.trial_ends_at` süresi geçince cron ile 'free'ye düşürülür.
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  campaign_name: text("campaign_name"),
+  plan: text("plan").notNull().default("pro"),        // kodu kullanınca verilecek plan
+  free_months: integer("free_months").notNull().default(3),
+  max_uses: integer("max_uses"),                        // null = sınırsız
+  used_count: integer("used_count").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  expires_at: bigint("expires_at", { mode: "number" }), // null = süresiz kampanya
+  created_at: bigint("created_at", { mode: "number" }).notNull(),
+});

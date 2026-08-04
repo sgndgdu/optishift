@@ -7,8 +7,8 @@
 export const FEATURES = {
   /** ERP entegrasyonları (SAP/Nebim/Logo) — UI hazır, gerçek senkron backend'i yok */
   integrations: false,
-  /** Faturalandırma — Lemon Squeezy entegrasyonu tamamlanmadı */
-  billing: false,
+  /** Faturalandırma — Stripe anahtarı yoksa /api/checkout otomatik "demo mod"a düşer (plan direkt değişir, ödeme alınmaz) */
+  billing: true,
   /** Canlı mola takibi — backend akışı tamamlanmadı */
   breaks: false,
   /** Google ile giriş — GOOGLE_CLIENT_ID/SECRET + NEXT_PUBLIC_APP_URL env'leri kurulunca aç */

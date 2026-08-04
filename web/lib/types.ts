@@ -315,3 +315,17 @@ export const AVAILABILITY_COLORS: Record<Availability, string> = {
   preferred_not: "bg-yellow-400",
   unavailable:   "bg-red-500",
 };
+
+// ─── Promo Code (Kampanya / Referans Kodu) ───────────────────────────────────
+export interface PromoCode {
+  id: number;
+  code: string;
+  campaign_name: string | null;
+  plan: string;
+  free_months: number;
+  max_uses: number | null;
+  used_count: number;
+  active: boolean;
+  expires_at: number | null;
+  created_at: number;
+}
