@@ -7,6 +7,7 @@ const PUBLIC_API_PATHS = [
   "/api/auth/login",
   "/api/register",
   "/api/webhook",
+  "/api/promo/validate",  // register sayfası canlı kod doğrulaması — henüz oturum yok
   "/api/god/auth/login",  // God Mode login herkese açık
   "/api/cron/",  // Vercel Cron — kendi CRON_SECRET kontrolüyle korunur, JWT gerekmez
   "/api/auth/google/start",              // Google OAuth başlatma — henüz oturum yok

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff, Store, User, AtSign, Gift } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Store, User, AtSign, Gift, Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
@@ -28,6 +28,24 @@ export default function RegisterPage() {
   // Alan sadece ?ref= linkinden gelenlerde otomatik açık — organik kayıtta
   // formu uzatmasın; isteyen "Kampanya kodun var mı?" ile elle açabilir.
   const [showPromoField, setShowPromoField] = useState(!!initialPromo);
+
+  // Kod yazılırken/otomatik dolarken canlı doğrulama — submit'e kadar beklemeden geçerliliği gösterir.
+  const [promoCheck, setPromoCheck] = useState<{ status: "idle" | "checking" | "valid" | "invalid"; freeMonths?: number }>({ status: "idle" });
+  useEffect(() => {
+    const code = form.promo_code.trim();
+    if (!code) { setPromoCheck({ status: "idle" }); return; }
+    setPromoCheck({ status: "checking" });
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/promo/validate?code=${encodeURIComponent(code)}`);
+        const d = await r.json();
+        setPromoCheck(d.valid ? { status: "valid", freeMonths: d.free_months } : { status: "invalid" });
+      } catch {
+        setPromoCheck({ status: "invalid" });
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [form.promo_code]);
 
   // Google ile "yeni işletme kur" akışı: callback bu üç query param'ı ile geri döner.
   const [googlePending] = useState(() => {
@@ -327,13 +345,34 @@ export default function RegisterPage() {
                       <Gift size={14} className="text-ember-500" />
                       Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(opsiyonel)</span>
                     </label>
-                    <input
-                      value={form.promo_code}
-                      onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
-                      placeholder="Örn: OPTI3AY"
-                      autoFocus={!initialPromo}
-                      className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none focus:border-ember-500 transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case"
-                    />
+                    <div className="relative">
+                      <input
+                        value={form.promo_code}
+                        onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
+                        placeholder="Örn: OPTI3AY"
+                        autoFocus={!initialPromo}
+                        className={`w-full border-2 rounded-2xl px-4 py-3.5 pr-11 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case ${
+                          promoCheck.status === "valid"
+                            ? "border-emerald-400 focus:border-emerald-500"
+                            : promoCheck.status === "invalid"
+                              ? "border-red-300 focus:border-red-400"
+                              : "border-slate-200 focus:border-ember-500"
+                        }`}
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {promoCheck.status === "checking" && <Loader2 size={18} className="text-slate-400 animate-spin" />}
+                        {promoCheck.status === "valid" && <Check size={18} className="text-emerald-500" />}
+                        {promoCheck.status === "invalid" && <XCircle size={18} className="text-red-400" />}
+                      </div>
+                    </div>
+                    {promoCheck.status === "valid" && (
+                      <p className="text-xs font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                        <Check size={12} /> Kod geçerli — {promoCheck.freeMonths} ay ücretsiz Profesyonel plan!
+                      </p>
+                    )}
+                    {promoCheck.status === "invalid" && (
+                      <p className="text-xs font-bold text-red-500 mt-1.5">Bu kod geçersiz veya süresi dolmuş.</p>
+                    )}
                   </div>
                 ) : (
                   <button
