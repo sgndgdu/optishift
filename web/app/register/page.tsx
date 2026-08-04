@@ -25,6 +25,10 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ org_name: "", owner_name: "", username: "", email: "", password: "", promo_code: initialPromo });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Alan sadece ?ref= linkinden gelenlerde otomatik açık — organik kayıtta
+  // formu uzatmasın; isteyen "Kampanya kodun var mı?" ile elle açabilir.
+  const [showPromoField, setShowPromoField] = useState(!!initialPromo);
+
   // Google ile "yeni işletme kur" akışı: callback bu üç query param'ı ile geri döner.
   const [googlePending] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -317,18 +321,29 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Gift size={14} className="text-ember-500" />
-                    Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(opsiyonel)</span>
-                  </label>
-                  <input
-                    value={form.promo_code}
-                    onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
-                    placeholder="Örn: OPTI3AY"
-                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none focus:border-ember-500 transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case"
-                  />
-                </div>
+                {showPromoField ? (
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Gift size={14} className="text-ember-500" />
+                      Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(opsiyonel)</span>
+                    </label>
+                    <input
+                      value={form.promo_code}
+                      onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
+                      placeholder="Örn: OPTI3AY"
+                      autoFocus={!initialPromo}
+                      className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none focus:border-ember-500 transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoField(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-ember-600 transition-colors"
+                  >
+                    <Gift size={13} /> Kampanya kodun var mı?
+                  </button>
+                )}
 
                 <button
                   type="submit"
