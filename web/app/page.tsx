@@ -198,6 +198,7 @@ export default function LandingPage() {
               <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
               <Link href="/login" className="hover:text-primary transition-colors">Giriş Yap</Link>
               <Link href="/register" className="hover:text-primary transition-colors">Kayıt Ol</Link>
+              <Link href="/kilavuz" className="hover:text-primary transition-colors">Kılavuz</Link>
               <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
               <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
             </div>

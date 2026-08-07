@@ -31,6 +31,7 @@ export default function LegalShell({ title, updatedAt, children }: {
 
       <footer className="max-w-3xl mx-auto px-4 sm:px-6 pb-10 text-center text-sm text-slate-400">
         <div className="flex justify-center gap-6 mb-3 font-semibold text-slate-500">
+          <Link href="/kilavuz" className="hover:text-primary transition-colors">Kılavuz</Link>
           <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
           <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
         </div>
