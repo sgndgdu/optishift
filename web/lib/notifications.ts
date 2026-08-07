@@ -1,9 +1,10 @@
 // lib/notifications.ts
 // SMS, E-posta ve Web Push bildirim wrapper'ları.
-// SMS/E-posta mock; Web Push gerçek VAPID ile çalışır.
+// SMS mock; Web Push gerçek VAPID ile, E-posta gerçek Resend (lib/mailer.ts) ile çalışır.
 
 import { getDB } from "@/lib/db/client";
 import webpush from "web-push";
+import { sendMail, notificationEmailHtml } from "@/lib/mailer";
 
 
 if (process.env.VAPID_PRIVATE_KEY) {
@@ -62,13 +63,9 @@ export async function sendSMS(phone: string, message: string) {
 }
 
 export async function sendEmail(to: string, subject: string, body: string) {
-  // SendGrid / AWS SES SDK integration here
-  console.log(`\n===========================================`);
-  console.log(`📧 [E-POSTA GÖNDERİLDİ - SENDGRID MOCK]`);
-  console.log(`Alıcı: ${to}`);
-  console.log(`Konu: ${subject}`);
-  console.log(`İçerik: ${body}`);
-  console.log(`===========================================\n`);
-  
-  return { success: true, messageId: `email_${Date.now()}` };
+  const result = await sendMail({ to, subject, html: notificationEmailHtml(subject, body) });
+  if (!result.ok) {
+    console.error(`E-posta gönderilemedi (${to}): ${result.error}`);
+  }
+  return { success: result.ok, messageId: result.ok ? `email_${Date.now()}` : undefined };
 }
