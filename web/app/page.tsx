@@ -64,20 +64,15 @@ export default function LandingPage() {
       <section className="relative pt-32 pb-16 sm:pt-40 sm:pb-24 md:pt-48 md:pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center flex flex-col items-center">
 
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-white border border-slate-200/60 shadow-sm text-xs sm:text-sm text-primary mb-6 sm:mb-8 font-bold animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-            Otomatik Vardiya Planlama Yayında
-          </div>
-
           <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-[5rem] font-semibold tracking-tight mb-6 sm:mb-8 leading-[1.05] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 text-slate-900">
-            Vardiya Planlamanın <br className="hidden sm:block" />
+            Vardiya Planlamasını <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-forest-500 to-ember-500">
-              En Akıllı Yolu
+              Excel&apos;den Kurtarın
             </span>
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 px-2">
-            İşletmenizi Excel sayfalarından kurtarın. OptiShift, personelinizi yasal sınırlara ve adalet skorlarına göre <strong className="text-slate-900 font-bold">saniyeler içinde</strong> optimize eder.
+            Personelinizi <strong className="text-slate-900 font-bold">yasal dinlenme sürelerine ve adalet puanına</strong> göre otomatik planlayın. Hafta sonu ve gece nöbetleri herkese eşit dağılsın.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500">
@@ -100,9 +95,9 @@ export default function LandingPage() {
       <section id="features" className="py-16 sm:py-24 relative z-10 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16 md:mb-24">
-            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">Güçlü. Akıllı. Basit.</h2>
+            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">İşinizi Kolaylaştıran Özellikler</h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg font-medium px-4">
-              Sıradan bir çizelge uygulamasından çok daha fazlası. İşletmeniz için sıfır çakışma garantisi veren tam otonom bir İK asistanı.
+              Kurallarınızı bir kez tanımlayın. OptiShift, kapasite ihtiyacınızı, personel müsaitliğini ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
             </p>
           </div>
 
@@ -113,9 +108,9 @@ export default function LandingPage() {
               <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white border border-slate-100 shadow-[0_8px_16px_rgba(0,0,0,0.06)] text-primary rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-md flex items-center justify-center mb-6 sm:mb-8 relative z-10">
                 <CalendarCheck size={28} />
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4 relative z-10">Tam Otonom Planlama</h3>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4 relative z-10">Otomatik Planlama</h3>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-md relative z-10 font-medium">
-                Siz sadece kuralları belirleyin. OptiShift, tüm personelin müsaitliklerini ve şube ihtiyaçlarını saniyeler içinde mükemmel bir şekilde eşleştirsin. Çakışma sıfır, operasyon kusursuz.
+                Kapasite matrisinde her gün için kaç kişi gerektiğini belirleyin. Motor; personelin müsaitliğini, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
               </p>
             </div>
 
@@ -178,7 +173,7 @@ export default function LandingPage() {
 
             <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold mb-4 sm:mb-6 tracking-tight relative z-10 text-white">Vardiyaları Dert Etmeyi <br className="hidden sm:block"/> Bırakın.</h2>
             <p className="text-base sm:text-xl text-forest-100 mb-8 sm:mb-10 max-w-2xl mx-auto font-medium relative z-10">
-              OptiShift&apos;i bugün kullanmaya başlayın ve ayda onlarca saatlik planlama mesaisinden kurtulun. Üstelik kurulum sadece 2 dakika.
+              OptiShift&apos;i bugün deneyin, vardiya planlamayı bir daha elle yapmak zorunda kalmayın.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 relative z-10">
               <Link href="/register" className="w-full sm:w-auto">

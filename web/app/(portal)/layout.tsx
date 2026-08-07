@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -144,6 +144,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
 
+        <div className="px-1 pt-2">
+          <a
+            href="/kilavuz?role=employee"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <HelpCircle size={18} className="text-slate-400" />
+            Yardım
+          </a>
+        </div>
+
         <div className="mt-auto px-3 pt-6">
           <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
             <div className="flex items-center gap-3 overflow-hidden">
@@ -175,6 +187,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">
+            <a href="/kilavuz?role=employee" target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+              <HelpCircle size={20} />
+            </a>
             <Link href="/portal/notifications" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (

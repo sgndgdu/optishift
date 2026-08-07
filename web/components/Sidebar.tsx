@@ -48,7 +48,7 @@ function usePendingOvertime() {
   }, []);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer } from "lucide-react";
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer, HelpCircle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
@@ -318,6 +318,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           );
         })()}
       </nav>
+
+      {/* Yardım */}
+      <div className="px-1 pt-2">
+        <a
+          href="/kilavuz?role=manager"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+        >
+          <HelpCircle size={18} className="text-slate-400" />
+          Yardım
+        </a>
+      </div>
 
       {/* User Profile & Logout */}
       <div className="mt-auto px-3 pt-6">

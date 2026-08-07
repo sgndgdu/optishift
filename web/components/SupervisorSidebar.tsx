@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, CalendarClock, Settings,
-  LogOut, MessageSquare, Building2, BarChart3, X, UserCog
+  LogOut, MessageSquare, Building2, BarChart3, X, UserCog, HelpCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -156,6 +156,19 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
           );
         })}
       </nav>
+
+      {/* Yardım */}
+      <div className="px-1 pt-2">
+        <a
+          href="/kilavuz?role=supervisor"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+        >
+          <HelpCircle size={18} className="text-slate-400" />
+          Yardım
+        </a>
+      </div>
 
       {/* User Profile & Logout */}
       <div className="mt-auto px-3 pt-6">
