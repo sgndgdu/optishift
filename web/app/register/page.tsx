@@ -158,12 +158,12 @@ export default function RegisterPage() {
           </p>
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="text-2xl font-black text-white mb-1">2 dk</div>
-              <div className="text-sm text-slate-400 font-medium">Kurulum Süresi</div>
+              <div className="text-lg font-black text-white mb-1">Hazır Şablonlar</div>
+              <div className="text-sm text-slate-400 font-medium">Sektörünüze göre gelir</div>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="text-2xl font-black text-white mb-1">0</div>
-              <div className="text-sm text-slate-400 font-medium">Vardiya Çakışması</div>
+              <div className="text-lg font-black text-white mb-1">Adil Dağıtım</div>
+              <div className="text-sm text-slate-400 font-medium">Otomatik hesaplanır</div>
             </div>
           </div>
         </div>
