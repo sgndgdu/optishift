@@ -277,6 +277,13 @@ export default function SettingsPage() {
   const [crewsLoading, setCrewsLoading]   = useState(false);
   const [newCrewName, setNewCrewName]     = useState("");
   const [newCrewColor, setNewCrewColor]   = useState(CREW_COLORS[0]);
+
+  // Sosyal Kurallar — Birlikte Çalışamaz çiftleri
+  const [conflictPairs, setConflictPairs] = useState<any[]>([]);
+  const [conflictPersonnel, setConflictPersonnel] = useState<{ id: string; name: string }[]>([]);
+  const [newConflictA, setNewConflictA]   = useState("");
+  const [newConflictB, setNewConflictB]   = useState("");
+  const [conflictError, setConflictError] = useState("");
   const [editingCrewId, setEditingCrewId] = useState<string | null>(null);
   const [editingCrewName, setEditingCrewName] = useState("");
 
@@ -423,6 +430,19 @@ export default function SettingsPage() {
             const cres = await fetch(`/api/crews?location_id=${finalId}`);
             if (cres.ok) { const cdata = await cres.json(); if (Array.isArray(cdata)) setCrews(cdata); }
           } catch { /* ignore */ } finally { setCrewsLoading(false); }
+
+          // Sosyal kurallar: birlikte çalışamaz çiftleri + personel listesi
+          try {
+            const [pcRes, pRes] = await Promise.all([
+              fetch(`/api/personnel-conflicts?location_id=${finalId}`),
+              fetch(`/api/personnel?location_id=${finalId}`),
+            ]);
+            if (pcRes.ok) { const pcData = await pcRes.json(); if (Array.isArray(pcData)) setConflictPairs(pcData); }
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (Array.isArray(pData)) setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
+            }
+          } catch { /* ignore */ }
 
           if (typeof loc.leave_policy === "string") { try { loc.leave_policy = JSON.parse(loc.leave_policy); } catch { loc.leave_policy = {}; } }
           const lat = loc.latitude != null ? String(loc.latitude) : "";
@@ -1149,6 +1169,72 @@ export default function SettingsPage() {
                   description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
                   right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                 />
+              </SectionCard>
+
+              <SectionCard title="Sosyal Kurallar — Birlikte Çalışamaz">
+                <p className="text-xs text-slate-500 mb-4">
+                  Seçtiğiniz iki personel hiçbir gün aynı vardiyada birlikte atanmaz (kesin kural — otomatik oluşturma bu çifti asla aynı vardiyaya yazmaz).
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                  <select
+                    value={newConflictA}
+                    onChange={e => setNewConflictA(e.target.value)}
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
+                  >
+                    <option value="">Birinci kişi</option>
+                    {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <select
+                    value={newConflictB}
+                    onChange={e => setNewConflictB(e.target.value)}
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
+                  >
+                    <option value="">İkinci kişi</option>
+                    {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      setConflictError("");
+                      if (!newConflictA || !newConflictB) { setConflictError("İki kişi de seçilmeli"); return; }
+                      if (newConflictA === newConflictB) { setConflictError("Aynı kişi seçilemez"); return; }
+                      const res = await fetch("/api/personnel-conflicts", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ location_id: selectedLocationId, personnel_id_a: newConflictA, personnel_id_b: newConflictB }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) { setConflictError(data.error ?? "Eklenemedi"); return; }
+                      const nameA = conflictPersonnel.find(p => p.id === newConflictA)?.name ?? "";
+                      const nameB = conflictPersonnel.find(p => p.id === newConflictB)?.name ?? "";
+                      setConflictPairs(prev => [{ id: data.id, personnel_id_a: newConflictA, personnel_id_b: newConflictB, personnel_a_name: nameA, personnel_b_name: nameB }, ...prev]);
+                      setNewConflictA(""); setNewConflictB("");
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-bold hover:bg-forest-800 transition-colors shrink-0"
+                  >
+                    Ekle
+                  </button>
+                </div>
+                {conflictError && <p className="text-xs text-red-600 mb-3">{conflictError}</p>}
+                {conflictPairs.length === 0 ? (
+                  <p className="text-sm text-slate-400">Henüz tanımlı çift yok.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {conflictPairs.map(pair => (
+                      <div key={pair.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+                        <span className="text-sm font-semibold text-slate-700">{pair.personnel_a_name} <span className="text-slate-400 font-normal">↔</span> {pair.personnel_b_name}</span>
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/personnel-conflicts?id=${pair.id}`, { method: "DELETE" });
+                            setConflictPairs(prev => prev.filter(p => p.id !== pair.id));
+                          }}
+                          className="text-xs font-bold text-red-500 hover:text-red-700"
+                        >
+                          Kaldır
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </SectionCard>
 
               <SectionCard title="Canlı Operasyon">

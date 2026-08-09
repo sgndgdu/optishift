@@ -596,3 +596,26 @@ export const promoCodes = pgTable("promo_codes", {
   expires_at: bigint("expires_at", { mode: "number" }), // null = süresiz kampanya
   created_at: bigint("created_at", { mode: "number" }).notNull(),
 });
+
+// ─── Personnel Conflicts (Sosyal Kurallar — Birlikte Çalışamaz Çiftleri) ─────
+// İki personelin aynı gün/vardiyada asla birlikte atanmaması gereken durumlar
+// için (örn. anlaşmazlık, akraba çalıştırma kısıtı). Motor hard constraint uygular.
+export const personnelConflicts = pgTable("personnel_conflicts", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  personnel_id_a: text("personnel_id_a")
+    .notNull()
+    .references(() => personnel.id),
+  personnel_id_b: text("personnel_id_b")
+    .notNull()
+    .references(() => personnel.id),
+  note: text("note"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});

@@ -27,6 +27,17 @@ export interface Crew {
   created_at?: number;
 }
 
+// ─── Personnel Conflict (Sosyal Kurallar — Birlikte Çalışamaz) ───────────────
+export interface PersonnelConflict {
+  id: number;
+  org_id: string;
+  location_id: string;
+  personnel_id_a: string;
+  personnel_id_b: string;
+  note?: string | null;
+  created_at?: number;
+}
+
 // ─── Rotasyon Şablonu — Fabrika Modülü ───────────────────────────────────────
 export interface RotationTemplate {
   enabled: boolean;

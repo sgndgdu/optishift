@@ -32,6 +32,7 @@ type MergedPerson = {
   ytd_overtime_hours: number | null;
   hourly_wage: number | null;
   night_restriction: string | null;
+  role_levels?: Record<string, string> | null;
   hire_date: string | null;
   annual_leave_days_total: number | null;
   leave_adjustment_days: number | null;
@@ -85,7 +86,7 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0 });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, isSenior: false, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0 });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -133,6 +134,7 @@ export default function PersonnelPage() {
           ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
           hourly_wage: p?.hourly_wage ?? null,
           night_restriction: p?.night_restriction ?? null,
+          role_levels: p?.role_levels ?? null,
           hire_date: p?.hire_date ?? null,
           annual_leave_days_total: p?.annual_leave_days_total ?? null,
           leave_adjustment_days: p?.leave_adjustment_days ?? null,
@@ -258,7 +260,7 @@ export default function PersonnelPage() {
 
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0 });
+    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, isSenior: Object.values(p.role_levels ?? {}).includes("primary"), hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0 });
     setEditError("");
   };
 
@@ -269,7 +271,7 @@ export default function PersonnelPage() {
     try {
       await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
       if (editingPerson.personnelId) {
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -690,6 +692,16 @@ export default function PersonnelPage() {
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1">Kısıt seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
+                  <label className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isSenior}
+                      onChange={e => setEditForm(f => ({ ...f, isSenior: e.target.checked }))}
+                      className="w-4 h-4 rounded accent-forest-600"
+                    />
+                    <span className="text-sm font-semibold text-slate-700">Kıdemli Personel</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Kurallar&apos;daki &quot;Kıdemli Personel Kuralı&quot; açıksa, motor her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
+                  </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşe Giriş Tarihi</label>

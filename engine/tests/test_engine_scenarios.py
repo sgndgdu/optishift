@@ -109,6 +109,39 @@ def test_night_restricted_personnel_never_assigned_night_shift():
     assert all(a["personnelId"] == "P2" for a in night_assignments)
 
 
+def test_conflict_pair_never_assigned_same_shift():
+    """Sosyal kurallar: personnel_conflicts'teki bir çift (P1, P2) hiçbir gün/vardiyada
+    birlikte atanmaz — hard constraint. Üçüncü kişi (P3) varsa kapsama yine de dolar."""
+    payload = base_payload(
+        personnel=[
+            make_person("P1", "Ayşe", max_weekly_hours=60),
+            make_person("P2", "Burak", max_weekly_hours=60),
+            make_person("P3", "Cem", max_weekly_hours=60),
+        ],
+        availability={
+            "P1": FULL_WEEK_AVAILABLE, "P2": FULL_WEEK_AVAILABLE, "P3": FULL_WEEK_AVAILABLE,
+        },
+        demand_matrix={"morning": {str(d): 2 for d in range(7)}},
+        conflict_pairs=[["P1", "P2"]],
+        rules={"max_weekly_hours": 60, "min_rest_hours": 11},
+        max_consecutive_days=7,
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+
+    morning_assignments = [a for a in result["assignments"] if a["shiftId"] == 0]
+    by_day: dict[int, set[str]] = {}
+    for a in morning_assignments:
+        by_day.setdefault(a["day"], set()).add(a["personnelId"])
+
+    for day, people in by_day.items():
+        assert not {"P1", "P2"}.issubset(people), (
+            f"Çakışan çift (P1, P2) {day} gününde aynı vardiyada atanmış: {people}"
+        )
+    # Kapasite (günde 2 kişi) yine de doldurulmalı — P3 devreye girer
+    assert all(len(people) == 2 for people in by_day.values())
+
+
 def test_consecutive_night_weeks_restriction():
     """rules toggle açıkken geçen hafta gece çalışan personel bu hafta gece
     vardiyasına atanamaz (arka arkaya iki hafta gece yasağı)."""

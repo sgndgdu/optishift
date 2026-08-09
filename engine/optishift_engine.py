@@ -48,6 +48,10 @@ MAX_CONSECUTIVE_DAYS = 6
 # Gece vardiyası (≥23:00 bitiş) sonrası sabah vardiyası (≤12:00 başlangıç) yasağı
 NO_NIGHT_TO_MORNING = False
 
+# Sosyal kurallar — birlikte çalışamaz çiftleri: [(personnel_id_a, personnel_id_b), ...]
+# Bu iki kişi hiçbir gün/vardiyada aynı anda atanmaz (hard constraint).
+CONFLICT_PAIRS: list = []
+
 # ─── GECE KORUMASI (Postalar Yönetmeliği) ────────────────────────────────────
 
 # Gece çalışması yasak personel id'leri (gebe/emziren/18 yaş altı/sağlık raporu)
@@ -285,6 +289,20 @@ def build_model():
                 for ns in night_idxs:
                     for ms in morning_idxs:
                         model.add(shifts[(p, d, ns)] + shifts[(p, d + 1, ms)] <= 1)
+
+    # ── SOSYAL KURALLAR: Birlikte Çalışamaz Çiftleri ─────────────────────────
+    # CONFLICT_PAIRS'teki her (idA, idB) çifti için: aynı gün aynı vardiyada
+    # ikisi birden asla atanamaz (hard). Vardiyaları farklıysa veya farklı
+    # günlerdeyse sorun yok — sadece TAM ÇAKIŞMA engellenir.
+    if CONFLICT_PAIRS:
+        id_to_pidx = {person["id"]: p_idx for p_idx, person in enumerate(PERSONNEL)}
+        for id_a, id_b in CONFLICT_PAIRS:
+            pa, pb = id_to_pidx.get(id_a), id_to_pidx.get(id_b)
+            if pa is None or pb is None or pa == pb:
+                continue
+            for d in range(NUM_DAYS):
+                for s in range(NUM_SHIFTS):
+                    model.add(shifts[(pa, d, s)] + shifts[(pb, d, s)] <= 1)
 
     # Haftalık maksimum saat limiti — gerçek vardiya sürelerini hesaba kat
     # Her vardiya tipinin gerçek süresini _shift_minutes ile hesapla (dakika cinsinden)
@@ -1033,11 +1051,16 @@ def api_mode(payload: dict):
     global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
+    global CONFLICT_PAIRS
 
     branch_id = payload.get("branchId", "L-001")
     ENSURE_SENIOR_PER_SHIFT = bool(payload.get("ensure_senior_per_shift", False))
     MAX_CONSECUTIVE_DAYS = int(payload.get("max_consecutive_days", 6))
     NO_NIGHT_TO_MORNING = bool(payload.get("no_night_to_morning", False))
+    CONFLICT_PAIRS = [
+        (pair[0], pair[1]) for pair in (payload.get("conflict_pairs") or [])
+        if isinstance(pair, (list, tuple)) and len(pair) == 2
+    ]
     NIGHT_RESTRICTED_IDS = set(payload.get("night_restricted_ids") or [])
     PREV_WEEK_NIGHT_IDS = set(payload.get("prev_week_night_ids") or [])
     CONSECUTIVE_NIGHT_WEEKS_ENABLED = bool(payload.get("consecutive_night_weeks_enabled", False))

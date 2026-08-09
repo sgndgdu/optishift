@@ -501,6 +501,17 @@ export async function POST(req: NextRequest) {
       .filter((p: any) => !!p.night_restriction)
       .map((p: any) => p.id);
 
+    // Sosyal kurallar: birlikte çalışamaz çiftleri
+    let conflictPairs: [string, string][] = [];
+    try {
+      const conflictRows = (await db
+        .prepare(`SELECT personnel_id_a, personnel_id_b FROM personnel_conflicts WHERE location_id = ? AND org_id = ?`)
+        .all(branchId, orgId)) as any[];
+      conflictPairs = conflictRows.map(r => [r.personnel_id_a, r.personnel_id_b]);
+    } catch (e) {
+      console.error("[generate] personnel_conflicts sorgusu hatası:", e);
+    }
+
     // Arka arkaya iki hafta gece yasağı için geçen haftanın gece çalışanları
     let prevWeekNightIds: string[] = [];
     if (consecutiveNightWeeksEnabled) {
@@ -561,6 +572,7 @@ export async function POST(req: NextRequest) {
       personnel_crews: personnelCrews,
       crew_same_shift_hard: crewSameShiftHard,
       night_restricted_ids: nightRestrictedIds,
+      conflict_pairs: conflictPairs,
       prev_week_night_ids: prevWeekNightIds,
       consecutive_night_weeks_enabled: consecutiveNightWeeksEnabled,
       rules: {

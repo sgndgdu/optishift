@@ -251,6 +251,14 @@ export async function PATCH(req: NextRequest) {
       await db.prepare("UPDATE personnel SET night_restriction=? WHERE id=?").run(value, id);
     }
 
+    // role_levels: "Kıdemli Personel Kuralı" (rules.ensure_senior_per_shift) bu alandaki
+    // herhangi bir değer "primary" ise kişiyi kıdemli sayar (bkz. /api/generate)
+    if (body.role_levels !== undefined) {
+      await db.prepare("UPDATE personnel SET role_levels=? WHERE id=?").run(
+        JSON.stringify(body.role_levels ?? {}), id
+      );
+    }
+
     if (name) await db.prepare("UPDATE users SET name=? WHERE personnel_id=?").run(name, id);
     if (user_access_level) await db.prepare("UPDATE users SET role=? WHERE personnel_id=?").run(user_access_level, id);
 
