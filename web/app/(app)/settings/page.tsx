@@ -5,6 +5,7 @@ import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, Scale } fr
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
+import { QRCodeSVG } from "qrcode.react";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -231,6 +232,8 @@ export default function SettingsPage() {
   const [availabilityCollectionEnabled, setAvailabilityCollectionEnabled] = useState(true);
   const [editRequestsEnabled, setEditRequestsEnabled]             = useState(true);
   const [checkinRequired, setCheckinRequired]                     = useState(false);
+  const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
+  const [checkinRadiusM, setCheckinRadiusM]                       = useState(150);
   const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
   const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
@@ -383,6 +386,8 @@ export default function SettingsPage() {
           }
           setEditRequestsEnabled(loc.rules?.edit_requests_enabled !== false);
           setCheckinRequired(!!loc.rules?.checkin_required);
+          setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
+          if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
           if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
           if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
@@ -498,6 +503,8 @@ export default function SettingsPage() {
             reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
+            gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
+            checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
             lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
             maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
@@ -561,7 +568,7 @@ export default function SettingsPage() {
       weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
-      editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+      editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
       weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
       maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
@@ -580,7 +587,7 @@ export default function SettingsPage() {
     weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
-    editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+    editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
     weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
     maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
@@ -706,6 +713,8 @@ export default function SettingsPage() {
             },
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
+            gps_checkin_required:               gpsCheckinRequired,
+            checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
             late_threshold_min:                 lateThresholdMin,
             max_concurrent_breaks:              maxConcurrentBreaks,
@@ -762,7 +771,7 @@ export default function SettingsPage() {
         weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
-        editRequestsEnabled, checkinRequired, autoOpenShiftOnLate, lateThresholdMin,
+        editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
         weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
         maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
@@ -1264,6 +1273,26 @@ export default function SettingsPage() {
                   right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
                 />
                 <RuleRow
+                  label="GPS Doğrulamalı Check-in"
+                  description={
+                    <span>
+                      Personel check-in yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki check-in reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
+                      {gpsCheckinRequired && (
+                        <span className="flex items-center gap-2 mt-2">
+                          <span>Yarıçap:</span>
+                          <input
+                            type="number" min={20} max={2000} value={checkinRadiusM}
+                            onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
+                            className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
+                          />
+                          <span>metre</span>
+                        </span>
+                      )}
+                    </span>
+                  }
+                  right={<Toggle on={gpsCheckinRequired} onToggle={() => setGpsCheckinRequired(v => !v)} />}
+                />
+                <RuleRow
                   label="Eş Zamanlı Mola Limiti"
                   description="Aynı anda molaya çıkabilecek maksimum kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
                   right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
@@ -1273,6 +1302,29 @@ export default function SettingsPage() {
                   description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
                   right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
                 />
+              </SectionCard>
+
+              <SectionCard title="QR ile Check-in">
+                <p className="text-xs text-slate-500 mb-4">
+                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan check-in ekranı açılır — bugün vardiyası varsa ve henüz check-in yapmadıysa otomatik check-in dener.
+                </p>
+                <div className="flex items-center gap-6">
+                  <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
+                    <QRCodeSVG
+                      value={typeof window !== "undefined" ? `${window.location.origin}/portal?qr=1` : "/portal?qr=1"}
+                      size={140}
+                    />
+                  </div>
+                  <div className="text-xs text-slate-500 space-y-2">
+                    <p>Yazdırıp panoya asabilir ya da ekrandan doğrudan gösterebilirsiniz.</p>
+                    <button
+                      onClick={() => window.print()}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      Yazdır
+                    </button>
+                  </div>
+                </div>
               </SectionCard>
 
               <SectionCard title="Yayın Akışı">

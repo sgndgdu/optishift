@@ -225,6 +225,8 @@ export const shiftAssignments = pgTable("shift_assignments", {
   published_at: bigint("published_at", { mode: "number" }), // unix timestamp — haftanın ilk yayın anı
   check_in_at: bigint("check_in_at", { mode: "number" }), // unix timestamp
   check_out_at: bigint("check_out_at", { mode: "number" }), // unix timestamp
+  check_in_distance_m: integer("check_in_distance_m"), // check-in anında şubeye olan mesafe (metre) — konum paylaşılmadıysa null
+  check_in_verified: boolean("check_in_verified"), // mesafe checkin_radius_m içindeyse true — sadece bilgi amaçlı, engellemez (rules.gps_checkin_required hariç)
   handover_note: text("handover_note"), // vardiya devri notu — check-out'ta yazılır, sonraki vardiya check-in'de görür
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock, Calendar as CalIcon, TrendingUp, BellRing, Check,
@@ -43,6 +43,7 @@ export default function PortalDashboard() {
   const [dataLoading,   setDataLoading]   = useState(true);
   const [crewName,      setCrewName]      = useState<string | null>(null);
   const [checkInLoading,setCheckInLoading]= useState(false);
+  const [checkInError,  setCheckInError]  = useState("");
   const [elapsed,       setElapsed]       = useState("");
   const [now,           setNow]           = useState(new Date());
   const [fairness,      setFairness]      = useState<any>(null); // /api/fairness/me — kendi puanı + etiket + döküm
@@ -51,6 +52,7 @@ export default function PortalDashboard() {
   const [emergencyMsg,     setEmergencyMsg]     = useState("");
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencySent,    setEmergencySent]    = useState(false);
+  const qrAutoCheckinDone = useRef(false);
 
   // clock tick
   useEffect(() => {
@@ -129,19 +131,36 @@ export default function PortalDashboard() {
     } finally { setEmergencySending(false); }
   };
 
+  const getGeoPosition = (): Promise<{ lat: number; lon: number } | null> =>
+    new Promise(resolve => {
+      if (!("geolocation" in navigator)) { resolve(null); return; }
+      const timer = setTimeout(() => resolve(null), 6000);
+      navigator.geolocation.getCurrentPosition(
+        pos => { clearTimeout(timer); resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }); },
+        () => { clearTimeout(timer); resolve(null); },
+        { enableHighAccuracy: true, timeout: 5500 }
+      );
+    });
+
   const handleCheckIn = async (shiftId: number) => {
-    const ts = Math.floor(Date.now() / 1000);
-    setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
     setCheckInLoading(true);
+    setCheckInError("");
     try {
+      const pos = await getGeoPosition();
       const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check_in", shift_id: shiftId }),
+        body: JSON.stringify({ action: "check_in", shift_id: shiftId, lat: pos?.lat, lon: pos?.lon }),
       });
-      if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: null } : s));
+      if (r.ok) {
+        const ts = Math.floor(Date.now() / 1000);
+        setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
+      } else {
+        const err = await r.json().catch(() => ({}));
+        setCheckInError(err.error || "Check-in başarısız oldu.");
+      }
     } catch {
-      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: null } : s));
+      setCheckInError("Check-in başarısız oldu.");
     } finally { setCheckInLoading(false); }
   };
 
@@ -161,6 +180,18 @@ export default function PortalDashboard() {
       setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
     } finally { setCheckInLoading(false); }
   };
+
+  // QR ile check-in: şube panosundaki QR kod /portal?qr=1'e yönlendirir. Bugün vardiyan
+  // varsa ve henüz check-in yapmadıysan, sayfa açılır açılmaz otomatik check-in dener.
+  useEffect(() => {
+    if (qrAutoCheckinDone.current) return;
+    if (typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("qr")) return;
+    if (!todayShift || todayShift.check_in_at || todayShift.check_out_at || dataLoading) return;
+    qrAutoCheckinDone.current = true;
+    handleCheckIn(todayShift.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayShift, dataLoading]);
 
   if (!mounted) return <div className="p-5 space-y-5" />;
 
@@ -268,6 +299,11 @@ export default function PortalDashboard() {
             </div>
           )}
 
+          {checkInError && (
+            <div className="bg-red-500/20 border border-red-300/40 text-white text-xs font-semibold rounded-xl px-3 py-2 mb-2.5">
+              {checkInError}
+            </div>
+          )}
           {/* buttons */}
           <div className="flex gap-2.5">
             <button onClick={() => router.push("/portal/calendar")}

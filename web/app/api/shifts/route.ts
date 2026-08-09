@@ -7,6 +7,7 @@ import { requireAuth } from "@/lib/auth";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { getWeekStart } from "@/lib/date";
 import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
+import { distanceMeters } from "@/lib/geo";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
@@ -448,7 +449,7 @@ export async function PATCH(req: NextRequest) {
 
     // ── Check-in ─────────────────────────────────────────────────────
     if (action === "check_in") {
-      const { shift_id } = body;
+      const { shift_id, lat, lon } = body;
       if (!shift_id) {
         return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
       }
@@ -460,9 +461,36 @@ export async function PATCH(req: NextRequest) {
       if (auth.role === "employee" && existing.personnel_id !== auth.personnel_id) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
+
+      // GPS doğrulama: konum paylaşıldıysa ve şubenin koordinatları tanımlıysa mesafeyi hesapla.
+      // rules.gps_checkin_required açıksa ve yarıçap dışındaysa check-in reddedilir; kapalıysa
+      // sadece bilgi olarak kaydedilir (müdür panelinde görünür), check-in engellenmez.
+      let checkInDistanceM: number | null = null;
+      let checkInVerified: boolean | null = null;
+      if (typeof lat === "number" && typeof lon === "number") {
+        const loc = await db.prepare(
+          `SELECT latitude, longitude, rules FROM locations WHERE id = ?`
+        ).get(existing.location_id) as any;
+        if (loc?.latitude != null && loc?.longitude != null) {
+          checkInDistanceM = distanceMeters(lat, lon, loc.latitude, loc.longitude);
+          let rules: any = {};
+          try { rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : (loc.rules ?? {}); } catch { rules = {}; }
+          const radius = typeof rules.checkin_radius_m === "number" ? rules.checkin_radius_m : 150;
+          checkInVerified = checkInDistanceM <= radius;
+          if (!checkInVerified && rules.gps_checkin_required === true) {
+            return NextResponse.json(
+              { error: `Şubeden çok uzaktasınız (${checkInDistanceM}m). Check-in için şubede olmanız gerekiyor.` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+
       const now = Math.floor(Date.now() / 1000);
-      await db.prepare("UPDATE shift_assignments SET check_in_at = ?, status = 'active' WHERE id = ?").run(now, shift_id);
-      return NextResponse.json({ success: true });
+      await db.prepare(
+        "UPDATE shift_assignments SET check_in_at = ?, status = 'active', check_in_distance_m = ?, check_in_verified = ? WHERE id = ?"
+      ).run(now, checkInDistanceM, checkInVerified, shift_id);
+      return NextResponse.json({ success: true, check_in_distance_m: checkInDistanceM, check_in_verified: checkInVerified });
     }
 
     // ── Check-out ────────────────────────────────────────────────────

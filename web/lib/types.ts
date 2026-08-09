@@ -174,6 +174,8 @@ export interface ScheduleRules {
   leave_override_bonus_enabled?: boolean;   // zorunlu atama bonusu on/off
   clopening_enabled?: boolean;
   availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden müsaitlik istenmez
+  gps_checkin_required?: boolean;   // açıksa şubeye checkin_radius_m'den uzak check-in reddedilir (varsayılan: sadece bilgilendirir, engellemez)
+  checkin_radius_m?: number;        // GPS doğrulama yarıçapı (metre), varsayılan 150
   availability_reminder?: {
     enabled: boolean;
     day: number;             // 0=Pzt … 6=Paz — hatırlatmanın planlandığı gün
