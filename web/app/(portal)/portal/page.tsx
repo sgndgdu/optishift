@@ -47,6 +47,10 @@ export default function PortalDashboard() {
   const [now,           setNow]           = useState(new Date());
   const [fairness,      setFairness]      = useState<any>(null); // /api/fairness/me — kendi puanı + etiket + döküm
   const [fairnessOpen,  setFairnessOpen]  = useState(false);
+  const [emergencyOpen,    setEmergencyOpen]    = useState(false);
+  const [emergencyMsg,     setEmergencyMsg]     = useState("");
+  const [emergencySending, setEmergencySending] = useState(false);
+  const [emergencySent,    setEmergencySent]    = useState(false);
 
   // clock tick
   useEffect(() => {
@@ -109,6 +113,21 @@ export default function PortalDashboard() {
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, [todayShift?.check_in_at, todayShift?.check_out_at]);
+
+  const handleEmergencyAlert = async () => {
+    setEmergencySending(true);
+    try {
+      const r = await fetch("/api/emergency-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: emergencyMsg }),
+      });
+      if (r.ok) {
+        setEmergencySent(true);
+        setTimeout(() => { setEmergencyOpen(false); setEmergencySent(false); setEmergencyMsg(""); }, 2000);
+      }
+    } finally { setEmergencySending(false); }
+  };
 
   const handleCheckIn = async (shiftId: number) => {
     const ts = Math.floor(Date.now() / 1000);
@@ -382,6 +401,59 @@ export default function PortalDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* ── Acil Durum Bildirimi ─────────────────────────────────────────── */}
+      <button
+        onClick={() => setEmergencyOpen(true)}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-red-200 bg-red-50 text-red-600 text-sm font-bold hover:bg-red-100 transition-colors"
+      >
+        <AlertCircle size={16} /> Acil Durum Bildir
+      </button>
+
+      {emergencyOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => !emergencySending && setEmergencyOpen(false)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+            {emergencySent ? (
+              <div className="text-center py-4">
+                <Check size={32} className="text-emerald-500 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-800">Bildirim gönderildi</p>
+                <p className="text-xs text-slate-500 mt-1">Yöneticilerine anında ulaştı.</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Acil Durum Bildir</h3>
+                  <p className="text-xs text-slate-500 mt-1">Şubendeki tüm yöneticilere anında bildirim gider. Sadece gerçek acil durumlarda kullan.</p>
+                </div>
+                <textarea
+                  value={emergencyMsg}
+                  onChange={e => setEmergencyMsg(e.target.value)}
+                  maxLength={300}
+                  rows={3}
+                  placeholder="Örn: Trafik kazası nedeniyle vardiyaya geç kalacağım."
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-red-400 focus:bg-white resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEmergencyOpen(false)}
+                    disabled={emergencySending}
+                    className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    onClick={handleEmergencyAlert}
+                    disabled={emergencySending}
+                    className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {emergencySending ? "Gönderiliyor…" : "Bildir"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Müsaitlik hatırlatıcı ────────────────────────────────────────── */}
       {nextWeekAvail === false && (

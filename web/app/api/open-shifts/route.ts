@@ -56,16 +56,23 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  if (auth.role === "employee") {
-    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
-  }
-
   const db = getDB();
   try {
     const body = await req.json();
     let { location_id, date, start_time, end_time, note } = body;
     const { hero_bonus_multiplier, convert_assignment_id, reason } = body;
     const org_id = auth.org_id;
+
+    // Personel sadece "pazar yerine bırak" modunu ve sadece KENDİ atamasını kullanabilir —
+    // yeni sıfırdan ilan oluşturamaz, başkasının vardiyasını açığa çıkaramaz, no_show işaretleyemez.
+    if (auth.role === "employee") {
+      if (!convert_assignment_id) {
+        return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      }
+      if (reason === "no_show") {
+        return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      }
+    }
 
     if (convert_assignment_id) {
       const asg = await db.prepare(`
@@ -76,6 +83,14 @@ export async function POST(req: NextRequest) {
       `).get(convert_assignment_id) as any;
       if (!asg || asg.p_org !== org_id) {
         return NextResponse.json({ error: "Vardiya ataması bulunamadı" }, { status: 404 });
+      }
+      if (auth.role === "employee") {
+        if (asg.personnel_id !== auth.personnel_id) {
+          return NextResponse.json({ error: "Sadece kendi vardiyanızı pazar yerine bırakabilirsiniz" }, { status: 403 });
+        }
+        if (asg.publication_status !== "published") {
+          return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar pazar yerine bırakılabilir" }, { status: 400 });
+        }
       }
       const dt = new Date(asg.week_start + "T00:00:00Z");
       dt.setUTCDate(dt.getUTCDate() + Number(asg.day ?? 0));

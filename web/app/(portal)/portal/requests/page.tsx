@@ -9,7 +9,7 @@ import { DAY_SHORT } from "@/lib/constants";
 import {
   Inbox, ArrowLeftRight, FileEdit, CalendarOff,
   CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2,
-  AlertCircle, ShieldAlert, Star
+  AlertCircle, ShieldAlert, Star, Megaphone
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -223,6 +223,26 @@ export default function PortalRequests() {
   }, [swapStep, selMate, user]);
 
   // ── submit handlers ────────────────────────────────────────────────────
+  async function submitMarketplace() {
+    if (!selMyShift || !user) return;
+    setLoading(true);
+    try {
+      const r = await fetch("/api/open-shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
+      });
+      if (r.ok) {
+        showToast("Vardiyan pazar yerine bırakıldı — ekibe bildirim gitti!");
+        resetSwapWizard();
+        await loadData();
+      } else {
+        const err = await r.json().catch(() => ({}));
+        showToast(err.error || "Pazar yerine bırakılamadı.", "error");
+      }
+    } finally { setLoading(false); }
+  }
+
   async function submitSwap() {
     if (!selMyShift || !selMate || !selTheirShift || !user) return;
     setLoading(true);
@@ -686,6 +706,20 @@ export default function PortalRequests() {
                 {swapStep === 1 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas teklifini kime göndermek istiyorsun?</p>
+                    <button
+                      disabled={loading}
+                      onClick={submitMarketplace}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-ember-300 bg-ember-50 hover:bg-ember-100 text-left transition-all disabled:opacity-50"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-ember-100 flex items-center justify-center shrink-0">
+                        <Megaphone size={15} className="text-ember-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-ember-700">Herkese Aç (Pazar Yeri)</p>
+                        <p className="text-[10px] text-ember-600/80">Belirli birini seçme — vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
+                      </div>
+                    </button>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider text-center py-1">veya belirli birine teklif et</p>
                     {teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Ekip arkadaşı bulunamadı.</p>}
                     {teammates.map(p => (
                       <button
