@@ -621,3 +621,23 @@ export const personnelConflicts = pgTable("personnel_conflicts", {
     () => Math.floor(Date.now() / 1000),
   ),
 });
+
+// ─── Payroll Periods (Puantaj Dönem Kilidi) ──────────────────────────────────
+// Bir şube+ay kilitlendiğinde o aya düşen vardiyaların check-in/check-out ve
+// düzenleme işlemleri reddedilir — puantaj/bordro hazırlandıktan sonra geçmiş
+// verinin sessizce değişmesini önler. Kayıt varlığı = kilitli; silinince açılır.
+export const payrollPeriods = pgTable("payroll_periods", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  month: text("month").notNull(), // "YYYY-MM"
+  locked_by: text("locked_by"),
+  locked_by_name: text("locked_by_name"),
+  locked_at: bigint("locked_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});

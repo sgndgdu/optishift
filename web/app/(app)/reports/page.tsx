@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
-import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock } from "lucide-react";
 
 interface ReportRow {
   personnel_id: string;
@@ -41,12 +41,57 @@ export default function ReportsPage() {
   const [locationName, setLocationName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [periodLock, setPeriodLock] = useState<any>(null); // null = kilitli değil
+  const [lockActionLoading, setLockActionLoading] = useState(false);
+  const [role, setRole] = useState<string>("");
 
   const getLocationId = () => {
     try {
       const u = JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}");
       return u?.location_id ?? "";
     } catch { return ""; }
+  };
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}");
+      setRole(u?.role ?? "");
+    } catch { /* empty */ }
+  }, []);
+
+  const loadPeriodLock = useCallback(async (m: string) => {
+    const location_id = getLocationId();
+    if (!location_id) return;
+    try {
+      const res = await fetch(`/api/payroll-periods?location_id=${location_id}&month=${m}`);
+      const data = await res.json();
+      setPeriodLock(Array.isArray(data) && data.length > 0 ? data[0] : null);
+    } catch { /* empty */ }
+  }, []);
+
+  useEffect(() => { loadPeriodLock(month); }, [month, loadPeriodLock]);
+
+  const handleLockPeriod = async () => {
+    const location_id = getLocationId();
+    if (!location_id) return;
+    setLockActionLoading(true);
+    try {
+      const res = await fetch("/api/payroll-periods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id, month }),
+      });
+      if (res.ok) await loadPeriodLock(month);
+    } finally { setLockActionLoading(false); }
+  };
+
+  const handleUnlockPeriod = async () => {
+    if (!periodLock?.id) return;
+    setLockActionLoading(true);
+    try {
+      const res = await fetch(`/api/payroll-periods?id=${periodLock.id}`, { method: "DELETE" });
+      if (res.ok) await loadPeriodLock(month);
+    } finally { setLockActionLoading(false); }
   };
 
   const loadReport = useCallback(async (m: string) => {
@@ -137,6 +182,44 @@ export default function ReportsPage() {
         >
           <ChevronRight size={18} />
         </button>
+      </div>
+
+      {/* Puantaj Dönem Kilidi */}
+      <div className={`rounded-2xl p-4 flex items-center justify-between border ${periodLock ? "bg-slate-50 border-slate-200" : "bg-amber-50 border-amber-200"}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${periodLock ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-600"}`}>
+            {periodLock ? <Lock size={16} /> : <Unlock size={16} />}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800">
+              {periodLock ? "Bu dönem kilitli" : "Bu dönem açık"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {periodLock
+                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi — check-in/check-out ve düzenleme yapılamaz.`
+                : "Puantaj onaylandıktan sonra kilitleyerek geçmiş verinin değişmesini önleyin."}
+            </p>
+          </div>
+        </div>
+        {periodLock ? (
+          (role === "admin" || role === "supervisor") && (
+            <button
+              onClick={handleUnlockPeriod}
+              disabled={lockActionLoading}
+              className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-50 shrink-0"
+            >
+              Kilidi Aç
+            </button>
+          )
+        ) : (
+          <button
+            onClick={handleLockPeriod}
+            disabled={lockActionLoading}
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0"
+          >
+            Dönemi Kilitle
+          </button>
+        )}
       </div>
 
       {/* Summary Cards */}

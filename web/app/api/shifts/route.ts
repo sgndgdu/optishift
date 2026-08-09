@@ -9,6 +9,22 @@ import { getWeekStart } from "@/lib/date";
 import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
 import { distanceMeters } from "@/lib/geo";
 
+// Vardiyanın gerçek tarihini (week_start + day) ay bazında (YYYY-MM) döner.
+function assignmentMonth(weekStart: string, day: number): string {
+  const dt = new Date(weekStart + "T00:00:00Z");
+  dt.setUTCDate(dt.getUTCDate() + Number(day ?? 0));
+  return dt.toISOString().slice(0, 7);
+}
+
+// Bu vardiyanın ayı, şubede kilitli bir puantaj dönemine düşüyor mu?
+async function isPeriodLocked(db: any, orgId: string, locationId: string, weekStart: string, day: number): Promise<boolean> {
+  const month = assignmentMonth(weekStart, day);
+  const row = await db.prepare(
+    `SELECT id FROM payroll_periods WHERE org_id = ? AND location_id = ? AND month = ?`
+  ).get(orgId, locationId, month);
+  return !!row;
+}
+
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
 // client'ta tanımlar geç yüklendiyse (race) veri yine de doğru yazılır.
@@ -461,6 +477,9 @@ export async function PATCH(req: NextRequest) {
       if (auth.role === "employee" && existing.personnel_id !== auth.personnel_id) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
+      if (await isPeriodLocked(db, auth.org_id, existing.location_id, existing.week_start, existing.day)) {
+        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli — check-in yapılamaz" }, { status: 400 });
+      }
 
       // GPS doğrulama: konum paylaşıldıysa ve şubenin koordinatları tanımlıysa mesafeyi hesapla.
       // rules.gps_checkin_required açıksa ve yarıçap dışındaysa check-in reddedilir; kapalıysa
@@ -505,6 +524,9 @@ export async function PATCH(req: NextRequest) {
       }
       if (auth.role === "employee" && existing.personnel_id !== auth.personnel_id) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+      }
+      if (await isPeriodLocked(db, auth.org_id, existing.location_id, existing.week_start, existing.day)) {
+        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli — check-out yapılamaz" }, { status: 400 });
       }
       const now = Math.floor(Date.now() / 1000);
       const note = typeof handover_note === "string" && handover_note.trim()
