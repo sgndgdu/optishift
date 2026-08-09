@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-const LEAVE_TYPES = ["Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor"];
+const LEAVE_TYPES = [
+  "Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor",
+  "Doğum İzni", "Süt İzni", "Evlilik İzni", "Ücretsiz İzin",
+];
 
 function shiftLabel(row: any) {
   if (!row) return "—";
@@ -839,17 +842,17 @@ export default function PortalRequests() {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">İzin Türü</label>
-                <div className="flex flex-col gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {LEAVE_TYPES.map(t => (
                     <button
                       key={t}
                       onClick={() => setLeaveType(t)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-semibold text-left transition-all ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-semibold text-left transition-all ${
                         leaveType === t ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-600 hover:border-slate-300"
                       }`}
                     >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${leaveType === t ? "border-primary" : "border-slate-300"}`}>
-                        {leaveType === t && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${leaveType === t ? "border-primary" : "border-slate-300"}`}>
+                        {leaveType === t && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                       </div>
                       {t}
                     </button>
