@@ -150,11 +150,18 @@ export default function SupervisorDashboard() {
               <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
                 <Icon size={18} className={color} />
               </div>
-              <div className="text-center sm:text-left">
-                <div className={`text-xl sm:text-2xl font-black ${loading ? "text-slate-300" : color}`}>
-                  {loading ? "—" : value}
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-500">{label}</div>
+              <div className="text-center sm:text-left w-full sm:w-auto">
+                {loading ? (
+                  <>
+                    <div className="h-6 sm:h-7 w-10 bg-slate-100 rounded-md animate-pulse mx-auto sm:mx-0" />
+                    <div className="h-3.5 w-16 bg-slate-100 rounded-md animate-pulse mt-1.5 mx-auto sm:mx-0" />
+                  </>
+                ) : (
+                  <>
+                    <div className={`text-xl sm:text-2xl font-black ${color}`}>{value}</div>
+                    <div className="text-xs sm:text-sm font-semibold text-slate-500">{label}</div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

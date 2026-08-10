@@ -286,9 +286,19 @@ export default function DashboardPage() {
                 {href && <ArrowRight size={15} className="text-slate-300 group-hover:text-slate-500 transition-colors" />}
               </div>
               <div>
-                <div className="text-3xl font-black text-slate-900 tracking-tight">{loading ? "—" : value}</div>
-                <div className="text-sm font-semibold text-slate-600 mt-1">{label}</div>
-                <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+                {loading ? (
+                  <>
+                    <div className="h-8 w-14 bg-slate-100 rounded-md animate-pulse" />
+                    <div className="h-4 w-24 bg-slate-100 rounded-md animate-pulse mt-2" />
+                    <div className="h-3 w-20 bg-slate-100 rounded-md animate-pulse mt-1.5" />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
+                    <div className="text-sm font-semibold text-slate-600 mt-1">{label}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
