@@ -263,14 +263,15 @@ function SnapshotGrid({ data }: { data: FullPub }) {
                       </td>
                       {Array.from({ length: 7 }, (_, d) => {
                         const cell = cellMap[`${p.id}-${d}`];
+                        const snapIsNight = cell ? parseInt(cell.startTime.split(":")[0], 10) >= 22 || cell.endTime < cell.startTime : false;
                         return (
                           <td key={d} className={cn("py-1 px-1 text-center", d >= 5 && "bg-forest-50/20")}>
                             {cell ? (
-                              <div className="bg-forest-50 border border-forest-200/70 rounded-lg py-1 px-1 mx-auto max-w-[80px]">
-                                <div className="font-bold text-forest-700 text-[10px] truncate">
+                              <div className={cn("border rounded-lg py-1 px-1 mx-auto max-w-[80px]", snapIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70")}>
+                                <div className={cn("font-bold text-[10px] truncate", snapIsNight ? "text-indigo-700" : "text-forest-700")}>
                                   {snap.shiftDefs.find(s => s.id === cell.shiftId)?.name ?? "—"}
                                 </div>
-                                <div className="text-forest-400/80 text-[9px]">{cell.startTime}–{cell.endTime}</div>
+                                <div className={cn("text-[9px]", snapIsNight ? "text-indigo-400/80" : "text-forest-400/80")}>{cell.startTime}–{cell.endTime}</div>
                               </div>
                             ) : <span className="text-slate-200 text-[10px]">—</span>}
                           </td>
@@ -2734,12 +2735,16 @@ export default function SchedulePage() {
                           );
 
                           if (isPublishedWeek && !editUnlocked) {
+                            const cellIsNight = cell ? isNightCell(cell) : false;
                             return (
                               <td key={day} className={tdClass}>
                                 {cell ? (
-                                  <div className={cn("mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border", forceData ? "bg-amber-50 border-amber-200" : "bg-forest-50 border-forest-200/70")}>
-                                    {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-forest-700")}>{matchedDef.name}</div>}
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-forest-400")}>
+                                  <div className={cn(
+                                    "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border",
+                                    forceData ? "bg-amber-50 border-amber-200" : cellIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70"
+                                  )}>
+                                    {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>{matchedDef.name}</div>}
+                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                   </div>
@@ -2752,6 +2757,7 @@ export default function SchedulePage() {
                             );
                           }
 
+                          const cellIsNight = cell ? isNightCell(cell) : false;
                           return (
                             <DroppableCell key={day} id={cellKey} className={tdClass}>
                               {cell ? (
@@ -2760,13 +2766,13 @@ export default function SchedulePage() {
                                     onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                     className={cn(
                                       "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
-                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
+                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : cellIsNight ? "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
                                     )}
                                   >
-                                    <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : "text-forest-700")}>
+                                    <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>
                                       {matchedDef ? matchedDef.name : "Özel"}
                                     </div>
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : "text-forest-400")}>
+                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                     {forceData && (
