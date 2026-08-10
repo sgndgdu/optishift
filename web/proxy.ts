@@ -25,15 +25,10 @@ const PUBLIC_API_PATHS = [
   // oturum cookie'siyle çalışır.
 ];
 
-// Davet/katılım istekleri: henüz oturum yok, token'ın kendisi doğrulama sağlar.
-// POST'lar (davet OLUŞTURMA) bilinçli olarak dışarıda — JWT ister.
+// /setup sayfası: geçici-şifre davet token'ı → oturum başlatır, henüz oturum yok.
+// POST /api/invite (davet linki OLUŞTURMA) bilinçli olarak dışarıda — JWT ister.
 function isPublicInviteRequest(req: NextRequest): boolean {
-  const { pathname } = req.nextUrl;
-  // /join sayfası: token doğrula (GET) + kayıt tamamla (PATCH)
-  if (pathname === "/api/invites" && (req.method === "GET" || req.method === "PATCH")) return true;
-  // /setup sayfası: geçici-şifre davet token'ı → oturum başlat
-  if (pathname === "/api/invite" && req.method === "GET") return true;
-  return false;
+  return req.nextUrl.pathname === "/api/invite" && req.method === "GET";
 }
 
 const SPOOFABLE_AUTH_HEADERS = [
