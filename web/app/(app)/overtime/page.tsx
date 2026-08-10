@@ -418,19 +418,19 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
 // ─── Alt Bileşenler ──────────────────────────────────────────────────────────
 
 function SummaryCard({ label, value, icon, accent, hint }: { label: string; value: number | string; icon: React.ReactNode; accent: string; hint?: string }) {
-  const bg: Record<string, string> = {
-    amber: "bg-amber-50 border-amber-100",
-    emerald: "bg-emerald-50 border-emerald-100",
-    red: "bg-red-50 border-red-100",
-    blue: "bg-blue-50 border-blue-100",
+  const badgeBg: Record<string, string> = {
+    amber: "bg-amber-100",
+    emerald: "bg-emerald-100",
+    red: "bg-red-100",
+    blue: "bg-blue-100",
   };
   return (
-    <div className={`rounded-2xl border p-4 ${bg[accent] ?? "bg-slate-50 border-slate-100"}`}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-slate-500">{label}</span>
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${badgeBg[accent] ?? "bg-slate-100"}`}>
         {icon}
       </div>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
       {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
     </div>
   );

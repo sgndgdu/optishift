@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle } from "lucide-react";
+import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks } from "lucide-react";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -186,13 +186,16 @@ export default function OpenShiftsPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3 md:gap-4">
         {[
-          { label: "Açık İlan", value: openCount, color: "bg-amber-50 text-amber-700" },
-          { label: "Üstlenildi", value: claimedCount, color: "bg-emerald-50 text-emerald-700" },
-          { label: "Toplam", value: shifts.length, color: "bg-slate-50 text-slate-700" },
+          { label: "Açık İlan", value: openCount, icon: Megaphone, badgeBg: "bg-amber-100", text: "text-amber-600" },
+          { label: "Üstlenildi", value: claimedCount, icon: CheckCircle2, badgeBg: "bg-emerald-100", text: "text-emerald-600" },
+          { label: "Toplam", value: shifts.length, icon: ListChecks, badgeBg: "bg-slate-100", text: "text-slate-600" },
         ].map(k => (
-          <div key={k.label} className={`${k.color} rounded-2xl p-4 text-center`}>
-            <p className="text-2xl font-black">{k.value}</p>
-            <p className="text-xs font-bold opacity-70 mt-0.5">{k.label}</p>
+          <div key={k.label} className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 mx-auto ${k.badgeBg} ${k.text}`}>
+              <k.icon size={18} />
+            </div>
+            <p className="text-2xl font-black text-slate-900">{k.value}</p>
+            <p className="text-xs font-bold text-slate-500 mt-0.5">{k.label}</p>
           </div>
         ))}
       </div>

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Trophy, AlertTriangle, TrendingUp, Moon, Calendar, Zap, Info, RefreshCw, ExternalLink,
+  Trophy, AlertTriangle, TrendingUp, Moon, Calendar, Zap, Info, RefreshCw, ExternalLink, Scale, Gauge, Ruler,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -138,25 +138,31 @@ export default function FairnessPage() {
           {
             label: "Ort. Kümülatif Yük",
             value: Math.round(avgBurden * 10) / 10,
-            color: "text-forest-700",
-            bg: "bg-forest-50 border-forest-100",
+            icon: Scale,
+            color: "text-forest-600",
+            badgeBg: "bg-forest-100",
           },
           {
             label: "Dağılım Dengesi",
             value: stdDev <= 5 ? "İyi" : stdDev <= 15 ? "Orta" : "Dengesiz",
-            color: stdDev <= 5 ? "text-emerald-700" : stdDev <= 15 ? "text-amber-700" : "text-red-700",
-            bg: stdDev <= 5 ? "bg-emerald-50 border-emerald-100" : stdDev <= 15 ? "bg-amber-50 border-amber-100" : "bg-red-50 border-red-100",
+            icon: Gauge,
+            color: stdDev <= 5 ? "text-emerald-600" : stdDev <= 15 ? "text-amber-600" : "text-red-600",
+            badgeBg: stdDev <= 5 ? "bg-emerald-100" : stdDev <= 15 ? "bg-amber-100" : "bg-red-100",
           },
           {
             label: "Maks – Min Gap",
             value: `${Math.round(gap * 10) / 10}p`,
-            color: gap > 40 ? "text-red-700" : gap > 20 ? "text-amber-700" : "text-emerald-700",
-            bg: gap > 40 ? "bg-red-50 border-red-100" : gap > 20 ? "bg-amber-50 border-amber-100" : "bg-emerald-50 border-emerald-100",
+            icon: Ruler,
+            color: gap > 40 ? "text-red-600" : gap > 20 ? "text-amber-600" : "text-emerald-600",
+            badgeBg: gap > 40 ? "bg-red-100" : gap > 20 ? "bg-amber-100" : "bg-emerald-100",
           },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className={cn("flex flex-col gap-0.5 px-4 py-3 rounded-2xl border", bg)}>
+        ].map(({ label, value, icon: Icon, color, badgeBg }) => (
+          <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", badgeBg, color)}>
+              <Icon size={18} />
+            </div>
+            <span className={cn("text-xl font-black tabular-nums block", color)}>{value}</span>
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-            <span className={cn("text-xl font-black tabular-nums", color)}>{value}</span>
           </div>
         ))}
       </div>
