@@ -38,6 +38,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         paragraphs: [
           "Kayıt olduktan sonra kısa bir kurulum ekranı karşınıza çıkar. Önce sektörünüzü seçip en az bir şube adı girersiniz. İkinci adımda sektörünüze uygun hazır vardiya şablonları gelir (örneğin bir kafe için “Açılış” ve “Kapanış”); saatleri isterseniz değiştirebilir, isterseniz olduğu gibi bırakabilirsiniz.",
           "Departman eklemek zorunlu değildir. Tek şubeli, tek bölümlü bir işletmeyseniz bu adımı atlayabilirsiniz — kapasite planınız şube geneli için tek bir tablo olarak kalır. Birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) bunları sonradan Ayarlar’dan da ekleyebilirsiniz.",
+          "Giriş ekranında “Biyometrik ile Giriş Yap” seçeneğini görüyorsanız cihazınız Face ID/Touch ID/parmak izi destekliyor demektir. Önce kullanıcı adı-şifrenizle bir kez giriş yapıp bu cihazı etkinleştirdikten sonra bir daha şifre yazmadan girebilirsiniz.",
         ],
       },
       {
@@ -67,12 +68,21 @@ export const ROLE_GUIDES: RoleGuide[] = [
         tip: "İsterseniz yayınlamadan önce planı personele gönderip 48 saatlik bir inceleme süresi tanıyabilirsiniz. Bu adım tamamen isteğe bağlıdır, dilerseniz doğrudan yayınlayabilirsiniz.",
       },
       {
+        id: "mudur-maliyet",
+        title: "Canlı Maliyet Bütçesi",
+        icon: Timer,
+        paragraphs: [
+          "Vardiya Planı sayfasının üst barında, personel kartlarına girdiğiniz saatlik ücrete göre hesaplanan “bu hafta planlanan işçilik maliyeti” çipini görürsünüz (örn. ₺172.520). Fazla mesai eşiğini aşan saatler otomatik ×1,5 ile hesaba katılır.",
+          "Ayarlar → Kurallar → Fazla Mesai’den isteğe bağlı bir haftalık ₺ bütçe tavanı belirleyebilirsiniz. Plan bu tavanı aşarsa çip kırmızıya döner ve “Yayınla”ya basmadan önce bir uyarı daha görürsünüz — yine de yayınlamak size kalır.",
+        ],
+      },
+      {
         id: "mudur-personel",
         title: "Personel & Hesaplar",
         icon: Users,
         paragraphs: [
           "Personel eklerken isim, telefon ve rol yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz — bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
-          "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai hesaplaması için kullanılır) ve varsa gece vardiyası kısıtlaması (hamilelik, 18 yaş altı gibi durumlar için) bulunur.",
+          "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece vardiyası kısıtlaması (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
         ],
       },
       {
@@ -90,6 +100,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Megaphone,
         paragraphs: [
           "Bir personel gelemediğinde veya vardiyasını devredemediğinde, o vardiyayı “açık” ilan edebilirsiniz. Sistem o gün müsait ve uygun personeli sıralar (adalet puanı en düşük olan önce gelir); siz birini seçip atayabilir ya da personelin kendiliğinden üstlenmesini bekleyebilirsiniz.",
+          "Personel de kendi vardiyasını isteğe bağlı olarak “Herkese Aç (Pazar Yeri)” seçeneğiyle doğrudan bu listeye bırakabilir — belirli bir kişiye teklif etmek yerine, isteyen ilk kişi üstlenir ve size otomatik bildirim gider.",
         ],
       },
       {
@@ -116,6 +127,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: BarChart2,
         paragraphs: [
           "Aylık özet raporlar ve puantaj (kimin ne zaman geldiği/gittiği, geç kalmalar, gelinmeyen günler) burada listelenir. Excel olarak dışa aktarabilirsiniz.",
+          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın check-in/check-out kayıtları donar — geçmiş puantaj verisi kazara değişemez. Kilidi sadece admin veya süpervizör açabilir, müdür açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
         ],
       },
       {
@@ -135,9 +147,9 @@ export const ROLE_GUIDES: RoleGuide[] = [
         ],
         steps: [
           "Vardiyalar: çalışma saatleriniz ve vardiya tipleriniz. İstediğiniz kadar tanımlayabilirsiniz — “sabah/akşam” gibi sabit bir kalıp yoktur.",
-          "Kurallar: haftalık azami çalışma saati, vardiyalar arası minimum dinlenme süresi, fazla mesai eşiği gibi kısıtlar.",
-          "Personel Talepleri: müsaitlik toplamayı açma/kapama, hatırlatma zamanlaması, takas ve değişiklik izinleri.",
-          "Adalet Puanı: ileri düzey çarpanlar. Çoğu işletme varsayılan ayarları hiç değiştirmeden kullanır.",
+          "Kurallar: haftalık azami çalışma saati, vardiyalar arası minimum dinlenme süresi, fazla mesai eşiği ve haftalık işçilik maliyeti bütçesi gibi kısıtlar; “Sosyal Kurallar” bölümünden iki personelin hiçbir gün aynı vardiyaya birlikte yazılmamasını sağlayabilirsiniz (örn. anlaşmazlık yaşayan iki kişi); “QR ile Check-in” bölümünden şubenize asabileceğiniz bir QR kod üretebilir, isterseniz “GPS Doğrulamalı Check-in” ile personelin gerçekten şubede olup olmadığını da kontrol edebilirsiniz.",
+          "Personel Talepleri: müsaitlik toplamayı açma/kapama, hatırlatma zamanlaması, takas ve değişiklik izinleri, izin politikası.",
+          "Adalet Puanı: ileri düzey çarpanlar ve “Adalet Penceresi” — kümülatif puanın kaç haftalık geçmişi dikkate alacağı (varsayılan 8 hafta, isterseniz 90 güne/13 haftaya kadar uzatabilirsiniz). Çoğu işletme varsayılan ayarları hiç değiştirmeden kullanır.",
           "Departmanlar & Alanlar: birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) burada tanımlarsınız.",
           "Ekipler & Rotasyon: vardiyalı çalışan üretim/fabrika işletmeleri için dönüşümlü ekip planı.",
           "Hesap: işletme bilgileriniz ve abonelik/fatura bilgileriniz.",
@@ -157,6 +169,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Rocket,
         paragraphs: [
           "İşletmeniz size bir kullanıcı adı ve şifre tanımlar; bunlarla telefonunuzdan giriş yaparsınız. Uygulamayı tarayıcınızdan “Ana Ekrana Ekle” seçeneğiyle telefonunuza normal bir uygulama gibi de ekleyebilirsiniz.",
+          "Telefonunuz Face ID/Touch ID/parmak izi destekliyorsa ana sayfadaki “Bu cihazda hızlı giriş” kartından bir kere etkinleştirdikten sonra, bir daha kullanıcı adı-şifre yazmadan biyometrik olarak giriş yapabilirsiniz.",
         ],
       },
       {
@@ -165,6 +178,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Home,
         paragraphs: [
           "Sıradaki vardiyanızı, check-in/check-out butonunu, bu haftaki toplam çalışma saatinizi, adalet puanınızı ve son bildirimlerinizi burada görürsünüz.",
+          "Gerçek bir acil durumda (kaza, sağlık sorunu vb.) sayfanın altındaki “Acil Durum Bildir” butonuyla şubenizdeki tüm yöneticilere anında bildirim gönderebilirsiniz. Bu buton sadece gerçek acil durumlar içindir, günlük mazeretler için kullanılmaz — onun için Talepler sayfasındaki izin/düzenleme akışı vardır.",
         ],
       },
       {
@@ -197,8 +211,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
         ],
         steps: [
           "Vardiya Düzenleme: mevcut bir vardiyanızın saatinin değiştirilmesini istediğinizde kullanılır.",
-          "Vardiya Takası: bir iş arkadaşınızla vardiya değiştirmek istediğinizde — önce karşı taraf teklifi kabul eder, ardından müdür onaylar.",
-          "İzin: yıllık izin talebinizi, kalan izin gününüzle birlikte buradan oluşturursunuz.",
+          "Vardiya Takası: bir iş arkadaşınızla vardiya değiştirmek istediğinizde — önce karşı taraf teklifi kabul eder, ardından müdür onaylar. Belirli birini seçmek istemiyorsanız “Herkese Aç (Pazar Yeri)” seçeneğiyle vardiyanızı tüm ekibe açık ilan olarak bırakabilirsiniz; isteyen ilk kişi üstlenir.",
+          "İzin: yıllık izin dışında mazeret, hastalık/rapor, doğum, süt, evlilik ve ücretsiz izin türlerinden birini seçip talep oluşturursunuz; kalan yıllık izin gününüz üstte her zaman görünür.",
           "Gelen: size yapılan takas teklifleri ve onaylamanız/reddetmeniz gereken fazla mesai kayıtları burada görünür.",
         ],
       },
@@ -208,6 +222,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: ListChecks,
         paragraphs: [
           "Vardiyanız başladığında ana sayfadaki karttan “Check-in” butonuna basarsınız, bittiğinde “Check-out”a. Müdürünüz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
+          "Şubenizde girişte bir QR kod asılıysa, telefon kameranızla okutmanız yeterli — vardiyanız varsa check-in otomatik yapılır, ayrıca uygulamayı açıp butona basmanıza gerek kalmaz. Bazı işletmelerde check-in sırasında konumunuz da şubeyle karşılaştırılır (GPS doğrulama); bu açıksa şubeden çok uzaktaysanız check-in reddedilir.",
         ],
       },
       {
@@ -326,5 +341,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: "Bir vardiyaya gelemeyeceğimi anlarsam ne yapmalıyım?",
     answer:
       "Mümkünse önceden bir vardiya takası veya düzenleme talebi oluşturun. Son anda haber veremezseniz müdürünüz o vardiyayı “açık vardiya” ilan edip başka birine yönlendirebilir.",
+  },
+  {
+    question: "Vardiyamı belirli bir kişiye teklif etmeden bırakabilir miyim?",
+    answer:
+      "Evet. Talepler → Yeni Talep → Vardiya Takası akışında “Herkese Aç (Pazar Yeri)” seçeneğini kullanırsanız vardiyanız tüm ekibe açık bir ilan olarak düşer, isteyen ilk kişi üstlenir ve size bildirim gider.",
+  },
+  {
+    question: "Biyometrik giriş güvenli mi, şifremin yerini mi alıyor?",
+    answer:
+      "Face ID/Touch ID/parmak izi bilgisi hiçbir zaman OptiShift sunucularına gitmez — sadece kendi cihazınızda kalır. Şifreniz silinmez, istediğiniz an yine kullanıcı adı-şifreyle de giriş yapabilirsiniz; biyometrik sadece ek bir hızlı giriş seçeneğidir.",
   },
 ];
