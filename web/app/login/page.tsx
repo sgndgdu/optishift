@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, AtSign, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
+import { Lock, AtSign, Eye, EyeOff, ArrowRight, ShieldCheck, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
+import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication } from "@simplewebauthn/browser";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
@@ -33,6 +34,43 @@ export default function LoginPage() {
     const code = new URLSearchParams(window.location.search).get("google_error");
     return code ? (GOOGLE_ERROR_MESSAGES[code] ?? "Google girişi başarısız oldu.") : "";
   });
+  const [webauthnAvailable, setWebauthnAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    if (!browserSupportsWebAuthn()) return;
+    platformAuthenticatorIsAvailable().then(setWebauthnAvailable).catch(() => {});
+  }, []);
+
+  // Giriş başarılı olduktan sonra role'e göre doğru panele yönlendirir —
+  // hem şifreli hem biyometrik girişte aynı mantık.
+  const routeAfterLogin = (data: {
+    role: string;
+    location_id: string | null;
+    is_temp_password?: boolean;
+  }) => {
+    if (data.is_temp_password) {
+      localStorage.setItem("optishift_setup_user", JSON.stringify(data));
+      router.push("/setup");
+      return;
+    }
+    if (data.role === "supervisor" || (data.role === "admin" && !data.location_id)) {
+      localStorage.removeItem("optishift_portal_user");
+      localStorage.removeItem("optishift_manager_user");
+      localStorage.setItem("optishift_supervisor_user", JSON.stringify(data));
+      router.push("/supervisor");
+    } else if (data.role === "manager" || data.role === "admin") {
+      localStorage.removeItem("optishift_portal_user");
+      localStorage.removeItem("optishift_supervisor_user");
+      localStorage.setItem("optishift_manager_user", JSON.stringify(data));
+      router.push("/dashboard");
+    } else {
+      localStorage.removeItem("optishift_manager_user");
+      localStorage.removeItem("optishift_supervisor_user");
+      localStorage.setItem("optishift_portal_user", JSON.stringify(data));
+      router.push("/portal");
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,32 +92,39 @@ export default function LoginPage() {
         return;
       }
 
-      // İlk giriş: şifre belirleme sayfasına yönlendir
-      if (data.is_temp_password) {
-        localStorage.setItem("optishift_setup_user", JSON.stringify(data));
-        router.push("/setup");
-        return;
-      }
-
-      if (data.role === "supervisor" || (data.role === "admin" && !data.location_id)) {
-        localStorage.removeItem("optishift_portal_user");
-        localStorage.removeItem("optishift_manager_user");
-        localStorage.setItem("optishift_supervisor_user", JSON.stringify(data));
-        router.push("/supervisor");
-      } else if (data.role === "manager" || data.role === "admin") {
-        localStorage.removeItem("optishift_portal_user");
-        localStorage.removeItem("optishift_supervisor_user");
-        localStorage.setItem("optishift_manager_user", JSON.stringify(data));
-        router.push("/dashboard");
-      } else {
-        localStorage.removeItem("optishift_manager_user");
-        localStorage.removeItem("optishift_supervisor_user");
-        localStorage.setItem("optishift_portal_user", JSON.stringify(data));
-        router.push("/portal");
-      }
+      routeAfterLogin(data);
     } catch {
       setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setError("");
+    setBiometricLoading(true);
+    try {
+      const optionsRes = await fetch("/api/auth/webauthn/login-options", { method: "POST" });
+      const optionsJSON = await optionsRes.json();
+      if (!optionsRes.ok) throw new Error(optionsJSON.error ?? "Biyometrik giriş başlatılamadı");
+
+      const authResponse = await startAuthentication({ optionsJSON });
+
+      const verifyRes = await fetch("/api/auth/webauthn/login-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authResponse),
+      });
+      const data = await verifyRes.json();
+      if (!verifyRes.ok) throw new Error(data.error ?? "Biyometrik giriş başarısız");
+
+      routeAfterLogin(data);
+    } catch (err) {
+      // Kullanıcı iptal ettiyse (NotAllowedError) sessizce vazgeç, hata gösterme
+      const e = err as { name?: string; message?: string };
+      if (e?.name !== "NotAllowedError") {
+        setError(e?.message ?? "Biyometrik giriş başarısız");
+      }
+      setBiometricLoading(false);
     }
   };
 
@@ -100,9 +145,23 @@ export default function LoginPage() {
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın — doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
 
-          {FEATURES.googleAuth && (
-            <div className="space-y-5 mb-5">
-              <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />
+          {(FEATURES.googleAuth || webauthnAvailable) && (
+            <div className="space-y-3 mb-5">
+              {FEATURES.googleAuth && <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />}
+              {webauthnAvailable && (
+                <button
+                  type="button"
+                  onClick={handleBiometricLogin}
+                  disabled={biometricLoading}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-700 font-bold hover:border-forest-400 hover:text-forest-700 transition-colors disabled:opacity-50"
+                >
+                  {biometricLoading ? (
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-forest-500 rounded-full animate-spin" />
+                  ) : (
+                    <><Fingerprint size={18} /> Biyometrik ile Giriş Yap</>
+                  )}
+                </button>
+              )}
               <div className="flex items-center gap-3">
                 <div className="h-px bg-slate-200 flex-1" />
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>

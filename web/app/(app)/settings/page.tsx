@@ -247,7 +247,8 @@ export default function SettingsPage() {
   const [leaveOverrideBonusEnabled, setLeaveOverrideBonusEnabled] = useState(true);
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled]         = useState(true);
   const [maxBreakDurationMin, setMaxBreakDurationMin]             = useState(15);
-  const [compDecayFactor, setCompDecayFactor]                     = useState(0.8);
+  const [compDecayFactor, setCompDecayFactor]                     = useState(0.85);
+  const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(8);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
   const [partTimeWeightFactor, setPartTimeWeightFactor]           = useState(6);
 
@@ -268,6 +269,7 @@ export default function SettingsPage() {
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
   const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
+  const [weeklyLaborBudgetTry, setWeeklyLaborBudgetTry]           = useState(0); // 0 = limitsiz (₺)
   const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
   const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
@@ -401,7 +403,8 @@ export default function SettingsPage() {
           setPublishLeadKpiEnabled(loc.rules?.publish_lead_kpi_enabled !== false);
           if (typeof loc.rules?.hero_bonus_multiplier === "number")     setHeroBonusMultiplier(loc.rules.hero_bonus_multiplier);
           if (typeof loc.rules?.max_break_duration_min === "number")    setMaxBreakDurationMin(loc.rules.max_break_duration_min);
-          if (typeof loc.rules?.comp_decay_factor === "number")         setCompDecayFactor(loc.rules.comp_decay_factor);
+          if (typeof loc.rules?.fairness_decay_factor === "number")     setCompDecayFactor(loc.rules.fairness_decay_factor);
+          if (typeof loc.rules?.fairness_window_weeks === "number")     setFairnessWindowWeeks(loc.rules.fairness_window_weeks);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
           if (typeof loc.rules?.part_time_weight_factor === "number")   setPartTimeWeightFactor(loc.rules.part_time_weight_factor);
           if (typeof loc.rules?.simple_mode === "boolean")              setSimpleMode(loc.rules.simple_mode);
@@ -409,6 +412,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
           if (typeof loc.rules?.weekly_overtime_budget_hours === "number") setWeeklyOvertimeBudgetHours(loc.rules.weekly_overtime_budget_hours);
+          if (typeof loc.rules?.weekly_labor_budget_try === "number")     setWeeklyLaborBudgetTry(loc.rules.weekly_labor_budget_try);
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
@@ -515,7 +519,8 @@ export default function SettingsPage() {
             nightMultiplierEnabled: loc.rules?.night_multiplier_enabled !== false,
             publishLeadKpiEnabled: loc.rules?.publish_lead_kpi_enabled !== false,
             maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
-            compDecayFactor: typeof loc.rules?.comp_decay_factor === "number" ? loc.rules.comp_decay_factor : 0.8,
+            compDecayFactor: typeof loc.rules?.fairness_decay_factor === "number" ? loc.rules.fairness_decay_factor : 0.85,
+            fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 8,
             clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
             partTimeWeightFactor: typeof loc.rules?.part_time_weight_factor === "number" ? loc.rules.part_time_weight_factor : 6,
             leaveRequireReason: !!(lp?.require_reason),
@@ -531,6 +536,7 @@ export default function SettingsPage() {
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
             weeklyOvertimeBudgetHours: typeof loc.rules?.weekly_overtime_budget_hours === "number" ? loc.rules.weekly_overtime_budget_hours : 0,
+            weeklyLaborBudgetTry: typeof loc.rules?.weekly_labor_budget_try === "number" ? loc.rules.weekly_labor_budget_try : 0,
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
@@ -571,11 +577,11 @@ export default function SettingsPage() {
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
       weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-      maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+      maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
@@ -590,10 +596,10 @@ export default function SettingsPage() {
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
     weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-    maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+    maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -728,7 +734,8 @@ export default function SettingsPage() {
             publish_lead_kpi_enabled:           publishLeadKpiEnabled,
             hero_bonus_multiplier:              heroBonusMultiplier,
             max_break_duration_min:             maxBreakDurationMin,
-            comp_decay_factor:                  compDecayFactor,
+            fairness_decay_factor:              compDecayFactor,
+            fairness_window_weeks:              fairnessWindowWeeks,
             clopening_penalty_weight:           clopeningPenaltyWeight,
             part_time_weight_factor:            partTimeWeightFactor,
             overtime_threshold_hours:           overtimeThresholdHours,
@@ -736,6 +743,7 @@ export default function SettingsPage() {
             simple_mode:                        simpleMode,
             overtime_fair_distribution:         overtimeFairDistribution,
             weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
+            weekly_labor_budget_try:            weeklyLaborBudgetTry,
             crew_same_shift_hard:               crewSameShiftHard,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
             balancing_period_weeks:             balancingPeriodWeeks,
@@ -774,13 +782,13 @@ export default function SettingsPage() {
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
         weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-        maxBreakDurationMin, compDecayFactor, clopeningPenaltyWeight, partTimeWeightFactor,
+        maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
         leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
         preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
         simpleMode,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -1428,6 +1436,11 @@ export default function SettingsPage() {
                   right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
                 />
                 <RuleRow
+                  label="Haftalık İşçilik Maliyeti Bütçesi"
+                  description="Bu haftanın planlanan toplam işçilik maliyeti (hourly_wage tanımlı personelin saatleri ×ücret, mesai ×1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
+                  right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" />}
+                />
+                <RuleRow
                   label="Ekip Vardiyası — Kesin Kural"
                   description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
                   right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
@@ -1669,6 +1682,11 @@ export default function SettingsPage() {
                   label="Telafi Puanı Bozunma Faktörü"
                   description="Aylık dönem geçişinde eski birikimli puan bu katsayıyla ağırlıklandırılır. Düşürdükçe geçmiş yük daha hızlı silinir."
                   right={<NumberInput value={compDecayFactor} onChange={setCompDecayFactor} min={0.1} max={1} step={0.05} prefix="×" />}
+                />
+                <RuleRow
+                  label="Adalet Penceresi"
+                  description="Kümülatif adalet puanı kaç haftalık geçmişi dikkate alsın. Varsayılan 8 hafta; ~13 hafta ≈ 90 gün (uzun vadeli nöbet/vardiya adaletini ölçmek isteyen kurumlar için)."
+                  right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={13} suffix="hafta" />}
                 />
                 <RuleRow
                   label="Part-Time Adalet Ağırlığı"

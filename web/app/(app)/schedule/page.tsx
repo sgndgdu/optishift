@@ -924,6 +924,28 @@ export default function SchedulePage() {
   });
   const maxScore = Math.max(...personScores.map(s => s.score), 1);
 
+  // Canlı TL maliyet bütçesi — hourly_wage tanımlı personelin saatlerini eşik-altı normal + eşik-üstü ×1.5 mesai olarak fiyatlar
+  const laborCost = useMemo(() => {
+    const otThreshold = typeof (locRules as Record<string, unknown>)?.overtime_threshold_hours === "number"
+      ? (locRules as Record<string, number>).overtime_threshold_hours : 45;
+    let total = 0;
+    let missingWage = 0;
+    for (const p of personnel) {
+      const hours = Object.entries(cellMap)
+        .filter(([k]) => k.startsWith(`${p.id}-`))
+        .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
+      if (hours === 0) continue;
+      if (typeof p.hourly_wage !== "number" || p.hourly_wage <= 0) { missingWage++; continue; }
+      const baseHours = Math.min(hours, otThreshold);
+      const otHours = Math.max(0, hours - otThreshold);
+      total += baseHours * p.hourly_wage + otHours * p.hourly_wage * 1.5;
+    }
+    return { total: Math.round(total), missingWage };
+  }, [personnel, cellMap, locRules]);
+  const weeklyLaborBudgetTry = typeof (locRules as Record<string, unknown>)?.weekly_labor_budget_try === "number"
+    ? (locRules as Record<string, number>).weekly_labor_budget_try : 0;
+  const laborBudgetExceeded = weeklyLaborBudgetTry > 0 && laborCost.total > weeklyLaborBudgetTry;
+
   // Hafta durumu (OPTI-024): tek birincil aksiyon + pasif durum çipi bu türevlerden beslenir
   const cellCount = Object.keys(cellMap).length;
   const isPublishedWeek = dbShiftCount > 0 && !isDraftWeek;
@@ -1328,6 +1350,11 @@ export default function SchedulePage() {
       if (totalOT > otBudget) {
         violations.push(`Haftalık mesai bütçesi aşılıyor: toplam ${Math.round(totalOT * 10) / 10}s fazla mesai — bütçe ${otBudget}s`);
       }
+    }
+
+    // Haftalık işçilik maliyeti bütçesi (₺)
+    if (laborBudgetExceeded) {
+      violations.push(`Haftalık işçilik maliyeti bütçeyi aşıyor: ₺${laborCost.total.toLocaleString("tr-TR")} — bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")}`);
     }
 
     // Lokasyon kurallarından limitler (hardcoded 45/11 değil — Ayarlar'daki değer geçerli)
@@ -2048,6 +2075,23 @@ export default function SchedulePage() {
             {!isPublishedWeek && saveState !== "idle" && (
               <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
                 {saveState === "saving" ? "Kaydediliyor…" : <><Check size={11} className="text-emerald-500" /> Kaydedildi</>}
+              </span>
+            )}
+
+            {/* Canlı TL maliyet bütçesi */}
+            {laborCost.total > 0 && (
+              <span
+                title={
+                  (laborBudgetExceeded ? `Bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")} — aşıldı. ` : "") +
+                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} personelin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
+                }
+                className={cn(
+                  "px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap flex items-center gap-1",
+                  laborBudgetExceeded ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                )}
+              >
+                ₺{laborCost.total.toLocaleString("tr-TR")}
+                {laborBudgetExceeded && " ⚠️"}
               </span>
             )}
 

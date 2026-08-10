@@ -641,3 +641,22 @@ export const payrollPeriods = pgTable("payroll_periods", {
     () => Math.floor(Date.now() / 1000),
   ),
 });
+
+// Biyometrik giriş (WebAuthn/passkey) — Face ID/Touch ID/parmak izi ile giriş
+export const webauthnCredentials = pgTable("webauthn_credentials", {
+  id: serial("id").primaryKey(),
+  user_id: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  credential_id: text("credential_id").notNull().unique(), // base64url
+  public_key: text("public_key").notNull(),                // base64
+  counter: bigint("counter", { mode: "number" }).notNull().default(0),
+  device_type: text("device_type"),   // 'singleDevice' | 'multiDevice'
+  backed_up: boolean("backed_up"),
+  transports: text("transports"),     // JSON array string, örn. '["internal"]'
+  device_name: text("device_name"),   // User-Agent'tan türetilen kullanıcı dostu isim
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+  last_used_at: bigint("last_used_at", { mode: "number" }),
+});

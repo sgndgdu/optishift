@@ -38,6 +38,13 @@ export interface PersonnelConflict {
   created_at?: number;
 }
 
+export interface WebauthnCredential {
+  id: number;
+  device_name: string | null;
+  created_at: number;
+  last_used_at: number | null;
+}
+
 // ─── Rotasyon Şablonu — Fabrika Modülü ───────────────────────────────────────
 export interface RotationTemplate {
   enabled: boolean;
@@ -187,6 +194,7 @@ export interface ScheduleRules {
   overtime_threshold_hours?: number;   // haftalık eşik: bu saatin üzeri mesai sayılır (varsayılan 45)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)
   weekly_overtime_budget_hours?: number; // tüm personelin haftalık toplam mesai bütçesi (0/undefined = limitsiz)
+  weekly_labor_budget_try?: number;    // haftalık planlanan işçilik maliyeti üst sınırı (₺, 0/undefined = limitsiz)
   overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
   // Fabrika modülü — ekip/rotasyon
   crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
