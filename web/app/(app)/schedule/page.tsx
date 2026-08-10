@@ -2148,7 +2148,7 @@ export default function SchedulePage() {
                       <Zap size={13} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
                     </button>
                   )}
-                  <button onClick={handlePublish} disabled={publishLoading || !dirty}
+                  <button onClick={handlePublish} disabled={publishLoading}
                     className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                     <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Revize Et & Yayınla" : "Yayınla"}
                   </button>
