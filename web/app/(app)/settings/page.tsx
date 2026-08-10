@@ -252,6 +252,7 @@ export default function SettingsPage() {
   const [compDecayFactor, setCompDecayFactor]                     = useState(0.85);
   const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(8);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
+  const [clopeningBurdenMultiplier, setClopeningBurdenMultiplier] = useState(1.2);
   const [partTimeWeightFactor, setPartTimeWeightFactor]           = useState(6);
 
   // Basit mod — sidebar/ayarlar sade görünüm (rules.simple_mode, batched save)
@@ -408,6 +409,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.fairness_decay_factor === "number")     setCompDecayFactor(loc.rules.fairness_decay_factor);
           if (typeof loc.rules?.fairness_window_weeks === "number")     setFairnessWindowWeeks(loc.rules.fairness_window_weeks);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
+          if (typeof loc.rules?.clopening_multiplier === "number")      setClopeningBurdenMultiplier(loc.rules.clopening_multiplier);
           if (typeof loc.rules?.part_time_weight_factor === "number")   setPartTimeWeightFactor(loc.rules.part_time_weight_factor);
           if (typeof loc.rules?.simple_mode === "boolean")              setSimpleMode(loc.rules.simple_mode);
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
@@ -524,6 +526,7 @@ export default function SettingsPage() {
             compDecayFactor: typeof loc.rules?.fairness_decay_factor === "number" ? loc.rules.fairness_decay_factor : 0.85,
             fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 8,
             clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
+            clopeningBurdenMultiplier: typeof loc.rules?.clopening_multiplier === "number" ? loc.rules.clopening_multiplier : 1.2,
             partTimeWeightFactor: typeof loc.rules?.part_time_weight_factor === "number" ? loc.rules.part_time_weight_factor : 6,
             leaveRequireReason: !!(lp?.require_reason),
             leaveAllowMultiDay: !!(lp?.allow_multi_day),
@@ -579,7 +582,7 @@ export default function SettingsPage() {
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
       weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-      maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
+      maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
       simpleMode,
@@ -598,7 +601,7 @@ export default function SettingsPage() {
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
     weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-    maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
+    maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
     overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
@@ -739,6 +742,7 @@ export default function SettingsPage() {
             fairness_decay_factor:              compDecayFactor,
             fairness_window_weeks:              fairnessWindowWeeks,
             clopening_penalty_weight:           clopeningPenaltyWeight,
+            clopening_multiplier:               clopeningBurdenMultiplier,
             part_time_weight_factor:            partTimeWeightFactor,
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
@@ -784,7 +788,7 @@ export default function SettingsPage() {
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
         weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-        maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, partTimeWeightFactor,
+        maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
         leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
@@ -1165,6 +1169,11 @@ export default function SettingsPage() {
                       label="Kaçınma Hassasiyeti"
                       description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
                       right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
+                    />
+                    <RuleRow
+                      label="Adalet Puanı Çarpanı"
+                      description="Kapanış→açılış geçişi yapan personelin o vardiyadan kazandığı adalet yükü bu katsayıyla çarpılır — kaçınılmaz kaldıysa telafi olarak."
+                      right={<NumberInput value={clopeningBurdenMultiplier} onChange={setClopeningBurdenMultiplier} min={1} max={3} step={0.1} prefix="×" />}
                     />
                   </>
                 )}
@@ -1692,7 +1701,7 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Part-Time Adalet Ağırlığı"
-                  description="Tam zamanlı personel 10 birimle normalleştirilir. Part-time için bu değeri düşürünce puan karşılaştırması saate orantılı olur."
+                  description="Otomatik Oluştur'un vardiya dağıtırken kullandığı iç hedef — tam zamanlı 10 birimle normalleştirilir, part-time için düşürünce motor ona daha az vardiya yazarak dengelemeye çalışır. Adalet Puanı sayfasındaki gösterilen puanları etkilemez, sadece plan üretimini."
                   right={<NumberInput value={partTimeWeightFactor} onChange={setPartTimeWeightFactor} min={1} max={10} suffix="birim" />}
                 />
               </SectionCard>
