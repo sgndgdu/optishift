@@ -46,6 +46,7 @@ function NumberInput({
   step,
   suffix,
   prefix,
+  width,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -54,6 +55,7 @@ function NumberInput({
   step?: number;
   suffix?: string;
   prefix?: string;
+  width?: string;
 }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -68,7 +70,7 @@ function NumberInput({
           const raw = step && step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value);
           if (!isNaN(raw)) onChange(Math.min(max, Math.max(min, raw)));
         }}
-        className="w-20 px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+        className={`${width ?? "w-20"} px-3 py-2 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent`}
       />
       {suffix && <span className="text-xs text-slate-400 font-semibold">{suffix}</span>}
     </div>
@@ -1438,7 +1440,7 @@ export default function SettingsPage() {
                 <RuleRow
                   label="Haftalık İşçilik Maliyeti Bütçesi"
                   description="Bu haftanın planlanan toplam işçilik maliyeti (hourly_wage tanımlı personelin saatleri ×ücret, mesai ×1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
-                  right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" />}
+                  right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                 />
                 <RuleRow
                   label="Ekip Vardiyası — Kesin Kural"
