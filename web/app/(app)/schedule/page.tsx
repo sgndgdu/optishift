@@ -843,7 +843,7 @@ export default function SchedulePage() {
         }
       } catch {}
     };
-    const id = setInterval(tick, 1_000);
+    const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, [activeLocationId, weekStart]);
 
