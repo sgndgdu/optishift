@@ -97,6 +97,8 @@ export default function PersonnelPage() {
   const [bulkResults, setBulkResults] = useState<any[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
+  const [bulkCopiedIdx, setBulkCopiedIdx] = useState<number | null>(null);
+  const [bulkErrorCount, setBulkErrorCount] = useState(0);
 
   const [toast, setToast] = useState("");
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
@@ -289,10 +291,10 @@ export default function PersonnelPage() {
       return { name: p[0]?.trim(), email: p[1]?.trim(), phone: p[2]?.trim(), title: p[3]?.trim() };
     }).filter((p: any) => p.name && p.email);
     try {
-      const res = await fetch("/api/personnel/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_id: authUser.org_id, location_id: authUser.location_id, personnel_list: list }) });
+      const res = await fetch("/api/personnel/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: authUser.location_id, personnel_list: list }) });
       const data = await res.json();
       if (!res.ok) { setBulkError(data.error); setBulkLoading(false); return; }
-      setBulkResults(data.results); setBulkText(""); fetchData(authUser);
+      setBulkResults(data.results); setBulkErrorCount(data.errorCount ?? 0); setBulkText(""); fetchData(authUser);
     } catch { setBulkError("Sunucu hatası"); }
     setBulkLoading(false);
   };
@@ -770,20 +772,37 @@ export default function PersonnelPage() {
                 <h2 className="text-xl font-bold text-slate-800">Excel&apos;den Toplu Yükle</h2>
                 <p className="text-sm text-slate-500 mt-1">Excel tablosunu kopyalayıp aşağıdaki alana yapıştırın.</p>
               </div>
-              <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkText(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
+              <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkErrorCount(0); setBulkText(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
             </div>
             {bulkResults.length > 0 ? (
               <div className="flex-1 overflow-auto">
                 <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-4 font-bold text-sm flex items-center gap-2"><Check size={18} /> {bulkResults.length} personel başarıyla eklendi!</div>
+                {bulkErrorCount > 0 && (
+                  <div className="bg-amber-50 text-amber-700 p-3 rounded-xl mb-4 font-semibold text-xs">
+                    {bulkErrorCount} satır atlandı — isim/e-posta eksik veya e-posta zaten kayıtlı.
+                  </div>
+                )}
                 <div className="space-y-2">
                   {bulkResults.map((r: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm">
-                      <div><div className="font-bold text-slate-800">{r.name}</div><div className="text-xs text-slate-500">{r.email}</div></div>
-                      <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-bold text-forest-600">{r.temp_password}</div>
+                    <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div><div className="font-bold text-slate-800">{r.name}</div><div className="text-xs text-slate-500">{r.username} · {r.email}</div></div>
+                        <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-bold text-forest-600">{r.temp_password}</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/setup?token=${r.invite_token}`);
+                          setBulkCopiedIdx(i);
+                          setTimeout(() => setBulkCopiedIdx(prev => (prev === i ? null : prev)), 2000);
+                        }}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${bulkCopiedIdx === i ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
+                      >
+                        {bulkCopiedIdx === i ? <><Check size={13} /> Kopyalandı</> : "Giriş Linkini Kopyala"}
+                      </button>
                     </div>
                   ))}
                 </div>
-                <button onClick={() => { setShowBulkModal(false); setBulkResults([]); }} className="w-full mt-6 bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-900">Kapat</button>
+                <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkErrorCount(0); }} className="w-full mt-6 bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-900">Kapat</button>
               </div>
             ) : (
               <>
