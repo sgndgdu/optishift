@@ -718,7 +718,7 @@ export default function PortalDashboard() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-slate-900 text-sm">Puanın nasıl oluştu?</h3>
-            <span className="text-[10px] text-slate-400 font-medium">Son 8 hafta · yeni haftalar daha ağır sayılır</span>
+            <span className="text-[10px] text-slate-400 font-medium">Son 8 hafta</span>
           </div>
 
           {fairness.history.length > 0 ? (

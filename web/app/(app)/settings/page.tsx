@@ -218,15 +218,18 @@ export default function SettingsPage() {
   const [maxConsecutiveDays, setMaxConsecutiveDays]               = useState(6);
   const [noNightToMorning, setNoNightToMorning]                   = useState(false);
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
-  const [preferredNotMultiplier, setPreferredNotMultiplier]       = useState(1.5);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
   const [maxWeeklyHours, setMaxWeeklyHours]                       = useState(45);
   const [minRestHours, setMinRestHours]                           = useState(11);
   const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
-  const [leaveOverrideBonus, setLeaveOverrideBonus]               = useState(1.5);
-  const [weekendMultiplier, setWeekendMultiplier]                 = useState(1.2);
-  const [nightMultiplier, setNightMultiplier]                     = useState(1.3);
+  // Adalet puanı — additive model (2026-09-20): tek "zor vardiya" puanı + bonuslar, 0 = kapalı
+  const [hardShiftPoints, setHardShiftPoints]                     = useState(4);
+  const [hardShiftWeekend, setHardShiftWeekend]                   = useState(true);
+  const [hardShiftNight, setHardShiftNight]                       = useState(true);
+  const [hardShiftPreferredNot, setHardShiftPreferredNot]         = useState(true);
+  const [heroBonusPoints, setHeroBonusPoints]                     = useState(6);
+  const [forceBonusPoints, setForceBonusPoints]                   = useState(5);
 
   // Ek toggle'lar
   const [clopeningEnabled, setClopeningEnabled]                   = useState(true);
@@ -240,20 +243,11 @@ export default function SettingsPage() {
   const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
   const [prePublishCheckEnabled, setPrePublishCheckEnabled]       = useState(true);
-  const [heroBonusEnabled, setHeroBonusEnabled]                   = useState(true);
-  const [heroBonusMultiplier, setHeroBonusMultiplier]             = useState(1.5);
-  const [weekendMultiplierEnabled, setWeekendMultiplierEnabled]   = useState(true);
-  const [nightMultiplierEnabled, setNightMultiplierEnabled]       = useState(true);
-  const [preferredNotEnabled, setPreferredNotEnabled]             = useState(true);
   const [changeCompensationEnabled, setChangeCompensationEnabled] = useState(true);
-  const [leaveOverrideBonusEnabled, setLeaveOverrideBonusEnabled] = useState(true);
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled]         = useState(true);
   const [maxBreakDurationMin, setMaxBreakDurationMin]             = useState(15);
-  const [compDecayFactor, setCompDecayFactor]                     = useState(0.85);
-  const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(8);
+  const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(4);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
-  const [clopeningBurdenMultiplier, setClopeningBurdenMultiplier] = useState(1.2);
-  const [partTimeWeightFactor, setPartTimeWeightFactor]           = useState(6);
 
   // Basit mod — sidebar/ayarlar sade görünüm (rules.simple_mode, batched save)
   const [simpleMode, setSimpleMode]           = useState(false);
@@ -370,15 +364,17 @@ export default function SettingsPage() {
           setMaxConsecutiveDays(loc.rules?.max_consecutive_days ?? 6);
           setNoNightToMorning(!!loc.rules?.no_night_to_morning);
           setIncludeManagersInSchedule(!!loc.rules?.include_managers_in_schedule);
-          if (typeof loc.rules?.preferred_not_multiplier === "number")  setPreferredNotMultiplier(loc.rules.preferred_not_multiplier);
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
           if (typeof loc.rules?.max_weekly_hours === "number")          setMaxWeeklyHours(loc.rules.max_weekly_hours);
           if (typeof loc.rules?.min_rest_hours === "number")            setMinRestHours(loc.rules.min_rest_hours);
           if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
-          if (typeof loc.rules?.leave_override_bonus_multiplier === "number") setLeaveOverrideBonus(loc.rules.leave_override_bonus_multiplier);
-          if (typeof loc.rules?.weekend_multiplier === "number")        setWeekendMultiplier(loc.rules.weekend_multiplier);
-          if (typeof loc.rules?.night_multiplier === "number")          setNightMultiplier(loc.rules.night_multiplier);
+          if (typeof loc.rules?.hard_shift_points === "number")         setHardShiftPoints(loc.rules.hard_shift_points);
+          setHardShiftWeekend(loc.rules?.hard_shift_weekend !== false);
+          setHardShiftNight(loc.rules?.hard_shift_night !== false);
+          setHardShiftPreferredNot(loc.rules?.hard_shift_preferred_not !== false);
+          if (typeof loc.rules?.hero_bonus_points === "number")         setHeroBonusPoints(loc.rules.hero_bonus_points);
+          if (typeof loc.rules?.force_bonus_points === "number")        setForceBonusPoints(loc.rules.force_bonus_points);
 
           setClopeningEnabled(loc.rules?.clopening_enabled !== false);
           setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
@@ -397,20 +393,11 @@ export default function SettingsPage() {
           if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
           if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
           setPrePublishCheckEnabled(loc.rules?.pre_publish_check !== false);
-          setHeroBonusEnabled(loc.rules?.hero_bonus_enabled !== false);
-          setWeekendMultiplierEnabled(loc.rules?.weekend_multiplier_enabled !== false);
-          setNightMultiplierEnabled(loc.rules?.night_multiplier_enabled !== false);
-          setPreferredNotEnabled(loc.rules?.preferred_not_enabled !== false);
           setChangeCompensationEnabled(loc.rules?.change_compensation_enabled !== false);
-          setLeaveOverrideBonusEnabled(loc.rules?.leave_override_bonus_enabled !== false);
           setPublishLeadKpiEnabled(loc.rules?.publish_lead_kpi_enabled !== false);
-          if (typeof loc.rules?.hero_bonus_multiplier === "number")     setHeroBonusMultiplier(loc.rules.hero_bonus_multiplier);
           if (typeof loc.rules?.max_break_duration_min === "number")    setMaxBreakDurationMin(loc.rules.max_break_duration_min);
-          if (typeof loc.rules?.fairness_decay_factor === "number")     setCompDecayFactor(loc.rules.fairness_decay_factor);
           if (typeof loc.rules?.fairness_window_weeks === "number")     setFairnessWindowWeeks(loc.rules.fairness_window_weeks);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
-          if (typeof loc.rules?.clopening_multiplier === "number")      setClopeningBurdenMultiplier(loc.rules.clopening_multiplier);
-          if (typeof loc.rules?.part_time_weight_factor === "number")   setPartTimeWeightFactor(loc.rules.part_time_weight_factor);
           if (typeof loc.rules?.simple_mode === "boolean")              setSimpleMode(loc.rules.simple_mode);
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
@@ -494,15 +481,17 @@ export default function SettingsPage() {
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
             includeManagersInSchedule: !!loc.rules?.include_managers_in_schedule,
-            preferredNotMultiplier: typeof loc.rules?.preferred_not_multiplier === "number" ? loc.rules.preferred_not_multiplier : 1.5,
             maxPreferredNotDays: typeof loc.rules?.max_preferred_not_days === "number" ? loc.rules.max_preferred_not_days : 1,
             clopeningMinRestHours: typeof loc.rules?.clopening_min_rest_hours === "number" ? loc.rules.clopening_min_rest_hours : 13,
             maxWeeklyHours: typeof loc.rules?.max_weekly_hours === "number" ? loc.rules.max_weekly_hours : 45,
             minRestHours: typeof loc.rules?.min_rest_hours === "number" ? loc.rules.min_rest_hours : 11,
             changeCompensationPoints: typeof loc.rules?.change_compensation_points === "number" ? loc.rules.change_compensation_points : 2,
-            leaveOverrideBonus: typeof loc.rules?.leave_override_bonus_multiplier === "number" ? loc.rules.leave_override_bonus_multiplier : 1.5,
-            weekendMultiplier: typeof loc.rules?.weekend_multiplier === "number" ? loc.rules.weekend_multiplier : 1.2,
-            nightMultiplier: typeof loc.rules?.night_multiplier === "number" ? loc.rules.night_multiplier : 1.3,
+            hardShiftPoints: typeof loc.rules?.hard_shift_points === "number" ? loc.rules.hard_shift_points : 4,
+            hardShiftWeekend: loc.rules?.hard_shift_weekend !== false,
+            hardShiftNight: loc.rules?.hard_shift_night !== false,
+            hardShiftPreferredNot: loc.rules?.hard_shift_preferred_not !== false,
+            heroBonusPoints: typeof loc.rules?.hero_bonus_points === "number" ? loc.rules.hero_bonus_points : 6,
+            forceBonusPoints: typeof loc.rules?.force_bonus_points === "number" ? loc.rules.force_bonus_points : 5,
             clopeningEnabled: loc.rules?.clopening_enabled !== false,
             swapRequestsEnabled: loc.rules?.swap_requests_enabled !== false,
             availabilityCollectionEnabled: loc.rules?.availability_collection_enabled !== false,
@@ -517,25 +506,16 @@ export default function SettingsPage() {
             lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
             maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
             prePublishCheckEnabled: loc.rules?.pre_publish_check !== false,
-            heroBonusEnabled: loc.rules?.hero_bonus_enabled !== false,
-            heroBonusMultiplier: typeof loc.rules?.hero_bonus_multiplier === "number" ? loc.rules.hero_bonus_multiplier : 1.5,
-            weekendMultiplierEnabled: loc.rules?.weekend_multiplier_enabled !== false,
-            nightMultiplierEnabled: loc.rules?.night_multiplier_enabled !== false,
             publishLeadKpiEnabled: loc.rules?.publish_lead_kpi_enabled !== false,
             maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
-            compDecayFactor: typeof loc.rules?.fairness_decay_factor === "number" ? loc.rules.fairness_decay_factor : 0.85,
-            fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 8,
+            fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 4,
             clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
-            clopeningBurdenMultiplier: typeof loc.rules?.clopening_multiplier === "number" ? loc.rules.clopening_multiplier : 1.2,
-            partTimeWeightFactor: typeof loc.rules?.part_time_weight_factor === "number" ? loc.rules.part_time_weight_factor : 6,
             leaveRequireReason: !!(lp?.require_reason),
             leaveAllowMultiDay: !!(lp?.allow_multi_day),
             leaveMaxDays: lp?.max_days_per_request ?? 1,
             locationLat: lat,
             locationLon: lon,
-            preferredNotEnabled: loc.rules?.preferred_not_enabled !== false,
             changeCompensationEnabled: loc.rules?.change_compensation_enabled !== false,
-            leaveOverrideBonusEnabled: loc.rules?.leave_override_bonus_enabled !== false,
             simpleMode: typeof loc.rules?.simple_mode === "boolean" ? loc.rules.simple_mode : false,
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
@@ -574,17 +554,18 @@ export default function SettingsPage() {
       operating_hours: locationData.operating_hours ?? {},
       zone_quotas: zoneQuotas,
       ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
-      preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
-      maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
-      weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+      maxPreferredNotDays, clopeningMinRestHours,
+      maxWeeklyHours, minRestHours, changeCompensationPoints,
+      hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+      clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
-      weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-      maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
+      maxConcurrentBreaks, prePublishCheckEnabled,
+      publishLeadKpiEnabled,
+      maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
-      preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+      changeCompensationEnabled,
       simpleMode,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
@@ -593,17 +574,18 @@ export default function SettingsPage() {
   }, [
     locationData, zoneQuotas,
     ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
-    preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
-    maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
-    weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+    maxPreferredNotDays, clopeningMinRestHours,
+    maxWeeklyHours, minRestHours, changeCompensationPoints,
+    hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+    clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
-    weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-    maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
+    maxConcurrentBreaks, prePublishCheckEnabled,
+    publishLeadKpiEnabled,
+    maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
-    preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+    changeCompensationEnabled,
     overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
@@ -704,15 +686,17 @@ export default function SettingsPage() {
             max_consecutive_days:         maxConsecutiveDays,
             no_night_to_morning:          noNightToMorning,
             include_managers_in_schedule: includeManagersInSchedule,
-            preferred_not_multiplier:     preferredNotMultiplier,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
             max_weekly_hours:             maxWeeklyHours,
             min_rest_hours:               minRestHours,
             change_compensation_points:         changeCompensationPoints,
-            leave_override_bonus_multiplier:    leaveOverrideBonus,
-            weekend_multiplier:                 weekendMultiplier,
-            night_multiplier:                   nightMultiplier,
+            hard_shift_points:                  hardShiftPoints,
+            hard_shift_weekend:                 hardShiftWeekend,
+            hard_shift_night:                   hardShiftNight,
+            hard_shift_preferred_not:           hardShiftPreferredNot,
+            hero_bonus_points:                  heroBonusPoints,
+            force_bonus_points:                 forceBonusPoints,
             clopening_enabled:                  clopeningEnabled,
             swap_requests_enabled:              swapRequestsEnabled,
             availability_collection_enabled:    availabilityCollectionEnabled,
@@ -730,20 +714,11 @@ export default function SettingsPage() {
             late_threshold_min:                 lateThresholdMin,
             max_concurrent_breaks:              maxConcurrentBreaks,
             pre_publish_check:                  prePublishCheckEnabled,
-            hero_bonus_enabled:                 heroBonusEnabled,
-            weekend_multiplier_enabled:         weekendMultiplierEnabled,
-            night_multiplier_enabled:           nightMultiplierEnabled,
-            preferred_not_enabled:              preferredNotEnabled,
             change_compensation_enabled:        changeCompensationEnabled,
-            leave_override_bonus_enabled:       leaveOverrideBonusEnabled,
             publish_lead_kpi_enabled:           publishLeadKpiEnabled,
-            hero_bonus_multiplier:              heroBonusMultiplier,
             max_break_duration_min:             maxBreakDurationMin,
-            fairness_decay_factor:              compDecayFactor,
             fairness_window_weeks:              fairnessWindowWeeks,
             clopening_penalty_weight:           clopeningPenaltyWeight,
-            clopening_multiplier:               clopeningBurdenMultiplier,
-            part_time_weight_factor:            partTimeWeightFactor,
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             simple_mode:                        simpleMode,
@@ -780,19 +755,20 @@ export default function SettingsPage() {
         operating_hours: locationData.operating_hours ?? {},
         zone_quotas: zoneQuotas,
         ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
-        preferredNotMultiplier, maxPreferredNotDays, clopeningMinRestHours,
-        maxWeeklyHours, minRestHours, changeCompensationPoints, leaveOverrideBonus,
-        weekendMultiplier, nightMultiplier, clopeningEnabled, swapRequestsEnabled,
+        maxPreferredNotDays, clopeningMinRestHours,
+        maxWeeklyHours, minRestHours, changeCompensationPoints,
+        hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+        clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        maxConcurrentBreaks, prePublishCheckEnabled, heroBonusEnabled, heroBonusMultiplier,
-        weekendMultiplierEnabled, nightMultiplierEnabled, publishLeadKpiEnabled,
-        maxBreakDurationMin, compDecayFactor, fairnessWindowWeeks, clopeningPenaltyWeight, clopeningBurdenMultiplier, partTimeWeightFactor,
+        maxConcurrentBreaks, prePublishCheckEnabled,
+        publishLeadKpiEnabled,
+        maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
         leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
-        preferredNotEnabled, changeCompensationEnabled, leaveOverrideBonusEnabled,
+        changeCompensationEnabled,
         simpleMode,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
@@ -1170,11 +1146,6 @@ export default function SettingsPage() {
                       description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
                       right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
                     />
-                    <RuleRow
-                      label="Adalet Puanı Çarpanı"
-                      description="Kapanış→açılış geçişi yapan personelin o vardiyadan kazandığı adalet yükü bu katsayıyla çarpılır — kaçınılmaz kaldıysa telafi olarak."
-                      right={<NumberInput value={clopeningBurdenMultiplier} onChange={setClopeningBurdenMultiplier} min={1} max={3} step={0.1} prefix="×" />}
-                    />
                   </>
                 )}
                 <RuleRow
@@ -1470,7 +1441,7 @@ export default function SettingsPage() {
                   description="Kapalıysa vardiyaları müdür tek başına planlar; personelden müsaitlik istenmez ve personel portalında müsaitlik girişi kapatılır."
                   right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
                 />
-                {availabilityCollectionEnabled && preferredNotEnabled && (
+                {availabilityCollectionEnabled && (
                   <RuleRow
                     label="Haftalık Sarı Gün Hakkı"
                     description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">tercih etmiyorum</span> (sarı) olarak işaretleyebilir. Sarı güne atamanın puan karşılığı Adalet Puanı sekmesindedir.</>}
@@ -1595,71 +1566,46 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
                   <p className="text-xs text-forest-600 mt-0.5">
-                    Vardiyalar, personel arasındaki yük farkı en aza inecek şekilde adil dağıtılır. Aşağıdaki bileşenler bu hesabı etkiler — her birini ayrı ayrı açıp kapatabilirsiniz.
+                    Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama — kimse çarpan zinciri takip etmek zorunda kalmaz.
                   </p>
                 </div>
               </div>
 
-              {/* 1. PUAN AĞIRLIKLARI */}
-              <SectionCard title="Puan Ağırlıklandırması">
-                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı vardiya tanımındaki zorluk değerinden (1–10) gelir. Bu çarpanlar onu modifiye eder.</div>
-                {/* Hafta Sonu */}
+              {/* 1. ZOR VARDİYA TANIMI */}
+              <SectionCard title="Zor Vardiya Tanımı">
+                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır — birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
                 <RuleRow
-                  label="Hafta Sonu Çarpanı"
-                  description="Cumartesi–Pazar vardiyelerin yük katsayısı. Kapalıysa hafta sonu vardiyeleri normal puan alır."
-                  right={
-                    <div className="flex items-center gap-2">
-                      <div className={weekendMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={weekendMultiplier} onChange={setWeekendMultiplier} min={1} max={3} step={0.1} prefix="×" />
-                      </div>
-                      <Toggle on={weekendMultiplierEnabled} onToggle={() => setWeekendMultiplierEnabled(v => !v)} />
-                    </div>
-                  }
+                  label="Zor Vardiya Puanı"
+                  description="Zor sayılan bir vardiyaya eklenen düz bonus puanı. 0 = kapalı."
+                  right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
                 />
-                {/* Gece Vardiyası */}
                 <RuleRow
-                  label="Gece Vardiyası Çarpanı"
-                  description={<><Moon size={11} className="text-forest-400 inline mr-1" />&ldquo;Gece&rdquo; işaretli vardiyaların yük katsayısı. Kapalıysa gece vardiyeleri normal puan alır.</>}
+                  label="Hangi vardiyalar zor sayılsın?"
+                  description="Haftalık sarı gün hakkı Personel Talepleri sekmesindedir."
                   right={
-                    <div className="flex items-center gap-2">
-                      <div className={nightMultiplierEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={nightMultiplier} onChange={setNightMultiplier} min={1} max={3} step={0.1} prefix="×" />
-                      </div>
-                      <Toggle on={nightMultiplierEnabled} onToggle={() => setNightMultiplierEnabled(v => !v)} />
-                    </div>
-                  }
-                />
-                {/* Sarı Gün Çarpanı */}
-                <RuleRow
-                  label="Tercih Edilmeyen Gün Çarpanı"
-                  description={<>Personel bir günü <span className="font-semibold text-amber-600">sarı</span> işaretlemişse ve o güne atanırsa vardiya yükü bu katsayıyla çarpılır. Kapalıysa sarı gün fedakarlığı puana yansımaz. Haftalık sarı gün hakkı Personel Talepleri sekmesindedir.</>}
-                  right={
-                    <div className="flex items-center gap-2">
-                      <div className={preferredNotEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={preferredNotMultiplier} onChange={setPreferredNotMultiplier} min={1} max={3} step={0.25} prefix="×" />
-                      </div>
-                      <Toggle on={preferredNotEnabled} onToggle={() => setPreferredNotEnabled(v => !v)} />
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                        <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                        <Moon size={11} className="text-forest-400" />
+                        <Toggle on={hardShiftNight} onToggle={() => setHardShiftNight(v => !v)} /> Gece
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                        <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Sarı gün
+                      </label>
                     </div>
                   }
                 />
               </SectionCard>
 
-              {/* 2. TELAFİ & BONUS */}
-              <SectionCard title="Telafi & Bonus Puanları">
-                {/* Kahraman Bonusu */}
+              {/* 2. BONUS PUANLARI */}
+              <SectionCard title="Bonus Puanları">
                 <RuleRow
                   label="⭐ Kahraman Bonusu"
-                  description="Açık vardiyayı gönüllü üstlenen personele ekstra puan bonusu verilir."
-                  right={
-                    <div className="flex items-center gap-2">
-                      <div className={heroBonusEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={heroBonusMultiplier} onChange={setHeroBonusMultiplier} min={1} max={3} step={0.25} prefix="×" />
-                      </div>
-                      <Toggle on={heroBonusEnabled} onToggle={() => setHeroBonusEnabled(v => !v)} />
-                    </div>
-                  }
+                  description="Açık vardiyayı gönüllü üstlenen personele düz puan bonusu. 0 = kapalı."
+                  right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
                 />
-                {/* Değişiklik Telafisi */}
                 <RuleRow
                   label="Yayın Sonrası Değişiklik Telafisi"
                   description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
@@ -1672,37 +1618,19 @@ export default function SettingsPage() {
                     </div>
                   }
                 />
-                {/* Zorunlu Atama Bonusu */}
                 <RuleRow
                   label="Zorunlu Atama Bonusu"
-                  description="İzinliyken müdür tarafından atanan personel kabul ederse puan yükü bu katsayıyla çarpılır. Kapalıysa bonus uygulanmaz."
-                  right={
-                    <div className="flex items-center gap-2">
-                      <div className={leaveOverrideBonusEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={leaveOverrideBonus} onChange={setLeaveOverrideBonus} min={1} max={3} step={0.25} prefix="×" />
-                      </div>
-                      <Toggle on={leaveOverrideBonusEnabled} onToggle={() => setLeaveOverrideBonusEnabled(v => !v)} />
-                    </div>
-                  }
+                  description="İzinliyken müdür tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
+                  right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
                 />
               </SectionCard>
 
               {/* 3. GELİŞMİŞ */}
               <SectionCard title="Gelişmiş Ayarlar">
                 <RuleRow
-                  label="Telafi Puanı Bozunma Faktörü"
-                  description="Aylık dönem geçişinde eski birikimli puan bu katsayıyla ağırlıklandırılır. Düşürdükçe geçmiş yük daha hızlı silinir."
-                  right={<NumberInput value={compDecayFactor} onChange={setCompDecayFactor} min={0.1} max={1} step={0.05} prefix="×" />}
-                />
-                <RuleRow
                   label="Adalet Penceresi"
-                  description="Kümülatif adalet puanı kaç haftalık geçmişi dikkate alsın. Varsayılan 8 hafta; ~13 hafta ≈ 90 gün (uzun vadeli nöbet/vardiya adaletini ölçmek isteyen kurumlar için)."
-                  right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={13} suffix="hafta" />}
-                />
-                <RuleRow
-                  label="Part-Time Adalet Ağırlığı"
-                  description="Otomatik Oluştur'un vardiya dağıtırken kullandığı iç hedef — tam zamanlı 10 birimle normalleştirilir, part-time için düşürünce motor ona daha az vardiya yazarak dengelemeye çalışır. Adalet Puanı sayfasındaki gösterilen puanları etkilemez, sadece plan üretimini."
-                  right={<NumberInput value={partTimeWeightFactor} onChange={setPartTimeWeightFactor} min={1} max={10} suffix="birim" />}
+                  description="Kümülatif adalet puanı kaç haftalık geçmişin düz toplamı olsun (ağırlıksız). Varsayılan 4 hafta."
+                  right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
                 />
               </SectionCard>
 

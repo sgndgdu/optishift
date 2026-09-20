@@ -125,20 +125,27 @@ Personel portalı sadece `status = 'published'` vardiyeleri gösterir.
 
 ### H. Adil Vardiya Puanı (Fairness Score) & Gamification
 
-**Resmi puan modeli (2026-07-03 rewrite — tek kaynak: `web/lib/fairness.ts`):**
+**Resmi puan modeli (2026-09-20 additive rewrite — tek kaynak: `web/lib/fairness.ts`):**
 ```
-yük (burden)  = zorluk(1-10) × saat × [hafta sonu ×1.2][gece ×1.3][sarı gün ×1.5][clopening ×1.2][kahraman ×1.5][zorunlu atama ×çarpan]
-kümülatif     = Σ(i=0..pencere-1) (haftalık_yük[i] + adjustment[i]) × decay^i   (varsayılan decay 0.85, pencere 8 hafta — rules.fairness_decay_factor / fairness_window_weeks)
-fairness_z    = (takım_ort − kişi_kümülatif) / stddev  →  fairnessLabel() Türkçe etiket
+puan          = saat × (zorluk/5) + (zor_vardiya_mi ? hard_shift_points : 0)
+                + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
+zor_vardiya_mi= (hafta sonu AND hard_shift_weekend) OR (gece AND hard_shift_night) OR (sarı gün AND hard_shift_preferred_not)
+                — OR'lanır, birden fazlası geçerli olsa da hard_shift_points SADECE BİR KEZ eklenir
+kümülatif     = Σ(son fairness_window_weeks haftanın puanı) + Σ(o pencerede score_adjustments.points)  — DÜZ TOPLAM, decay YOK
+takım_sırası  = puana göre artan sıralama → percentile (0-100, yüksek=az yüklü) → fairnessLabel() Türkçe etiket
 ```
-- Tüm çarpanlar ve `*_enabled` toggle'ları `locations.rules`'tan okunur; formülün çekirdeği `calcAssignmentBurden()`.
-- **Tek yazar kuralı:** `personnel.prev_score` türetilmiş bir ÖNBELLEKTİR — asla doğrudan `+=` yazılmaz. Tek yazar `web/lib/scoring.ts`: `rescoreWeek()` (haftayı deterministik puanlar, score_history DELETE+INSERT — re-publish idempotent) ve `recomputeLocationFairness()` (kümülatif + z recompute).
-- **Vardiyaya bağlı bonuslar çarpandır:** kahraman (open shift claim → o vardiyanın yükü ×hero_bonus_multiplier) ve kabul edilmiş zorunlu atama (×force_bonus_multiplier) yük formülünün içindedir; claim/kabul anında `rescoreWeek()` çağrılır.
-- **Vardiyaya bağlı olmayan puanlar olaydır:** `score_adjustments` tablosu (type: `change_comp` | `manual`) — örn. yayın sonrası saat değişikliği telafisi. Kümülatif hesap adjustment'ları haftasına göre decay penceresine katar.
-- **Motor (planlama-anı yaklaşımı):** OR-Tools aynı çarpanları kullanır ama int yuvarlar, clopening'i puana değil ayrı soft cezaya koyar, kahraman/zorunlu atamayı modellemez (bunlar plan sonrası olaylardır) — bilinçli farklar `optishift_engine.py` başındaki blokta belgelidir. Optimizasyon hedefi: part-time ağırlıklı toplam puanların (max − min) farkını minimize etmek.
-- **Tercih Edilmeyen Gün Telafisi:** Sarı güne atama → yük ×`rules.preferred_not_multiplier` (varsayılan 1.5). Motor sarı günden kaçınır (soft penalty), mecbursa puanla telafi eder.
-- **Sarı Gün Hakkı:** Haftada en fazla `rules.max_preferred_not_days` gün (varsayılan 1); portal UI + `/api/availability` POST (400) uygular.
-- **Kümülatif Grafik:** Fairness sayfasında `score_history`'den trend; schedule sayfası canlı hücre puanını `cellBurden()` (aynı çekirdek) ile gösterir, "kesin puan yayında hesaplanır".
+- **Neden değişti (2026-09-20):** Eski model (zincirleme çarpanlar × üstel decay × z-score/stddev) 16 ayrı Settings alanı gerektiriyordu ve çıktı ("z-score", "Az yüklü/Çok yüklü") müdürün kafadan doğrulayabileceği bir sayı değildi. Yeni model additive: tek "zor vardiya" puanı + düz bonus puanları + düz toplam pencere + basit sıralama. Settings → Adalet Puanı sekmesi ~8 alana indi.
+- **Vardiya zorluğu (`base_points`, 1-10) korundu** — yeni bir ayar değil, zaten var olan vardiya-tanımı alanı; saatle çarpılarak baz puanı oluşturur (`saat × zorluk/5`).
+- **Clopening artık puanı hiç etkilemez** — tamamen adalet puanından çıkarıldı, sadece yayın öncesi kural ihlali uyarısında (`rules.clopening_min_rest_hours`, legal-warning amaçlı) kalıyor.
+- Tüm puan değerleri ve kapsam bayrakları `locations.rules`'tan okunur (`hard_shift_points`, `hard_shift_weekend/night/preferred_not`, `hero_bonus_points`, `force_bonus_points`, `fairness_window_weeks`); formülün çekirdeği `calcAssignmentPoints()`. "0 = kapalı" — ayrı enabled/disabled toggle çifti yok.
+- **Tek yazar kuralı (değişmedi):** `personnel.prev_score` türetilmiş bir ÖNBELLEKTİR — asla doğrudan `+=` yazılmaz. Tek yazar `web/lib/scoring.ts`: `rescoreWeek()` (haftayı deterministik puanlar, score_history DELETE+INSERT — re-publish idempotent) ve `recomputeLocationFairness()` (kümülatif + percentile recompute).
+- **`personnel.fairness_z_score` kolonu artık percentile tutar** (0-100, yüksek=az yüklü) — eski z-score değil. Kolon adı geriye dönük uyumluluk için değişmedi, sadece anlamı değişti (DB migration gerekmedi).
+- **Vardiyaya bağlı bonuslar düz puandır (çarpan değil):** kahraman (open shift claim → +hero_bonus_points) ve kabul edilmiş zorunlu atama (+force_bonus_points) puan formülünün içindedir; claim/kabul anında `rescoreWeek()` çağrılır. `open_shifts.hero_bonus_multiplier` / `shift_assignments.force_bonus_multiplier` kolonları da adları değişmeden artık düz puan tutar.
+- **Vardiyaya bağlı olmayan puanlar olaydır (değişmedi):** `score_adjustments` tablosu (type: `change_comp` | `manual`) — örn. yayın sonrası saat değişikliği telafisi, zaten düz puandı.
+- **Motor (planlama-anı yaklaşımı):** OR-Tools aynı additive formülü kullanır (`shift_points()` + `effective_points()`, dedup TS ile birebir aynı mantık), int yuvarlar, clopening'i puana değil ayrı soft cezaya koyar, kahraman/zorunlu atamayı modellemez (bunlar plan sonrası olaylardır) — bilinçli farklar `optishift_engine.py` başındaki blokta belgelidir. Minimax objective yapısı (max-min puan farkını minimize etme, part-time ağırlıklı) korundu — sadece girdi formülü sadeleşti.
+- **Sarı Gün Hakkı (değişmedi):** Haftada en fazla `rules.max_preferred_not_days` gün (varsayılan 1); portal UI + `/api/availability` POST (400) uygular — bu availability mekaniği "zor vardiya" puanlamasından bağımsızdır.
+- **Sıralama Gösterimi:** Fairness sayfası artık z-score/stddev yerine canlı sıralama (`calcFairnessRank()`, elde zaten olan personel dizisinden hesaplanır) kullanır; `/api/fairness/me` akran verisi sızdırmadan sadece kendi percentile'ına dayalı etiket döner. Schedule sayfası canlı hücre puanını `cellBurden()` (`calcAssignmentPoints` sarmalayıcısı) ile gösterir, "kesin puan yayında hesaplanır".
+- **Geçiş notu:** Eski (multiplicative/decay) modelle hesaplanmış geçmiş `score_history`/`prev_score` değerleri yeni formülle uyumsuz ölçektedir. `rescoreWeek()` ham `shift_assignments`'tan yeniden türettiği için, formül değişikliği sonrası her lokasyonun son birkaç yayınlanmış haftası `/api/god/rescore` ile yeniden tetiklenerek otomatik günceli — ayrı bir veri migration script'i gerekmedi.
 
 ### I. Raporlama & Dışa Aktarma (Export)
 - Oluşturulan vardiya tek tıkla iki sekmeli **Excel (.xlsx)** olarak indirilir.
@@ -403,6 +410,8 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - "Yayınla" butonu, oturumda hiç düzenleme yapılmamış (ama önceki oturumdan zaten dolu) taslak haftalarda `dirty` koşulu yüzünden tıklamaya tepki vermiyordu; gereksiz koşul kaldırıldı.
   - Android TWA (Play Store) için `assetlinks.json` eklendi (`com.optishift.app`).
   - Marketing/dürüstlük turu: pazarlama metinlerindeki abartılı/uydurma rakamlar ("100+ lider işletme", "10k+ vardiya", "%90 zaman tasarrufu") ve AI-kokan diller temizlendi, yasal sayfa footer'larına Kılavuz linki eklendi, rebrand ("Sıcak & Güvenilir" — çam yeşili + amber, Fraunces font, özel logo).
+- [x] **Kalıcı Personel Kendi-Kendine-Kayıt Linki (2026-09-20):** Shiftio (rakip) incelemesinden esinlenen özellik — Personel sayfasında kalıcı, tekrar kullanılabilir bir "Kayıt Linki" kartı (`locations.self_signup_token`, DB migration'sız eklendi — tek kolon, ALTER TABLE ile). `GET/POST /api/self-signup` herkese açık (token doğrulama + kayıt tamamlama), `PATCH` (oluştur/yenile/kapat) sadece manager/admin/supervisor. `/self-signup/[token]` genel kayıt sayfası — Ad Soyad + Telefon + Şifre, kullanıcı adı otomatik üretilir. Kayıt olan kişi `approval_status: 'pending'` ile düşer, var olan onay mekanizmasına (sadece admin/supervisor onaylayabilir) hiç dokunmadan entegre olur. Eski tek-kullanımlık davet modeli (Model A, `/api/invite`) değişmedi — bu üçüncü, tamamen ayrı bir self-servis model.
+- [x] **Adalet Puanı Motoru — Additive Rewrite (2026-09-20):** Detaylar §3.H'de. Özet: zincirleme çarpan+decay+z-score modeli, tek "zor vardiya" puanı + düz bonuslar + düz toplam pencere + basit sıralamayla değiştirildi. Settings → Adalet Puanı sekmesi 16 alandan 8'e indi. Sıfır DB migration (mevcut kolonlar repurpose edildi — `fairness_z_score` artık percentile tutar). `web/lib/fairness.ts` ve `optishift_engine.py`'deki `shift_points()`/`effective_points()` birebir aynı additive+dedup mantığıyla eşleştirildi. Yol boyunca bulunan bug: `engine/tests/test_engine_scenarios.py::test_department_demand_matrix_isolation` yeni puan ölçeğiyle deterministik olarak "flaky" davranışını gösterdi — kök sebep departman izolasyonu kırığı DEĞİL, testin dept-a'nın talebini dept-b'nin bağımsız coverage-max kararıyla karıştırması; test dept-a alt kümesini doğru izole edecek şekilde düzeltildi (departman hard constraint'i baştan beri sağlamdı).
 
 ---
 

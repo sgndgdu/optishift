@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  calcAssignmentBurden,
-  calcWeeklyBurden,
-  calcCumulativeRolling,
-  calcFairnessZ,
+  calcAssignmentPoints,
+  calcWeeklyPoints,
+  calcCumulativeWindow,
+  calcFairnessRank,
   fairnessLabel,
   resolveShiftDef,
   type AssignmentInput,
@@ -27,207 +27,217 @@ const defs: ShiftDef[] = [
   { id: "gece", name: "Gece", base_points: 8, start: "22:00", end: "06:00", is_night: true },
 ];
 
-// ─── calcAssignmentBurden — çarpan matrisi ────────────────────────────────────
+// ─── calcAssignmentPoints — additive formül ───────────────────────────────────
 
-describe("calcAssignmentBurden", () => {
-  it("baz durum: 5 puan × 8 saat = 40, çarpan yok", () => {
-    const r = calcAssignmentBurden(baseInput, noRules);
+describe("calcAssignmentPoints", () => {
+  it("baz durum: 8 saat × (5/5) = 8, zor vardiya/bonus yok", () => {
+    const r = calcAssignmentPoints(baseInput, noRules);
     expect(r.hours).toBe(8);
-    expect(r.raw).toBe(40);
-    expect(r.burden).toBe(40);
+    expect(r.points).toBe(8);
     expect(Object.values(r.flags).every(f => !f)).toBe(true);
   });
 
-  it("hafta sonu ×1.2 (Cumartesi=5 ve Pazar=6)", () => {
-    expect(calcAssignmentBurden({ ...baseInput, day: 5 }, noRules).burden).toBeCloseTo(48);
-    expect(calcAssignmentBurden({ ...baseInput, day: 6 }, noRules).burden).toBeCloseTo(48);
-    expect(calcAssignmentBurden({ ...baseInput, day: 4 }, noRules).burden).toBe(40); // Cuma değil
+  it("zorluk saatle çarpılır (base_points/5)", () => {
+    expect(calcAssignmentPoints({ ...baseInput, base_points: 10 }, noRules).points).toBeCloseTo(16); // 8×2
+    expect(calcAssignmentPoints({ ...baseInput, base_points: 2.5 }, noRules).points).toBeCloseTo(4); // 8×0.5
   });
 
-  it("gece ×1.3", () => {
-    const r = calcAssignmentBurden({ ...baseInput, is_night: true }, noRules);
-    expect(r.burden).toBeCloseTo(52);
+  it("hafta sonu → +hard_shift_points (varsayılan 4)", () => {
+    expect(calcAssignmentPoints({ ...baseInput, day: 5 }, noRules).points).toBeCloseTo(12); // Cmt
+    expect(calcAssignmentPoints({ ...baseInput, day: 6 }, noRules).points).toBeCloseTo(12); // Paz
+    expect(calcAssignmentPoints({ ...baseInput, day: 4 }, noRules).points).toBe(8); // Cuma değil
+  });
+
+  it("gece → +hard_shift_points", () => {
+    const r = calcAssignmentPoints({ ...baseInput, is_night: true }, noRules);
+    expect(r.points).toBeCloseTo(12);
     expect(r.flags.night).toBe(true);
   });
 
-  it("sarı gün ×1.5 (varsayılan) ve rules'tan özel çarpan", () => {
-    expect(calcAssignmentBurden({ ...baseInput, is_pref_not: true }, noRules).burden).toBeCloseTo(60);
+  it("sarı gün → +hard_shift_points; rules'tan özel değer okunur", () => {
+    expect(calcAssignmentPoints({ ...baseInput, is_pref_not: true }, noRules).points).toBeCloseTo(12);
     expect(
-      calcAssignmentBurden({ ...baseInput, is_pref_not: true }, { preferred_not_multiplier: 2.0 }).burden
-    ).toBeCloseTo(80);
+      calcAssignmentPoints({ ...baseInput, is_pref_not: true }, { hard_shift_points: 10 }).points
+    ).toBeCloseTo(18);
   });
 
-  it("kahraman ×1.5 ve vardiya-bazlı override öncelikli", () => {
-    expect(calcAssignmentBurden({ ...baseInput, is_hero: true }, noRules).burden).toBeCloseTo(60);
+  it("dedup: hafta sonu + gece + sarı aynı anda → hard_shift_points SADECE BİR KEZ eklenir", () => {
+    const r = calcAssignmentPoints({ ...baseInput, day: 6, is_night: true, is_pref_not: true }, noRules);
+    expect(r.points).toBeCloseTo(12); // 8 + 4 (tek sefer), 8 + 4×3 DEĞİL
+    expect(r.flags.weekend && r.flags.night && r.flags.prefNot).toBe(true);
+    expect(r.flags.hard).toBe(true);
+  });
+
+  it("hard_shift_points=0 → tüm bayraklar true olsa da puanı etkilemez ('0=kapalı')", () => {
+    const r = calcAssignmentPoints(
+      { ...baseInput, day: 6, is_night: true, is_pref_not: true },
+      { hard_shift_points: 0 }
+    );
+    expect(r.points).toBe(8);
+  });
+
+  it("kahraman → +hero_bonus_points (varsayılan 6); vardiya-bazlı override öncelikli", () => {
+    expect(calcAssignmentPoints({ ...baseInput, is_hero: true }, noRules).points).toBeCloseTo(14);
     expect(
-      calcAssignmentBurden({ ...baseInput, is_hero: true, hero_multiplier: 2.0 }, { hero_multiplier: 1.5 }).burden
-    ).toBeCloseTo(80);
+      calcAssignmentPoints({ ...baseInput, is_hero: true, hero_points: 10 }, { hero_bonus_points: 6 }).points
+    ).toBeCloseTo(18);
   });
 
-  it("zorunlu atama çarpanı yalnızca >1 iken uygulanır", () => {
-    expect(calcAssignmentBurden({ ...baseInput, force_multiplier: 1.5 }, noRules).burden).toBeCloseTo(60);
-    const r1 = calcAssignmentBurden({ ...baseInput, force_multiplier: 1 }, noRules);
-    expect(r1.burden).toBe(40);
-    expect(r1.flags.force).toBe(false);
+  it("zorunlu atama bonusu yalnızca force_points > 0 iken uygulanır", () => {
+    expect(calcAssignmentPoints({ ...baseInput, force_points: 5 }, noRules).points).toBeCloseTo(13);
+    const r0 = calcAssignmentPoints({ ...baseInput, force_points: 0 }, noRules);
+    expect(r0.points).toBe(8);
+    expect(r0.flags.force).toBe(false);
   });
 
-  it("çarpanlar yığılır: hafta sonu + gece + sarı = 40 × 1.2 × 1.3 × 1.5", () => {
-    const r = calcAssignmentBurden({ ...baseInput, day: 6, is_night: true, is_pref_not: true }, noRules);
-    expect(r.burden).toBeCloseTo(40 * 1.2 * 1.3 * 1.5);
-  });
-
-  it("toggle kapalıyken çarpan uygulanmaz", () => {
+  it("toggle kapalıyken zor vardiya sayılmaz", () => {
     const rules: Rules = {
-      weekend_multiplier_enabled: false,
-      night_multiplier_enabled: false,
-      preferred_not_enabled: false,
-      hero_bonus_enabled: false,
+      hard_shift_weekend: false,
+      hard_shift_night: false,
+      hard_shift_preferred_not: false,
     };
-    const r = calcAssignmentBurden(
-      { ...baseInput, day: 6, is_night: true, is_pref_not: true, is_hero: true },
+    const r = calcAssignmentPoints(
+      { ...baseInput, day: 6, is_night: true, is_pref_not: true },
       rules
     );
-    expect(r.burden).toBe(40);
+    expect(r.points).toBe(8);
     expect(r.flags.weekend).toBe(false);
+    expect(r.flags.hard).toBe(false);
   });
 
   it("gece geçişi süresi doğru: 22:00–06:00 = 8 saat", () => {
-    const r = calcAssignmentBurden({ ...baseInput, start_time: "22:00", end_time: "06:00" }, noRules);
+    const r = calcAssignmentPoints({ ...baseInput, start_time: "22:00", end_time: "06:00" }, noRules);
     expect(r.hours).toBe(8);
-    expect(r.raw).toBe(40);
+    expect(r.points).toBe(8);
   });
 
-  it("clopening: önceki gün bitişiyle dinlenme 11-13 saat arasındaysa ×1.2", () => {
-    // Önceki gün 23:00 bitiş → bugün 10:00 başlangıç = 11 saat dinlenme → clopening
-    const clop = calcAssignmentBurden(
-      { ...baseInput, start_time: "10:00", end_time: "18:00", prev_day_end_time: "23:00" },
-      noRules
+  it("kahraman + zorunlu atama + zor vardiya aynı anda toplanır (additive, çarpılmaz)", () => {
+    const r = calcAssignmentPoints(
+      { ...baseInput, day: 6, is_hero: true, force_points: 5 },
+      { hard_shift_points: 4, hero_bonus_points: 6 }
     );
-    expect(clop.flags.clopening).toBe(true);
-    expect(clop.burden).toBeCloseTo(48);
-    // 13+ saat dinlenme → clopening değil
-    const ok = calcAssignmentBurden(
-      { ...baseInput, start_time: "12:00", end_time: "20:00", prev_day_end_time: "23:00" },
-      noRules
-    );
-    expect(ok.flags.clopening).toBe(false);
-    // clopening_enabled: false → uygulanmaz
-    const off = calcAssignmentBurden(
-      { ...baseInput, start_time: "10:00", end_time: "18:00", prev_day_end_time: "23:00" },
-      { clopening_enabled: false }
-    );
-    expect(off.flags.clopening).toBe(false);
+    expect(r.points).toBeCloseTo(8 + 4 + 6 + 5); // 23
   });
 });
 
-// ─── calcWeeklyBurden ─────────────────────────────────────────────────────────
+// ─── calcWeeklyPoints ─────────────────────────────────────────────────────────
 
-describe("calcWeeklyBurden", () => {
+describe("calcWeeklyPoints", () => {
   it("shift_id tanıma göre base_points; bilinmeyen id → fallback 5", () => {
     const assignments: AssignmentInput[] = [
       { personnel_id: "p1", day: 0, shift_id: "sabah", start_time: "09:00", end_time: "17:00" },
       { personnel_id: "p1", day: 1, shift_id: "custom", start_time: "09:00", end_time: "13:00" },
     ];
-    const [b] = calcWeeklyBurden(assignments, defs, [], noRules);
-    // sabah: 3×8=24, custom: 5×4=20
-    expect(b.raw_score).toBeCloseTo(44);
+    const [b] = calcWeeklyPoints(assignments, defs, [], noRules);
+    // sabah: 8×(3/5)=4.8, custom (fallback 5): 4×(5/5)=4 — ikisi de hafta içi, zor değil
+    expect(b.burden_score).toBeCloseTo(8.8);
     expect(b.total_hours).toBe(12);
   });
 
-  it("clopening ardışık gün geçişinde tespit edilir (eşik ayarlanabilir)", () => {
+  it("clopening bilgi amaçlı sayılır ama PUANI ETKİLEMEZ (decoupling regresyon testi)", () => {
     const assignments: AssignmentInput[] = [
       { personnel_id: "p1", day: 0, shift_id: "sabah", start_time: "14:00", end_time: "23:00" },
-      { personnel_id: "p1", day: 1, shift_id: "sabah", start_time: "10:00", end_time: "18:00" }, // 11h dinlenme
+      { personnel_id: "p1", day: 1, shift_id: "sabah", start_time: "10:00", end_time: "18:00" }, // 11h dinlenme → clopening
     ];
-    const [b] = calcWeeklyBurden(assignments, defs, [], noRules);
-    expect(b.clopening_count).toBe(1);
-    // Eşik 12 saate düşürülürse 11h dinlenme yasal sınırın üstü ama eşiğin altında kalmaya devam eder;
-    // eşik 11 olursa hiçbir geçiş clopening sayılmaz (gap >= eşik)
-    const [b11] = calcWeeklyBurden(assignments, defs, [], { clopening_min_rest_hours: 11 });
-    expect(b11.clopening_count).toBe(0);
+    const [withClopening] = calcWeeklyPoints(assignments, defs, [], noRules);
+    expect(withClopening.clopening_count).toBe(1);
+
+    // Aynı atamalar ama clopening eşiği çok yüksek tutulup gap'in altına düşürülürse count değişir,
+    // FAKAT burden_score her koşulda AYNI kalmalı (clopening artık puanı hiç etkilemiyor)
+    const [noClopeningThreshold] = calcWeeklyPoints(assignments, defs, [], { clopening_min_rest_hours: 11 });
+    expect(noClopeningThreshold.clopening_count).toBe(0);
+    expect(noClopeningThreshold.burden_score).toBe(withClopening.burden_score);
   });
 
-  it("sarı gün availability'den okunur, hero flag'i çarpan uygular", () => {
+  it("sarı gün + kahraman aynı vardiyada toplanır (dedup: sadece bir hard bonus)", () => {
     const assignments: AssignmentInput[] = [
       { personnel_id: "p1", day: 3, shift_id: "sabah", start_time: "09:00", end_time: "17:00", is_hero: true },
     ];
     const avail = [{ personnel_id: "p1", day_3: "preferred_not" }];
-    const [b] = calcWeeklyBurden(assignments, defs, avail, noRules);
-    // 3×8=24 × 1.5 (sarı) × 1.5 (hero) = 54
-    expect(b.burden_score).toBeCloseTo(54);
+    const [b] = calcWeeklyPoints(assignments, defs, avail, noRules);
+    // 8×(3/5)=4.8 + hard(4, sarı gün) + hero(6) = 14.8
+    expect(b.burden_score).toBeCloseTo(14.8);
     expect(b.pref_not_shifts).toBe(1);
     expect(b.hero_count).toBe(1);
   });
 });
 
-// ─── calcCumulativeRolling ────────────────────────────────────────────────────
+// ─── calcCumulativeWindow — düz toplam, decay YOK ─────────────────────────────
 
-describe("calcCumulativeRolling", () => {
+describe("calcCumulativeWindow", () => {
   const hist = (weeks: number[]) =>
     weeks.map((s, i) => ({ week_start: `2026-W${i}`, burden_score: s }));
 
-  it("decay serisi: bu hafta ×1, geçen ×0.85, önceki ×0.7225", () => {
+  it("düz toplam: decay uygulanmaz", () => {
     // history kronolojik (en eski önce): [2 hafta önce=20, geçen hafta=30]
-    const c = calcCumulativeRolling(hist([20, 30]), 40);
-    expect(c).toBeCloseTo(40 + 30 * 0.85 + 20 * 0.7225, 2);
+    const c = calcCumulativeWindow(hist([20, 30]), 40, 4);
+    expect(c).toBeCloseTo(40 + 30 + 20, 2);
   });
 
-  it("pencere 8 haftada keser", () => {
+  it("pencere sınırında keser (varsayılan 4 hafta)", () => {
     const many = hist(Array.from({ length: 12 }, () => 10)); // 12 hafta × 10
-    const c = calcCumulativeRolling(many, 0);
-    // Sadece son 7 tarihsel hafta sayılır: Σ 10 × 0.85^(1..7)
-    let expected = 0;
-    for (let i = 1; i <= 7; i++) expected += 10 * Math.pow(0.85, i);
-    expect(c).toBeCloseTo(expected, 2);
+    const c = calcCumulativeWindow(many, 0);
+    // Varsayılan pencere 4 → bu hafta + son 3 tarihsel hafta = 3×10
+    expect(c).toBeCloseTo(30, 2);
   });
 
-  it("özel decay/pencere parametreleri", () => {
-    const c = calcCumulativeRolling(hist([10]), 20, 0.5, 4);
-    expect(c).toBeCloseTo(20 + 10 * 0.5, 2);
+  it("özel pencere parametresi", () => {
+    const c = calcCumulativeWindow(hist([10]), 20, 4);
+    expect(c).toBeCloseTo(30, 2);
   });
 
-  it("adjustment'lar haftasına göre katlanır; mevcut hafta i=0'da tam ağırlık", () => {
+  it("adjustment'lar decay'siz eklenir; mevcut hafta da dahil edilir", () => {
     const history = [{ week_start: "2026-06-22", burden_score: 30 }];
     const adj = { "2026-06-29": 2, "2026-06-22": 3 };
-    const c = calcCumulativeRolling(history, 40, 0.85, 8, adj, "2026-06-29");
-    expect(c).toBeCloseTo(40 + 2 + (30 + 3) * 0.85, 2);
+    const c = calcCumulativeWindow(history, 40, 8, adj, "2026-06-29");
+    expect(c).toBeCloseTo(40 + 2 + (30 + 3), 2);
   });
 
-  it("adjustment verilmezse eski davranış birebir korunur", () => {
+  it("adjustment verilmezse düz toplam", () => {
     const history = [{ week_start: "2026-06-22", burden_score: 30 }];
-    expect(calcCumulativeRolling(history, 40)).toBeCloseTo(40 + 30 * 0.85, 2);
+    expect(calcCumulativeWindow(history, 40, 4)).toBeCloseTo(70, 2);
   });
 });
 
-// ─── calcFairnessZ + fairnessLabel ────────────────────────────────────────────
+// ─── calcFairnessRank + fairnessLabel ─────────────────────────────────────────
 
-describe("calcFairnessZ", () => {
-  it("işaret: az yüklü pozitif, çok yüklü negatif", () => {
-    const z = calcFairnessZ({ light: 10, mid: 20, heavy: 30 });
-    expect(z.light).toBeGreaterThan(0);
-    expect(z.mid).toBeCloseTo(0);
-    expect(z.heavy).toBeLessThan(0);
+describe("calcFairnessRank", () => {
+  it("artan sıralama: en az puanlı 1. sırada (en az yüklü)", () => {
+    const r = calcFairnessRank({ light: 10, mid: 20, heavy: 30 });
+    expect(r.light.rank).toBe(1);
+    expect(r.mid.rank).toBe(2);
+    expect(r.heavy.rank).toBe(3);
+    expect(r.light.percentile).toBeGreaterThan(r.heavy.percentile);
   });
 
-  it("stddev = 0 (herkes eşit) → herkes 0", () => {
-    const z = calcFairnessZ({ a: 15, b: 15 });
-    expect(z.a).toBe(0);
-    expect(z.b).toBe(0);
+  it("deterministik tie-break: eşit puanlarda personnel_id'ye göre sıralanır", () => {
+    const r1 = calcFairnessRank({ zeta: 10, alpha: 10 });
+    const r2 = calcFairnessRank({ zeta: 10, alpha: 10 });
+    expect(r1.alpha.rank).toBe(1); // alphabetik olarak önce
+    expect(r1.zeta.rank).toBe(2);
+    expect(r1).toEqual(r2); // her çağrıda aynı sonuç
+  });
+
+  it("tek kişilik takımda percentile = 100", () => {
+    const r = calcFairnessRank({ solo: 42 });
+    expect(r.solo.rank).toBe(1);
+    expect(r.solo.teamSize).toBe(1);
+    expect(r.solo.percentile).toBe(100);
   });
 
   it("boş girdi → boş sonuç", () => {
-    expect(calcFairnessZ({})).toEqual({});
+    expect(calcFairnessRank({})).toEqual({});
   });
 });
 
 describe("fairnessLabel", () => {
-  it("bantlar doğru", () => {
-    expect(fairnessLabel(1.5).level).toBe("low");
-    expect(fairnessLabel(0.5).level).toBe("ok");
-    expect(fairnessLabel(0).level).toBe("ok");
-    expect(fairnessLabel(-0.5).level).toBe("ok");
-    expect(fairnessLabel(-1.5).level).toBe("high");
-    expect(fairnessLabel(-1.5).text).toContain("Çok yüklü");
+  it("percentile bantları doğru (yüksek=az yüklü)", () => {
+    expect(fairnessLabel(90).level).toBe("low");
+    expect(fairnessLabel(75).level).toBe("low");
+    expect(fairnessLabel(50).level).toBe("ok");
+    expect(fairnessLabel(25).level).toBe("ok");
+    expect(fairnessLabel(10).level).toBe("high");
+    expect(fairnessLabel(10).text).toContain("Çok yüklü");
   });
 });
 

@@ -8,15 +8,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { fairnessLabel } from "@/lib/fairness";
+import { fairnessLabel, calcFairnessRank } from "@/lib/fairness";
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
-
-function zBarColor(z: number) {
-  if (z > 0.5)  return "bg-emerald-500";
-  if (z > -0.5) return "bg-blue-400";
-  return "bg-red-400";
-}
 
 function burdenColor(burden: number, avg: number) {
   if (avg === 0) return "bg-blue-400";
@@ -100,17 +94,12 @@ export default function FairnessPage() {
   const avgBurden = burdens.length ? burdens.reduce((a, b) => a + b, 0) / burdens.length : 0;
   const maxBurden = Math.max(...burdens, 1);
   const gap       = burdens.length ? Math.max(...burdens) - Math.min(...burdens) : 0;
-  const variance  = burdens.length
-    ? burdens.reduce((acc, v) => acc + (v - avgBurden) ** 2, 0) / burdens.length : 0;
-  const stdDev    = Math.round(Math.sqrt(variance) * 10) / 10;
 
-  // Stored fairness_z_score yerine mevcut prev_score dağılımından canlı hesapla
-  const liveZ: Record<string, number> = {};
-  if (stdDev > 0) {
-    for (const p of personnel) {
-      liveZ[p.id] = Math.round(((avgBurden - (p.prev_score ?? 0)) / stdDev) * 100) / 100;
-    }
-  }
+  // Takım içi sıralama — peer verisi zaten elimizde, canlı hesaplanır (z-score/stddev yok)
+  const pointsByPid: Record<string, number> = {};
+  for (const p of personnel) pointsByPid[p.id] = p.prev_score ?? 0;
+  const liveRank = calcFairnessRank(pointsByPid);
+  const leastLoaded = [...personnel].sort((a, b) => (a.prev_score ?? 0) - (b.prev_score ?? 0))[0];
 
   const noShowPersonnel = personnel.filter(p => (p.no_show_count ?? 0) > 0);
 
@@ -121,7 +110,7 @@ export default function FairnessPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Adalet Puanı</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Kümülatif yük dağılımı — rolling 8 hafta</p>
+          <p className="text-muted-foreground mt-1 text-sm">Kümülatif puan dağılımı — son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
         </div>
         <button
           onClick={() => locationId && load(locationId)}
@@ -136,21 +125,21 @@ export default function FairnessPage() {
       <div className="grid grid-cols-3 gap-3">
         {[
           {
-            label: "Ort. Kümülatif Yük",
+            label: "Ort. Puan",
             value: Math.round(avgBurden * 10) / 10,
             icon: Scale,
             color: "text-forest-600",
             badgeBg: "bg-forest-100",
           },
           {
-            label: "Dağılım Dengesi",
-            value: stdDev <= 5 ? "İyi" : stdDev <= 15 ? "Orta" : "Dengesiz",
+            label: "En Az Yüklü",
+            value: leastLoaded ? leastLoaded.name.split(" ")[0] : "—",
             icon: Gauge,
-            color: stdDev <= 5 ? "text-emerald-600" : stdDev <= 15 ? "text-amber-600" : "text-red-600",
-            badgeBg: stdDev <= 5 ? "bg-emerald-100" : stdDev <= 15 ? "bg-amber-100" : "bg-red-100",
+            color: "text-emerald-600",
+            badgeBg: "bg-emerald-100",
           },
           {
-            label: "Maks – Min Gap",
+            label: "Maks – Min Fark",
             value: `${Math.round(gap * 10) / 10}p`,
             icon: Ruler,
             color: gap > 40 ? "text-red-600" : gap > 20 ? "text-amber-600" : "text-emerald-600",
@@ -204,7 +193,7 @@ export default function FairnessPage() {
               <p className="font-semibold">Henüz veri yok.</p>
             </div>
           ) : view === "current" ? (
-            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} liveZ={liveZ} scoreHist={scoreHist} adjustments={adjustments} />
+            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} liveRank={liveRank} scoreHist={scoreHist} adjustments={adjustments} />
           ) : (
             <HistoryView personnel={personnel} scoreHist={scoreHist} />
           )}
@@ -240,28 +229,28 @@ export default function FairnessPage() {
           </div>
         </CardHeader>
         <CardContent className="p-4 space-y-4">
-          {/* Multiplier'lar */}
+          {/* Puan bileşenleri */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Yük Çarpanları</p>
+            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Zor Vardiya & Bonus Puanları</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { label: "Hafta sonu", value: rules.weekend_multiplier ?? 1.2, icon: null, note: "Cmt & Paz" },
-                { label: "Gece vardiyası", value: rules.night_multiplier ?? 1.3, icon: <Moon size={10} className="text-forest-400" />, note: "Gece işaretli" },
-                { label: "Sarı gün", value: rules.preferred_not_multiplier ?? 1.5, icon: null, note: "Tercih edilmeyen" },
-                { label: "Kapanış→Açılış", value: rules.clopening_multiplier ?? 1.2, icon: null, note: "Kısa dinlenme" },
+                { label: "Zor vardiya", value: rules.hard_shift_points ?? 4, icon: null, note: "Hf.sonu/gece/sarı gün" },
+                { label: "Kahraman bonusu", value: rules.hero_bonus_points ?? 6, icon: <Moon size={10} className="text-forest-400" />, note: "Açık vardiya üstlenme" },
+                { label: "Zorunlu atama bonusu", value: rules.force_bonus_points ?? 5, icon: null, note: "İzinliyken kabul" },
+                { label: "Değişiklik telafisi", value: rules.change_compensation_points ?? 2, icon: null, note: "Yayın sonrası değişiklik" },
               ].map(({ label, value, icon, note }) => (
                 <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-center">
                   <div className="flex items-center justify-center gap-1 mb-0.5">
                     {icon}
                     <span className="text-[10px] text-slate-500 font-medium">{label}</span>
                   </div>
-                  <span className="text-lg font-black text-slate-800">×{value}</span>
+                  <span className="text-lg font-black text-slate-800">+{value}p</span>
                   <p className="text-[10px] text-slate-400 mt-0.5">{note}</p>
                 </div>
               ))}
             </div>
             <p className="text-[10px] text-slate-400 mt-2">
-              Değiştirmek için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Ağırlıklar</a>
+              Değiştirmek için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Adalet Puanı</a>
             </p>
           </div>
 
@@ -300,12 +289,12 @@ export default function FairnessPage() {
             <Info size={13} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-500 space-y-1 leading-relaxed">
               <p>
-                <strong className="text-slate-700">Yük puanı:</strong>{" "}
-                vardiya zorluğu × çalışılan saat. Hafta sonu, gece, tercih edilmeyen gün ve kahraman vardiyaları yukarıdaki çarpanlarla daha ağır sayılır.
+                <strong className="text-slate-700">Puan:</strong>{" "}
+                saat × zorluk (vardiya tanımı) + zor vardiya puanı (hafta sonu/gece/sarı gün — birden fazlası geçerli olsa da tek sefer) + kahraman/zorunlu atama bonusları. Basit toplama, çarpan zinciri yok.
               </p>
               <p>
-                <strong className="text-slate-700">Kümülatif yük:</strong>{" "}
-                Son 8 haftanın yük toplamı; eski haftalar 0.85 katsayısıyla söner. Yeni plan bu birikimi dengeleyecek şekilde üretilir.
+                <strong className="text-slate-700">Kümülatif puan:</strong>{" "}
+                Son {rules.fairness_window_weeks ?? 4} haftanın düz toplamı (ağırlıksız). Yeni plan bu birikimi dengeleyecek şekilde üretilir.
               </p>
             </div>
           </div>
@@ -322,7 +311,7 @@ function CurrentView({
   avgBurden,
   maxBurden,
   gap,
-  liveZ,
+  liveRank,
   scoreHist,
   adjustments,
 }: {
@@ -330,7 +319,7 @@ function CurrentView({
   avgBurden: number;
   maxBurden: number;
   gap: number;
-  liveZ: Record<string, number>;
+  liveRank: Record<string, { rank: number; teamSize: number; percentile: number }>;
   scoreHist: Record<string, any[]>;
   adjustments: any[];
 }) {
@@ -341,11 +330,8 @@ function CurrentView({
     <div className="space-y-2.5">
       {sorted.map(p => {
         const burden = p.prev_score ?? 0;
-        // Rescore sonrası stored z otoritedir; hiç puanlanmamış lokasyonda canlı hesaba düşülür
-        const z = (typeof p.fairness_z_score === "number" && p.fairness_z_score !== 0)
-          ? p.fairness_z_score
-          : (liveZ[p.id] ?? 0);
-        const { text: fairnessText, level } = fairnessLabel(z);
+        const percentile = liveRank[p.id]?.percentile ?? 0;
+        const { text: fairnessText, level } = fairnessLabel(percentile);
         const color = burdenColor(burden, avgBurden);
         const isExpanded = expandedId === p.id;
         const pHist = scoreHist[p.id] ?? [];
@@ -416,7 +402,7 @@ function CurrentView({
                     <thead>
                       <tr className="text-slate-400 font-semibold text-left">
                         <th className="pr-3 pb-1 font-semibold">Hafta</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Yük</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Puan</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Saat</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Hf.sonu</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Gece</th>
@@ -575,7 +561,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
           <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><Trophy size={15} /></div>
           <div>
             <CardTitle className="text-sm font-bold">Kahraman Bonusları</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personel — ×1.5 yük bonusu</p>
+            <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personel — düz puan bonusu</p>
           </div>
         </div>
       </CardHeader>
@@ -602,7 +588,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
                     <p className="text-[10px] text-slate-400">{dateStr}</p>
                   </div>
                   <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg shrink-0">
-                    ×{ev.hero_bonus_multiplier ?? 1.5} bonus
+                    +{ev.hero_bonus_multiplier ?? 6} puan
                   </span>
                 </div>
               );

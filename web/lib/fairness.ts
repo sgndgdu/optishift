@@ -1,37 +1,40 @@
 /**
- * Adalet motoru — sıfırdan yeniden yazım.
+ * Adalet motoru — additive rewrite (2026-09-20).
  *
  * Formüller:
- *   burden      = difficulty × duration_h × [weekend×1.2] × [night×1.3] × [pref_not×mult] × [hero×1.5] × [clopening×1.2]
- *   cumulative  = Σ(i=0..7) weekly_burden[week-i] × 0.85^i   (rolling decay)
- *   fairness_z  = (team_avg - person_cumulative) / team_stddev
+ *   puan        = saat × (base_points/5) + (zor_vardiya_mi ? hard_shift_points : 0)
+ *                 + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
+ *   zor_vardiya_mi = (hafta_sonu AND hard_shift_weekend) OR (gece AND hard_shift_night)
+ *                    OR (sarı_gün AND hard_shift_preferred_not)   — OR'lanır, asla iki kez eklenmez
+ *   kümülatif   = Σ(son N hafta puanı) + Σ(o pencerede score_adjustments.points)   — decay YOK, düz toplam
+ *   takım_sırası= puana göre artan sıralama → percentile (0-100, yüksek=az yüklü)
+ *
+ * Clopening artık puanı hiç etkilemez — sadece yayın öncesi kural ihlali uyarısında
+ * kullanılan ayrı bir mekanizmadır (rules.clopening_min_rest_hours).
  */
 
 export interface ShiftDef {
   id: string;
   name: string;
-  base_points: number;   // difficulty weight (1–10)
+  base_points: number;   // vardiya zorluğu (1–10) — saat ile çarpılır (base/5), zaten var olan alan
   start: string;         // "HH:MM"
   end: string;           // "HH:MM"
   is_night?: boolean;
 }
 
 export interface Rules {
-  weekend_multiplier?: number;       // varsayılan 1.2
-  night_multiplier?: number;         // varsayılan 1.3
-  preferred_not_multiplier?: number; // varsayılan 1.5
-  clopening_multiplier?: number;     // varsayılan 1.2
-  hero_multiplier?: number;          // varsayılan 1.5
-  clopening_min_rest_hours?: number; // varsayılan 13
-  // Bileşen toggle'ları (settings ile aynı anahtarlar; motor da bunları okur)
-  weekend_multiplier_enabled?: boolean;
-  night_multiplier_enabled?: boolean;
-  preferred_not_enabled?: boolean;
-  clopening_enabled?: boolean;
-  hero_bonus_enabled?: boolean;
-  // Kümülatif pencere ayarları
-  fairness_decay_factor?: number;    // varsayılan 0.85
-  fairness_window_weeks?: number;    // varsayılan 8
+  // Zor vardiya tanımı — tek puan, üç kapsam bayrağı
+  hard_shift_points?: number;          // varsayılan 4, 0 = kapalı
+  hard_shift_weekend?: boolean;        // varsayılan true
+  hard_shift_night?: boolean;          // varsayılan true
+  hard_shift_preferred_not?: boolean;  // varsayılan true
+  // Bonuslar — düz puan, 0 = kapalı
+  hero_bonus_points?: number;          // varsayılan 6
+  force_bonus_points?: number;         // varsayılan 5
+  // Sadece yayın öncesi kural ihlali uyarısı için (puanı etkilemez)
+  clopening_min_rest_hours?: number;   // varsayılan 13
+  // Kümülatif pencere
+  fairness_window_weeks?: number;      // varsayılan 4
 }
 
 export interface AssignmentInput {
@@ -41,8 +44,8 @@ export interface AssignmentInput {
   start_time: string;    // "HH:MM"
   end_time: string;      // "HH:MM"
   is_hero?: boolean;
-  hero_multiplier?: number;  // open_shift bazlı override (os.hero_bonus_multiplier)
-  force_multiplier?: number; // kabul edilmiş zorunlu atama çarpanı (force_bonus_multiplier)
+  hero_points?: number;  // open_shift bazlı override (os.hero_bonus_multiplier — artık düz puan tutar)
+  force_points?: number; // kabul edilmiş zorunlu atama bonusu (force_bonus_multiplier — artık düz puan tutar)
 }
 
 export interface AvailabilityInput {
@@ -54,12 +57,12 @@ export interface AvailabilityInput {
 export interface BurdenBreakdown {
   personnel_id: string;
   total_hours: number;
-  raw_score: number;        // difficulty × hours, modifier yok
-  burden_score: number;     // modifier'lı
+  raw_score: number;        // burden_score ile aynı — additive modelde ayrı bir "modifier'sız" değer yok, call site uyumluluğu için tutulur
+  burden_score: number;     // toplam puan (additive)
   weekend_shifts: number;
   night_shifts: number;
   pref_not_shifts: number;
-  clopening_count: number;
+  clopening_count: number;  // bilgi amaçlı — puanı etkilemez
   hero_count: number;
 }
 
@@ -115,9 +118,20 @@ export function resolveShiftDef<T extends { id: string; start: string; end: stri
   return null;
 }
 
+/**
+ * İki ardışık gün arasındaki dinlenme, clopening eşiğinin altında mı — SADECE
+ * bilgi amaçlı sayaç ve yayın-öncesi kural ihlali uyarısı için. Puana girmez.
+ */
+export function isClopeningGap(prevDayEndTime: string, startTime: string, rules: Rules): boolean {
+  const clOpenMinRest = (rules.clopening_min_rest_hours ?? 13) * 60;
+  const legalMinRest = 11 * 60;
+  const gap = restGapMin(prevDayEndTime, startTime);
+  return gap >= legalMinRest && gap < clOpenMinRest;
+}
+
 // ─── Ana Hesaplama ────────────────────────────────────────────────────────────
 
-export interface AssignmentBurdenInput {
+export interface AssignmentPointsInput {
   day: number;                  // 0=Pzt … 6=Paz
   start_time: string;           // "HH:MM"
   end_time: string;             // "HH:MM"
@@ -125,67 +139,53 @@ export interface AssignmentBurdenInput {
   is_night?: boolean;
   is_pref_not?: boolean;        // o gün sarı (preferred_not) işaretli mi
   is_hero?: boolean;
-  hero_multiplier?: number;     // open_shift bazlı override
-  force_multiplier?: number;    // kabul edilmiş zorunlu atama çarpanı
-  prev_day_end_time?: string | null; // clopening tespiti için önceki günün bitişi (client canlı hesapta verilmez)
+  hero_points?: number;         // open_shift bazlı override
+  force_points?: number;        // kabul edilmiş zorunlu atama bonusu
 }
 
-export interface AssignmentBurden {
+export interface AssignmentPoints {
   hours: number;
-  raw: number;    // difficulty × hours
-  burden: number; // çarpanlı
-  flags: { weekend: boolean; night: boolean; prefNot: boolean; clopening: boolean; hero: boolean; force: boolean };
+  points: number; // toplam puan
+  flags: { weekend: boolean; night: boolean; prefNot: boolean; hard: boolean; hero: boolean; force: boolean };
 }
 
 /**
- * TEK vardiyanın yük puanı — resmi formülün çekirdeği. calcWeeklyBurden ve
+ * TEK vardiyanın puanı — resmi formülün çekirdeği. calcWeeklyPoints ve
  * schedule sayfasının canlı hücre hesabı aynı fonksiyonu kullanır.
- * Çarpanlar yalnızca ilgili `*_enabled` toggle'ı kapalı DEĞİLSE uygulanır.
+ * "Zor vardiya" bayrakları (hafta sonu/gece/sarı gün) OR'lanır — bir vardiya
+ * birden fazla kategoriye girse bile hard_shift_points SADECE BİR KEZ eklenir.
  */
-export function calcAssignmentBurden(input: AssignmentBurdenInput, rules: Rules): AssignmentBurden {
-  const weekendMult   = rules.weekend_multiplier       ?? 1.2;
-  const nightMult     = rules.night_multiplier         ?? 1.3;
-  const prefNotMult   = rules.preferred_not_multiplier ?? 1.5;
-  const clOpenMult    = rules.clopening_multiplier     ?? 1.2;
-  const heroMult      = input.hero_multiplier ?? rules.hero_multiplier ?? 1.5;
-  const clOpenMinRest = (rules.clopening_min_rest_hours ?? 13) * 60;
-  const legalMinRest  = 11 * 60;
+export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules): AssignmentPoints {
+  const hardShiftPoints = rules.hard_shift_points ?? 4;
+  const heroBonusPoints = input.hero_points ?? rules.hero_bonus_points ?? 6;
+  const forceBonusPoints = input.force_points ?? rules.force_bonus_points ?? 5;
 
   const hours = durationHours(input.start_time, input.end_time);
-  const raw = input.base_points * hours;
+  const base = hours * (input.base_points / 5);
 
-  const isWeekend = (input.day === 5 || input.day === 6) && rules.weekend_multiplier_enabled !== false;
-  const isNight   = (input.is_night ?? false) && rules.night_multiplier_enabled !== false;
-  const isPrefNot = (input.is_pref_not ?? false) && rules.preferred_not_enabled !== false;
-  const isHero    = (input.is_hero ?? false) && rules.hero_bonus_enabled !== false;
-  const isForce   = typeof input.force_multiplier === "number" && input.force_multiplier > 1;
-  const isClopening = input.prev_day_end_time != null && rules.clopening_enabled !== false
-    ? (() => {
-        const gap = restGapMin(input.prev_day_end_time!, input.start_time);
-        return gap >= legalMinRest && gap < clOpenMinRest;
-      })()
-    : false;
+  const isWeekend = (input.day === 5 || input.day === 6) && rules.hard_shift_weekend !== false;
+  const isNight = (input.is_night ?? false) && rules.hard_shift_night !== false;
+  const isPrefNot = (input.is_pref_not ?? false) && rules.hard_shift_preferred_not !== false;
+  const isHard = isWeekend || isNight || isPrefNot;
+  const isHero = input.is_hero ?? false;
+  const isForce = typeof input.force_points === "number" && input.force_points > 0;
 
-  let burden = raw;
-  if (isWeekend)   burden *= weekendMult;
-  if (isNight)     burden *= nightMult;
-  if (isPrefNot)   burden *= prefNotMult;
-  if (isClopening) burden *= clOpenMult;
-  if (isHero)      burden *= heroMult;
-  if (isForce)     burden *= input.force_multiplier!;
+  const points = base
+    + (isHard ? hardShiftPoints : 0)
+    + (isHero ? heroBonusPoints : 0)
+    + (isForce ? forceBonusPoints : 0);
 
   return {
     hours,
-    raw,
-    burden,
-    flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, clopening: isClopening, hero: isHero, force: isForce },
+    points,
+    flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, hard: isHard, hero: isHero, force: isForce },
   };
 }
 
 /**
- * Bir haftanın tüm atamaları için kişi bazlı burden breakdown döner.
+ * Bir haftanın tüm atamaları için kişi bazlı puan breakdown döner.
  */
-export function calcWeeklyBurden(
+export function calcWeeklyPoints(
   assignments: AssignmentInput[],
   shiftDefs: ShiftDef[],
   availability: AvailabilityInput[],
@@ -203,24 +203,23 @@ export function calcWeeklyBurden(
 
   return Object.entries(byPerson).map(([pid, pAssignments]) => {
     const avail = availById[pid] ?? {};
-    // Günlük atama haritası: day → assignment (clopening tespiti için)
+    // Günlük atama haritası: day → assignment (clopening bilgi sayacı için)
     const byDay: Record<number, AssignmentInput> = {};
     for (const a of pAssignments) byDay[a.day] = a;
 
-    let totalHours     = 0;
-    let rawScore       = 0;
-    let burdenScore    = 0;
-    let weekendShifts  = 0;
-    let nightShifts    = 0;
-    let prefNotShifts  = 0;
-    let clOpenCount    = 0;
-    let heroCount      = 0;
+    let totalHours = 0;
+    let totalPoints = 0;
+    let weekendShifts = 0;
+    let nightShifts = 0;
+    let prefNotShifts = 0;
+    let clOpenCount = 0;
+    let heroCount = 0;
 
     for (const a of pAssignments) {
       const def = defById[a.shift_id] ?? resolveShiftDef(null, a.start_time, a.end_time, shiftDefs);
       const prev = byDay[a.day - 1];
 
-      const result = calcAssignmentBurden({
+      const result = calcAssignmentPoints({
         day: a.day,
         start_time: a.start_time,
         end_time: a.end_time,
@@ -228,95 +227,97 @@ export function calcWeeklyBurden(
         is_night: def?.is_night ?? false,
         is_pref_not: avail[`day_${a.day}`] === "preferred_not",
         is_hero: a.is_hero ?? false,
-        hero_multiplier: a.hero_multiplier,
-        force_multiplier: a.force_multiplier,
-        prev_day_end_time: prev ? prev.end_time : null,
+        hero_points: a.hero_points,
+        force_points: a.force_points,
       }, rules);
 
       totalHours += result.hours;
-      rawScore += result.raw;
-      burdenScore += result.burden;
-      if (result.flags.weekend)   weekendShifts++;
-      if (result.flags.night)     nightShifts++;
-      if (result.flags.prefNot)   prefNotShifts++;
-      if (result.flags.clopening) clOpenCount++;
-      if (result.flags.hero)      heroCount++;
+      totalPoints += result.points;
+      if (result.flags.weekend) weekendShifts++;
+      if (result.flags.night) nightShifts++;
+      if (result.flags.prefNot) prefNotShifts++;
+      if (result.flags.hero) heroCount++;
+      // Clopening: sadece bilgi amaçlı sayaç, puanı etkilemez
+      if (prev && isClopeningGap(prev.end_time, a.start_time, rules)) clOpenCount++;
     }
 
     return {
-      personnel_id:  pid,
-      total_hours:   Math.round(totalHours * 10) / 10,
-      raw_score:     Math.round(rawScore * 10) / 10,
-      burden_score:  Math.round(burdenScore * 10) / 10,
+      personnel_id: pid,
+      total_hours: Math.round(totalHours * 10) / 10,
+      raw_score: Math.round(totalPoints * 10) / 10,
+      burden_score: Math.round(totalPoints * 10) / 10,
       weekend_shifts: weekendShifts,
-      night_shifts:   nightShifts,
+      night_shifts: nightShifts,
       pref_not_shifts: prefNotShifts,
       clopening_count: clOpenCount,
-      hero_count:     heroCount,
+      hero_count: heroCount,
     };
   });
 }
 
 /**
- * Rolling decay kümülatif burden hesabı.
+ * Düz toplam kümülatif puan — decay YOK, sabit pencere.
  * history: kronolojik sırada (en eski önce), son eleman bu haftayı içermez.
- * currentWeekBurden: bu haftanın burden_score'u (index 0 = en yeni).
- * adjustmentsByWeek: { week_start → Σ score_adjustments.points } — bu haftanın
- * anahtarı `currentWeekStart` ile verilirse i=0'da tam ağırlıkla katılır (D4).
+ * currentWeekPoints: bu haftanın puanı.
+ * adjustmentsByWeek: { week_start → Σ score_adjustments.points }.
  */
-export function calcCumulativeRolling(
+export function calcCumulativeWindow(
   history: ScoreHistoryEntry[],
-  currentWeekBurden: number,
-  decayFactor = 0.85,
-  windowWeeks = 8,
+  currentWeekPoints: number,
+  windowWeeks = 4,
   adjustmentsByWeek?: Record<string, number>,
   currentWeekStart?: string,
 ): number {
-  // Sondan al (en yeni önce), window kadar
-  const recent = [...history].reverse().slice(0, windowWeeks - 1);
+  // Sondan al (en yeni önce), pencere kadar
+  const recent = [...history].reverse().slice(0, Math.max(0, windowWeeks - 1));
   const adjFor = (week: string | undefined) =>
     week && adjustmentsByWeek ? (adjustmentsByWeek[week] ?? 0) : 0;
 
-  let cumulative = currentWeekBurden + adjFor(currentWeekStart); // i=0 → × decay^0 = 1
-  for (let i = 0; i < recent.length; i++) {
-    cumulative += (recent[i].burden_score + adjFor(recent[i].week_start)) * Math.pow(decayFactor, i + 1);
+  let cumulative = currentWeekPoints + adjFor(currentWeekStart);
+  for (const h of recent) {
+    cumulative += h.burden_score + adjFor(h.week_start);
   }
   return Math.round(cumulative * 100) / 100;
 }
 
+export interface FairnessRank {
+  rank: number;      // 1 = en az yüklü
+  teamSize: number;
+  percentile: number; // 0-100, yüksek = az yüklü
+}
+
 /**
- * Tüm takım için fairness z-score hesabı.
- * personBurdens: { personnel_id → cumulative_burden }
- * Döner: { personnel_id → z_score }
- *   pozitif = az yüklü (takım ortalamasının altında)
- *   negatif = çok yüklü
+ * Takım içi sıralama — puana göre artan, deterministik tie-break (personnel_id).
+ * personPoints: { personnel_id → cumulative_points }
  */
-export function calcFairnessZ(
-  personBurdens: Record<string, number>,
-): Record<string, number> {
-  const values = Object.values(personBurdens);
-  if (values.length === 0) return {};
+export function calcFairnessRank(
+  personPoints: Record<string, number>,
+): Record<string, FairnessRank> {
+  const entries = Object.entries(personPoints);
+  const teamSize = entries.length;
+  if (teamSize === 0) return {};
 
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((acc, v) => acc + (v - avg) ** 2, 0) / values.length;
-  const stddev = Math.sqrt(variance);
+  const sorted = [...entries].sort(([idA, a], [idB, b]) => a - b || idA.localeCompare(idB));
 
-  const result: Record<string, number> = {};
-  for (const [pid, burden] of Object.entries(personBurdens)) {
-    result[pid] = stddev > 0
-      ? Math.round(((avg - burden) / stddev) * 100) / 100
-      : 0;
-  }
+  const result: Record<string, FairnessRank> = {};
+  sorted.forEach(([pid], i) => {
+    const rank = i + 1;
+    result[pid] = {
+      rank,
+      teamSize,
+      percentile: teamSize > 1 ? Math.round(((teamSize - rank) / (teamSize - 1)) * 100) : 100,
+    };
+  });
   return result;
 }
 
 /**
- * Z-score'u kullanıcıya anlamlı Türkçe metne dönüştürür.
+ * Percentile'ı kullanıcıya anlamlı Türkçe metne dönüştürür.
+ * percentile: 0-100, yüksek = takımda az yüklü.
  */
-export function fairnessLabel(z: number): { text: string; level: "low" | "ok" | "high" } {
-  if (z > 1.0)  return { text: "Az yüklü — sıra sende",          level: "low" };
-  if (z > 0.3)  return { text: "Ortalamanın biraz altında",       level: "ok" };
-  if (z > -0.3) return { text: "Takım ortalamasında",             level: "ok" };
-  if (z > -1.0) return { text: "Ortalamanın biraz üstünde",       level: "ok" };
-  return         { text: "Çok yüklü — yük azaltılmalı",           level: "high" };
+export function fairnessLabel(percentile: number): { text: string; level: "low" | "ok" | "high" } {
+  if (percentile >= 75) return { text: "Az yüklü — sıra sende", level: "low" };
+  if (percentile >= 40) return { text: "Takım ortalamasında", level: "ok" };
+  if (percentile >= 20) return { text: "Ortalamanın üstü yük", level: "ok" };
+  return { text: "Çok yüklü — yük azaltılmalı", level: "high" };
 }

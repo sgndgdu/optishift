@@ -140,8 +140,8 @@ export const personnel = pgTable("personnel", {
   night_restriction: text("night_restriction"), // gece çalışma yasağı nedeni: 'pregnant' | 'nursing' | 'under18' | 'medical' | null = yok — motor gece vardiyasına atamaz
   leave_adjustment_days: integer("leave_adjustment_days").default(0), // yıllık izin elle düzeltme (±gün) — kalan izin TÜRETİLİR (lib/leave.ts), asla doğrudan yazılmaz
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
-  prev_score: doublePrecision("prev_score").default(0), // cumulative_burden olarak kullanılıyor (rolling decay)
-  fairness_z_score: doublePrecision("fairness_z_score").default(0),
+  prev_score: doublePrecision("prev_score").default(0), // kümülatif adalet puanı (additive, decay YOK — bkz. lib/fairness.ts)
+  fairness_z_score: doublePrecision("fairness_z_score").default(0), // artık percentile (0-100, yüksek=az yüklü) — eski z-score değil
   hero_count: integer("hero_count").default(0),
   no_show_count: integer("no_show_count").default(0),
   late_count: integer("late_count").default(0),
@@ -232,7 +232,7 @@ export const shiftAssignments = pgTable("shift_assignments", {
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
-  force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // rules.leave_override_bonus_multiplier snapshot
+  force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // artık düz bonus PUANI (çarpan değil) — rules.force_bonus_points snapshot
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
@@ -289,6 +289,8 @@ export const openShifts = pgTable("open_shifts", {
   start_time: text("start_time").notNull(),
   end_time: text("end_time").notNull(),
   note: text("note"),
+  // Artık düz bonus PUANI (çarpan değil) — rules.hero_bonus_points snapshot. DB varsayılanı
+  // (1.5) eski çarpan modelinden kalma; uygulama kodu INSERT'te her zaman gerçek puanı geçer.
   hero_bonus_multiplier: doublePrecision("hero_bonus_multiplier")
     .notNull()
     .default(1.5),
@@ -327,16 +329,16 @@ export const scoreHistory = pgTable("score_history", {
   personnel_name: text("personnel_name"),
   week_start: text("week_start").notNull(), // ISO Monday date, YYYY-MM-DD
   score: doublePrecision("score").notNull().default(0), // eski alan — geriye dönük uyumluluk
-  // Yeni burden breakdown (adalet motoru v2)
+  // Haftalık puan breakdown (adalet motoru — additive rewrite 2026-09-20)
   total_hours: doublePrecision("total_hours").default(0),
-  raw_score: doublePrecision("raw_score").default(0), // difficulty × hours, modifier yok
-  burden_score: doublePrecision("burden_score").default(0), // modifier'lı haftalık yük
-  weekend_shifts: integer("weekend_shifts").default(0),
-  night_shifts: integer("night_shifts").default(0),
-  pref_not_shifts: integer("pref_not_shifts").default(0),
-  clopening_count: integer("clopening_count").default(0),
-  cumulative_burden: doublePrecision("cumulative_burden").default(0), // rolling decay snapshot
-  fairness_z_score: doublePrecision("fairness_z_score").default(0),
+  raw_score: doublePrecision("raw_score").default(0), // burden_score ile aynı — additive modelde ayrı "modifier'sız" değer yok, call site uyumluluğu için tutulur
+  burden_score: doublePrecision("burden_score").default(0), // haftalık toplam puan (additive: saat×zorluk + zor vardiya/bonus puanları)
+  weekend_shifts: integer("weekend_shifts").default(0), // bilgi amaçlı sayaç — puana katkısı dedup'lanır (calcAssignmentPoints)
+  night_shifts: integer("night_shifts").default(0),     // bilgi amaçlı sayaç
+  pref_not_shifts: integer("pref_not_shifts").default(0), // bilgi amaçlı sayaç
+  clopening_count: integer("clopening_count").default(0), // sadece bilgi amaçlı — puanı hiç etkilemez
+  cumulative_burden: doublePrecision("cumulative_burden").default(0), // kümülatif puan (düz toplam, decay YOK)
+  fairness_z_score: doublePrecision("fairness_z_score").default(0), // artık percentile (0-100, yüksek=az yüklü)
   hero_count: integer("hero_count").default(0),
   no_show_count: integer("no_show_count").default(0),
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(

@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
     const orgRow: any   = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(location?.org_id ?? "");
 
     // ── Sheet 1: Yönetici KPI Özeti ─────────────────────────────────────
-    // Haftalık yük resmi formülle hesaplanır (lib/fairness.ts calcWeeklyBurden —
-    // zorluk × saat × çarpanlar); kümülatif puan yayınlanmışsa score_history'den okunur.
+    // Haftalık puan resmi formülle hesaplanır (lib/fairness.ts calcWeeklyPoints —
+    // saat×zorluk + zor vardiya/bonus puanları); kümülatif puan yayınlanmışsa score_history'den okunur.
     const breakdowns = await computeWeekBreakdowns(auth.org_id, location_id, week_start);
     const burdenByPid = Object.fromEntries(breakdowns.map(b => [b.personnel_id, b]));
 

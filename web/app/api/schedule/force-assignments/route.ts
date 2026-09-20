@@ -100,7 +100,8 @@ export async function PATCH(req: NextRequest) {
     const timeStr = shiftRow.start_time && shiftRow.end_time ? ` ${shiftRow.start_time}–${shiftRow.end_time}` : "";
 
     if (action === "accept") {
-      const multiplier = shiftRow.force_bonus_multiplier ?? 1.5;
+      // force_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil)
+      const points = shiftRow.force_bonus_multiplier ?? 5;
 
       await db.prepare(`
         UPDATE shift_assignments SET force_acceptance_status = 'accepted' WHERE id = ?
@@ -110,8 +111,8 @@ export async function PATCH(req: NextRequest) {
         UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?
       `).run(shiftRow.personnel_id);
 
-      // Bonus, o vardiyanın yük puanına ×force_bonus_multiplier çarpanı olarak işlenir —
-      // prev_score'a düz puan eklenmez, hafta deterministik yeniden puanlanır.
+      // Bonus, o vardiyanın puanına düz eklenir — prev_score'a doğrudan yazılmaz,
+      // hafta deterministik yeniden puanlanır.
       await rescoreWeek(auth.org_id, shiftRow.location_id, shiftRow.week_start);
 
       // Personele onay bildirimi
@@ -120,7 +121,7 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', false, ?)
       `).run(
         shiftRow.personnel_id,
-        `${dateLabel}${timeStr} vardiyasını kabul ettin. Bu vardiyanın puanı ×${multiplier} bonus çarpanıyla hesaplanacak.`,
+        `${dateLabel}${timeStr} vardiyasını kabul ettin. Bu vardiyanın puanına +${points} bonus eklenecek.`,
         now,
       );
 
@@ -142,7 +143,7 @@ export async function PATCH(req: NextRequest) {
           );
         }
       }
-      return NextResponse.json({ success: true, action: "accepted", bonus_multiplier: multiplier });
+      return NextResponse.json({ success: true, action: "accepted", bonus_points: points });
     }
 
     // Reject

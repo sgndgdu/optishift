@@ -20,9 +20,9 @@ import {
 } from "@/lib/db/schema";
 import { and, eq, gte, lte, inArray } from "drizzle-orm";
 import {
-  calcWeeklyBurden,
-  calcCumulativeRolling,
-  calcFairnessZ,
+  calcWeeklyPoints,
+  calcCumulativeWindow,
+  calcFairnessRank,
   type ShiftDef,
   type Rules,
   type AssignmentInput,
@@ -88,22 +88,22 @@ export async function getAdjustmentsByWeek(
 // ─── Kümülatif recompute ──────────────────────────────────────────────────────
 
 /**
- * Lokasyondaki tüm aktif personelin kümülatif skorunu ve z-skorunu, score_history
- * + score_adjustments üzerinden yeniden hesaplar ve personnel önbelleğine yazar.
+ * Lokasyondaki tüm aktif personelin kümülatif puanını ve takım-içi percentile'ını,
+ * score_history + score_adjustments üzerinden yeniden hesaplar ve personnel
+ * önbelleğine yazar. Decay YOK — düz toplam, sabit pencere.
  * `asOfWeek`: pencerenin en yeni haftası (genelde bu hafta veya yayınlanan hafta).
  */
 export async function recomputeLocationFairness(
   orgId: string,
   locationId: string,
   asOfWeek: string,
-): Promise<Record<string, { cumulative: number; z: number }>> {
+): Promise<Record<string, { cumulative: number; percentile: number }>> {
   const loc = await db
     .select({ rules: locations.rules })
     .from(locations)
     .where(and(eq(locations.id, locationId), eq(locations.org_id, orgId)));
   const rules = parseJSON<Rules>(loc[0]?.rules, {});
-  const decay = rules.fairness_decay_factor ?? 0.85;
-  const windowWeeks = rules.fairness_window_weeks ?? 8;
+  const windowWeeks = rules.fairness_window_weeks ?? 4;
   const fromWeek = windowStart(asOfWeek, windowWeeks);
 
   // Lokasyona atanmış aktif personel (assigned_location_ids JSON array'i primary'yi de içerir)
@@ -148,26 +148,25 @@ export async function recomputeLocationFairness(
     // asOfWeek'e ait satır "bu hafta"dır (i=0); geri kalanı tarihsel pencere
     const current = hist.find(h => h.week_start === asOfWeek);
     const past = hist.filter(h => h.week_start !== asOfWeek);
-    cumulativeByPid[pid] = calcCumulativeRolling(
+    cumulativeByPid[pid] = calcCumulativeWindow(
       past,
       current?.burden_score ?? 0,
-      decay,
       windowWeeks,
       adjByPid[pid],
       asOfWeek,
     );
   }
 
-  const zScores = calcFairnessZ(cumulativeByPid);
+  const ranks = calcFairnessRank(cumulativeByPid);
 
-  const result: Record<string, { cumulative: number; z: number }> = {};
+  const result: Record<string, { cumulative: number; percentile: number }> = {};
   for (const pid of pids) {
     const cumulative = cumulativeByPid[pid] ?? 0;
-    const z = zScores[pid] ?? 0;
-    result[pid] = { cumulative, z };
+    const percentile = ranks[pid]?.percentile ?? 0;
+    result[pid] = { cumulative, percentile };
     await db
       .update(personnel)
-      .set({ prev_score: cumulative, fairness_z_score: z })
+      .set({ prev_score: cumulative, fairness_z_score: percentile })
       .where(eq(personnel.id, pid));
   }
   return result;
@@ -195,7 +194,7 @@ export async function rescoreWeek(
   const rules = parseJSON<Rules>(loc[0].rules, {});
 
   const { assignments, availRows } = await loadWeekInputs(locationId, weekStart);
-  const breakdowns = calcWeeklyBurden(assignments, shiftDefs, availRows, rules);
+  const breakdowns = calcWeeklyPoints(assignments, shiftDefs, availRows, rules);
 
   // Personel adları + sayaçları (score_history snapshot kolonları için)
   const pids = breakdowns.map(b => b.personnel_id);
@@ -241,7 +240,7 @@ export async function rescoreWeek(
     if (!r) continue;
     await db
       .update(scoreHistory)
-      .set({ cumulative_burden: r.cumulative, fairness_z_score: r.z })
+      .set({ cumulative_burden: r.cumulative, fairness_z_score: r.percentile })
       .where(and(
         eq(scoreHistory.location_id, locationId),
         eq(scoreHistory.week_start, weekStart),
@@ -277,6 +276,7 @@ export async function loadWeekInputs(
 
   // Kahraman eşlemesi: claim edilmiş open_shifts, tarihi haftanın içinde olanlar.
   // Anahtar: personel|gün|başlangıç — publish'teki eski (kırık) sa.id eşlemesinin yerine.
+  // Not: hero_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil).
   const osRows = await db
     .select({
       date: openShifts.date,
@@ -295,14 +295,14 @@ export async function loadWeekInputs(
   for (const os of osRows) {
     if (!os.claimed_by) continue;
     const dayIdx = Math.round((Date.parse(os.date) - Date.parse(weekStart)) / 86400000);
-    heroByKey[`${os.claimed_by}|${dayIdx}|${os.start_time}`] = os.hero_bonus_multiplier ?? 1.5;
+    heroByKey[`${os.claimed_by}|${dayIdx}|${os.start_time}`] = os.hero_bonus_multiplier ?? 6;
   }
 
   const assignments: AssignmentInput[] = saRows
     .filter(r => r.start_time && r.end_time)
     .map(r => {
-      const heroMult = heroByKey[`${r.personnel_id}|${r.day}|${r.start_time}`];
-      const forceMult =
+      const heroPts = heroByKey[`${r.personnel_id}|${r.day}|${r.start_time}`];
+      const forcePts =
         r.force_assigned && r.force_acceptance_status === "accepted" && r.force_bonus_multiplier
           ? r.force_bonus_multiplier
           : undefined;
@@ -312,9 +312,9 @@ export async function loadWeekInputs(
         shift_id: r.shift_id,
         start_time: r.start_time!,
         end_time: r.end_time!,
-        is_hero: heroMult !== undefined,
-        hero_multiplier: heroMult,
-        force_multiplier: forceMult,
+        is_hero: heroPts !== undefined,
+        hero_points: heroPts,
+        force_points: forcePts,
       };
     });
 
@@ -353,5 +353,5 @@ export async function computeWeekBreakdowns(
   const shiftDefs = parseJSON<ShiftDef[]>(loc[0].shift_definitions, []);
   const rules = parseJSON<Rules>(loc[0].rules, {});
   const { assignments, availRows } = await loadWeekInputs(locationId, weekStart);
-  return calcWeeklyBurden(assignments, shiftDefs, availRows, rules);
+  return calcWeeklyPoints(assignments, shiftDefs, availRows, rules);
 }

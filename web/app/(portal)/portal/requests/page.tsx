@@ -581,7 +581,7 @@ export default function PortalRequests() {
                       body: JSON.stringify({ shift_id: fa.id, action }),
                     });
                     if (r.ok) {
-                      showToast(action === "accept" ? `Kabul edildi! ×${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Müdürün bilgilendirildi.");
+                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Müdürün bilgilendirildi.");
                     } else {
                       const err = await r.json().catch(() => ({}));
                       showToast(err.error || "İşlem başarısız.", "error");
@@ -1155,7 +1155,7 @@ function ForceAssignCard({ item, onRespond }: { item: any; onRespond: (action: "
       <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
         <Star size={13} className="text-amber-500 shrink-0" />
         <p className="text-xs text-amber-800">
-          Kabul edersen <strong>×{item.force_bonus_multiplier ?? 1.5} bonus puan</strong> kazanırsın.
+          Kabul edersen <strong>+{item.force_bonus_multiplier ?? 5} bonus puan</strong> kazanırsın.
         </p>
       </div>
 

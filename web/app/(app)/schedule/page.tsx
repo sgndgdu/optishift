@@ -11,7 +11,7 @@ import {
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentBurden, type Rules as FairnessRules } from "@/lib/fairness";
+import { calcAssignmentPoints, type Rules as FairnessRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
@@ -49,10 +49,9 @@ function getWeekLabel(offset: number): { label: string; dates: string[] } {
 }
 
 /**
- * Bir hücrenin canlı yük puanı — resmi formül (lib/fairness.ts calcAssignmentBurden).
+ * Bir hücrenin canlı puanı — resmi formül (lib/fairness.ts calcAssignmentPoints).
  * Vardiya tanımı ±10 dk toleransla eşleştirilir; eşleşmezse base_points=5 varsayılır.
- * Clopening çarpanı canlı hesapta uygulanmaz (hücreler bağımsız kalsın diye) —
- * kesin puan yayında calcWeeklyBurden ile hesaplanır.
+ * Kesin puan yayında calcWeeklyPoints ile hesaplanır.
  */
 function cellBurden(
   startMin: number, endMin: number, day: number,
@@ -60,7 +59,7 @@ function cellBurden(
   rules: FairnessRules, defs: ShiftDefinition[],
 ): number {
   const def = matchShiftDef(startMin, endMin, defs);
-  const r = calcAssignmentBurden({
+  const r = calcAssignmentPoints({
     day,
     start_time: minToHHMM(startMin),
     end_time: minToHHMM(endMin % 1440),
@@ -68,7 +67,7 @@ function cellBurden(
     is_night: def?.is_night ?? false,
     is_pref_not: am[pid]?.[day]?.status === "preferred_not",
   }, rules);
-  return Math.round(r.burden * 10) / 10;
+  return Math.round(r.points * 10) / 10;
 }
 
 /** Bir hücrenin başlangıç/bitiş dakikalarını shift tanımlarıyla eşleştirir (±10 dk tolerans). */
@@ -649,7 +648,7 @@ export default function SchedulePage() {
               newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs) };
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
-                newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 1.5 };
+                newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 5 };
               }
             }
           }
@@ -3058,8 +3057,8 @@ export default function SchedulePage() {
           )}
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
-          <p>Puan = birikimli yük + bu haftanın canlı yükü (zorluk × saat × çarpanlar).</p>
-          <p>Hafta sonu ×{locRules.weekend_multiplier ?? 1.2} · gece ×{locRules.night_multiplier ?? 1.3} · sarı gün ×{locRules.preferred_not_multiplier ?? 1.5}. Kesin puan yayında hesaplanır.</p>
+          <p>Puan = birikimli puan + bu haftanın canlı puanı (saat × zorluk + zor vardiya/bonus puanları).</p>
+          <p>Zor vardiya (hafta sonu/gece/sarı gün) +{locRules.hard_shift_points ?? 4} puan. Kesin puan yayında hesaplanır.</p>
         </div>
       </div>
 
@@ -3116,15 +3115,17 @@ export default function SchedulePage() {
           </div>
           {(() => {
             const matchedDef = matchShiftDef(popover.startMin, popover.endMin, shiftDefs);
-            const isWknd = (popover.day === 5 || popover.day === 6) && locRules.weekend_multiplier_enabled !== false;
-            const isNght = (matchedDef?.is_night ?? false) && locRules.night_multiplier_enabled !== false;
-            const isPrfN = availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not" && locRules.preferred_not_enabled !== false;
+            const isWknd = (popover.day === 5 || popover.day === 6) && locRules.hard_shift_weekend !== false;
+            const isNght = (matchedDef?.is_night ?? false) && locRules.hard_shift_night !== false;
+            const isPrfN = availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not" && locRules.hard_shift_preferred_not !== false;
             if (!isWknd && !isNght && !isPrfN) return null;
+            const hardCount = [isWknd, isNght, isPrfN].filter(Boolean).length;
             return (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {isWknd && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu ×{locRules.weekend_multiplier ?? 1.2}</span>}
-                {isNght && <span className="text-[10px] bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold border border-forest-100">🌙 Gece ×{locRules.night_multiplier ?? 1.3}</span>}
-                {isPrfN && <span className="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold border border-yellow-100">Sarı gün ×{locRules.preferred_not_multiplier ?? 1.5}</span>}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {isWknd && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu</span>}
+                {isNght && <span className="text-[10px] bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold border border-forest-100">🌙 Gece</span>}
+                {isPrfN && <span className="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold border border-yellow-100">Sarı gün</span>}
+                <span className="text-[10px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
               </div>
             );
           })()}

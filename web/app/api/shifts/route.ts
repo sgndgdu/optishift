@@ -321,7 +321,7 @@ export async function POST(req: NextRequest) {
 
     // ── Force Assignment Detection ──────────────────────────────────────────
 
-    const forceNotifications: { personnel_id: string; shift_id_db: number; multiplier: number; dateLabel: string }[] = [];
+    const forceNotifications: { personnel_id: string; shift_id_db: number; points: number; dateLabel: string }[] = [];
 
     for (const item of forceItems) {
       // Zaten pending/accepted/rejected → tekrar flaglama
@@ -344,21 +344,19 @@ export async function POST(req: NextRequest) {
 
       if (!isUnavailable && !onLeave) continue;
 
+      // force_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil), 0 = kapalı
       const rules = await getLocRules(item.location_id);
-      const leaveOverrideBonusEnabled = rules?.leave_override_bonus_enabled !== false;
-      const multiplier = leaveOverrideBonusEnabled && typeof rules.leave_override_bonus_multiplier === "number"
-        ? rules.leave_override_bonus_multiplier
-        : leaveOverrideBonusEnabled ? 1.5 : 1.0;
+      const forceBonusPoints = typeof rules?.force_bonus_points === "number" ? rules.force_bonus_points : 5;
 
       await db.prepare(`
         UPDATE shift_assignments
         SET force_assigned = true, force_acceptance_status = 'pending', force_bonus_multiplier = ?
         WHERE id = ?
-      `).run(multiplier, item.shift_id_db);
+      `).run(forceBonusPoints, item.shift_id_db);
 
       const DAY_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
       const dateLabel = `${DAY_TR[item.day]} ${shiftDate.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`;
-      forceNotifications.push({ personnel_id: item.personnel_id, shift_id_db: item.shift_id_db, multiplier, dateLabel });
+      forceNotifications.push({ personnel_id: item.personnel_id, shift_id_db: item.shift_id_db, points: forceBonusPoints, dateLabel });
     }
 
     for (const fn of forceNotifications) {
@@ -369,7 +367,7 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
-        `Müdürünüz sizi ${fn.dateLabel}${timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz ×${fn.multiplier} bonus puan kazanırsınız.`,
+        `Müdürünüz sizi ${fn.dateLabel}${timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz +${fn.points} puan bonus kazanırsınız.`,
         now,
       );
     }

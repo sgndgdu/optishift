@@ -8,8 +8,9 @@ import { fairnessLabel } from "@/lib/fairness";
 /**
  * GET /api/fairness/me — personelin KENDİ adalet puanı görünümü.
  * Başka personelin puanı/sıralaması asla serialize edilmez; takım konumu
- * yalnızca fairnessLabel etiketi olarak döner (z, scoring.ts tarafından
- * lokasyon genelinde hesaplanıp personnel.fairness_z_score'a yazılmıştır).
+ * yalnızca fairnessLabel etiketi olarak döner (percentile, scoring.ts tarafından
+ * lokasyon genelinde hesaplanıp personnel.fairness_z_score'a yazılmıştır —
+ * additive rewrite sonrası bu kolon artık z-score değil percentile tutar).
  */
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -78,10 +79,10 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(scoreAdjustments.created_at))
       .limit(20);
 
-    const z = me.fairness_z_score ?? 0;
+    const percentile = me.fairness_z_score ?? 0;
     return NextResponse.json({
       score: me.prev_score ?? 0,
-      label: fairnessLabel(z), // { text, level } — sayısal z bile dönmüyoruz
+      label: fairnessLabel(percentile), // { text, level } — sayısal percentile bile dönmüyoruz
       hero_count: me.hero_count ?? 0,
       // Kronolojik sıra (en eski önce) — sparkline için
       history: history.reverse().map(h => ({

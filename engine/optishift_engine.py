@@ -36,8 +36,7 @@ DEMAND_MATRIX = {}
 # her (department, shift_idx, day) hücresi kendi personel alt kümesi içinde hard constraint olur.
 DEPARTMENT_DEMAND_MATRIX = {}
 
-# Tercih edilmeyen (sarı) günde çalıştırılan personelin puan telafi çarpanı
-PREFERRED_NOT_MULTIPLIER = 1.5
+# (kaldırıldı: PREFERRED_NOT_MULTIPLIER — additive model'de RULES["hard_shift_points"] kullanılıyor)
 
 # Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
 ENSURE_SENIOR_PER_SHIFT = False
@@ -99,13 +98,14 @@ ZONE_DEMAND_PER_DAY = {
 RULES = {
     "max_weekly_hours": 45,
     "min_rest_hours":   11,
-    "clopening_min_rest_hours": 13,
-    # Adalet motoru v2 — burden multiplier'ları
-    "weekend_multiplier":       1.2,
-    "night_multiplier":         1.3,
-    "preferred_not_multiplier": 1.5,
-    "clopening_multiplier":     1.2,
-    "hero_multiplier":          1.5,
+    "clopening_min_rest_hours": 13,  # SADECE clopening soft-ceza terimi için — puanı etkilemez
+    # Adalet motoru — additive rewrite (2026-09-20): tek "zor vardiya" puanı + kapsam bayrakları
+    "hard_shift_points":        4,
+    "hard_shift_weekend":       True,
+    "hard_shift_night":         True,
+    "hard_shift_preferred_not": True,
+    # Hero/force burada YOK — plan üretildikten SONRA oluşan olaylardır (bkz. aşağıdaki yorum bloğu)
+    "part_time_weight_factor":  6,  # Settings'ten artık gönderilmiyor, sabit varsayılan
 }
 
 DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -147,46 +147,45 @@ def _is_night_shift(s_idx: int) -> bool:
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
 #
-# RESMİ FORMÜLÜN PLANLAMA-ANI YAKLAŞIMI (kaynak: web/lib/fairness.ts calcAssignmentBurden)
+# RESMİ FORMÜLÜN PLANLAMA-ANI YAKLAŞIMI (kaynak: web/lib/fairness.ts calcAssignmentPoints)
+# Additive model (2026-09-20 rewrite): puan = saat×(zorluk/5) + zor_vardiya_puanı (tek sefer,
+# hafta sonu/gece/sarı gün OR'lanır) — çarpan zinciri yok, decay yok.
 # Bilinçli farklar — bunlar bug değildir, CP-SAT modeli gereğidir:
 #   1. int(round()) yuvarlama: CP-SAT tamsayı ister; TS tarafı ondalık tutar.
-#   2. Clopening çarpanı puana UYGULANMAZ — clopening ayrı bir soft ceza terimi
-#      olarak (×clopening_penalty_weight, varsayılan 30) objective'e girer.
-#   3. Kahraman (open shift claim) ve zorunlu atama çarpanları modellenmez —
+#   2. Clopening puana UYGULANMAZ — ayrı bir soft ceza terimi olarak
+#      (×clopening_penalty_weight, varsayılan 30) objective'e girer.
+#   3. Kahraman (open shift claim) ve zorunlu atama bonusları modellenmez —
 #      bunlar plan üretildikten SONRA oluşan olaylardır; kesin puan yayında
 #      web/lib/scoring.ts rescoreWeek() ile hesaplanır.
-# Çarpan değerleri ve *_enabled toggle'ları TS tarafıyla aynı rules anahtarlarından okunur.
+# Puan değerleri ve toggle'lar TS tarafıyla aynı rules anahtarlarından okunur.
 
 def shift_points(day: int, shift_id: int) -> float:
-    """
-    Burden skoru: difficulty × duration_hours × weekend/night multiplier.
-    Multiplier'lar RULES'tan okunur (müdür ayarlar).
-    """
+    """Vardiyanın zaman-bazlı taban puanı: saat × (zorluk/5). Zor vardiya bonusu
+    (hafta sonu/gece/sarı gün) effective_points'te eklenir — sarı gün kişiye özel
+    olduğu için üçünün OR'u (dedup) ancak orada kurulabilir."""
     shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
     base = shift.get("base_points", 5)
     start_m, end_m = _shift_minutes(shift) if shift else (0, 480)
     hours = (end_m - start_m) / 60
+    return hours * (base / 5)
 
-    weekend_mult = RULES.get("weekend_multiplier", 1.2) if RULES.get("weekend_multiplier_enabled", True) else 1.0
-    night_mult   = RULES.get("night_multiplier",   1.3) if RULES.get("night_multiplier_enabled",   True) else 1.0
 
-    is_weekend = day in (5, 6)
-    is_night   = shift.get("is_night", False)
-
-    burden = base * hours
-    if is_weekend: burden *= weekend_mult
-    if is_night:   burden *= night_mult
-    return round(burden)
-
+def _is_hard_shift_time(day: int, shift_id: int) -> bool:
+    """Zaman bazlı (kişiden bağımsız) zor vardiya tespiti: hafta sonu veya gece."""
+    shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
+    is_weekend = day in (5, 6) and RULES.get("hard_shift_weekend", True)
+    is_night   = shift.get("is_night", False) and RULES.get("hard_shift_night", True)
+    return is_weekend or is_night
 
 
 def effective_points(person_id, day: int, shift_id: int) -> int:
-    """Kişiye özel burden puanı: preferred_not günde çalışma telafi çarpanı uygulanır."""
-    pts = shift_points(day, shift_id)
-    if RULES.get("preferred_not_enabled", True) and get_avail(person_id, day) == "preferred_not":
-        mult = RULES.get("preferred_not_multiplier", PREFERRED_NOT_MULTIPLIER)
-        pts = int(pts * mult + 0.5)
-    return pts
+    """Kişiye özel toplam puan: taban + zor vardiya bonusu. Hafta sonu/gece/sarı gün
+    OR'lanır — biri veya birden fazlası geçerli olsa da bonus SADECE BİR KEZ eklenir."""
+    base = shift_points(day, shift_id)
+    is_pref_not = RULES.get("hard_shift_preferred_not", True) and get_avail(person_id, day) == "preferred_not"
+    is_hard = _is_hard_shift_time(day, shift_id) or is_pref_not
+    pts = base + (RULES.get("hard_shift_points", 4) if is_hard else 0)
+    return int(round(pts))
 
 
 # ─── MODEL KURULUMU ───────────────────────────────────────────────────────────
@@ -761,7 +760,7 @@ def print_schedule(solver, shifts, person_scores, fairness_gap):
             cell = "—"
             for s in range(NUM_SHIFTS):
                 if solver.value(shifts[(p_idx, d, s)]):
-                    pts = shift_points(d, s)
+                    pts = effective_points(person["id"], d, s)
                     weekly_pts += pts
                     tag = "S" if s == 0 else "A"
                     cell = f"{tag}·{pts}p"
@@ -976,7 +975,7 @@ def export_excel(solver, shifts, person_scores):
 
             for s in range(NUM_SHIFTS):
                 if solver.value(shifts[(p_idx, d, s)]):
-                    pts = shift_points(d, s)
+                    pts = effective_points(person["id"], d, s)
                     weekly_pts += pts
                     shift_name = "Sabah" if s == 0 else "Akşam"
                     warn = " !" if avail == "preferred_not" else ""
@@ -1048,7 +1047,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, PREFERRED_NOT_MULTIPLIER
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1064,10 +1063,6 @@ def api_mode(payload: dict):
     NIGHT_RESTRICTED_IDS = set(payload.get("night_restricted_ids") or [])
     PREV_WEEK_NIGHT_IDS = set(payload.get("prev_week_night_ids") or [])
     CONSECUTIVE_NIGHT_WEEKS_ENABLED = bool(payload.get("consecutive_night_weeks_enabled", False))
-    try:
-        PREFERRED_NOT_MULTIPLIER = max(1.0, float(payload.get("preferred_not_multiplier", 1.5)))
-    except (TypeError, ValueError):
-        PREFERRED_NOT_MULTIPLIER = 1.5
 
     # Payload'dan gelen dinamik verileri global değişkenlere aktar
     raw_personnel    = payload.get("personnel", [])

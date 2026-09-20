@@ -31,8 +31,8 @@ export default function OpenShiftsPage() {
   const [startTime, setStartTime]   = useState("09:00");
   const [endTime, setEndTime]       = useState("17:00");
   const [note, setNote]             = useState("");
-  const [bonus, setBonus]           = useState(1.5);
-  const [defaultBonus, setDefaultBonus] = useState(1.5); // Ayarlar → Adalet Puanı'ndaki varsayılan çarpan
+  const [bonus, setBonus]           = useState(6);
+  const [defaultBonus, setDefaultBonus] = useState(6); // Ayarlar → Adalet Puanı'ndaki varsayılan bonus puanı
   const [saving, setSaving]         = useState(false);
 
   // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
@@ -67,7 +67,7 @@ export default function OpenShiftsPage() {
     } finally { setLoading(false); }
   }, [user]);
 
-  // Varsayılan kahraman çarpanını Ayarlar'daki kuraldan al (tek kaynak: rules.hero_bonus_multiplier)
+  // Varsayılan kahraman bonus puanını Ayarlar'daki kuraldan al (tek kaynak: rules.hero_bonus_points)
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -77,11 +77,11 @@ export default function OpenShiftsPage() {
         const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
         const loc = Array.isArray(locs) ? (locs.find((l: any) => l.id === locId) ?? locs[0]) : null;
         const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
-        if (typeof rules?.hero_bonus_multiplier === "number") {
-          setDefaultBonus(rules.hero_bonus_multiplier);
-          setBonus(rules.hero_bonus_multiplier);
+        if (typeof rules?.hero_bonus_points === "number") {
+          setDefaultBonus(rules.hero_bonus_points);
+          setBonus(rules.hero_bonus_points);
         }
-      } catch { /* varsayılan 1.5 kalır */ }
+      } catch { /* varsayılan 6 kalır */ }
     })();
   }, [user]);
 
@@ -231,10 +231,10 @@ export default function OpenShiftsPage() {
           {/* Hero bonus selector */}
           <div>
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
-              <Star size={10} className="text-amber-500" /> Kahraman Bonusu Çarpanı
+              <Star size={10} className="text-amber-500" /> Kahraman Bonus Puanı
             </label>
             <div className="flex gap-2">
-              {Array.from(new Set([1.0, 1.25, 1.5, 2.0, defaultBonus])).sort((a, b) => a - b).map(b => (
+              {Array.from(new Set([0, 3, defaultBonus, 10])).sort((a, b) => a - b).map(b => (
                 <button
                   key={b}
                   onClick={() => setBonus(b)}
@@ -242,13 +242,13 @@ export default function OpenShiftsPage() {
                     bonus === b ? "border-amber-400 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:border-amber-300"
                   }`}
                 >
-                  {b === 1.0 ? "Normal" : `×${b}`}{b === defaultBonus && b !== 1.0 ? " •" : ""}
+                  {b === 0 ? "Yok" : `+${b}`}{b === defaultBonus && b !== 0 ? " •" : ""}
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Adalet Puanı&apos;ndaki varsayılan çarpan</p>
+            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Adalet Puanı&apos;ndaki varsayılan bonus</p>
             <p className="text-xs text-slate-400 mt-1.5">
-              {bonus === 1.0 ? "Standart puan" : `Bu vardiyayı üstlenen personel ${bonus}x kahraman puanı kazanır`}
+              {bonus === 0 ? "Standart puan (bonus yok)" : `Bu vardiyayı üstlenen personel +${bonus} puan kahraman bonusu kazanır`}
             </p>
           </div>
 
@@ -291,9 +291,9 @@ export default function OpenShiftsPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <StatusBadge status={s.status} />
-                  {s.hero_bonus_multiplier > 1 && (
+                  {s.hero_bonus_multiplier > 0 && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
-                      <Star size={9} /> ×{s.hero_bonus_multiplier} Kahraman
+                      <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
                     </span>
                   )}
                 </div>
@@ -326,7 +326,7 @@ export default function OpenShiftsPage() {
                 <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
                 <p className="text-xs font-bold text-emerald-700">
                   <Link href="/personnel" className="hover:underline">{s.claimed_by_name}</Link>
-                  {" bu vardiyayı üstlendi — "}{s.hero_bonus_multiplier}x kahraman bonusu kazandı
+                  {" bu vardiyayı üstlendi — "}+{s.hero_bonus_multiplier} puan kahraman bonusu kazandı
                 </p>
               </div>
             )}

@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [nextWeekPublished, setNextWeekPublished] = useState(true);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
-  const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(1.5);
+  const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(6);
   const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
   const [autoOpenOnLate, setAutoOpenOnLate] = useState(true); // rules.auto_open_shift_on_late
   const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       if (loc?.rules) {
         try {
           const rules = JSON.parse(loc.rules);
-          if (typeof rules.hero_bonus_multiplier === "number") setHeroBonusMultiplier(rules.hero_bonus_multiplier);
+          if (typeof rules.hero_bonus_points === "number") setHeroBonusMultiplier(rules.hero_bonus_points);
           if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
           setAutoOpenOnLate(rules.auto_open_shift_on_late !== false);
           if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);

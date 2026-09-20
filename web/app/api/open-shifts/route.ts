@@ -123,11 +123,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
+    // hero_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil) —
+    // istemci belirtmezse lokasyonun ayarlı varsayılanı okunur.
+    const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(location_id) as any;
+    let defaultHeroPoints = 6;
+    try {
+      const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
+      if (typeof rules.hero_bonus_points === "number") defaultHeroPoints = rules.hero_bonus_points;
+    } catch { /* varsayılan kalır */ }
+    const heroPoints = typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : defaultHeroPoints;
+
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO open_shifts (org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)
-    `).run(org_id, location_id, date, start_time, end_time, note ?? null, hero_bonus_multiplier ?? 1.5, now);
+    `).run(org_id, location_id, date, start_time, end_time, note ?? null, heroPoints, now);
 
     // Lokasyondaki tüm aktif personele bildirim gönder
     const activePersonnel = await db.prepare(
@@ -141,12 +151,12 @@ export async function POST(req: NextRequest) {
       insertNotif.run(
         p.id,
         `Acil Açık Vardiya — ${date}`,
-        `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen 1.5x Kahraman Bonusu kazanırsın!`,
+        `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
         now
       );
       await sendPushToPersonnel(p.id, org_id, {
         title: `⚡ Acil Açık Vardiya — ${date}`,
-        body: `${start_time}–${end_time} saatleri için gönüllü aranıyor. Kabul edersen ${hero_bonus_multiplier ?? 1.5}x bonus!`,
+        body: `${start_time}–${end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
         url: "/portal/notifications",
       });
     }
@@ -206,7 +216,7 @@ export async function PATCH(req: NextRequest) {
         `).run(claimed_by, os.location_id, week_start, dayIdx, os.start_time, os.end_time, now);
       }
 
-      // Kahraman çarpanı (×hero_bonus_multiplier) yük formülünde uygulanır —
+      // Kahraman bonusu (düz puan, hero_bonus_multiplier kolonunda tutulur) puan formülünde uygulanır —
       // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
       await rescoreWeek(auth.org_id, os.location_id, week_start);
 
