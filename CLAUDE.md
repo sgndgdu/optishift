@@ -406,70 +406,38 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
 
 ---
 
-### Tier 1 — Değer Öldüren Eksiklikler (Bunlar olmadan ürün gerçekten yetersiz)
+### Tier 1, 2 ve eski Tier 3 — TAMAMLANDI (2026-09-20 kod denetimiyle doğrulandı)
 
-**T1-A: Kapasite Matrisi (Demand Template) + OR-Tools entegrasyonu** ✅ Tamamlandı (bkz. §8 Tamamlanan — 2026-07-03 sağlamlaştırma dahil)
-- [x] `locations.demand_matrix` alanı — schema.ts + migration (`npx drizzle-kit push`)
-- [x] Schedule sayfasına "Kapasite Planı" paneli: gün × vardiya bazlı sayı input
-- [x] `/api/locations` PATCH: `demand_matrix` alanı desteklenmeli (zaten destekleniyor, sadece frontend bağlantısı gerekli)
-- [x] OR-Tools motoru (`optishift_engine.py`): `demand_coverage` hard constraint — o gün o vardiyaya tam N kişi atanır
-- [x] `/api/generate` route: `demand_matrix` payload'a eklenmeli
-- [x] Grid'de coverage gap sayacı: her gün/shift kolonunda `(atanan)/(gereken)` badge
+Bu üç tier'ın orijinal maddeleri (kapasite matrisi, swap/edit/open-shifts backend, taslak→inceleme→yayınla akışı, canlı operasyon/check-in, inline fairness, müsaitlik hatırlatma, yayın öncesi kural ihlali modalı, haftalık maliyet takibi, geçen haftayı kopyala, supervisor raporları, PWA manifest+SW) checkbox'ları uzun süre `[ ]` kalmıştı ama kod tabanında hepsi mevcut ve production'da çalışıyor — liste sadece güncellenmemişti. Doğrulama yöntemi: her madde için ilgili route/dosya/UI elemanı grep ile teyit edildi (`app/api/swap-requests`, `app/api/shift-edit-requests`, `app/api/open-shifts`, `"Geçen Haftayı Kopyala"` string'i schedule sayfasında, `public/manifest.json` + `public/sw.js` dolu içerikli, vb.). Detaylar §8 Tamamlanan listesindeki ilgili tarihli maddelerde (2026-07-03 → 2026-08-10 arası).
 
-**T1-B: Shift Swap + Edit + Open Shifts Backend**
-- [ ] `shift_swap_requests` tablosu: schema.ts + migration
-- [ ] `shift_edit_requests` tablosu: schema.ts + migration
-- [ ] `open_shifts` tablosu: schema.ts + migration
-- [ ] `/api/swap-requests` route: POST (oluştur), PATCH (kabul/red/onay), GET (listele)
-- [ ] `/api/shift-edit-requests` route: POST, PATCH, GET
-- [ ] `/api/open-shifts` route: POST (ilan), PATCH (claim/cancel), GET
-- [ ] `/(app)/requests` sayfası: gelen talepleri listele, batch onay/red UI
-- [ ] `/portal/requests` sayfası: backend'e bağla (şu an sahte UI gösteriyor)
-- [ ] Open shift claim edilince fairness score'a 1.5x kahraman bonusu uygula
-
-**T1-C: Taslak → İnceleme → Yayınla Akışı**
-- [ ] `shift_assignments.status` alanı (`draft` | `published`) — schema.ts + migration
-- [ ] Mevcut `/api/shifts` POST: `status: 'draft'` ile kaydedebilmeli
-- [ ] Schedule sayfası: "Taslak Kaydet" + "Personele Gönder" + "Yayınla" — üç ayrı buton
-- [ ] "Personele Gönder": personele "incelemeniz için taslak gönderildi" bildirimi
-- [ ] Personel portalı: sadece `published` vardiyeler gösterilir
+**Nüanslı/kısmi olanlar:**
+- **Onboarding wizard:** Orijinal spesifikasyon (5 adım) bilinçli olarak YAPILMADI — Basitlik Paketi Faz C ile 2+1 adıma sadeleştirildi (bkz. §8, 2026-07-05). Bu bir eksik değil, kasıtlı bir tasarım kararı.
+- **Fairness kümülatif grafiği:** Chart kütüphanesi (recharts vb.) kullanılmıyor; son 8 haftanın yük değerleri + trend oku (↑↓→) olarak liste halinde gösteriliyor (`app/(app)/fairness/page.tsx`). İşlevsel ama görsel bir çizgi grafik değil — istenirse küçük bir polish işi.
+- **Billing/Stripe:** Kod tam (`app/api/checkout/route.ts` gerçek Stripe Checkout Session akışı, `app/api/webhook/route.ts`, `app/api/cron/check-trial-expiry`), ama prod ortamında **`STRIPE_SECRET_KEY` tanımlı değil** → `FEATURES.billing = true` olsa da checkout otomatik "demo mod"a düşüyor: plan anında değişiyor ama gerçek ödeme alınmıyor. Kampanya kodu akışı bundan etkilenmiyor (Stripe'ı hiç kullanmıyor). **Bu genuine bir açık madde** — gerçek ödeme almak isteniyorsa Stripe hesabı kurulup anahtar env'e eklenmeli.
 
 ---
 
-### Tier 2 — Kullanım Kalitesini Belirleyenler
+### Gerçek Açık Maddeler (2026-09-20 denetimi)
 
-**T2-A: Canlı Operasyon Paneli (Live Ops)**
-- [ ] `shift_assignments.check_in_at` + `check_out_at` — schema.ts + migration
-- [ ] `/api/shifts` PATCH: check-in ve check-out timestamp yazma
-- [ ] Personel portalı `/portal`: aktif vardiyada "Check-in" / "Check-out" butonu
-- [ ] Müdür `/dashboard`: canlı durum satırı — geldi/bekleniyor/molada/geç
-- [ ] 30 dk geç kalan için otomatik open shift oluşturma (cron veya API tetikleyici)
+**Prod credential eksikleri (kod hazır, sadece env eksik):**
+- `STRIPE_SECRET_KEY` — billing demo modda, gerçek ödeme alınmıyor
+- `RESEND_API_KEY` — şifre sıfırlama e-postası gitmiyor (bildirim maili `lib/mailer.ts`'e bağlandı ama credential yok)
+- `ANTHROPIC_API_KEY` + `FEATURES.aiSummary` — AI Özet kapalı
+- `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`NEXT_PUBLIC_APP_URL` + `FEATURES.googleAuth` — Google ile giriş kapalı (not: `NEXT_PUBLIC_APP_URL` prod'da tanımlı ama flag yine de kapalı — birlikte açılmalı)
 
-**T2-B: Schedule Sayfasında Inline Fairness**
-- [ ] Her personel satırı sol sütununda: bu haftanın puan toplamı + renk çubuğu (anlık)
-- [ ] OR-Tools taslağı gelince neden bu kişi bu vardiyaya atandı: "En düşük kümülatif puan — hak kazandı" tooltip
+**Flag'li bilinçli kapalı modüller (`web/lib/features.ts`):**
+- `integrations: false` — ERP (SAP/Nebim/Logo) UI hazır, gerçek senkron backend'i yok
+- `breaks: false` — canlı mola takibi backend akışı tamamlanmadı
 
-**T2-C: Müsaitlik Hatırlatma Otomasyonu**
-- [ ] Settings'te: "Her [gün] [saat]'de müsaitlik girmeyenlere hatırlat" toggle + zaman seçici
-- [ ] `/api/availability/remind` endpoint: henüz müsaitlik girmemiş personele notification oluşturur
-- [ ] Cron veya schedule sayfasındaki manuel "Müsaitlik İste" butonu bu endpoint'i çağırır
+**Teknik borç (aşağıdaki liste hâlâ geçerli, henüz temizlenmedi):**
+- `ShiftAssignment.shiftId` tip tutarsızlığı (`web/lib/types.ts`)
+- Bazı sayfalarda `web/lib/mock-data.ts`'e fallback kalıntısı olabilir — sprint sonu taraması gerekir
+- Sidebar rota listesi statik (merkezi config yok)
+- `status` vs `publication_status` alan adlandırma tutarsızlığı bazı endpoint'lerde (PM_BACKLOG.md'de detaylı)
 
-**T2-D: Yayınlama Öncesi Kural İhlali Modalı**
-- [ ] "Yayınla" butonuna tıklayınca client-side kural kontrol: 11 saat dinlenme + 45 saat + max_weekly_hours
-- [ ] Tespit edilen ihlaller için onay modalı: "3 kural ihlali var, yine de yayınlamak istiyor musunuz?"
-- [ ] İhlal özetinde personel ismi + ihlal türü gösterilir
+**TEST_RAPORU_2.md bulguları — hepsi doğrulandı ve KAPANDI (2026-09-20):** exact_coverage departman-scoped hard constraint (2026-07-03'te düzeltilmiş), OR-Tools timeout 30sn→55sn + açıklayıcı mesaj, "Haftalık İzin" yanıltıcı etiketi kaldırılmış. Bu iki test raporu artık sadece tarihsel referans; aktif bug listesi olarak kullanılmamalı.
 
----
-
-### Tier 3 — Önemli, Sonraya Bırakılabilir
-
-- [ ] Haftalık bütçe/maliyet takibi: personele saatlik ücret + schedule'da toplam maliyet paneli
-- [ ] Geçen haftayı kopyala / şablon kaydet
-- [x] `/supervisor/reports` sayfası: çapraz şube KPI raporları ✅ (canlıda çalışıyor)
-- [ ] Fairness sayfasında gerçek kümülatif grafik (`score_history` verisinden)
-- [ ] Onboarding wizard: 5 adımlı org kurulum akışı
-- [ ] Billing: Stripe entegrasyonu + plan limiti
-- [ ] Mobile PWA: manifest + service worker
+**PM_BACKLOG.md notu:** 2026-06-08 tarihli, OPTI-001 → OPTI-014 arası maddelerin büyük çoğunluğu sonraki commit'lerle kapatılmış görünüyor (izin→vardiya iptali, swap bildirimi, dashboard gerçek veri, demand matrix id fix, geçen haftayı kopyala, taslak/gönder/yayınla, check-in/out, inline fairness, kural ihlali modalı, müsaitlik hatırlatma hepsi §8'de belgeli). Belge madde madde yeniden doğrulanıp arşivlenmeli veya silinmeli — şu an yanıltıcı bir "yapılacaklar" izlenimi veriyor.
 
 ---
 
