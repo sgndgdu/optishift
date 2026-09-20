@@ -2189,14 +2189,21 @@ export default function SchedulePage() {
                 <div className="flex items-center gap-2">
                   {(cellCount === 0 || generating) && !isPublishedWeek && (
                     <button onClick={handleGenerateClick} disabled={generating}
-                      className="px-3 py-2 text-xs font-bold text-forest-700 bg-forest-50 border border-forest-200 rounded-xl hover:bg-forest-100 transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                      className={cn(
+                        "py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50",
+                        cellCount === 0
+                          ? "px-4 md:text-sm text-white bg-forest-700 hover:bg-forest-800 shadow-sm"
+                          : "px-3 text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100"
+                      )}>
                       <Zap size={13} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
                     </button>
                   )}
-                  <button onClick={handlePublish} disabled={publishLoading}
-                    className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
-                    <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Revize Et & Yayınla" : "Yayınla"}
-                  </button>
+                  {(cellCount > 0 || isPublishedWeek) && (
+                    <button onClick={handlePublish} disabled={publishLoading}
+                      className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                      <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Revize Et & Yayınla" : "Yayınla"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -2592,7 +2599,11 @@ export default function SchedulePage() {
                 <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             )}
-            <div className="overflow-x-auto">
+            <p className="sm:hidden text-[10px] font-semibold text-slate-400 text-center py-1.5 bg-slate-50/80 border-b border-slate-100">
+              Diğer günleri görmek için sağa kaydırın →
+            </p>
+            <div className="sm:hidden pointer-events-none absolute right-0 top-8 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent z-20" />
+            <div className="overflow-x-auto relative">
               <table className="w-full min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
