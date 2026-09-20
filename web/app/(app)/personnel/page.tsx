@@ -172,7 +172,7 @@ export default function PersonnelPage() {
     if (!authUser) return;
     fetchData(authUser);
     fetch("/api/locations").then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setLocations(data.map((l: any) => ({ id: l.id, name: l.name })));
+      if (Array.isArray(data)) setLocations(data.map((l: any) => ({ id: l.id, name: l.name, self_signup_token: l.self_signup_token ?? null })));
     }).catch(() => {});
     if (authUser.location_id) cacheDept(authUser.location_id, deptCache);
   // eslint-disable-next-line react-hooks/exhaustive-deps
