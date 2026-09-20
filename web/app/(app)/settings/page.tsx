@@ -839,6 +839,8 @@ export default function SettingsPage() {
 
   const pointsColor = (v: number) =>
     v <= 3 ? "text-emerald-600" : v <= 6 ? "text-amber-600" : v <= 8 ? "text-orange-600" : "text-red-600";
+  const pointsAccent = (v: number) =>
+    v <= 3 ? "accent-emerald-600" : v <= 6 ? "accent-amber-600" : v <= 8 ? "accent-orange-600" : "accent-red-600";
 
   // Vardiya süresi (saat) — gece geçişini destekler; yasal gece sınırı (7,5s) uyarısında kullanılır
   const shiftDurationHours = (shift: { start?: string; end?: string }) => {
@@ -1045,7 +1047,7 @@ export default function SettingsPage() {
                             );
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
-                          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-indigo-600 bg-slate-200"
+                          className={cn("w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-200", pointsAccent(shift.base_points))}
                         />
                         <div className="flex justify-between text-[9px] text-slate-300 px-0.5">
                           <span>Kolay</span><span>Orta</span><span>Zor</span>
