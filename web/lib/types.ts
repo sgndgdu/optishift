@@ -94,6 +94,7 @@ export interface Location {
   rotation_template?: RotationTemplate;
   latitude?: number;
   longitude?: number;
+  self_signup_token?: string | null;
 }
 
 export interface LocationEvent {

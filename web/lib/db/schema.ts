@@ -47,6 +47,7 @@ export const locations = pgTable("locations", {
   rotation_template: text("rotation_template"), // JSON: RotationTemplate — crew bazlı döngüsel rotasyon
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
+  self_signup_token: text("self_signup_token"), // kalıcı personel kendi-kendine-kayıt linki — null = kapalı. Uniqueness DB'de değil, kriptografik rastgelelikle (crypto.randomBytes) sağlanır.
 });
 
 // ─── Departments ─────────────────────────────────────────────────────────────

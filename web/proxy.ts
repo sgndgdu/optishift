@@ -31,6 +31,14 @@ function isPublicInviteRequest(req: NextRequest): boolean {
   return req.nextUrl.pathname === "/api/invite" && req.method === "GET";
 }
 
+// Kalıcı personel kendi-kendine-kayıt linki: token'ın kendisi kimlik doğrulamasını
+// sağlar (GET doğrular, POST kaydı tamamlar). DİKKAT: PATCH (link oluşturma/kapatma)
+// buraya EKLENMEMELİ — sadece requireAuth ile manager/admin/supervisor yapabilmeli,
+// yoksa herkes başka bir organizasyonun linkini kapatıp yenisini üretebilir.
+function isPublicSelfSignupRequest(req: NextRequest): boolean {
+  return req.nextUrl.pathname === "/api/self-signup" && (req.method === "GET" || req.method === "POST");
+}
+
 const SPOOFABLE_AUTH_HEADERS = [
   "x-auth-user-id",
   "x-auth-org-id",
@@ -60,6 +68,9 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
   if (isPublicInviteRequest(req)) {
+    return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
+  }
+  if (isPublicSelfSignupRequest(req)) {
     return NextResponse.next({ request: { headers: stripSpoofableHeaders(req) } });
   }
 

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users, Plus, Search, Edit2, Trash2, X, Check, Copy,
-  Phone, Mail, Link, Upload, CheckCircle, AlertCircle,
+  Phone, Mail, Link, Upload, CheckCircle, AlertCircle, Loader2, RefreshCw,
 } from "lucide-react";
 
 type MergedPerson = {
@@ -61,7 +61,9 @@ export default function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null }[]>([]);
+  const [selfSignupLoading, setSelfSignupLoading] = useState(false);
+  const [selfSignupCopied, setSelfSignupCopied] = useState(false);
   const [deptCache, setDeptCache] = useState<Record<string, { id: string; name: string }[]>>({});
 
   // Add form
@@ -248,6 +250,23 @@ export default function PersonnelPage() {
     } finally { setInviteLinkLoading(null); }
   };
 
+  const handleSelfSignup = async (action: "generate" | "disable") => {
+    if (!authUser?.location_id) return;
+    setSelfSignupLoading(true);
+    try {
+      const res = await fetch("/api/self-signup", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: authUser.location_id, action }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLocations(prev => prev.map(l => l.id === authUser.location_id ? { ...l, self_signup_token: data.token } : l));
+        setSelfSignupCopied(false);
+      }
+    } finally { setSelfSignupLoading(false); }
+  };
+
   const handleApprove = async (person: MergedPerson, status: "active" | "rejected") => {
     await fetch(`/api/users?id=${person.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approval_status: status }) });
     fetchData(authUser);
@@ -333,6 +352,45 @@ export default function PersonnelPage() {
           </button>
         </div>
       </div>
+
+      {/* Kayıt Linki */}
+      {authUser?.location_id && (() => {
+        const myLoc = locations.find(l => l.id === authUser.location_id);
+        const token = myLoc?.self_signup_token;
+        const url = token ? `${window.location.origin}/self-signup/${token}` : "";
+        return (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Link size={15} className="text-forest-600" />
+              <p className="text-sm font-bold text-slate-800">Kayıt Linki</p>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Bu linki personelinizle paylaşın. Linkten kayıt olan kişiler onayınızı bekleyen bir hesap oluşturur (Onaylar sekmesinde görünür).
+            </p>
+            {token ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <input readOnly value={url} className="flex-1 min-w-[200px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-600" />
+                <button
+                  onClick={() => { navigator.clipboard.writeText(url); setSelfSignupCopied(true); setTimeout(() => setSelfSignupCopied(false), 2000); }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${selfSignupCopied ? "bg-emerald-500 text-white" : "bg-forest-600 hover:bg-forest-700 text-white"}`}
+                >
+                  {selfSignupCopied ? <Check size={13} /> : <Copy size={13} />} {selfSignupCopied ? "Kopyalandı" : "Kopyala"}
+                </button>
+                <button onClick={() => handleSelfSignup("generate")} disabled={selfSignupLoading} className="p-2 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-xl transition-colors disabled:opacity-50" title="Linki Yenile (eskisi geçersiz olur)">
+                  {selfSignupLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                </button>
+                <button onClick={() => handleSelfSignup("disable")} disabled={selfSignupLoading} className="px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50">
+                  Kapat
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => handleSelfSignup("generate")} disabled={selfSignupLoading} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                {selfSignupLoading ? <Loader2 size={14} className="animate-spin" /> : <Link size={14} />} Kayıt Linki Oluştur
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Search */}
       <div className="relative">
