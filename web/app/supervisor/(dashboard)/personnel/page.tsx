@@ -302,7 +302,7 @@ function SupervisorPersonnelInner() {
                   <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm shrink-0">{u.name.charAt(0)}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{ROLE_LABELS[u.role] ?? u.role}{u.display_title ? ` — ${u.display_title}` : ""} · {u.username}</p>
+                    <p className="text-xs text-slate-500 truncate">{ROLE_LABELS[u.role] ?? u.role}{u.display_title ? ` · ${u.display_title}` : ""} · {u.username}</p>
                   </div>
                   <Button size="sm" variant="outline" disabled={pendingActionId === u.id}
                     onClick={() => handlePendingReview(u.id, "rejected")}
@@ -575,7 +575,7 @@ function SupervisorPersonnelInner() {
               <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Link size={18} className="text-amber-600" /></div>
               <div>
                 <p className="text-sm font-black text-slate-900">{inviteLinkModal.name}</p>
-                <p className="text-xs text-slate-500">Davet linki — 7 gün geçerli</p>
+                <p className="text-xs text-slate-500">Davet linki (7 gün geçerli)</p>
               </div>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">

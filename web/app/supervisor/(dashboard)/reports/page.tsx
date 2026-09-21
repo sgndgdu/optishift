@@ -331,7 +331,7 @@ export default function SupervisorReports() {
               {totalFlags === 0 && (
                 <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <div className="px-5 py-3 border-b border-slate-50">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tüm Personel — Bu Hafta</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tüm Personel · Bu Hafta</p>
                   </div>
                   <div className="divide-y divide-slate-50">
                     {allPersonnel.map((p, i) => (

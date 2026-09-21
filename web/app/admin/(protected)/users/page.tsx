@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 text-slate-400 font-mono text-xs">
                       {u.username}
                       {u.is_temp_password && (
-                        <span className="ml-1.5 text-[9px] text-amber-400" title="Geçici şifre — ilk girişte değiştirilecek">⏳</span>
+                        <span className="ml-1.5 text-[9px] text-amber-400" title="Geçici şifre, ilk girişte değiştirilecek">⏳</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

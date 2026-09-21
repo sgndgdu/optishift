@@ -141,8 +141,8 @@ export default function SupervisorDashboard() {
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: "Şube",       value: locations.length, icon: Building2, color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor" },
-          { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-forest-600", bg: "bg-forest-100" },
-          { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-emerald-600", bg: "bg-emerald-100", href: "/supervisor/personnel" },
+          { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-ember-600", bg: "bg-ember-100" },
+          { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor/personnel" },
         ].map(({ label, value, icon: Icon, color, bg, href }) => (
           <Card key={label} className={`border-0 shadow-sm ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
             onClick={href ? () => router.push(href) : undefined}>
@@ -186,7 +186,7 @@ export default function SupervisorDashboard() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm">{req.requested_by_name} — <Link href={`/supervisor/schedule?location_id=${req.location_id}`} className="text-slate-500 font-semibold hover:underline hover:text-primary" onClick={e => e.stopPropagation()}>{locName}</Link></p>
+                      <p className="font-bold text-slate-800 text-sm">{req.requested_by_name} · <Link href={`/supervisor/schedule?location_id=${req.location_id}`} className="text-slate-500 font-semibold hover:underline hover:text-primary" onClick={e => e.stopPropagation()}>{locName}</Link></p>
                       <p className="text-xs text-slate-400 mt-0.5">{req.week_start} haftası yayınlanmış planı düzenlemek istiyor</p>
                       <input
                         type="text"

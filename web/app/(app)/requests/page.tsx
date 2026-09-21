@@ -394,7 +394,7 @@ export default function ManagerRequestsPage() {
                     {pending && leaveBalances[l.personnel_id] && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
                       <p className={`text-[11px] font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
                         Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
-                        {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " — talep bakiyeyi aşıyor!"}
+                        {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
                       </p>
                     )}
                     {l.note && <p className="text-xs text-slate-400 mt-1 italic">"{l.note}"</p>}

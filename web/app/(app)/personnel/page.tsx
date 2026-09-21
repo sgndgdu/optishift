@@ -327,7 +327,7 @@ export default function PersonnelPage() {
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
 
   const roleBadge = (p: MergedPerson) => {
-    if (p.role === "admin") return { label: "Admin", color: "bg-red-50 text-red-700 border-red-100" };
+    if (p.role === "admin") return { label: "Admin", color: "bg-ember-50 text-ember-700 border-ember-100" };
     if (p.role === "supervisor") return { label: "Süpervizör", color: "bg-ember-50 text-ember-700 border-ember-100" };
     if (p.display_title) return { label: p.display_title, color: "bg-forest-50 text-forest-700 border-forest-100" };
     return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
@@ -662,7 +662,7 @@ export default function PersonnelPage() {
               <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Link size={18} className="text-amber-600" /></div>
               <div>
                 <p className="text-sm font-black text-slate-900">{inviteLinkModal.name}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Davet linki — 7 gün geçerli</p>
+                <p className="text-xs text-slate-500 mt-0.5">Davet linki (7 gün geçerli)</p>
               </div>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
@@ -744,11 +744,11 @@ export default function PersonnelPage() {
                       onChange={e => setEditForm(f => ({ ...f, night_restriction: e.target.value || null }))}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
                     >
-                      <option value="">Yok — gece çalışabilir</option>
-                      <option value="pregnant">Gebe — gece çalışamaz</option>
-                      <option value="nursing">Emziren — gece çalışamaz</option>
-                      <option value="under18">18 yaş altı — gece çalışamaz</option>
-                      <option value="medical">Sağlık raporu — gece çalışamaz</option>
+                      <option value="">Yok (gece çalışabilir)</option>
+                      <option value="pregnant">Gebe (gece çalışamaz)</option>
+                      <option value="nursing">Emziren (gece çalışamaz)</option>
+                      <option value="under18">18 yaş altı (gece çalışamaz)</option>
+                      <option value="medical">Sağlık raporu (gece çalışamaz)</option>
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1">Kısıt seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
@@ -860,7 +860,7 @@ export default function PersonnelPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkErrorCount(0); }} className="w-full mt-6 bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-900">Kapat</button>
+                <button onClick={() => { setShowBulkModal(false); setBulkResults([]); setBulkErrorCount(0); }} className="w-full mt-6 bg-forest-700 text-white font-bold py-3 rounded-xl hover:bg-forest-700/90">Kapat</button>
               </div>
             ) : (
               <>

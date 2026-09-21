@@ -256,7 +256,7 @@ export default function PortalRequests() {
         body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
       });
       if (r.ok) {
-        showToast("Vardiyan pazar yerine bırakıldı — ekibe bildirim gitti!");
+        showToast("Vardiyan pazar yerine bırakıldı, ekibe bildirim gitti!");
         resetSwapWizard();
         await loadData();
       } else {
@@ -429,8 +429,8 @@ export default function PortalRequests() {
         employee_status === "declined"
           ? "Mesai reddedildi. Müdürün bilgilendirildi."
           : compensation_type === "time_off"
-            ? "Kabul edildi — serbest zaman (1,5 kat izin) olarak işlenecek."
-            : "Kabul edildi — zamlı ücret olarak işlenecek."
+            ? "Kabul edildi, serbest zaman (1,5 kat izin) olarak işlenecek."
+            : "Kabul edildi, zamlı ücret olarak işlenecek."
       );
     } else {
       const err = await res.json().catch(() => ({}));
@@ -749,7 +749,7 @@ export default function PortalRequests() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-ember-700">Herkese Aç (Pazar Yeri)</p>
-                            <p className="text-[10px] text-ember-600/80">Belirli birini seçme — vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
+                            <p className="text-[10px] text-ember-600/80">Belirli birini seçme, vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
                           </div>
                         </button>
                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider text-center py-1">veya belirli birine teklif et</p>
@@ -887,7 +887,7 @@ export default function PortalRequests() {
                     </p>
                     <p className="text-slate-500 mt-0.5">
                       {leaveBalance.mode === "seniority"
-                        ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün${leaveBalance.entitledTotal === 0 ? ` — ilk iznin ${leaveBalance.nextAccrualDate} tarihinde doğacak` : ""}`
+                        ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün${leaveBalance.entitledTotal === 0 ? ` · ilk iznin ${leaveBalance.nextAccrualDate} tarihinde doğacak` : ""}`
                         : `Yıllık hak ${leaveBalance.entitledTotal} gün · bu yıl kullanılan ${leaveBalance.usedDays} gün`}
                     </p>
                   </div>

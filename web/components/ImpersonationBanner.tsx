@@ -48,7 +48,7 @@ export default function ImpersonationBanner() {
         <Shield size={15} />
         <span>
           God Mode: <strong>{info.user_name ?? "Kullanici"}</strong> olarak goruntuleniyor
-          {info.org_name ? ` — ${info.org_name}` : ""}
+          {info.org_name ? ` (${info.org_name})` : ""}
         </span>
       </div>
       <button

@@ -181,7 +181,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
             </div>
             <div className="truncate">
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
-              <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">{roleLabel}</p>
+              <p className="text-[10px] text-ember-600 font-medium tracking-wide uppercase">{roleLabel}</p>
             </div>
           </div>
           <button

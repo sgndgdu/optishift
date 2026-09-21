@@ -758,7 +758,7 @@ export default function PortalDashboard() {
               })()}
             </>
           ) : (
-            <p className="text-xs text-slate-400">Henüz yayınlanmış bir haftan yok — ilk vardiya haftan yayınlanınca puanın burada oluşmaya başlar.</p>
+            <p className="text-xs text-slate-400">Henüz yayınlanmış bir haftan yok. İlk vardiya haftan yayınlanınca puanın burada oluşmaya başlar.</p>
           )}
 
           {/* Telafi / bonus olayları */}
@@ -775,7 +775,7 @@ export default function PortalDashboard() {
           )}
 
           <p className="text-[10px] text-slate-300 leading-relaxed">
-            Zor, uzun, hafta sonu ve gece vardiyaları{fairness.history.some((h: any) => "pref_not_shifts" in h) ? " — ve tercih etmediğin günlerde çalışmak —" : ""} daha çok puan getirir. Puanın yükseldiyse sonraki haftalarda sıra daha hafif vardiyalara sende olur.
+            Zor, uzun, hafta sonu ve gece vardiyaları{fairness.history.some((h: any) => "pref_not_shifts" in h) ? ", ve tercih etmediğin günlerde çalışmak," : ""} daha çok puan getirir. Puanın yükseldiyse sonraki haftalarda sıra daha hafif vardiyalara sende olur.
           </p>
         </div>
       )}

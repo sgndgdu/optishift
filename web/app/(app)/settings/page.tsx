@@ -89,9 +89,11 @@ function RuleRow({ label, description, right }: { label: string; description: Re
   );
 }
 
+// Statik kart kabuğu — .stripe-card ile aynı taban (rounded-2xl + ince gölge),
+// hover büyümesi yok çünkü tıklanabilir/link değil (bkz. Design Kararları #1)
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(20,69,61,0.12)] overflow-hidden">
       <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</h3>
       </div>
@@ -138,7 +140,7 @@ function RequiredSkillsEditor({
   };
   return (
     <div className="space-y-1.5 pt-1 border-t border-slate-100">
-      <span className="text-xs text-slate-400">Zorunlu yetkinlik <span className="text-slate-300">— bu vardiyada mutlaka bulunmalı</span></span>
+      <span className="text-xs text-slate-400">Zorunlu yetkinlik <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
       {skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {skills.map((rs, i) => (
@@ -1126,7 +1128,7 @@ export default function SettingsPage() {
               <SectionCard title="Planlama Kuralları">
                 <RuleRow
                   label="Kıdemli Personel Kuralı"
-                  description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır — zorunlu kalınırsa esnetilebilir.</>}
+                  description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir.</>}
                   right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                 />
                 <RuleRow
@@ -1195,7 +1197,7 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Sosyal Kurallar — Birlikte Çalışamaz">
+              <SectionCard title="Sosyal Kurallar · Birlikte Çalışamaz">
                 {!personnelConflictsEnabled && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
                     Bu modül Modüller sekmesinde kapalı, tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz.
@@ -1457,15 +1459,15 @@ export default function SettingsPage() {
               </SectionCard>
 
               {/* ─── FABRİKA MODÜLÜ: FAZLA MESAİ ─── */}
-              <SectionCard title="Fazla Mesai Yönetimi — Fabrika Modülü">
+              <SectionCard title="Fazla Mesai Yönetimi · Fabrika Modülü">
                 <RuleRow
                   label="Haftalık Mesai Eşiği"
-                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık Maksimum Saat'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir — çoğu işletmede ikisi de 45'tir."
+                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık Maksimum Saat'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
                   right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
                 />
                 <RuleRow
                   label="Yıllık Maksimum Fazla Mesai"
-                  description="İş Kanunu 41. madde — kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
+                  description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
                   right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
                 />
                 <RuleRow
@@ -1484,7 +1486,7 @@ export default function SettingsPage() {
                   right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                 />
                 <RuleRow
-                  label="Ekip Vardiyası — Kesin Kural"
+                  label="Ekip Vardiyası · Kesin Kural"
                   description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
                   right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
                 />
@@ -1634,7 +1636,7 @@ export default function SettingsPage() {
 
               {/* 1. ZOR VARDİYA TANIMI */}
               <SectionCard title="Zor Vardiya Tanımı">
-                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır — birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
+                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır, birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
                 <RuleRow
                   label="Zor Vardiya Puanı"
                   description="Zor sayılan bir vardiyaya eklenen düz bonus puanı. 0 = kapalı."
@@ -2012,7 +2014,7 @@ export default function SettingsPage() {
               {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip — Vardiya Ataması (Hafta Bazında)</h3>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
                   </div>
                   <div className="p-5 overflow-x-auto">
                     <table className="w-full text-sm">

@@ -262,7 +262,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 className={cn(
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                   active
-                    ? "bg-primary/5 text-primary"
+                    ? "bg-primary/10 text-primary"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 )}
               >
@@ -346,7 +346,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             </div>
             <div className="truncate">
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
-              <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">
+              <p className={cn(
+                "text-[10px] font-medium tracking-wide uppercase",
+                user?.role === "admin" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
+              )}>
                 {user?.role === "manager" ? "Yönetici" : user?.role === "admin" ? "Admin" : "Personel"}
               </p>
             </div>

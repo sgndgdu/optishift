@@ -140,13 +140,13 @@ export default function ReportsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Çalışma Saati Raporu</h1>
-            <p className="text-sm text-slate-500">Personel bazında aylık özet — sadece yayınlanan vardiyalar</p>
+            <p className="text-sm text-slate-500">Personel bazında aylık özet (sadece yayınlanan vardiyalar)</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
-            title="Kişi-gün bazlı giriş/çıkış puantajı — bordro ve muhasebe aktarımı için CSV"
+            title="Kişi-gün bazlı giriş/çıkış puantajı, bordro ve muhasebe aktarımı için CSV"
             className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
           >
             <Download size={15} />
@@ -196,7 +196,7 @@ export default function ReportsPage() {
             </p>
             <p className="text-xs text-slate-500">
               {periodLock
-                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi — check-in/check-out ve düzenleme yapılamaz.`
+                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi. Check-in/check-out ve düzenleme yapılamaz.`
                 : "Puantaj onaylandıktan sonra kilitleyerek geçmiş verinin değişmesini önleyin."}
             </p>
           </div>

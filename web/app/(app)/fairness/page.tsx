@@ -216,7 +216,7 @@ export default function FairnessPage() {
               </div>
               <div>
                 <CardTitle className="text-sm font-bold">Adalet Puanı Ayarları</CardTitle>
-                <p className="text-xs text-slate-400 mt-0.5">Mevcut yapılandırma — Ayarlar sayfasından değiştirin</p>
+                <p className="text-xs text-slate-400 mt-0.5">Mevcut yapılandırma, Ayarlar sayfasından değiştirin</p>
               </div>
             </div>
             <a
@@ -561,7 +561,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
           <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><Trophy size={15} /></div>
           <div>
             <CardTitle className="text-sm font-bold">Kahraman Bonusları</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personel — düz puan bonusu</p>
+            <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personel, düz puan bonusu</p>
           </div>
         </div>
       </CardHeader>
@@ -610,7 +610,7 @@ function NoShowCard({ noShowPersonnel, loading }: { noShowPersonnel: any[]; load
           <div className="p-1.5 bg-red-100 rounded-lg text-red-600"><AlertTriangle size={15} /></div>
           <div>
             <CardTitle className="text-sm font-bold">No-Show Kayıtları</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Bildirimsiz gelmeme — otomatik kayıt</p>
+            <p className="text-xs text-slate-500 mt-0.5">Bildirimsiz gelmeme, otomatik kayıt</p>
           </div>
         </div>
       </CardHeader>

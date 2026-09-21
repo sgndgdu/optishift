@@ -122,7 +122,7 @@ export function TimeRangeSlider({
       {crossesMidnight && (
         <div className="flex items-center gap-1.5 text-[10px] text-forest-600 font-semibold bg-forest-50 border border-forest-100 rounded-lg px-2 py-1">
           <span>🌙</span>
-          <span>Gece geçişi — bitiş ertesi güne sarkıyor</span>
+          <span>Gece geçişi, bitiş ertesi güne sarkıyor</span>
         </div>
       )}
 

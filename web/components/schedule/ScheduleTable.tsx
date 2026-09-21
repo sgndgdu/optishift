@@ -147,7 +147,7 @@ function PointsLegend({ shifts, rolesConfigs }: { shifts: ShiftDefinition[]; rol
                   })}
                   <td className="py-2 pl-4 text-slate-500">
                     {group.label === "Pzt – Per" && "Normal mesai"}
-                    {group.label === "Cum – Cmt" && "Hafta sonu yoğunluğu — min 8p"}
+                    {group.label === "Cum – Cmt" && "Hafta sonu yoğunluğu, min 8p"}
                     {group.label === "Pazar"     && "Kapanış vardiyası min 10p, diğerleri min 5p"}
                   </td>
                 </tr>
@@ -337,8 +337,8 @@ export function ScheduleTable({
         }`}>
           <Scale size={15} />
           {fairness_gap === 0
-            ? "Mükemmel adalet — 0 puan fark"
-            : `Adalet farkı: ${fairness_gap} puan — bu haftanın en dengeli çözümü`}
+            ? "Mükemmel adalet, 0 puan fark"
+            : `Adalet farkı: ${fairness_gap} puan, bu haftanın en dengeli çözümü`}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 md:gap-3">

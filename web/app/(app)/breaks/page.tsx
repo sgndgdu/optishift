@@ -109,7 +109,7 @@ function BreaksPageInner() {
     });
     if (r.ok) {
       const data = await r.json();
-      showToast(`Mola bitti — ${data.duration_min} dakika.`);
+      showToast(`Mola bitti, ${data.duration_min} dakika.`);
       await load();
     }
   }

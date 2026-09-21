@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { kpiToneClasses } from "@/lib/kpiColors";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -211,32 +212,31 @@ export default function DashboardPage() {
   // "Sıradaki adım" — müdürün şu an yapması gereken en öncelikli tek iş
   const nextStep = loading ? null : (() => {
     if (personnel.length === 0)
-      return { title: "Ekibinizi ekleyin", desc: "Plan yapabilmek için önce personel ekleyin — sadece isim yeterli.", cta: "Personel Ekle", href: "/personnel" };
+      return { title: "Ekibinizi ekleyin", desc: "Plan yapabilmek için önce personel ekleyin, sadece isim yeterli.", cta: "Personel Ekle", href: "/personnel" };
     if (!nextWeekPublished)
       return { title: "Gelecek haftayı planlayın", desc: "Gelecek haftanın programı henüz yayınlanmadı. Personel plan yapabilsin diye erken yayınlayın.", cta: "Haftayı Planla", href: "/schedule" };
     if (leaveRequests.length > 0)
       return { title: `${leaveRequests.length} izin talebi onay bekliyor`, desc: "Personel yanıtınızı bekliyor.", cta: "Onaylara Git", href: "/requests" };
     if (availMissing.length > 0)
-      return { title: `${availMissing.length} personel müsaitlik girmedi`, desc: "Gelecek haftanın müsaitliği eksik — hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
+      return { title: `${availMissing.length} personel müsaitlik girmedi`, desc: "Gelecek haftanın müsaitliği eksik, hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
     return null;
   })();
 
   const kpi = [
-    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         color: "text-forest-600", bg: "bg-forest-100",  href: "/personnel" },
-    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100", href: "/requests" },
-    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
-    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100", href: "/fairness" },
-    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023) — rules.publish_lead_kpi_enabled ile kapatılabilir
+    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         ...kpiToneClasses("neutral"),  href: "/personnel" },
+    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         ...kpiToneClasses("attention"), href: "/requests" },
+    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, ...kpiToneClasses(openCount > 0 ? "attention" : "neutral"), href: "/open-shifts" },
+    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/fairness" },
+    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023), rules.publish_lead_kpi_enabled ile kapatılabilir
     ...(publishLeadKpiEnabled ? [{
       label: "Yayın Öncülüğü",
       value: publishLead === null ? "—" : `${publishLead.toLocaleString("tr-TR")} gün`,
       sub: publishLead === null ? "Henüz yayın verisi yok"
-        : publishLead >= 7 ? "Harika — tam hafta önceden"
-        : publishLead >= 3 ? "İyi — daha erken hedefleyin"
-        : "Geç — personel plan yapamıyor",
+        : publishLead >= 7 ? "Harika, tam hafta önceden"
+        : publishLead >= 3 ? "İyi, daha erken hedefleyin"
+        : "Geç, personel plan yapamıyor",
       icon: CalendarCheck,
-      color: publishLead === null ? "text-slate-500" : publishLead >= 7 ? "text-emerald-600" : publishLead >= 3 ? "text-amber-600" : "text-red-600",
-      bg: publishLead === null ? "bg-slate-100" : publishLead >= 7 ? "bg-emerald-100" : publishLead >= 3 ? "bg-amber-100" : "bg-red-100",
+      ...kpiToneClasses(publishLead === null ? "neutral" : publishLead >= 7 ? "positive" : publishLead >= 3 ? "attention" : "danger"),
       href: "/schedule",
     }] : []),
   ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
@@ -509,7 +509,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600 shrink-0">
                   <Users size={18} />
                 </div>
-                <CardTitle className="text-base font-bold">Canlı Operasyon — Bugün</CardTitle>
+                <CardTitle className="text-base font-bold">Canlı Operasyon · Bugün</CardTitle>
                 {lateShifts.length > 0 && (
                   <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
                     <AlertTriangle size={11} className="mr-1" />{lateShifts.length} Geç
@@ -572,7 +572,7 @@ export default function DashboardPage() {
                         <button
                           onClick={e => { e.preventDefault(); e.stopPropagation(); convertToOpenShift(s, false); }}
                           className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                          title="Vardiyayı açık ilana dönüştür — ekip üstlenebilir"
+                          title="Vardiyayı açık ilana dönüştür, ekip üstlenebilir"
                         >
                           Açığa Çıkar
                         </button>

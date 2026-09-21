@@ -196,7 +196,7 @@ export default function OnboardingWizard() {
             {step === 0 && (
               <Shell icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
-                sub="Sektörünüzü seçin, şubenizi adlandırın — vardiya şablonları ve ayarlar buna göre hazırlanır.">
+                sub="Sektörünüzü seçin, şubenizi adlandırın. Vardiya şablonları ve ayarlar buna göre hazırlanır.">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-2.5">
                   {SECTORS.map(s => {
                     const Icon = s.icon;
@@ -217,7 +217,7 @@ export default function OnboardingWizard() {
                 </div>
 
                 <div className="space-y-2.5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Şubeler — tek şube de olabilir, sonradan da eklenebilir</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Şubeler (tek şube de olabilir, sonradan da eklenebilir)</p>
                   {branches.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500 shrink-0">
@@ -249,7 +249,7 @@ export default function OnboardingWizard() {
             {step === 1 && (
               <Shell icon={<CalendarClock size={24} />} color="bg-ember-100 text-ember-600"
                 title="Vardiya Tanımları"
-                sub="Sektörünüze özel öneriler yüklendi — saatleri işletmenize göre düzenlemeniz yeterli.">
+                sub="Sektörünüze özel öneriler yüklendi, saatleri işletmenize göre düzenlemeniz yeterli.">
                 <div className="space-y-3">
                   {shifts.map((s, i) => (
                     <div key={i} className="flex flex-wrap md:grid md:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-3">

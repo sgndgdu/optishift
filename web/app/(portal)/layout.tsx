@@ -126,7 +126,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 className={cn(
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                   isActive
-                    ? "bg-primary/5 text-primary"
+                    ? "bg-primary/10 text-primary"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 )}
               >
@@ -221,7 +221,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               return (
                 <li key={href} className="flex-1">
                   <Link href={href} className={cn("flex flex-col items-center gap-1 w-full py-1.5 rounded-2xl transition-all duration-150 relative", isActive ? "text-primary" : "text-slate-400")}>
-                    {isActive && <span className="absolute inset-0 bg-primary/5 rounded-2xl" />}
+                    {isActive && <span className="absolute inset-0 bg-primary/10 rounded-2xl" />}
                     <div className="relative">
                       <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="relative" />
                       {isChat && chatUnread > 0 && (

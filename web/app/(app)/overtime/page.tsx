@@ -125,7 +125,7 @@ export default function OvertimePage() {
       body: JSON.stringify({ id, status }),
     });
     if (res.ok) {
-      showToast(status === "approved" ? "Onaylandı ✓" : status === "rejected" ? "Reddedildi" : "Geri alındı — tekrar beklemede");
+      showToast(status === "approved" ? "Onaylandı ✓" : status === "rejected" ? "Reddedildi" : "Geri alındı, tekrar beklemede");
       load();
     }
     else showToast("Bir hata oluştu");
@@ -381,7 +381,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
         id: `ytd-over-${p.id}`,
         level: "critical",
         title: "Yıllık mesai limiti aşıldı",
-        detail: `${ytd.toFixed(0)} / ${maxYtd} saat — yasal sınır (İş K. m.41) geçildi`,
+        detail: `${ytd.toFixed(0)} / ${maxYtd} saat, yasal sınır (İş K. m.41) geçildi`,
         personnelName: p.name,
       });
     } else if (pct >= 0.9) {
@@ -389,7 +389,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
         id: `ytd-near-${p.id}`,
         level: "high",
         title: "Yıllık mesai limitine yaklaşıyor",
-        detail: `${ytd.toFixed(0)} / ${maxYtd} saat — limitin %${Math.round(pct * 100)}'inde`,
+        detail: `${ytd.toFixed(0)} / ${maxYtd} saat, limitin %${Math.round(pct * 100)}'inde`,
         personnelName: p.name,
       });
     }
@@ -551,7 +551,7 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
           {isCompTimeRecord && !r.comp_time_used_at && onCompTime && (
             <button
               onClick={() => onCompTime(r.id, true)}
-              title="Serbest zaman iznini kullandırdığını işaretle — bakiyeden düşer"
+              title="Serbest zaman iznini kullandırdığını işaretle, bakiyeden düşer"
               className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
             >
               <CheckCircle2 size={13} />
@@ -561,7 +561,7 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
           {onUndo && (
             <button
               onClick={() => onUndo(r.id, "pending")}
-              title="Kararı geri al — kayıt tekrar beklemeye düşer, YTD yeniden hesaplanır"
+              title="Kararı geri al, kayıt tekrar beklemeye düşer, YTD yeniden hesaplanır"
               className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
             >
               <RotateCcw size={13} />

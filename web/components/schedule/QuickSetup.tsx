@@ -193,7 +193,7 @@ function QuickPersonnelModal({ locationId, onClose }: { locationId: string; onCl
   };
 
   return (
-    <ModalShell title="Hızlı Personel Ekle" subtitle="Şimdilik sadece isim yeterli — detayları sonra Personel sayfasından tamamlayabilirsiniz." onClose={onClose}>
+    <ModalShell title="Hızlı Personel Ekle" subtitle="Şimdilik sadece isim yeterli, detayları sonra Personel sayfasından tamamlayabilirsiniz." onClose={onClose}>
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-2">

@@ -172,7 +172,7 @@ export default function OpenShiftsPage() {
           </div>
           <div>
             <h1 className="text-xl md:text-2xl font-black text-slate-900">Açık Vardiyalar</h1>
-            <p className="text-xs md:text-sm text-slate-500">İlan et — personel kahraman bonusuyla üstlensin</p>
+            <p className="text-xs md:text-sm text-slate-500">İlan et, personel kahraman bonusuyla üstlensin</p>
           </div>
         </div>
         <button
@@ -326,7 +326,7 @@ export default function OpenShiftsPage() {
                 <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
                 <p className="text-xs font-bold text-emerald-700">
                   <Link href="/personnel" className="hover:underline">{s.claimed_by_name}</Link>
-                  {" bu vardiyayı üstlendi — "}+{s.hero_bonus_multiplier} puan kahraman bonusu kazandı
+                  {" bu vardiyayı üstlendi, "}+{s.hero_bonus_multiplier} puan kahraman bonusu kazandı
                 </p>
               </div>
             )}
@@ -349,7 +349,7 @@ export default function OpenShiftsPage() {
                   <p className="text-xs text-slate-400 px-1">Uygun adaylar hesaplanıyor…</p>
                 )}
                 {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length === 0 && (
-                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı — herkes o gün dolu, izinli veya kısıtlı.</p>
+                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı, herkes o gün dolu, izinli veya kısıtlı.</p>
                 )}
                 {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length > 0 && (
                   <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">

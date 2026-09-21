@@ -424,6 +424,17 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - **`pre_publish_check` ("Yayın Öncesi İhlal Kontrolü" toggle):** `schedule/page.tsx`'teki `handlePublish()` toggle'a bakmadan her zaman `checkViolations()` çağırıyordu. Artık `locRules.pre_publish_check !== false` kontrolü var; kapalıyken ihlal taraması hiç çalışmıyor, direkt yayınlanıyor.
   - **`publish_lead_kpi_enabled` ("Yayın Öncülüğü KPI" toggle):** Dashboard'daki "Yayın Öncülüğü" KPI kartı toggle'a bakmadan her zaman gösteriliyordu. Artık kapalıyken kart dizisinden hiç render edilmiyor. (Supervisor panelindeki eşdeğer sayaç kasıtlı olarak dokunulmadı, toggle'ın açıklaması özellikle "müdür panelinde" diyor, supervisor'ın kapsamı değil.)
   - **Düzeltilmeyen:** `max_concurrent_breaks` de aynı şekilde dead ama host'u olan Mola Takibi modülü zaten `FEATURES.breaks=false` arkasında tamamlanmamış durumda, bu alanı canlandırmak ayrı bir özellik tamamlama işi, dead-code temizliğinin kapsamı dışında bırakıldı.
+- [x] **Tasarım Tutarlılığı Geçişi (2026-09-21):** Kullanıcı "hiçbir sayfada tutarsızlık görmek istemiyorum" dedi. Önce mevcut UI'dan gerçek koda dayalı bir "OptiShift Design System" projesi çıkarıldı (claude.ai/design, DesignSync aracı), 7 tutarsızlık tespit edilip karar sayfasında (`foundations/decisions.html`) resmileştirildi, sonra kod tabanına sistematik uygulandı:
+  - **Tek kart kabuğu:** `SectionCard` (Ayarlar) artık `.stripe-card` ile aynı taban (`rounded-2xl` + ince gölge), eskiden `rounded-xl` + gölgesiz border ile ayrı bir "kart dili" gibi duruyordu.
+  - **KPI kart rengi anlam taşıyor:** yeni `web/lib/kpiColors.ts` tek kaynak (neutral=forest/attention=amber/danger=red/positive=emerald). Dashboard KPI dizisi ve süpervizör panelinin 3 özet kartı buradan besleniyor; eskiden rastgele turuncu/mavi/karışık emerald kullanılıyordu.
+  - **Yeni `StatusPill` bileşeni** (`web/components/ui/StatusPill.tsx`) durum pill/blok deseni için tek kaynak (henüz her yerde benimsenmedi, ilk sürüm).
+  - **Adalet puanı çubuğu** `h-1` (4px) → `h-1.5` (6px), tüm liste görünümlerinde.
+  - **Sidebar aktif kontrastı** `bg-primary/5` → `bg-primary/10`, 3 sidebar'da (manager, portal masaüstü+mobil). Süpervizör paneli zaten katı `bg-ember-50` kullandığı için etkilenmedi.
+  - **Rol etiketleri renklendirildi** (admin/supervisor=ember, manager=forest, employee=nötr). Yol boyunca bulunan gerçek bug: `personnel/page.tsx`'teki `roleBadge()` admin'i yanlışlıkla kırmızı (red, "sorun" anlamına gelen renk) gösteriyordu, ember'a düzeltildi.
+  - **Buton hiyerarşisi denetimi:** tüm İptal/Vazgeç/Kapat butonları tarandı, tek gerçek ihlal bulundu (Personel → toplu ekleme "Kapat" butonu marka dışı `bg-slate-800` kullanıyordu), `forest-700`'e çekildi.
+  - **Amber çakışması bilinçli olarak değiştirilmedi:** "uyarı" ve "onay bekleyen" aynı üst kategori (dikkat gerektirir), yeni renk eklenmedi.
+  - **Kapsamlı em dash temizliği:** tarama sırasında kullanıcıya görünen JSX metninde (yorumlar hariç) ~60 em dash (—) bulundu, hepsi nokta/virgül/"·" ile değiştirildi (standalone "—" boş değer göstergeleri ve "— Seçin —" tipi dropdown placeholder'ları hariç tutuldu, onlar ayrı bir konvansiyon).
+  - Değişen ~29 dosya, `npx tsc --noEmit` ve `npm run lint` önceki duruma göre sıfır yeni hata/uyarı (aynı 180 problem baseline).
 
 ---
 

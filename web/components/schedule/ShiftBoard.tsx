@@ -191,7 +191,7 @@ export function DraggableAssignedCard({ person, day, shiftDef, forceStatus }: {
         {person.name.charAt(0)}
       </div>
       <span className="truncate flex-1">{person.name}</span>
-      {isPending  && <span title="Zorunlu atama — onay bekleniyor" className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
+      {isPending  && <span title="Zorunlu atama, onay bekleniyor" className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
       {isRejected && <X size={10} className="shrink-0" />}
     </div>
   );

@@ -43,8 +43,8 @@ export default function PrivacyPage() {
 
       <h2>3. İşleme Amaçları ve Hukuki Sebepler</h2>
       <ul>
-        <li>Hizmetin sunulması: vardiya planlama, bildirimler, raporlama — <em>sözleşmenin kurulması ve ifası</em> (KVKK m.5/2-c).</li>
-        <li>Hesap güvenliği, kötüye kullanımın önlenmesi, hata ayıklama — <em>meşru menfaat</em> (KVKK m.5/2-f).</li>
+        <li>Hizmetin sunulması: vardiya planlama, bildirimler, raporlama; <em>sözleşmenin kurulması ve ifası</em> (KVKK m.5/2-c).</li>
+        <li>Hesap güvenliği, kötüye kullanımın önlenmesi, hata ayıklama; <em>meşru menfaat</em> (KVKK m.5/2-f).</li>
         <li>Yasal yükümlülüklerin yerine getirilmesi (KVKK m.5/2-ç).</li>
       </ul>
       <p>Veriler, bu amaçlar dışında pazarlama amacıyla üçüncü kişilerle paylaşılmaz ve satılmaz.</p>
@@ -56,10 +56,10 @@ export default function PrivacyPage() {
         kapsamda veriler KVKK m.9 uyarınca yurt dışına aktarılabilir:
       </p>
       <ul>
-        <li><strong>Vercel</strong> — uygulama barındırma</li>
-        <li><strong>Neon</strong> — veritabanı barındırma</li>
-        <li><strong>Render</strong> — vardiya planlama hesaplama servisi</li>
-        <li><strong>Resend</strong> — işlemsel e-posta gönderimi (ör. şifre sıfırlama)</li>
+        <li><strong>Vercel</strong>: uygulama barındırma</li>
+        <li><strong>Neon</strong>: veritabanı barındırma</li>
+        <li><strong>Render</strong>: vardiya planlama hesaplama servisi</li>
+        <li><strong>Resend</strong>: işlemsel e-posta gönderimi (ör. şifre sıfırlama)</li>
       </ul>
 
       <h2>5. Çerezler</h2>
