@@ -74,6 +74,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Açık vardiya sistemi bu lokasyonda kapatılmışsa (rules.open_shifts_enabled) hiçbir ilan oluşturulamaz
+    async function openShiftsEnabledFor(locId: string): Promise<boolean> {
+      const loc = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(locId) as any;
+      if (!loc?.rules) return true;
+      try { return JSON.parse(loc.rules)?.open_shifts_enabled !== false; } catch { return true; }
+    }
+
+    if (!convert_assignment_id && location_id && !(await openShiftsEnabledFor(location_id))) {
+      return NextResponse.json({ error: "Bu lokasyonda açık vardiya sistemi kapalı." }, { status: 422 });
+    }
+
     if (convert_assignment_id) {
       const asg = await db.prepare(`
         SELECT sa.*, p.name AS p_name, p.org_id AS p_org
@@ -101,6 +112,10 @@ export async function POST(req: NextRequest) {
       note = note ?? (reason === "no_show"
         ? `${asg.p_name} vardiyaya gelmedi — otomatik açığa çıkarıldı`
         : `${asg.p_name} gelemiyor — vardiya açığa çıkarıldı`);
+
+      if (!(await openShiftsEnabledFor(location_id))) {
+        return NextResponse.json({ error: "Bu lokasyonda açık vardiya sistemi kapalı." }, { status: 422 });
+      }
 
       // Atamayı kaldır: vardiya artık kişinin takviminde değil, ilan havuzunda
       await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);

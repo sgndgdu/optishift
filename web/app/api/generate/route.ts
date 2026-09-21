@@ -370,6 +370,8 @@ export async function POST(req: NextRequest) {
     let overtimeThresholdHours = 45.0;
     let maxYtdOvertimeHours = 270.0;
     let overtimeFairDistribution = true;
+    let overtimeTrackingEnabled = true;
+    let personnelConflictsEnabled = true;
     let crewSameShiftHard = false;
     let consecutiveNightWeeksEnabled = false;
     let balancingPeriodWeeks = 0;
@@ -398,6 +400,8 @@ export async function POST(req: NextRequest) {
           maxYtdOvertimeHours = pr.max_ytd_overtime_hours;
         if (typeof pr?.overtime_fair_distribution === "boolean")
           overtimeFairDistribution = pr.overtime_fair_distribution;
+        if (pr?.overtime_tracking_enabled === false) overtimeTrackingEnabled = false;
+        if (pr?.personnel_conflicts_enabled === false) personnelConflictsEnabled = false;
         if (typeof pr?.crew_same_shift_hard === "boolean")
           crewSameShiftHard = pr.crew_same_shift_hard;
         if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
@@ -501,15 +505,17 @@ export async function POST(req: NextRequest) {
       .filter((p: any) => !!p.night_restriction)
       .map((p: any) => p.id);
 
-    // Sosyal kurallar: birlikte çalışamaz çiftleri
+    // Sosyal kurallar: birlikte çalışamaz çiftleri (rules.personnel_conflicts_enabled kapalıysa motora hiç gönderilmez)
     let conflictPairs: [string, string][] = [];
-    try {
-      const conflictRows = (await db
-        .prepare(`SELECT personnel_id_a, personnel_id_b FROM personnel_conflicts WHERE location_id = ? AND org_id = ?`)
-        .all(branchId, orgId)) as any[];
-      conflictPairs = conflictRows.map(r => [r.personnel_id_a, r.personnel_id_b]);
-    } catch (e) {
-      console.error("[generate] personnel_conflicts sorgusu hatası:", e);
+    if (personnelConflictsEnabled) {
+      try {
+        const conflictRows = (await db
+          .prepare(`SELECT personnel_id_a, personnel_id_b FROM personnel_conflicts WHERE location_id = ? AND org_id = ?`)
+          .all(branchId, orgId)) as any[];
+        conflictPairs = conflictRows.map(r => [r.personnel_id_a, r.personnel_id_b]);
+      } catch (e) {
+        console.error("[generate] personnel_conflicts sorgusu hatası:", e);
+      }
     }
 
     // Arka arkaya iki hafta gece yasağı için geçen haftanın gece çalışanları
@@ -618,7 +624,7 @@ export async function POST(req: NextRequest) {
     // Motor fazla mesai özeti döndürdüyse overtime_records'a upsert et.
     // Hafta başına tek kayıt: re-generate çift kayıt/çift YTD saymaz; müdürün
     // karara bağladığı kayıtlar ezilmez. Nihai otorite yayın anındaki derive'dır.
-    if (Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
+    if (overtimeTrackingEnabled && Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
       for (const ot of data.overtime_summary) {
         try {
           await upsertPendingOvertime({

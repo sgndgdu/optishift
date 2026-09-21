@@ -182,6 +182,7 @@ export interface ScheduleRules {
   force_bonus_points?: number;       // izinliyken kabul edilen zorunlu atama düz bonus puanı, varsayılan 5
   fairness_window_weeks?: number;    // kümülatif puan penceresi (hafta), decay YOK — düz toplam, varsayılan 4
   availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden müsaitlik istenmez
+  checkin_required?: boolean;       // açıksa check-in yapmayan personel "geç kalan" sayılır (varsayılan false — check-in bilgi amaçlı, geç sayılmaz)
   gps_checkin_required?: boolean;   // açıksa şubeye checkin_radius_m'den uzak check-in reddedilir (varsayılan: sadece bilgilendirir, engellemez)
   checkin_radius_m?: number;        // GPS doğrulama yarıçapı (metre), varsayılan 150
   availability_reminder?: {

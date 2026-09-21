@@ -69,7 +69,17 @@ export async function POST(req: NextRequest) {
     const rawDb = getDB();
     const personnelRow = await rawDb.prepare("SELECT primary_location_id FROM personnel WHERE id = ?").get(personnel_id) as any;
     if (personnelRow?.primary_location_id) {
-      const locRow = await rawDb.prepare("SELECT leave_policy FROM locations WHERE id = ?").get(personnelRow.primary_location_id) as any;
+      const locRow = await rawDb.prepare("SELECT leave_policy, rules FROM locations WHERE id = ?").get(personnelRow.primary_location_id) as any;
+
+      // İzin sistemi bu lokasyonda kapatılmışsa talep oluşturulamaz (rules.leave_requests_enabled)
+      if (locRow?.rules) {
+        let rules: any = {};
+        try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
+        if (rules.leave_requests_enabled === false) {
+          return NextResponse.json({ error: "Bu lokasyonda izin talep sistemi kapalı." }, { status: 422 });
+        }
+      }
+
       if (locRow?.leave_policy) {
         let policy: any = {};
         try { policy = JSON.parse(locRow.leave_policy); } catch { /* geçersiz JSON → atla */ }

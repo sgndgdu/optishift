@@ -65,6 +65,8 @@ export default function ManagerRequestsPage() {
   const [toast, setToast]     = useState("");
   const [rejectModal, setRejectModal] = useState<RejectModalState | null>(null);
   const [rejectNote, setRejectNote]   = useState("");
+  const [leaveRequestsEnabled, setLeaveRequestsEnabled] = useState(true); // rules.leave_requests_enabled
+  const [overtimeTrackingEnabled, setOvertimeTrackingEnabled] = useState(true); // rules.overtime_tracking_enabled
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
 
@@ -73,16 +75,23 @@ export default function ManagerRequestsPage() {
     setLoading(true);
     const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
     try {
-      const [sw, ed, lv, ot] = await Promise.all([
+      const [sw, ed, lv, ot, locs] = await Promise.all([
         fetch(`/api/swap-requests?org_id=${user.org_id}&location_id=${locId}&status=peer_accepted`).then(r => r.json()).catch(() => []),
         fetch(`/api/shift-edit-requests?org_id=${user.org_id}&location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/leave-requests?location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/overtime?location_id=${locId}`).then(r => r.json()).catch(() => []),
+        fetch(`/api/locations?id=${locId}`).then(r => r.json()).catch(() => []),
       ]);
       setSwaps(Array.isArray(sw) ? sw : []);
       setEdits(Array.isArray(ed) ? ed : []);
       setLeaves(Array.isArray(lv) ? lv : []);
       setOvertimes(Array.isArray(ot) ? ot : []);
+      try {
+        const loc = Array.isArray(locs) ? locs[0] : locs;
+        const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
+        setLeaveRequestsEnabled(rules?.leave_requests_enabled !== false);
+        setOvertimeTrackingEnabled(rules?.overtime_tracking_enabled !== false);
+      } catch { /* geçersiz JSON → atla */ }
     } finally { setLoading(false); }
   }, [user]);
 
@@ -234,8 +243,8 @@ export default function ManagerRequestsPage() {
         {([
           { id: "swap",  label: "Takas",      count: pendingSwaps.length,  icon: ArrowLeftRight },
           { id: "edit",  label: "Düzenleme",  count: pendingEdits.length,  icon: FileEdit },
-          { id: "leave", label: "İzin",       count: pendingLeaves.length, icon: CalendarOff },
-          { id: "overtime", label: "Mesai",   count: pendingOvertimes.length, icon: Timer },
+          ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff }] as const : []),
+          ...(overtimeTrackingEnabled ? [{ id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer }] as const : []),
         ] as const).map(t => (
           <button
             key={t.id}

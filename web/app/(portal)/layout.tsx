@@ -58,6 +58,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true);
+  const [chatEnabled, setChatEnabled] = useState(true);
   const chatUnread = useChatUnread();
   const notifUnread = useNotifUnread();
 
@@ -76,6 +77,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               if (!loc?.rules) return;
               const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
               setAvailCollectionEnabled(rules?.availability_collection_enabled !== false);
+              setChatEnabled(rules?.chat_enabled !== false);
             })
             .catch(() => {});
         }
@@ -84,7 +86,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     setMounted(true);
   }, []);
 
-  const nav = NAV.filter(i => availCollectionEnabled || i.href !== "/portal/availability");
+  const nav = NAV
+    .filter(i => availCollectionEnabled || i.href !== "/portal/availability")
+    .filter(i => chatEnabled || i.href !== "/portal/chat");
   const bottomNav = nav.slice(0, 5);
 
   if (!mounted) return null;

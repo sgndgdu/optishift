@@ -276,6 +276,7 @@ export async function deriveOvertimeForWeek(
     .where(and(eq(locations.id, locationId), eq(locations.org_id, orgId)));
   if (!loc[0]) return [];
   const rules = parseJSON<Record<string, unknown>>(loc[0].rules, {});
+  if (rules.overtime_tracking_enabled === false) return [];
   const threshold = typeof rules.overtime_threshold_hours === "number"
     ? rules.overtime_threshold_hours
     : 45;

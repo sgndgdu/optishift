@@ -236,6 +236,11 @@ export default function SettingsPage() {
   const [swapRequestsEnabled, setSwapRequestsEnabled]             = useState(true);
   const [availabilityCollectionEnabled, setAvailabilityCollectionEnabled] = useState(true);
   const [editRequestsEnabled, setEditRequestsEnabled]             = useState(true);
+  const [chatEnabled, setChatEnabled]                             = useState(true);
+  const [leaveRequestsEnabled, setLeaveRequestsEnabled]           = useState(true);
+  const [overtimeTrackingEnabled, setOvertimeTrackingEnabled]     = useState(true);
+  const [openShiftsEnabled, setOpenShiftsEnabled]                 = useState(true);
+  const [personnelConflictsEnabled, setPersonnelConflictsEnabled] = useState(true);
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
   const [checkinRadiusM, setCheckinRadiusM]                       = useState(150);
@@ -387,6 +392,11 @@ export default function SettingsPage() {
           }
           setEditRequestsEnabled(loc.rules?.edit_requests_enabled !== false);
           setCheckinRequired(!!loc.rules?.checkin_required);
+          setChatEnabled(loc.rules?.chat_enabled !== false);
+          setLeaveRequestsEnabled(loc.rules?.leave_requests_enabled !== false);
+          setOvertimeTrackingEnabled(loc.rules?.overtime_tracking_enabled !== false);
+          setOpenShiftsEnabled(loc.rules?.open_shifts_enabled !== false);
+          setPersonnelConflictsEnabled(loc.rules?.personnel_conflicts_enabled !== false);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -500,6 +510,11 @@ export default function SettingsPage() {
             reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
+            chatEnabled: loc.rules?.chat_enabled !== false,
+            leaveRequestsEnabled: loc.rules?.leave_requests_enabled !== false,
+            overtimeTrackingEnabled: loc.rules?.overtime_tracking_enabled !== false,
+            openShiftsEnabled: loc.rules?.open_shifts_enabled !== false,
+            personnelConflictsEnabled: loc.rules?.personnel_conflicts_enabled !== false,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
@@ -561,6 +576,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -581,6 +597,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -708,6 +725,11 @@ export default function SettingsPage() {
             },
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
+            chat_enabled:                       chatEnabled,
+            leave_requests_enabled:             leaveRequestsEnabled,
+            overtime_tracking_enabled:          overtimeTrackingEnabled,
+            open_shifts_enabled:                openShiftsEnabled,
+            personnel_conflicts_enabled:        personnelConflictsEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -762,6 +784,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1173,6 +1196,11 @@ export default function SettingsPage() {
               </SectionCard>
 
               <SectionCard title="Sosyal Kurallar — Birlikte Çalışamaz">
+                {!personnelConflictsEnabled && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+                    Bu modül Modüller sekmesinde kapalı, tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz.
+                  </p>
+                )}
                 <p className="text-xs text-slate-500 mb-4">
                   Seçtiğiniz iki personel hiçbir gün aynı vardiyada birlikte atanmaz (kesin kural — otomatik oluşturma bu çifti asla aynı vardiyaya yazmaz).
                 </p>
@@ -1293,6 +1321,37 @@ export default function SettingsPage() {
                   label="Uzun Mola Uyarı Eşiği"
                   description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
                   right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
+                />
+              </SectionCard>
+
+              <SectionCard title="Modüller">
+                <p className="text-xs text-slate-500 mb-4">
+                  İşletmenize göre ihtiyacınız olmayan modülleri kapatın, sidebar&apos;dan ve personel portalından tamamen kalkar.
+                </p>
+                <RuleRow
+                  label="Sohbet (Mesajlaşma)"
+                  description="Kapalıyken müdür ve personel portalındaki sohbet linki kaybolur."
+                  right={<Toggle on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="İzin Talepleri"
+                  description="Kapalıyken personel portalından izin talebi oluşturulamaz, müdür Onaylar sayfasında izin sekmesi görünmez."
+                  right={<Toggle on={leaveRequestsEnabled} onToggle={() => setLeaveRequestsEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Fazla Mesai Takibi"
+                  description="Kapalıyken yayınlanan haftalardan otomatik fazla mesai kaydı oluşturulmaz, Fazla Mesai sayfası kalkar."
+                  right={<Toggle on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Açık Vardiya / Kahraman Sistemi"
+                  description="Kapalıyken personel vardiyasını 'herkese aç' ile paylaşamaz, geç kalanlar otomatik açık vardiyaya dönüşmez, Açık Vardiyalar sayfası kalkar."
+                  right={<Toggle on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Birlikte Çalışamaz Çiftleri"
+                  description="Kapalıyken tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz."
+                  right={<Toggle on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)} />}
                 />
               </SectionCard>
 

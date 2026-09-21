@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
   const [autoOpenOnLate, setAutoOpenOnLate] = useState(true); // rules.auto_open_shift_on_late
   const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
+  const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken check-in eksikliği "geç kalan" saymaz
+  const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -86,6 +88,8 @@ export default function DashboardPage() {
           if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
           setAutoOpenOnLate(rules.auto_open_shift_on_late !== false);
           if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);
+          setCheckinRequired(!!rules.checkin_required);
+          setOpenShiftsEnabled(rules.open_shifts_enabled !== false);
         } catch {}
       }
     } catch (e) {
@@ -160,8 +164,9 @@ export default function DashboardPage() {
   };
 
   // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz check-in yok → geç kalan
+  // rules.checkin_required kapalıyken check-in bilgi amaçlıdır, eksikliği hiç kimseyi "geç kalan" yapmaz
   const isLate = (s: any): boolean => {
-    if (s.check_in_at || !s.start_time) return false;
+    if (!checkinRequired || s.check_in_at || !s.start_time) return false;
     const [h, m] = s.start_time.split(":").map(Number);
     const shiftStartMin = h * 60 + m;
     const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -243,9 +248,11 @@ export default function DashboardPage() {
             Hoş geldiniz, <strong>{user.name}</strong> 👋
           </p>
         </div>
-        <Button onClick={() => router.push("/open-shifts?new=1")} className="shrink-0 font-bold">
-          <CalendarCheck size={16} className="mr-2" /> Açık Vardiya Oluştur
-        </Button>
+        {openShiftsEnabled && (
+          <Button onClick={() => router.push("/open-shifts?new=1")} className="shrink-0 font-bold">
+            <CalendarCheck size={16} className="mr-2" /> Açık Vardiya Oluştur
+          </Button>
+        )}
       </div>
 
       {/* Sıradaki adım — tek öncelikli aksiyon */}
@@ -491,7 +498,7 @@ export default function DashboardPage() {
         const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s));
 
         // Geç kalanların vardiyasını otomatik açığa çıkar (Ayarlar → Kurallar → Canlı Operasyon toggle'ı)
-        if (autoOpenOnLate) lateShifts.forEach(s => convertToOpenShift(s, true));
+        if (openShiftsEnabled && autoOpenOnLate) lateShifts.forEach(s => convertToOpenShift(s, true));
 
         return (
           <Card className="stripe-card border-0 shadow-none">

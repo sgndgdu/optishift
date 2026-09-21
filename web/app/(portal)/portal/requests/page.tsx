@@ -101,6 +101,8 @@ export default function PortalRequests() {
   const [loading, setLoading]         = useState(false);
   const [toast, setToast]             = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<{ kind: "swap" | "edit" | "leave"; id: number } | null>(null);
+  const [leaveRequestsEnabled, setLeaveRequestsEnabled] = useState(true); // rules.leave_requests_enabled
+  const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
 
 
   // Lokasyonun izin politikasını ve personelin sabit izin gününü yükle
@@ -114,6 +116,11 @@ export default function PortalRequests() {
         try {
           const lp = typeof loc.leave_policy === "string" ? JSON.parse(loc.leave_policy) : loc.leave_policy;
           if (lp) setLeavePolicy(lp);
+        } catch { /* geçersiz JSON → atla */ }
+        try {
+          const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
+          setLeaveRequestsEnabled(rules?.leave_requests_enabled !== false);
+          setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
         } catch { /* geçersiz JSON → atla */ }
       }).catch(() => {});
     if (user.personnel_id) {
@@ -658,11 +665,11 @@ export default function PortalRequests() {
       {activeTab === "new" && (
         <div className="space-y-4">
           {/* Type picker */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${leaveRequestsEnabled ? "grid-cols-3" : "grid-cols-2"}`}>
             {([
               { id: "swap", label: "Vardiya Takası", icon: ArrowLeftRight },
               { id: "edit", label: "Düzenleme",      icon: FileEdit },
-              { id: "leave", label: "İzin",          icon: CalendarOff },
+              ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", icon: CalendarOff }] as const : []),
             ] as const).map(t => (
               <button
                 key={t.id}
@@ -706,20 +713,24 @@ export default function PortalRequests() {
                 {swapStep === 1 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas teklifini kime göndermek istiyorsun?</p>
-                    <button
-                      disabled={loading}
-                      onClick={submitMarketplace}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-ember-300 bg-ember-50 hover:bg-ember-100 text-left transition-all disabled:opacity-50"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-ember-100 flex items-center justify-center shrink-0">
-                        <Megaphone size={15} className="text-ember-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-ember-700">Herkese Aç (Pazar Yeri)</p>
-                        <p className="text-[10px] text-ember-600/80">Belirli birini seçme — vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
-                      </div>
-                    </button>
-                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider text-center py-1">veya belirli birine teklif et</p>
+                    {openShiftsEnabled && (
+                      <>
+                        <button
+                          disabled={loading}
+                          onClick={submitMarketplace}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-ember-300 bg-ember-50 hover:bg-ember-100 text-left transition-all disabled:opacity-50"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-ember-100 flex items-center justify-center shrink-0">
+                            <Megaphone size={15} className="text-ember-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-ember-700">Herkese Aç (Pazar Yeri)</p>
+                            <p className="text-[10px] text-ember-600/80">Belirli birini seçme — vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
+                          </div>
+                        </button>
+                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider text-center py-1">veya belirli birine teklif et</p>
+                      </>
+                    )}
                     {teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Ekip arkadaşı bulunamadı.</p>}
                     {teammates.map(p => (
                       <button
