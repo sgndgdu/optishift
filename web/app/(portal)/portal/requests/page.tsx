@@ -103,6 +103,8 @@ export default function PortalRequests() {
   const [cancelConfirm, setCancelConfirm] = useState<{ kind: "swap" | "edit" | "leave"; id: number } | null>(null);
   const [leaveRequestsEnabled, setLeaveRequestsEnabled] = useState(true); // rules.leave_requests_enabled
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
+  const [swapRequestsEnabled, setSwapRequestsEnabled] = useState(true); // rules.swap_requests_enabled
+  const [editRequestsEnabled, setEditRequestsEnabled] = useState(true); // rules.edit_requests_enabled
 
 
   // Lokasyonun izin politikasını ve personelin sabit izin gününü yükle
@@ -119,8 +121,22 @@ export default function PortalRequests() {
         } catch { /* geçersiz JSON → atla */ }
         try {
           const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
-          setLeaveRequestsEnabled(rules?.leave_requests_enabled !== false);
+          const swapOn = rules?.swap_requests_enabled !== false;
+          const editOn = rules?.edit_requests_enabled !== false;
+          const leaveOn = rules?.leave_requests_enabled !== false;
+          setLeaveRequestsEnabled(leaveOn);
           setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
+          setSwapRequestsEnabled(swapOn);
+          setEditRequestsEnabled(editOn);
+          // Varsayılan seçili tip (swap) kapalıysa, açık olan ilk seçeneğe kay
+          setNewType(prev => {
+            const stillValid = (prev === "swap" && swapOn) || (prev === "edit" && editOn) || (prev === "leave" && leaveOn);
+            if (stillValid) return prev;
+            if (swapOn) return "swap";
+            if (editOn) return "edit";
+            if (leaveOn) return "leave";
+            return prev;
+          });
         } catch { /* geçersiz JSON → atla */ }
       }).catch(() => {});
     if (user.personnel_id) {
@@ -665,12 +681,18 @@ export default function PortalRequests() {
       {activeTab === "new" && (
         <div className="space-y-4">
           {/* Type picker */}
-          <div className={`grid gap-2 ${leaveRequestsEnabled ? "grid-cols-3" : "grid-cols-2"}`}>
-            {([
-              { id: "swap", label: "Vardiya Takası", icon: ArrowLeftRight },
-              { id: "edit", label: "Düzenleme",      icon: FileEdit },
+          {(() => {
+            const typeOptions = [
+              ...(swapRequestsEnabled ? [{ id: "swap", label: "Vardiya Takası", icon: ArrowLeftRight }] as const : []),
+              ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", icon: FileEdit }] as const : []),
               ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", icon: CalendarOff }] as const : []),
-            ] as const).map(t => (
+            ] as const;
+            if (typeOptions.length === 0) {
+              return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
+            }
+            return (
+          <div className={`grid gap-2 ${typeOptions.length === 3 ? "grid-cols-3" : typeOptions.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {typeOptions.map(t => (
               <button
                 key={t.id}
                 onClick={() => { setNewType(t.id); resetSwapWizard(); }}
@@ -685,9 +707,11 @@ export default function PortalRequests() {
               </button>
             ))}
           </div>
+            );
+          })()}
 
           {/* ── SWAP WIZARD ── */}
-          {newType === "swap" && (
+          {swapRequestsEnabled && newType === "swap" && (
             <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
               {/* Progress */}
               <div className="flex border-b border-slate-100">
@@ -804,7 +828,7 @@ export default function PortalRequests() {
           )}
 
           {/* ── EDIT FORM ── */}
-          {newType === "edit" && (
+          {editRequestsEnabled && newType === "edit" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğin vardiyayı seç:</p>
@@ -840,7 +864,7 @@ export default function PortalRequests() {
           )}
 
           {/* ── LEAVE FORM ── */}
-          {newType === "leave" && (
+          {leaveRequestsEnabled && newType === "leave" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               {/* Sabit izin günü bilgisi */}
               {weeklyOffDay !== null && (

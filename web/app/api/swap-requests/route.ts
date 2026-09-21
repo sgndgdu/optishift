@@ -96,6 +96,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
+    // Vardiya takası bu lokasyonda kapatılmışsa (rules.swap_requests_enabled) talep oluşturulamaz
+    const requesterRow = await db.prepare("SELECT primary_location_id FROM personnel WHERE id = ?").get(requester_id) as any;
+    if (requesterRow?.primary_location_id) {
+      const locRow = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(requesterRow.primary_location_id) as any;
+      if (locRow?.rules) {
+        let rules: any = {};
+        try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
+        if (rules.swap_requests_enabled === false) {
+          return NextResponse.json({ error: "Bu lokasyonda vardiya takası kapalı." }, { status: 422 });
+        }
+      }
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)

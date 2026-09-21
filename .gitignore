@@ -24,3 +24,4 @@ engine/optishift_result.json
 engine/optishift_schedule.xlsx
 .vercel
 .env*
+.claude/settings.local.json

@@ -71,6 +71,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
+    // Düzenleme talebi bu lokasyonda kapatılmışsa (rules.edit_requests_enabled) talep oluşturulamaz
+    const personnelRow = await db.prepare("SELECT primary_location_id FROM personnel WHERE id = ?").get(personnel_id) as any;
+    if (personnelRow?.primary_location_id) {
+      const locRow = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(personnelRow.primary_location_id) as any;
+      if (locRow?.rules) {
+        let rules: any = {};
+        try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
+        if (rules.edit_requests_enabled === false) {
+          return NextResponse.json({ error: "Bu lokasyonda düzenleme talebi kapalı." }, { status: 422 });
+        }
+      }
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO shift_edit_requests (org_id, personnel_id, personnel_name, shift_id, reason, status, created_at)

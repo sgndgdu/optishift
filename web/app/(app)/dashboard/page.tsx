@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
   const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken check-in eksikliği "geç kalan" saymaz
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
+  const [publishLeadKpiEnabled, setPublishLeadKpiEnabled] = useState(true); // rules.publish_lead_kpi_enabled
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -90,6 +91,7 @@ export default function DashboardPage() {
           if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);
           setCheckinRequired(!!rules.checkin_required);
           setOpenShiftsEnabled(rules.open_shifts_enabled !== false);
+          setPublishLeadKpiEnabled(rules.publish_lead_kpi_enabled !== false);
         } catch {}
       }
     } catch (e) {
@@ -224,8 +226,8 @@ export default function DashboardPage() {
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         color: "text-orange-600", bg: "bg-orange-100", href: "/requests" },
     { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, color: "text-emerald-600", bg: "bg-emerald-100", href: "/open-shifts" },
     { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-100", href: "/fairness" },
-    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023)
-    {
+    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023) — rules.publish_lead_kpi_enabled ile kapatılabilir
+    ...(publishLeadKpiEnabled ? [{
       label: "Yayın Öncülüğü",
       value: publishLead === null ? "—" : `${publishLead.toLocaleString("tr-TR")} gün`,
       sub: publishLead === null ? "Henüz yayın verisi yok"
@@ -236,7 +238,7 @@ export default function DashboardPage() {
       color: publishLead === null ? "text-slate-500" : publishLead >= 7 ? "text-emerald-600" : publishLead >= 3 ? "text-amber-600" : "text-red-600",
       bg: publishLead === null ? "bg-slate-100" : publishLead >= 7 ? "bg-emerald-100" : publishLead >= 3 ? "bg-amber-100" : "bg-red-100",
       href: "/schedule",
-    },
+    }] : []),
   ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
 
   return (

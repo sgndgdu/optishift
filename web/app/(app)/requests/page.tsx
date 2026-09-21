@@ -67,6 +67,8 @@ export default function ManagerRequestsPage() {
   const [rejectNote, setRejectNote]   = useState("");
   const [leaveRequestsEnabled, setLeaveRequestsEnabled] = useState(true); // rules.leave_requests_enabled
   const [overtimeTrackingEnabled, setOvertimeTrackingEnabled] = useState(true); // rules.overtime_tracking_enabled
+  const [swapRequestsEnabled, setSwapRequestsEnabled] = useState(true); // rules.swap_requests_enabled
+  const [editRequestsEnabled, setEditRequestsEnabled] = useState(true); // rules.edit_requests_enabled
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
 
@@ -91,6 +93,8 @@ export default function ManagerRequestsPage() {
         const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
         setLeaveRequestsEnabled(rules?.leave_requests_enabled !== false);
         setOvertimeTrackingEnabled(rules?.overtime_tracking_enabled !== false);
+        setSwapRequestsEnabled(rules?.swap_requests_enabled !== false);
+        setEditRequestsEnabled(rules?.edit_requests_enabled !== false);
       } catch { /* geçersiz JSON → atla */ }
     } finally { setLoading(false); }
   }, [user]);
@@ -241,8 +245,8 @@ export default function ManagerRequestsPage() {
       {/* Tab bar */}
       <div className="flex bg-slate-100 p-1 rounded-2xl gap-1 overflow-x-auto">
         {([
-          { id: "swap",  label: "Takas",      count: pendingSwaps.length,  icon: ArrowLeftRight },
-          { id: "edit",  label: "Düzenleme",  count: pendingEdits.length,  icon: FileEdit },
+          ...(swapRequestsEnabled ? [{ id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight }] as const : []),
+          ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit }] as const : []),
           ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff }] as const : []),
           ...(overtimeTrackingEnabled ? [{ id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer }] as const : []),
         ] as const).map(t => (

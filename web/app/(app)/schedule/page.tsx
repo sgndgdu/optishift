@@ -1159,7 +1159,8 @@ export default function SchedulePage() {
       showToast("Yayınlanacak vardiya yok. Önce vardiya ekleyin veya otomatik oluşturun.", "error");
       return;
     }
-    const violations = checkViolations();
+    const prePublishCheckEnabled = (locRules as Record<string, unknown>).pre_publish_check !== false;
+    const violations = prePublishCheckEnabled ? checkViolations() : [];
     if (violations.length > 0) {
       setViolationModal({ violations, onConfirm: doPublish });
     } else {

@@ -381,6 +381,7 @@ export async function POST(req: NextRequest) {
     let nightMultiplierEnabled = true;
     let preferredNotEnabled = true;
     let clopeningEnabled = true;
+    let clopeningPenaltyWeight = 30;
     let weekendMultiplier = 1.2;
     let nightMultiplier = 1.3;
     if (locationRow?.rules) {
@@ -420,6 +421,8 @@ export async function POST(req: NextRequest) {
           preferredNotEnabled = pr.preferred_not_enabled;
         if (typeof pr?.clopening_enabled === "boolean")
           clopeningEnabled = pr.clopening_enabled;
+        if (typeof pr?.clopening_penalty_weight === "number")
+          clopeningPenaltyWeight = pr.clopening_penalty_weight;
         if (typeof pr?.weekend_multiplier === "number")
           weekendMultiplier = pr.weekend_multiplier;
         if (typeof pr?.night_multiplier === "number")
@@ -594,6 +597,7 @@ export async function POST(req: NextRequest) {
         night_multiplier_enabled: nightMultiplierEnabled,
         preferred_not_enabled: preferredNotEnabled,
         clopening_enabled: clopeningEnabled,
+        clopening_penalty_weight: clopeningPenaltyWeight,
         weekend_multiplier: weekendMultiplier,
         night_multiplier: nightMultiplier,
       },
