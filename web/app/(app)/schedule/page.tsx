@@ -29,6 +29,7 @@ import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 
 const DAYS = DAY_SHORT;
+const PERSONNEL_COL_PX = 176; // sticky personel kolonu genişliği (w-44) — gün göstergesi hesabında kullanılır
 
 function getWeekLabel(offset: number): { label: string; dates: string[] } {
   const now = new Date();
@@ -400,6 +401,41 @@ export default function SchedulePage() {
   const redoStack = useRef<CellMap[]>([]);
   // Otomatik kayıt: sadece kullanıcı eylemiyle değişen cellMap kaydedilir (hafta yüklemesi değil)
   const userEditRef = useRef(false);
+
+  // Mobil grid yatay kaydırma göstergesi — "3/7 gün" göstergesi için scroll pozisyonundan türetilir.
+  // Sticky personel kolonunun GERÇEK render genişliği içeriğe göre değişir (isim/puan/buton genişliği,
+  // w-44 sadece bir ipucudur) — snap noktaları bu gerçek genişlik referans alınmadan hesaplanırsa
+  // gün sütunları sticky kolonun arkasına kayıp görünmez olur, bu yüzden ölçülüp scroll-padding'e yazılır.
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const personnelColRef = useRef<HTMLTableCellElement | null>(null);
+  const [stickyColWidth, setStickyColWidth] = useState(PERSONNEL_COL_PX);
+  const [visibleDayIndex, setVisibleDayIndex] = useState(0);
+
+  useEffect(() => {
+    const th = personnelColRef.current;
+    const scrollEl = gridScrollRef.current;
+    if (!th || !scrollEl) return;
+    const applyWidth = () => {
+      const w = th.getBoundingClientRect().width;
+      if (w > 0) {
+        setStickyColWidth(w);
+        scrollEl.style.scrollPaddingLeft = `${w}px`;
+      }
+    };
+    applyWidth();
+    const ro = new ResizeObserver(applyWidth);
+    ro.observe(th);
+    return () => ro.disconnect();
+  }, [personnel.length]);
+
+  const handleGridScroll = useCallback(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const dayColWidth = (el.scrollWidth - stickyColWidth) / 7;
+    if (dayColWidth <= 0) return;
+    const idx = Math.round((el.scrollLeft) / dayColWidth);
+    setVisibleDayIndex(Math.min(6, Math.max(0, idx)));
+  }, [stickyColWidth]);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "info") => {
     setToast({ msg, type });
@@ -2598,15 +2634,20 @@ export default function SchedulePage() {
                 <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             )}
-            <p className="sm:hidden text-[10px] font-semibold text-slate-400 text-center py-1.5 bg-slate-50/80 border-b border-slate-100">
-              Diğer günleri görmek için sağa kaydırın →
-            </p>
+            <div className="sm:hidden flex items-center justify-between px-3 py-1.5 bg-slate-50/80 border-b border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400">Diğer günleri görmek için kaydırın →</span>
+              <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 rounded-full px-2 py-0.5 shrink-0">{visibleDayIndex + 1}/7</span>
+            </div>
             <div className="sm:hidden pointer-events-none absolute right-0 top-8 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent z-20" />
-            <div className="overflow-x-auto relative">
+            <div
+              ref={gridScrollRef}
+              onScroll={handleGridScroll}
+              className="overflow-x-auto relative [scroll-snap-type:x_mandatory] sm:[scroll-snap-type:none]"
+            >
               <table className="w-full min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
-                    <th className="sticky left-0 bg-white z-30 px-4 py-3 text-left w-52 align-bottom">
+                    <th ref={personnelColRef} className="sticky left-0 bg-white z-30 px-3 py-3 text-left w-44 align-bottom">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         Personel {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
@@ -2619,7 +2660,7 @@ export default function SchedulePage() {
                       const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       return (
-                        <th key={i} className={cn("py-2 px-1 text-center min-w-[88px] align-top", isWeekend ? "bg-forest-50/50" : "")}>
+                        <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top [scroll-snap-align:start]", isWeekend ? "bg-forest-50/50" : "")}>
                           <div className={cn("text-[11px] font-black uppercase tracking-wider", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
                           <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
                           {holiday && (
