@@ -1050,7 +1050,7 @@ export default function SettingsPage() {
                       </div>
                       {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
                         <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
-                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat — yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
+                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
                         </p>
                       )}
 
@@ -1204,7 +1204,7 @@ export default function SettingsPage() {
                   </p>
                 )}
                 <p className="text-xs text-slate-500 mb-4">
-                  Seçtiğiniz iki personel hiçbir gün aynı vardiyada birlikte atanmaz (kesin kural — otomatik oluşturma bu çifti asla aynı vardiyaya yazmaz).
+                  Seçtiğiniz iki personel hiçbir gün aynı vardiyada birlikte atanmaz (kesin kural, otomatik oluşturma bu çifti asla aynı vardiyaya yazmaz).
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 mb-4">
                   <select
@@ -1359,7 +1359,7 @@ export default function SettingsPage() {
 
               <SectionCard title="QR ile Check-in">
                 <p className="text-xs text-slate-500 mb-4">
-                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan check-in ekranı açılır — bugün vardiyası varsa ve henüz check-in yapmadıysa otomatik check-in dener.
+                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan check-in ekranı açılır, bugün vardiyası varsa ve henüz check-in yapmadıysa otomatik check-in dener.
                 </p>
                 <div className="flex items-center gap-6">
                   <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
@@ -1629,7 +1629,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
                   <p className="text-xs text-forest-600 mt-0.5">
-                    Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama — kimse çarpan zinciri takip etmek zorunda kalmaz.
+                    Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama, kimse çarpan zinciri takip etmek zorunda kalmaz.
                   </p>
                 </div>
               </div>

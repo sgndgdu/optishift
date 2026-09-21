@@ -102,7 +102,7 @@ function IntegrationsPageInner() {
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-slate-800">Entegrasyon Merkezi</h1>
         <p className="text-slate-500 text-sm mt-1">
-          ERP ve İK sisteminize bağlanın — organizasyon genelinde tek bağlantı geçerlidir
+          ERP ve İK sisteminize bağlanın, organizasyon genelinde tek bağlantı geçerlidir
         </p>
       </div>
 

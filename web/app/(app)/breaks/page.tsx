@@ -142,7 +142,7 @@ function BreaksPageInner() {
           </div>
           <div>
             <h1 className="text-xl md:text-2xl font-black text-slate-900">Canlı Mola Takibi</h1>
-            <p className="text-sm text-slate-500">{today} — gerçek zamanlı</p>
+            <p className="text-sm text-slate-500">{today} · gerçek zamanlı</p>
           </div>
         </div>
       </div>

@@ -15,7 +15,7 @@ async function buildMonthlyReportXlsx(
   rows: { name: string; title: string; shift_count: number; total_hours: number; overtime_hours: number; overtime_cost: number | null }[],
 ) {
   const wsData: any[][] = [
-    [`OptiShift — Aylık Çalışma Saati Raporu`],
+    [`OptiShift · Aylık Çalışma Saati Raporu`],
     [`Şube: ${locationName}`],
     [`Dönem: ${monthLabel(month)}`],
     [],

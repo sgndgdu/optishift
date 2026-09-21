@@ -415,7 +415,7 @@ export default function ScheduleArchivePage() {
                 <h1 className="text-2xl font-black text-slate-900">Yayın Arşivi</h1>
                 <p className="text-slate-500 text-sm mt-0.5">
                   {locationName && <span className="font-medium text-slate-600">{locationName} · </span>}
-                  Onaylanmış tüm programlar — revizyonlarıyla birlikte
+                  Onaylanmış tüm programlar, revizyonlarıyla birlikte
                 </p>
               </div>
             </div>

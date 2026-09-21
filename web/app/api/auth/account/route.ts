@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest) {
   const isProfileChange = name !== undefined || email !== undefined || username !== undefined;
   if (!user.password_hash && (isProfileChange || newPassword)) {
     return NextResponse.json(
-      { error: "Bu hesap Google ile bağlı — profil bilgileri Google hesabınızdan yönetilir." },
+      { error: "Bu hesap Google ile bağlı, profil bilgileri Google hesabınızdan yönetilir." },
       { status: 400 }
     );
   }

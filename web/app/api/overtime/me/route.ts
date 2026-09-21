@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest) {
     }
     // Müdür karara bağladıktan sonra personel yanıtı kilitlenir
     if (record.status !== "pending") {
-      return NextResponse.json({ error: "Bu kayıt karara bağlanmış — yanıt değiştirilemez" }, { status: 409 });
+      return NextResponse.json({ error: "Bu kayıt karara bağlanmış, yanıt değiştirilemez" }, { status: 409 });
     }
 
     await db

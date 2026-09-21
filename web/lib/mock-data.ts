@@ -200,7 +200,7 @@ export const PERSONNEL: Personnel[] = [
     employment_type: "part_time",
     status: "active",
     erp_id: "SAP-00003",
-    notes: "Part-time — haftada max 30 saat.",
+    notes: "Part-time, haftada max 30 saat.",
     roles: ["R-002"],
     role_levels: { "R-002": "primary" },
     availability: { 0: "preferred_not", 1: "available", 2: "available", 3: "unavailable", 4: "available", 5: "available", 6: "preferred_not" },

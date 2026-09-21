@@ -73,7 +73,7 @@ export default function PortalCalendar() {
             <ChevronLeft size={20} strokeWidth={2.5} />
           </Button>
           <span className="text-sm font-bold text-slate-800 bg-slate-50/80 px-4 py-2 rounded-xl border border-border/40 shadow-sm">
-            {getWeekLabel()} — {getWeekStart(weekOffset)}
+            {getWeekLabel()} · {getWeekStart(weekOffset)}
           </span>
           <Button
             variant="ghost"

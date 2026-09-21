@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Logo } from "@/components/Logo";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 /** Yasal sayfaların (gizlilik, kullanım şartları) ortak kabuğu. */
 export default function LegalShell({ title, updatedAt, children }: {
@@ -8,18 +8,8 @@ export default function LegalShell({ title, updatedAt, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <Logo size="sm" />
-            <span className="text-lg font-black text-slate-900 tracking-tight">OptiShift</span>
-          </Link>
-          <Link href="/login" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">
-            Giriş Yap
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-cream">
+      <PublicHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-2">{title}</h1>
@@ -29,14 +19,7 @@ export default function LegalShell({ title, updatedAt, children }: {
         </div>
       </main>
 
-      <footer className="max-w-3xl mx-auto px-4 sm:px-6 pb-10 text-center text-sm text-slate-400">
-        <div className="flex justify-center gap-6 mb-3 font-semibold text-slate-500">
-          <Link href="/kilavuz" className="hover:text-primary transition-colors">Kılavuz</Link>
-          <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
-          <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
-        </div>
-        <p>© 2026 OptiShift. Tüm hakları saklıdır.</p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

@@ -42,7 +42,7 @@ async function callEngine(payload: unknown): Promise<any> {
   } catch (err: any) {
     if (err.name === "AbortError") {
       throw new Error(
-        "Planlama beklenenden uzun sürdü. Sistem uyanıyor olabilir ya da personel sayısı ve kurallar çok yüklü — lütfen birkaç saniye sonra tekrar deneyin."
+        "Planlama beklenenden uzun sürdü. Sistem uyanıyor olabilir ya da personel sayısı ve kurallar çok yüklü, lütfen birkaç saniye sonra tekrar deneyin."
       );
     }
     throw err;

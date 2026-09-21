@@ -316,8 +316,8 @@ export function calcFairnessRank(
  * percentile: 0-100, yüksek = takımda az yüklü.
  */
 export function fairnessLabel(percentile: number): { text: string; level: "low" | "ok" | "high" } {
-  if (percentile >= 75) return { text: "Az yüklü — sıra sende", level: "low" };
+  if (percentile >= 75) return { text: "Az yüklü, sıra sende", level: "low" };
   if (percentile >= 40) return { text: "Takım ortalamasında", level: "ok" };
   if (percentile >= 20) return { text: "Ortalamanın üstü yük", level: "ok" };
-  return { text: "Çok yüklü — yük azaltılmalı", level: "high" };
+  return { text: "Çok yüklü, yük azaltılmalı", level: "high" };
 }

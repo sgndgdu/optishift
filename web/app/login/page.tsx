@@ -134,7 +134,7 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-slate-50 relative">
         <div className="absolute top-4 sm:top-6 left-4 sm:left-6">
           <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
-            <LogoMark size="sm" />
+            <LogoMark size="md" />
             OptiShift
           </Link>
         </div>
@@ -262,7 +262,7 @@ export default function LoginPage() {
             Herkese Tek Kapı
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed">
-            Personel, müdür ya da süpervizör — tek giriş sayfası, otomatik yönlendirme.
+            Personel, müdür ya da süpervizör, tek giriş sayfası, otomatik yönlendirme.
             Rol ne ise o portal açılır.
           </p>
         </div>

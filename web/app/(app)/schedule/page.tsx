@@ -2330,7 +2330,7 @@ export default function SchedulePage() {
               <X size={14} className="shrink-0" />
               <div className="flex-1">
                 <span>Düzenleme talebi reddedildi</span>
-                {editRequestReviewer && <span className="text-red-500"> — {editRequestReviewer}</span>}
+                {editRequestReviewer && <span className="text-red-500"> ({editRequestReviewer})</span>}
                 {editRequestNote && <span className="italic"> &ldquo;{editRequestNote}&rdquo;</span>}
               </div>
               <button onClick={() => { setEditRequestStatus("idle"); setUnlockModal(true); }} className="text-xs font-bold text-red-600 hover:text-red-800 shrink-0">Tekrar İste</button>
@@ -2341,7 +2341,7 @@ export default function SchedulePage() {
               <CheckCircle2 size={14} className="shrink-0 text-emerald-500" />
               <div className="flex-1">
                 <span className="font-semibold">Düzenleme modu açık</span>
-                {editRequestReviewer && <span className="text-emerald-500 font-normal"> — {editRequestReviewer} onayladı</span>}
+                {editRequestReviewer && <span className="text-emerald-500 font-normal"> ({editRequestReviewer} onayladı)</span>}
               </div>
               <span className="text-xs text-emerald-400 shrink-0">Yayınlayınca kapanır</span>
             </div>
@@ -2357,7 +2357,7 @@ export default function SchedulePage() {
                   <div key={ev.id} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
                     <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
                     <span className="font-bold">{ev.title}</span>
-                    {ev.note && <span className="opacity-60">— {ev.note}</span>}
+                    {ev.note && <span className="opacity-60">({ev.note})</span>}
                     <span className="text-[9px] opacity-50 uppercase tracking-wide">haftalık</span>
                     <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Sil"><X size={11} /></button>
                   </div>
@@ -3239,7 +3239,7 @@ export default function SchedulePage() {
                   const d = new Date(proposalModal.currentDate);
                   const DAYS_TR = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
                   return `${DAYS_TR[d.getDay()]} ${d.getDate().toString().padStart(2,"0")}/${(d.getMonth()+1).toString().padStart(2,"0")}`;
-                })()} — {proposalModal.currentStart}–{proposalModal.currentEnd}
+                })()} · {proposalModal.currentStart}–{proposalModal.currentEnd}
               </p>
             </div>
 

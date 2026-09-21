@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     weekEnd.setDate(weekEnd.getDate() + 6);
 
     const kpiRows: any[][] = [
-      [`OptiShift — Yönetici Özeti`],
+      [`OptiShift · Yönetici Özeti`],
       [`Şube: ${location?.name ?? location_id}`],
       [`Organizasyon: ${orgRow?.name ?? "—"}`],
       [`Hafta: ${weekDate.toLocaleDateString("tr-TR")} – ${weekEnd.toLocaleDateString("tr-TR")}`],

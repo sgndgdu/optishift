@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ChevronDown, ArrowLeft, Menu, X } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { ChevronDown, Menu, X } from "lucide-react";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 import { cn } from "@/lib/utils";
 import { ROLE_GUIDES, FAQ_ITEMS, type RoleKey } from "./guideData";
 
@@ -33,18 +33,7 @@ export default function GuideContent() {
 
   return (
     <div className="min-h-screen bg-cream text-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <Logo size="sm" className="group-hover:scale-105 transition-transform" />
-            <span className="text-lg font-black text-slate-900 tracking-tight">OptiShift</span>
-          </Link>
-          <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary transition-colors">
-            <ArrowLeft size={15} /> Ana Sayfa
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6">
@@ -187,6 +176,7 @@ export default function GuideContent() {
           </section>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

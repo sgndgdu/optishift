@@ -84,7 +84,7 @@ export default function AdminPromoCodesPage() {
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Kampanya Kodları</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Reklamla dağıtılan kod — kayıt olurken girilince org otomatik Profesyonel plana geçer, süresi dolunca ücretsiz plana döner.
+          Reklamla dağıtılan kod, kayıt olurken girilince org otomatik Profesyonel plana geçer, süresi dolunca ücretsiz plana döner.
         </p>
       </div>
 

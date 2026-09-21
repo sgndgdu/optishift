@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const person = await db.prepare(`SELECT name FROM personnel WHERE id = ?`).get(auth.personnel_id) as any;
     const senderName = person?.name ?? "Personel";
-    const title = `🚨 Acil Durum — ${senderName}`;
+    const title = `🚨 Acil Durum · ${senderName}`;
     const finalMessage = message || `${senderName} acil bir durum bildirdi. Lütfen en kısa sürede iletişime geçin.`;
     const now = Math.floor(Date.now() / 1000);
 

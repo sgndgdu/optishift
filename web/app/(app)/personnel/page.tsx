@@ -837,7 +837,7 @@ export default function PersonnelPage() {
                 <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-4 font-bold text-sm flex items-center gap-2"><Check size={18} /> {bulkResults.length} personel başarıyla eklendi!</div>
                 {bulkErrorCount > 0 && (
                   <div className="bg-amber-50 text-amber-700 p-3 rounded-xl mb-4 font-semibold text-xs">
-                    {bulkErrorCount} satır atlandı — isim/e-posta eksik veya e-posta zaten kayıtlı.
+                    {bulkErrorCount} satır atlandı, isim/e-posta eksik veya e-posta zaten kayıtlı.
                   </div>
                 )}
                 <div className="space-y-2">

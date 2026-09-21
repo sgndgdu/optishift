@@ -206,7 +206,7 @@ function AddPersonPopover({
   return (
     <div ref={ref} className="absolute z-30 top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 min-w-[172px]">
       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide px-2 py-1">
-        {DAYS[day]} — Personel Ekle
+        {DAYS[day]} · Personel Ekle
       </div>
       {available.map((p) => {
         const avail = getAvail(p, day);

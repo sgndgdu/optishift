@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
       }
       const maxH = p.max_weekly_hours ?? 45;
       const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
-      if (newTotalH > maxH) warnings.push(`Haftalık ${newTotalH}s olur — limit ${maxH}s`);
+      if (newTotalH > maxH) warnings.push(`Haftalık ${newTotalH}s olur (limit ${maxH}s)`);
 
       // Komşu gün dinlenme kontrolü (11 saat)
       const prevA = mine.find(a => Number(a.day) === dayIdx - 1);

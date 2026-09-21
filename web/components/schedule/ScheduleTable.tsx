@@ -107,7 +107,7 @@ function PointsLegend({ shifts, rolesConfigs }: { shifts: ShiftDefinition[]; rol
       <div className="flex items-center gap-2 mb-3">
         <Info size={14} className="text-slate-400" />
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          Puan Tablosu — Nasıl Hesaplanır?
+          Puan Tablosu · Nasıl Hesaplanır?
         </span>
       </div>
 
@@ -164,7 +164,7 @@ function PointsLegend({ shifts, rolesConfigs }: { shifts: ShiftDefinition[]; rol
               +{r.difficulty_bonus}p
             </span>
             <strong className="text-slate-500">{r.name} rol bonusu</strong>
-            {r.difficulty_note && <span>— {r.difficulty_note}</span>}
+            {r.difficulty_note && <span>({r.difficulty_note})</span>}
           </p>
         )) : (
           <p className="text-[11px] text-slate-400">Bu lokasyonda ek rol zorluk bonusu tanımlanmamış.</p>
@@ -273,7 +273,7 @@ function ZoneCoverage({ assignments, personnel, weekDates, shifts, rolesConfigs 
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          Alan Kapsaması — Hangi Alanda Kim Çalışıyor?
+          Alan Kapsaması · Hangi Alanda Kim Çalışıyor?
         </span>
       </div>
       <div className="overflow-x-auto">

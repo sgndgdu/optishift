@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 export default function GodLoginPage() {
   const router = useRouter();
@@ -37,20 +38,24 @@ export default function GodLoginPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo + başlık */}
+        {/* Marka + başlık */}
         <div className="flex flex-col items-center mb-8">
+          <div className="inline-flex items-center gap-2 text-slate-400 font-bold mb-6">
+            <LogoMark size="md" className="text-slate-500" />
+            OptiShift
+          </div>
           <div className="w-14 h-14 rounded-2xl bg-ember-600/20 border border-ember-500/30 flex items-center justify-center mb-4">
             <Shield size={28} className="text-ember-400" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">God Mode</h1>
-          <p className="text-sm text-slate-500 mt-1">OptiShift Platform Yonetimi</p>
+          <p className="text-sm text-slate-500 mt-1">Platform Yönetimi</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
-              Sifre
+              Şifre
             </label>
             <div className="relative">
               <input
@@ -85,16 +90,16 @@ export default function GodLoginPage() {
             {loading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Dogrulaniyor...
+                Doğrulanıyor...
               </>
             ) : (
-              "Giris Yap"
+              "Giriş Yap"
             )}
           </button>
         </form>
 
         <p className="text-center text-xs text-slate-600 mt-6">
-          Bu sayfa yalnizca platform yoneticileri icindir
+          Bu sayfa yalnızca platform yöneticileri içindir
         </p>
       </div>
     </div>

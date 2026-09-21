@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/Logo";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 export default function PricingPage() {
   return (
@@ -12,36 +13,10 @@ export default function PricingPage() {
       {/* Sıcak, tek gradient — jenerik çoklu-blob desenden kaçınıldı */}
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-forest-100 via-ember-100/60 to-transparent rounded-full blur-[130px] opacity-80 pointer-events-none" />
 
-      {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-white/60 backdrop-blur-xl border-b border-slate-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-3 group">
-              <Logo size="md" className="sm:w-10 sm:h-10 border border-white/50 group-hover:scale-105 transition-transform duration-300" />
-              <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900">OptiShift</span>
-            </Link>
-          </div>
-
-          <div className="hidden md:flex items-center gap-10">
-            <Link href="/#features" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Platform</Link>
-            <Link href="/pricing" className="text-sm font-black text-primary transition-colors">Fiyatlandırma</Link>
-          </div>
-
-          <div className="flex items-center gap-3 sm:gap-5">
-            <Link href="/login" className="text-xs sm:text-sm font-bold text-slate-600 hover:text-primary transition-colors">
-              Giriş Yap
-            </Link>
-            <Link href="/register">
-              <Button className="rounded-xl px-4 sm:px-6 font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] text-sm">
-                Ücretsiz Başla
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader active="pricing" />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-12 sm:pt-40 sm:pb-20 md:pt-48 md:pb-24">
+      <section className="relative pt-12 pb-12 sm:pt-16 sm:pb-20 md:pt-20 md:pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center">
           <h1 className="font-serif text-3xl sm:text-5xl md:text-7xl font-semibold tracking-tight mb-4 sm:mb-6 leading-[1.05] animate-in fade-in slide-in-from-bottom-4 duration-700 text-slate-900">
             Sürpriz Ücret Yok. <br className="hidden sm:block" />
@@ -50,7 +25,7 @@ export default function PricingPage() {
             </span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 px-2">
-            İşletmenizin büyüklüğüne uygun planı seçin. Kredi kartı gerekmez — küçük işletmeler için ücretsiz plan süresiz.
+            İşletmenizin büyüklüğüne uygun planı seçin. Kredi kartı gerekmez, küçük işletmeler için ücretsiz plan süresiz.
           </p>
         </div>
       </section>
@@ -184,28 +159,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white pt-12 sm:pt-16 pb-8 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10 sm:mb-12">
-            <div className="flex items-center gap-2">
-              <Logo size="sm" />
-              <span className="text-xl font-black text-slate-900 tracking-tight">OptiShift</span>
-            </div>
-            <div className="flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-bold text-slate-500">
-              <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
-              <Link href="/login" className="hover:text-primary transition-colors">Giriş Yap</Link>
-              <Link href="/register" className="hover:text-primary transition-colors">Kayıt Ol</Link>
-              <Link href="/kilavuz" className="hover:text-primary transition-colors">Kılavuz</Link>
-              <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
-              <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>
-            </div>
-          </div>
-          <div className="text-center text-slate-400 text-sm font-medium border-t border-slate-100 pt-8">
-            <p>© 2026 OptiShift. Tüm hakları saklıdır.</p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

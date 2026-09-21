@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     personnel_id,
     type: "shift_proposal",
     title: "Vardiya Değişikliği Teklifi",
-    message: changeDesc + (note ? ` — "${note}"` : ""),
+    message: changeDesc + (note ? ` ("${note}")` : ""),
     link: String(proposal.id),
     is_read: false,
   });

@@ -36,7 +36,7 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
       <div className="bg-forest-50/70 border border-forest-100 rounded-2xl px-4 py-3.5">
         <div className="flex items-center gap-2 mb-2.5">
           <Sparkles size={14} className="text-forest-500" />
-          <p className="text-xs font-black text-forest-700 uppercase tracking-wider">Hızlı Kurulum — {steps.filter(s => s.done).length}/3</p>
+          <p className="text-xs font-black text-forest-700 uppercase tracking-wider">Hızlı Kurulum · {steps.filter(s => s.done).length}/3</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           {steps.map((s, i) => (

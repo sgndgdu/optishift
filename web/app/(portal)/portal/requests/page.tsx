@@ -555,13 +555,13 @@ export default function PortalRequests() {
                       onClick={() => respondOvertime(r.id, "accepted", "paid")}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors"
                     >
-                      <CheckCircle2 size={14} /> Kabul — Zamlı Ücret
+                      <CheckCircle2 size={14} /> Kabul · Zamlı Ücret
                     </button>
                     <button
                       onClick={() => respondOvertime(r.id, "accepted", "time_off")}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/5 transition-colors"
                     >
-                      <CalendarOff size={14} /> Kabul — Serbest Zaman
+                      <CalendarOff size={14} /> Kabul · Serbest Zaman
                     </button>
                     <button
                       onClick={() => respondOvertime(r.id, "declined")}
@@ -580,7 +580,7 @@ export default function PortalRequests() {
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
               <CalendarOff size={16} className="text-emerald-600 shrink-0" />
               <p className="text-xs text-emerald-800">
-                <b>{overtimeMe.comp_time_balance_hours} saat</b> kullanılmamış serbest zaman bakiyen var — müdürünle planlayabilirsin.
+                <b>{overtimeMe.comp_time_balance_hours} saat</b> kullanılmamış serbest zaman bakiyen var, müdürünle planlayabilirsin.
               </p>
             </div>
           )}
@@ -872,7 +872,7 @@ export default function PortalRequests() {
                   <CalendarOff size={15} className="text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     Sabit izin günün: <strong>{["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][weeklyOffDay]}</strong>.
-                    Bu gün her hafta senin için otomatik olarak kapalı tutulur — ayrıca izin talebi oluşturmana gerek yok.
+                    Bu gün her hafta senin için otomatik olarak kapalı tutulur, ayrıca izin talebi oluşturmana gerek yok.
                   </p>
                 </div>
               )}

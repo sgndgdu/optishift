@@ -285,7 +285,7 @@ export default function OnboardingWizard() {
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Puan değeri, vardiyanın zorluğudur — vardiyalar bu yüke göre adil dağıtılır. Emin değilseniz olduğu gibi bırakın.
+                  Puan değeri, vardiyanın zorluğudur. Vardiyalar bu yüke göre adil dağıtılır. Emin değilseniz olduğu gibi bırakın.
                 </p>
               </Shell>
             )}
@@ -308,7 +308,7 @@ export default function OnboardingWizard() {
                   <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
                     <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.
-                    Sırada personel eklemek var — Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.
+                    Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.
                   </p>
                 </div>
 

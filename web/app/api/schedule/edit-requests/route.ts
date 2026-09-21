@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
         `).run(
           sup.personnel_id,
           "Vardiya Düzenleme Onayı Gerekiyor",
-          `${auth.name ?? "Yönetici"} — ${locName} (${week_start} haftası) için yayınlanmış planı düzenlemek istiyor.`,
+          `${auth.name ?? "Yönetici"}, ${locName} (${week_start} haftası) için yayınlanmış planı düzenlemek istiyor.`,
           "/supervisor",
           Math.floor(Date.now() / 1000),
         );

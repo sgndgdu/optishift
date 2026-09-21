@@ -138,7 +138,7 @@ export async function PATCH(req: NextRequest) {
             VALUES (?, 'alert', 'Zorunlu Atama Kabul Edildi', ?, '/schedule', false, ?)
           `).run(
             m.personnel_id,
-            `${shiftRow.personnel_name} — ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`,
+            `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`,
             now,
           );
         }
@@ -174,7 +174,7 @@ export async function PATCH(req: NextRequest) {
           VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/', false, ?)
         `).run(
           m.personnel_id,
-          `${shiftRow.personnel_name} — ${dateLabel}${timeStr} zorunlu atamasını reddetti. İlgili vardiya açık bırakıldı.`,
+          `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını reddetti. İlgili vardiya açık bırakıldı.`,
           now,
         );
       }

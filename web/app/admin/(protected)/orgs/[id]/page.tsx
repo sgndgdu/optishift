@@ -26,7 +26,7 @@ function timeAgo(ts: number | null): string {
 const TABS = [
   { id: "genel",      label: "Genel",       icon: Settings },
   { id: "metrikler",  label: "Metrikler",   icon: Activity },
-  { id: "kullanicilar", label: "Kullanicilar", icon: User },
+  { id: "kullanicilar", label: "Kullanıcılar", icon: User },
   { id: "timeline",   label: "Timeline",    icon: Activity },
 ];
 

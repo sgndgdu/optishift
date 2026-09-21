@@ -90,7 +90,7 @@ export default function UserActions({ user }: { user: GodUser }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) setTempPwd(null); }}>
           <div className="bg-[#16161f] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Geçici Şifre — {user.name}</h3>
+              <h3 className="text-sm font-semibold text-white">Geçici Şifre · {user.name}</h3>
               <button onClick={() => setTempPwd(null)} className="text-slate-500 hover:text-white"><X size={16} /></button>
             </div>
             <p className="text-xs text-slate-400">

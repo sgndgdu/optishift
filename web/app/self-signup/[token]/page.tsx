@@ -117,7 +117,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           <h1 className="text-2xl font-black text-slate-900 mb-2">Ekibe Katıl</h1>
           <p className="text-slate-500 text-sm">
             <span className="font-semibold text-slate-700">{orgName}</span>
-            {locationName && <> — {locationName}</>}
+            {locationName && <> · {locationName}</>}
             <br />hesabınızı oluşturmak için bilgilerinizi girin.
           </p>
         </div>

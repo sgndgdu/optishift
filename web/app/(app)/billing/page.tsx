@@ -126,7 +126,7 @@ function BillingContent() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Faturalandırma ve Plan</h1>
-        <p className="text-slate-500 mt-2">{org?.name} — abonelik yönetimi</p>
+        <p className="text-slate-500 mt-2">{org?.name} · abonelik yönetimi</p>
       </div>
 
       {/* Current plan strip */}
@@ -144,7 +144,7 @@ function BillingContent() {
         {!isStripeConfigured && (
           <div className="ml-auto flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-bold text-amber-700">
             <AlertCircle size={13} />
-            Demo mod — STRIPE_SECRET_KEY yapılandırılmamış
+            Demo mod, STRIPE_SECRET_KEY yapılandırılmamış
           </div>
         )}
       </div>

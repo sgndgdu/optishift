@@ -154,7 +154,7 @@ export default function RegisterPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest-400 to-ember-400">tek ekrandan</span> yönetin.
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed mb-8">
-            1 cafe veya 50 şube — fark etmez. OptiShift&apos;in adil vardiya dağıtımı her ölçekte çalışır.
+            1 cafe veya 50 şube, fark etmez. OptiShift&apos;in adil vardiya dağıtımı her ölçekte çalışır.
           </p>
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
@@ -190,7 +190,7 @@ export default function RegisterPage() {
               <div className="mb-6 sm:mb-8">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Son Bir Adım</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">
-                  <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz — işletmenizin adını ve bir kullanıcı adı belirleyin.
+                  <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. İşletmenizin adını ve bir kullanıcı adı belirleyin.
                 </p>
               </div>
 
@@ -367,7 +367,7 @@ export default function RegisterPage() {
                     </div>
                     {promoCheck.status === "valid" && (
                       <p className="text-xs font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
-                        <Check size={12} /> Kod geçerli — {promoCheck.freeMonths} ay ücretsiz Profesyonel plan!
+                        <Check size={12} /> Kod geçerli, {promoCheck.freeMonths} ay ücretsiz Profesyonel plan!
                       </p>
                     )}
                     {promoCheck.status === "invalid" && (
@@ -429,7 +429,7 @@ export default function RegisterPage() {
                 <div className="bg-ember-50 border border-ember-200 rounded-2xl p-4 flex items-center gap-3 text-left">
                   <Gift size={20} className="text-ember-600 shrink-0" />
                   <p className="text-sm text-ember-800 font-bold">
-                    Kampanya kodu uygulandı — Profesyonel plan{" "}
+                    Kampanya kodu uygulandı, Profesyonel plan{" "}
                     {promoResult.trial_ends_at
                       ? new Date(promoResult.trial_ends_at * 1000).toLocaleDateString("tr-TR")
                       : ""}{" "}

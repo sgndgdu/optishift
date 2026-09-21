@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       if (user.email && process.env.RESEND_API_KEY) {
         await sendMail({
           to: user.email,
-          subject: "OptiShift — Şifre Sıfırlama",
+          subject: "OptiShift · Şifre Sıfırlama",
           html: resetPasswordEmailHtml(user.name, resetUrl),
         });
       }

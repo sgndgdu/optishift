@@ -114,7 +114,7 @@ export default function AuditPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-white/5">
             <p className="text-xs text-slate-500">
-              Sayfa {currentPage} / {totalPages} — {total} kayit
+              Sayfa {currentPage} / {totalPages} · {total} kayit
             </p>
             <div className="flex gap-2">
               <button

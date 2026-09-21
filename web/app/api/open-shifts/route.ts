@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
       start_time = asg.start_time;
       end_time = asg.end_time;
       note = note ?? (reason === "no_show"
-        ? `${asg.p_name} vardiyaya gelmedi — otomatik açığa çıkarıldı`
-        : `${asg.p_name} gelemiyor — vardiya açığa çıkarıldı`);
+        ? `${asg.p_name} vardiyaya gelmedi, otomatik açığa çıkarıldı`
+        : `${asg.p_name} gelemiyor, vardiya açığa çıkarıldı`);
 
       if (!(await openShiftsEnabledFor(location_id))) {
         return NextResponse.json({ error: "Bu lokasyonda açık vardiya sistemi kapalı." }, { status: 422 });
@@ -165,12 +165,12 @@ export async function POST(req: NextRequest) {
     for (const p of activePersonnel) {
       insertNotif.run(
         p.id,
-        `Acil Açık Vardiya — ${date}`,
+        `Acil Açık Vardiya · ${date}`,
         `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
         now
       );
       await sendPushToPersonnel(p.id, org_id, {
-        title: `⚡ Acil Açık Vardiya — ${date}`,
+        title: `⚡ Acil Açık Vardiya · ${date}`,
         body: `${start_time}–${end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
         url: "/portal/notifications",
       });

@@ -476,7 +476,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       if (await isPeriodLocked(db, auth.org_id, existing.location_id, existing.week_start, existing.day)) {
-        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli — check-in yapılamaz" }, { status: 400 });
+        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli, check-in yapılamaz" }, { status: 400 });
       }
 
       // GPS doğrulama: konum paylaşıldıysa ve şubenin koordinatları tanımlıysa mesafeyi hesapla.
@@ -524,7 +524,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       if (await isPeriodLocked(db, auth.org_id, existing.location_id, existing.week_start, existing.day)) {
-        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli — check-out yapılamaz" }, { status: 400 });
+        return NextResponse.json({ error: "Bu ayın puantaj dönemi kilitli, check-out yapılamaz" }, { status: 400 });
       }
       const now = Math.floor(Date.now() / 1000);
       const note = typeof handover_note === "string" && handover_note.trim()

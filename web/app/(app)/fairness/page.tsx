@@ -110,7 +110,7 @@ export default function FairnessPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Adalet Puanı</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Kümülatif puan dağılımı — son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
+          <p className="text-muted-foreground mt-1 text-sm">Kümülatif puan dağılımı · son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
         </div>
         <button
           onClick={() => locationId && load(locationId)}
@@ -290,7 +290,7 @@ export default function FairnessPage() {
             <div className="text-xs text-slate-500 space-y-1 leading-relaxed">
               <p>
                 <strong className="text-slate-700">Puan:</strong>{" "}
-                saat × zorluk (vardiya tanımı) + zor vardiya puanı (hafta sonu/gece/sarı gün — birden fazlası geçerli olsa da tek sefer) + kahraman/zorunlu atama bonusları. Basit toplama, çarpan zinciri yok.
+                saat × zorluk (vardiya tanımı) + zor vardiya puanı (hafta sonu/gece/sarı gün, birden fazlası geçerli olsa da tek sefer) + kahraman/zorunlu atama bonusları. Basit toplama, çarpan zinciri yok.
               </p>
               <p>
                 <strong className="text-slate-700">Kümülatif puan:</strong>{" "}
@@ -458,7 +458,7 @@ function CurrentView({
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-px" />
           <div>
             <p className="text-sm font-bold text-amber-800">
-              Yük dağılımı dengesiz — {Math.round(gap * 10) / 10} puanlık fark var.
+              Yük dağılımı dengesiz, {Math.round(gap * 10) / 10} puanlık fark var.
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
               Bir sonraki otomatik plan bu farkı kapatmaya çalışacak.

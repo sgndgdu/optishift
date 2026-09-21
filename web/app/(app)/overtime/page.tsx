@@ -617,7 +617,7 @@ function WarningsTab({ warnings }: { warnings: Warning[] }) {
         return (
           <div key={level}>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              {c.icon} {c.label} — {items.length} uyarı
+              {c.icon} {c.label} · {items.length} uyarı
             </p>
             <div className="space-y-2">
               {items.map(w => (

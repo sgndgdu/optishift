@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
@@ -153,10 +154,10 @@ function SetupForm() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors mb-6">
             <LogoMark size="md" />
-            <span className="font-black text-slate-900 text-lg">OptiShift</span>
-          </div>
+            OptiShift
+          </Link>
           <div className="w-16 h-16 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield size={32} className="text-forest-600" />
           </div>
