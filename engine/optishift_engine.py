@@ -12,6 +12,7 @@ Kurulum:
 
 from ortools.sat.python import cp_model
 import json
+import os
 
 # ─── VERİ MODELİ ─────────────────────────────────────────────────────────────
 
@@ -326,6 +327,63 @@ def build_model():
             ) <= effective_max
         )
 
+    # ── SİMETRİ KIRMA ─────────────────────────────────────────────────────
+    # Model, her koşulda (yetenek, departman, ekip, gece kısıtı, müsaitlik,
+    # ücret/saat limiti, mevcut adalet puanı, YTD mesai) BİREBİR aynı olan
+    # personeli ayırt edemez — CP-SAT bu simetrik permütasyonları (kişi A
+    # pazartesi çalışsın/kişi B çalışsın gibi eşdeğer varyasyonları) ayrı
+    # dallar olarak gereksiz yere arar. Büyük, yeni kurulan şubelerde (aynı
+    # departmanda çok sayıda taze işe alım, hepsi prev_score=0) bu maliyet
+    # ciddileşir. Aynı "imza"ya sahip kişiler arasında toplam atanan dakikaya
+    # göre sözlüksel bir sıralama zorlayarak arama uzayını daraltıyoruz —
+    # gerçek optimumu DEĞİŞTİRMEZ (bu kişiler her kısıtta birbirinin yerine
+    # geçebilir durumda), sadece eşdeğer çözümlerden kanonik birini seçmeye
+    # zorlar. CONFLICT_PAIRS'te (birlikte çalışamaz çifti) geçen kişiler bu
+    # gruplamadan tamamen hariç tutulur — onlar için kimliğe bağlı asimetrik
+    # bir kısıt var, birbirlerinin yerine geçemezler.
+    conflict_person_ids = {pid for pair in CONFLICT_PAIRS for pid in pair}
+
+    def _person_signature(person):
+        pid = person["id"]
+        return (
+            tuple(sorted(person.get("skills") or [])),
+            person.get("department_id"),
+            PERSONNEL_CREWS.get(pid),
+            pid in NIGHT_RESTRICTED_IDS,
+            CONSECUTIVE_NIGHT_WEEKS_ENABLED and pid in PREV_WEEK_NIGHT_IDS,
+            person.get("employment_type"),
+            int(person.get("max_weekly_hours", RULES["max_weekly_hours"]) or 0),
+            int(person.get("min_weekly_hours", 0) or 0),
+            person.get("role_level"),
+            float(person.get("cumulative_burden", person.get("prev_score", 0)) or 0),
+            float(person.get("ytd_overtime_hours", 0) or 0),
+            tuple(get_avail(pid, d) for d in range(NUM_DAYS)),
+        )
+
+    signature_groups: dict = {}
+    for p_idx, person in enumerate(PERSONNEL):
+        if person["id"] in conflict_person_ids:
+            continue
+        signature_groups.setdefault(_person_signature(person), []).append(p_idx)
+
+    weekly_minutes_vars: dict = {}
+
+    def _weekly_minutes(p_idx):
+        if p_idx not in weekly_minutes_vars:
+            var = model.new_int_var(0, NUM_DAYS * max(shift_durations_min, default=0), f"weekly_minutes_p{p_idx}")
+            model.add(var == sum(
+                shifts[(p_idx, d, s)] * shift_durations_min[s]
+                for d in range(NUM_DAYS) for s in range(NUM_SHIFTS)
+            ))
+            weekly_minutes_vars[p_idx] = var
+        return weekly_minutes_vars[p_idx]
+
+    for members in signature_groups.values():
+        if len(members) < 2:
+            continue
+        for i in range(len(members) - 1):
+            model.add(_weekly_minutes(members[i]) <= _weekly_minutes(members[i + 1]))
+
     # ── Vardiya bazlı zorunlu yetkinlik karması ──────────────────────────────
     # SHIFTS[s]["required_skills"] = [{"skill": X, "count": N}] → o vardiyaya
     # herhangi bir gün atama yapıldıysa, atananlar arasında X yetkinliğine sahip
@@ -521,9 +579,24 @@ def build_model():
         min_hours_shortfalls.append(shortfall)
 
     # ── ADİL PUAN OPTİMİZASYONU ──────────────────────────────────────────────
+    # total_score/weighted_score domain'leri eskiden sabit 0-10000/0-5000'di —
+    # gerçek veride hiçbir personel bu sınırlara yaklaşmıyor, gereksiz geniş
+    # domain CP-SAT'ın bound-propagation'ını yavaşlatıyor. Kişiye özel gerçekçi
+    # bir üst sınır (mevcut kümülatif puan + bu hafta alabileceği azami puan)
+    # hesaplayıp veriyoruz — davranışı/optimum sonucu DEĞİŞTİRMEZ, sadece arama
+    # uzayını daraltır. Alt sınır da savunmacı: cumulative_burden negatifse
+    # (normal işleyişte olmaz, additive modelde decay yok) domain yine de
+    # kapsar, aksi halde sabit 0 tabanı modeli hatalı biçimde INFEASIBLE yapardı.
+    max_single_shift_pts = int(round(
+        max((shift_points(0, s) for s in range(NUM_SHIFTS)), default=0)
+        + RULES.get("hard_shift_points", 4)
+    ))
+    max_weekly_pts = NUM_DAYS * max(max_single_shift_pts, 0)
 
     person_scores = []
     weighted_scores = []  # Adaleti tartmak için part-time/full-time ağırlıklı skor
+    all_weighted_lowers = []
+    all_weighted_uppers = []
 
     for p_idx, person in enumerate(PERSONNEL):
         weekly_pts = sum(
@@ -531,26 +604,36 @@ def build_model():
             for d in range(NUM_DAYS)
             for s in range(NUM_SHIFTS)
         )
-        total = model.new_int_var(0, 10000, f"total_score_p{p_idx}")
         # cumulative_burden = prev_score alanından geliyor (adalet motoru v2)
-        model.add(total == int(person.get("cumulative_burden", person.get("prev_score", 0))) + weekly_pts)
+        cumulative = int(person.get("cumulative_burden", person.get("prev_score", 0)) or 0)
+        total_lower = min(0, cumulative)
+        total_upper = cumulative + max_weekly_pts + 1
+        total = model.new_int_var(total_lower, total_upper, f"total_score_p{p_idx}")
+        model.add(total == cumulative + weekly_pts)
         person_scores.append(total)
 
         # Part-time çalışanların hedeflenen saati daha düşük olduğu için, adalet skorlarını oranlıyoruz.
         # Çarpanlar: full_time = 1.0 (10), part_time = 0.6 (6)
         weight = int(RULES.get("part_time_weight_factor", 6)) if person.get("employment_type") == "part_time" else 10
-        weighted = model.new_int_var(0, 5000, f"weighted_score_p{p_idx}")
-        # weighted = (total * 10) / weight -> eğer part-time ise (total * 10) / 6, yani puanı suni olarak yüksek görünür, 
+        weight = weight or 10
+        # weighted = (total * 10) / weight -> eğer part-time ise (total * 10) / 6, yani puanı suni olarak yüksek görünür,
         # böylece algoritma ona daha fazla vardiya yazmak için yırtınmaz.
+        weighted_lower = (total_lower * 10) // weight - 1 if total_lower < 0 else 0
+        weighted_upper = (total_upper * 10) // weight + 1
+        weighted = model.new_int_var(weighted_lower, weighted_upper, f"weighted_score_p{p_idx}")
         model.add(weighted * weight == total * 10)
         weighted_scores.append(weighted)
+        all_weighted_lowers.append(weighted_lower)
+        all_weighted_uppers.append(weighted_upper)
 
     # Adalet farkı (Ağırlıklı): max_score - min_score → minimize
-    max_score = model.new_int_var(0, 5000, "max_score")
-    min_score = model.new_int_var(0, 5000, "min_score")
+    overall_lower = min(all_weighted_lowers, default=0)
+    overall_upper = max(all_weighted_uppers, default=0)
+    max_score = model.new_int_var(overall_lower, overall_upper, "max_score")
+    min_score = model.new_int_var(overall_lower, overall_upper, "min_score")
     model.add_max_equality(max_score, weighted_scores)
     model.add_min_equality(min_score, weighted_scores)
-    fairness_gap = model.new_int_var(0, 5000, "fairness_gap")
+    fairness_gap = model.new_int_var(0, max(overall_upper - overall_lower, 0), "fairness_gap")
     model.add(fairness_gap == max_score - min_score)
 
     # Toplam atama sayısı — yüksek olması isteniyor (coverage)
@@ -710,7 +793,10 @@ def solve(silent: bool = False):
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 10.0
-    solver.parameters.num_search_workers = 4
+    # Sabit "4" yerine gerçek container çekirdek sayısına göre ayarla — düşük
+    # vCPU'lu host'larda fazla worker context-switch maliyeti yaratır, yüksek
+    # çekirdekli host'larda ise 4 sabitlenmesi boşta kapasite bırakır.
+    solver.parameters.num_search_workers = min(8, max(1, os.cpu_count() or 4))
     solver.parameters.log_search_progress = False
 
     if not silent:
