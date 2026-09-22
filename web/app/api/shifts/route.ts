@@ -173,6 +173,33 @@ export async function POST(req: NextRequest) {
       return (typeof r.min_rest_hours === "number" ? r.min_rest_hours : 11) * 60;
     };
 
+    // Görev/Kontrol Listeleri (rules.task_management_enabled): yeni vardiya
+    // atanınca locations.task_templates'ten shift_tasks'a otomatik kopyalanır.
+    const taskTemplatesCache = new Map<string, Record<string, string[]>>();
+    const getTaskTemplates = async (locId: string): Promise<Record<string, string[]>> => {
+      if (taskTemplatesCache.has(locId)) return taskTemplatesCache.get(locId)!;
+      let templates: Record<string, string[]> = {};
+      try {
+        const row = await db.prepare("SELECT task_templates FROM locations WHERE id = ?").get(locId) as any;
+        templates = JSON.parse(row?.task_templates || "{}");
+      } catch { /* varsayılan */ }
+      taskTemplatesCache.set(locId, templates);
+      return templates;
+    };
+    const copyTaskTemplateIfEnabled = async (locId: string, shiftAssignmentId: number, shiftDefId: string) => {
+      const rules = await getLocRules(locId);
+      if (!rules?.task_management_enabled) return;
+      const templates = await getTaskTemplates(locId);
+      const taskList = templates[shiftDefId] ?? templates["*"] ?? [];
+      for (const desc of taskList) {
+        if (!desc || !desc.trim()) continue;
+        await db.prepare(`
+          INSERT INTO shift_tasks (org_id, location_id, shift_assignment_id, task_description, is_completed, created_at)
+          VALUES (?, ?, ?, ?, false, ?)
+        `).run(auth.org_id, locId, shiftAssignmentId, desc.trim(), now);
+      }
+    };
+
     const todayStr = new Date().toISOString().split("T")[0];
 
     await (async () => {
@@ -314,6 +341,7 @@ export async function POST(req: NextRequest) {
 
         const newId = Number(result.lastInsertRowid);
         results.push({ id: newId, inserted: true });
+        await copyTaskTemplateIfEnabled(location_id, newId, finalShiftId);
         // Force check: collect for post-transaction processing
         forceItems.push({ personnel_id, location_id, week_start, day, shift_id_db: newId, start_time: start_time || null, end_time: end_time || null, prevForceStatus: null });
       }

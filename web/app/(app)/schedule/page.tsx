@@ -361,6 +361,7 @@ export default function SchedulePage() {
   const [aiSummary, setAiSummary]                 = useState<string | null>(null);
   const [aiLoading, setAiLoading]                 = useState(false);
   const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
+  const [excludedCompliance, setExcludedCompliance] = useState<{ id: string; name: string; doc_type: string; expiry_date: string }[]>([]);
   const [personnelFilter, setPersonnelFilter]     = useState('');
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
@@ -1057,6 +1058,7 @@ export default function SchedulePage() {
         body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart }),
       });
       const data = await res.json();
+      setExcludedCompliance(data.excluded_compliance ?? []);
       if (data.error) { setError(data.error); return; }
       const newCellMap: CellMap = {};
       for (const a of (data.assignments || [])) {
@@ -2293,6 +2295,19 @@ export default function SchedulePage() {
                     {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} {v.shift}{i < seniorViolations.length - 1 ? ", " : ""}
                   </span>
                 ))} vardiyasında kıdemli personel bulunamadı.
+              </div>
+            </div>
+          )}
+          {excludedCompliance.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
+              <div>
+                <span className="font-semibold">{excludedCompliance.length} personel süresi dolmuş belge nedeniyle plana dahil edilmedi:</span>{" "}
+                {excludedCompliance.map((p, i) => (
+                  <span key={p.id} className="font-medium">
+                    {p.name} ({p.doc_type}){i < excludedCompliance.length - 1 ? ", " : ""}
+                  </span>
+                ))}
               </div>
             </div>
           )}

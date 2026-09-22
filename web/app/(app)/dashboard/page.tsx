@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw } from "lucide-react";
+import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -31,6 +31,8 @@ export default function DashboardPage() {
   const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken check-in eksikliği "geç kalan" saymaz
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled] = useState(true); // rules.publish_lead_kpi_enabled
+  const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — rules.task_management_enabled
+  const [todayTasks, setTodayTasks] = useState<any[]>([]); // bugünkü vardiyaların görev listesi (tamamlanma oranı için)
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -93,6 +95,15 @@ export default function DashboardPage() {
           setCheckinRequired(!!rules.checkin_required);
           setOpenShiftsEnabled(rules.open_shifts_enabled !== false);
           setPublishLeadKpiEnabled(rules.publish_lead_kpi_enabled !== false);
+          setTaskManagementEnabled(!!rules.task_management_enabled);
+          if (rules.task_management_enabled) {
+            fetch(`/api/shift-tasks?location_id=${u.location_id}&week_start=${weekStart}`)
+              .then(r => r.ok ? r.json() : [])
+              .then(d => setTodayTasks(Array.isArray(d) ? d.filter((t: any) => t.day === todayIdx) : []))
+              .catch(() => setTodayTasks([]));
+          } else {
+            setTodayTasks([]);
+          }
         } catch {}
       }
     } catch (e) {
@@ -238,6 +249,14 @@ export default function DashboardPage() {
       icon: CalendarCheck,
       ...kpiToneClasses(publishLead === null ? "neutral" : publishLead >= 7 ? "positive" : publishLead >= 3 ? "attention" : "danger"),
       href: "/schedule",
+    }] : []),
+    // Görev/Kontrol Listeleri (ileri seviye modül) — bugünkü vardiyaların görev tamamlanma oranı
+    ...(taskManagementEnabled && todayTasks.length > 0 ? [{
+      label: "Görev Tamamlanma",
+      value: `${todayTasks.filter((t: any) => t.is_completed).length}/${todayTasks.length}`,
+      sub: "Bugünkü vardiya görevleri",
+      icon: ClipboardList,
+      ...kpiToneClasses(todayTasks.every((t: any) => t.is_completed) ? "positive" : "attention"),
     }] : []),
   ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
 

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("approval_status"); // "pending" | null=tümü
 
-    let query = "SELECT id, name, username, email, phone, role, display_title, location_id, department_id, is_temp_password, approval_status, created_by, approved_by, approved_at, created_at FROM users WHERE org_id = ?";
+    let query = "SELECT id, name, username, email, phone, role, display_title, location_id, department_id, personnel_id, is_temp_password, approval_status, created_by, approved_by, approved_at, created_at FROM users WHERE org_id = ?";
     const params: any[] = [auth.org_id];
 
     if (status) {

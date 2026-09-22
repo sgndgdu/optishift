@@ -61,7 +61,7 @@ export default function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null }[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
   const [selfSignupLoading, setSelfSignupLoading] = useState(false);
   const [selfSignupCopied, setSelfSignupCopied] = useState(false);
   const [deptCache, setDeptCache] = useState<Record<string, { id: string; name: string }[]>>({});
@@ -92,6 +92,13 @@ export default function PersonnelPage() {
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
+
+  // Belgeler (Modül 5 — Belge/Sertifika Uyumluluğu)
+  const [personnelDocs, setPersonnelDocs] = useState<{ id: number; doc_type: string; expiry_date: string; note: string | null }[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [newDocType, setNewDocType] = useState("");
+  const [newDocExpiry, setNewDocExpiry] = useState("");
+  const [docError, setDocError] = useState("");
 
   // Bulk upload
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -172,7 +179,11 @@ export default function PersonnelPage() {
     if (!authUser) return;
     fetchData(authUser);
     fetch("/api/locations").then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setLocations(data.map((l: any) => ({ id: l.id, name: l.name, self_signup_token: l.self_signup_token ?? null })));
+      if (Array.isArray(data)) setLocations(data.map((l: any) => {
+        let rules: Record<string, unknown> | null = null;
+        try { rules = typeof l.rules === "string" ? JSON.parse(l.rules) : (l.rules ?? null); } catch { rules = null; }
+        return { id: l.id, name: l.name, self_signup_token: l.self_signup_token ?? null, rules };
+      }));
     }).catch(() => {});
     if (authUser.location_id) cacheDept(authUser.location_id, deptCache);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,6 +294,41 @@ export default function PersonnelPage() {
     setEditingPerson(p);
     setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, isSenior: Object.values(p.role_levels ?? {}).includes("primary"), hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0 });
     setEditError("");
+    setPersonnelDocs([]);
+    setNewDocType(""); setNewDocExpiry(""); setDocError("");
+    if (p.personnelId) fetchPersonnelDocs(p.personnelId);
+  };
+
+  const fetchPersonnelDocs = async (personnelId: string) => {
+    setDocsLoading(true);
+    try {
+      const res = await fetch(`/api/personnel-documents?personnel_id=${personnelId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setPersonnelDocs(data);
+    } catch { /* empty */ }
+    setDocsLoading(false);
+  };
+
+  const handleAddDoc = async () => {
+    if (!editingPerson?.personnelId || !newDocType.trim() || !newDocExpiry) return;
+    setDocError("");
+    try {
+      const res = await fetch("/api/personnel-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personnel_id: editingPerson.personnelId, doc_type: newDocType.trim(), expiry_date: newDocExpiry }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDocError(data.error ?? "Belge eklenemedi"); return; }
+      setNewDocType(""); setNewDocExpiry("");
+      fetchPersonnelDocs(editingPerson.personnelId);
+    } catch { setDocError("Belge eklenemedi"); }
+  };
+
+  const handleDeleteDoc = async (id: number) => {
+    if (!editingPerson?.personnelId) return;
+    await fetch(`/api/personnel-documents?id=${id}`, { method: "DELETE" });
+    fetchPersonnelDocs(editingPerson.personnelId);
   };
 
   const handleEdit = async () => {
@@ -325,6 +371,8 @@ export default function PersonnelPage() {
   );
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
+  const complianceTrackingEnabled = locations.some(l => l.rules?.compliance_tracking_enabled === true);
+  const todayISO = new Date().toISOString().split("T")[0];
 
   const roleBadge = (p: MergedPerson) => {
     if (p.role === "admin") return { label: "Admin", color: "bg-ember-50 text-ember-700 border-ember-100" };
@@ -805,6 +853,35 @@ export default function PersonnelPage() {
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+                  {complianceTrackingEnabled && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Belgeler</label>
+                      <p className="text-[10px] text-slate-400 mb-2">Süresi dolmuş zorunlu bir belgesi olan personel, Belge/Sertifika Uyumluluğu açıkken o haftaki otomatik plana hiç dahil edilmez.</p>
+                      {docsLoading ? (
+                        <p className="text-xs text-slate-400">Yükleniyor...</p>
+                      ) : (
+                        <div className="space-y-1.5 mb-2">
+                          {personnelDocs.length === 0 && <p className="text-xs text-slate-400">Kayıtlı belge yok.</p>}
+                          {personnelDocs.map(doc => {
+                            const expired = doc.expiry_date < todayISO;
+                            return (
+                              <div key={doc.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs border ${expired ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-200"}`}>
+                                <span className="flex-1 font-semibold text-slate-700">{doc.doc_type}</span>
+                                <span className={expired ? "text-red-600 font-bold" : "text-slate-500"}>{expired ? "Süresi doldu · " : ""}{doc.expiry_date}</span>
+                                <button onClick={() => handleDeleteDoc(doc.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <input value={newDocType} onChange={e => setNewDocType(e.target.value)} placeholder="Belge adı (örn. İş Güvenliği Belgesi)" className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                      </div>
+                      {docError && <p className="text-[10px] text-red-600 mt-1">{docError}</p>}
                     </div>
                   )}
                 </>

@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Personel verisini formatla
-    const personnelData = personnelRows.map((p: any) => {
+    let personnelData = personnelRows.map((p: any) => {
       let role_level = "secondary";
       try {
         const rls = JSON.parse(p.role_levels || "{}");
@@ -372,6 +372,7 @@ export async function POST(req: NextRequest) {
     let overtimeFairDistribution = true;
     let overtimeTrackingEnabled = true;
     let personnelConflictsEnabled = true;
+    let complianceTrackingEnabled = false; // varsayılan kapalı — ileri seviye modül
     let crewSameShiftHard = false;
     let consecutiveNightWeeksEnabled = false;
     let balancingPeriodWeeks = 0;
@@ -403,6 +404,7 @@ export async function POST(req: NextRequest) {
           overtimeFairDistribution = pr.overtime_fair_distribution;
         if (pr?.overtime_tracking_enabled === false) overtimeTrackingEnabled = false;
         if (pr?.personnel_conflicts_enabled === false) personnelConflictsEnabled = false;
+        if (pr?.compliance_tracking_enabled === true) complianceTrackingEnabled = true;
         if (typeof pr?.crew_same_shift_hard === "boolean")
           crewSameShiftHard = pr.crew_same_shift_hard;
         if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
@@ -429,6 +431,37 @@ export async function POST(req: NextRequest) {
           nightMultiplier = pr.night_multiplier;
       } catch {
         /* ignore */
+      }
+    }
+
+    // Belge/Sertifika Uyumluluğu: süresi dolmuş zorunlu belgesi olan personel bu
+    // haftaki plana hiç dahil edilmez. Motor bu kuralı bilmez — filtreleme burada,
+    // personnelData motora gönderilmeden önce yapılır (bkz. lib/db/schema.ts personnelDocuments).
+    let excludedCompliance: { id: string; name: string; doc_type: string; expiry_date: string }[] = [];
+    if (complianceTrackingEnabled && personnelIds.length > 0) {
+      try {
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        const expiredRows = (await db
+          .prepare(
+            `SELECT personnel_id, doc_type, expiry_date FROM personnel_documents
+             WHERE personnel_id IN (${placeholders}) AND expiry_date < $${personnelIds.length + 1}
+             ORDER BY expiry_date ASC`
+          )
+          .all(...personnelIds, week_start)) as any[];
+        const expiredByPerson = new Map<string, { doc_type: string; expiry_date: string }>();
+        for (const row of expiredRows) {
+          if (!expiredByPerson.has(row.personnel_id)) {
+            expiredByPerson.set(row.personnel_id, { doc_type: row.doc_type, expiry_date: row.expiry_date });
+          }
+        }
+        if (expiredByPerson.size > 0) {
+          excludedCompliance = personnelData
+            .filter((p) => expiredByPerson.has(p.id))
+            .map((p) => ({ id: p.id, name: p.name, ...expiredByPerson.get(p.id)! }));
+          personnelData = personnelData.filter((p) => !expiredByPerson.has(p.id));
+        }
+      } catch (e) {
+        console.error("[generate] uyumluluk filtreleme hatası:", e);
       }
     }
 
@@ -561,6 +594,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Uyumluluk filtresi TÜM personeli listeden düşürdüyse motoru hiç çağırma —
+    // genel "aktif personel bulunamadı" hatası yerine kimin neden dışlandığını
+    // gösteren açıklayıcı bir yanıt dön.
+    if (personnelData.length === 0 && excludedCompliance.length > 0) {
+      return NextResponse.json({
+        error: "Bu haftaki tüm personelin zorunlu belgesi süresi dolmuş olduğu için plan oluşturulamadı.",
+        excluded_compliance: excludedCompliance,
+      });
+    }
+
     const enginePayload = {
       prevScores,
       branchId,
@@ -645,6 +688,10 @@ export async function POST(req: NextRequest) {
           console.error("[generate] overtime upsert hatası:", e);
         }
       }
+    }
+
+    if (excludedCompliance.length > 0) {
+      data.excluded_compliance = excludedCompliance;
     }
 
     return NextResponse.json(data);

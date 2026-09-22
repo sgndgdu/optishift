@@ -45,6 +45,7 @@ export const locations = pgTable("locations", {
   demand_templates: text("demand_templates"), // JSON: {name: {flat?: matrix, departments?: {deptId: matrix}}} — kaydedilmiş hafta şablonları (normal/bakım/kampanya)
   leave_policy: text("leave_policy"), // JSON: {require_reason, allow_multi_day, max_days_per_request}
   rotation_template: text("rotation_template"), // JSON: RotationTemplate — crew bazlı döngüsel rotasyon
+  task_templates: text("task_templates"), // JSON: {shiftDefId veya "*": ["Kasa Sayımı", ...]} — vardiya atanınca shift_tasks'a otomatik kopyalanır (rules.task_management_enabled)
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
   self_signup_token: text("self_signup_token"), // kalıcı personel kendi-kendine-kayıt linki — null = kapalı. Uniqueness DB'de değil, kriptografik rastgelelikle (crypto.randomBytes) sağlanır.
@@ -625,6 +626,48 @@ export const personnelConflicts = pgTable("personnel_conflicts", {
   ),
 });
 
+// ─── Personnel Documents (Belge/Sertifika Uyumluluğu) ────────────────────────
+// rules.compliance_tracking_enabled açıkken: expiry_date geçmiş bir kayıt varsa
+// o personel o haftaki /api/generate çağrısından tamamen çıkarılır (bkz.
+// app/api/generate/route.ts). Motor bu tabloyu bilmez, filtreleme API katmanında yapılır.
+export const personnelDocuments = pgTable("personnel_documents", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  personnel_id: text("personnel_id")
+    .notNull()
+    .references(() => personnel.id),
+  doc_type: text("doc_type").notNull(), // örn. "İş Güvenliği Belgesi"
+  expiry_date: text("expiry_date").notNull(), // "YYYY-MM-DD"
+  note: text("note"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
+// ─── Shift Tasks (Görev ve Kontrol Listeleri) ────────────────────────────────
+// rules.task_management_enabled açıkken locations.task_templates'ten bir vardiya
+// yeni oluşturulduğunda otomatik kopyalanır (bkz. app/api/shifts/route.ts POST).
+export const shiftTasks = pgTable("shift_tasks", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  shift_assignment_id: integer("shift_assignment_id")
+    .notNull()
+    .references(() => shiftAssignments.id),
+  task_description: text("task_description").notNull(),
+  is_completed: boolean("is_completed").notNull().default(false),
+  completed_at: bigint("completed_at", { mode: "number" }),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
 // ─── Payroll Periods (Puantaj Dönem Kilidi) ──────────────────────────────────
 // Bir şube+ay kilitlendiğinde o aya düşen vardiyaların check-in/check-out ve
 // düzenleme işlemleri reddedilir — puantaj/bordro hazırlandıktan sonra geçmiş
@@ -641,6 +684,44 @@ export const payrollPeriods = pgTable("payroll_periods", {
   locked_by: text("locked_by"),
   locked_by_name: text("locked_by_name"),
   locked_at: bigint("locked_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
+// ─── Tip Pools (Dijital Bahşiş ve Prim Dağıtımı) ─────────────────────────────
+// rules.tip_pooling_enabled açıkken müdür bir dönem için toplam bahşiş tutarını
+// girer, distributeTipPool() (lib/tips.ts) o dönemdeki gerçek çalışılan dakikaya
+// orantılı olarak tipAllocations satırlarına böler.
+export const tipPools = pgTable("tip_pools", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  period_start: text("period_start").notNull(), // "YYYY-MM-DD"
+  period_end: text("period_end").notNull(),      // "YYYY-MM-DD"
+  total_amount: doublePrecision("total_amount").notNull(),
+  distributed_amount: doublePrecision("distributed_amount").notNull().default(0),
+  status: text("status").notNull().default("draft"), // draft | distributed
+  created_by: text("created_by"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
+export const tipAllocations = pgTable("tip_allocations", {
+  id: serial("id").primaryKey(),
+  tip_pool_id: integer("tip_pool_id")
+    .notNull()
+    .references(() => tipPools.id),
+  personnel_id: text("personnel_id")
+    .notNull()
+    .references(() => personnel.id),
+  worked_minutes: integer("worked_minutes").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
 });

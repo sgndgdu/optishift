@@ -243,6 +243,10 @@ export default function SettingsPage() {
   const [overtimeTrackingEnabled, setOvertimeTrackingEnabled]     = useState(true);
   const [openShiftsEnabled, setOpenShiftsEnabled]                 = useState(true);
   const [personnelConflictsEnabled, setPersonnelConflictsEnabled] = useState(true);
+  const [complianceTrackingEnabled, setComplianceTrackingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [tipPoolingEnabled, setTipPoolingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [taskTemplates, setTaskTemplates] = useState<Record<string, string[]>>({}); // {shiftDefId veya "*": [görev satırları]}
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
   const [checkinRadiusM, setCheckinRadiusM]                       = useState(150);
@@ -358,6 +362,10 @@ export default function SettingsPage() {
           const loc = JSON.parse(JSON.stringify(targetLoc));
           if (typeof loc.shift_definitions === "string") { try { loc.shift_definitions = JSON.parse(loc.shift_definitions); } catch { loc.shift_definitions = []; } }
           if (!loc.shift_definitions) loc.shift_definitions = [];
+          let loadedTaskTemplates: Record<string, string[]> = {};
+          if (typeof loc.task_templates === "string") { try { loadedTaskTemplates = JSON.parse(loc.task_templates) || {}; } catch { loadedTaskTemplates = {}; } }
+          else if (loc.task_templates) loadedTaskTemplates = loc.task_templates;
+          setTaskTemplates(loadedTaskTemplates);
           if (typeof loc.operating_hours === "string")   { try { loc.operating_hours   = JSON.parse(loc.operating_hours);   } catch { loc.operating_hours = {};   } }
           if (!loc.operating_hours) loc.operating_hours = {};
           if (typeof loc.zone_quotas === "string")       { try { loc.zone_quotas       = JSON.parse(loc.zone_quotas);       } catch { loc.zone_quotas = {};       } }
@@ -399,6 +407,9 @@ export default function SettingsPage() {
           setOvertimeTrackingEnabled(loc.rules?.overtime_tracking_enabled !== false);
           setOpenShiftsEnabled(loc.rules?.open_shifts_enabled !== false);
           setPersonnelConflictsEnabled(loc.rules?.personnel_conflicts_enabled !== false);
+          setComplianceTrackingEnabled(loc.rules?.compliance_tracking_enabled === true);
+          setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
+          setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -517,6 +528,10 @@ export default function SettingsPage() {
             overtimeTrackingEnabled: loc.rules?.overtime_tracking_enabled !== false,
             openShiftsEnabled: loc.rules?.open_shifts_enabled !== false,
             personnelConflictsEnabled: loc.rules?.personnel_conflicts_enabled !== false,
+            complianceTrackingEnabled: loc.rules?.compliance_tracking_enabled === true,
+            taskManagementEnabled: loc.rules?.task_management_enabled === true,
+            tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
+            taskTemplates: loadedTaskTemplates,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
@@ -578,7 +593,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -599,7 +614,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -697,6 +712,7 @@ export default function SettingsPage() {
           shift_definitions: locationData.shift_definitions,
           operating_hours:   locationData.operating_hours,
           zone_quotas:       quotasObj,
+          task_templates:    taskTemplates,
           rules: {
             // Önce mevcut rules yayılır: bu sayfanın state'inde temsil edilmeyen
             // anahtarlar (sunucu tarafının yazdıkları dahil) kaydetmede silinmez
@@ -732,6 +748,9 @@ export default function SettingsPage() {
             overtime_tracking_enabled:          overtimeTrackingEnabled,
             open_shifts_enabled:                openShiftsEnabled,
             personnel_conflicts_enabled:        personnelConflictsEnabled,
+            compliance_tracking_enabled:        complianceTrackingEnabled,
+            task_management_enabled:            taskManagementEnabled,
+            tip_pooling_enabled:                tipPoolingEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -786,7 +805,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1354,6 +1373,53 @@ export default function SettingsPage() {
                   label="Birlikte Çalışamaz Çiftleri"
                   description="Kapalıyken tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz."
                   right={<Toggle on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)} />}
+                />
+              </SectionCard>
+
+              <SectionCard title="İleri Seviye Modüller">
+                <p className="text-xs text-slate-500 mb-4">
+                  Varsayılan olarak kapalıdır. Açtığınızda ilgili sayfa/alan görünür hale gelir, kapalıyken hiçbir iz bırakmaz.
+                </p>
+                <RuleRow
+                  label="Belge / Sertifika Uyumluluğu"
+                  description="Açıkken: süresi dolmuş zorunlu belgesi olan personel o haftaki otomatik plana hiç dahil edilmez. Personel düzenleme ekranında 'Belgeler' bölümü görünür."
+                  right={<Toggle on={complianceTrackingEnabled} onToggle={() => setComplianceTrackingEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Görev ve Kontrol Listeleri"
+                  description="Açıkken: yeni oluşturulan vardiyalara aşağıdaki şablona göre otomatik görev listesi eklenir, personel portalında 'Görevlerim' kartı görünür."
+                  right={<Toggle on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)} />}
+                />
+                {taskManagementEnabled && (
+                  <div className="mt-3 space-y-3 pl-1">
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Tüm Vardiyalar İçin Ortak Görevler</label>
+                      <textarea
+                        rows={3}
+                        placeholder={"Her satıra bir görev, örn:\nKasa Sayımı\nMutfak Temizliği"}
+                        value={(taskTemplates["*"] ?? []).join("\n")}
+                        onChange={e => setTaskTemplates(prev => ({ ...prev, "*": e.target.value.split("\n") }))}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
+                      />
+                    </div>
+                    {(locationData?.shift_definitions ?? []).map((sd: ShiftDefinition) => (
+                      <div key={sd.id}>
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">{sd.name} Vardiyasına Özel Görevler</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Her satıra bir görev"
+                          value={(taskTemplates[sd.id] ?? []).join("\n")}
+                          onChange={e => setTaskTemplates(prev => ({ ...prev, [sd.id]: e.target.value.split("\n") }))}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <RuleRow
+                  label="Dijital Bahşiş ve Prim Dağıtımı"
+                  description="Açıkken: sidebar'da 'Bahşiş Havuzu' sayfası görünür, müdür dönemlik toplam bahşiş tutarı girip gerçek çalışılan dakikaya göre dağıtabilir, personel portalında 'Bu Hafta Kazanılan Prim' kartı görünür."
+                  right={<Toggle on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />}
                 />
               </SectionCard>
 

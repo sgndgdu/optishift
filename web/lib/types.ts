@@ -38,6 +38,17 @@ export interface PersonnelConflict {
   created_at?: number;
 }
 
+// ─── Personnel Document (Belge/Sertifika Uyumluluğu) ─────────────────────────
+export interface PersonnelDocument {
+  id: number;
+  org_id: string;
+  personnel_id: string;
+  doc_type: string;
+  expiry_date: string; // "YYYY-MM-DD"
+  note?: string | null;
+  created_at?: number;
+}
+
 export interface WebauthnCredential {
   id: number;
   device_name: string | null;
@@ -92,6 +103,7 @@ export interface Location {
   // Kapasite matrisi: shiftDefId → { day(0-6) → gerekli kişi sayısı }
   demand_matrix?: Record<string, Record<number, number>>;
   rotation_template?: RotationTemplate;
+  task_templates?: Record<string, string[]>; // {shiftDefId veya "*": ["Kasa Sayımı", ...]}
   latitude?: number;
   longitude?: number;
   self_signup_token?: string | null;
@@ -208,6 +220,45 @@ export interface ScheduleRules {
   night_legal_warning_enabled?: boolean; // varsayılan true — gece vardiyası >7,5s uyarısı (editör + yayın ihlali)
   handover_notes_enabled?: boolean;      // varsayılan true — check-out'ta devir notu modalı + sonraki vardiyaya not kartı
   auto_leave_entitlement_enabled?: boolean; // varsayılan false — açıkken yıllık izin hakkı kıdeme göre otomatik (İş K. m.53, kümülatif devir); kapalıyken sabit annual_leave_days_total
+  // İleri seviye modüller (hepsi varsayılan false — Ayarlar'dan açılır)
+  compliance_tracking_enabled?: boolean; // açıkken: süresi dolmuş belgesi olan personel o haftaki plana hiç dahil edilmez (bkz. app/api/generate/route.ts)
+  task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
+  tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
+}
+
+// ─── Shift Task (Görev ve Kontrol Listeleri) ─────────────────────────────────
+export interface ShiftTask {
+  id: number;
+  org_id: string;
+  location_id: string;
+  shift_assignment_id: number;
+  task_description: string;
+  is_completed: boolean;
+  completed_at?: number | null;
+  created_at?: number;
+}
+
+// ─── Tip Pool (Dijital Bahşiş ve Prim Dağıtımı) ──────────────────────────────
+export interface TipPool {
+  id: number;
+  org_id: string;
+  location_id: string;
+  period_start: string;
+  period_end: string;
+  total_amount: number;
+  distributed_amount: number;
+  status: "draft" | "distributed";
+  created_by?: string | null;
+  created_at?: number;
+}
+
+export interface TipAllocation {
+  id: number;
+  tip_pool_id: number;
+  personnel_id: string;
+  worked_minutes: number;
+  amount: number;
+  created_at?: number;
 }
 
 // Gece çalışma yasağı nedeni (İş K. m.73 + Postalar Yönetmeliği)

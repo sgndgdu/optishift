@@ -120,6 +120,10 @@ export async function PATCH(req: NextRequest) {
       updates.push("rotation_template = ?");
       values.push(typeof body.rotation_template === "string" ? body.rotation_template : JSON.stringify(body.rotation_template));
     }
+    if (body.task_templates !== undefined) {
+      updates.push("task_templates = ?");
+      values.push(typeof body.task_templates === "string" ? body.task_templates : JSON.stringify(body.task_templates));
+    }
     if (body.latitude !== undefined) {
       updates.push("latitude = ?");
       values.push(body.latitude === null ? null : Number(body.latitude));

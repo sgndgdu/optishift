@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   Clock, Calendar as CalIcon, TrendingUp, BellRing, Check,
   MapPin, AlertCircle, Timer, ChevronRight,
-  Zap, ClipboardList, PlayCircle, StopCircle, Fingerprint, X,
+  Zap, ClipboardList, PlayCircle, StopCircle, Fingerprint, X, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart, timeAgo } from "@/lib/date";
+import { getWeekStart, addWeeks, timeAgo } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
@@ -40,6 +40,9 @@ export default function PortalDashboard() {
   const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
   const [handoverDraft, setHandoverDraft]  = useState("");
   const [handoverEnabled, setHandoverEnabled] = useState(true); // rules.handover_notes_enabled
+  const [shiftTasks, setShiftTasks] = useState<any[]>([]); // rules.task_management_enabled — bugünkü vardiyanın görev listesi
+  const [taskToggleBusy, setTaskToggleBusy] = useState<number | null>(null);
+  const [weeklyTipAmount, setWeeklyTipAmount] = useState<number | null>(null); // rules.tip_pooling_enabled — bu hafta kazanılan prim
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
   const [crewName,      setCrewName]      = useState<string | null>(null);
@@ -93,6 +96,21 @@ export default function PortalDashboard() {
           setCrewName(myCrew?.name ?? null);
         } catch { /* ignore */ }
       }
+      // Bahşiş Havuzu (rules.tip_pooling_enabled) — modül kapalıysa 403 döner, kart sessizce gizlenir
+      if (pData?.primary_location_id) {
+        try {
+          const tipData = await fetch(`/api/tip-pools?location_id=${pData.primary_location_id}`).then(r => r.ok ? r.json() : null);
+          if (tipData?.allocations) {
+            const weekEnd = addWeeks(ws, 1);
+            const weekTotal = tipData.allocations
+              .filter((a: any) => a.period_end >= ws && a.period_start < weekEnd)
+              .reduce((sum: number, a: any) => sum + a.amount, 0);
+            setWeeklyTipAmount(weekTotal);
+          } else {
+            setWeeklyTipAmount(null);
+          }
+        } catch { setWeeklyTipAmount(null); }
+      }
     } catch {} finally { setDataLoading(false); }
   }, [user?.personnel_id]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -121,6 +139,30 @@ export default function PortalDashboard() {
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, [todayShift?.check_in_at, todayShift?.check_out_at]);
+
+  // Görev/Kontrol Listeleri (rules.task_management_enabled) — toggle kapalıyken
+  // ya da bu vardiya için şablon tanımlanmamışsa liste boş döner, kart hiç görünmez.
+  useEffect(() => {
+    if (!todayShift?.id) { setShiftTasks([]); return; }
+    fetch(`/api/shift-tasks?shift_assignment_id=${todayShift.id}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setShiftTasks(Array.isArray(d) ? d : []))
+      .catch(() => setShiftTasks([]));
+  }, [todayShift?.id]);
+
+  const handleToggleTask = async (taskId: number, isCompleted: boolean) => {
+    setTaskToggleBusy(taskId);
+    setShiftTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: isCompleted } : t));
+    try {
+      await fetch("/api/shift-tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, is_completed: isCompleted }),
+      });
+    } finally {
+      setTaskToggleBusy(null);
+    }
+  };
 
   const handleEmergencyAlert = async () => {
     setEmergencySending(true);
@@ -402,6 +444,46 @@ export default function PortalDashboard() {
               <p className="text-[10px] text-amber-600 font-semibold mt-1">{n.author} · {n.shift}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Görevlerim (rules.task_management_enabled) ──────────────────── */}
+      {todayShift && shiftTasks.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
+          <p className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <ClipboardList size={14} /> Görevlerim
+            <span className="ml-auto text-slate-400 font-bold normal-case">
+              {shiftTasks.filter(t => t.is_completed).length}/{shiftTasks.length}
+            </span>
+          </p>
+          {shiftTasks.map(t => (
+            <button
+              key={t.id}
+              onClick={() => handleToggleTask(t.id, !t.is_completed)}
+              disabled={taskToggleBusy === t.id}
+              className="w-full flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-60"
+            >
+              <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${t.is_completed ? "bg-emerald-500 border-emerald-500" : "border-slate-300"}`}>
+                {t.is_completed && <Check size={12} className="text-white" />}
+              </span>
+              <span className={`text-sm font-medium ${t.is_completed ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.task_description}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Bu hafta kazanılan prim (rules.tip_pooling_enabled) ──────────── */}
+      {weeklyTipAmount !== null && weeklyTipAmount > 0 && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+            <Wallet size={18} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Bu Hafta Kazanılan Prim</p>
+            <p className="text-lg font-black text-emerald-800">
+              {weeklyTipAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
+            </p>
+          </div>
         </div>
       )}
 
