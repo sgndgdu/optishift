@@ -11,6 +11,9 @@ import { test, expect, type Page } from "@playwright/test";
 const PASSWORD = "1234";
 const KAFE_LOCATION_ID = "loc-mega-kafe";
 const KIOSK_PIN = "4711";
+const FABRIKA_MANAGER_USERNAME = "mega.mudur.fabrika";
+const HANDOVER_TARGET_USERNAME = "mega.calisan.fabrika.montaj"; // Meryem Yılmaz — bugün s-sabah, okunmamış not fixture'ı
+const FATIGUE_TEST_PERSON_NAME = "Hasan Bal"; // son 3 gün ardışık gece vardiyası fixture'ı
 
 const MANAGERS = [
   { username: "mega.mudur.kafe", label: "Zeytin Sahil Kafe" },
@@ -104,4 +107,76 @@ test("3) Kiosk — Zeytin Sahil Kafe check-in", async ({ page }) => {
 
   expect(status, `kiosk check-in başarısız: ${JSON.stringify(body)}`).toBe(200);
   await expect(page.getByText(/Giriş kaydedildi/)).toBeVisible();
+});
+
+test("4) Devir-Teslim Defteri — okunmamış not check-in'i engelliyor", async ({ page }) => {
+  // Fixture (scripts/seed_mega_test.mjs): loc-mega-fabrika/Montaj Hattı'nda
+  // Osman Öztürk'ün bıraktığı okunmamış bir not var, hedef s-sabah — bugün
+  // tam o vardiyada olan Meryem Yılmaz'ı (HANDOVER_TARGET_USERNAME) bloklamalı.
+  await login(page, HANDOVER_TARGET_USERNAME, PASSWORD);
+  await page.waitForURL("**/portal", { timeout: 20_000 });
+
+  const checkInBtn = page.getByRole("button", { name: /Vardiyayı Başlat/ });
+  await expect(checkInBtn).toBeVisible({ timeout: 15_000 });
+
+  const [blockedResponse] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/shifts") && r.request().method() === "PATCH",
+      { timeout: 20_000 },
+    ),
+    checkInBtn.click(),
+  ]);
+  const blockedBody = await blockedResponse.json().catch(() => null);
+  console.log(`[INFO] İlk check-in denemesi → HTTP ${blockedResponse.status()}`, blockedBody?.pending_handover);
+
+  // 428 = tasarım gereği "önce notu onayla" sinyali, hata değil (bkz. lib/handover.ts)
+  expect(blockedResponse.status(), `beklenen 428 (bekleyen not) gelmedi: ${JSON.stringify(blockedBody)}`).toBe(428);
+  expect(blockedBody?.pending_handover?.note).toContain("pres arızalı");
+
+  // Zorunlu okuma ekranı — kapatılamaz, sadece "Okudum, Teslim Aldım" ile geçilir
+  await expect(page.getByText("Devir-Teslim Notu")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(blockedBody.pending_handover.note)).toBeVisible();
+
+  const ackBtn = page.getByRole("button", { name: /Okudum, Teslim Aldım/ });
+  const [ackResponse] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/shifts") && r.request().method() === "PATCH",
+      { timeout: 20_000 },
+    ),
+    ackBtn.click(),
+  ]);
+  console.log(`[INFO] Onay sonrası check-in → HTTP ${ackResponse.status()}`);
+  expect(ackResponse.status(), "onaylandıktan sonra check-in başarısız olmamalı").toBe(200);
+
+  // Check-in gerçekten gerçekleşti mi — vardiya check-out butonu görünmeli.
+  // Not: sağ üstteki hesap/oturum kapatma ikonunun da title="Çıkış Yap" olması
+  // getByRole name eşleşmesini iki elemente çıkarıyor (strict-mode ihlali) —
+  // bu yüzden gerçek vardiya butonunu CSS sınıfıyla ayırt ediyoruz.
+  await expect(page.locator("button.bg-amber-400", { hasText: "Çıkış Yap" })).toBeVisible({ timeout: 10_000 });
+});
+
+test("5) Kaza Risk Radarı — dashboard kartı ve schedule risk ikonu", async ({ page }) => {
+  // Fixture: Hasan Bal'ın (FATIGUE_TEST_PERSON_NAME) son 3 günü ardışık gece
+  // vardiyası — "kritik" seviye garanti (bkz. lib/fatigue.ts eşikleri).
+  await login(page, FABRIKA_MANAGER_USERNAME, PASSWORD);
+  await page.waitForURL("**/dashboard", { timeout: 20_000 });
+
+  await expect(page.getByText("Kaza Risk Radarı")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(FATIGUE_TEST_PERSON_NAME).first()).toBeVisible();
+  // Organik veride başka personel de eşiği aşmış olabilir (birden fazla eşleşme
+  // strict-mode'u ihlal eder) — burada asıl doğrulanan, fixture kişisinin ayrı
+  // olarak göründüğü (üstteki satır) + radar'ın en az bir gerçek gece-zinciri
+  // sebebi ürettiği (aşağıdaki .first()).
+  await expect(page.getByText(/Üst üste \d+ gece vardiyası/).first()).toBeVisible();
+  console.log("[INFO] Dashboard risk kartı görünür ve fixture kişisini listeliyor.");
+
+  await page.goto("/schedule");
+  await expect(page.getByText(FATIGUE_TEST_PERSON_NAME).first()).toBeVisible({ timeout: 15_000 });
+
+  // Risk ikonu title attribute'unda "Risk:" ile başlıyor (bkz. schedule/page.tsx)
+  const riskIcon = page.locator('span[title^="Risk:"]').first();
+  await expect(riskIcon).toBeVisible({ timeout: 10_000 });
+  const title = await riskIcon.getAttribute("title");
+  console.log(`[INFO] Schedule risk ikonu tooltip: ${title}`);
+  expect(title).toContain("gece");
 });

@@ -52,6 +52,15 @@ function isoDateNDaysAgo(n) {
   d.setDate(d.getDate() - n);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+function weekStartAndDayForDate(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = (dt.getDay() + 6) % 7; // 0=Pzt
+  const monday = new Date(dt);
+  monday.setDate(dt.getDate() - dow);
+  const ws = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+  return { weekStart: ws, day: dow };
+}
 const THIS_MONDAY = weekStartOffset(0);
 const TODAY_DAY = (new Date().getDay() + 6) % 7; // 0=Pzt...6=Paz
 const LAST_FULL_WEEK = weekStartOffset(-1);
@@ -129,7 +138,10 @@ const LOCATIONS = [
       { id: "s-aksam", name: "Akşam", start: "14:00", end: "22:00", base_points: 5 },
       { id: "s-gece", name: "Gece", start: "22:00", end: "05:30", base_points: 8, is_night: true },
     ],
-    rules: { ...BASE_RULES, shift_bidding_enabled: true, compliance_tracking_enabled: true, availability_collection_enabled: false },
+    rules: { ...BASE_RULES, shift_bidding_enabled: true, compliance_tracking_enabled: true, availability_collection_enabled: false,
+      // Chrome'dan manuel doğrulandıktan sonra (bkz. konuşma geçmişi) Playwright
+      // suite'i kendi başına tekrar çalıştırılabilsin diye açık bırakıldı.
+      handover_log_enabled: true, fatigue_radar_enabled: true },
     departments: [
       { id: "dept-mega-fab-pres", name: "Pres Hattı", role: "pres-operatörü", count: 15, wage: [105, 135],
         demand: { "s-sabah": wk(3, 2, 2), "s-aksam": wk(3, 2, 2), "s-gece": wk(2, 1, 1) } },
@@ -209,6 +221,15 @@ const FAB_MONTAJ = FABRIKA.departments.find((d) => d.id === "dept-mega-fab-monta
 FAB_MONTAJ.people[3].night_restriction = "pregnant";
 FAB_MONTAJ.people[15].night_restriction = "under18";
 
+// ── 2 Yeni Endüstriyel Modül E2E fixture'ları (loc-mega-fabrika) ─────────────
+// rules.handover_log_enabled / rules.fatigue_radar_enabled BİLİNÇLİ OLARAK
+// kapalı bırakılıyor (varsayılan) — Chrome'dan Ayarlar'dan açılıp gerçek
+// toggle-tetikler-davranış akışı test edilecek. Burada sadece altta yatan
+// veri deterministik hazırlanıyor.
+const FATIGUE_TEST_PERSON = FAB_MONTAJ.people[0];   // kıdemli, gece kısıtı yok — 3 ardışık gece verilecek
+const HANDOVER_TARGET_PERSON = FAB_MONTAJ.people[1]; // bugün "s-sabah" vardiyası, check-in engellenecek
+const HANDOVER_AUTHOR_PERSON = FAB_MONTAJ.people[2]; // devir notunu "bırakan" kişi
+
 const ALL_PEOPLE = LOCATIONS.flatMap((l) => l.departments.flatMap((d) => d.people));
 const PEOPLE_BY_ID = new Map(ALL_PEOPLE.map((p) => [p.id, p]));
 const TOTAL_PEOPLE = ALL_PEOPLE.length;
@@ -261,6 +282,7 @@ async function cleanup() {
     await sql`DELETE FROM availability WHERE personnel_id = ANY(${pids})`;
     await sql`DELETE FROM tip_allocations WHERE personnel_id = ANY(${pids})`;
     await sql`DELETE FROM shift_assignments WHERE personnel_id = ANY(${pids})`;
+    await sql`DELETE FROM shift_handovers WHERE author_personnel_id = ANY(${pids}) OR read_by_personnel_id = ANY(${pids})`;
   }
   await sql`DELETE FROM shift_bids WHERE open_shift_id IN (SELECT id FROM open_shifts WHERE org_id = ${ORG})`;
   await sql`DELETE FROM open_shifts WHERE org_id = ${ORG}`;
@@ -324,6 +346,10 @@ async function insertUsers(pwHash) {
     await sql`INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, approval_status)
               VALUES (${`u-mega-emp-${loc.sector}`}, ${testEmployee.id}, ${`mega.calisan.${loc.sector}`}, ${`calisan.${loc.sector}@megatest.demo`}, ${pwHash}, 'employee', ${ORG}, ${loc.id}, ${testEmployee.name}, 'active')`;
   }
+  // Devir-Teslim Defteri E2E testi için ayrı bir portal girişi — HANDOVER_TARGET_PERSON
+  // (fabrika/montaj), bugün s-sabah vardiyası check-in bekliyor, okunmamış notu var.
+  await sql`INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, approval_status)
+            VALUES ('u-mega-handover-target', ${HANDOVER_TARGET_PERSON.id}, 'mega.calisan.fabrika.montaj', 'calisan.fabrika.montaj@megatest.demo', ${pwHash}, 'employee', ${ORG}, ${FABRIKA.id}, ${HANDOVER_TARGET_PERSON.name}, 'active')`;
   console.log("Kullanıcılar oluşturuldu.");
 }
 
@@ -428,6 +454,61 @@ function generateAllAssignments() {
     }
   }
   console.log(`${ASSIGNMENTS.length} vardiya kaydı üretildi (JS, henüz DB'ye yazılmadı).`);
+}
+
+// 2 Yeni Endüstriyel Modül fixture'ları — generateAllAssignments()'ten SONRA,
+// insertShiftAssignments()'tan ÖNCE çağrılır. Hedef kişilerin o günkü
+// atamasını (varsa) kaldırıp yerine deterministik bir tane koyar — kiosk
+// carve-out'uyla aynı desen (bkz. yukarıdaki isKioskLiveToday bloğu).
+function removeAssignment(personId, dateStr) {
+  for (let i = ASSIGNMENTS.length - 1; i >= 0; i--) {
+    if (ASSIGNMENTS[i].personId === personId && ASSIGNMENTS[i].dateStr === dateStr) ASSIGNMENTS.splice(i, 1);
+  }
+}
+function forceAssignment(person, weekStart, day, dateStr, sd, { status, checkIn, checkOut }) {
+  const hours = shiftHoursOf(sd);
+  const hard = (isWeekend(day) && FABRIKA.rules.hard_shift_weekend) || (sd.is_night && FABRIKA.rules.hard_shift_night);
+  const points = Math.round((hours * (sd.base_points / 5) + (hard ? FABRIKA.rules.hard_shift_points : 0)) * 10) / 10;
+  ASSIGNMENTS.push({
+    personId: person.id, personName: person.name, locId: FABRIKA.id, weekStart, day, dateStr,
+    shiftId: sd.id, startTime: sd.start, endTime: sd.end, points, status, checkIn, checkOut,
+    hours, weekend: isWeekend(day), night: !!sd.is_night, noShow: false, late: false,
+    countsForScore: false, publishedAt: dateToTs(dateStr),
+  });
+}
+
+function injectModuleTestFixtures() {
+  const nightSd = FABRIKA.shiftDefs.find((s) => s.id === "s-gece");
+  // Doğal üretim FATIGUE_TEST_PERSON'a bugün gece-dışı bir vardiya da atamış
+  // olabilir — computeFatigueRisk en son (kronolojik) günden geriye sayar,
+  // bugün gece-dışıysa zincir sıfırlanır. Bugünü tamamen boş bırak.
+  removeAssignment(FATIGUE_TEST_PERSON.id, dateForWeekDay(THIS_MONDAY, TODAY_DAY));
+  for (let back = 3; back >= 1; back--) {
+    const dateStr = isoDateNDaysAgo(back);
+    const { weekStart, day } = weekStartAndDayForDate(dateStr);
+    removeAssignment(FATIGUE_TEST_PERSON.id, dateStr);
+    const dayStart = dateToTs(dateStr);
+    forceAssignment(FATIGUE_TEST_PERSON, weekStart, day, dateStr, nightSd, {
+      status: "completed", checkIn: dayStart + 22 * 3600, checkOut: dayStart + (24 + 5.5) * 3600,
+    });
+  }
+  console.log(`Kaza Risk Radarı fixture: ${FATIGUE_TEST_PERSON.name} (${FATIGUE_TEST_PERSON.id}) son 3 gün ardışık gece vardiyası.`);
+
+  const sabahSd = FABRIKA.shiftDefs.find((s) => s.id === "s-sabah");
+  const todayDateStr = dateForWeekDay(THIS_MONDAY, TODAY_DAY);
+  removeAssignment(HANDOVER_TARGET_PERSON.id, todayDateStr);
+  forceAssignment(HANDOVER_TARGET_PERSON, THIS_MONDAY, TODAY_DAY, todayDateStr, sabahSd, {
+    status: "scheduled", checkIn: null, checkOut: null,
+  });
+  console.log(`Devir-Teslim fixture: ${HANDOVER_TARGET_PERSON.name} (${HANDOVER_TARGET_PERSON.id}) bugün s-sabah, check-in yapılmamış.`);
+}
+
+async function insertHandoverTestFixture() {
+  const noteTs = now - 3600;
+  await sql`INSERT INTO shift_handovers (org_id, location_id, department_id, author_personnel_id, target_shift_def_id, note, created_at)
+            VALUES (${ORG}, ${FABRIKA.id}, ${FAB_MONTAJ.id}, ${HANDOVER_AUTHOR_PERSON.id}, ${"s-sabah"},
+                    ${"E2E test: 3 no'lu pres arızalı, teknik servis çağrıldı. Sevkiyat paletleri hazır."}, ${noteTs})`;
+  console.log(`Devir-teslim notu eklendi — yazan: ${HANDOVER_AUTHOR_PERSON.name}, hedef: s-sabah/${FAB_MONTAJ.name}, okunmamış.`);
 }
 
 async function insertShiftAssignments() {
@@ -683,6 +764,7 @@ async function main() {
   await insertUsers(pwHash);
 
   generateAllAssignments();
+  injectModuleTestFixtures();
   await insertShiftAssignments();
 
   const { scoreRows, personnelStats } = buildScoreHistoryAndStats();
@@ -700,6 +782,7 @@ async function main() {
   await insertTaskManagementData();
   await insertTipPoolData();
   await insertSalesForecastData();
+  await insertHandoverTestFixture();
 
   console.log("\n=== MEGA TEST SEED TAMAMLANDI ===");
   console.log(`Org: ${ORG} (${TOTAL_PEOPLE} personel / ${LOCATIONS.length} şube / ${PAST_WEEKS} hafta geçmiş)`);
@@ -712,6 +795,10 @@ async function main() {
   console.log(`\nKiosk testi: /kiosk/${KAFE.id}  PIN: ${KIOSK_PIN}  (2 kişi bugün check-in bekliyor, henüz yapmadı)`);
   console.log("Not: her şubenin bu haftanın kalan günleri + GELECEK haftası kasıtlı olarak boş bırakıldı");
   console.log("     (Playwright testi 'Otomatik Oluştur' butonunu gerçek OR-Tools çağrısıyla test edebilsin diye).");
+  console.log(`\nDevir-Teslim Defteri testi (loc-mega-fabrika, rules.handover_log_enabled AÇIK):`);
+  console.log(`  mega.calisan.fabrika.montaj / 1234 — ${HANDOVER_TARGET_PERSON.name}, bugün s-sabah, okunmamış not bekliyor`);
+  console.log(`Kaza Risk Radarı testi (rules.fatigue_radar_enabled AÇIK):`);
+  console.log(`  ${FATIGUE_TEST_PERSON.name} (${FATIGUE_TEST_PERSON.id}) — son 3 gün ardışık gece vardiyası, "kritik" seviye garanti.`);
 }
 
 main().catch((e) => { console.error("SEED HATASI:", e); process.exit(1); });
