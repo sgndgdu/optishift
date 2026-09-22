@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:mega": "node scripts/seed_mega_test.mjs",
+    "test:e2e:mega": "playwright test tests/e2e_mega_test.spec.ts --headed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

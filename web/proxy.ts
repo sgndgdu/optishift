@@ -17,6 +17,7 @@ const PUBLIC_API_PATHS = [
   "/api/auth/reset-password",            // e-postadaki token'ın kendisi doğrulama sağlar
   "/api/auth/webauthn/login-options",    // biyometrik giriş — henüz oturum yok
   "/api/auth/webauthn/login-verify",     // biyometrik giriş doğrulama — imzalı challenge kendi güvenliğini sağlar
+  "/api/kiosk/",                         // ortak tablet — requireAuth kullanmaz, PIN kendi kimlik doğrulamasını sağlar (bkz. lib/kiosk-auth.ts)
   // DİKKAT: /api/auth/webauthn/register-options ve register-verify buraya EKLENMEMELİ —
   // biyometrik KAYIT için kullanıcı zaten şifreyle giriş yapmış olmalı (requireAuth).
   // DİKKAT: /api/auth/google/session buraya EKLENMEMELİ — callback'in az önce
