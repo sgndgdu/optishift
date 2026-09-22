@@ -316,7 +316,7 @@ export default function PortalDashboard() {
         <div>
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">{todayLabel}</p>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Merhaba, {user.name?.split(" ")[0]} 👋
+            Merhaba, {user?.name?.split(" ")[0]} 👋
           </h1>
         </div>
         <Link href="/portal/notifications"
@@ -768,7 +768,7 @@ export default function PortalDashboard() {
             <TrendingUp size={18} />
           </div>
           <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">
-            {Math.round(((fairness?.score ?? user.prev_score) ?? 0) * 10) / 10}
+            {Math.round(((fairness?.score ?? user?.prev_score) ?? 0) * 10) / 10}
           </p>
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Adalet Puanı</p>
           {fairness?.label && (
