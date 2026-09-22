@@ -36,6 +36,7 @@ type MergedPerson = {
   hire_date: string | null;
   annual_leave_days_total: number | null;
   leave_adjustment_days: number | null;
+  kiosk_pin_set: boolean;
 };
 
 const ROLE_DEFS = [
@@ -100,6 +101,11 @@ export default function PersonnelPage() {
   const [newDocExpiry, setNewDocExpiry] = useState("");
   const [docError, setDocError] = useState("");
 
+  // Kiosk PIN (Modül 2 — Kiosk Modu)
+  const [newKioskPin, setNewKioskPin] = useState("");
+  const [kioskPinError, setKioskPinError] = useState("");
+  const [kioskPinSaving, setKioskPinSaving] = useState(false);
+
   // Bulk upload
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkText, setBulkText] = useState("");
@@ -149,6 +155,7 @@ export default function PersonnelPage() {
           hire_date: p?.hire_date ?? null,
           annual_leave_days_total: p?.annual_leave_days_total ?? null,
           leave_adjustment_days: p?.leave_adjustment_days ?? null,
+          kiosk_pin_set: !!p?.kiosk_pin_set,
         };
       });
       setPersons(merged);
@@ -297,6 +304,7 @@ export default function PersonnelPage() {
     setPersonnelDocs([]);
     setNewDocType(""); setNewDocExpiry(""); setDocError("");
     if (p.personnelId) fetchPersonnelDocs(p.personnelId);
+    setNewKioskPin(""); setKioskPinError("");
   };
 
   const fetchPersonnelDocs = async (personnelId: string) => {
@@ -329,6 +337,34 @@ export default function PersonnelPage() {
     if (!editingPerson?.personnelId) return;
     await fetch(`/api/personnel-documents?id=${id}`, { method: "DELETE" });
     fetchPersonnelDocs(editingPerson.personnelId);
+  };
+
+  const handleSetKioskPin = async () => {
+    if (!editingPerson?.personnelId || !/^\d{4}$/.test(newKioskPin)) return;
+    setKioskPinSaving(true);
+    setKioskPinError("");
+    try {
+      const res = await fetch(`/api/personnel/${editingPerson.personnelId}/kiosk-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: newKioskPin }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setKioskPinError(data.error ?? "PIN kaydedilemedi"); return; }
+      setNewKioskPin("");
+      setEditingPerson(prev => prev ? { ...prev, kiosk_pin_set: true } : prev);
+      setPersons(prev => prev.map(p => p.personnelId === editingPerson.personnelId ? { ...p, kiosk_pin_set: true } : p));
+      showToast("Kiosk PIN atandı");
+    } catch { setKioskPinError("PIN kaydedilemedi"); }
+    finally { setKioskPinSaving(false); }
+  };
+
+  const handleClearKioskPin = async () => {
+    if (!editingPerson?.personnelId) return;
+    await fetch(`/api/personnel/${editingPerson.personnelId}/kiosk-pin`, { method: "DELETE" });
+    setEditingPerson(prev => prev ? { ...prev, kiosk_pin_set: false } : prev);
+    setPersons(prev => prev.map(p => p.personnelId === editingPerson.personnelId ? { ...p, kiosk_pin_set: false } : p));
+    showToast("Kiosk PIN kaldırıldı");
   };
 
   const handleEdit = async () => {
@@ -372,6 +408,7 @@ export default function PersonnelPage() {
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   const complianceTrackingEnabled = locations.some(l => l.rules?.compliance_tracking_enabled === true);
+  const kioskModeEnabled = locations.some(l => l.rules?.kiosk_mode_enabled === true);
   const todayISO = new Date().toISOString().split("T")[0];
 
   const roleBadge = (p: MergedPerson) => {
@@ -882,6 +919,32 @@ export default function PersonnelPage() {
                         <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
                       {docError && <p className="text-[10px] text-red-600 mt-1">{docError}</p>}
+                    </div>
+                  )}
+                  {kioskModeEnabled && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Kiosk PIN</label>
+                      <p className="text-[10px] text-slate-400 mb-2">Ortak tablette check-in/check-out için 4 haneli PIN. Kiosk Modu açık şubelerde geçerlidir.</p>
+                      {editingPerson?.kiosk_pin_set ? (
+                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
+                          <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>
+                          <button type="button" onClick={handleClearKioskPin} className="text-slate-400 hover:text-red-500 font-bold">Kaldır</button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            value={newKioskPin}
+                            onChange={e => setNewKioskPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                            placeholder="4 haneli PIN"
+                            inputMode="numeric"
+                            className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                          />
+                          <button type="button" onClick={handleSetKioskPin} disabled={!/^\d{4}$/.test(newKioskPin) || kioskPinSaving} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">
+                            {kioskPinSaving ? "..." : "Ata"}
+                          </button>
+                        </div>
+                      )}
+                      {kioskPinError && <p className="text-[10px] text-red-600 mt-1">{kioskPinError}</p>}
                     </div>
                   )}
                 </>

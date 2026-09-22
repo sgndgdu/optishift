@@ -24,6 +24,7 @@ const PUBLIC_PREFIXES = [
   "/pricing",
   "/admin", // God Mode kendi oturumunu (optishift_god_session) kendisi yönetir
   "/supervisor/login",
+  "/kiosk", // ortak tablet — hiç oturumu yok, PIN 401'i (geçersiz PIN) session-expiry değildir
 ];
 
 // 401'i normal akışın parçası olan endpoint'ler — yönlendirme tetiklemez

@@ -148,6 +148,8 @@ export const personnel = pgTable("personnel", {
   late_count: integer("late_count").default(0),
   annual_leave_days_total: integer("annual_leave_days_total").default(14),
   weekly_off_day: integer("weekly_off_day"), // 0=Pzt...6=Paz, null=tanımsız
+  kiosk_pin: text("kiosk_pin"), // bcrypt hash, 4 haneli PIN — ham değer asla client'a dönmez (bkz. /api/personnel GET)
+  kiosk_pin_set_at: bigint("kiosk_pin_set_at", { mode: "number" }),
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),

@@ -51,16 +51,20 @@ export async function GET(req: NextRequest) {
       rows = await db.prepare(`${baseSelect} WHERE p.org_id = ? ORDER BY p.name ASC`).all(auth.org_id);
     }
 
-    const parsed = (rows as any[]).map((p) => ({
-      ...p,
-      assigned_location_ids: JSON.parse(p.assigned_location_ids || "[]"),
-      assigned_department_ids: JSON.parse(p.assigned_department_ids || "[]"),
-      roles: JSON.parse(p.roles || "[]"),
-      role_levels: JSON.parse(p.role_levels || "{}"),
-      preferred_shift_ids: JSON.parse(p.preferred_shift_ids || "[]"),
-      preferred_days: JSON.parse(p.preferred_days || "[]"),
-      preferred_roles: JSON.parse(p.preferred_roles || "[]"),
-    }));
+    const parsed = (rows as any[]).map((p) => {
+      const { kiosk_pin, ...rest } = p;
+      return {
+        ...rest,
+        kiosk_pin_set: !!kiosk_pin, // ham bcrypt hash client'a asla dönmez
+        assigned_location_ids: JSON.parse(p.assigned_location_ids || "[]"),
+        assigned_department_ids: JSON.parse(p.assigned_department_ids || "[]"),
+        roles: JSON.parse(p.roles || "[]"),
+        role_levels: JSON.parse(p.role_levels || "{}"),
+        preferred_shift_ids: JSON.parse(p.preferred_shift_ids || "[]"),
+        preferred_days: JSON.parse(p.preferred_days || "[]"),
+        preferred_roles: JSON.parse(p.preferred_roles || "[]"),
+      };
+    });
     return NextResponse.json(parsed);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

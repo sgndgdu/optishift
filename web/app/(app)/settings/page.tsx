@@ -246,6 +246,8 @@ export default function SettingsPage() {
   const [complianceTrackingEnabled, setComplianceTrackingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [tipPoolingEnabled, setTipPoolingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
   const [taskTemplates, setTaskTemplates] = useState<Record<string, string[]>>({}); // {shiftDefId veya "*": [görev satırları]}
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
@@ -410,6 +412,7 @@ export default function SettingsPage() {
           setComplianceTrackingEnabled(loc.rules?.compliance_tracking_enabled === true);
           setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
           setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
+          setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -531,6 +534,7 @@ export default function SettingsPage() {
             complianceTrackingEnabled: loc.rules?.compliance_tracking_enabled === true,
             taskManagementEnabled: loc.rules?.task_management_enabled === true,
             tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
+            kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
             taskTemplates: loadedTaskTemplates,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
@@ -593,7 +597,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -614,7 +618,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -751,6 +755,7 @@ export default function SettingsPage() {
             compliance_tracking_enabled:        complianceTrackingEnabled,
             task_management_enabled:            taskManagementEnabled,
             tip_pooling_enabled:                tipPoolingEnabled,
+            kiosk_mode_enabled:                 kioskModeEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -805,7 +810,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1421,6 +1426,27 @@ export default function SettingsPage() {
                   description="Açıkken: sidebar'da 'Bahşiş Havuzu' sayfası görünür, müdür dönemlik toplam bahşiş tutarı girip gerçek çalışılan dakikaya göre dağıtabilir, personel portalında 'Bu Hafta Kazanılan Prim' kartı görünür."
                   right={<Toggle on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />}
                 />
+                <RuleRow
+                  label="Kiosk Modu (Ortak Tablet)"
+                  description="Açıkken: personel oturum açmadan, ortak bir tablette 4 haneli PIN girerek check-in/check-out yapabilir. PIN'ler Personel sayfasından atanır."
+                  right={<Toggle on={kioskModeEnabled} onToggle={() => setKioskModeEnabled(v => !v)} />}
+                />
+                {kioskModeEnabled && selectedLocationId && (
+                  <div className="mt-3 pl-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
+                        setKioskLinkCopied(true);
+                        setTimeout(() => setKioskLinkCopied(false), 2000);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
+                    >
+                      {kioskLinkCopied ? "Kopyalandı" : "Kiosk Linkini Kopyala"}
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
+                  </div>
+                )}
               </SectionCard>
 
               <SectionCard title="QR ile Check-in">

@@ -224,6 +224,7 @@ export interface ScheduleRules {
   compliance_tracking_enabled?: boolean; // açıkken: süresi dolmuş belgesi olan personel o haftaki plana hiç dahil edilmez (bkz. app/api/generate/route.ts)
   task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
   tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
+  kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle check-in/check-out yapabilir (oturumsuz)
 }
 
 // ─── Shift Task (Görev ve Kontrol Listeleri) ─────────────────────────────────
@@ -305,6 +306,7 @@ export interface Personnel {
   late_count: number;
   annual_leave_days_total: number;
   leave_records: LeaveRecord[];
+  kiosk_pin_set?: boolean; // türetilmiş — ham bcrypt hash asla client'a dönmez
 }
 
 // ─── Vardiya Ataması ──────────────────────────────────────────────────────────
