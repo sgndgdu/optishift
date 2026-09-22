@@ -690,6 +690,27 @@ export const payrollPeriods = pgTable("payroll_periods", {
   ),
 });
 
+// ─── Shift Bids (Tersine Vardiya Pazarı) ─────────────────────────────────────
+// rules.shift_bidding_enabled açıkken personel açık vardiyaya doğrudan "Kabul Et"
+// yerine bir teklif verir; müdür teklifler arasından birini kabul eder — kabul
+// edilen teklifin requested_bonus_points'i open_shifts.hero_bonus_multiplier'ı
+// override eder (bkz. app/api/shift-bids/route.ts).
+export const shiftBids = pgTable("shift_bids", {
+  id: serial("id").primaryKey(),
+  open_shift_id: integer("open_shift_id")
+    .notNull()
+    .references(() => openShifts.id),
+  personnel_id: text("personnel_id")
+    .notNull()
+    .references(() => personnel.id),
+  requested_bonus_points: doublePrecision("requested_bonus_points").notNull(),
+  note: text("note"),
+  status: text("status").notNull().default("pending"), // pending | accepted | rejected
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
 // ─── Tip Pools (Dijital Bahşiş ve Prim Dağıtımı) ─────────────────────────────
 // rules.tip_pooling_enabled açıkken müdür bir dönem için toplam bahşiş tutarını
 // girer, distributeTipPool() (lib/tips.ts) o dönemdeki gerçek çalışılan dakikaya

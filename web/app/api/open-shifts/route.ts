@@ -3,7 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendPushToPersonnel } from "@/lib/notifications";
-import { rescoreWeek } from "@/lib/scoring";
+import { claimOpenShift } from "@/lib/openShifts";
 
 
 function getDb() {
@@ -28,16 +28,17 @@ export async function GET(req: NextRequest) {
 
   const db = getDB();
   try {
+    const bidCountExpr = `(SELECT COUNT(*) FROM shift_bids sb WHERE sb.open_shift_id = open_shifts.id AND sb.status = 'pending') AS bid_count`;
     let rows: any[];
     if (status) {
       rows = await db.prepare(`
-        SELECT * FROM open_shifts
+        SELECT open_shifts.*, ${bidCountExpr} FROM open_shifts
         WHERE org_id = ? AND location_id = ? AND status = ?
         ORDER BY date ASC, start_time ASC
       `).all(org_id, location_id, status);
     } else {
       rows = await db.prepare(`
-        SELECT * FROM open_shifts
+        SELECT open_shifts.*, ${bidCountExpr} FROM open_shifts
         WHERE org_id = ? AND location_id = ?
         ORDER BY date ASC, start_time ASC
       `).all(org_id, location_id);
@@ -204,49 +205,22 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (claimed_by) {
-      const now = Math.floor(Date.now() / 1000);
-      await db.prepare(`
-        UPDATE open_shifts
-        SET claimed_by = ?, claimed_by_name = ?, claimed_at = ?, status = 'claimed'
-        WHERE id = ? AND status = 'open'
-      `).run(claimed_by, claimed_by_name ?? null, now, id);
-
-      // Kahraman bonusu: claimed_by = personnel_id
-      await db.prepare(`UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?`).run(claimed_by);
-
-      // Kapılan vardiyayı kahramanın takvimine işle (yoksa vardiya hiçbir takvimde görünmez)
-      const dt = new Date(os.date + "T00:00:00Z");
-      const dayIdx = (dt.getUTCDay() + 6) % 7; // 0 = Pazartesi
-      const monday = new Date(dt);
-      monday.setUTCDate(dt.getUTCDate() - dayIdx);
-      const week_start = monday.toISOString().split("T")[0];
-      const dup = await db.prepare(`
-        SELECT id FROM shift_assignments
-        WHERE personnel_id = ? AND week_start = ? AND day = ? AND start_time = ?
-      `).get(claimed_by, week_start, dayIdx, os.start_time);
-      if (!dup) {
-        await db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, points, status, publication_status, created_at)
-          VALUES (?, ?, ?, ?, 'open-shift', ?, ?, 0, 'scheduled', 'published', ?)
-        `).run(claimed_by, os.location_id, week_start, dayIdx, os.start_time, os.end_time, now);
+      // Personelin doğrudan üstlenmesi — şubede teklif sistemi açıksa engellenir,
+      // /api/shift-bids üzerinden teklif verilmesi gerekir. Müdür ataması (assigned_by_manager)
+      // bundan etkilenmez, müdür pazar yerini her zaman geçebilir.
+      if (!assigned_by_manager) {
+        let rules: any = {};
+        try {
+          const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(os.location_id) as any;
+          rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
+        } catch { /* varsayılan kalır */ }
+        if (rules.shift_bidding_enabled === true) {
+          return NextResponse.json({ error: "Bu şubede açık vardiyalar teklif ile paylaşılıyor, doğrudan üstlenemezsiniz." }, { status: 422 });
+        }
       }
 
-      // Kahraman bonusu (düz puan, hero_bonus_multiplier kolonunda tutulur) puan formülünde uygulanır —
-      // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
-      await rescoreWeek(auth.org_id, os.location_id, week_start);
-
-      // Kahramana onay bildirimi (müdür atadıysa farklı dil)
-      await db.prepare(`
-        INSERT INTO notifications (personnel_id, type, title, message, created_at)
-        VALUES (?, 'hero_bonus', ?, ?, ?)
-      `).run(
-        claimed_by,
-        assigned_by_manager ? "📋 Açık Vardiyaya Atandın" : "🦸 Kahraman Bonusu Kazandın!",
-        assigned_by_manager
-          ? `Müdürün seni ${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ekstra kahraman puanı kazanacaksın.`
-          : `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
-        Math.floor(Date.now() / 1000)
-      );
+      const outcome = await claimOpenShift(db, auth.org_id, id, claimed_by, claimed_by_name ?? null, { assignedByManager: !!assigned_by_manager });
+      if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
     } else if (status) {
       if (auth.role === "employee") {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });

@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing, HelpCircle } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing, HelpCircle, Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -48,6 +48,7 @@ const NAV = [
   { href: "/portal/availability", label: "Müsaitlik",   icon: Clock },
   { href: "/portal/requests",     label: "Talepler",    icon: Inbox },
   { href: "/portal/chat",         label: "Sohbet",      icon: MessageSquare },
+  { href: "/portal/open-shifts",  label: "Açık Vardiyalar", icon: Megaphone },
   { href: "/portal/notifications", label: "Bildirimler", icon: BellRing },
   { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },
 ];
@@ -59,6 +60,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [user, setUser] = useState<any>(null);
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true);
   const [chatEnabled, setChatEnabled] = useState(true);
+  const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true);
   const chatUnread = useChatUnread();
   const notifUnread = useNotifUnread();
 
@@ -78,6 +80,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
               setAvailCollectionEnabled(rules?.availability_collection_enabled !== false);
               setChatEnabled(rules?.chat_enabled !== false);
+              setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
             })
             .catch(() => {});
         }
@@ -88,7 +91,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   const nav = NAV
     .filter(i => availCollectionEnabled || i.href !== "/portal/availability")
-    .filter(i => chatEnabled || i.href !== "/portal/chat");
+    .filter(i => chatEnabled || i.href !== "/portal/chat")
+    .filter(i => openShiftsEnabled || i.href !== "/portal/open-shifts");
   const bottomNav = nav.slice(0, 5);
 
   if (!mounted) return null;
@@ -194,6 +198,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <a href="/kilavuz?role=employee" target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
               <HelpCircle size={20} />
             </a>
+            {openShiftsEnabled && (
+              <Link href="/portal/open-shifts" className={cn("p-2 rounded-xl transition-colors", pathname.startsWith("/portal/open-shifts") ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+                <Megaphone size={20} />
+              </Link>
+            )}
             <Link href="/portal/notifications" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (

@@ -225,6 +225,7 @@ export interface ScheduleRules {
   task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
   tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
   kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle check-in/check-out yapabilir (oturumsuz)
+  shift_bidding_enabled?: boolean; // açıkken: açık vardiyalara doğrudan kabul yerine teklif verilir, müdür teklifler arasından seçer
 }
 
 // ─── Shift Task (Görev ve Kontrol Listeleri) ─────────────────────────────────
@@ -236,6 +237,17 @@ export interface ShiftTask {
   task_description: string;
   is_completed: boolean;
   completed_at?: number | null;
+  created_at?: number;
+}
+
+// ─── Shift Bid (Tersine Vardiya Pazarı) ──────────────────────────────────────
+export interface ShiftBid {
+  id: number;
+  open_shift_id: number;
+  personnel_id: string;
+  requested_bonus_points: number;
+  note?: string | null;
+  status: "pending" | "accepted" | "rejected";
   created_at?: number;
 }
 

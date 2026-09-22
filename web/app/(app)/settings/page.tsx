@@ -248,6 +248,7 @@ export default function SettingsPage() {
   const [tipPoolingEnabled, setTipPoolingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
+  const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [taskTemplates, setTaskTemplates] = useState<Record<string, string[]>>({}); // {shiftDefId veya "*": [görev satırları]}
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
@@ -413,6 +414,7 @@ export default function SettingsPage() {
           setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
           setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
           setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
+          setShiftBiddingEnabled(loc.rules?.shift_bidding_enabled === true);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -535,6 +537,7 @@ export default function SettingsPage() {
             taskManagementEnabled: loc.rules?.task_management_enabled === true,
             tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
             kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
+            shiftBiddingEnabled: loc.rules?.shift_bidding_enabled === true,
             taskTemplates: loadedTaskTemplates,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
@@ -597,7 +600,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -618,7 +621,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -756,6 +759,7 @@ export default function SettingsPage() {
             task_management_enabled:            taskManagementEnabled,
             tip_pooling_enabled:                tipPoolingEnabled,
             kiosk_mode_enabled:                 kioskModeEnabled,
+            shift_bidding_enabled:              shiftBiddingEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -810,7 +814,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1447,6 +1451,11 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
                   </div>
                 )}
+                <RuleRow
+                  label="Tersine Vardiya Pazarı (Teklif Sistemi)"
+                  description="Açıkken: açık vardiyalara personel doğrudan üstlenmek yerine istediği bonus puanı teklif eder, müdür teklifler arasından seçer. Müdür ataması bundan etkilenmez."
+                  right={<Toggle on={shiftBiddingEnabled} onToggle={() => setShiftBiddingEnabled(v => !v)} />}
+                />
               </SectionCard>
 
               <SectionCard title="QR ile Check-in">

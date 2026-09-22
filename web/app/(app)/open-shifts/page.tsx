@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks } from "lucide-react";
+import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks, Gavel } from "lucide-react";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -34,6 +34,9 @@ export default function OpenShiftsPage() {
   const [bonus, setBonus]           = useState(6);
   const [defaultBonus, setDefaultBonus] = useState(6); // Ayarlar → Adalet Puanı'ndaki varsayılan bonus puanı
   const [saving, setSaving]         = useState(false);
+  const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // rules.shift_bidding_enabled
+  const [bids, setBids] = useState<Record<number, { loading: boolean; list: any[] }>>({});
+  const [bidActingId, setBidActingId] = useState<number | null>(null);
 
   // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
   useEffect(() => {
@@ -81,9 +84,41 @@ export default function OpenShiftsPage() {
           setDefaultBonus(rules.hero_bonus_points);
           setBonus(rules.hero_bonus_points);
         }
+        setShiftBiddingEnabled(rules?.shift_bidding_enabled === true);
       } catch { /* varsayılan 6 kalır */ }
     })();
   }, [user]);
+
+  async function loadBids(id: number) {
+    setBids(prev => ({ ...prev, [id]: { loading: true, list: [] } }));
+    try {
+      const r = await fetch(`/api/shift-bids?open_shift_id=${id}`);
+      const data = await r.json();
+      setBids(prev => ({ ...prev, [id]: { loading: false, list: Array.isArray(data) ? data : [] } }));
+    } catch {
+      setBids(prev => ({ ...prev, [id]: { loading: false, list: [] } }));
+    }
+  }
+
+  async function handleBidAction(bidId: number, action: "accept" | "reject", shiftId: number) {
+    setBidActingId(bidId);
+    try {
+      const r = await fetch("/api/shift-bids", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: bidId, action }),
+      });
+      if (r.ok) {
+        showToast(action === "accept" ? "Teklif kabul edildi, vardiya atandı." : "Teklif reddedildi.");
+        await load();
+        if (action === "accept") setBids(prev => ({ ...prev, [shiftId]: { loading: false, list: [] } }));
+        else await loadBids(shiftId);
+      } else {
+        const err = await r.json().catch(() => ({}));
+        showToast(err.error || "İşlem başarısız");
+      }
+    } finally { setBidActingId(null); }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -328,6 +363,60 @@ export default function OpenShiftsPage() {
                   <Link href="/personnel" className="hover:underline">{s.claimed_by_name}</Link>
                   {" bu vardiyayı üstlendi, "}+{s.hero_bonus_multiplier} puan kahraman bonusu kazandı
                 </p>
+              </div>
+            )}
+
+            {s.status === "open" && shiftBiddingEnabled && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-sky-700 bg-sky-50 rounded-xl px-3 py-2">
+                  <Gavel size={13} className="shrink-0" />
+                  <span className="flex-1">{s.bid_count > 0 ? `${s.bid_count} teklif bekliyor` : "Henüz teklif yok"}</span>
+                  {!bids[s.id] && (
+                    <button
+                      onClick={() => loadBids(s.id)}
+                      className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-700 hover:bg-sky-100 transition-colors"
+                    >
+                      Teklifleri Göster
+                    </button>
+                  )}
+                </div>
+                {bids[s.id]?.loading && (
+                  <p className="text-xs text-slate-400 px-1">Teklifler yükleniyor…</p>
+                )}
+                {bids[s.id] && !bids[s.id].loading && bids[s.id].list.filter((b: any) => b.status === "pending").length === 0 && (
+                  <p className="text-xs text-slate-400 px-1">Bekleyen teklif yok.</p>
+                )}
+                {bids[s.id] && !bids[s.id].loading && bids[s.id].list.filter((b: any) => b.status === "pending").length > 0 && (
+                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+                    {bids[s.id].list.filter((b: any) => b.status === "pending").map((b: any) => (
+                      <div key={b.id} className="flex items-center gap-3 px-3 py-2 bg-white">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-800 truncate">
+                            {b.personnel_name}
+                            <span className="ml-2 font-medium text-sky-600">+{b.requested_bonus_points} puan istiyor</span>
+                          </p>
+                          {b.note && <p className="text-[10px] text-slate-400 truncate italic">"{b.note}"</p>}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <button
+                            disabled={bidActingId === b.id}
+                            onClick={() => handleBidAction(b.id, "reject", s.id)}
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                          >
+                            Reddet
+                          </button>
+                          <button
+                            disabled={bidActingId === b.id}
+                            onClick={() => handleBidAction(b.id, "accept", s.id)}
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors disabled:opacity-50"
+                          >
+                            {bidActingId === b.id ? "…" : "Kabul Et"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
