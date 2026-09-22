@@ -8,6 +8,7 @@ import { recomputeLocationFairness } from "@/lib/scoring";
 import { getWeekStart } from "@/lib/date";
 import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
+import { checkHandoverGate } from "@/lib/handover";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
@@ -475,9 +476,22 @@ export async function PATCH(req: NextRequest) {
 
     // ── Check-in ─────────────────────────────────────────────────────
     if (action === "check_in") {
-      const { shift_id, lat, lon } = body;
+      const { shift_id, lat, lon, acknowledge_handover_id } = body;
       if (!shift_id) {
         return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
+      }
+      // rules.handover_log_enabled açıksa: bekleyen (okunmamış) bir devir-teslim
+      // notu varsa check-in'i başlatmadan durdur — istemci notu gösterip
+      // acknowledge_handover_id ile tekrar denemeli (bkz. lib/handover.ts).
+      const pendingHandover = await checkHandoverGate(db, {
+        shiftAssignmentId: shift_id,
+        acknowledgeHandoverId: acknowledge_handover_id ?? null,
+      });
+      if (pendingHandover) {
+        return NextResponse.json(
+          { error: "Önce devir-teslim notunu okuyup onaylamanız gerekiyor", pending_handover: pendingHandover },
+          { status: 428 }
+        );
       }
       const outcome = await performCheckIn(db, auth.org_id, {
         shiftId: shift_id,

@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from "react";
-import { Delete, LogIn, LogOut, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Delete, LogIn, LogOut, CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
 type Action = "checkin" | "checkout";
 type Result = { ok: boolean; message: string } | null;
+// rules.handover_log_enabled: check-in bekleyen bir devir-teslim notu varsa
+// PIN doğru olsa da check-in gerçekleşmez, önce bu ekranda onaylanmalı.
+type PendingHandover = { id: number; note: string; pin: string; personnelName: string } | null;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"];
 
@@ -21,6 +24,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result>(null);
+  const [pendingHandover, setPendingHandover] = useState<PendingHandover>(null);
 
   useEffect(() => {
     fetch(`/api/kiosk/${locationId}`)
@@ -34,15 +38,20 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
       .finally(() => setPageLoading(false));
   }, [locationId]);
 
-  const submit = useCallback(async (fullPin: string, act: Action) => {
+  const submit = useCallback(async (fullPin: string, act: Action, acknowledgeHandoverId?: number) => {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/kiosk/${locationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: fullPin, action: act }),
+        body: JSON.stringify({ pin: fullPin, action: act, acknowledge_handover_id: acknowledgeHandoverId }),
       });
       const data = await res.json();
+      if (res.status === 428 && data?.pending_handover) {
+        // Check-in gerçekleşmedi — önce notu okuyup "Devam Et" demesi gerekiyor.
+        setPendingHandover({ id: data.pending_handover.id, note: data.pending_handover.note, pin: fullPin, personnelName: data.personnel_name ?? "" });
+        return;
+      }
       if (!res.ok) {
         setResult({ ok: false, message: data.error ?? "Bir hata oluştu" });
       } else {
@@ -59,6 +68,13 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
     }
   }, [locationId]);
 
+  const handleAcknowledgeAndContinue = () => {
+    if (!pendingHandover) return;
+    const { pin: savedPin, id } = pendingHandover;
+    setPendingHandover(null);
+    submit(savedPin, "checkin", id);
+  };
+
   // Sonuç ekranı bir süre gösterilip otomatik kapanır
   useEffect(() => {
     if (!result) return;
@@ -67,7 +83,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
   }, [result]);
 
   const pressKey = (key: string) => {
-    if (submitting || result) return;
+    if (submitting || result || pendingHandover) return;
     if (key === "back") { setPin(p => p.slice(0, -1)); return; }
     if (key === "clear") { setPin(""); return; }
     setPin(p => {
@@ -105,7 +121,27 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
         <span className="font-black text-white text-lg">{locationName || "OptiShift"}</span>
       </div>
 
-      {result ? (
+      {pendingHandover ? (
+        <div className="w-full max-w-sm">
+          <div className="flex items-center gap-2 text-amber-400 mb-3 justify-center">
+            <AlertTriangle size={22} />
+            <span className="font-black text-white text-base">Devir-Teslim Notu</span>
+          </div>
+          {pendingHandover.personnelName && (
+            <p className="text-white/50 text-xs text-center mb-4">{pendingHandover.personnelName}</p>
+          )}
+          <div className="bg-white/5 border border-amber-400/30 rounded-2xl p-4 mb-6">
+            <p className="text-white/90 text-sm leading-relaxed">{pendingHandover.note}</p>
+          </div>
+          <button
+            onClick={handleAcknowledgeAndContinue}
+            disabled={submitting}
+            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl transition-colors disabled:opacity-50"
+          >
+            {submitting ? "…" : "Devam Et"}
+          </button>
+        </div>
+      ) : result ? (
         <div className="w-full max-w-sm text-center py-12">
           {result.ok ? (
             <CheckCircle2 size={64} className="text-emerald-400 mx-auto mb-5" />

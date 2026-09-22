@@ -28,11 +28,20 @@ export async function GET(req: NextRequest) {
     `).get(auth.personnel_id, week_start, dayIdx) as any;
     if (!mine || !mine.start_time) return NextResponse.json({ notes: [], enabled: true });
 
-    // Lokasyon toggle'ı: rules.handover_notes_enabled === false ise özellik kapalı
+    // Lokasyon toggle'ı: rules.handover_notes_enabled === false ise özellik kapalı.
+    // rules.handover_log_enabled === true ise YENİ (zorunlu okuma) modül devrede —
+    // eski broadcast kartı bu şubede tamamen gizlenir, iki mekanizma şube bazında
+    // birbirini dışlar (bkz. lib/handover.ts).
     const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(mine.location_id) as any;
     let enabled = true;
-    try { enabled = JSON.parse(locRow?.rules || "{}")?.handover_notes_enabled !== false; } catch { /* varsayılan açık */ }
-    if (!enabled) return NextResponse.json({ notes: [], enabled: false });
+    let handoverLogEnabled = false;
+    try {
+      const parsedRules = JSON.parse(locRow?.rules || "{}");
+      enabled = parsedRules?.handover_notes_enabled !== false;
+      handoverLogEnabled = parsedRules?.handover_log_enabled === true;
+    } catch { /* varsayılan açık */ }
+    if (handoverLogEnabled) return NextResponse.json({ notes: [], enabled: false, handover_log_enabled: true });
+    if (!enabled) return NextResponse.json({ notes: [], enabled: false, handover_log_enabled: false });
 
     const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
     const myStart = toMin(mine.start_time);
@@ -67,7 +76,7 @@ export async function GET(req: NextRequest) {
       note: r.handover_note,
     }));
 
-    return NextResponse.json({ notes, enabled: true });
+    return NextResponse.json({ notes, enabled: true, handover_log_enabled: false });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

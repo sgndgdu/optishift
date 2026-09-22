@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyKioskPin, isKioskRateLimited } from "@/lib/kiosk-auth";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { getWeekStart } from "@/lib/date";
+import { checkHandoverGate } from "@/lib/handover";
 
 function requestIp(req: NextRequest): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ loca
 export async function POST(req: NextRequest, { params }: { params: Promise<{ locationId: string }> }) {
   const { locationId } = await params;
   const body = await req.json().catch(() => ({}));
-  const { pin, action } = body;
+  const { pin, action, acknowledge_handover_id } = body;
   if (!pin || !/^\d{4}$/.test(pin)) return NextResponse.json({ error: "4 haneli PIN zorunlu" }, { status: 400 });
   if (action !== "checkin" && action !== "checkout") return NextResponse.json({ error: "Geçersiz action" }, { status: 400 });
 
@@ -63,6 +64,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
 
   if (action === "checkin") {
     if (shift.check_in_at) return NextResponse.json({ error: `${person.name}: zaten check-in yapılmış` }, { status: 409 });
+    // rules.handover_log_enabled açıksa: bekleyen bir devir-teslim notu varsa
+    // check-in'i başlatmadan durdur — kiosk ekranı notu gösterip aynı PIN'le
+    // acknowledge_handover_id ekleyerek tekrar denemeli (bkz. lib/handover.ts).
+    const pendingHandover = await checkHandoverGate(db, {
+      shiftAssignmentId: shift.id,
+      acknowledgeHandoverId: acknowledge_handover_id ?? null,
+    });
+    if (pendingHandover) {
+      return NextResponse.json(
+        { error: "Devir-teslim notu onaylanmalı", personnel_name: person.name, pending_handover: pendingHandover },
+        { status: 428 }
+      );
+    }
     const outcome = await performCheckIn(db, loc.org_id, { shiftId: shift.id });
     if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
     return NextResponse.json({ success: true, personnel_name: person.name, action: "checkin" });

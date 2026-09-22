@@ -250,6 +250,8 @@ export default function SettingsPage() {
   const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
   const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [forecastingEnabled, setForecastingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [handoverLogEnabled, setHandoverLogEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [fatigueRadarEnabled, setFatigueRadarEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [salesData, setSalesData] = useState<{ id: number; date: string; revenue: number | null; footfall: number | null }[]>([]);
   const [newSalesDate, setNewSalesDate] = useState("");
   const [newSalesRevenue, setNewSalesRevenue] = useState("");
@@ -427,6 +429,8 @@ export default function SettingsPage() {
           setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
           setShiftBiddingEnabled(loc.rules?.shift_bidding_enabled === true);
           setForecastingEnabled(loc.rules?.forecasting_enabled === true);
+          setHandoverLogEnabled(loc.rules?.handover_log_enabled === true);
+          setFatigueRadarEnabled(loc.rules?.fatigue_radar_enabled === true);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -551,6 +555,8 @@ export default function SettingsPage() {
             kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
             shiftBiddingEnabled: loc.rules?.shift_bidding_enabled === true,
             forecastingEnabled: loc.rules?.forecasting_enabled === true,
+            handoverLogEnabled: loc.rules?.handover_log_enabled === true,
+            fatigueRadarEnabled: loc.rules?.fatigue_radar_enabled === true,
             taskTemplates: loadedTaskTemplates,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
@@ -613,7 +619,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -634,7 +640,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -796,6 +802,8 @@ export default function SettingsPage() {
             kiosk_mode_enabled:                 kioskModeEnabled,
             shift_bidding_enabled:              shiftBiddingEnabled,
             forecasting_enabled:                forecastingEnabled,
+            handover_log_enabled:               handoverLogEnabled,
+            fatigue_radar_enabled:              fatigueRadarEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -850,7 +858,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1525,6 +1533,16 @@ export default function SettingsPage() {
                     )}
                   </div>
                 )}
+                <RuleRow
+                  label="Dijital Devir-Teslim Defteri"
+                  description="Açıkken: check-out'ta sonraki vardiyaya not bırakılabilir; hedef vardiyaya gelen ilk kişi notu okuyup 'Teslim Aldım' demeden check-in yapamaz. Sidebar'da 'Devir-Teslim Kayıtları' sayfası görünür. Açık olduğu sürece eski (isteğe bağlı) devir notu kartı bu şubede otomatik gizlenir, eski veriler silinmez."
+                  right={<Toggle on={handoverLogEnabled} onToggle={() => setHandoverLogEnabled(v => !v)} />}
+                />
+                <RuleRow
+                  label="Yorgunluk ve Kaza Risk Radarı"
+                  description="Açıkken: dashboard'da üst üste gece vardiyası / clopening / yüksek mesai yapan personeli listeleyen bir risk kartı, Vardiya Planı sayfasında ilgili personelin satırında risk ikonu görünür."
+                  right={<Toggle on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />}
+                />
               </SectionCard>
 
               <SectionCard title="QR ile Check-in">

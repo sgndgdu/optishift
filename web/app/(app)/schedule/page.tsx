@@ -6,7 +6,7 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle,
 } from "lucide-react";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
@@ -323,6 +323,7 @@ export default function SchedulePage() {
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
   const [locRules, setLocRules]                   = useState<FairnessRules>({}); // tam rules objesi — canlı yük hesabı (cellBurden) için
+  const [fatigueRiskMap, setFatigueRiskMap]       = useState<Record<string, { riskLevel: string; reasons: string[] }>>({}); // rules.fatigue_radar_enabled — personel satırındaki risk ikonu için
   const [scoredWeekBurden, setScoredWeekBurden]   = useState<Record<string, number>>({}); // bu haftanın score_history'deki yükü — çift sayım düzeltmesi
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, müsaitlik uyarıları susturulur
   const [popover, setPopover]                     = useState<Popover | null>(null);
@@ -603,6 +604,21 @@ export default function SchedulePage() {
           } catch { setForecastMatrix({}); }
         } else {
           setForecastMatrix({});
+        }
+
+        // Yorgunluk ve Kaza Risk Radarı (rules.fatigue_radar_enabled) — personel satırındaki risk ikonu için
+        if ((parsedRules as Record<string, unknown>)?.fatigue_radar_enabled === true) {
+          try {
+            const frRes = await fetch(`/api/fatigue-radar?location_id=${activeLocationId}`);
+            const frData = await frRes.json();
+            const map: Record<string, { riskLevel: string; reasons: string[] }> = {};
+            if (Array.isArray(frData?.at_risk)) {
+              for (const r of frData.at_risk) map[r.personnel_id] = { riskLevel: r.riskLevel, reasons: r.reasons };
+            }
+            setFatigueRiskMap(map);
+          } catch { setFatigueRiskMap({}); }
+        } else {
+          setFatigueRiskMap({});
         }
 
         // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
@@ -2782,7 +2798,17 @@ export default function SchedulePage() {
                               {p.name.charAt(0)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-slate-800 truncate leading-tight">{p.name}</div>
+                              <div className="text-sm font-semibold text-slate-800 truncate leading-tight flex items-center gap-1">
+                                <span className="truncate">{p.name}</span>
+                                {fatigueRiskMap[p.id] && (
+                                  <span title={`Risk: ${fatigueRiskMap[p.id].reasons.join(" / ")}`} className="shrink-0">
+                                    <AlertTriangle
+                                      size={12}
+                                      className={fatigueRiskMap[p.id].riskLevel === "danger" ? "text-red-500" : "text-amber-500"}
+                                    />
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
                                   <div className={cn("h-full rounded-full", scoreColor(score, maxScore))} style={{ width: scoreBarWidth }} />

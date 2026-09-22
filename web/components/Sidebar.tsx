@@ -48,7 +48,7 @@ function usePendingOvertime() {
   }, []);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer, HelpCircle, Wallet } from "lucide-react";
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer, HelpCircle, Wallet, ClipboardCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
@@ -67,6 +67,7 @@ const NAV = [
   { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false, ruleFlag: "open_shifts_enabled" },
   { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false, ruleFlag: "overtime_tracking_enabled" },
   { href: "/tip-pools",    label: "Bahşiş Havuzu",     icon: Wallet,         simple: false, ruleFlag: "tip_pooling_enabled", requireTrue: true },
+  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck, simple: false, ruleFlag: "handover_log_enabled", requireTrue: true },
   { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false, feature: "breaks" },
   { href: "/reports",      label: "Raporlar",          icon: BarChart2,      simple: false },
   { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true, ruleFlag: "chat_enabled" },

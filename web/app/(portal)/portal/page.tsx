@@ -39,7 +39,9 @@ export default function PortalDashboard() {
   const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
   const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
   const [handoverDraft, setHandoverDraft]  = useState("");
-  const [handoverEnabled, setHandoverEnabled] = useState(true); // rules.handover_notes_enabled
+  const [handoverEnabled, setHandoverEnabled] = useState(true); // rules.handover_notes_enabled (eski, broadcast)
+  const [handoverLogEnabled, setHandoverLogEnabled] = useState(false); // rules.handover_log_enabled (yeni, zorunlu okuma)
+  const [pendingHandoverModal, setPendingHandoverModal] = useState<{ shiftId: number; handover: { id: number; note: string; author_name: string; created_at: number } } | null>(null);
   const [shiftTasks, setShiftTasks] = useState<any[]>([]); // rules.task_management_enabled — bugünkü vardiyanın görev listesi
   const [taskToggleBusy, setTaskToggleBusy] = useState<number | null>(null);
   const [weeklyTipAmount, setWeeklyTipAmount] = useState<number | null>(null); // rules.tip_pooling_enabled — bu hafta kazanılan prim
@@ -123,6 +125,7 @@ export default function PortalDashboard() {
       .then(d => {
         setHandoverNotes(Array.isArray(d?.notes) ? d.notes : []);
         setHandoverEnabled(d?.enabled !== false);
+        setHandoverLogEnabled(d?.handover_log_enabled === true);
       })
       .catch(() => {});
   }, [user]);
@@ -190,7 +193,7 @@ export default function PortalDashboard() {
       );
     });
 
-  const handleCheckIn = async (shiftId: number) => {
+  const handleCheckIn = async (shiftId: number, acknowledgeHandoverId?: number) => {
     setCheckInLoading(true);
     setCheckInError("");
     try {
@@ -198,11 +201,21 @@ export default function PortalDashboard() {
       const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check_in", shift_id: shiftId, lat: pos?.lat, lon: pos?.lon }),
+        body: JSON.stringify({
+          action: "check_in", shift_id: shiftId, lat: pos?.lat, lon: pos?.lon,
+          acknowledge_handover_id: acknowledgeHandoverId,
+        }),
       });
       if (r.ok) {
         const ts = Math.floor(Date.now() / 1000);
         setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
+        setPendingHandoverModal(null);
+      } else if (r.status === 428) {
+        // rules.handover_log_enabled: bekleyen bir devir-teslim notu var — check-in
+        // gerçekleşmedi, önce notu okuyup "Teslim Aldım" demesi gerekiyor.
+        const data = await r.json().catch(() => ({}));
+        if (data?.pending_handover) setPendingHandoverModal({ shiftId, handover: data.pending_handover });
+        else setCheckInError(data.error || "Check-in başarısız oldu.");
       } else {
         const err = await r.json().catch(() => ({}));
         setCheckInError(err.error || "Check-in başarısız oldu.");
@@ -212,16 +225,35 @@ export default function PortalDashboard() {
     } finally { setCheckInLoading(false); }
   };
 
+  const handleAcknowledgeAndCheckIn = () => {
+    if (!pendingHandoverModal) return;
+    handleCheckIn(pendingHandoverModal.shiftId, pendingHandoverModal.handover.id);
+  };
+
   const handleCheckOut = async (shiftId: number, handoverNote?: string) => {
     const ts = Math.floor(Date.now() / 1000);
     setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: ts } : s));
     setCheckInLoading(true);
     setCheckoutModal(null);
+    const trimmedNote = handoverNote?.trim();
     try {
+      // rules.handover_log_enabled açıksa not YENİ Devir-Teslim Defteri'ne gider
+      // (ayrı bir POST — hedef vardiya otomatik belirlenir), eski handover_note
+      // alanına hiç yazılmaz. Kapalıysa davranış eskisiyle birebir aynıdır.
+      if (trimmedNote && handoverLogEnabled) {
+        await fetch("/api/shift-handovers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shift_id: shiftId, note: trimmedNote }),
+        }).catch(() => {});
+      }
       const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check_out", shift_id: shiftId, handover_note: handoverNote || undefined }),
+        body: JSON.stringify({
+          action: "check_out", shift_id: shiftId,
+          handover_note: !handoverLogEnabled ? (trimmedNote || undefined) : undefined,
+        }),
       });
       if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
     } catch {
@@ -419,7 +451,7 @@ export default function PortalDashboard() {
               </button>
             )}
             {todayShift && isCheckedIn && (
-              <button onClick={() => { if (!handoverEnabled) { handleCheckOut(todayShift.id); return; } setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
+              <button onClick={() => { if (!handoverEnabled && !handoverLogEnabled) { handleCheckOut(todayShift.id); return; } setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
                 className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
                 <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
               </button>
@@ -483,6 +515,34 @@ export default function PortalDashboard() {
             <p className="text-lg font-black text-emerald-800">
               {weeklyTipAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bekleyen devir-teslim notu — check-in'i engeller, kapatılamaz ─── */}
+      {pendingHandoverModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertCircle size={20} />
+              <h3 className="text-base font-black text-slate-900">Devir-Teslim Notu</h3>
+            </div>
+            <p className="text-xs text-slate-500">
+              Check-in yapmadan önce sizden önceki vardiyanın bıraktığı notu okuyup teslim almanız gerekiyor.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+              <p className="text-sm text-slate-800 leading-relaxed">{pendingHandoverModal.handover.note}</p>
+              <p className="text-[10px] text-amber-600 font-semibold mt-2">
+                {pendingHandoverModal.handover.author_name} · {timeAgo(pendingHandoverModal.handover.created_at)}
+              </p>
+            </div>
+            <button
+              onClick={handleAcknowledgeAndCheckIn}
+              disabled={checkInLoading}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+            >
+              {checkInLoading ? "…" : "Okudum, Teslim Aldım"}
+            </button>
           </div>
         </div>
       )}

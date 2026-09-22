@@ -33,6 +33,8 @@ export default function DashboardPage() {
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled] = useState(true); // rules.publish_lead_kpi_enabled
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — rules.task_management_enabled
   const [todayTasks, setTodayTasks] = useState<any[]>([]); // bugünkü vardiyaların görev listesi (tamamlanma oranı için)
+  const [fatigueRadarEnabled, setFatigueRadarEnabled] = useState(false); // ileri seviye modül — rules.fatigue_radar_enabled
+  const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]); // /api/fatigue-radar — üst üste gece/clopening/yüksek mesai riski taşıyan personel
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -103,6 +105,15 @@ export default function DashboardPage() {
               .catch(() => setTodayTasks([]));
           } else {
             setTodayTasks([]);
+          }
+          setFatigueRadarEnabled(!!rules.fatigue_radar_enabled);
+          if (rules.fatigue_radar_enabled) {
+            fetch(`/api/fatigue-radar?location_id=${u.location_id}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(d => setFatigueAtRisk(Array.isArray(d?.at_risk) ? d.at_risk : []))
+              .catch(() => setFatigueAtRisk([]));
+          } else {
+            setFatigueAtRisk([]);
           }
         } catch {}
       }
@@ -604,6 +615,42 @@ export default function DashboardPage() {
           </Card>
         );
       })()}
+
+      {/* Yorgunluk ve Kaza Risk Radarı (rules.fatigue_radar_enabled) */}
+      {fatigueRadarEnabled && fatigueAtRisk.length > 0 && (
+        <Card className="stripe-card border-0 shadow-none">
+          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="p-2 bg-red-100 rounded-xl text-red-600 shrink-0">
+                <AlertTriangle size={18} />
+              </div>
+              <CardTitle className="text-base font-bold">⚠️ Kaza Risk Radarı</CardTitle>
+              <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
+                {fatigueAtRisk.filter((r: any) => r.riskLevel === "danger").length} kritik
+              </Badge>
+              <Link href="/schedule" className="ml-auto text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
+                Vardiya Planı <ArrowRight size={12} />
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5 space-y-2.5">
+            {fatigueAtRisk.map((r: any) => (
+              <div
+                key={r.personnel_id}
+                className={`flex items-start gap-3 p-3 rounded-xl border ${
+                  r.riskLevel === "danger" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
+                }`}
+              >
+                <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${r.riskLevel === "danger" ? "text-red-500" : "text-amber-500"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800">{r.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{r.reasons.join(" · ")}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Hızlı Eylemler — Onboarding */}
       {!loading && personnel.filter(p => p.status === "active").length <= 1 && (

@@ -788,3 +788,33 @@ export const webauthnCredentials = pgTable("webauthn_credentials", {
   ),
   last_used_at: bigint("last_used_at", { mode: "number" }),
 });
+
+// ─── Shift Handovers (Dijital Devir-Teslim Defteri) ──────────────────────────
+// rules.handover_log_enabled açıkken check-out'ta bırakılan not; hedef vardiyaya
+// (target_shift_def_id) gelen İLK kişi "Teslim Aldım" deyip check-in yapana kadar
+// check-in'i bloklar (bkz. lib/handover.ts). Tek okuyucu yeterli — read_by_personnel_id
+// set edilince not o vardiya için tüketilmiş sayılır, sonraki kişileri etkilemez.
+// Kapalıyken eski basit mekanizma (shift_assignments.handover_note, rules.handover_notes_enabled)
+// bu tabloya hiç dokunmadan aynen çalışmaya devam eder — iki mekanizma şube bazında birbirini dışlar.
+export const shiftHandovers = pgTable("shift_handovers", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  department_id: text("department_id"), // NULL = departmansız şube, tüm şubeyi hedefler
+  author_personnel_id: text("author_personnel_id")
+    .notNull()
+    .references(() => personnel.id),
+  target_shift_def_id: text("target_shift_def_id").notNull(), // locations.shift_definitions JSON id'si (FK değil, shift_assignments.shift_id ile aynı konvansiyon)
+  note: text("note").notNull(),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+  read_by_personnel_id: text("read_by_personnel_id"), // NULL = henüz okunmadı/teslim alınmadı
+  read_at: bigint("read_at", { mode: "number" }),
+}, (t) => [
+  index("idx_shift_handovers_pending").on(t.location_id, t.target_shift_def_id, t.read_by_personnel_id),
+]);
