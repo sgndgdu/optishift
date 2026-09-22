@@ -690,6 +690,27 @@ export const payrollPeriods = pgTable("payroll_periods", {
   ),
 });
 
+// ─── Location Sales Data (Satış ve Yoğunluk Tahmini) ─────────────────────────
+// rules.forecasting_enabled açıkken müdür isteğe bağlı günlük ciro/ayak trafiği
+// girer; lib/forecast.ts bu veriyi geçmiş haftaların hareketli ortalamasına
+// ±% trend çarpanı olarak uygular. Veri yoksa tahmin sadece geçmiş atama
+// sayılarından hesaplanır (bkz. computeForecast).
+export const locationSalesData = pgTable("location_sales_data", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  location_id: text("location_id")
+    .notNull()
+    .references(() => locations.id),
+  date: text("date").notNull(), // YYYY-MM-DD
+  revenue: doublePrecision("revenue"),
+  footfall: integer("footfall"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(
+    () => Math.floor(Date.now() / 1000),
+  ),
+});
+
 // ─── Shift Bids (Tersine Vardiya Pazarı) ─────────────────────────────────────
 // rules.shift_bidding_enabled açıkken personel açık vardiyaya doğrudan "Kabul Et"
 // yerine bir teklif verir; müdür teklifler arasından birini kabul eder — kabul

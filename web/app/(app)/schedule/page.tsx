@@ -337,6 +337,7 @@ export default function SchedulePage() {
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
   const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count} (lokasyon geneli, OR-Tools fallback)
+  const [forecastMatrix, setForecastMatrix]       = useState<Record<string, Record<number, number>>>({}); // rules.forecasting_enabled — shiftDefId → {day → tahmini kişi sayısı}
   const [deptDemandMatrix, setDeptDemandMatrix]   = useState<Record<string, Record<string, Record<number, number>>>>({}); // deptId → shiftDefId → {day → count}
   const [fairnessOpen, setFairnessOpen]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
@@ -592,6 +593,17 @@ export default function SchedulePage() {
         setClopeningMinRest(clopeningRest);
         setAvailCollectionEnabled(collectAvail);
         setLocRules(parsedRules);
+
+        // Talep tahmini (rules.forecasting_enabled) — kapasite matrisi hücrelerinde ipucu gösterir
+        if ((parsedRules as Record<string, unknown>)?.forecasting_enabled === true) {
+          try {
+            const fRes = await fetch(`/api/forecast?location_id=${activeLocationId}&week_start=${weekStart}`);
+            const fData = await fRes.json();
+            setForecastMatrix(fData && typeof fData === "object" && !fData.error ? fData : {});
+          } catch { setForecastMatrix({}); }
+        } else {
+          setForecastMatrix({});
+        }
 
         // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
         if ((parsedRules as Record<string, unknown>)?.consecutive_night_weeks_enabled === true) {
@@ -2506,6 +2518,8 @@ export default function SchedulePage() {
                                       coverState === "ok"    && "text-emerald-600",
                                       coverState === "over"  && "text-sky-500",
                                     )}>{assigned}/{val}</span>
+                                  ) : forecastMatrix[def.id]?.[day] != null ? (
+                                    <span className="text-[10px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
                                   ) : null}
                                 </div>
                               </td>
@@ -2574,6 +2588,8 @@ export default function SchedulePage() {
                                             coverState === "ok"    && "text-emerald-600",
                                             coverState === "over"  && "text-sky-500",
                                           )}>{assigned}/{val}</span>
+                                        ) : forecastMatrix[def.id]?.[day] != null ? (
+                                          <span className="text-[10px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
                                         ) : null}
                                       </div>
                                     </td>

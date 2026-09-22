@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, Scale } from "lucide-react";
+import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, Scale, Trash2 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
@@ -249,6 +249,11 @@ export default function SettingsPage() {
   const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
   const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [forecastingEnabled, setForecastingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
+  const [salesData, setSalesData] = useState<{ id: number; date: string; revenue: number | null; footfall: number | null }[]>([]);
+  const [newSalesDate, setNewSalesDate] = useState("");
+  const [newSalesRevenue, setNewSalesRevenue] = useState("");
+  const [salesDataError, setSalesDataError] = useState("");
   const [taskTemplates, setTaskTemplates] = useState<Record<string, string[]>>({}); // {shiftDefId veya "*": [görev satırları]}
   const [checkinRequired, setCheckinRequired]                     = useState(false);
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
@@ -361,6 +366,12 @@ export default function SettingsPage() {
             if (finalId) localStorage.setItem("optishift_selected_location", finalId);
           }
           if (finalId) setSelectedLocationId(finalId);
+          if (finalId) {
+            fetch(`/api/sales-data?location_id=${finalId}`)
+              .then(r => r.ok ? r.json() : [])
+              .then(d => setSalesData(Array.isArray(d) ? d : []))
+              .catch(() => {});
+          }
 
           const loc = JSON.parse(JSON.stringify(targetLoc));
           if (typeof loc.shift_definitions === "string") { try { loc.shift_definitions = JSON.parse(loc.shift_definitions); } catch { loc.shift_definitions = []; } }
@@ -415,6 +426,7 @@ export default function SettingsPage() {
           setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
           setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
           setShiftBiddingEnabled(loc.rules?.shift_bidding_enabled === true);
+          setForecastingEnabled(loc.rules?.forecasting_enabled === true);
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
@@ -538,6 +550,7 @@ export default function SettingsPage() {
             tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
             kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
             shiftBiddingEnabled: loc.rules?.shift_bidding_enabled === true,
+            forecastingEnabled: loc.rules?.forecasting_enabled === true,
             taskTemplates: loadedTaskTemplates,
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
@@ -600,7 +613,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -621,7 +634,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -667,6 +680,28 @@ export default function SettingsPage() {
       },
       () => { setWeatherStatus("error"); alert("Konum alınamadı. Tarayıcı iznini kontrol edin."); }
     );
+  };
+
+  const handleAddSalesData = async () => {
+    if (!selectedLocationId || !newSalesDate || !newSalesRevenue) return;
+    setSalesDataError("");
+    try {
+      const res = await fetch("/api/sales-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: selectedLocationId, date: newSalesDate, revenue: Number(newSalesRevenue) }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSalesDataError(data.error ?? "Kaydedilemedi"); return; }
+      const refreshed = await fetch(`/api/sales-data?location_id=${selectedLocationId}`).then(r => r.json());
+      setSalesData(Array.isArray(refreshed) ? refreshed : []);
+      setNewSalesDate(""); setNewSalesRevenue("");
+    } catch { setSalesDataError("Kaydedilemedi"); }
+  };
+
+  const handleDeleteSalesData = async (id: number) => {
+    await fetch(`/api/sales-data?id=${id}`, { method: "DELETE" });
+    setSalesData(prev => prev.filter(s => s.id !== id));
   };
 
   // Kaydedilmemiş değişiklik varken sayfadan çıkışta uyar
@@ -760,6 +795,7 @@ export default function SettingsPage() {
             tip_pooling_enabled:                tipPoolingEnabled,
             kiosk_mode_enabled:                 kioskModeEnabled,
             shift_bidding_enabled:              shiftBiddingEnabled,
+            forecasting_enabled:                forecastingEnabled,
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
@@ -814,7 +850,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1456,6 +1492,39 @@ export default function SettingsPage() {
                   description="Açıkken: açık vardiyalara personel doğrudan üstlenmek yerine istediği bonus puanı teklif eder, müdür teklifler arasından seçer. Müdür ataması bundan etkilenmez."
                   right={<Toggle on={shiftBiddingEnabled} onToggle={() => setShiftBiddingEnabled(v => !v)} />}
                 />
+                <RuleRow
+                  label="Satış ve Yoğunluk Tahmini"
+                  description="Açıkken: Kapasite Planı hücrelerinde geçmiş haftaların hareketli ortalamasına dayalı bir tahmin gösterilir. Aşağıdaki günlük ciro girişleri isteğe bağlıdır, girilirse tahmini ±%50'ye kadar trend yönünde ayarlar."
+                  right={<Toggle on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)} />}
+                />
+                {forecastingEnabled && (
+                  <div className="mt-3 pl-1 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="date" value={newSalesDate} onChange={e => setNewSalesDate(e.target.value)}
+                        className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                      />
+                      <input
+                        type="number" min="0" step="0.01" value={newSalesRevenue} onChange={e => setNewSalesRevenue(e.target.value)}
+                        placeholder="Günlük ciro (₺)"
+                        className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                      />
+                      <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                    </div>
+                    {salesDataError && <p className="text-[10px] text-red-600">{salesDataError}</p>}
+                    {salesData.length > 0 && (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {salesData.slice(0, 14).map(s => (
+                          <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs bg-slate-50 border border-slate-200">
+                            <span className="flex-1 font-semibold text-slate-700">{s.date}</span>
+                            <span className="text-slate-500">{s.revenue != null ? `₺${s.revenue}` : s.footfall != null ? `${s.footfall} kişi` : ""}</span>
+                            <button onClick={() => handleDeleteSalesData(s.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </SectionCard>
 
               <SectionCard title="QR ile Check-in">

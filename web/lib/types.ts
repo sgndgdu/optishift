@@ -226,6 +226,7 @@ export interface ScheduleRules {
   tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
   kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle check-in/check-out yapabilir (oturumsuz)
   shift_bidding_enabled?: boolean; // açıkken: açık vardiyalara doğrudan kabul yerine teklif verilir, müdür teklifler arasından seçer
+  forecasting_enabled?: boolean; // açıkken: kapasite matrisi hücrelerinde geçmiş haftalardan türetilen tahmin gösterilir
 }
 
 // ─── Shift Task (Görev ve Kontrol Listeleri) ─────────────────────────────────
@@ -237,6 +238,16 @@ export interface ShiftTask {
   task_description: string;
   is_completed: boolean;
   completed_at?: number | null;
+  created_at?: number;
+}
+
+// ─── Satış Verisi (Talep Tahmini) ─────────────────────────────────────────────
+export interface SalesDataPoint {
+  id: number;
+  location_id: string;
+  date: string; // YYYY-MM-DD
+  revenue?: number | null;
+  footfall?: number | null;
   created_at?: number;
 }
 
