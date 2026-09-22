@@ -1,0 +1,18 @@
+name: Engine Keep-Warm
+
+# Render'ın ücretsiz katmanı ~15 dk hareketsizlikten sonra motoru uyutur,
+# bir sonraki istek 30+ saniye gecikir (bkz. DEPLOYMENT.md "Motor Keep-Warm").
+# Vercel Hobby planı cron'ları günde 1'le sınırladığı için bu ping Vercel'i
+# atlayıp doğrudan Render'ın herkese açık /health endpoint'ini hedefliyor.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping OptiShift engine health endpoint
+        run: |
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" https://optishift-engine.onrender.com/health || true
