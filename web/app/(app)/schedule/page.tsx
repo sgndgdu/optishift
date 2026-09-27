@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
+import GenerateWizard from "@/components/schedule/GenerateWizard";
+import WeekAlerts, { type WeekAlert } from "@/components/schedule/WeekAlerts";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, type Rules as FairnessRules } from "@/lib/fairness";
@@ -337,7 +339,7 @@ export default function SchedulePage() {
   const [publishSuccess, setPublishSuccess]       = useState(false);
   const [error, setError]                         = useState<string | null>(null);
   const [toast, setToast]                         = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
-  const [confirmGenerate, setConfirmGenerate]     = useState(false);
+  const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
@@ -1069,18 +1071,9 @@ export default function SchedulePage() {
     setPopover(null);
   };
 
-  // OR-Tools generate
-  const handleGenerateClick = () => {
-    // Eğer elle girilmiş vardiya varsa onay iste (UX-7)
-    if (Object.keys(cellMap).length > 0) {
-      setConfirmGenerate(true);
-    } else {
-      runGenerate();
-    }
-  };
-
+  // Otomatik planlama (/api/generate). Mevcut vardiyaların üzerine yazılacağı uyarısı
+  // sihirbazın Kontrol adımında gösterilir (UX-7).
   const runGenerate = async () => {
-    setConfirmGenerate(false);
     setGenerating(true);
     setError(null);
     try {
@@ -1202,9 +1195,10 @@ export default function SchedulePage() {
     }
   };
 
-  // Request availability — müdürün baktığı haftanın sonraki haftasına gönder (UX-5 fix)
-  const handleRequestAvailability = async () => {
-    const targetWeek = getWeekStart(weekOffset + 1);
+  // Request availability — varsayılan: müdürün baktığı haftanın sonraki haftası (UX-5 fix).
+  // Sihirbaz, planlanan haftanın kendisi için ister (targetOffset = weekOffset).
+  const handleRequestAvailability = async (targetOffset: number = weekOffset + 1) => {
+    const targetWeek = getWeekStart(targetOffset);
     const targetWeekLabel = new Date(targetWeek).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
     try {
       const payload = personnel.map(p => ({
@@ -2097,344 +2091,9 @@ export default function SchedulePage() {
     pushCellMap(newMap);
   };
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      {mounted && (
-        <div className="space-y-4">
-
-          {/* ── Sayfa başlığı ── */}
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Vardiya Planı</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Hücreye tıklayarak vardiya ekle/düzenle, değişiklikler otomatik kaydedilir</p>
-          </div>
-
-          {/* ── Üst bant ── */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Hafta navigasyonu */}
-            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <button onClick={() => setWeekOffset(o => o - 1)} disabled={weekOffset <= 0} className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
-                <ChevronLeft size={16} />
-              </button>
-              <span className="px-3 text-xs md:text-sm font-bold text-slate-800 whitespace-nowrap min-w-[140px] md:min-w-[200px] text-center">{weekLabel}</span>
-              <button onClick={() => setWeekOffset(o => o + 1)} className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors">
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
-            {/* Durum çipi */}
-            {!loading && (
-              cellCount === 0 && dbShiftCount === 0 ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap">Boş hafta</span>
-              ) : isPublishedWeek && !dirty ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-100 text-emerald-700 whitespace-nowrap flex items-center gap-1">
-                  <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` · ${currentRevision}. güncelleme` : ""}
-                </span>
-              ) : isPublishedWeek && dirty ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">Yayınlanmamış değişiklik</span>
-              ) : (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-100 text-sky-700 whitespace-nowrap" title="Personel taslağı göremez">Taslak</span>
-              )
-            )}
-
-            {/* Otomatik kayıt göstergesi */}
-            {!isPublishedWeek && saveState !== "idle" && (
-              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
-                {saveState === "saving" ? "Kaydediliyor…" : <><Check size={11} className="text-emerald-500" /> Kaydedildi</>}
-              </span>
-            )}
-
-            {/* Canlı TL maliyet bütçesi */}
-            {laborCost.total > 0 && (
-              <span
-                title={
-                  (laborBudgetExceeded ? `Bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")} aşıldı. ` : "") +
-                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} personelin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
-                }
-                className={cn(
-                  "px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap flex items-center gap-1",
-                  laborBudgetExceeded ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
-                )}
-              >
-                ₺{laborCost.total.toLocaleString("tr-TR")}
-                {laborBudgetExceeded && " ⚠️"}
-              </span>
-            )}
-
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              {/* Personel filtresi */}
-              {personnel.length > 5 && (
-                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm">
-                  <Search size={13} className="text-slate-400 shrink-0" />
-                  <input
-                    type="text" value={personnelFilter} onChange={e => setPersonnelFilter(e.target.value)}
-                    placeholder="Personel ara…"
-                    className="w-28 text-sm text-slate-700 placeholder-slate-400 bg-transparent outline-none"
-                  />
-                  {personnelFilter && <button onClick={() => setPersonnelFilter('')} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>}
-                </div>
-              )}
-
-              {/* Adalet dağılımı toggle */}
-              <button
-                onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı"
-                className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
-              >
-                <BarChart2 size={15} />
-              </button>
-
-              {/* ⋯ İşlemler menüsü */}
-              <div className="relative" data-actions-menu>
-                <button
-                  onClick={() => setActionsOpen(o => !o)}
-                  className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
-                >
-                  <MoreHorizontal size={15} /> <span className="hidden sm:inline">İşlemler</span>
-                </button>
-                {actionsOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
-                    {cellCount > 0 && (
-                      <button onClick={() => { setActionsOpen(false); handleGenerateClick(); }} disabled={generating}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Zap size={13} className="text-forest-500" /> {generating ? "Oluşturuluyor…" : "Yeniden Oluştur"}
-                      </button>
-                    )}
-                    {availCollectionEnabled && (
-                      <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <Bell size={13} className="text-amber-500" /> Uygunluk İste
-                      </button>
-                    )}
-                    <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
-                    </button>
-                    <button onClick={() => { setActionsOpen(false); handleSendForReview(); }} disabled={sendReviewLoading || !isDraftWeek}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
-                    </button>
-                    <div className="my-1 border-t border-slate-100" />
-                    {FEATURES.aiSummary && (
-                      <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
-                      </button>
-                    )}
-                    <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <Download size={13} className="text-slate-400" /> Excel İndir
-                    </a>
-                    <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
-                    </button>
-                    <div className="my-1 border-t border-slate-100" />
-                    <button onClick={undo} disabled={!canUndo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300">Ctrl+Z</span>
-                    </button>
-                    <button onClick={redo} disabled={!canRedo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
-                    </button>
-                    <div className="my-1 border-t border-slate-100" />
-                    <button onClick={() => { setActionsOpen(false); setPubsModalOpen(true); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <History size={13} className="text-slate-400" /> Yayın Geçmişi
-                    </button>
-                    <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Birincil aksiyon */}
-              {isPublishedWeek && !editUnlocked ? (
-                <button onClick={() => setUnlockModal(true)}
-                  className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
-                  🔒 Düzenle
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {(cellCount === 0 || generating) && !isPublishedWeek && (
-                    <button onClick={handleGenerateClick} disabled={generating}
-                      className={cn(
-                        "py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50",
-                        cellCount === 0
-                          ? "px-4 md:text-sm text-white bg-forest-700 hover:bg-forest-800 shadow-sm"
-                          : "px-3 text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100"
-                      )}>
-                      <Zap size={13} /> {generating ? "Oluşturuluyor…" : "Otomatik Oluştur"}
-                    </button>
-                  )}
-                  {(cellCount > 0 || isPublishedWeek) && (
-                    <button onClick={handlePublish} disabled={publishLoading}
-                      className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
-                      <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Revize Et & Yayınla" : "Yayınla"}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Uyarı bannerları ── */}
-          {capacityWarnings.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
-              <p className="font-bold mb-1 flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0" />
-                Personel ihtiyacı, mevcut personel sayısını aşıyor
-              </p>
-              <ul className="list-disc list-inside space-y-0.5">
-                {capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-              <p className="mt-1 text-red-500">Bu günlerde herkes uygun olsa bile Otomatik Oluştur çözüm bulamaz. Personel İhtiyacı tablosundaki sayıları azaltın.</p>
-            </div>
-          )}
-          {availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 && (
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-600">
-              <AlertCircle size={13} className="shrink-0 text-blue-400" />
-              <span><span className="font-bold">{noAvailCount} personel</span> uygunluk bilgisi girmemiş, bu kişiler otomatik oluşturmada tamamen uygun kabul edilir, planlama engellenmez.</span>
-              <button onClick={handleRequestAvailability} className="ml-auto underline font-semibold hover:text-blue-900">Uygunluk İste</button>
-            </div>
-          )}
-          {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
-            <QuickSetup
-              locationId={activeLocationId}
-              shiftDefsCount={shiftDefs.length}
-              personnelCount={personnel.length}
-              demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
-            />
-          )}
-          {publishSuccess && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
-              <Check size={16} /> Vardiya programı yayınlandı! Personellere bildirim gönderildi.
-            </div>
-          )}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center gap-2">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-          {seniorViolations.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
-              <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
-              <div>
-                <span className="font-semibold">Kıdemli personel atanamadı:</span>{" "}
-                {seniorViolations.map((v, i) => (
-                  <span key={i} className="font-medium">
-                    {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} {v.shift}{i < seniorViolations.length - 1 ? ", " : ""}
-                  </span>
-                ))} vardiyasında kıdemli personel bulunamadı.
-              </div>
-            </div>
-          )}
-          {excludedCompliance.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
-              <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
-              <div>
-                <span className="font-semibold">{excludedCompliance.length} personel süresi dolmuş belge nedeniyle plana dahil edilmedi:</span>{" "}
-                {excludedCompliance.map((p, i) => (
-                  <span key={p.id} className="font-medium">
-                    {p.name} ({p.doc_type}){i < excludedCompliance.length - 1 ? ", " : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {toast && (
-            <div className={cn(
-              "rounded-xl px-4 py-3 text-sm font-semibold flex items-center gap-2",
-              toast.type === "success" && "bg-emerald-50 border border-emerald-200 text-emerald-700",
-              toast.type === "error"   && "bg-red-50 border border-red-200 text-red-700",
-              toast.type === "info"    && "bg-blue-50 border border-blue-200 text-blue-700",
-            )}>
-              {toast.type === "success" && <Check size={16} />}
-              {toast.type === "error"   && <AlertCircle size={16} />}
-              {toast.msg}
-            </div>
-          )}
-          {aiSummary !== null && (
-            <div className="bg-ember-50 border border-ember-200 rounded-2xl px-5 py-4 relative">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-ember-500" />
-                <span className="text-xs font-bold text-ember-700 uppercase tracking-wide">AI Hafta Özeti</span>
-              </div>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiLoading && !aiSummary ? "…" : aiSummary}</p>
-              <button onClick={() => setAiSummary(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><X size={14} /></button>
-            </div>
-          )}
-          {isPublishedWeek && !editUnlocked && editRequestStatus === "pending" && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
-              <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin shrink-0" />
-              <span className="flex-1">Düzenleme onayı patronda bekleniyor…</span>
-              <button onClick={() => setUnlockModal(true)} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">Detay</button>
-            </div>
-          )}
-          {isPublishedWeek && !editUnlocked && editRequestStatus === "rejected" && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-              <X size={14} className="shrink-0" />
-              <div className="flex-1">
-                <span>Düzenleme talebi reddedildi</span>
-                {editRequestReviewer && <span className="text-red-500"> ({editRequestReviewer})</span>}
-                {editRequestNote && <span className="italic"> &ldquo;{editRequestNote}&rdquo;</span>}
-              </div>
-              <button onClick={() => { setEditRequestStatus("idle"); setUnlockModal(true); }} className="text-xs font-bold text-red-600 hover:text-red-800 shrink-0">Tekrar İste</button>
-            </div>
-          )}
-          {isPublishedWeek && editUnlocked && editRequestStatus === "approved" && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
-              <CheckCircle2 size={14} className="shrink-0 text-emerald-500" />
-              <div className="flex-1">
-                <span className="font-semibold">Düzenleme modu açık</span>
-                {editRequestReviewer && <span className="text-emerald-500 font-normal"> ({editRequestReviewer} onayladı)</span>}
-              </div>
-              <span className="text-xs text-emerald-400 shrink-0">Yayınlayınca kapanır</span>
-            </div>
-          )}
-
-          {/* ── Haftalık notlar ── */}
-          {(() => {
-            const weekNotes = events.filter(e => e.scope === "week" && e.date === weekStart);
-            if (!weekNotes.length) return null;
-            return (
-              <div className="flex flex-wrap gap-2">
-                {weekNotes.map(ev => (
-                  <div key={ev.id} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
-                    <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
-                    <span className="font-bold">{ev.title}</span>
-                    {ev.note && <span className="opacity-60">({ev.note})</span>}
-                    <span className="text-[9px] opacity-50 uppercase tracking-wide">haftalık</span>
-                    <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Sil"><X size={11} /></button>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* ── Kapasite Planı ── */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setDemandOpen(o => !o)}
-              className="w-full flex items-center gap-3 px-5 py-3 bg-slate-50/60 hover:bg-slate-100/60 transition-colors text-left"
-            >
-              <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", demandOpen && "rotate-180")} />
-              <div className="flex-1">
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Personel İhtiyacı · kaç kişi gerekli?</p>
-                {!demandOpen && (
-                  <p className="text-xs text-slate-400 mt-0.5">Her gün, her vardiyada kaç kişiye ihtiyacınız olduğunu girin, Otomatik Oluştur tam bu sayıda kişi atar</p>
-                )}
-              </div>
-              {shiftDefs.length === 0 && (
-                <a href="/settings?tab=shifts" onClick={e => e.stopPropagation()} className="text-xs font-semibold text-forest-600 hover:underline flex items-center gap-1 shrink-0"><BookOpen size={12} /> Vardiya tanımla</a>
-              )}
-            </button>
-            {demandOpen && (loading ? (
+  // Personel İhtiyacı tablosu: hem sihirbazın 1. adımında hem de isteğe bağlı panelde kullanılır
+  const demandTableEl = (
+loading ? (
               <div className="p-4 space-y-2 border-t border-slate-100">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}</div>
             ) : shiftDefs.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya şablonu tanımlı değil. Yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
@@ -2629,21 +2288,301 @@ export default function SchedulePage() {
                   </tbody>
                 </table>
               </div>
-            ))}
+            )
+  );
+
+  // Haftanın uyarıları tek şeritte (components/schedule/WeekAlerts)
+  const weekAlerts: WeekAlert[] = [
+    ...(error ? [{ id: "error", tone: "danger" as const, title: error, action: { label: "Kapat", onClick: () => setError(null) } }] : []),
+    ...(capacityWarnings.length > 0 ? [{
+      id: "capacity", tone: "danger" as const,
+      title: "Personel ihtiyacı, mevcut personel sayısını aşıyor",
+      detail: <><ul className="list-disc list-inside space-y-0.5">{capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}</ul><p className="mt-1">Bu günlerde herkes uygun olsa bile otomatik planlama çözüm bulamaz. Sayıları azaltın.</p></>,
+      action: { label: "Tabloyu Aç", onClick: () => setDemandOpen(true) },
+    }] : []),
+    ...(isPublishedWeek && !editUnlocked && editRequestStatus === "rejected" ? [{
+      id: "edit-rejected", tone: "danger" as const,
+      title: `Düzenleme talebi reddedildi${editRequestReviewer ? ` (${editRequestReviewer})` : ""}`,
+      detail: editRequestNote ? <>&ldquo;{editRequestNote}&rdquo;</> : undefined,
+      action: { label: "Tekrar İste", onClick: () => { setEditRequestStatus("idle"); setUnlockModal(true); } },
+    }] : []),
+    ...(seniorViolations.length > 0 ? [{
+      id: "senior", tone: "warning" as const,
+      title: "Bazı vardiyalarda kıdemli personel yok",
+      detail: <>{seniorViolations.map(v => `${["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} ${v.shift}`).join(", ")}</>,
+    }] : []),
+    ...(excludedCompliance.length > 0 ? [{
+      id: "compliance", tone: "warning" as const,
+      title: `${excludedCompliance.length} kişi süresi dolmuş belge nedeniyle plana alınmadı`,
+      detail: <>{excludedCompliance.map(p => `${p.name} (${p.doc_type})`).join(", ")}</>,
+    }] : []),
+    ...(availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 ? [{
+      id: "availability", tone: "info" as const,
+      title: `${noAvailCount} kişi uygunluk girmedi`,
+      detail: "Otomatik planlamada tamamen uygun sayılırlar, plan engellenmez.",
+      action: { label: "Uygunluk İste", onClick: () => handleRequestAvailability() },
+    }] : []),
+    ...(isPublishedWeek && !editUnlocked && editRequestStatus === "pending" ? [{
+      id: "edit-pending", tone: "info" as const,
+      title: "Düzenleme onayı patronda bekleniyor",
+      action: { label: "Detay", onClick: () => setUnlockModal(true) },
+    }] : []),
+    ...(isPublishedWeek && editUnlocked && editRequestStatus === "approved" ? [{
+      id: "edit-approved", tone: "success" as const,
+      title: `Düzenleme modu açık${editRequestReviewer ? ` (${editRequestReviewer} onayladı)` : ""}`,
+      detail: "Yayınlayınca kapanır.",
+    }] : []),
+  ];
+
+  const demandEmpty =
+    Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v)) &&
+    Object.values(deptDemandMatrix).every(d => Object.values(d ?? {}).every(row => Object.values(row ?? {}).every(v => !v)));
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      {mounted && (
+        <div className="space-y-4">
+
+          {/* ── Sayfa başlığı ── */}
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Vardiya Planı</h1>
+            <p className="text-slate-400 text-xs mt-0.5">Hücreye tıklayarak vardiya ekle/düzenle, değişiklikler otomatik kaydedilir</p>
           </div>
 
-          {/* ── Otomatik oluştur onay diyalogu ── */}
-          {confirmGenerate && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
-              <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-amber-800">Mevcut vardiyalar silinecek</p>
-                <p className="text-xs text-amber-700 mt-0.5">{Object.keys(cellMap).length} adet vardiya var. Otomatik oluştur bunları silerek yeniden oluşturacak.</p>
+          {/* ── Üst bant ── */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Hafta navigasyonu */}
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <button onClick={() => setWeekOffset(o => o - 1)} disabled={weekOffset <= 0} className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-3 text-xs md:text-sm font-bold text-slate-800 whitespace-nowrap min-w-[140px] md:min-w-[200px] text-center">{weekLabel}</span>
+              <button onClick={() => setWeekOffset(o => o + 1)} className="p-2.5 hover:bg-slate-50 text-slate-600 transition-colors">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Durum çipi */}
+            {!loading && (
+              cellCount === 0 && dbShiftCount === 0 ? (
+                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap">Boş hafta</span>
+              ) : isPublishedWeek && !dirty ? (
+                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-100 text-emerald-700 whitespace-nowrap flex items-center gap-1">
+                  <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` · ${currentRevision}. güncelleme` : ""}
+                </span>
+              ) : isPublishedWeek && dirty ? (
+                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">Yayınlanmamış değişiklik</span>
+              ) : (
+                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-100 text-sky-700 whitespace-nowrap" title="Personel taslağı göremez">Taslak</span>
+              )
+            )}
+
+            {/* Otomatik kayıt göstergesi */}
+            {!isPublishedWeek && saveState !== "idle" && (
+              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
+                {saveState === "saving" ? "Kaydediliyor…" : <><Check size={11} className="text-emerald-500" /> Kaydedildi</>}
+              </span>
+            )}
+
+            {/* Canlı TL maliyet bütçesi */}
+            {laborCost.total > 0 && (
+              <span
+                title={
+                  (laborBudgetExceeded ? `Bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")} aşıldı. ` : "") +
+                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} personelin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
+                }
+                className={cn(
+                  "px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap flex items-center gap-1",
+                  laborBudgetExceeded ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                )}
+              >
+                ₺{laborCost.total.toLocaleString("tr-TR")}
+                {laborBudgetExceeded && " ⚠️"}
+              </span>
+            )}
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {/* Personel filtresi */}
+              {personnel.length > 5 && (
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm">
+                  <Search size={13} className="text-slate-400 shrink-0" />
+                  <input
+                    type="text" value={personnelFilter} onChange={e => setPersonnelFilter(e.target.value)}
+                    placeholder="Personel ara…"
+                    className="w-28 text-sm text-slate-700 placeholder-slate-400 bg-transparent outline-none"
+                  />
+                  {personnelFilter && <button onClick={() => setPersonnelFilter('')} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>}
+                </div>
+              )}
+
+              {/* Adalet dağılımı toggle */}
+              <button
+                onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı"
+                className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
+              >
+                <BarChart2 size={15} />
+              </button>
+
+              {/* ⋯ İşlemler menüsü */}
+              <div className="relative" data-actions-menu>
+                <button
+                  onClick={() => setActionsOpen(o => !o)}
+                  className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  <MoreHorizontal size={15} /> <span className="hidden sm:inline">İşlemler</span>
+                </button>
+                {actionsOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
+                    {cellCount > 0 && !(isPublishedWeek && !editUnlocked) && (
+                      <button onClick={() => { setActionsOpen(false); setWizardOpen(true); }} disabled={generating}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
+                      </button>
+                    )}
+                    <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
+                    </button>
+                    {availCollectionEnabled && (
+                      <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Bell size={13} className="text-amber-500" /> Uygunluk İste
+                      </button>
+                    )}
+                    <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
+                    </button>
+                    <button onClick={() => { setActionsOpen(false); handleSendForReview(); }} disabled={sendReviewLoading || !isDraftWeek}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
+                    </button>
+                    <div className="my-1 border-t border-slate-100" />
+                    {FEATURES.aiSummary && (
+                      <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
+                      </button>
+                    )}
+                    <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <Download size={13} className="text-slate-400" /> Excel İndir
+                    </a>
+                    <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
+                    </button>
+                    <div className="my-1 border-t border-slate-100" />
+                    <button onClick={undo} disabled={!canUndo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300">Ctrl+Z</span>
+                    </button>
+                    <button onClick={redo} disabled={!canRedo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
+                    </button>
+                    <div className="my-1 border-t border-slate-100" />
+                    <button onClick={() => { setActionsOpen(false); setPubsModalOpen(true); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <History size={13} className="text-slate-400" /> Yayın Geçmişi
+                    </button>
+                    <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
+                    </Link>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => setConfirmGenerate(false)} className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">İptal</button>
-                <button onClick={runGenerate} className="px-3 py-1.5 text-xs font-bold text-white bg-forest-600 rounded-lg hover:bg-forest-700 transition-colors">Evet, Oluştur</button>
+
+              {/* Birincil aksiyon: boş hafta → Haftayı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
+              {isPublishedWeek && !editUnlocked ? (
+                <button onClick={() => setUnlockModal(true)}
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
+                  🔒 Düzenle
+                </button>
+              ) : cellCount === 0 && !isPublishedWeek ? (
+                <button onClick={() => setWizardOpen(true)} disabled={generating || loading}
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-forest-700 rounded-xl hover:bg-forest-800 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                  <Sparkles size={14} /> Haftayı Oluştur
+                </button>
+              ) : (
+                <button onClick={handlePublish} disabled={publishLoading}
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                  <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Güncellemeyi Yayınla" : "Yayınla"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Uyarılar: tek şerit ── */}
+          <WeekAlerts alerts={weekAlerts} />
+          {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
+            <QuickSetup
+              locationId={activeLocationId}
+              shiftDefsCount={shiftDefs.length}
+              personnelCount={personnel.length}
+              demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
+            />
+          )}
+          {publishSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
+              <Check size={16} /> Vardiya programı yayınlandı! Personellere bildirim gönderildi.
+            </div>
+          )}
+          {toast && (
+            <div className={cn(
+              "rounded-xl px-4 py-3 text-sm font-semibold flex items-center gap-2",
+              toast.type === "success" && "bg-emerald-50 border border-emerald-200 text-emerald-700",
+              toast.type === "error"   && "bg-red-50 border border-red-200 text-red-700",
+              toast.type === "info"    && "bg-blue-50 border border-blue-200 text-blue-700",
+            )}>
+              {toast.type === "success" && <Check size={16} />}
+              {toast.type === "error"   && <AlertCircle size={16} />}
+              {toast.msg}
+            </div>
+          )}
+          {aiSummary !== null && (
+            <div className="bg-ember-50 border border-ember-200 rounded-2xl px-5 py-4 relative">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={14} className="text-ember-500" />
+                <span className="text-xs font-bold text-ember-700 uppercase tracking-wide">AI Hafta Özeti</span>
               </div>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiLoading && !aiSummary ? "…" : aiSummary}</p>
+              <button onClick={() => setAiSummary(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><X size={14} /></button>
+            </div>
+          )}
+
+          {/* ── Haftalık notlar ── */}
+          {(() => {
+            const weekNotes = events.filter(e => e.scope === "week" && e.date === weekStart);
+            if (!weekNotes.length) return null;
+            return (
+              <div className="flex flex-wrap gap-2">
+                {weekNotes.map(ev => (
+                  <div key={ev.id} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium group", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-100 text-slate-600 border-slate-200")}>
+                    <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
+                    <span className="font-bold">{ev.title}</span>
+                    {ev.note && <span className="opacity-60">({ev.note})</span>}
+                    <span className="text-[9px] opacity-50 uppercase tracking-wide">haftalık</span>
+                    <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Sil"><X size={11} /></button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* ── Personel İhtiyacı (isteğe bağlı panel; İşlemler menüsünden açılır) ── */}
+          {demandOpen && !wizardOpen && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
+                <p className="flex-1 text-[11px] font-black text-slate-500 uppercase tracking-widest">Personel İhtiyacı · kaç kişi gerekli?</p>
+                <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
+              </div>
+              {demandTableEl}
             </div>
           )}
 
@@ -2966,8 +2905,8 @@ export default function SchedulePage() {
             )}
           </div>
 
-          {/* ── OR-Tools oluşturuyor overlay ── */}
-          {generating && (
+          {/* ── Plan hazırlanıyor katmanı (sihirbaz dışı çağrılar için) ── */}
+          {generating && !wizardOpen && (
             <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 pointer-events-none">
               <div className="w-12 h-12 rounded-2xl bg-forest-100 flex items-center justify-center">
                 <Zap size={22} className="text-forest-600 animate-pulse" />
@@ -2977,6 +2916,29 @@ export default function SchedulePage() {
                 <p className="text-sm text-slate-400 mt-0.5">5–15 saniye sürebilir…</p>
               </div>
             </div>
+          )}
+
+          {/* ── Haftayı Oluştur sihirbazı ── */}
+          {wizardOpen && (
+            <GenerateWizard
+              weekLabel={weekLabel}
+              demandTable={demandTableEl}
+              demandEmpty={demandEmpty}
+              capacityWarnings={capacityWarnings}
+              personnelCount={personnel.length}
+              availabilityEnabled={availCollectionEnabled}
+              noAvailCount={noAvailCount}
+              onRemindAvailability={() => handleRequestAvailability(weekOffset)}
+              existingCellCount={cellCount}
+              generating={generating}
+              error={error}
+              generatedCount={cellCount}
+              seniorViolationCount={seniorViolations.length}
+              excludedCount={excludedCompliance.length}
+              onGenerate={runGenerate}
+              onPublish={handlePublish}
+              onClose={() => setWizardOpen(false)}
+            />
           )}
 
           {/* ── Düzenleme kilidi modalı ── */}

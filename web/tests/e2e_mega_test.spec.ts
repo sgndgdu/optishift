@@ -58,9 +58,14 @@ test("2) Rastgele şube — Otomatik Oluştur (OR-Tools) çöküyor mu", async (
   // asıl GELECEK haftada — bir hafta ileri git (ChevronRight, tek kullanım yeri).
   await page.locator("button:has(svg.lucide-chevron-right)").first().click();
 
-  // exact:true şart — Kapasite Planı panelinin açıklama metni de "Otomatik Oluştur"
-  // kelimesini içeriyor ve regex olmadan strict-mode ihlaline yol açıyor.
-  const generateBtn = page.getByRole("button", { name: "Otomatik Oluştur", exact: true });
+  // Boş hafta → "Haftayı Oluştur" sihirbazı: Kaç kişi? → Kontrol → Oluştur
+  await page.getByRole("button", { name: /Haftayı Oluştur/ }).click();
+  const wizard = page.getByRole("dialog", { name: "Haftayı Oluştur" });
+  await expect(wizard).toBeVisible({ timeout: 15_000 });
+  await wizard.getByRole("button", { name: /İleri/ }).click();
+  await expect(wizard.getByText("Oluşturmadan önce kontrol")).toBeVisible();
+  await wizard.getByRole("button", { name: /İleri/ }).click();
+  const generateBtn = wizard.getByRole("button", { name: /Planı Oluştur/ });
   await expect(generateBtn).toBeVisible({ timeout: 15_000 });
 
   const start = Date.now();
