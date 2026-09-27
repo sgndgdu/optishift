@@ -3,8 +3,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Building2, Plug, Plus, Save, X, Check, Sparkles, UserCircle } from "lucide-react";
+import { Settings, Building2, Plug, Plus, Save, Check, Sparkles, UserCircle } from "lucide-react";
 import AccountTab from "@/components/AccountTab";
+import NewBranchWizard from "@/components/NewBranchWizard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,8 @@ export default function SupervisorSettingsPage() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Yeni şube formu
+  // Yeni şube sihirbazı (components/NewBranchWizard); ?new=1 ile açık gelir
   const [showAddBranch, setShowAddBranch] = useState(false);
-  const [newBranchName, setNewBranchName] = useState("");
-  const [addBranchLoading, setAddBranchLoading] = useState(false);
-  const [addBranchError, setAddBranchError] = useState("");
-  const [addBranchSuccess, setAddBranchSuccess] = useState(false);
 
   // ERP formu
   const [selectedErp, setSelectedErp] = useState("none");
@@ -49,6 +46,8 @@ export default function SupervisorSettingsPage() {
       const stored = localStorage.getItem("optishift_supervisor_user");
       const parsed = stored ? JSON.parse(stored) : null;
       if (parsed) setUser(parsed);
+      // Genel Bakış'taki "Şube Ekle" → ?new=1 (istemci geçişinde adres effect'te günceldir)
+      if (new URLSearchParams(window.location.search).get("new") === "1") setShowAddBranch(true);
       setMounted(true);
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,32 +75,6 @@ export default function SupervisorSettingsPage() {
       setSelectedErp(orgRecord?.connected_erp ?? "none");
     } catch {}
     setLoading(false);
-  };
-
-  const handleAddBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBranchName.trim()) return;
-    setAddBranchLoading(true);
-    setAddBranchError("");
-    try {
-      const res = await fetch("/api/locations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ org_id: user.org_id, name: newBranchName.trim() }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        setAddBranchError(d.error ?? "Hata");
-      } else {
-        setAddBranchSuccess(true);
-        setNewBranchName("");
-        await loadData();
-        setTimeout(() => { setAddBranchSuccess(false); setShowAddBranch(false); }, 1500);
-      }
-    } catch {
-      setAddBranchError("Sunucu hatası");
-    }
-    setAddBranchLoading(false);
   };
 
   const handleSaveErp = async () => {
@@ -189,12 +162,12 @@ export default function SupervisorSettingsPage() {
               <CardTitle className="text-base font-bold">Şubeler</CardTitle>
               <Badge variant="secondary">{locations.length}</Badge>
             </div>
-            {user.role === "admin" && (
+            {(user.role === "admin" || user.role === "supervisor") && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 border-ember-200 text-ember-700 hover:bg-ember-50"
-                onClick={() => { setShowAddBranch(true); setAddBranchError(""); setAddBranchSuccess(false); }}
+                onClick={() => setShowAddBranch(true)}
               >
                 <Plus size={14} />
                 Şube Ekle
@@ -231,31 +204,14 @@ export default function SupervisorSettingsPage() {
             </div>
           )}
 
-          {/* Yeni Şube Formu */}
-          {showAddBranch && (
-            <div className="mt-4 p-4 bg-ember-50 border border-ember-100 rounded-2xl">
-              <p className="text-sm font-bold text-ember-800 mb-3">Yeni Şube</p>
-              <form onSubmit={handleAddBranch} className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={newBranchName}
-                  onChange={e => setNewBranchName(e.target.value)}
-                  placeholder="Şube adı (örn: İstanbul Kadıköy)"
-                  required
-                  className="flex-1 px-4 py-2.5 border-2 border-ember-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 bg-white min-h-[44px]"
-                />
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={addBranchLoading} size="sm" className="bg-ember-600 hover:bg-ember-700 text-white flex-1 sm:flex-none min-h-[44px]">
-                    {addBranchLoading
-                      ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      : addBranchSuccess ? <Check size={14} /> : <Save size={14} />}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShowAddBranch(false)} className="flex-1 sm:flex-none min-h-[44px]">
-                    <X size={14} />
-                  </Button>
-                </div>
-              </form>
-              {addBranchError && <p className="text-xs text-red-600 font-medium mt-2">{addBranchError}</p>}
-            </div>
+          {/* Yeni Şube sihirbazı */}
+          {showAddBranch && !loading && (
+            <NewBranchWizard
+              existing={locations}
+              planLimited={(org?.plan ?? "free") === "free" && locations.length >= 1}
+              // Liste sihirbaz kapanınca yenilenir: açıkken yenilenirse (loading) sihirbaz baştan başlar
+              onClose={() => { setShowAddBranch(false); loadData(); }}
+            />
           )}
         </CardContent>
       </Card>

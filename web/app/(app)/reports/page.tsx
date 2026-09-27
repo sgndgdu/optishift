@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
 
@@ -325,13 +326,20 @@ const REPORT_TABS = [
 ] as const;
 type ReportTab = typeof REPORT_TABS[number]["key"];
 
+// useSearchParams (?tab=adalet, /fairness yönlendirmesi) Suspense sınırı ister
 export default function ReportsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReportsPageInner />
+    </Suspense>
+  );
+}
+
+function ReportsPageInner() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReportTab>(() => {
-    if (typeof window !== "undefined") {
-      const t = new URLSearchParams(window.location.search).get("tab");
-      if (REPORT_TABS.some(x => x.key === t)) return t as ReportTab;
-    }
-    return "saatler";
+    const t = searchParams.get("tab");
+    return REPORT_TABS.some(x => x.key === t) ? (t as ReportTab) : "saatler";
   });
 
   const selectTab = (key: ReportTab) => {

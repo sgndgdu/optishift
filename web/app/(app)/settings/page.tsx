@@ -8,6 +8,7 @@ import {
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
+import { geocodePlace } from "@/lib/geo";
 import { QRCodeSVG } from "qrcode.react";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -713,14 +714,12 @@ export default function SettingsPage() {
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
     try {
       setWeatherStatus("searching");
-      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=tr&format=json`);
-      const d = await r.json();
-      const result = d.results?.[0];
+      // "İstanbul, Kadıköy" gibi aramalar için ilçe + il eşleştirmesi (lib/geo.ts)
+      const result = await geocodePlace(city);
       if (!result) { setWeatherStatus("error"); return null; }
-      const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
-      setWeatherLabel(label);
+      setWeatherLabel(result.label);
       setWeatherStatus("found");
-      return { lat: result.latitude, lon: result.longitude, label };
+      return { lat: result.latitude, lon: result.longitude, label: result.label };
     } catch {
       setWeatherStatus("error");
       return null;

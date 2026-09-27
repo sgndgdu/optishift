@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useRef, useCallback, Fragment, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
@@ -312,11 +313,20 @@ interface Popover {
   endMin: number;
 }
 
+// useSearchParams (Ana Sayfa'dan ?week=next) Suspense sınırı ister
 export default function SchedulePage() {
+  return (
+    <Suspense fallback={null}>
+      <SchedulePageInner />
+    </Suspense>
+  );
+}
+
+function SchedulePageInner() {
+  const searchParams = useSearchParams();
   const [mounted, setMounted]                      = useState(false);
   // ?week=next → gelecek hafta açılır (Ana Sayfa "Planı Oluştur" bağlantısı)
-  const [weekOffset, setWeekOffset]               = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("week") === "next" ? 1 : 0);
+  const [weekOffset, setWeekOffset]               = useState(() => searchParams.get("week") === "next" ? 1 : 0);
   const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);
   const weekLabel = useMemo(() => mounted ? getWeekLabel(weekOffset).label : "", [weekOffset, mounted]);
   // dates, weekStart'tan türetilir — ayrı state tutmak senkron sorununa yol açıyor

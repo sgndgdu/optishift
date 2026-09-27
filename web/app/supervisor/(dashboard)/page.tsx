@@ -129,7 +129,7 @@ export default function SupervisorDashboard() {
             Hoş geldiniz, <strong>{user?.name}</strong>. Tüm şubelerinizin özeti aşağıda.
           </p>
         </div>
-        <Link href="/supervisor/settings" className="shrink-0">
+        <Link href="/supervisor/settings?new=1" className="shrink-0">
           <Button variant="outline" className="gap-2 w-full sm:w-auto">
             <Plus size={16} />
             Şube Ekle
@@ -249,7 +249,7 @@ export default function SupervisorDashboard() {
                 İlk kurulumu tamamladıysanız şubeleriniz burada görünecek.<br />
                 Yoksa Ayarlar sayfasından ekleyebilirsiniz.
               </p>
-              <Link href="/supervisor/settings">
+              <Link href="/supervisor/settings?new=1">
                 <Button className="gap-2">
                   <Plus size={15} /> Şube Ekle
                 </Button>
