@@ -503,6 +503,8 @@ function SchedulePageInner() {
   // Init: mounted + location + tarihler (tümü client-only)
   useEffect(() => {
     setMounted(true);
+    // Planlama motorunu arka planda uyandır (uyuyorsa ilk oluşturma ~25 sn gecikir)
+    fetch("/api/engine/warm").catch(() => {});
 
     let locId = "";
     try {

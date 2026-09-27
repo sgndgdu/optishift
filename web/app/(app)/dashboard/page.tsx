@@ -139,6 +139,8 @@ export default function DashboardPage() {
     if (!mounted || !user) return;
     if (!user.location_id) { router.push("/onboarding"); return; }
     loadData(user);
+    // Planlama motorunu arka planda uyandır: müdür buradan "Planı Oluştur"a geçene kadar ısınır
+    fetch("/api/engine/warm").catch(() => {});
 
     // Otomatik uygunluk hatırlatması — vadesi geldiyse haftada bir kez tetiklenir
     // (cron yok; endpoint kendi içinde "vadesi geldi mi / bu hafta gönderildi mi" kontrolü yapar)
