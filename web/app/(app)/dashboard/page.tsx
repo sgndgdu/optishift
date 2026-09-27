@@ -337,7 +337,7 @@ export default function DashboardPage() {
                 const showRisk = item.id === "fatigue" && (expanded.fatigue ?? item.severity === "critical");
                 return (
                   <li key={item.id} className="px-5 py-4">
-                    <div className="flex items-center gap-3.5">
+                    <div className="flex items-start sm:items-center gap-3.5">
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", sev.icon)}>
                         <Icon size={18} />
                       </div>
@@ -347,8 +347,10 @@ export default function DashboardPage() {
                           <span className={cn("font-bold", sev.labelCls)}>{sev.label}</span>
                           {item.detail && <> · {item.detail}</>}
                         </p>
+                        {/* Telefonda düğme metnin altında, başlığı sıkıştırmasın */}
+                        <div className="flex mt-2.5 sm:hidden">{renderAction(item)}</div>
                       </div>
-                      {renderAction(item)}
+                      <div className="hidden sm:flex">{renderAction(item)}</div>
                     </div>
                     {showRisk && (
                       <div className="mt-3 ml-[54px] space-y-2">
