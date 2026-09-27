@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
-import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock } from "lucide-react";
+import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
+import FairnessReport from "@/components/reports/FairnessReport";
 
 interface ReportRow {
   personnel_id: string;
@@ -35,7 +36,7 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default function ReportsPage() {
+function WorkHoursReport() {
   const [month, setMonth] = useState(currentMonth());
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [locationName, setLocationName] = useState("");
@@ -131,17 +132,12 @@ export default function ReportsPage() {
   const hasCost = rows.some(r => r.overtime_cost !== null && r.overtime_cost !== undefined);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-ember-100 flex items-center justify-center">
-            <BarChart2 size={20} className="text-ember-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Çalışma Saati Raporu</h1>
-            <p className="text-sm text-slate-500">Personel bazında aylık özet (sadece yayınlanan vardiyalar)</p>
-          </div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Çalışma Saatleri</h2>
+          <p className="text-sm text-slate-500">Personel bazında aylık özet (sadece yayınlanan vardiyalar)</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -316,6 +312,61 @@ export default function ReportsPage() {
       <p className="text-xs text-slate-400 text-center">
         Fazla mesai hesabı: şube ayarlarındaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
       </p>
+    </div>
+  );
+}
+
+// ─── Sayfa: sekmeli Raporlar ─────────────────────────────────────────────────
+// ?tab=adalet derin linki desteklenir (eski /fairness adresi buraya yönlendirir).
+
+const REPORT_TABS = [
+  { key: "saatler", label: "Çalışma Saatleri", icon: Clock },
+  { key: "adalet",  label: "Adalet Puanı",     icon: Scale },
+] as const;
+type ReportTab = typeof REPORT_TABS[number]["key"];
+
+export default function ReportsPage() {
+  const [tab, setTab] = useState<ReportTab>(() => {
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (REPORT_TABS.some(x => x.key === t)) return t as ReportTab;
+    }
+    return "saatler";
+  });
+
+  const selectTab = (key: ReportTab) => {
+    setTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", key);
+    window.history.replaceState(null, "", url);
+  };
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-ember-100 flex items-center justify-center">
+          <BarChart2 size={20} className="text-ember-600" />
+        </div>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-900">Raporlar</h1>
+      </div>
+
+      <div className="flex items-center gap-1 border-b border-slate-200" role="tablist">
+        {REPORT_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => selectTab(key)}
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === key ? "border-forest-600 text-forest-700" : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Icon size={14} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "saatler" ? <WorkHoursReport /> : <FairnessReport />}
     </div>
   );
 }

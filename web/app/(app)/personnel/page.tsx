@@ -426,7 +426,7 @@ export default function PersonnelPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Personel & Hesaplar</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Ekip</h1>
           <p className="text-slate-500 text-sm mt-0.5">{persons.length} hesap</p>
         </div>
         <div className="flex gap-2 flex-wrap">

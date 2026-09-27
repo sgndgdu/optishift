@@ -12,15 +12,12 @@ export interface SectorPreset {
   shiftDefs: ShiftDefinition[];
   /** Sektöre uygun departman önerileri */
   depts: string[];
-  /** Basit mod: KOBİ sektörlerinde sidebar/ayarlar sade açılır (bkz. rules.simple_mode) */
-  simpleMode: boolean;
 }
 
 export const SECTOR_PRESETS: SectorPreset[] = [
   {
     key: "cafe",
     label: "Kafe / Bar",
-    simpleMode: true,
     depts: ["Mutfak", "Bar", "Salon", "Kasa"],
     shiftDefs: [
       { id: "s1", name: "Açılış",  start: "07:00", end: "13:00", base_points: 5 },
@@ -31,7 +28,6 @@ export const SECTOR_PRESETS: SectorPreset[] = [
   {
     key: "retail",
     label: "Perakende",
-    simpleMode: true,
     depts: ["Kasa", "Reyon", "Depo", "Güvenlik"],
     shiftDefs: [
       { id: "s1", name: "Sabah",      start: "09:00", end: "17:00", base_points: 3 },
@@ -42,7 +38,6 @@ export const SECTOR_PRESETS: SectorPreset[] = [
   {
     key: "hotel",
     label: "Otel / Konaklama",
-    simpleMode: true,
     depts: ["Resepsiyon", "Kat Hizmetleri", "Restaurant", "Bar", "Mutfak"],
     shiftDefs: [
       { id: "s1", name: "Gündüz", start: "07:00", end: "15:00", base_points: 3 },
@@ -53,7 +48,6 @@ export const SECTOR_PRESETS: SectorPreset[] = [
   {
     key: "restaurant",
     label: "Restoran",
-    simpleMode: true,
     depts: ["Mutfak", "Servis", "Bar", "Kasa"],
     shiftDefs: [
       { id: "s1", name: "Öğle Servisi",  start: "10:00", end: "16:00", base_points: 3 },
@@ -63,7 +57,6 @@ export const SECTOR_PRESETS: SectorPreset[] = [
   {
     key: "factory",
     label: "Fabrika / Üretim",
-    simpleMode: false, // rotasyon/ekip/mesai yüzeyleri gerekir — gelişmiş mod
     depts: ["Üretim", "Kalite Kontrol", "Depo", "Bakım"],
     shiftDefs: [
       { id: "s1", name: "Sabah Vardiyası",  start: "06:00", end: "14:00", base_points: 5 },

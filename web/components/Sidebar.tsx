@@ -34,47 +34,64 @@ function usePendingAccounts(isAdmin: boolean) {
   return count;
 }
 
-function usePendingOvertime() {
+// Onaylar rozeti: Onaylar sayfasının "bekleyen" saydığı dört kalemin toplamı
+// (takas, değişiklik, izin, fazla mesai). Aynı filtreler requests/page.tsx'te.
+function usePendingApprovals(orgId: string | undefined) {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    const locId = localStorage.getItem("optishift_selected_location") || "";
-    const tick = () => fetch(`/api/overtime?location_id=${locId}&status=pending`)
-      .then(r => r.json())
-      .then(d => setCount(Array.isArray(d) ? d.length : 0))
-      .catch(() => {});
+    if (!orgId) return;
+    const tick = () => {
+      const locId = localStorage.getItem("optishift_selected_location") || "";
+      const list = (url: string) => fetch(url).then(r => r.json()).then(d => (Array.isArray(d) ? d : [])).catch(() => []);
+      Promise.all([
+        list(`/api/swap-requests?org_id=${orgId}&location_id=${locId}&status=peer_accepted`),
+        list(`/api/shift-edit-requests?org_id=${orgId}&location_id=${locId}`),
+        list(`/api/leave-requests?location_id=${locId}`),
+        list(`/api/overtime?location_id=${locId}&status=pending`),
+      ]).then(([swaps, edits, leaves, overtimes]) => setCount(
+        swaps.filter((s: any) => s.status === "peer_accepted").length +
+        edits.filter((e: any) => e.status === "pending").length +
+        leaves.filter((l: any) => l.status === "pending").length +
+        overtimes.filter((o: any) => o.status === "pending").length
+      ));
+    };
     tick();
     const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
-  }, []);
+    window.addEventListener("optishift_location_changed", tick);
+    return () => { clearInterval(id); window.removeEventListener("optishift_location_changed", tick); };
+  }, [orgId]);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, Star, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Archive, Timer, HelpCircle, Wallet, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Timer, HelpCircle, Wallet, ClipboardCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
 
-// simple: true → Basit Mod'da (rules.simple_mode) her zaman görünür; kalanlar "Gelişmiş" grubuna katlanır
+// group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
+// group: "more"  → katlanır "Daha Fazla" grubu (kapalı başlar)
+// group: "footer"→ en altta, her zaman görünür (Ayarlar)
 // feature → lib/features.ts bayrağı kapalıysa link hiç gösterilmez (build geneli)
-// module → aktif şubede bu özellik kapalıysa link hiç gösterilmez (varsayılanlar lib/moduleVisibility.ts'te)
+// module  → aktif şubede bu özellik kapalıysa link hiç gösterilmez (varsayılanlar lib/moduleVisibility.ts'te)
+// Yayın Arşivi Vardiya Planı'nın, Adalet Puanı Raporlar'ın içinde; menüde ayrı bağlantıları yok.
 const NAV = [
-  { href: "/dashboard",    label: "Ana Sayfa",       icon: LayoutDashboard, simple: true },
-  { href: "/personnel",    label: "Personel & Hesaplar", icon: Users,       simple: true },
-  { href: "/schedule",         label: "Vardiya Planı",  icon: CalendarClock, simple: true },
-  { href: "/schedule/archive", label: "Yayın Arşivi",   icon: Archive,       simple: false },
-  { href: "/fairness",         label: "Adalet Puanı",   icon: Star,          simple: false },
-  { href: "/requests",     label: "Onaylar",           icon: ClipboardList,  simple: true },
-  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false, module: "open_shifts_enabled" },
-  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false, module: "overtime_tracking_enabled" },
-  { href: "/tip-pools",    label: "Bahşiş Havuzu",     icon: Wallet,         simple: false, module: "tip_pooling_enabled" },
-  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck, simple: false, module: "handover_log_enabled" },
-  { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false, feature: "breaks" },
-  { href: "/reports",      label: "Raporlar",          icon: BarChart2,      simple: false },
-  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true, module: "chat_enabled" },
-  { href: "/integrations", label: "Entegrasyonlar",   icon: Plug,            simple: false, feature: "integrations" },
-  { href: "/billing",      label: "Faturalandırma",   icon: CreditCard,      simple: false, feature: "billing" },
-  { href: "/settings",     label: "Ayarlar",          icon: Settings,        simple: true },
+  { href: "/dashboard",    label: "Ana Sayfa",              icon: LayoutDashboard, group: "main" },
+  { href: "/schedule",     label: "Vardiya Planı",          icon: CalendarClock,   group: "main" },
+  { href: "/personnel",    label: "Ekip",                   icon: Users,           group: "main" },
+  { href: "/requests",     label: "Onaylar",                icon: ClipboardList,   group: "main" },
+  { href: "/reports",      label: "Raporlar",               icon: BarChart2,       group: "more" },
+  { href: "/chat",         label: "Mesajlaşma",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
+  { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
+  { href: "/overtime",     label: "Fazla Mesai",            icon: Timer,           group: "more", module: "overtime_tracking_enabled" },
+  { href: "/tip-pools",    label: "Bahşiş Havuzu",          icon: Wallet,          group: "more", module: "tip_pooling_enabled" },
+  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
+  { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
+  { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
+  { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing" },
+  { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
+
+const MORE_OPEN_KEY = "optishift_nav_more_open";
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
@@ -82,10 +99,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const [user, setUser] = useState<any>(null);
   const chatUnread = useChatUnread();
   const pendingAccounts = usePendingAccounts(user?.role === "admin" || user?.role === "supervisor");
-  const pendingOvertime = usePendingOvertime();
+  const pendingApprovals = usePendingApprovals(user?.org_id);
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
-  const [showAdvancedNav, setShowAdvancedNav] = useState(false); // Basit Mod'da "Gelişmiş" grubu
+  const [moreOpen, setMoreOpen] = useState(false); // "Daha Fazla" grubu, tercih localStorage'da hatırlanır
+
+  const toggleMore = () => setMoreOpen(v => {
+    try { localStorage.setItem(MORE_OPEN_KEY, v ? "0" : "1"); } catch { /* yok say */ }
+    return !v;
+  });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -98,6 +120,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     } catch {}
 
     if (parsedUser) setUser(parsedUser);
+    try { if (localStorage.getItem(MORE_OPEN_KEY) === "1") setMoreOpen(true); } catch { /* yok say */ }
 
     // Manager: her zaman kendi location_id'sini kullan, localStorage'daki eski değeri yok say
     if (parsedUser?.role === "manager") {
@@ -163,9 +186,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const activeLocation = locations.find(l => l.id === selectedLocationId);
 
-  // Aktif lokasyonun rules objesi — Basit Mod ve şube bazlı modül aç/kapa bayrakları buradan okunur
+  // Aktif şubenin rules objesi — özellik aç/kapa bayrakları buradan okunur
   const rules = parseRules(activeLocation?.rules);
-  const simpleMode = rules?.simple_mode === true;
 
   return (
     <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
@@ -247,11 +269,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
             .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
             .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
+          const badgeOf = (href: string) =>
+            href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
+            href === "/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
+            href === "/requests"  ? { n: pendingApprovals, tone: "bg-amber-500" } :
+            { n: 0, tone: "" };
           const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
-            const active       = pathname.startsWith(href);
-            const isChat       = href === "/chat";
-            const isAccounts   = href === "/personnel";
-            const isOvertime   = href === "/overtime";
+            const active = pathname.startsWith(href);
+            const badge  = badgeOf(href);
             return (
               <Link
                 key={href}
@@ -267,54 +292,41 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {active && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
                 )}
-                <div className="relative shrink-0">
-                  <Icon size={18} className={cn("transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
-                  {isChat && chatUnread > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
-                  )}
-                  {isAccounts && pendingAccounts > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingAccounts}</span>
-                  )}
-                  {isOvertime && pendingOvertime > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{pendingOvertime}</span>
-                  )}
-                </div>
+                <Icon size={18} className={cn("shrink-0 transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
                 {label}
-                {isChat && chatUnread > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{chatUnread}</span>
-                )}
-                {isAccounts && pendingAccounts > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingAccounts}</span>
-                )}
-                {isOvertime && pendingOvertime > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingOvertime}</span>
+                {badge.n > 0 && (
+                  <span className={cn("ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center", badge.tone)}>{badge.n}</span>
                 )}
               </Link>
             );
           };
 
-          if (!simpleMode) return items.map(renderItem);
-
-          // Basit Mod: çekirdek sayfalar + katlanır "Gelişmiş" grubu.
-          // Gelişmiş grupta bekleyen mesai onayı varsa veya aktif sayfa oradaysa grup açık başlar.
-          const core = items.filter(i => i.simple);
-          const advanced = items.filter(i => !i.simple);
-          const advancedActive = advanced.some(i => pathname.startsWith(i.href));
-          const open = showAdvancedNav || advancedActive || pendingOvertime > 0;
+          const main   = items.filter(i => i.group === "main");
+          const more   = items.filter(i => i.group === "more");
+          const footer = items.filter(i => i.group === "footer");
+          // Aktif sayfa gruptaysa grup açık görünür; kapalıyken grup içindeki okunmamış mesaj başlıkta gösterilir
+          const open = moreOpen || more.some(i => pathname.startsWith(i.href));
+          const hiddenUnread = more.some(i => i.href === "/chat") ? chatUnread : 0;
           return (
             <>
-              {core.map(renderItem)}
-              <button
-                onClick={() => setShowAdvancedNav(v => !v)}
-                className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
-              >
-                Gelişmiş
-                <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
-                {!open && pendingOvertime > 0 && (
-                  <span className="ml-auto bg-amber-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{pendingOvertime}</span>
-                )}
-              </button>
-              {open && advanced.map(renderItem)}
+              {main.map(renderItem)}
+              {more.length > 0 && (
+                <>
+                  <button
+                    onClick={toggleMore}
+                    aria-expanded={open}
+                    className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                  >
+                    Daha Fazla
+                    <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+                    {!open && hiddenUnread > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{hiddenUnread}</span>
+                    )}
+                  </button>
+                  {open && more.map(renderItem)}
+                </>
+              )}
+              {footer.length > 0 && <div className="pt-3 mt-3 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
             </>
           );
         })()}

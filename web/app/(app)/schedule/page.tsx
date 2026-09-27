@@ -6,8 +6,9 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive,
 } from "lucide-react";
+import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
@@ -2242,6 +2243,10 @@ export default function SchedulePage() {
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <History size={13} className="text-slate-400" /> Yayın Geçmişi
                     </button>
+                    <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
+                    </Link>
                   </div>
                 )}
               </div>
@@ -3034,6 +3039,9 @@ export default function SchedulePage() {
                     <History size={16} className="text-slate-400" />
                     <h2 className="text-base font-bold text-slate-800">Yayın Geçmişi</h2>
                   </div>
+                  <Link href="/schedule/archive" className="ml-auto mr-3 text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+                    <Archive size={12} /> Tüm arşivi aç
+                  </Link>
                   <button onClick={() => setPubsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X size={16} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto">

@@ -249,7 +249,7 @@ export default function DashboardPage() {
     { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         ...kpiToneClasses("neutral"),  href: "/personnel" },
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         ...kpiToneClasses("attention"), href: "/requests" },
     { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} boş vardiya` : "Tüm vardiyalar dolu", icon: CalendarCheck, ...kpiToneClasses(openCount > 0 ? "attention" : "neutral"), href: "/open-shifts" },
-    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet puanı", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/fairness" },
+    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet puanı", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/reports?tab=adalet" },
     // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023), rules.publish_lead_kpi_enabled ile kapatılabilir
     ...(publishLeadKpiEnabled ? [{
       label: "Erken Yayın",
@@ -484,7 +484,7 @@ export default function DashboardPage() {
                 </div>
                 <CardTitle className="text-base font-bold">Adalet Puanı Dağılımı</CardTitle>
               </div>
-              <Link href="/fairness" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
+              <Link href="/reports?tab=adalet" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
                 Tümü <ArrowRight size={12} />
               </Link>
             </div>

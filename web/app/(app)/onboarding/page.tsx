@@ -80,7 +80,6 @@ export default function OnboardingWizard() {
     setSaving(true);
     setError("");
     try {
-      const preset = getSectorPreset(sector);
       const validBranches = branches.map(n => n.trim()).filter(Boolean);
 
       // Mevcut şubeleri çek — aynı isme sahip olanları yeniden oluşturma (idempotent)
@@ -127,7 +126,6 @@ export default function OnboardingWizard() {
               rules: {
                 max_weekly_hours: 45,
                 min_rest_hours: 11,
-                simple_mode: preset.simpleMode,
               },
             }),
           })

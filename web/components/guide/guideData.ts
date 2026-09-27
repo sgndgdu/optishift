@@ -78,7 +78,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
       },
       {
         id: "mudur-personel",
-        title: "Personel & Hesaplar",
+        title: "Ekip",
         icon: Users,
         paragraphs: [
           "Personel eklerken isim, telefon ve rol yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
@@ -109,7 +109,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Star,
         paragraphs: [
           "Bu, OptiShift’in çekirdek fikridir: hafta sonu, gece ve tercih edilmeyen vardiyaların zamanla herkese dengeli dağılması için her vardiyanın bir “yükü” hesaplanır. Sürekli hafta sonu çalışan biri varsa sistem bunu fark eder ve bir sonraki planlamada dengelemeye çalışır.",
-          "Bu sayfadan kimin ne kadar yüklü olduğunu ve son haftaların dökümünü görürsünüz. Personel de kendi puanını kendi hesabından görebilir, ama başkalarının puanını göremez.",
+          "Raporlar → Adalet Puanı sekmesinden kimin ne kadar yüklü olduğunu ve son haftaların dökümünü görürsünüz. Personel de kendi puanını kendi hesabından görebilir, ama başkalarının puanını göremez.",
         ],
       },
       {

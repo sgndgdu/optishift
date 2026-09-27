@@ -270,18 +270,6 @@ export default function SettingsPage() {
   const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(4);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
 
-  // Basit mod — sidebar/ayarlar sade görünüm (rules.simple_mode, batched save)
-  const [simpleMode, setSimpleMode]           = useState(false);
-  const [showAdvancedTabs, setShowAdvancedTabs] = useState(false); // oturumluk "tümünü göster"
-
-  // Derin link gizli bir sekmeye geldiyse (örn. ?tab=rules) gelişmiş görünümü otomatik aç
-  useEffect(() => {
-    if (simpleMode && !showAdvancedTabs && !["shifts", "requests", "account"].includes(activeTab)) {
-      setShowAdvancedTabs(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simpleMode, activeTab]);
-
   // Fazla mesai kuralları
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
@@ -442,7 +430,6 @@ export default function SettingsPage() {
           if (typeof loc.rules?.max_break_duration_min === "number")    setMaxBreakDurationMin(loc.rules.max_break_duration_min);
           if (typeof loc.rules?.fairness_window_weeks === "number")     setFairnessWindowWeeks(loc.rules.fairness_window_weeks);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
-          if (typeof loc.rules?.simple_mode === "boolean")              setSimpleMode(loc.rules.simple_mode);
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
@@ -574,7 +561,6 @@ export default function SettingsPage() {
             locationLat: lat,
             locationLon: lon,
             changeCompensationEnabled: loc.rules?.change_compensation_enabled !== false,
-            simpleMode: typeof loc.rules?.simple_mode === "boolean" ? loc.rules.simple_mode : false,
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
@@ -625,7 +611,6 @@ export default function SettingsPage() {
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       changeCompensationEnabled,
-      simpleMode,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
@@ -817,7 +802,6 @@ export default function SettingsPage() {
             clopening_penalty_weight:           clopeningPenaltyWeight,
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
-            simple_mode:                        simpleMode,
             overtime_fair_distribution:         overtimeFairDistribution,
             weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             weekly_labor_budget_try:            weeklyLaborBudgetTry,
@@ -866,7 +850,6 @@ export default function SettingsPage() {
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
-        simpleMode,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
@@ -950,15 +933,9 @@ export default function SettingsPage() {
     return Math.round((dur / 60) * 10) / 10;
   };
 
-  // Basit modda çekirdek sekmeler; "Gelişmiş ayarları göster" ile tamamı açılır (oturumluk)
-  const SIMPLE_TAB_KEYS: TabKey[] = ["shifts", "requests", "account"];
-  const visibleTabs = simpleMode && !showAdvancedTabs
-    ? TABS.filter(t => SIMPLE_TAB_KEYS.includes(t.key))
-    : TABS;
-
   const TabBar = () => (
     <div className="flex items-center border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
-      {visibleTabs.map(tab => (
+      {TABS.map(tab => (
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
@@ -974,14 +951,6 @@ export default function SettingsPage() {
           {tab.label}
         </button>
       ))}
-      {simpleMode && (
-        <button
-          onClick={() => setShowAdvancedTabs(v => !v)}
-          className="ml-auto mr-2 text-xs font-semibold text-slate-400 hover:text-forest-600 whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-forest-50 transition-colors"
-        >
-          {showAdvancedTabs ? "Sade görünüme dön" : "Gelişmiş ayarları göster"}
-        </button>
-      )}
     </div>
   );
 
@@ -1190,13 +1159,6 @@ export default function SettingsPage() {
           {/* ─── KURALLAR ─── */}
           {activeTab === "rules" && (
             <div className="space-y-4">
-              <SectionCard title="Görünüm">
-                <RuleRow
-                  label="Basit Mod"
-                  description="Açıkken menü ve ayarlar sadeleşir: sadece günlük işler için gereken sayfalar görünür. Gelişmiş özellikler (adalet ayarları, rotasyon, entegrasyonlar) gizlenir ama tek tıkla erişilebilir kalır."
-                  right={<Toggle on={simpleMode} onToggle={() => setSimpleMode(v => !v)} />}
-                />
-              </SectionCard>
               <SectionCard title="Planlama Kuralları">
                 <RuleRow
                   label="Kıdemli Personel Kuralı"
