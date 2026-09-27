@@ -43,7 +43,7 @@ export function KPICards({ fairness_gap, assignments, personnel, scores }: KPICa
     {
       label: "Adalet Farkı",
       value: `${fairness_gap}p`,
-      sub: fairness_gap === 0 ? "mükemmel dağılım" : "optimize edilebilir",
+      sub: fairness_gap === 0 ? "mükemmel dağılım" : "daha dengeli olabilir",
       icon: <Scale size={14} className={fairness_gap === 0 ? "text-green-500" : "text-yellow-500"} />,
       accent: fairness_gap === 0 ? "bg-green-50" : "bg-yellow-50",
       valueColor: fairness_gap === 0 ? "text-green-600" : "text-yellow-600",

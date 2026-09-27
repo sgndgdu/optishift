@@ -103,12 +103,12 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
       {/* Org Info */}
       {user?.org_id && (
         <div className="px-3 mb-8">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Organizasyon</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">İşletme</p>
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-3">
             <Building2 size={16} className="text-ember-500 shrink-0" />
             <div className="truncate">
               <span className="text-sm font-semibold text-slate-800 truncate block">
-                {orgName || user?.org_name || "Organizasyon"}
+                {orgName || user?.org_name || "İşletme"}
               </span>
               <span className="text-xs text-slate-500">{roleLabel}</span>
             </div>

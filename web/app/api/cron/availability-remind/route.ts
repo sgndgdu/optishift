@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
 import { sendAvailabilityReminders } from "@/lib/availabilityReminders";
 
-// Cron altyapısı olmadan önce müsaitlik hatırlatması sadece müdür dashboard'u
+// Cron altyapısı olmadan önce uygunluk hatırlatması sadece müdür dashboard'u
 // yüklendiğinde (opportunistic) tetikleniyordu — müdür o gün panele hiç
 // girmezse hatırlatma hiç gitmiyordu. Bu route tüm aktif lokasyonları gezip
 // aynı iş mantığını (lib/availabilityReminders) her biri için dener; vadesi

@@ -75,10 +75,10 @@ export async function GET(req: NextRequest) {
     const kpiRows: any[][] = [
       [`OptiShift · Yönetici Özeti`],
       [`Şube: ${location?.name ?? location_id}`],
-      [`Organizasyon: ${orgRow?.name ?? "—"}`],
+      [`İşletme: ${orgRow?.name ?? "—"}`],
       [`Hafta: ${weekDate.toLocaleDateString("tr-TR")} – ${weekEnd.toLocaleDateString("tr-TR")}`],
       [],
-      ["Ad Soyad", "Unvan", "Toplam Vardiya", "Toplam Saat", "Haftalık Yük Puanı", "Kümülatif Adalet Puanı", "Durum"],
+      ["Ad Soyad", "Unvan", "Toplam Vardiya", "Toplam Saat", "Haftalık Yük Puanı", "Birikimli Adalet Puanı", "Durum"],
     ];
 
     let totalShifts = 0, totalHours = 0;

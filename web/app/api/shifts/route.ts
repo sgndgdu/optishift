@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
       // Zaten pending/accepted/rejected → tekrar flaglama
       if (item.prevForceStatus) continue;
 
-      // Müsaitlik kontrolü
+      // Uygunluk kontrolü
       const dayKey = `day_${item.day}`;
       const avail = await db.prepare(`SELECT ${dayKey} FROM availability WHERE personnel_id = ? AND week_start = ?`)
         .get(item.personnel_id, item.week_start) as any;
@@ -400,7 +400,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH: Bulk publish a draft week OR check-in/check-out a single shift
+// PATCH: Bulk publish a draft week OR giriş/çıkış a single shift
 export async function PATCH(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -474,14 +474,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, synced });
     }
 
-    // ── Check-in ─────────────────────────────────────────────────────
+    // ── Giriş ─────────────────────────────────────────────────────
     if (action === "check_in") {
       const { shift_id, lat, lon, acknowledge_handover_id } = body;
       if (!shift_id) {
         return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
       }
       // rules.handover_log_enabled açıksa: bekleyen (okunmamış) bir devir-teslim
-      // notu varsa check-in'i başlatmadan durdur — istemci notu gösterip
+      // notu varsa girişi başlatmadan durdur — istemci notu gösterip
       // acknowledge_handover_id ile tekrar denemeli (bkz. lib/handover.ts).
       const pendingHandover = await checkHandoverGate(db, {
         shiftAssignmentId: shift_id,
@@ -496,14 +496,14 @@ export async function PATCH(req: NextRequest) {
       const outcome = await performCheckIn(db, auth.org_id, {
         shiftId: shift_id,
         lat, lon,
-        // Employee sadece kendi vardiyasını check-in yapabilir
+        // Employee sadece kendi vardiyasını giriş yapabilir
         restrictPersonnelId: auth.role === "employee" ? (auth.personnel_id ?? undefined) : undefined,
       });
       if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
       return NextResponse.json({ success: true, check_in_distance_m: outcome.check_in_distance_m, check_in_verified: outcome.check_in_verified });
     }
 
-    // ── Check-out ────────────────────────────────────────────────────
+    // ── Çıkış ────────────────────────────────────────────────────
     if (action === "check_out") {
       const { shift_id, handover_note } = body;
       if (!shift_id) {

@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — check-out sırasında not bırak. Hedef vardiya tanımı otomatik (sıradaki) belirlenir.
+// POST — çıkış sırasında not bırak. Hedef vardiya tanımı otomatik (sıradaki) belirlenir.
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;

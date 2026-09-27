@@ -27,6 +27,7 @@ import {
 } from "@dnd-kit/core";
 import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 const DAYS = DAY_SHORT;
 const PERSONNEL_COL_PX = 176; // sticky personel kolonu genişliği (w-44) — gün göstergesi hesabında kullanılır
@@ -325,7 +326,7 @@ export default function SchedulePage() {
   const [locRules, setLocRules]                   = useState<FairnessRules>({}); // tam rules objesi — canlı yük hesabı (cellBurden) için
   const [fatigueRiskMap, setFatigueRiskMap]       = useState<Record<string, { riskLevel: string; reasons: string[] }>>({}); // rules.fatigue_radar_enabled — personel satırındaki risk ikonu için
   const [scoredWeekBurden, setScoredWeekBurden]   = useState<Record<string, number>>({}); // bu haftanın score_history'deki yükü — çift sayım düzeltmesi
-  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, müsaitlik uyarıları susturulur
+  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, uygunluk uyarıları susturulur
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
   const [generating, setGenerating]               = useState(false);
@@ -579,7 +580,7 @@ export default function SchedulePage() {
           setDemandTemplates(rawTpl && typeof rawTpl === "object" ? rawTpl : {});
         } catch { setDemandTemplates({}); }
 
-        // Tam kural objesi + clopening eşiği + müsaitlik toplama (locations.rules)
+        // Tam kural objesi + clopening eşiği + uygunluk toplama (locations.rules)
         let clopeningRest = 13;
         let collectAvail = true;
         let parsedRules: FairnessRules = {};
@@ -588,7 +589,7 @@ export default function SchedulePage() {
             const r = typeof locData[0].rules === "string" ? JSON.parse(locData[0].rules) : locData[0].rules;
             if (r && typeof r === "object") parsedRules = r;
             if (typeof r?.clopening_min_rest_hours === "number") clopeningRest = r.clopening_min_rest_hours;
-            collectAvail = r?.availability_collection_enabled !== false;
+            collectAvail = isModuleOn(r, "availability_collection_enabled");
           } catch { /* varsayılanlar */ }
         }
         setClopeningMinRest(clopeningRest);
@@ -596,7 +597,7 @@ export default function SchedulePage() {
         setLocRules(parsedRules);
 
         // Talep tahmini (rules.forecasting_enabled) — kapasite matrisi hücrelerinde ipucu gösterir
-        if ((parsedRules as Record<string, unknown>)?.forecasting_enabled === true) {
+        if (isModuleOn(parsedRules, "forecasting_enabled")) {
           try {
             const fRes = await fetch(`/api/forecast?location_id=${activeLocationId}&week_start=${weekStart}`);
             const fData = await fRes.json();
@@ -607,7 +608,7 @@ export default function SchedulePage() {
         }
 
         // Yorgunluk ve Kaza Risk Radarı (rules.fatigue_radar_enabled) — personel satırındaki risk ikonu için
-        if ((parsedRules as Record<string, unknown>)?.fatigue_radar_enabled === true) {
+        if (isModuleOn(parsedRules, "fatigue_radar_enabled")) {
           try {
             const frRes = await fetch(`/api/fatigue-radar?location_id=${activeLocationId}`);
             const frData = await frRes.json();
@@ -622,7 +623,7 @@ export default function SchedulePage() {
         }
 
         // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
-        if ((parsedRules as Record<string, unknown>)?.consecutive_night_weeks_enabled === true) {
+        if (isModuleOn(parsedRules, "consecutive_night_weeks_enabled")) {
           try {
             const prevD = new Date(weekStart + "T00:00:00");
             prevD.setDate(prevD.getDate() - 7);
@@ -1206,8 +1207,8 @@ export default function SchedulePage() {
       const payload = personnel.map(p => ({
         personnel_id: p.id,
         type:         "alert",
-        title:        "Müsaitlik Bildiriminizi Girin 📋",
-        message:      `${targetWeekLabel} haftası için müsaitlik bilginizi girmeniz bekleniyor.`,
+        title:        "Uygunluk Bildiriminizi Girin 📋",
+        message:      `${targetWeekLabel} haftası için uygunluk bilginizi girmeniz bekleniyor.`,
         link:         "/portal/availability",
       }));
       await fetch("/api/notifications", {
@@ -1215,9 +1216,9 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      showToast(`${payload.length} personele müsaitlik isteği gönderildi.`, "success");
+      showToast(`${payload.length} personele uygunluk isteği gönderildi.`, "success");
     } catch {
-      showToast("Müsaitlik isteği gönderilirken hata oluştu.", "error");
+      showToast("Uygunluk isteği gönderilirken hata oluştu.", "error");
     }
   };
 
@@ -1304,9 +1305,9 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ demand_matrix: demandMatrix }),
       });
-      if (!silent) showToast("Kapasite planı kaydedildi.", "success");
+      if (!silent) showToast("Personel ihtiyacı kaydedildi.", "success");
     } catch {
-      if (!silent) showToast("Kapasite planı kaydedilemedi.", "error");
+      if (!silent) showToast("Personel ihtiyacı kaydedilemedi.", "error");
     }
   };
 
@@ -1462,18 +1463,18 @@ export default function SchedulePage() {
       if (clopeningCount >= 2) {
         violations.push(`${p.name}: bu hafta ${clopeningCount} kez kapanış→açılış, yorgunluk riski yüksek, dağıtmayı düşünün`);
       }
-      // Müsaitlik ihlalleri — "unavailable" gün atama
+      // Uygunluk ihlalleri — "unavailable" gün atama
       for (let d = 0; d < 7; d++) {
         if (!cellMap[`${p.id}-${d}`]) continue;
         if (availMap[p.id]?.[d]?.status === 'unavailable') {
           violations.push(`${p.name}: ${DAYS[d]} günü "kesinlikle gelemem" olarak işaretli ama vardiya atandı`);
         }
       }
-      // Müsaitlik bilgisi girilmemiş ama vardiya atanmış (müsaitlik toplama kapalıysa beklenen durum, uyarma)
+      // Uygunluk bilgisi girilmemiş ama vardiya atanmış (uygunluk toplama kapalıysa beklenen durum, uyarma)
       if (availCollectionEnabled && !availMap[p.id]) {
         const hasShift = Object.keys(cellMap).some(k => k.startsWith(`${p.id}-`));
         if (hasShift) {
-          violations.push(`${p.name}: müsaitlik bilgisi girilmemiş, vardiya atanmış`);
+          violations.push(`${p.name}: uygunluk bilgisi girilmemiş, vardiya atanmış`);
         }
       }
       // Gece koruması: gece kısıtlı personel + ardışık hafta gece yasağı
@@ -1484,7 +1485,7 @@ export default function SchedulePage() {
       }
       if (nightDays.length > 0 && p.night_restriction) {
         const label = NIGHT_RESTRICTION_LABELS[p.night_restriction] ?? p.night_restriction;
-        violations.push(`${p.name}: gece vardiyasına atanmış ama gece çalışma kısıtı var (${label}), İş K. m.73 gereği gece çalıştırılamaz`);
+        violations.push(`${p.name}: gece vardiyasına atanmış ama gece çalışma engeli var (${label}), İş K. m.73 gereği gece çalıştırılamaz`);
       }
       if (nightDays.length > 0 && prevWeekNightIds.has(p.id) && !p.night_restriction) {
         violations.push(`${p.name}: geçen hafta gece çalıştı, bu hafta yine gece vardiyası var. Arka arkaya iki hafta gece yasağı (Postalar Yönetmeliği m.8)`);
@@ -1518,7 +1519,7 @@ export default function SchedulePage() {
     }
     // Gece vardiyası yasal süre sınırı: 7,5 saati aşan gece vardiyaları (vardiya deseni başına
     // tek uyarı; rules.night_legal_warning_enabled ile kapatılabilir)
-    if ((locRules as Record<string, unknown>)?.night_legal_warning_enabled !== false) {
+    if (isModuleOn(locRules, "night_legal_warning_enabled")) {
       const longNightPatterns = new Set<string>();
       for (const c of Object.values(cellMap)) {
         if (isNightCell(c) && c.endMin - c.startMin > 7.5 * 60) {
@@ -1619,7 +1620,7 @@ export default function SchedulePage() {
     }
   };
 
-  // Satır hızlı işlemleri: tüm müsait günleri doldur / temizle
+  // Satır hızlı işlemleri: tüm uygun günleri doldur / temizle
   const fillPersonRow = (personId: string) => {
     if (!shiftDefs.length) { showToast("Önce vardiya şablonu tanımlayın.", "error"); return; }
     const def = shiftDefs[0];
@@ -1637,7 +1638,7 @@ export default function SchedulePage() {
         added++;
       }
     }
-    if (added === 0) { showToast("Eklenecek müsait gün bulunamadı.", "info"); return; }
+    if (added === 0) { showToast("Eklenecek uygun gün bulunamadı.", "info"); return; }
     pushCellMap(newMap);
   };
 
@@ -1822,25 +1823,25 @@ export default function SchedulePage() {
         popoverWarnings.push({ type: 'error', msg: `Ertesi gün başlangıcına ${Math.round(gapToNext / 60 * 10) / 10}s dinlenme kalır (min 11s)` });
       }
     }
-    // Müsaitlik durumu
+    // Uygunluk durumu
     const pAvail = availMap[popover.personnelId];
     const dayAvail = pAvail?.[popover.day];
     if (dayAvail?.status === 'unavailable') {
-      popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle müsait değil (kırmızı)' });
+      popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle uygun değil (kırmızı)' });
     } else if (dayAvail?.status === 'preferred_not') {
       popoverWarnings.push({ type: 'warn', msg: 'Bu günü tercih etmiyor (sarı)' });
     } else if (!pAvail && availCollectionEnabled) {
-      popoverWarnings.push({ type: 'warn', msg: 'Müsaitlik bilgisi girilmemiş' });
+      popoverWarnings.push({ type: 'warn', msg: 'Uygunluk bilgisi girilmemiş' });
     }
   }
 
-  // Müsaitlik bilgisi girilmemiş personel sayısı
-  // Not: müsaitlik girilmemesi otomatik oluşturmayı ENGELLEMEZ — motor eksik
-  // müsaitliği "tam müsait" kabul eder (get_avail default). Bu sayaç sadece bilgilendirme amaçlıdır.
+  // Uygunluk bilgisi girilmemiş personel sayısı
+  // Not: uygunluk girilmemesi otomatik oluşturmayı ENGELLEMEZ — motor eksik
+  // uygunluğu "tamamen uygun" kabul eder (get_avail default). Bu sayaç sadece bilgilendirme amaçlıdır.
   const noAvailCount = personnel.filter(p => !availMap[p.id]).length;
 
   // Kapasite matrisi ile mevcut personel sayısı çelişiyor mu? (herkes günde yalnızca
-  // 1 vardiyaya girebildiği için bir günün toplam talebi o gün müsait personel sayısını
+  // 1 vardiyaya girebildiği için bir günün toplam talebi o gün uygun personel sayısını
   // aşarsa OR-Tools kesinlikle çözüm bulamaz — bunu motor çağrılmadan önce tespit edip
   // kullanıcıya somut bir uyarı gösteriyoruz.
   const capacityWarnings = useMemo(() => {
@@ -1868,7 +1869,7 @@ export default function SchedulePage() {
           if (total <= 0) continue;
           const availableCount = members.filter(p => !isUnavailable(p.id, d)).length;
           if (total > availableCount) {
-            warnings.push(`${DAYS[d]} · ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} müsait personel var (toplam ${members.length} kişi).`);
+            warnings.push(`${DAYS[d]} · ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} uygun personel var (toplam ${members.length} kişi).`);
           }
         }
       }
@@ -1879,12 +1880,12 @@ export default function SchedulePage() {
         if (total <= 0) continue;
         const availableCount = personnel.filter(p => !isUnavailable(p.id, d)).length;
         if (total > availableCount) {
-          warnings.push(`${DAYS[d]}: ${total} kişi isteniyor, ${availableCount} müsait personel var (toplam ${personnel.length} kişi).`);
+          warnings.push(`${DAYS[d]}: ${total} kişi isteniyor, ${availableCount} uygun personel var (toplam ${personnel.length} kişi).`);
         }
       }
     }
     // Zorunlu yetkinlik ön-kontrolü: talep edilen vardiyada gerekli yetkinliğe sahip
-    // yeterli müsait kişi yoksa motor çözüm bulamaz — kullanıcıyı önceden uyar
+    // yeterli uygun kişi yoksa motor çözüm bulamaz — kullanıcıyı önceden uyar
     const parseRoles = (p: any): string[] => {
       if (Array.isArray(p.roles)) return p.roles;
       try { return JSON.parse(p.roles || "[]"); } catch { return []; }
@@ -1925,7 +1926,7 @@ export default function SchedulePage() {
   };
 
   // Bir kişi günde yalnızca 1 vardiyaya girebildiği için, bir hücrenin gerçek üst
-  // sınırı o günün toplam müsait kişisinden AYNI departmanın o gündeki diğer
+  // sınırı o günün toplam uygun kişisinden AYNI departmanın o gündeki diğer
   // vardiyalarına zaten girilmiş sayı düşülerek bulunur (kalan kapasite) —
   // aksi halde "Sabah:5, Akşam:5" gibi tek tek sınır içinde görünen ama toplamda
   // imkansız girişler kırmızı uyarı almadan geçebilirdi.
@@ -2129,7 +2130,7 @@ export default function SchedulePage() {
                 <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap">Boş hafta</span>
               ) : isPublishedWeek && !dirty ? (
                 <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-100 text-emerald-700 whitespace-nowrap flex items-center gap-1">
-                  <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` R${currentRevision}` : ""}
+                  <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` · ${currentRevision}. güncelleme` : ""}
                 </span>
               ) : isPublishedWeek && dirty ? (
                 <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">Yayınlanmamış değişiklik</span>
@@ -2203,7 +2204,7 @@ export default function SchedulePage() {
                     {availCollectionEnabled && (
                       <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <Bell size={13} className="text-amber-500" /> Müsaitlik İste
+                        <Bell size={13} className="text-amber-500" /> Uygunluk İste
                       </button>
                     )}
                     <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
@@ -2280,19 +2281,19 @@ export default function SchedulePage() {
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
               <p className="font-bold mb-1 flex items-center gap-2">
                 <AlertCircle size={14} className="shrink-0" />
-                Kapasite Planı mevcut personel sayısından fazla kişi istiyor
+                Personel ihtiyacı, mevcut personel sayısını aşıyor
               </p>
               <ul className="list-disc list-inside space-y-0.5">
                 {capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}
               </ul>
-              <p className="mt-1 text-red-500">Bu günlerde herkes müsait olsa bile Otomatik Oluştur çözüm bulamaz. Kapasite Planı&apos;ndaki sayıları azaltın.</p>
+              <p className="mt-1 text-red-500">Bu günlerde herkes uygun olsa bile Otomatik Oluştur çözüm bulamaz. Personel İhtiyacı tablosundaki sayıları azaltın.</p>
             </div>
           )}
           {availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-600">
               <AlertCircle size={13} className="shrink-0 text-blue-400" />
-              <span><span className="font-bold">{noAvailCount} personel</span> müsaitlik bilgisi girmemiş, bu kişiler otomatik oluşturmada tam müsait kabul edilir, planlama engellenmez.</span>
-              <button onClick={handleRequestAvailability} className="ml-auto underline font-semibold hover:text-blue-900">Müsaitlik İste</button>
+              <span><span className="font-bold">{noAvailCount} personel</span> uygunluk bilgisi girmemiş, bu kişiler otomatik oluşturmada tamamen uygun kabul edilir, planlama engellenmez.</span>
+              <button onClick={handleRequestAvailability} className="ml-auto underline font-semibold hover:text-blue-900">Uygunluk İste</button>
             </div>
           )}
           {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
@@ -2417,7 +2418,7 @@ export default function SchedulePage() {
             >
               <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", demandOpen && "rotate-180")} />
               <div className="flex-1">
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Kapasite Planı · kaç kişi gerekli?</p>
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Personel İhtiyacı · kaç kişi gerekli?</p>
                 {!demandOpen && (
                   <p className="text-xs text-slate-400 mt-0.5">Her gün, her vardiyada kaç kişiye ihtiyacınız olduğunu girin, Otomatik Oluştur tam bu sayıda kişi atar</p>
                 )}
@@ -2443,7 +2444,7 @@ export default function SchedulePage() {
                       <button
                         onClick={() => handleTemplateApply(name)}
                         disabled={tplBusy}
-                        title="Bu şablonu Kapasite Planı'na uygula"
+                        title="Bu şablonu Personel İhtiyacı tablosuna uygula"
                         className="text-[11px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
                       >
                         {name}
@@ -2817,7 +2818,7 @@ export default function SchedulePage() {
                               </div>
                             </div>
                             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => fillPersonRow(p.id)} title="Tüm müsait günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
+                              <button onClick={() => fillPersonRow(p.id)} title="Tüm uygun günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
                                 <CalendarCheck size={13} />
                               </button>
                               <button onClick={() => clearPersonRow(p.id)} title="Temizle" className="p-1 text-slate-300 hover:text-red-400 transition-colors">
@@ -2897,9 +2898,9 @@ export default function SchedulePage() {
                                   <span className="text-[9px] font-bold text-amber-400">İzin</span>
                                 </div>
                               ) : isUnavailable ? (
-                                <div className="w-full h-11 rounded-lg bg-red-50 border border-red-200 flex flex-col items-center justify-center gap-0.5" title="Kesinlikle müsait değil">
+                                <div className="w-full h-11 rounded-lg bg-red-50 border border-red-200 flex flex-col items-center justify-center gap-0.5" title="Kesinlikle uygun değil">
                                   <X size={12} className="text-red-400" />
-                                  <span className="text-[9px] font-bold text-red-400">Müsait Değil</span>
+                                  <span className="text-[9px] font-bold text-red-400">Uygun Değil</span>
                                 </div>
                               ) : isPrefNot ? (
                                 <button
@@ -2917,9 +2918,9 @@ export default function SchedulePage() {
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                   className="w-full h-11 rounded-lg bg-emerald-50 border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                  title={avail?.start && avail.end ? `Müsait, ${avail.start}–${avail.end}` : "Müsait"}
+                                  title={avail?.start && avail.end ? `Uygun, ${avail.start}–${avail.end}` : "Uygun"}
                                 >
-                                  <span className="text-[10px] font-bold text-emerald-600 group-hover:opacity-0 transition-opacity">✓ Müsait</span>
+                                  <span className="text-[10px] font-bold text-emerald-600 group-hover:opacity-0 transition-opacity">✓ Uygun</span>
                                   {avail?.start && avail.end && (
                                     <span className="text-[9px] text-emerald-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
                                   )}
@@ -2929,7 +2930,7 @@ export default function SchedulePage() {
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                   className="w-full h-11 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-forest-300 hover:text-forest-400 hover:bg-forest-50/30 transition-all flex items-center justify-center"
-                                  title={availCollectionEnabled ? "Müsaitlik girilmemiş, vardiya ekle" : "Vardiya ekle"}
+                                  title={availCollectionEnabled ? "Uygunluk girilmemiş, vardiya ekle" : "Vardiya ekle"}
                                 >
                                   <Plus size={13} />
                                 </button>

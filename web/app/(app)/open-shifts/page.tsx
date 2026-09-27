@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks, Gavel } from "lucide-react";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -84,7 +85,7 @@ export default function OpenShiftsPage() {
           setDefaultBonus(rules.hero_bonus_points);
           setBonus(rules.hero_bonus_points);
         }
-        setShiftBiddingEnabled(rules?.shift_bidding_enabled === true);
+        setShiftBiddingEnabled(isModuleOn(rules, "shift_bidding_enabled"));
       } catch { /* varsayılan 6 kalır */ }
     })();
   }, [user]);
@@ -438,7 +439,7 @@ export default function OpenShiftsPage() {
                   <p className="text-xs text-slate-400 px-1">Uygun adaylar hesaplanıyor…</p>
                 )}
                 {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length === 0 && (
-                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı, herkes o gün dolu, izinli veya kısıtlı.</p>
+                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı, herkes o gün dolu, izinli ya da çalışamıyor.</p>
                 )}
                 {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length > 0 && (
                   <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">

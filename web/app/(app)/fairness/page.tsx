@@ -110,7 +110,7 @@ export default function FairnessPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Adalet Puanı</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Kümülatif puan dağılımı · son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
+          <p className="text-muted-foreground mt-1 text-sm">Birikimli puan dağılımı · son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
         </div>
         <button
           onClick={() => locationId && load(locationId)}
@@ -293,8 +293,8 @@ export default function FairnessPage() {
                 saat × zorluk (vardiya tanımı) + zor vardiya puanı (hafta sonu/gece/sarı gün, birden fazlası geçerli olsa da tek sefer) + kahraman/zorunlu atama bonusları. Basit toplama, çarpan zinciri yok.
               </p>
               <p>
-                <strong className="text-slate-700">Kümülatif puan:</strong>{" "}
-                Son {rules.fairness_window_weeks ?? 4} haftanın düz toplamı (ağırlıksız). Yeni plan bu birikimi dengeleyecek şekilde üretilir.
+                <strong className="text-slate-700">Birikimli puan:</strong>{" "}
+                Son {rules.fairness_window_weeks ?? 4} haftanın toplamı. Yeni plan bu birikimi dengeleyecek şekilde üretilir.
               </p>
             </div>
           </div>
@@ -433,7 +433,7 @@ function CurrentView({
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Puan Olayları</p>
                   {pAdjs.slice(0, 5).map((a: any) => (
                     <div key={a.id} className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Manuel düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
+                      <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Elle düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
                       <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
                     </div>
                   ))}
@@ -493,7 +493,7 @@ function HistoryView({
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-slate-500">Son 8 haftanın haftalık yük trendi</p>
+      <p className="text-xs text-slate-500">Son 8 haftada haftalık yük değişimi</p>
       {personnel.map(p => {
         const entries: any[] = scoreHist[p.id] ?? [];
         if (entries.length === 0) return null;

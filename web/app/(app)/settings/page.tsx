@@ -921,8 +921,8 @@ export default function SettingsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const count = (dept as any).personnel_count ?? 0;
     const msg = count > 0
-      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} personelin departman ataması kaldırılır ve bu departmanın kapasite planı silinir.`
-      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın kapasite planı da silinir.`;
+      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} personelin departman ataması kaldırılır ve bu departmanın personel ihtiyacı tablosu silinir.`
+      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın personel ihtiyacı tablosu da silinir.`;
     if (!confirm(msg)) return;
     setDeptError(null);
     try {
@@ -989,7 +989,7 @@ export default function SettingsPage() {
     if (activeTab === "account") {
       return (
         <div className="max-w-4xl space-y-6">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Lokasyon Ayarları</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Şube Ayarları</h1>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <TabBar />
             <div className="p-6"><AccountTab storageKey="optishift_manager_user" allowNameEdit={true} /></div>
@@ -1003,7 +1003,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Lokasyon Ayarları</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Şube Ayarları</h1>
         <p className="text-slate-500 text-sm mt-0.5">{locationData.name}</p>
       </div>
 
@@ -1019,7 +1019,7 @@ export default function SettingsPage() {
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>
                 <SectionLabel>Çalışma Saatleri</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Lokasyonun her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
+                <p className="text-xs text-slate-400 mb-3">Şubenin her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
                 <div className="space-y-1">
                   {DAYS.map((dayName, idx) => {
                     const dayData = (locationData.operating_hours ?? {})[idx] ?? { isOpen: true, open: "00:00", close: "23:59" };
@@ -1237,7 +1237,7 @@ export default function SettingsPage() {
                   <>
                     <RuleRow
                       label="Kapanış→Açılış Eşiği"
-                      description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal minimum 11 saatten fazla olmalı)."
+                      description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal alt sınır olan 11 saatten fazla olmalı)."
                       right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
                     />
                     <RuleRow
@@ -1248,12 +1248,12 @@ export default function SettingsPage() {
                   </>
                 )}
                 <RuleRow
-                  label="Haftalık Maksimum Çalışma"
+                  label="Haftalık En Fazla Çalışma"
                   description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
                   right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                 />
                 <RuleRow
-                  label="Minimum Dinlenme Süresi"
+                  label="En Az Dinlenme Süresi"
                   description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
                   right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                 />
@@ -1272,7 +1272,7 @@ export default function SettingsPage() {
               <SectionCard title="Sosyal Kurallar · Birlikte Çalışamaz">
                 {!personnelConflictsEnabled && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-                    Bu modül Modüller sekmesinde kapalı, tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz.
+                    Bu özellik Özellikler bölümünde kapalı, tanımlı çiftler olsa bile Otomatik Oluştur bu kuralı uygulamaz.
                   </p>
                 )}
                 <p className="text-xs text-slate-500 mb-4">
@@ -1340,17 +1340,17 @@ export default function SettingsPage() {
                 )}
               </SectionCard>
 
-              <SectionCard title="Canlı Operasyon">
+              <SectionCard title="Canlı Durum">
                 <RuleRow
-                  label="Check-in Zorunluluğu"
-                  description="Personel portaldaki vardiya kartından check-in yapmadan aktif sayılmaz. Check-in yoksa geç kalan listesine düşer."
+                  label="Vardiya Girişi Zorunluluğu"
+                  description="Personel portaldaki vardiya kartından giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
                   right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
                 />
                 <RuleRow
                   label="Geç Kalan → Otomatik Açık Vardiya"
                   description={
                     <span>
-                      Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ check-in olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
+                      Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş kaydı olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
                       {autoOpenShiftOnLate && (
                         <span className="flex items-center gap-2 mt-2">
                           <span>Eşik:</span>
@@ -1367,10 +1367,10 @@ export default function SettingsPage() {
                   right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
                 />
                 <RuleRow
-                  label="GPS Doğrulamalı Check-in"
+                  label="GPS Doğrulamalı Vardiya Girişi"
                   description={
                     <span>
-                      Personel check-in yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki check-in reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
+                      Personel giriş yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki giriş reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
                       {gpsCheckinRequired && (
                         <span className="flex items-center gap-2 mt-2">
                           <span>Yarıçap:</span>
@@ -1388,7 +1388,7 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Eş Zamanlı Mola Limiti"
-                  description="Aynı anda molaya çıkabilecek maksimum kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
+                  description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
                   right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
                 />
                 <RuleRow
@@ -1398,9 +1398,9 @@ export default function SettingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Modüller">
+              <SectionCard title="Özellikler">
                 <p className="text-xs text-slate-500 mb-4">
-                  İşletmenize göre ihtiyacınız olmayan modülleri kapatın, sidebar&apos;dan ve personel portalından tamamen kalkar.
+                  İşletmenize göre ihtiyacınız olmayan özellikleri kapatın, menüden ve personel portalından tamamen kalkar.
                 </p>
                 <RuleRow
                   label="Sohbet (Mesajlaşma)"
@@ -1424,12 +1424,12 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Birlikte Çalışamaz Çiftleri"
-                  description="Kapalıyken tanımlı çiftler olsa bile Otomatik Oluştur bu kısıtı uygulamaz."
+                  description="Kapalıyken tanımlı çiftler olsa bile Otomatik Oluştur bu kuralı uygulamaz."
                   right={<Toggle on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)} />}
                 />
               </SectionCard>
 
-              <SectionCard title="İleri Seviye Modüller">
+              <SectionCard title="Ek Özellikler">
                 <p className="text-xs text-slate-500 mb-4">
                   Varsayılan olarak kapalıdır. Açtığınızda ilgili sayfa/alan görünür hale gelir, kapalıyken hiçbir iz bırakmaz.
                 </p>
@@ -1471,12 +1471,12 @@ export default function SettingsPage() {
                 )}
                 <RuleRow
                   label="Dijital Bahşiş ve Prim Dağıtımı"
-                  description="Açıkken: sidebar'da 'Bahşiş Havuzu' sayfası görünür, müdür dönemlik toplam bahşiş tutarı girip gerçek çalışılan dakikaya göre dağıtabilir, personel portalında 'Bu Hafta Kazanılan Prim' kartı görünür."
+                  description="Açıkken: menüde 'Bahşiş Havuzu' sayfası görünür, müdür dönemlik toplam bahşiş tutarı girip gerçek çalışılan dakikaya göre dağıtabilir, personel portalında 'Bu Hafta Kazanılan Prim' kartı görünür."
                   right={<Toggle on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />}
                 />
                 <RuleRow
-                  label="Kiosk Modu (Ortak Tablet)"
-                  description="Açıkken: personel oturum açmadan, ortak bir tablette 4 haneli PIN girerek check-in/check-out yapabilir. PIN'ler Personel sayfasından atanır."
+                  label="Ortak Tablet Modu"
+                  description="Açıkken: personel oturum açmadan, ortak bir tablette 4 haneli PIN girerek giriş/çıkış yapabilir. PIN'ler Personel sayfasından atanır."
                   right={<Toggle on={kioskModeEnabled} onToggle={() => setKioskModeEnabled(v => !v)} />}
                 />
                 {kioskModeEnabled && selectedLocationId && (
@@ -1490,7 +1490,7 @@ export default function SettingsPage() {
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
                     >
-                      {kioskLinkCopied ? "Kopyalandı" : "Kiosk Linkini Kopyala"}
+                      {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
                     </button>
                     <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
                   </div>
@@ -1502,7 +1502,7 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Satış ve Yoğunluk Tahmini"
-                  description="Açıkken: Kapasite Planı hücrelerinde geçmiş haftaların hareketli ortalamasına dayalı bir tahmin gösterilir. Aşağıdaki günlük ciro girişleri isteğe bağlıdır, girilirse tahmini ±%50'ye kadar trend yönünde ayarlar."
+                  description="Açıkken: Personel İhtiyacı tablosunda geçmiş haftaların hareketli ortalamasına dayalı bir tahmin gösterilir. Aşağıdaki günlük ciro girişleri isteğe bağlıdır, girilirse tahmini ±%50'ye kadar ciro eğilimine göre ayarlar."
                   right={<Toggle on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)} />}
                 />
                 {forecastingEnabled && (
@@ -1535,19 +1535,19 @@ export default function SettingsPage() {
                 )}
                 <RuleRow
                   label="Dijital Devir-Teslim Defteri"
-                  description="Açıkken: check-out'ta sonraki vardiyaya not bırakılabilir; hedef vardiyaya gelen ilk kişi notu okuyup 'Teslim Aldım' demeden check-in yapamaz. Sidebar'da 'Devir-Teslim Kayıtları' sayfası görünür. Açık olduğu sürece eski (isteğe bağlı) devir notu kartı bu şubede otomatik gizlenir, eski veriler silinmez."
+                  description="Açıkken: çıkışta sonraki vardiyaya not bırakılabilir; hedef vardiyaya gelen ilk kişi notu okuyup 'Teslim Aldım' demeden giriş yapamaz. Menüde 'Devir-Teslim Kayıtları' sayfası görünür. Açık olduğu sürece eski (isteğe bağlı) devir notu kartı bu şubede otomatik gizlenir, eski veriler silinmez."
                   right={<Toggle on={handoverLogEnabled} onToggle={() => setHandoverLogEnabled(v => !v)} />}
                 />
                 <RuleRow
                   label="Yorgunluk ve Kaza Risk Radarı"
-                  description="Açıkken: dashboard'da üst üste gece vardiyası / clopening / yüksek mesai yapan personeli listeleyen bir risk kartı, Vardiya Planı sayfasında ilgili personelin satırında risk ikonu görünür."
+                  description="Açıkken: ana sayfada üst üste gece vardiyası / kapanıştan açılışa / yüksek mesai yapan personeli listeleyen bir risk kartı, Vardiya Planı sayfasında ilgili personelin satırında risk ikonu görünür."
                   right={<Toggle on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />}
                 />
               </SectionCard>
 
-              <SectionCard title="QR ile Check-in">
+              <SectionCard title="QR ile Vardiya Girişi">
                 <p className="text-xs text-slate-500 mb-4">
-                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan check-in ekranı açılır, bugün vardiyası varsa ve henüz check-in yapmadıysa otomatik check-in dener.
+                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
                 </p>
                 <div className="flex items-center gap-6">
                   <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
@@ -1575,8 +1575,8 @@ export default function SettingsPage() {
                   right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
                 />
                 <RuleRow
-                  label="Yayın Öncülüğü KPI"
-                  description="Müdür panelinde 'vardiya planı kaç gün önceden yayınlandı' KPI kartı gösterilir."
+                  label="Erken Yayın Göstergesi"
+                  description="Müdür panelinde 'vardiya planı kaç gün önceden yayınlandı' gösterge kartı gösterilir."
                   right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
                 />
               </SectionCard>
@@ -1647,14 +1647,14 @@ export default function SettingsPage() {
               </SectionCard>
 
               {/* ─── FABRİKA MODÜLÜ: FAZLA MESAİ ─── */}
-              <SectionCard title="Fazla Mesai Yönetimi · Fabrika Modülü">
+              <SectionCard title="Fazla Mesai Takibi">
                 <RuleRow
                   label="Haftalık Mesai Eşiği"
-                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık Maksimum Saat'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
+                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık En Fazla Çalışma'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
                   right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
                 />
                 <RuleRow
-                  label="Yıllık Maksimum Fazla Mesai"
+                  label="Yıllık Fazla Mesai Sınırı"
                   description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
                   right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
                 />
@@ -1686,10 +1686,10 @@ export default function SettingsPage() {
           {/* ─── PERSONEL TALEPLERİ ─── */}
           {activeTab === "requests" && (
             <div className="space-y-4">
-              <SectionCard title="Müsaitlik">
+              <SectionCard title="Uygunluk">
                 <RuleRow
-                  label="Müsaitlik Toplama"
-                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden müsaitlik istenmez ve personel portalında müsaitlik girişi kapatılır."
+                  label="Uygunluk Toplama"
+                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
                   right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
                 />
                 {availabilityCollectionEnabled && (
@@ -1701,10 +1701,10 @@ export default function SettingsPage() {
                 )}
                 {availabilityCollectionEnabled && (
                   <RuleRow
-                    label="Otomatik Müsaitlik Hatırlatması"
+                    label="Otomatik Uygunluk Hatırlatması"
                     description={
                       <span>
-                        Planlanan saatten sonra, gelecek haftanın müsaitliğini girmemiş personele haftada bir kez bildirim gönderilir.
+                        Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş personele haftada bir kez bildirim gönderilir.
                         {reminderEnabled && (
                           <span className="flex flex-wrap items-center gap-2 mt-2">
                             <span>Her</span>
@@ -1727,7 +1727,7 @@ export default function SettingsPage() {
                 {availabilityCollectionEnabled && (
                   <RuleRow
                     label="Şimdi Hatırlatma Gönder"
-                    description={remindResult ?? "Bu haftanın müsaitliğini henüz girmemiş tüm personele anında bildirim gönderir."}
+                    description={remindResult ?? "Bu haftanın uygunluğunu henüz girmemiş tüm personele anında bildirim gönderir."}
                     right={
                       <button
                         disabled={reminding}
@@ -1744,7 +1744,7 @@ export default function SettingsPage() {
                               body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
                             });
                             const data = await res.json();
-                            setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten müsaitliğini girmiş.");
+                            setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten uygunluğunu girmiş.");
                           } catch {
                             setRemindResult("Hata oluştu, tekrar deneyin.");
                           }
@@ -1880,7 +1880,7 @@ export default function SettingsPage() {
               <SectionCard title="Gelişmiş Ayarlar">
                 <RuleRow
                   label="Adalet Penceresi"
-                  description="Kümülatif adalet puanı kaç haftalık geçmişin düz toplamı olsun (ağırlıksız). Varsayılan 4 hafta."
+                  description="Birikimli adalet puanı kaç haftalık geçmişin toplamı olsun. Varsayılan 4 hafta."
                   right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
                 />
               </SectionCard>
@@ -1897,7 +1897,7 @@ export default function SettingsPage() {
                 <SectionLabel>Departmanlar</SectionLabel>
                 <p className="text-xs text-slate-400 mb-3">
                   Departmanlar (Kasa, Mutfak, Hat-A…) planlamanın çalıştığı operasyonel birimlerdir: personel bir
-                  departmana atanır, kapasite planı departman bazında girilir ve otomatik oluşturma talebi departman
+                  departmana atanır, personel ihtiyacı departman bazında girilir ve otomatik oluşturma talebi departman
                   içinde karşılar. Değişiklikler anında kaydedilir.
                 </p>
 
@@ -1926,7 +1926,7 @@ export default function SettingsPage() {
                 {/* Departman listesi */}
                 {departments.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
-                    Henüz departman yok. Departmansız lokasyonlarda kapasite planı tek düz tablo olarak çalışır.
+                    Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
                   </p>
                 ) : (
                   <div className="space-y-2">

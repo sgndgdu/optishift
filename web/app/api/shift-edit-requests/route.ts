@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         let rules: any = {};
         try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
         if (rules.edit_requests_enabled === false) {
-          return NextResponse.json({ error: "Bu lokasyonda düzenleme talebi kapalı." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede düzenleme talebi kapalı." }, { status: 422 });
         }
       }
     }

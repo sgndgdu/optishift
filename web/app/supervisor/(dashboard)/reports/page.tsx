@@ -286,7 +286,7 @@ export default function SupervisorReports() {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 flex flex-col items-center gap-3 text-emerald-700">
                   <CheckCircle2 size={36} strokeWidth={1.5} />
                   <p className="text-sm font-bold">Tüm şubelerde yasal uyumluluk sağlandı</p>
-                  <p className="text-xs text-emerald-600 text-center">Bu hafta hiçbir personel maksimum çalışma saatinin %90'ını aşmadı.</p>
+                  <p className="text-xs text-emerald-600 text-center">Bu hafta hiçbir personel haftalık çalışma sınırının %90'ını aşmadı.</p>
                 </div>
               ) : (
                 branches.map(branch =>

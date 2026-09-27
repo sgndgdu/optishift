@@ -5,11 +5,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Store, CalendarClock, Sparkles, MapPin,
-  ArrowRight, ArrowLeft, Plus, Trash2, Check, Zap,
+  ArrowRight, Plus, Trash2, Check, Zap,
   Coffee, ShoppingBag, Hotel, UtensilsCrossed, Factory,
 } from "lucide-react";
 import { getSectorPreset } from "@/lib/presets";
 import type { ShiftDefinition } from "@/lib/types";
+import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
@@ -159,34 +160,7 @@ export default function OnboardingWizard() {
       <div className="w-full max-w-2xl">
 
         {/* Progress bar */}
-        {step < 2 && (
-          <div className="flex items-center mb-6 md:mb-8">
-            {STEPS.map((s, i) => {
-              const Icon = s.icon;
-              const done   = step > i;
-              const active = step === i;
-              return (
-                <div key={i} className={`flex items-center ${i < STEPS.length - 1 ? "flex-1" : ""}`}>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                      done   ? "bg-primary text-white" :
-                      active ? "bg-white border-2 border-primary text-primary shadow-md" :
-                               "bg-slate-200 text-slate-400"
-                    }`}>
-                      {done ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}
-                    </div>
-                    <span className={`text-[10px] font-bold hidden sm:block ${
-                      active ? "text-primary" : done ? "text-slate-600" : "text-slate-400"
-                    }`}>{s.label}</span>
-                  </div>
-                  {i < STEPS.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${step > i ? "bg-primary" : "bg-slate-200"}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {step < 2 && <WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
 
         {/* Kart */}
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100">
@@ -194,7 +168,7 @@ export default function OnboardingWizard() {
 
             {/* ── Adım 0: Sektör + Şubeler ── */}
             {step === 0 && (
-              <Shell icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
+              <WizardStep icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
                 sub="Sektörünüzü seçin, şubenizi adlandırın. Vardiya şablonları ve ayarlar buna göre hazırlanır.">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-2.5">
@@ -242,12 +216,12 @@ export default function OnboardingWizard() {
                     </button>
                   )}
                 </div>
-              </Shell>
+              </WizardStep>
             )}
 
             {/* ── Adım 1: Vardiya Tanımları ── */}
             {step === 1 && (
-              <Shell icon={<CalendarClock size={24} />} color="bg-ember-100 text-ember-600"
+              <WizardStep icon={<CalendarClock size={24} />} color="bg-ember-100 text-ember-600"
                 title="Vardiya Tanımları"
                 sub="Sektörünüze özel öneriler yüklendi, saatleri işletmenize göre düzenlemeniz yeterli.">
                 <div className="space-y-3">
@@ -287,7 +261,7 @@ export default function OnboardingWizard() {
                 <p className="text-xs text-slate-400">
                   Puan değeri, vardiyanın zorluğudur. Vardiyalar bu yüke göre adil dağıtılır. Emin değilseniz olduğu gibi bırakın.
                 </p>
-              </Shell>
+              </WizardStep>
             )}
 
             {/* ── Adım 2: Tamamlandı ── */}
@@ -332,22 +306,8 @@ export default function OnboardingWizard() {
 
             {/* Navigasyon */}
             {step < 2 && (
-              <div className="flex gap-3 mt-8">
-                {step > 0 && (
-                  <button onClick={() => setStep(s => s - 1)}
-                    className="flex items-center gap-2 px-5 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                    <ArrowLeft size={15} /> Geri
-                  </button>
-                )}
-                <button onClick={next} disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-md shadow-primary/20 group">
-                  {saving ? (
-                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Kaydediliyor…</>
-                  ) : (
-                    <>{step === 1 ? "Tamamla ve Başla" : "Devam Et"} <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" /></>
-                  )}
-                </button>
-              </div>
+              <WizardNav current={step} total={STEPS.length} busy={saving}
+                onBack={() => setStep(s => s - 1)} onNext={next} finishLabel="Tamamla ve Başla" />
             )}
           </div>
         </div>
@@ -356,29 +316,6 @@ export default function OnboardingWizard() {
           Departman, kural ve diğer tüm detayları istediğiniz zaman Ayarlar sayfasından ekleyebilirsiniz.
         </p>
       </div>
-    </div>
-  );
-}
-
-// ─── Yardımcı bileşenler ──────────────────────────────────────────────────────
-
-function Shell({ icon, color, title, sub, children }: {
-  icon: React.ReactNode;
-  color: string;
-  title: string;
-  sub: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>{icon}</div>
-        <div>
-          <h2 className="text-2xl font-black text-slate-900">{title}</h2>
-          <p className="text-slate-500 text-sm mt-1">{sub}</p>
-        </div>
-      </div>
-      <div className="space-y-5">{children}</div>
     </div>
   );
 }

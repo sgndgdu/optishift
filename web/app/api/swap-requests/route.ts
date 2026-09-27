@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         let rules: any = {};
         try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
         if (rules.swap_requests_enabled === false) {
-          return NextResponse.json({ error: "Bu lokasyonda vardiya takası kapalı." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede vardiya takası kapalı." }, { status: 422 });
         }
       }
     }

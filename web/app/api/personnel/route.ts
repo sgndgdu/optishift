@@ -197,7 +197,7 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
-    // lib/scoring.ts recompute'udur. Manuel düzeltme için score_adjustments (type: manual).
+    // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
     const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, hourly_wage, night_restriction } = body;
 
     // Atanan rol, atayan kişinin rolünü aşamaz

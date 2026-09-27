@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { acknowledgeHandover } from "@/lib/handover";
 
-// PATCH — "Okudum, Teslim Aldım". Kiosk kendi PIN akışı içinde check-in gate'i
+// PATCH — "Okudum, Teslim Aldım". Kiosk kendi PIN akışı içinde giriş gate'i
 // üzerinden zaten acknowledge ediyor (bkz. lib/handover.ts checkHandoverGate);
 // bu route portal'daki bağımsız "notu şimdi onayla" ekranı içindir.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

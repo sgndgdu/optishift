@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 // GET /api/reports/timesheet?location_id=X&month=YYYY-MM
-// Check-in bazlı puantaj: kişi-gün satırları CSV olarak iner (bordro/muhasebe aktarımı).
+// Giriş bazlı puantaj: kişi-gün satırları CSV olarak iner (bordro/muhasebe aktarımı).
 // Kolonlar: sicil, ad, tarih, plan başlangıç/bitiş, plan saat, giriş, çıkış,
 // gerçekleşen saat, geç kalma (dk), durum (geldi/gelmedi/devam ediyor).
 export async function GET(req: NextRequest) {

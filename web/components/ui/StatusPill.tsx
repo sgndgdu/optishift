@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Tek durum-etiketi bileşeni — kapasite sayaçları, müsaitlik durumu, kural
+ * Tek durum-etiketi bileşeni — kapasite sayaçları, uygunluk durumu, kural
  * ihlali rozetleri gibi app genelinde tekrar eden "renkli pill/blok" deseninin
  * tek kaynağı (bkz. Claude Design "OptiShift Design System" → Kararlar #2).
  *
@@ -27,7 +27,7 @@ export function StatusPill({
 }: {
   tone: PillTone;
   children: React.ReactNode;
-  /** pill: küçük sayaç/rozet (kapasite, ihlal sayısı). block: geniş durum kartı (müsaitlik seçici). */
+  /** pill: küçük sayaç/rozet (kapasite, ihlal sayısı). block: geniş durum kartı (uygunluk seçici). */
   size?: "pill" | "block";
   className?: string;
 }) {

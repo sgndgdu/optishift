@@ -260,7 +260,7 @@ function SupervisorPersonnelInner() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Personel & Hesaplar</h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Organizasyon geneli tüm personeli yönetin.</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">İşletme geneli tüm personeli yönetin.</p>
         </div>
         <Button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="bg-ember-600 hover:bg-ember-700 text-white gap-2">
           <Plus size={16} /> Yeni Hesap Ekle

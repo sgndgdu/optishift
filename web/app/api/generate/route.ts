@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Müsaitlik verilerini çek
+    // Uygunluk verilerini çek
     const personnelIds = personnelRows.map((p: any) => p.id);
     let availabilityRows: any[] = [];
     if (personnelIds.length > 0) {

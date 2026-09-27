@@ -211,17 +211,17 @@ export default function PortalDashboard() {
         setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
         setPendingHandoverModal(null);
       } else if (r.status === 428) {
-        // rules.handover_log_enabled: bekleyen bir devir-teslim notu var — check-in
+        // rules.handover_log_enabled: bekleyen bir devir-teslim notu var — giriş
         // gerçekleşmedi, önce notu okuyup "Teslim Aldım" demesi gerekiyor.
         const data = await r.json().catch(() => ({}));
         if (data?.pending_handover) setPendingHandoverModal({ shiftId, handover: data.pending_handover });
-        else setCheckInError(data.error || "Check-in başarısız oldu.");
+        else setCheckInError(data.error || "Giriş kaydedilemedi.");
       } else {
         const err = await r.json().catch(() => ({}));
-        setCheckInError(err.error || "Check-in başarısız oldu.");
+        setCheckInError(err.error || "Giriş kaydedilemedi.");
       }
     } catch {
-      setCheckInError("Check-in başarısız oldu.");
+      setCheckInError("Giriş kaydedilemedi.");
     } finally { setCheckInLoading(false); }
   };
 
@@ -261,8 +261,8 @@ export default function PortalDashboard() {
     } finally { setCheckInLoading(false); }
   };
 
-  // QR ile check-in: şube panosundaki QR kod /portal?qr=1'e yönlendirir. Bugün vardiyan
-  // varsa ve henüz check-in yapmadıysan, sayfa açılır açılmaz otomatik check-in dener.
+  // QR ile giriş: şube panosundaki QR kod /portal?qr=1'e yönlendirir. Bugün vardiyan
+  // varsa ve henüz giriş yapmadıysan, sayfa açılır açılmaz otomatik giriş dener.
   useEffect(() => {
     if (qrAutoCheckinDone.current) return;
     if (typeof window === "undefined") return;
@@ -459,7 +459,7 @@ export default function PortalDashboard() {
             {(!todayShift || isCompleted) && (
               <button onClick={() => router.push("/portal/availability")}
                 className="flex-[2] bg-white text-primary text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97]">
-                <Zap size={14} /> Müsaitlik Gir
+                <Zap size={14} /> Uygunluk Gir
               </button>
             )}
           </div>
@@ -519,7 +519,7 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Bekleyen devir-teslim notu — check-in'i engeller, kapatılamaz ─── */}
+      {/* ── Bekleyen devir-teslim notu — girişi engeller, kapatılamaz ─── */}
       {pendingHandoverModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4">
@@ -528,7 +528,7 @@ export default function PortalDashboard() {
               <h3 className="text-base font-black text-slate-900">Devir-Teslim Notu</h3>
             </div>
             <p className="text-xs text-slate-500">
-              Check-in yapmadan önce sizden önceki vardiyanın bıraktığı notu okuyup teslim almanız gerekiyor.
+              Giriş yapmadan önce sizden önceki vardiyanın bıraktığı notu okuyup teslim almanız gerekiyor.
             </p>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
               <p className="text-sm text-slate-800 leading-relaxed">{pendingHandoverModal.handover.note}</p>
@@ -547,7 +547,7 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Check-out devir notu modalı ──────────────────────────────────── */}
+      {/* ── Çıkış devir notu modalı ──────────────────────────────────── */}
       {checkoutModal !== null && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckoutModal(null)}>
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
@@ -628,7 +628,7 @@ export default function PortalDashboard() {
       {/* ── Hızlı Erişim ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Müsaitlik", color: "text-ember-600 bg-ember-50" },
+          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Uygunluk", color: "text-ember-600 bg-ember-50" },
           { href: "/portal/requests",     icon: <ClipboardList size={18}/>, label: "Talepler",  color: "text-amber-600  bg-amber-50"  },
           { href: "/portal/calendar",     icon: <CalIcon size={18} />,      label: "Takvim",    color: "text-emerald-600 bg-emerald-50"},
         ].map(item => (
@@ -767,14 +767,14 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Müsaitlik hatırlatıcı ────────────────────────────────────────── */}
+      {/* ── Uygunluk hatırlatıcı ────────────────────────────────────────── */}
       {nextWeekAvail === false && (
         <div className="flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5">
           <div className="w-9 h-9 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
             <AlertCircle size={18} className="text-ember-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-ember-800">Gelecek hafta müsaitliğin eksik</p>
+            <p className="text-sm font-bold text-ember-800">Gelecek hafta uygunluğun eksik</p>
             <p className="text-xs text-ember-500 mt-0.5">Müdürün planlama yapabilmesi için gir.</p>
           </div>
           <Link href="/portal/availability"
@@ -909,7 +909,7 @@ export default function PortalDashboard() {
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Telafi Puanları</p>
               {fairness.adjustments.slice(0, 5).map((a: any, i: number) => (
                 <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Son dakika değişiklik telafisi" : "Manuel düzeltme")}</span>
+                  <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Son dakika değişiklik telafisi" : "Elle düzeltme")}</span>
                   <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
                 </div>
               ))}

@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ClipboardCheck, Check, Clock } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 type StatusFilter = "all" | "unread" | "read";
 
@@ -27,7 +28,7 @@ export default function HandoversPage() {
       const locData = Array.isArray(locRes) ? locRes[0] : null;
       let logEnabled = false;
       if (locData?.rules) {
-        try { logEnabled = JSON.parse(locData.rules).handover_log_enabled === true; } catch { /* kapalı say */ }
+        try { logEnabled = isModuleOn(JSON.parse(locData.rules), "handover_log_enabled"); } catch { /* kapalı say */ }
       }
       setEnabled(logEnabled);
       if (!logEnabled) { setLoading(false); return; }
@@ -50,7 +51,7 @@ export default function HandoversPage() {
         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
           <ClipboardCheck size={28} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-600">Devir-Teslim Defteri bu şubede kapalı</p>
-          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Kurallar &gt; İleri Seviye Modüller bölümünden açabilirsiniz.</p>
+          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Kurallar &gt; Ek Özellikler bölümünden açabilirsiniz.</p>
         </div>
       </div>
     );

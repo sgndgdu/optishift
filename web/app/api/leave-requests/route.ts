@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         let rules: any = {};
         try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
         if (rules.leave_requests_enabled === false) {
-          return NextResponse.json({ error: "Bu lokasyonda izin talep sistemi kapalı." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede izin talep sistemi kapalı." }, { status: 422 });
         }
       }
 
@@ -86,12 +86,12 @@ export async function POST(req: NextRequest) {
 
         // Mazeret zorunluluğu
         if (policy.require_reason && !note?.trim()) {
-          return NextResponse.json({ error: "Bu lokasyonda izin talebi için mazeret zorunludur." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede izin talebi için mazeret zorunludur." }, { status: 422 });
         }
 
         // Çoklu gün yasağı
         if (!policy.allow_multi_day && start_date !== end_date) {
-          return NextResponse.json({ error: "Bu lokasyonda birden fazla gün izin talep edilemez." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede birden fazla gün izin talep edilemez." }, { status: 422 });
         }
 
         // Maksimum gün kontrolü
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
           const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
           if (dayCount > policy.max_days_per_request) {
             return NextResponse.json(
-              { error: `Bu lokasyonda tek bir talep için en fazla ${policy.max_days_per_request} gün izin alınabilir.` },
+              { error: `Bu şubede tek bir talep için en fazla ${policy.max_days_per_request} gün izin alınabilir.` },
               { status: 422 }
             );
           }

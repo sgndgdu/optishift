@@ -52,7 +52,7 @@ export default function LandingPage() {
           <div className="text-center mb-12 sm:mb-16 md:mb-24">
             <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">İşinizi Kolaylaştıran Özellikler</h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg font-medium px-4">
-              Kurallarınızı bir kez tanımlayın. OptiShift, kapasite ihtiyacınızı, personel müsaitliğini ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
+              Kurallarınızı bir kez tanımlayın. OptiShift, kapasite ihtiyacınızı, personel uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
             </p>
           </div>
 
@@ -65,7 +65,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4 relative z-10">Otomatik Planlama</h3>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-md relative z-10 font-medium">
-                Kapasite matrisinde her gün için kaç kişi gerektiğini belirleyin. Motor; personelin müsaitliğini, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
+                Her gün için kaç kişi gerektiğini tabloya girin. OptiShift; personelin uygunluğunu, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
               </p>
             </div>
 

@@ -135,7 +135,7 @@ export const personnel = pgTable("personnel", {
   max_weekly_hours: integer("max_weekly_hours").default(45),
   min_weekly_hours: integer("min_weekly_hours").default(0), // part-time alt sınır garantisi, 0 = kapalı
   overtime_approved: boolean("overtime_approved").default(false),
-  crew_id: text("crew_id"), // crews tablosuna foreign key (opsiyonel)
+  crew_id: text("crew_id"), // crews tablosuna foreign key (isteğe bağlı)
   ytd_overtime_hours: doublePrecision("ytd_overtime_hours").default(0), // yılbaşından bu yana fazla mesai saati
   hourly_wage: doublePrecision("hourly_wage"), // saatlik brüt ücret (₺) — mesai maliyeti hesabı için, null = tanımsız
   night_restriction: text("night_restriction"), // gece çalışma yasağı nedeni: 'pregnant' | 'nursing' | 'under18' | 'medical' | null = yok — motor gece vardiyasına atamaz
@@ -158,7 +158,7 @@ export const personnel = pgTable("personnel", {
   ),
 });
 
-// ─── Availability (Haftalık Müsaitlik) ───────────────────────────────────────
+// ─── Availability (Haftalık Uygunluk) ───────────────────────────────────────
 export const availability = pgTable("availability", {
   id: serial("id").primaryKey(),
   personnel_id: text("personnel_id")
@@ -229,9 +229,9 @@ export const shiftAssignments = pgTable("shift_assignments", {
   published_at: bigint("published_at", { mode: "number" }), // unix timestamp — haftanın ilk yayın anı
   check_in_at: bigint("check_in_at", { mode: "number" }), // unix timestamp
   check_out_at: bigint("check_out_at", { mode: "number" }), // unix timestamp
-  check_in_distance_m: integer("check_in_distance_m"), // check-in anında şubeye olan mesafe (metre) — konum paylaşılmadıysa null
+  check_in_distance_m: integer("check_in_distance_m"), // giriş anında şubeye olan mesafe (metre) — konum paylaşılmadıysa null
   check_in_verified: boolean("check_in_verified"), // mesafe checkin_radius_m içindeyse true — sadece bilgi amaçlı, engellemez (rules.gps_checkin_required hariç)
-  handover_note: text("handover_note"), // vardiya devri notu — check-out'ta yazılır, sonraki vardiya check-in'de görür
+  handover_note: text("handover_note"), // vardiya devri notu — çıkışta yazılır, sonraki vardiya girişte görür
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
@@ -453,7 +453,7 @@ export const scheduleEditRequests = pgTable("schedule_edit_requests", {
   reviewed_by: text("reviewed_by"), // user.id (supervisor/admin)
   reviewed_by_name: text("reviewed_by_name"),
   reviewed_at: bigint("reviewed_at", { mode: "number" }),
-  note: text("note"), // supervisor notu (opsiyonel)
+  note: text("note"), // supervisor notu (isteğe bağlı)
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
@@ -507,7 +507,7 @@ export const crews = pgTable("crews", {
     .references(() => locations.id),
   name: text("name").notNull(), // "A Ekibi", "Sabah Grubu", vb.
   color: text("color").default("#6366f1"), // badge rengi (#hex)
-  shift_preference: text("shift_preference"), // tercih edilen shift_def_id (opsiyonel)
+  shift_preference: text("shift_preference"), // tercih edilen shift_def_id (isteğe bağlı)
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
@@ -671,7 +671,7 @@ export const shiftTasks = pgTable("shift_tasks", {
 });
 
 // ─── Payroll Periods (Puantaj Dönem Kilidi) ──────────────────────────────────
-// Bir şube+ay kilitlendiğinde o aya düşen vardiyaların check-in/check-out ve
+// Bir şube+ay kilitlendiğinde o aya düşen vardiyaların giriş/çıkış ve
 // düzenleme işlemleri reddedilir — puantaj/bordro hazırlandıktan sonra geçmiş
 // verinin sessizce değişmesini önler. Kayıt varlığı = kilitli; silinince açılır.
 export const payrollPeriods = pgTable("payroll_periods", {
@@ -790,9 +790,9 @@ export const webauthnCredentials = pgTable("webauthn_credentials", {
 });
 
 // ─── Shift Handovers (Dijital Devir-Teslim Defteri) ──────────────────────────
-// rules.handover_log_enabled açıkken check-out'ta bırakılan not; hedef vardiyaya
-// (target_shift_def_id) gelen İLK kişi "Teslim Aldım" deyip check-in yapana kadar
-// check-in'i bloklar (bkz. lib/handover.ts). Tek okuyucu yeterli — read_by_personnel_id
+// rules.handover_log_enabled açıkken çıkışta bırakılan not; hedef vardiyaya
+// (target_shift_def_id) gelen İLK kişi "Teslim Aldım" deyip giriş yapana kadar
+// girişi bloklar (bkz. lib/handover.ts). Tek okuyucu yeterli — read_by_personnel_id
 // set edilince not o vardiya için tüketilmiş sayılır, sonraki kişileri etkilemez.
 // Kapalıyken eski basit mekanizma (shift_assignments.handover_note, rules.handover_notes_enabled)
 // bu tabloya hiç dokunmadan aynen çalışmaya devam eder — iki mekanizma şube bazında birbirini dışlar.

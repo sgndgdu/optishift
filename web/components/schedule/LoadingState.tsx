@@ -10,10 +10,10 @@ export function LoadingState() {
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700 mb-1">
-            OR-Tools CP-SAT çözücüsü çalışıyor...
+            Planınız hazırlanıyor...
           </p>
           <p className="text-xs text-slate-400">
-            Kısıt optimizasyonu ve adalet dağılımı hesaplanıyor
+            Uygunluk, yasal dinlenme süreleri ve adil dağılım dikkate alınıyor
           </p>
         </div>
       </div>

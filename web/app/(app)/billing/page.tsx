@@ -38,7 +38,7 @@ const PLANS = [
     period: "",
     desc: "750+ şubeli zincirler için özel SLA.",
     color: "border-slate-300",
-    features: ["Tüm Pro özellikleri", "Özel SLA & Uptime Garantisi", "Dedicated Onboarding", "On-Premise Seçeneği"],
+    features: ["Tüm Pro özellikleri", "Özel SLA & Uptime Garantisi", "Özel Kurulum Desteği", "On-Premise Seçeneği"],
     cta: "İletişime Geç",
     dark: false,
   },
@@ -219,13 +219,13 @@ function BillingContent() {
 
       {/* Plan limits info */}
       <div className="bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-200">
-        <h3 className="text-sm font-black text-slate-800 mb-3">Plan Limitleri</h3>
+        <h3 className="text-sm font-black text-slate-800 mb-3">Plan Sınırları</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 text-center">
           {[
             { label: "Şube Limiti",    free: "1",        pro: "Sınırsız" },
             { label: "Personel",       free: "10",       pro: "Sınırsız" },
             { label: "Puantaj CSV",    free: "✓",        pro: "✓" },
-            { label: "Excel Export",   free: "✓",        pro: "✓" },
+            { label: "Excel'e Aktarma",   free: "✓",        pro: "✓" },
           ].map(row => (
             <div key={row.label} className="bg-white rounded-xl p-3 border border-slate-100">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{row.label}</p>

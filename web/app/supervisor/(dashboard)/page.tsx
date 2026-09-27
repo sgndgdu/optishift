@@ -246,7 +246,7 @@ export default function SupervisorDashboard() {
               </div>
               <p className="font-bold text-slate-600 mb-1">Henüz şube eklenmedi</p>
               <p className="text-sm text-slate-400 mb-5">
-                Onboarding'i tamamladıysanız şubeleriniz burada görünecek.<br />
+                İlk kurulumu tamamladıysanız şubeleriniz burada görünecek.<br />
                 Yoksa Ayarlar sayfasından ekleyebilirsiniz.
               </p>
               <Link href="/supervisor/settings">
@@ -304,7 +304,7 @@ export default function SupervisorDashboard() {
                       }`}>
                         {loc.publish_lead === null ? "—" : `${loc.publish_lead.toLocaleString("tr-TR")}g`}
                       </p>
-                      <p className="text-[11px] font-semibold text-slate-500">Yayın Öncülüğü</p>
+                      <p className="text-[11px] font-semibold text-slate-500">Erken Yayın</p>
                     </div>
                   </div>
 

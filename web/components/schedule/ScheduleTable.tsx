@@ -167,10 +167,10 @@ function PointsLegend({ shifts, rolesConfigs }: { shifts: ShiftDefinition[]; rol
             {r.difficulty_note && <span>({r.difficulty_note})</span>}
           </p>
         )) : (
-          <p className="text-[11px] text-slate-400">Bu lokasyonda ek rol zorluk bonusu tanımlanmamış.</p>
+          <p className="text-[11px] text-slate-400">Bu şubede ek rol zorluk bonusu tanımlanmamış.</p>
         )}
         <p className="text-[11px] text-slate-400">
-          Puan kümülatif; OR-Tools ay sonunda standart sapmayı minimize eder.
+          Puanlar birikir; zor vardiyalar zamanla herkese eşit dağıtılır.
         </p>
       </div>
     </div>

@@ -343,7 +343,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Gift size={14} className="text-ember-500" />
-                      Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(opsiyonel)</span>
+                      Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(isteğe bağlı)</span>
                     </label>
                     <div className="relative">
                       <input

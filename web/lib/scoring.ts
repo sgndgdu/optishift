@@ -88,7 +88,7 @@ export async function getAdjustmentsByWeek(
 // ─── Kümülatif recompute ──────────────────────────────────────────────────────
 
 /**
- * Lokasyondaki tüm aktif personelin kümülatif puanını ve takım-içi percentile'ını,
+ * Lokasyondaki tüm aktif personelin birikimli puanını ve takım-içi percentile'ını,
  * score_history + score_adjustments üzerinden yeniden hesaplar ve personnel
  * önbelleğine yazar. Decay YOK — düz toplam, sabit pencere.
  * `asOfWeek`: pencerenin en yeni haftası (genelde bu hafta veya yayınlanan hafta).
@@ -250,7 +250,7 @@ export async function rescoreWeek(
 }
 
 /**
- * Haftanın atama + müsaitlik girdilerini canonical formata yükler.
+ * Haftanın atama + uygunluk girdilerini canonical formata yükler.
  * Excel export gibi read-only tüketiciler için de kullanılır.
  */
 export async function loadWeekInputs(

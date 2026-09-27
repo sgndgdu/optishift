@@ -45,7 +45,7 @@ function useNotifUnread() {
 const NAV = [
   { href: "/portal",              label: "Özet",        icon: Home,          exact: true },
   { href: "/portal/calendar",     label: "Vardiyalar",  icon: Calendar },
-  { href: "/portal/availability", label: "Müsaitlik",   icon: Clock },
+  { href: "/portal/availability", label: "Uygunluk",   icon: Clock },
   { href: "/portal/requests",     label: "Talepler",    icon: Inbox },
   { href: "/portal/chat",         label: "Sohbet",      icon: MessageSquare },
   { href: "/portal/open-shifts",  label: "Açık Vardiyalar", icon: Megaphone },
@@ -70,7 +70,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       if (raw) {
         const u = JSON.parse(raw);
         setUser(u);
-        // Müsaitlik toplama kapalıysa nav'dan Müsaitlik linkini gizle (locations.rules)
+        // Uygunluk toplama kapalıysa nav'dan Uygunluk linkini gizle (locations.rules)
         if (u?.location_id) {
           fetch(`/api/locations?id=${u.location_id}`)
             .then(r => r.json())

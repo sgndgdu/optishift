@@ -102,7 +102,7 @@ function IntegrationsPageInner() {
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-slate-800">Entegrasyon Merkezi</h1>
         <p className="text-slate-500 text-sm mt-1">
-          ERP ve İK sisteminize bağlanın, organizasyon genelinde tek bağlantı geçerlidir
+          ERP ve İK sisteminize bağlanın, işletme genelinde tek bağlantı geçerlidir
         </p>
       </div>
 
@@ -162,7 +162,7 @@ function IntegrationsPageInner() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
         <h2 className="font-semibold text-slate-700 mb-1">Alan Eşleştirme</h2>
         <p className="text-xs text-slate-400 mb-4">
-          ERP&apos;den gelen sütun adlarını OptiShift alanlarıyla eşleştirin. Senkronizasyon bu eşleştirmeyi kullanır.
+          ERP&apos;den gelen sütun adlarını OptiShift alanlarıyla eşleştirin. Eşitleme bu eşleştirmeyi kullanır.
         </p>
         <div className="space-y-3">
           {mapping.map((m, idx) => (

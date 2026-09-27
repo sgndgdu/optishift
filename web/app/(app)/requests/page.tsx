@@ -9,6 +9,7 @@ import {
   ClipboardList, ArrowLeftRight, FileEdit, CalendarOff,
   CheckCircle2, XCircle, Clock, History, Timer
 } from "lucide-react";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -91,10 +92,10 @@ export default function ManagerRequestsPage() {
       try {
         const loc = Array.isArray(locs) ? locs[0] : locs;
         const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
-        setLeaveRequestsEnabled(rules?.leave_requests_enabled !== false);
-        setOvertimeTrackingEnabled(rules?.overtime_tracking_enabled !== false);
-        setSwapRequestsEnabled(rules?.swap_requests_enabled !== false);
-        setEditRequestsEnabled(rules?.edit_requests_enabled !== false);
+        setLeaveRequestsEnabled(isModuleOn(rules, "leave_requests_enabled"));
+        setOvertimeTrackingEnabled(isModuleOn(rules, "overtime_tracking_enabled"));
+        setSwapRequestsEnabled(isModuleOn(rules, "swap_requests_enabled"));
+        setEditRequestsEnabled(isModuleOn(rules, "edit_requests_enabled"));
       } catch { /* geçersiz JSON → atla */ }
     } finally { setLoading(false); }
   }, [user]);
@@ -474,7 +475,7 @@ export default function ManagerRequestsPage() {
             );
           })}
           <p className="text-[11px] text-slate-400 text-center pt-1">
-            YTD limitleri, maliyet ve serbest zaman takibi için <Link href="/overtime" className="underline hover:text-slate-600">Fazla Mesai sayfası</Link>na bakın.
+            Yıllık sınırlar, maliyet ve serbest zaman takibi için <Link href="/overtime" className="underline hover:text-slate-600">Fazla Mesai sayfası</Link>na bakın.
           </p>
         </div>
       )}

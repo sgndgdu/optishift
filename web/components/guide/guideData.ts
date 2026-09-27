@@ -37,7 +37,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Rocket,
         paragraphs: [
           "Kayıt olduktan sonra kısa bir kurulum ekranı karşınıza çıkar. Önce sektörünüzü seçip en az bir şube adı girersiniz. İkinci adımda sektörünüze uygun hazır vardiya şablonları gelir (örneğin bir kafe için “Açılış” ve “Kapanış”); saatleri isterseniz değiştirebilir, isterseniz olduğu gibi bırakabilirsiniz.",
-          "Departman eklemek zorunlu değildir. Tek şubeli, tek bölümlü bir işletmeyseniz bu adımı atlayabilirsiniz, kapasite planınız şube geneli için tek bir tablo olarak kalır. Birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) bunları sonradan Ayarlar’dan da ekleyebilirsiniz.",
+          "Departman eklemek zorunlu değildir. Tek şubeli, tek bölümlü bir işletmeyseniz bu adımı atlayabilirsiniz, personel ihtiyacınız şube geneli için tek bir tablo olarak kalır. Birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) bunları sonradan Ayarlar’dan da ekleyebilirsiniz.",
           "Giriş ekranında “Biyometrik ile Giriş Yap” seçeneğini görüyorsanız cihazınız Face ID/Touch ID/parmak izi destekliyor demektir. Önce kullanıcı adı-şifrenizle bir kez giriş yapıp bu cihazı etkinleştirdikten sonra bir daha şifre yazmadan girebilirsiniz.",
         ],
       },
@@ -46,8 +46,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Panel",
         icon: LayoutDashboard,
         paragraphs: [
-          "Panel, o günün canlı durumunu özetler: kaç kişinin gelmesi beklendiği, kaç kişinin check-in yaptığı, kaç kişinin molada olduğu ve kimin geç kaldığı.",
-          "Planlanan saatten 30 dakika sonra hâlâ check-in yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
+          "Panel, o günün canlı durumunu özetler: kaç kişinin gelmesi beklendiği, kaç kişinin giriş yaptığı, kaç kişinin molada olduğu ve kimin geç kaldığı.",
+          "Planlanan saatten 30 dakika sonra hâlâ giriş yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
           "“Sıradaki Adım” kartı o an yapmanız gereken en öncelikli işi gösterir. Personel eklenmemiş olabilir, gelecek haftanın planı yayınlanmamış olabilir ya da bekleyen bir izin talebiniz olabilir.",
         ],
       },
@@ -59,9 +59,9 @@ export const ROLE_GUIDES: RoleGuide[] = [
           "Bu, işin kalbi olan sayfadır. Bir haftalık planı beş adımda oluşturursunuz:",
         ],
         steps: [
-          "Kapasite Planı: Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin (“Pazartesi sabah: 2 kişi” gibi). Önceki haftanın rakamları öneri olarak otomatik gelir, siz sadece değişeni değiştirirsiniz.",
-          "Müsaitlik toplama (opsiyonel): Personelinizden o haftanın müsaitliğini isterseniz tek tıkla “Müsaitlik İste” bildirimi gönderirsiniz. Bu adımı hiç kullanmak istemiyorsanız Ayarlar’dan tamamen kapatabilir, planlamayı kendiniz yaparsınız.",
-          "Otomatik Oluştur: Girdiğiniz kapasite ihtiyacını, personelin müsaitliğini, yasal dinlenme kurallarını ve kimin son haftalarda daha çok/az çalıştığını (adalet puanı) birlikte gözeten bir taslak plan üretilir.",
+          "Personel İhtiyacı: Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin (“Pazartesi sabah: 2 kişi” gibi). Önceki haftanın rakamları öneri olarak otomatik gelir, siz sadece değişeni değiştirirsiniz.",
+          "Uygunluk toplama (isteğe bağlı): Personelinizden o haftanın uygunluğunu isterseniz tek tıkla “Uygunluk İste” bildirimi gönderirsiniz. Bu adımı hiç kullanmak istemiyorsanız Ayarlar’dan tamamen kapatabilir, planlamayı kendiniz yaparsınız.",
+          "Otomatik Oluştur: Girdiğiniz kapasite ihtiyacını, personelin uygunluğunu, yasal dinlenme kurallarını ve kimin son haftalarda daha çok/az çalıştığını (adalet puanı) birlikte gözeten bir taslak plan üretilir.",
           "Elle düzenleme: Herhangi bir hücreye tıklayıp değiştirebilirsiniz. Her hücrenin altında “kaç kişi atandı / kaç kişi gerekiyordu” sayacı canlı güncellenir: kırmızı eksik, yeşil tam, mavi fazla demektir.",
           "Yayınla: Hazır olduğunuzda “Yayınla”ya basarsınız. Sistem son bir kez kural ihlali tarar (11 saat dinlenmeyen biri var mı, haftalık limiti aşan biri var mı gibi) ve varsa size gösterir; siz yine de devam edip etmeyeceğinize karar verirsiniz. Yayınlanan plan o anda personelin telefonuna düşer.",
         ],
@@ -82,7 +82,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Users,
         paragraphs: [
           "Personel eklerken isim, telefon ve rol yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
-          "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece vardiyası kısıtlaması (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
+          "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece çalışma engeli (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
         ],
       },
       {
@@ -99,7 +99,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Açık Vardiyalar",
         icon: Megaphone,
         paragraphs: [
-          "Bir personel gelemediğinde veya vardiyasını devredemediğinde, o vardiyayı “açık” ilan edebilirsiniz. Sistem o gün müsait ve uygun personeli sıralar (adalet puanı en düşük olan önce gelir); siz birini seçip atayabilir ya da personelin kendiliğinden üstlenmesini bekleyebilirsiniz.",
+          "Bir personel gelemediğinde veya vardiyasını devredemediğinde, o vardiyayı “açık” ilan edebilirsiniz. Sistem o gün uygun personeli sıralar (adalet puanı en düşük olan önce gelir); siz birini seçip atayabilir ya da personelin kendiliğinden üstlenmesini bekleyebilirsiniz.",
           "Personel de kendi vardiyasını isteğe bağlı olarak “Herkese Aç (Pazar Yeri)” seçeneğiyle doğrudan bu listeye bırakabilir. Belirli bir kişiye teklif etmek yerine, isteyen ilk kişi üstlenir ve size otomatik bildirim gider.",
         ],
       },
@@ -127,7 +127,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: BarChart2,
         paragraphs: [
           "Aylık özet raporlar ve puantaj (kimin ne zaman geldiği/gittiği, geç kalmalar, gelinmeyen günler) burada listelenir. Excel olarak dışa aktarabilirsiniz.",
-          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın check-in/check-out kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece admin veya süpervizör açabilir, müdür açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
+          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece admin veya süpervizör açabilir, müdür açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
         ],
       },
       {
@@ -147,9 +147,9 @@ export const ROLE_GUIDES: RoleGuide[] = [
         ],
         steps: [
           "Vardiyalar: çalışma saatleriniz ve vardiya tipleriniz. İstediğiniz kadar tanımlayabilirsiniz, “sabah/akşam” gibi sabit bir kalıp yoktur.",
-          "Kurallar: haftalık azami çalışma saati, vardiyalar arası minimum dinlenme süresi, fazla mesai eşiği ve haftalık işçilik maliyeti bütçesi gibi kısıtlar; “Sosyal Kurallar” bölümünden iki personelin hiçbir gün aynı vardiyaya birlikte yazılmamasını sağlayabilirsiniz (örn. anlaşmazlık yaşayan iki kişi); “QR ile Check-in” bölümünden şubenize asabileceğiniz bir QR kod üretebilir, isterseniz “GPS Doğrulamalı Check-in” ile personelin gerçekten şubede olup olmadığını da kontrol edebilirsiniz.",
-          "Personel Talepleri: müsaitlik toplamayı açma/kapama, hatırlatma zamanlaması, takas ve değişiklik izinleri, izin politikası.",
-          "Adalet Puanı: ileri düzey çarpanlar ve “Adalet Penceresi” (kümülatif puanın kaç haftalık geçmişi dikkate alacağı, varsayılan 8 hafta, isterseniz 90 güne/13 haftaya kadar uzatabilirsiniz). Çoğu işletme varsayılan ayarları hiç değiştirmeden kullanır.",
+          "Kurallar: haftalık azami çalışma saati, vardiyalar arası en az dinlenme süresi, fazla mesai eşiği ve haftalık işçilik maliyeti bütçesi gibi sınırlar; “Sosyal Kurallar” bölümünden iki personelin hiçbir gün aynı vardiyaya birlikte yazılmamasını sağlayabilirsiniz (örn. anlaşmazlık yaşayan iki kişi); “QR ile Vardiya Girişi” bölümünden şubenize asabileceğiniz bir QR kod üretebilir, isterseniz “GPS Doğrulamalı Vardiya Girişi” ile personelin gerçekten şubede olup olmadığını da kontrol edebilirsiniz.",
+          "Personel Talepleri: uygunluk toplamayı açma/kapama, hatırlatma zamanlaması, takas ve değişiklik izinleri, izin politikası.",
+          "Adalet Puanı: ileri düzey çarpanlar ve “Adalet Penceresi” (birikimli puanın kaç haftalık geçmişi dikkate alacağı, varsayılan 8 hafta, isterseniz 90 güne/13 haftaya kadar uzatabilirsiniz). Çoğu işletme varsayılan ayarları hiç değiştirmeden kullanır.",
           "Departmanlar & Alanlar: birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) burada tanımlarsınız.",
           "Ekipler & Rotasyon: vardiyalı çalışan üretim/fabrika işletmeleri için dönüşümlü ekip planı.",
           "Hesap: işletme bilgileriniz ve abonelik/fatura bilgileriniz.",
@@ -161,7 +161,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
     key: "employee",
     label: "Personel",
     shortLabel: "Personel",
-    description: "Vardiyanızı görmek, müsaitlik girmek ve talep oluşturmak için.",
+    description: "Vardiyanızı görmek, uygunluk girmek ve talep oluşturmak için.",
     sections: [
       {
         id: "personel-baslarken",
@@ -177,7 +177,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Özet (Ana Sayfa)",
         icon: Home,
         paragraphs: [
-          "Sıradaki vardiyanızı, check-in/check-out butonunu, bu haftaki toplam çalışma saatinizi, adalet puanınızı ve son bildirimlerinizi burada görürsünüz.",
+          "Sıradaki vardiyanızı, giriş/çıkış butonunu, bu haftaki toplam çalışma saatinizi, adalet puanınızı ve son bildirimlerinizi burada görürsünüz.",
           "Gerçek bir acil durumda (kaza, sağlık sorunu vb.) sayfanın altındaki “Acil Durum Bildir” butonuyla şubenizdeki tüm yöneticilere anında bildirim gönderebilirsiniz. Bu buton sadece gerçek acil durumlar içindir, günlük mazeretler için kullanılmaz, onun için Talepler sayfasındaki izin/düzenleme akışı vardır.",
         ],
       },
@@ -191,13 +191,13 @@ export const ROLE_GUIDES: RoleGuide[] = [
       },
       {
         id: "personel-musaitlik",
-        title: "Müsaitlik",
+        title: "Uygunluk",
         icon: Clock,
         paragraphs: [
-          "İşletmeniz müsaitlik topluyorsa, haftalık takviminizi üç renkle işaretlersiniz:",
+          "İşletmeniz uygunluk topluyorsa, haftalık takviminizi üç renkle işaretlersiniz:",
         ],
         steps: [
-          "Yeşil: müsaitim.",
+          "Yeşil: uygunum.",
           "Sarı: tercih etmem ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
           "Kırmızı: kesinlikle gelemem (resmi izin, sınav vb.). Kırmızı işaretlediğiniz güne asla vardiya yazılmaz.",
         ],
@@ -218,11 +218,11 @@ export const ROLE_GUIDES: RoleGuide[] = [
       },
       {
         id: "personel-checkin",
-        title: "Check-in / Check-out",
+        title: "Giriş / Çıkış",
         icon: ListChecks,
         paragraphs: [
-          "Vardiyanız başladığında ana sayfadaki karttan “Check-in” butonuna basarsınız, bittiğinde “Check-out”a. Müdürünüz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
-          "Şubenizde girişte bir QR kod asılıysa, telefon kameranızla okutmanız yeterli. Vardiyanız varsa check-in otomatik yapılır, ayrıca uygulamayı açıp butona basmanıza gerek kalmaz. Bazı işletmelerde check-in sırasında konumunuz da şubeyle karşılaştırılır (GPS doğrulama); bu açıksa şubeden çok uzaktaysanız check-in reddedilir.",
+          "Vardiyanız başladığında ana sayfadaki karttan “Vardiyayı Başlat” butonuna basarsınız, bittiğinde “Çıkış Yap”a. Müdürünüz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
+          "Şubenizde girişte bir QR kod asılıysa, telefon kameranızla okutmanız yeterli. Vardiyanız varsa giriş otomatik yapılır, ayrıca uygulamayı açıp butona basmanıza gerek kalmaz. Bazı işletmelerde giriş sırasında konumunuz da şubeyle karşılaştırılır (GPS doğrulama); bu açıksa şubeden çok uzaktaysanız giriş reddedilir.",
         ],
       },
       {
@@ -278,7 +278,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Personel & Hesaplar",
         icon: Users,
         paragraphs: [
-          "Organizasyon genelindeki tüm personel listesini buradan görürsünüz. Şube müdürlerinin oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
+          "İşletme genelindeki tüm personel listesini buradan görürsünüz. Şube müdürlerinin oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
         ],
       },
       {
@@ -302,7 +302,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ayarlar",
         icon: Settings,
         paragraphs: [
-          "Organizasyon genelinde geçerli olan ayarları buradan yönetirsiniz.",
+          "İşletme genelinde geçerli olan ayarları buradan yönetirsiniz.",
         ],
       },
     ],
@@ -318,9 +318,9 @@ export const FAQ_ITEMS: FaqItem[] = [
       "Her vardiyanın zorluğunu (hafta sonu mu, gece mi, tercih edilmeyen bir gün mü) hesaba katan bir yük puanıdır. Kim son haftalarda daha çok yorucu vardiya almışsa, sistem bir sonraki planlamada onu gözetir ve dengelemeye çalışır. Amaç, sürekli aynı kişilerin hafta sonu ya da gece çalışmasını önlemektir.",
   },
   {
-    question: "Müsaitlik girmek zorunlu mu?",
+    question: "Uygunluk girmek zorunlu mu?",
     answer:
-      "Hayır. Müdürünüz isterse müsaitlik toplamayı tamamen kapatıp planı kendisi yapabilir. Açıksa, müsaitlik girmemeniz “tamamen müsaitim” olarak değerlendirilir; kırmızı işaretlediğiniz günlere ise kesinlikle vardiya yazılmaz.",
+      "Hayır. Müdürünüz isterse uygunluk toplamayı tamamen kapatıp planı kendisi yapabilir. Açıksa, uygunluk girmemeniz “tamamen uygunum” olarak değerlendirilir; kırmızı işaretlediğiniz günlere ise kesinlikle vardiya yazılmaz.",
   },
   {
     question: "Vardiya takası nasıl onaylanır?",

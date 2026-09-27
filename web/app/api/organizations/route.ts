@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const org = await db.prepare(
       `SELECT id, name, plan, connected_erp, erp_mapped_fields FROM organizations WHERE id = ?`
     ).get(auth.org_id) as any;
-    if (!org) return NextResponse.json({ error: "Organizasyon bulunamadı" }, { status: 404 });
+    if (!org) return NextResponse.json({ error: "İşletme bulunamadı" }, { status: 404 });
     if (typeof org.erp_mapped_fields === "string") {
       try { org.erp_mapped_fields = JSON.parse(org.erp_mapped_fields); } catch { org.erp_mapped_fields = null; }
     }

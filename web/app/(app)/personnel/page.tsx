@@ -7,6 +7,7 @@ import {
   Users, Plus, Search, Edit2, Trash2, X, Check, Copy,
   Phone, Mail, Link, Upload, CheckCircle, AlertCircle, Loader2, RefreshCw,
 } from "lucide-react";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 type MergedPerson = {
   userId: string;
@@ -354,7 +355,7 @@ export default function PersonnelPage() {
       setNewKioskPin("");
       setEditingPerson(prev => prev ? { ...prev, kiosk_pin_set: true } : prev);
       setPersons(prev => prev.map(p => p.personnelId === editingPerson.personnelId ? { ...p, kiosk_pin_set: true } : p));
-      showToast("Kiosk PIN atandı");
+      showToast("Tablet PIN'i atandı");
     } catch { setKioskPinError("PIN kaydedilemedi"); }
     finally { setKioskPinSaving(false); }
   };
@@ -364,7 +365,7 @@ export default function PersonnelPage() {
     await fetch(`/api/personnel/${editingPerson.personnelId}/kiosk-pin`, { method: "DELETE" });
     setEditingPerson(prev => prev ? { ...prev, kiosk_pin_set: false } : prev);
     setPersons(prev => prev.map(p => p.personnelId === editingPerson.personnelId ? { ...p, kiosk_pin_set: false } : p));
-    showToast("Kiosk PIN kaldırıldı");
+    showToast("Tablet PIN'i kaldırıldı");
   };
 
   const handleEdit = async () => {
@@ -407,8 +408,8 @@ export default function PersonnelPage() {
   );
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
-  const complianceTrackingEnabled = locations.some(l => l.rules?.compliance_tracking_enabled === true);
-  const kioskModeEnabled = locations.some(l => l.rules?.kiosk_mode_enabled === true);
+  const complianceTrackingEnabled = locations.some(l => isModuleOn(l.rules, "compliance_tracking_enabled"));
+  const kioskModeEnabled = locations.some(l => isModuleOn(l.rules, "kiosk_mode_enabled"));
   const todayISO = new Date().toISOString().split("T")[0];
 
   const roleBadge = (p: MergedPerson) => {
@@ -545,7 +546,7 @@ export default function PersonnelPage() {
 
                   {p.personnelId && p.role === "employee" && (
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <span className="text-xs font-bold text-slate-500">Adalet Skoru: <strong className="text-forest-600">{p.prev_score}</strong></span>
+                      <span className="text-xs font-bold text-slate-500">Adalet Puanı: <strong className="text-forest-600">{p.prev_score}</strong></span>
                       {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">⭐ {p.hero_count}x</span>}
                       {p.crew_id && (() => { const crew = crewList.find(c => c.id === p.crew_id); return crew ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: crew.color }}>{crew.name}</span> : null; })()}
                       {(p.ytd_overtime_hours ?? 0) > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">⏱ {p.ytd_overtime_hours}s YTD</span>}
@@ -823,7 +824,7 @@ export default function PersonnelPage() {
                     <p className="text-[10px] text-slate-400 mt-1">Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez.</p>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Gece Çalışma Kısıtı</label>
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Gece Çalışma Engeli</label>
                     <select
                       value={editForm.night_restriction ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, night_restriction: e.target.value || null }))}
@@ -835,7 +836,7 @@ export default function PersonnelPage() {
                       <option value="under18">18 yaş altı (gece çalışamaz)</option>
                       <option value="medical">Sağlık raporu (gece çalışamaz)</option>
                     </select>
-                    <p className="text-[10px] text-slate-400 mt-1">Kısıt seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Bir engel seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
                   <label className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 cursor-pointer">
                     <input
@@ -845,7 +846,7 @@ export default function PersonnelPage() {
                       className="w-4 h-4 rounded accent-forest-600"
                     />
                     <span className="text-sm font-semibold text-slate-700">Kıdemli Personel</span>
-                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Kurallar&apos;daki &quot;Kıdemli Personel Kuralı&quot; açıksa, motor her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Kurallar&apos;daki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
@@ -923,8 +924,8 @@ export default function PersonnelPage() {
                   )}
                   {kioskModeEnabled && (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Kiosk PIN</label>
-                      <p className="text-[10px] text-slate-400 mb-2">Ortak tablette check-in/check-out için 4 haneli PIN. Kiosk Modu açık şubelerde geçerlidir.</p>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ortak Tablet PIN'i</label>
+                      <p className="text-[10px] text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açık şubelerde geçerlidir.</p>
                       {editingPerson?.kiosk_pin_set ? (
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
                           <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>

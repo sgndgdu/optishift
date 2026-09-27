@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const byPerson: Record<string, any[]> = {};
     for (const a of asgs) (byPerson[a.personnel_id] ??= []).push(a);
 
-    // O haftanın müsaitliği
+    // O haftanın uygunluğu
     const ids = eligible.map(p => p.id);
     let availRows: any[] = [];
     if (ids.length > 0) {

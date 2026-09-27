@@ -4,7 +4,7 @@
  *
  * app/api/shifts/route.ts PATCH (personel portalı, oturumlu) ve
  * app/api/kiosk/[locationId]/route.ts (ortak tablet, oturumsuz PIN girişi)
- * check-in'den ÖNCE bunu çağırır — davranış iki yoldan da birebir aynıdır.
+ * girişten ÖNCE bunu çağırır — davranış iki yoldan da birebir aynıdır.
  *
  * Tek okuyucu yeterli: hedef vardiyaya gelen İLK kişi "Teslim Aldım" deyip
  * acknowledgeHandover çağırınca not o vardiya için tüketilmiş sayılır,
@@ -22,7 +22,7 @@ export interface PendingHandover {
 const STALE_WINDOW_SECONDS = 3 * 24 * 3600;
 
 /**
- * Check-in yapılacak vardiyanın bağlamını (şube, vardiya tanımı, personelin
+ * Giriş yapılacak vardiyanın bağlamını (şube, vardiya tanımı, personelin
  * departmanı) shift_assignments row id'sinden çözer. Hem portal (shift_id =
  * shift_assignments.id) hem kiosk (zaten elindeki shift row'u) aynı şekli kullanır.
  */
@@ -95,7 +95,7 @@ export type AcknowledgeOutcome = { ok: true } | { ok: false; status: number; err
 /**
  * Notu okundu işaretler. Zaten başkası tarafından okunmuşsa idempotent olarak
  * ok:true döner (yarış durumunda ikinci kişiyi hatayla karşılamaz — not zaten
- * tüketilmiş, check-in'e devam edebilir).
+ * tüketilmiş, girişe devam edebilir).
  */
 export async function acknowledgeHandover(
   db: any,
@@ -112,8 +112,8 @@ export async function acknowledgeHandover(
 }
 
 /**
- * Check-in çağrılarının ortak ön-kontrolü: bekleyen bir not varsa ve istemci
- * onu acknowledgeHandoverId ile onaylamadıysa check-in'i başlatmadan notu
+ * Giriş çağrılarının ortak ön-kontrolü: bekleyen bir not varsa ve istemci
+ * onu acknowledgeHandoverId ile onaylamadıysa girişi başlatmadan notu
  * döner. Onaylandıysa (veya bekleyen not yoksa) null döner — çağıran taraf
  * performCheckIn'e geçebilir.
  */
@@ -134,8 +134,8 @@ export async function checkHandoverGate(
 
   if (params.acknowledgeHandoverId === pending.id) {
     await acknowledgeHandover(db, { id: pending.id, personnelId: ctx.personnelId });
-    return null; // onaylandı, check-in'e devam
+    return null; // onaylandı, girişe devam
   }
 
-  return pending; // hâlâ bekliyor — çağıran taraf check-in'i durdurup notu göstermeli
+  return pending; // hâlâ bekliyor — çağıran taraf girişi durdurup notu göstermeli
 }

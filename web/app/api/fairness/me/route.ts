@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Personel bulunamadı" }, { status: 404 });
     }
 
-    // Müsaitlik toplama kapalıysa sarı gün alanları personele gösterilmez
+    // Uygunluk toplama kapalıysa sarı gün alanları personele gösterilmez
     let prefNotVisible = true;
     const loc = (await db
       .select({ rules: locations.rules })

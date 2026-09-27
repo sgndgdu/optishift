@@ -196,7 +196,7 @@ export default function ReportsPage() {
             </p>
             <p className="text-xs text-slate-500">
               {periodLock
-                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi. Check-in/check-out ve düzenleme yapılamaz.`
+                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi. Giriş/çıkış ve düzenleme yapılamaz.`
                 : "Puantaj onaylandıktan sonra kilitleyerek geçmiş verinin değişmesini önleyin."}
             </p>
           </div>
@@ -314,7 +314,7 @@ export default function ReportsPage() {
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        Fazla mesai hesabı: lokasyon ayarlarındaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
+        Fazla mesai hesabı: şube ayarlarındaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
       </p>
     </div>
   );

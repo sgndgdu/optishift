@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Check-in / check-out — TEK KAYNAK.
+ * Giriş / çıkış — TEK KAYNAK.
  *
  * app/api/shifts/route.ts PATCH (personel portalı, oturumlu) ve
  * app/api/kiosk/[locationId]/route.ts (ortak tablet, oturumsuz PIN girişi)
@@ -44,12 +44,12 @@ export async function performCheckIn(
     return { ok: false, status: 403, error: "Erişim reddedildi" };
   }
   if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
-    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, check-in yapılamaz" };
+    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, giriş yapılamaz" };
   }
 
   // GPS doğrulama: konum paylaşıldıysa ve şubenin koordinatları tanımlıysa mesafeyi hesapla.
-  // rules.gps_checkin_required açıksa ve yarıçap dışındaysa check-in reddedilir; kapalıysa
-  // sadece bilgi olarak kaydedilir (müdür panelinde görünür), check-in engellenmez.
+  // rules.gps_checkin_required açıksa ve yarıçap dışındaysa giriş reddedilir; kapalıysa
+  // sadece bilgi olarak kaydedilir (müdür panelinde görünür), giriş engellenmez.
   let checkInDistanceM: number | null = null;
   let checkInVerified: boolean | null = null;
   if (typeof params.lat === "number" && typeof params.lon === "number") {
@@ -65,7 +65,7 @@ export async function performCheckIn(
       if (!checkInVerified && rules.gps_checkin_required === true) {
         return {
           ok: false, status: 400,
-          error: `Şubeden çok uzaktasınız (${checkInDistanceM}m). Check-in için şubede olmanız gerekiyor.`,
+          error: `Şubeden çok uzaktasınız (${checkInDistanceM}m). Giriş için şubede olmanız gerekiyor.`,
         };
       }
     }
@@ -89,7 +89,7 @@ export async function performCheckOut(
     return { ok: false, status: 403, error: "Erişim reddedildi" };
   }
   if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
-    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, check-out yapılamaz" };
+    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, çıkış yapılamaz" };
   }
   const now = Math.floor(Date.now() / 1000);
   const note = typeof params.handoverNote === "string" && params.handoverNote.trim()

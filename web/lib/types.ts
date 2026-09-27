@@ -193,9 +193,9 @@ export interface ScheduleRules {
   hero_bonus_points?: number;        // açık vardiya üstlenme (kahraman) düz bonus puanı, varsayılan 6
   force_bonus_points?: number;       // izinliyken kabul edilen zorunlu atama düz bonus puanı, varsayılan 5
   fairness_window_weeks?: number;    // kümülatif puan penceresi (hafta), decay YOK — düz toplam, varsayılan 4
-  availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden müsaitlik istenmez
-  checkin_required?: boolean;       // açıksa check-in yapmayan personel "geç kalan" sayılır (varsayılan false — check-in bilgi amaçlı, geç sayılmaz)
-  gps_checkin_required?: boolean;   // açıksa şubeye checkin_radius_m'den uzak check-in reddedilir (varsayılan: sadece bilgilendirir, engellemez)
+  availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden uygunluk istenmez
+  checkin_required?: boolean;       // açıksa giriş yapmayan personel "geç kalan" sayılır (varsayılan false — giriş bilgi amaçlı, geç sayılmaz)
+  gps_checkin_required?: boolean;   // açıksa şubeye checkin_radius_m'den uzak giriş reddedilir (varsayılan: sadece bilgilendirir, engellemez)
   checkin_radius_m?: number;        // GPS doğrulama yarıçapı (metre), varsayılan 150
   availability_reminder?: {
     enabled: boolean;
@@ -218,13 +218,13 @@ export interface ScheduleRules {
   // tek hafta tavanı 66 saat. 0/undefined = kapalı (haftalık katı limit geçerli)
   balancing_period_weeks?: number;
   night_legal_warning_enabled?: boolean; // varsayılan true — gece vardiyası >7,5s uyarısı (editör + yayın ihlali)
-  handover_notes_enabled?: boolean;      // varsayılan true — check-out'ta devir notu modalı + sonraki vardiyaya not kartı
+  handover_notes_enabled?: boolean;      // varsayılan true — çıkışta devir notu modalı + sonraki vardiyaya not kartı
   auto_leave_entitlement_enabled?: boolean; // varsayılan false — açıkken yıllık izin hakkı kıdeme göre otomatik (İş K. m.53, kümülatif devir); kapalıyken sabit annual_leave_days_total
   // İleri seviye modüller (hepsi varsayılan false — Ayarlar'dan açılır)
   compliance_tracking_enabled?: boolean; // açıkken: süresi dolmuş belgesi olan personel o haftaki plana hiç dahil edilmez (bkz. app/api/generate/route.ts)
   task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
   tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
-  kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle check-in/check-out yapabilir (oturumsuz)
+  kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle giriş/çıkış yapabilir (oturumsuz)
   shift_bidding_enabled?: boolean; // açıkken: açık vardiyalara doğrudan kabul yerine teklif verilir, müdür teklifler arasından seçer
   forecasting_enabled?: boolean; // açıkken: kapasite matrisi hücrelerinde geçmiş haftalardan türetilen tahmin gösterilir
   handover_log_enabled?: boolean; // açıkken: zorunlu okuma/onaylı Devir-Teslim Defteri (shift_handovers) devrede — eski handover_notes_enabled broadcast'i bu şubede otomatik gizlenir
@@ -406,7 +406,7 @@ export function calcPoints(
 // ─── Availability ─────────────────────────────────────────────────────────────
 
 export const AVAILABILITY_LABELS: Record<Availability, string> = {
-  available:     "Müsait",
+  available:     "Uygun",
   preferred_not: "Tercih Etmiyorum",
   unavailable:   "Kesinlikle Gelemem",
 };

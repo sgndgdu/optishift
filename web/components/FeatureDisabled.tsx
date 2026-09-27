@@ -19,7 +19,7 @@ export default function FeatureDisabled({ title }: { title: string }) {
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
         >
-          <ArrowLeft size={16} /> Dashboard&apos;a dön
+          <ArrowLeft size={16} /> Ana Sayfa&apos;ya dön
         </Link>
       </div>
     </div>

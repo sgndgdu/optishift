@@ -260,7 +260,7 @@ async function seed() {
   insertNotif.run("P001", "schedule", "Yeni Vardiya Programı", "22-28 Ağustos haftası için vardiya programınız yayınlandı.", 0, now - 7200000);
   insertNotif.run("P001", "leave_approved", "İzin Talebiniz Onaylandı", "29 Ağustos tarihindeki Yıllık İzin talebiniz onaylandı.", 0, now - 86400000);
   insertNotif.run("P001", "trade_request", "Vardiya Takas İsteği", "Fatma Şahin, 16 Ağustos vardiyasını sizinle değiştirmek istiyor.", 1, now - 172800000);
-  insertNotif.run("P001", "alert", "Müsaitlik Hatırlatması", "Gelecek hafta için müsaitlik durumunuzu henüz girmediniz.", 1, now - 259200000);
+  insertNotif.run("P001", "alert", "Uygunluk Hatırlatması", "Gelecek hafta için uygunluk durumunuzu henüz girmediniz.", 1, now - 259200000);
 
   // Leave requests
   sqlite.prepare(`

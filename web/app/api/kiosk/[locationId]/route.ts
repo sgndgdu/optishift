@@ -63,9 +63,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   }
 
   if (action === "checkin") {
-    if (shift.check_in_at) return NextResponse.json({ error: `${person.name}: zaten check-in yapılmış` }, { status: 409 });
+    if (shift.check_in_at) return NextResponse.json({ error: `${person.name}: zaten giriş yapılmış` }, { status: 409 });
     // rules.handover_log_enabled açıksa: bekleyen bir devir-teslim notu varsa
-    // check-in'i başlatmadan durdur — kiosk ekranı notu gösterip aynı PIN'le
+    // girişi başlatmadan durdur — kiosk ekranı notu gösterip aynı PIN'le
     // acknowledge_handover_id ekleyerek tekrar denemeli (bkz. lib/handover.ts).
     const pendingHandover = await checkHandoverGate(db, {
       shiftAssignmentId: shift.id,
@@ -82,8 +82,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
     return NextResponse.json({ success: true, personnel_name: person.name, action: "checkin" });
   }
 
-  if (!shift.check_in_at) return NextResponse.json({ error: `${person.name}: önce check-in yapılmalı` }, { status: 409 });
-  if (shift.check_out_at) return NextResponse.json({ error: `${person.name}: zaten check-out yapılmış` }, { status: 409 });
+  if (!shift.check_in_at) return NextResponse.json({ error: `${person.name}: önce giriş yapılmalı` }, { status: 409 });
+  if (shift.check_out_at) return NextResponse.json({ error: `${person.name}: zaten çıkış yapılmış` }, { status: 409 });
   const outcome = await performCheckOut(db, loc.org_id, { shiftId: shift.id });
   if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
   return NextResponse.json({ success: true, personnel_name: person.name, action: "checkout" });

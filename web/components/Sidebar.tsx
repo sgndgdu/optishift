@@ -52,25 +52,25 @@ import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronD
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
+import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
 
 // simple: true → Basit Mod'da (rules.simple_mode) her zaman görünür; kalanlar "Gelişmiş" grubuna katlanır
 // feature → lib/features.ts bayrağı kapalıysa link hiç gösterilmez (build geneli)
-// ruleFlag → aktif lokasyonun rules[ruleFlag] === false ise link hiç gösterilmez (şube bazlı, müdür Ayarlar'dan kapatır)
-// ruleFlag + requireTrue: true → varsayılan KAPALI modüller için ters mantık: rules[ruleFlag] === true olmadıkça gösterilmez
+// module → aktif şubede bu özellik kapalıysa link hiç gösterilmez (varsayılanlar lib/moduleVisibility.ts'te)
 const NAV = [
-  { href: "/dashboard",    label: "Dashboard",       icon: LayoutDashboard, simple: true },
+  { href: "/dashboard",    label: "Ana Sayfa",       icon: LayoutDashboard, simple: true },
   { href: "/personnel",    label: "Personel & Hesaplar", icon: Users,       simple: true },
   { href: "/schedule",         label: "Vardiya Planı",  icon: CalendarClock, simple: true },
   { href: "/schedule/archive", label: "Yayın Arşivi",   icon: Archive,       simple: false },
   { href: "/fairness",         label: "Adalet Puanı",   icon: Star,          simple: false },
   { href: "/requests",     label: "Onaylar",           icon: ClipboardList,  simple: true },
-  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false, ruleFlag: "open_shifts_enabled" },
-  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false, ruleFlag: "overtime_tracking_enabled" },
-  { href: "/tip-pools",    label: "Bahşiş Havuzu",     icon: Wallet,         simple: false, ruleFlag: "tip_pooling_enabled", requireTrue: true },
-  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck, simple: false, ruleFlag: "handover_log_enabled", requireTrue: true },
+  { href: "/open-shifts",  label: "Açık Vardiyalar",   icon: Megaphone,      simple: false, module: "open_shifts_enabled" },
+  { href: "/overtime",     label: "Fazla Mesai",        icon: Timer,          simple: false, module: "overtime_tracking_enabled" },
+  { href: "/tip-pools",    label: "Bahşiş Havuzu",     icon: Wallet,         simple: false, module: "tip_pooling_enabled" },
+  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck, simple: false, module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",       icon: Coffee,         simple: false, feature: "breaks" },
   { href: "/reports",      label: "Raporlar",          icon: BarChart2,      simple: false },
-  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true, ruleFlag: "chat_enabled" },
+  { href: "/chat",         label: "Mesajlaşma",        icon: MessageSquare,  simple: true, module: "chat_enabled" },
   { href: "/integrations", label: "Entegrasyonlar",   icon: Plug,            simple: false, feature: "integrations" },
   { href: "/billing",      label: "Faturalandırma",   icon: CreditCard,      simple: false, feature: "billing" },
   { href: "/settings",     label: "Ayarlar",          icon: Settings,        simple: true },
@@ -164,12 +164,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const activeLocation = locations.find(l => l.id === selectedLocationId);
 
   // Aktif lokasyonun rules objesi — Basit Mod ve şube bazlı modül aç/kapa bayrakları buradan okunur
-  const rules: Record<string, unknown> = (() => {
-    try {
-      const r = typeof activeLocation?.rules === "string" ? JSON.parse(activeLocation.rules) : activeLocation?.rules;
-      return r ?? {};
-    } catch { return {}; }
-  })();
+  const rules = parseRules(activeLocation?.rules);
   const simpleMode = rules?.simple_mode === true;
 
   return (
@@ -250,11 +245,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         {(() => {
           const items = NAV
             .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
-            .filter(item => {
-              if (!("ruleFlag" in item)) return true;
-              const flag = rules[(item as any).ruleFlag];
-              return (item as any).requireTrue ? flag === true : flag !== false;
-            })
+            .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
             .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
           const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
             const active       = pathname.startsWith(href);

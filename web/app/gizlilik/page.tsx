@@ -26,7 +26,7 @@ export default function PrivacyPage() {
           kullanıcı adı, işletme bilgileri) bakımından veri sorumlusu <strong>OptiShift</strong>&apos;tir.
         </li>
         <li>
-          <strong>Personel verileri</strong> (çalışanların adı, iletişim bilgisi, vardiya, müsaitlik,
+          <strong>Personel verileri</strong> (çalışanların adı, iletişim bilgisi, vardiya, uygunluk,
           izin, fazla mesai ve ücret bilgileri) Platform&apos;a ilgili <strong>işletme (işveren)</strong>
           tarafından girilir. Bu veriler bakımından veri sorumlusu işverendir; OptiShift bu verileri
           işverenin talimatıyla barındıran <strong>veri işleyen</strong> konumundadır. Çalışanlar, bu
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
       <h2>2. İşlenen Kişisel Veriler</h2>
       <ul>
         <li><strong>Hesap bilgileri:</strong> ad soyad, kullanıcı adı, e-posta, telefon, şifre (geri döndürülemez şekilde karma/hash olarak).</li>
-        <li><strong>Personel yönetim verileri:</strong> vardiya atamaları, müsaitlik tercihleri, izin talepleri ve bakiyeleri, fazla mesai kayıtları, işe giriş tarihi, pozisyon, çalışma saatleri, işverenin girmesi hâlinde saatlik ücret.</li>
+        <li><strong>Personel yönetim verileri:</strong> vardiya atamaları, uygunluk tercihleri, izin talepleri ve bakiyeleri, fazla mesai kayıtları, işe giriş tarihi, pozisyon, çalışma saatleri, işverenin girmesi hâlinde saatlik ücret.</li>
         <li><strong>Kullanım ve güvenlik verileri:</strong> oturum kayıtları, IP adresi, işlem logları.</li>
       </ul>
 
@@ -79,7 +79,7 @@ export default function PrivacyPage() {
       <h2>7. Veri Güvenliği</h2>
       <p>
         Veriler aktarım sırasında TLS ile şifrelenir; şifreler geri döndürülemez şekilde karma
-        (bcrypt) olarak saklanır; erişim, rol tabanlı yetkilendirme ve organizasyon bazlı veri
+        (bcrypt) olarak saklanır; erişim, rol tabanlı yetkilendirme ve işletme bazlı veri
         izolasyonu ile sınırlandırılır.
       </p>
 

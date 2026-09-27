@@ -156,13 +156,13 @@ export function EmptyState({
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <SectionTitle hint="Planlama yapılacak lokasyonun güncel yapılandırması.">
-              1. Lokasyon Uçuş Öncesi Kontrolü
+            <SectionTitle hint="Plan hazırlanacak şubenin güncel durumu.">
+              1. Şube Hazırlık Kontrolü
             </SectionTitle>
           </div>
           <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-forest-600 bg-forest-50 hover:bg-forest-100 px-4 py-2 rounded-lg transition-colors shrink-0">
             <Settings size={16} />
-            Lokasyon Ayarlarına Git
+            Şube Ayarlarına Git
           </Link>
         </div>
         <div className="p-6 bg-slate-50/50 flex flex-wrap gap-4">
@@ -199,8 +199,8 @@ export function EmptyState({
       {/* ── Adım 2: Headcount Matrix ─────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex flex-col gap-4">
-          <SectionTitle hint="Haftanın her günü için hangi vardiyada hangi role minimum kaç kişi gerektiğini belirleyin.">
-            2. Günlük İhtiyaç Planı (Headcount)
+          <SectionTitle hint="Haftanın her günü için hangi vardiyada hangi role en az kaç kişi gerektiğini belirleyin.">
+            2. Personel İhtiyacı
           </SectionTitle>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
@@ -270,8 +270,8 @@ export function EmptyState({
       {/* ── Adım 3: Kurallar ───────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100">
-          <SectionTitle hint="Algoritmanın atama yaparken kullanacağı esneklik kısıtlarını ayarlayın.">
-            3. Kural Motoru
+          <SectionTitle hint="Plan hazırlanırken nelere dikkat edilsin?">
+            3. Planlama Kuralları
           </SectionTitle>
         </div>
         <div className="p-6 bg-slate-50/50">

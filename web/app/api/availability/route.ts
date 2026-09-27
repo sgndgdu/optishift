@@ -16,7 +16,7 @@ async function getMaxPreferredNotDays(locationId: string | null): Promise<number
   return 1;
 }
 
-// GET: Bir personelin belirli bir hafta müsaitliğini getir
+// GET: Bir personelin belirli bir hafta uygunluğunu getir
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ exists: true, submitted_at: row.submitted_at, is_locked: row.is_locked, days, max_preferred_not_days });
 }
 
-// POST: Müsaitlik gönder veya güncelle
+// POST: Uygunluk gönder veya güncelle
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (existing?.is_locked) {
-      return NextResponse.json({ error: "Bu hafta için müsaitlik kilitleniş, deadline geçmiş." }, { status: 403 });
+      return NextResponse.json({ error: "Bu hafta için uygunluk girişi kapandı, son tarih geçti." }, { status: 403 });
     }
 
     const values: Record<string, any> = {
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE: Gönderilen müsaitliği geri çek (revoke)
+// DELETE: Gönderilen uygunluğu geri çek (revoke)
 export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;

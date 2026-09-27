@@ -325,10 +325,10 @@ export default function PortalRequests() {
     if (!leaveStart || !leaveEnd || !user?.personnel_id) return;
     // Client-side policy kontrolü
     if (leavePolicy?.require_reason && !leaveNote.trim()) {
-      showToast("Bu lokasyonda izin talebi için mazeret zorunludur.", "error"); return;
+      showToast("Bu şubede izin talebi için mazeret zorunludur.", "error"); return;
     }
     if (leavePolicy && !leavePolicy.allow_multi_day && leaveStart !== leaveEnd) {
-      showToast("Bu lokasyonda yalnızca tek günlük izin talep edebilirsiniz.", "error"); return;
+      showToast("Bu şubede yalnızca tek günlük izin talep edebilirsiniz.", "error"); return;
     }
     setLoading(true);
     try {
@@ -897,7 +897,7 @@ export default function PortalRequests() {
               {/* Politika özeti */}
               {leavePolicy && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lokasyon İzin Kuralları</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Şube İzin Kuralları</p>
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${leavePolicy.require_reason ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
                       {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret isteğe bağlı"}

@@ -1,7 +1,7 @@
 /**
- * Müsaitlik hatırlatması — paylaşılan iş mantığı.
+ * Uygunluk hatırlatması — paylaşılan iş mantığı.
  *
- * Hem müdürün manuel "Müsaitlik İste" butonundan (POST /api/availability/remind,
+ * Hem müdürün manuel "Uygunluk İste" butonundan (POST /api/availability/remind,
  * oturum bağlamıyla) hem de cron'dan (POST /api/cron/availability-remind,
  * CRON_SECRET ile, tüm lokasyonlar üzerinde döngüyle) çağrılır. Davranış aynıdır;
  * tek fark cron'un org_id/location_id'yi bir oturumdan değil, DB'deki aktif
@@ -36,7 +36,7 @@ export async function sendAvailabilityReminders(params: {
   const location_id = params.locationId;
   let week_start = params.weekStart ?? getWeekStart();
 
-  // Müsaitlik toplama kapalıysa (locations.rules.availability_collection_enabled === false) hatırlatma gönderme
+  // Uygunluk toplama kapalıysa (locations.rules.availability_collection_enabled === false) hatırlatma gönderme
   let rules: any = null;
   if (location_id) {
     const locRow = await db
@@ -64,7 +64,7 @@ export async function sendAvailabilityReminders(params: {
     if (new Date() < scheduled) return { sent: 0, skipped: "not_due" };
     if (ar.last_sent_week === thisMonday) return { sent: 0, skipped: "already_sent" };
 
-    // Hatırlatma gelecek haftanın müsaitliği içindir
+    // Hatırlatma gelecek haftanın uygunluğu içindir
     const nextMonday = new Date(thisMonday + "T00:00:00");
     nextMonday.setDate(nextMonday.getDate() + 7);
     week_start = nextMonday.toISOString().split("T")[0];
@@ -120,8 +120,8 @@ export async function sendAvailabilityReminders(params: {
        VALUES (?, 'alert', ?, ?, '/portal/availability', false, ?)`
     ).run(
       id,
-      "Müsaitlik Bildiriminizi Girin",
-      `${weekLabel} haftası için müsaitlik bilginizi girmeniz bekleniyor.`,
+      "Uygunluk Bildiriminizi Girin",
+      `${weekLabel} haftası için uygunluk bilginizi girmeniz bekleniyor.`,
       now,
     );
   }

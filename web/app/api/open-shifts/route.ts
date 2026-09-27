@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!convert_assignment_id && location_id && !(await openShiftsEnabledFor(location_id))) {
-      return NextResponse.json({ error: "Bu lokasyonda açık vardiya sistemi kapalı." }, { status: 422 });
+      return NextResponse.json({ error: "Bu şubede açık vardiya sistemi kapalı." }, { status: 422 });
     }
 
     if (convert_assignment_id) {
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         : `${asg.p_name} gelemiyor, vardiya açığa çıkarıldı`);
 
       if (!(await openShiftsEnabledFor(location_id))) {
-        return NextResponse.json({ error: "Bu lokasyonda açık vardiya sistemi kapalı." }, { status: 422 });
+        return NextResponse.json({ error: "Bu şubede açık vardiya sistemi kapalı." }, { status: 422 });
       }
 
       // Atamayı kaldır: vardiya artık kişinin takviminde değil, ilan havuzunda

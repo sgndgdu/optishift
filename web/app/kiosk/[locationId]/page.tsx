@@ -6,8 +6,8 @@ import { LogoMark } from "@/components/Logo";
 
 type Action = "checkin" | "checkout";
 type Result = { ok: boolean; message: string } | null;
-// rules.handover_log_enabled: check-in bekleyen bir devir-teslim notu varsa
-// PIN doğru olsa da check-in gerçekleşmez, önce bu ekranda onaylanmalı.
+// rules.handover_log_enabled: giriş bekleyen bir devir-teslim notu varsa
+// PIN doğru olsa da giriş gerçekleşmez, önce bu ekranda onaylanmalı.
 type PendingHandover = { id: number; note: string; pin: string; personnelName: string } | null;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"];
@@ -48,7 +48,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
       });
       const data = await res.json();
       if (res.status === 428 && data?.pending_handover) {
-        // Check-in gerçekleşmedi — önce notu okuyup "Devam Et" demesi gerekiyor.
+        // Giriş gerçekleşmedi — önce notu okuyup "Devam Et" demesi gerekiyor.
         setPendingHandover({ id: data.pending_handover.id, note: data.pending_handover.note, pin: fullPin, personnelName: data.personnel_name ?? "" });
         return;
       }
@@ -107,7 +107,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
         <div className="text-center max-w-sm">
           <XCircle size={40} className="text-white/30 mx-auto mb-4" />
           <p className="text-white/70 font-bold">
-            {pageError || "Kiosk modu bu şubede kapalı"}
+            {pageError || "Ortak Tablet Modu bu şubede kapalı"}
           </p>
         </div>
       </div>

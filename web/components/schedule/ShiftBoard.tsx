@@ -93,7 +93,7 @@ export function DraggablePersonnelCard({ person, disabled, isWeeklyOff, availDay
         <div className="mt-1 pl-9 text-[11px] leading-tight">
           {isWeeklyOff && <span className="text-amber-600 font-semibold">İzin günü</span>}
           {!isWeeklyOff && availDay === null && (
-            <span className="text-slate-400">Müsaitlik girilmedi</span>
+            <span className="text-slate-400">Uygunluk girilmedi</span>
           )}
           {!isWeeklyOff && availDay?.status === "unavailable" && (
             <span className="text-red-500 font-semibold">Gelemiyor</span>
@@ -105,7 +105,7 @@ export function DraggablePersonnelCard({ person, disabled, isWeeklyOff, availDay
           )}
           {!isWeeklyOff && availDay?.status === "available" && (
             <span className="text-emerald-600">
-              {availDay.start ? `${hm(availDay.start)}–${hm(availDay.end)}` : "Müsait"}
+              {availDay.start ? `${hm(availDay.start)}–${hm(availDay.end)}` : "Uygun"}
             </span>
           )}
         </div>
@@ -115,7 +115,7 @@ export function DraggablePersonnelCard({ person, disabled, isWeeklyOff, availDay
       {weekAvail !== undefined && (
         <div className="mt-2 pl-9">
           {weekAvail === null ? (
-            <span className="text-[11px] text-slate-400">Müsaitlik girilmedi</span>
+            <span className="text-[11px] text-slate-400">Uygunluk girilmedi</span>
           ) : (() => {
             const days = [0,1,2,3,4,5,6].map(i => {
               const d = weekAvail[i];
@@ -124,7 +124,7 @@ export function DraggablePersonnelCard({ person, disabled, isWeeklyOff, availDay
             const unavail  = days.filter(d => d.st === "unavailable");
             const prefNot  = days.filter(d => d.st === "preferred_not");
             const avail    = days.filter(d => d.st === "available");
-            // Müsait günlerin ortak saat aralığı
+            // Uygun günlerin ortak saat aralığı
             const t0       = avail.find(d => d.start);
             const timeStr  = t0 ? `${t0.start}–${t0.end}` : "";
             const allSame  = timeStr && avail.every(d => d.start === t0!.start && d.end === t0!.end);

@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { kpiToneClasses } from "@/lib/kpiColors";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function DashboardPage() {
   const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
   const [autoOpenOnLate, setAutoOpenOnLate] = useState(true); // rules.auto_open_shift_on_late
   const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
-  const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken check-in eksikliği "geç kalan" saymaz
+  const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken giriş eksikliği "geç kalan" saymaz
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
   const [publishLeadKpiEnabled, setPublishLeadKpiEnabled] = useState(true); // rules.publish_lead_kpi_enabled
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — rules.task_management_enabled
@@ -94,11 +95,11 @@ export default function DashboardPage() {
           if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
           setAutoOpenOnLate(rules.auto_open_shift_on_late !== false);
           if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);
-          setCheckinRequired(!!rules.checkin_required);
-          setOpenShiftsEnabled(rules.open_shifts_enabled !== false);
-          setPublishLeadKpiEnabled(rules.publish_lead_kpi_enabled !== false);
-          setTaskManagementEnabled(!!rules.task_management_enabled);
-          if (rules.task_management_enabled) {
+          setCheckinRequired(isModuleOn(rules, "checkin_required"));
+          setOpenShiftsEnabled(isModuleOn(rules, "open_shifts_enabled"));
+          setPublishLeadKpiEnabled(isModuleOn(rules, "publish_lead_kpi_enabled"));
+          setTaskManagementEnabled(isModuleOn(rules, "task_management_enabled"));
+          if (isModuleOn(rules, "task_management_enabled")) {
             fetch(`/api/shift-tasks?location_id=${u.location_id}&week_start=${weekStart}`)
               .then(r => r.ok ? r.json() : [])
               .then(d => setTodayTasks(Array.isArray(d) ? d.filter((t: any) => t.day === todayIdx) : []))
@@ -106,8 +107,8 @@ export default function DashboardPage() {
           } else {
             setTodayTasks([]);
           }
-          setFatigueRadarEnabled(!!rules.fatigue_radar_enabled);
-          if (rules.fatigue_radar_enabled) {
+          setFatigueRadarEnabled(isModuleOn(rules, "fatigue_radar_enabled"));
+          if (isModuleOn(rules, "fatigue_radar_enabled")) {
             fetch(`/api/fatigue-radar?location_id=${u.location_id}`)
               .then(r => r.ok ? r.json() : null)
               .then(d => setFatigueAtRisk(Array.isArray(d?.at_risk) ? d.at_risk : []))
@@ -129,7 +130,7 @@ export default function DashboardPage() {
     if (!user.location_id) { router.push("/onboarding"); return; }
     loadData(user);
 
-    // Otomatik müsaitlik hatırlatması — vadesi geldiyse haftada bir kez tetiklenir
+    // Otomatik uygunluk hatırlatması — vadesi geldiyse haftada bir kez tetiklenir
     // (cron yok; endpoint kendi içinde "vadesi geldi mi / bu hafta gönderildi mi" kontrolü yapar)
     const locId = localStorage.getItem("optishift_selected_location") || user.location_id;
     fetch("/api/availability/remind", {
@@ -172,7 +173,7 @@ export default function DashboardPage() {
     setLeaveRequests(prev => prev.filter(l => l.id !== id));
   };
 
-  // Gelecek hafta müsaitliğini girmeyenlere hatırlatma bildirimi gönder
+  // Gelecek hafta uygunluğunu girmeyenlere hatırlatma bildirimi gönder
   const handleRemindAvailability = async () => {
     if (!user?.location_id || remindState !== "idle") return;
     setRemindState("sending");
@@ -188,8 +189,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz check-in yok → geç kalan
-  // rules.checkin_required kapalıyken check-in bilgi amaçlıdır, eksikliği hiç kimseyi "geç kalan" yapmaz
+  // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz giriş yok → geç kalan
+  // rules.checkin_required kapalıyken giriş bilgi amaçlıdır, eksikliği hiç kimseyi "geç kalan" yapmaz
   const isLate = (s: any): boolean => {
     if (!checkinRequired || s.check_in_at || !s.start_time) return false;
     const [h, m] = s.start_time.split(":").map(Number);
@@ -240,18 +241,18 @@ export default function DashboardPage() {
     if (leaveRequests.length > 0)
       return { title: `${leaveRequests.length} izin talebi onay bekliyor`, desc: "Personel yanıtınızı bekliyor.", cta: "Onaylara Git", href: "/requests" };
     if (availMissing.length > 0)
-      return { title: `${availMissing.length} personel müsaitlik girmedi`, desc: "Gelecek haftanın müsaitliği eksik, hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
+      return { title: `${availMissing.length} personel uygunluk girmedi`, desc: "Gelecek haftanın uygunluğu eksik, hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
     return null;
   })();
 
   const kpi = [
     { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         ...kpiToneClasses("neutral"),  href: "/personnel" },
     { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         ...kpiToneClasses("attention"), href: "/requests" },
-    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} açık slot` : "Tüm slotlar dolu", icon: CalendarCheck, ...kpiToneClasses(openCount > 0 ? "attention" : "neutral"), href: "/open-shifts" },
-    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet skoru", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/fairness" },
+    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} boş vardiya` : "Tüm vardiyalar dolu", icon: CalendarCheck, ...kpiToneClasses(openCount > 0 ? "attention" : "neutral"), href: "/open-shifts" },
+    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet puanı", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/fairness" },
     // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023), rules.publish_lead_kpi_enabled ile kapatılabilir
     ...(publishLeadKpiEnabled ? [{
-      label: "Yayın Öncülüğü",
+      label: "Erken Yayın",
       value: publishLead === null ? "—" : `${publishLead.toLocaleString("tr-TR")} gün`,
       sub: publishLead === null ? "Henüz yayın verisi yok"
         : publishLead >= 7 ? "Harika, tam hafta önceden"
@@ -275,7 +276,7 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Ana Sayfa</h1>
           <p className="text-muted-foreground mt-1">
             Hoş geldiniz, <strong>{user.name}</strong> 👋
           </p>
@@ -365,14 +366,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Gelecek hafta müsaitlik girmeyenler */}
+      {/* Gelecek hafta uygunluk girmeyenler */}
       {!loading && availMissing.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <AlertTriangle size={18} className="text-amber-600 shrink-0" />
             <div className="min-w-0">
               <span className="text-sm font-bold text-amber-800">
-                Gelecek hafta için müsaitlik girmeyen: {availMissing.length} kişi
+                Gelecek hafta için uygunluk girmeyen: {availMissing.length} kişi
               </span>
               <p className="text-xs text-amber-700 truncate">
                 {availMissing.map((p: any, i: number) => (
@@ -481,7 +482,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-forest-100 rounded-xl text-primary">
                   <TrendingUp size={18} />
                 </div>
-                <CardTitle className="text-base font-bold">Adalet Skoru Dağılımı</CardTitle>
+                <CardTitle className="text-base font-bold">Adalet Puanı Dağılımı</CardTitle>
               </div>
               <Link href="/fairness" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
                 Tümü <ArrowRight size={12} />
@@ -539,7 +540,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600 shrink-0">
                   <Users size={18} />
                 </div>
-                <CardTitle className="text-base font-bold">Canlı Operasyon · Bugün</CardTitle>
+                <CardTitle className="text-base font-bold">Canlı Durum · Bugün</CardTitle>
                 {lateShifts.length > 0 && (
                   <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
                     <AlertTriangle size={11} className="mr-1" />{lateShifts.length} Geç
@@ -604,7 +605,7 @@ export default function DashboardPage() {
                           className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                           title="Vardiyayı açık ilana dönüştür, ekip üstlenebilir"
                         >
-                          Açığa Çıkar
+                          İlana Çevir
                         </button>
                       )}
                     </Link>
@@ -663,7 +664,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {[
                 { step: "1", label: "Personel ekleyin", href: "/personnel", done: personnel.length > 1 },
-                { step: "2", label: "Personellerden müsaitlik toplayın", href: "/schedule", done: false },
+                { step: "2", label: "Personellerden uygunluk toplayın", href: "/schedule", done: false },
                 { step: "3", label: "Vardiya planı oluşturun", href: "/schedule", done: false },
               ].map(({ step, label, href, done }) => (
                 <a key={step} href={href} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${done ? "bg-emerald-50/50 border-emerald-100" : "bg-white border-slate-200 hover:border-primary/30 hover:shadow-sm"}`}>

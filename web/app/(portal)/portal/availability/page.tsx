@@ -17,7 +17,7 @@ const SHORT     = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const DEFAULT_DAY: DayData = { status: "available", start: "08:00", end: "22:00" };
 
 const S = {
-  available:    { label: "Müsaitim", short: "Müsait",  icon: <Check size={13}/>,       bg: "bg-emerald-500", text: "text-white", light: "bg-emerald-50", ltext: "text-emerald-700", border: "border-emerald-400", fill: "bg-emerald-400", dot: "bg-emerald-400", thumb: "" },
+  available:    { label: "Uygunum", short: "Uygun",  icon: <Check size={13}/>,       bg: "bg-emerald-500", text: "text-white", light: "bg-emerald-50", ltext: "text-emerald-700", border: "border-emerald-400", fill: "bg-emerald-400", dot: "bg-emerald-400", thumb: "" },
   preferred_not:{ label: "Esnek",    short: "Esnek",   icon: <AlertCircle size={13}/>, bg: "bg-amber-400",   text: "text-white", light: "bg-amber-50",   ltext: "text-amber-700",   border: "border-amber-400",   fill: "bg-amber-400",   dot: "bg-amber-400",   thumb: "avail-amber" },
   unavailable:  { label: "Gelemem",  short: "Gelemem", icon: <X size={13}/>,           bg: "bg-rose-500",    text: "text-white", light: "bg-rose-50",    ltext: "text-rose-600",    border: "border-rose-400",    fill: "bg-rose-400",    dot: "bg-rose-400",    thumb: "" },
 } as const;
@@ -238,7 +238,7 @@ export default function PortalAvailability() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [shiftDefs,   setShiftDefs]   = useState<ShiftDef[]>([]);
   const [maxYellow,   setMaxYellow]   = useState(1);
-  const [collectionEnabled, setCollectionEnabled] = useState(true); // müsaitlik toplama kapalıysa giriş UI'ı gösterilmez
+  const [collectionEnabled, setCollectionEnabled] = useState(true); // uygunluk toplama kapalıysa giriş UI'ı gösterilmez
   const [yellowWarn,  setYellowWarn]  = useState<string | null>(null);
 
   const ws = weekStart(weekOffset);
@@ -355,7 +355,7 @@ export default function PortalAvailability() {
 
   if (!mounted) return null;
 
-  // Müsaitlik toplama bu işletmede kapalı — giriş UI'ı yerine bilgi kartı
+  // Uygunluk toplama bu işletmede kapalı — giriş UI'ı yerine bilgi kartı
   if (!collectionEnabled) {
     return (
       <div className="p-5 animate-in fade-in duration-300">
@@ -365,7 +365,7 @@ export default function PortalAvailability() {
           </div>
           <h1 className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</h1>
           <p className="text-sm text-slate-500 max-w-xs">
-            Müsaitlik girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
+            Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>
           <Link href="/portal/calendar"
             className="mt-2 text-sm font-bold text-white bg-forest-600 hover:bg-forest-700 px-5 py-2.5 rounded-xl transition-colors">
@@ -390,7 +390,7 @@ export default function PortalAvailability() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Müsaitlik</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Uygunluk</h1>
           <p className="text-sm text-slate-500 mt-1">{weekLabel(ws)}</p>
         </div>
         <div className="flex items-center bg-slate-100 rounded-2xl p-1 shrink-0 gap-0.5">
@@ -424,7 +424,7 @@ export default function PortalAvailability() {
         <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
           <Check size={18} className="text-emerald-600 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-emerald-800">Müsaitlik gönderildi</p>
+            <p className="text-sm font-bold text-emerald-800">Uygunluk gönderildi</p>
             <p className="text-xs text-emerald-600">Düzenlemek için geri al butonuna bas.</p>
           </div>
           <button onClick={revoke} disabled={loading}
@@ -536,7 +536,7 @@ export default function PortalAvailability() {
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50">
           {loading
             ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            : <><Save size={17} /> Müsaitliği Gönder</>}
+            : <><Save size={17} /> Uygunluğu Gönder</>}
         </button>
       ) : (
         <button onClick={revoke} disabled={loading}
@@ -563,7 +563,7 @@ export default function PortalAvailability() {
 
             {/* Başlık */}
             <div className="px-5 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="text-lg font-black text-slate-900">Müsaitliği Onayla</h2>
+              <h2 className="text-lg font-black text-slate-900">Uygunluğu Onayla</h2>
               <p className="text-sm text-slate-400 mt-0.5">{weekLabel(ws)}</p>
             </div>
 

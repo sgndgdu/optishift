@@ -229,7 +229,7 @@ function AddPersonPopover({
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0
                 ${avail === "unavailable" ? "bg-rose-400" : avail === "preferred_not" ? "bg-amber-400" : "bg-emerald-400"}`}
-              title={avail === "unavailable" ? "Gelemez" : avail === "preferred_not" ? "Tercih etmiyor" : "Müsait"}
+              title={avail === "unavailable" ? "Gelemez" : avail === "preferred_not" ? "Tercih etmiyor" : "Uygun"}
             />
           </button>
         );
@@ -621,7 +621,7 @@ export function DragDropCalendar({
               <div className="ml-auto flex items-center gap-4 text-[10px] text-slate-400">
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Gelemez</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Tercih etmiyor</span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Müsait</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Uygun</span>
               </div>
             </div>
           </div>

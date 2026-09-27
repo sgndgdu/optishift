@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Wallet, Plus, Split, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 function todayStr() {
   const d = new Date();
@@ -42,7 +43,7 @@ export default function TipPoolsPage() {
       const locData = Array.isArray(locRes) ? locRes[0] : null;
       let tipEnabled = false;
       if (locData?.rules) {
-        try { tipEnabled = JSON.parse(locData.rules).tip_pooling_enabled === true; } catch {}
+        try { tipEnabled = isModuleOn(JSON.parse(locData.rules), "tip_pooling_enabled"); } catch {}
       }
       setEnabled(tipEnabled);
       if (!tipEnabled) { setLoading(false); return; }
@@ -119,7 +120,7 @@ export default function TipPoolsPage() {
         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
           <Wallet size={28} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-600">Bahşiş Havuzu bu şubede kapalı</p>
-          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Kurallar &gt; Modüller bölümünden açabilirsiniz.</p>
+          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Kurallar &gt; Ek Özellikler bölümünden açabilirsiniz.</p>
         </div>
       </div>
     );

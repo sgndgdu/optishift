@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 
 
 // GET /api/availability/team?location_id=L-001&week_start=2026-06-02
-// Müdür için tüm personelin o haftaki müsaitliğini döndürür
+// Müdür için tüm personelin o haftaki uygunluğunu döndürür
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
