@@ -2017,65 +2017,8 @@ function SchedulePageInner() {
 
     const newMap = { ...cellMap };
 
-    // ShiftBoard Logic
-    if (sourceId.startsWith("person-") || sourceId.startsWith("assigned-")) {
-      const isFromAssigned = sourceId.startsWith("assigned-");
-      let personIdStr = sourceId.replace(isFromAssigned ? "assigned-" : "person-", "");
-      let sourceDay: number | null = null;
-      if (isFromAssigned) {
-        const pParts = personIdStr.split("-");
-        sourceDay = parseInt(pParts.pop()!);
-        personIdStr = pParts.join("-");
-      }
-      const personId = personIdStr;
-
-      if (targetId === "unassigned") {
-        if (isFromAssigned && sourceDay !== null) {
-          delete newMap[`${personId}-${sourceDay}`];
-          pushCellMap(newMap);
-        }
-        return;
-      }
-
-      if (targetId.startsWith("shift-")) {
-        const parts = targetId.split("-");
-        const targetDay = parseInt(parts.pop()!);
-        const shiftDefId = parts.slice(1).join("-");
-        const shiftDef = shiftDefs.find(s => s.id === shiftDefId);
-        
-        if (!shiftDef) return;
-
-        const targetAvail = availMap[personId]?.[targetDay];
-        const person = personnel.find(p => p.id === personId);
-
-        if (targetAvail?.status === "unavailable") {
-          showToast("Personel bu gün izinli.", "error");
-          return;
-        }
-        if (person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === targetDay) {
-           showToast("Personelin haftalık izni.", "error");
-           return;
-        }
-
-        const startMin = hhmmToMin(shiftDef.start);
-        let endMin = hhmmToMin(shiftDef.end);
-        if (endMin < startMin) endMin += 1440;
-        
-        if (isFromAssigned && sourceDay !== null) {
-          delete newMap[`${personId}-${sourceDay}`];
-        }
-
-        newMap[`${personId}-${targetDay}`] = {
-          startMin,
-          endMin,
-          points: cellBurden(startMin, endMin, targetDay, availMap, personId, locRules, shiftDefs)
-        };
-        pushCellMap(newMap);
-      }
-      return;
-    }
-
-    // Existing Grid Logic
+    // Tablo içi taşıma: kaynak ve hedef kimliği `${personel_id}-${gün}` (DraggableShift / DroppableCell).
+    // (Eski ShiftBoard pano görünümünün person-/assigned-/shift- dalı pano silinince kaldırıldı.)
     const sourceCell = cellMap[sourceId];
     if (!sourceCell) return;
 
