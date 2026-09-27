@@ -6,6 +6,7 @@ import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
+import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -438,7 +439,46 @@ export async function POST(req: NextRequest) {
     // haftaki plana hiç dahil edilmez. Motor bu kuralı bilmez — filtreleme burada,
     // personnelData motora gönderilmeden önce yapılır (bkz. lib/db/schema.ts personnelDocuments).
     let excludedCompliance: { id: string; name: string; doc_type: string; expiry_date: string }[] = [];
-    if (complianceTrackingEnabled && personnelIds.length > 0) {
+    // Sertifika Kalkanı (lib/templates/skills.ts): şubenin sektörü seçiliyse belge→rol
+    // bağıyla çalışır; geçersiz belge ilgili rolü kişinin yetkinliklerinden düşürür, motor
+    // vardiyanın zorunlu yetkinliğini karşılarken o kişiyi saymaz (kesin kural).
+    const revokedSkills: { id: string; name: string; skill: string; document: string; reason: "expired" | "missing" }[] = [];
+    const branchIndustry = industryFromRules(locationRow?.rules);
+    if (complianceTrackingEnabled && branchIndustry && personnelIds.length > 0) {
+      try {
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        const docRows = (await db
+          .prepare(`SELECT personnel_id, doc_type, expiry_date FROM personnel_documents WHERE personnel_id IN (${placeholders})`)
+          .all(...personnelIds)) as any[];
+        const docsByPerson = new Map<string, PersonDocument[]>();
+        for (const row of docRows) {
+          const list = docsByPerson.get(row.personnel_id) ?? [];
+          list.push({ doc_type: row.doc_type, expiry_date: row.expiry_date });
+          docsByPerson.set(row.personnel_id, list);
+        }
+        // Belge planlanan haftanın SONUNA kadar geçerli olmalı: hafta ortasında biten
+        // kimlik kartıyla hafta sonu vardiyası yazılmasın
+        const weekEnd = new Date(new Date(week_start + "T00:00:00Z").getTime() + 6 * 86400_000).toISOString().slice(0, 10);
+        const blocked = new Set<string>();
+        for (const p of personnelData) {
+          const res = applyCertificationShield(branchIndustry, p.skills ?? [], docsByPerson.get(p.id) ?? [], weekEnd);
+          if (res.blockedBy) {
+            blocked.add(p.id);
+            excludedCompliance.push({
+              id: p.id, name: p.name,
+              doc_type: res.blockedBy.reason === "missing" ? `${res.blockedBy.document} (girilmemiş)` : res.blockedBy.document,
+              expiry_date: res.blockedBy.expiry ?? "",
+            });
+            continue;
+          }
+          for (const r of res.revoked) revokedSkills.push({ id: p.id, name: p.name, ...r });
+          p.skills = res.skills;
+        }
+        personnelData = personnelData.filter((p) => !blocked.has(p.id));
+      } catch (e) {
+        console.error("[generate] sertifika kalkanı hatası:", e);
+      }
+    } else if (complianceTrackingEnabled && personnelIds.length > 0) {
       try {
         const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
         const expiredRows = (await db
@@ -692,6 +732,9 @@ export async function POST(req: NextRequest) {
 
     if (excludedCompliance.length > 0) {
       data.excluded_compliance = excludedCompliance;
+    }
+    if (revokedSkills.length > 0) {
+      data.revoked_skills = revokedSkills;
     }
 
     return NextResponse.json(data);

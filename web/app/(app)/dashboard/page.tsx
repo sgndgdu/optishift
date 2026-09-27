@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   Users, AlertTriangle, Clock, Check, X, ArrowRight, RefreshCw, CheckCircle2,
-  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck,
+  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck, FileWarning,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
+import { industryFromRules } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 
 const ITEM_ICON: Record<string, any> = {
@@ -30,6 +31,7 @@ const ITEM_ICON: Record<string, any> = {
   "next-week":     CalendarClock,
   availability:    Bell,
   overtime:        Timer,
+  certifications:  FileWarning,
 };
 
 const SEVERITY_STYLE = {
@@ -49,6 +51,7 @@ export default function DashboardPage() {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingAccounts, setPendingAccounts] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
+  const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
   const [publishLead, setPublishLead] = useState<number | null>(null);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent">("idle");
   const [loading, setLoading] = useState(true);
@@ -121,11 +124,17 @@ export default function DashboardPage() {
 
       const r = Array.isArray(locData) && locData[0]?.rules ? JSON.parse(locData[0].rules) : {};
       setRules(r);
-      const [tasks, fatigue, handovers] = await Promise.all([
+      const [tasks, fatigue, handovers, certDocs] = await Promise.all([
         isModuleOn(r, "task_management_enabled") ? json(`/api/shift-tasks?location_id=${loc}&week_start=${weekStart}`) : null,
         isModuleOn(r, "fatigue_radar_enabled") ? json(`/api/fatigue-radar?location_id=${loc}`) : null,
         isModuleOn(r, "handover_log_enabled") ? json(`/api/shift-handovers?location_id=${loc}&status=unread`) : null,
+        isModuleOn(r, "compliance_tracking_enabled") ? json(`/api/personnel-documents?location_id=${loc}&attention=1`) : null,
       ]);
+      // Kişi bazında tekil: bir kişinin süresi dolmuş belgesi varsa "dolmuş" sayılır
+      const certRows = list(certDocs);
+      const expiredPeople = new Set(certRows.filter((d: any) => d.status === "expired").map((d: any) => d.personnel_id));
+      const expiringPeople = new Set(certRows.filter((d: any) => d.status === "expiring" && !expiredPeople.has(d.personnel_id)).map((d: any) => d.personnel_id));
+      setCertAttention({ expired: expiredPeople.size, expiring: expiringPeople.size });
       setTodayTasks(list(tasks).filter((t: any) => t.day === todayIdx));
       setFatigueAtRisk(Array.isArray(fatigue?.at_risk) ? fatigue.at_risk : []);
       setHandoverUnread(list(handovers).length);
@@ -253,6 +262,9 @@ export default function DashboardPage() {
     handover:     { enabled: isModuleOn(rules, "handover_log_enabled"), unread: handoverUnread },
     tasks:        { enabled: isModuleOn(rules, "task_management_enabled"),
                     total: todayTasks.length, done: todayTasks.filter((t: any) => t.is_completed).length },
+    certifications: { enabled: isModuleOn(rules, "compliance_tracking_enabled"), ...certAttention },
+    // Şubenin sektörü seçiliyse maddeler sektörün diliyle ve önceliğiyle gelir
+    nudges: industryFromRules(rules)?.nudges ?? null,
   });
 
   const activeCount = personnel.filter(p => p.status === "active").length;

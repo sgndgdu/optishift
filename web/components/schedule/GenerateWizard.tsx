@@ -170,7 +170,7 @@ export default function GenerateWizard({
                     <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli personel bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>
                   )}
                   {excludedCount > 0 && (
-                    <CheckRow tone="warn">{excludedCount} kişi süresi dolmuş belge nedeniyle plana alınmadı.</CheckRow>
+                    <CheckRow tone="warn">{excludedCount} kişi geçersiz belge nedeniyle plana alınmadı.</CheckRow>
                   )}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <button onClick={onClose} className="sm:flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Taslak Olarak Bırak, Gözden Geçir</button>

@@ -8,10 +8,38 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
+  const db = getDB();
+
+  // ?location_id=&attention=1 → şubedeki süresi dolmuş ya da 30 gün içinde dolacak belgeler
+  // (Ana Sayfa "Bekleyen İşler" sertifika maddesi). Sadece okuma, işletmeyle sınırlı.
+  const attentionLoc = searchParams.get("attention") === "1" ? searchParams.get("location_id") : null;
+  if (attentionLoc) {
+    if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+    const today = new Date().toISOString().slice(0, 10);
+    const soon = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+    try {
+      const rows = await db.prepare(
+        `SELECT pd.personnel_id, p.name, pd.doc_type, pd.expiry_date,
+                CASE WHEN pd.expiry_date < ? THEN 'expired' ELSE 'expiring' END AS status
+         FROM personnel_documents pd
+         JOIN personnel p ON p.id = pd.personnel_id
+         WHERE pd.org_id = ? AND pd.expiry_date <= ?
+           AND (p.primary_location_id = ? OR p.assigned_location_ids LIKE ?)
+           -- Yenilenmiş belge: aynı türün daha geç biten kaydı varsa eskisi sayılmaz
+           AND NOT EXISTS (SELECT 1 FROM personnel_documents n
+                           WHERE n.personnel_id = pd.personnel_id AND n.doc_type = pd.doc_type
+                             AND n.expiry_date > pd.expiry_date)
+         ORDER BY pd.expiry_date ASC`
+      ).all(today, auth.org_id, soon, attentionLoc, `%"${attentionLoc}"%`);
+      return NextResponse.json(rows);
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
+
   const personnel_id = searchParams.get("personnel_id");
   if (!personnel_id) return NextResponse.json({ error: "personnel_id zorunlu" }, { status: 400 });
 
-  const db = getDB();
   try {
     const rows = await db.prepare(
       `SELECT * FROM personnel_documents WHERE personnel_id = ? AND org_id = ? ORDER BY expiry_date ASC`

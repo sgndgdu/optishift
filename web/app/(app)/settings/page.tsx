@@ -9,6 +9,8 @@ import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } fr
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
+import IndustryPicker from "@/components/IndustryPicker";
+import { buildIndustryDefaults, getIndustry, industryFromRules } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -1007,6 +1009,45 @@ export default function SettingsPage() {
     return Math.round((dur / 60) * 10) / 10;
   };
 
+  // ── İşletme türü (lib/templates) ─────────────────────────────────────────
+  // Anında kaydedilir (departmanlar gibi); kaydetme barından bağımsızdır. Taze rules
+  // üzerine yazılır, sonra sayfa yeniden yüklenir; kaydedilmemiş değişiklik varken kapalıdır.
+  const savedIndustry = industryFromRules(locationData?.rules);
+  const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
+  const [industryDraft, setIndustryDraft] = useState<{ industry: string; variant: string } | null>(null);
+  const [industrySaving, setIndustrySaving] = useState(false);
+  const pickedIndustry = industryDraft?.industry ?? savedIndustry?.key ?? null;
+  const pickedVariant = industryDraft?.variant ?? savedVariant ?? savedIndustry?.variants[0].key ?? null;
+  const industryChanged = !!industryDraft && (industryDraft.industry !== savedIndustry?.key || industryDraft.variant !== savedVariant);
+
+  const saveIndustry = async (applyDefaults: boolean) => {
+    if (!locationData || !industryDraft) return;
+    if (applyDefaults && !confirm("Bu türün önerilen kuralları ve özellikleri uygulansın mı? Haftalık saat, dinlenme süreleri, gece kuralları ve açık/kapalı özellikler değişir. Vardiya tanımlarınıza dokunulmaz.")) return;
+    setIndustrySaving(true);
+    try {
+      const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
+      const fr = Array.isArray(fresh) ? fresh[0]?.rules : null;
+      const base: Record<string, unknown> = fr ? (typeof fr === "string" ? JSON.parse(fr) : { ...fr }) : {};
+      const defaults = buildIndustryDefaults(industryDraft.industry, industryDraft.variant)!;
+      const rules = applyDefaults
+        ? { ...base, ...defaults.rules }
+        : { ...base, industry: industryDraft.industry, industry_variant: industryDraft.variant };
+      const res = await fetch(`/api/locations?id=${locationData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules }),
+      });
+      if (!res.ok) throw new Error();
+      setIndustryDraft(null);
+      showToast("ok", applyDefaults ? "İşletme türü ve önerilen kurallar uygulandı." : "İşletme türü kaydedildi.");
+      window.dispatchEvent(new Event("optishift_location_changed"));
+    } catch {
+      showToast("error", "İşletme türü kaydedilemedi.");
+    } finally {
+      setIndustrySaving(false);
+    }
+  };
+
   const TabBar = () => (
     <div className="flex items-center border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
       {TABS.map(tab => (
@@ -1057,6 +1098,41 @@ export default function SettingsPage() {
           {/* ─── TEMEL AYARLAR ─── */}
           {activeTab === "basic" && (
             <div className="space-y-8">
+              {/* İşletme türü: roller, belge kataloğu, sektör dili ve önerilen kurallar buna bağlı */}
+              <div>
+                <SectionLabel>İşletme Türü</SectionLabel>
+                <p className="text-xs text-slate-500 mb-3">
+                  Rol listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
+                  {!savedIndustry && " Bu şube için henüz seçilmedi."}
+                </p>
+                <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
+                  onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
+                {industryChanged && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <button onClick={() => saveIndustry(false)} disabled={industrySaving || isDirty}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50">Sadece Türü Kaydet</button>
+                    <button onClick={() => saveIndustry(true)} disabled={industrySaving || isDirty}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet ve Önerilen Kuralları Uygula</button>
+                    <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
+                    {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
+                  </div>
+                )}
+                {savedIndustry && !industryChanged && (
+                  <details className="mt-3 text-xs text-slate-600">
+                    <summary className="cursor-pointer font-semibold text-slate-500 hover:text-slate-800">{getIndustry(savedIndustry.key)!.label} için yasal notlar ({savedIndustry.legalNotes.length})</summary>
+                    <ul className="mt-2 space-y-2">
+                      {savedIndustry.legalNotes.map(n => (
+                        <li key={n.title} className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
+                          <p className="font-bold text-slate-700">{n.title}</p>
+                          <p className="mt-0.5">{n.text}</p>
+                          {n.basis && <p className="mt-0.5 text-slate-400">Dayanak: {n.basis}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+
 
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>

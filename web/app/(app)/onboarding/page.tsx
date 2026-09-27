@@ -6,22 +6,15 @@ import { useRouter } from "next/navigation";
 import {
   Store, CalendarClock, Sparkles, MapPin,
   ArrowRight, Plus, Trash2, Check, Zap,
-  Coffee, ShoppingBag, Hotel, UtensilsCrossed, Factory,
 } from "lucide-react";
-import { getSectorPreset } from "@/lib/presets";
+import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
+import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
 
-const SECTORS = [
-  { id: "cafe",       label: "Kafe / Bar",      icon: Coffee,          color: "bg-amber-100 text-amber-700" },
-  { id: "retail",     label: "Perakende",        icon: ShoppingBag,    color: "bg-blue-100 text-blue-700" },
-  { id: "hotel",      label: "Otel / Konaklama", icon: Hotel,           color: "bg-ember-100 text-ember-700" },
-  { id: "restaurant", label: "Restoran",         icon: UtensilsCrossed, color: "bg-rose-100 text-rose-700" },
-  { id: "factory",    label: "Fabrika / Üretim", icon: Factory,         color: "bg-slate-200 text-slate-700" },
-];
 
 const STEPS = [
   { label: "İşletmeniz", icon: Store },
@@ -39,11 +32,13 @@ export default function OnboardingWizard() {
   const [error, setError]     = useState("");
 
   // Adım 0 — Sektör + şubeler
-  const [sector, setSector] = useState("cafe");
+  // İşletme türü + çalışma düzeni (lib/templates): vardiyalar, kurallar ve özellikler buna göre gelir
+  const [industry, setIndustry] = useState("hospitality");
+  const [variant, setVariant] = useState("cafe");
   const [branches, setBranches] = useState<string[]>([""]);
 
   // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
-  const [shifts, setShifts] = useState<ShiftDefinition[]>(getSectorPreset("cafe").shiftDefs);
+  const [shifts, setShifts] = useState<ShiftDefinition[]>(() => getVariant(getIndustry("hospitality")!, "cafe").shifts.map(d => ({ ...d })));
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -61,10 +56,12 @@ export default function OnboardingWizard() {
     if (mounted && !user) router.push("/login");
   }, [mounted, user, router]);
 
-  // Sektör değişince vardiya öneri seti güncelle
-  useEffect(() => {
-    setShifts(getSectorPreset(sector).shiftDefs.map(d => ({ ...d })));
-  }, [sector]);
+  // İşletme türü / çalışma düzeni değişince vardiya önerisi güncellenir
+  const pickIndustry = (ind: string, v: string) => {
+    setIndustry(ind);
+    setVariant(v);
+    setShifts(getVariant(getIndustry(ind)!, v).shifts.map(d => ({ ...d })));
+  };
 
   // ── Şube işlemleri ────────────────────────────────────────────────────────
   const addBranch = () => setBranches(p => [...p, ""]);
@@ -109,11 +106,10 @@ export default function OnboardingWizard() {
         newLocationIds.push(data.id);
       }
 
-      // 2. Sadece YENİ şubelere vardiyalar + çalışma saatleri + sektör kuralları.
-      // Departman kurulumda oluşturulmaz — KOBİ akışını basit tutar (kapasite
-      // matrisi düz kalır); ihtiyacı olan Ayarlar → Departmanlar'dan ekler.
-      const defaultHours: Record<string, unknown> = {};
-      for (let i = 0; i < 7; i++) defaultHours[i] = { isOpen: true, open: "09:00", close: "22:00" };
+      // 2. Sadece YENİ şubelere vardiyalar + akıllı varsayılanlar (sektör kuralları,
+      // özellikler, görev listeleri, çalışma saatleri). Departman kurulumda oluşturulmaz —
+      // KOBİ akışını basit tutar (personel ihtiyacı tablosu düz kalır).
+      const defaults = buildIndustryDefaults(industry, variant)!;
 
       await Promise.all(
         newLocationIds.map(id =>
@@ -122,11 +118,9 @@ export default function OnboardingWizard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               shift_definitions: shifts.filter(s => s.name.trim()),
-              operating_hours: defaultHours,
-              rules: {
-                max_weekly_hours: 45,
-                min_rest_hours: 11,
-              },
+              operating_hours: defaults.operating_hours,
+              rules: defaults.rules,
+              task_templates: defaults.task_templates,
             }),
           })
         )
@@ -168,25 +162,8 @@ export default function OnboardingWizard() {
             {step === 0 && (
               <WizardStep icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
-                sub="Sektörünüzü seçin, şubenizi adlandırın. Vardiya şablonları ve ayarlar buna göre hazırlanır.">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-2.5">
-                  {SECTORS.map(s => {
-                    const Icon = s.icon;
-                    return (
-                      <button key={s.id} onClick={() => setSector(s.id)}
-                        className={`flex items-center gap-2.5 px-4 py-3.5 rounded-xl border-2 text-left transition-all ${
-                          sector === s.id ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-300"
-                        }`}>
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}>
-                          <Icon size={15} />
-                        </div>
-                        <span className={`text-xs font-bold ${sector === s.id ? "text-primary" : "text-slate-700"}`}>
-                          {s.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                sub="İşletme türünüzü seçin, şubenizi adlandırın. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
+                <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
 
                 <div className="space-y-2.5">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Şubeler (tek şube de olabilir, sonradan da eklenebilir)</p>

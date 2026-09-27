@@ -5,7 +5,13 @@
  * tek cümle + tek aksiyon. Girdiler sadece mevcut API'lerden türetilir
  * (dashboard/page.tsx toplar); yeni endpoint gerekmez. Liste boşsa ekran
  * "Her şey yolunda" der.
+ *
+ * Sektör seçilmişse (lib/templates) aynı aciliyetteki maddeler sektörün en büyük
+ * derdine göre sıralanır ve başlıklar sektörün diliyle yazılır ("boş nöbet" gibi).
  */
+
+import type { IndustryNudges } from "@/lib/templates/types";
+import { localizeCopy, priorityIndex } from "@/lib/templates/nudges";
 
 export type InboxSeverity = "critical" | "today" | "week";
 
@@ -37,6 +43,10 @@ export type InboxInput = {
   fatigue: { enabled: boolean; critical: number; warning: number };
   handover: { enabled: boolean; unread: number };
   tasks: { enabled: boolean; total: number; done: number };
+  /** Belge ve Sertifika Takibi: süresi dolmuş / 30 gün içinde dolacak belge sayısı (kişi bazında tekil). */
+  certifications?: { enabled: boolean; expired: number; expiring: number };
+  /** Şubenin sektörü seçiliyse dil ve öncelik. */
+  nudges?: IndustryNudges | null;
 };
 
 const ORDER: Record<InboxSeverity, number> = { critical: 0, today: 1, week: 2 };
@@ -159,6 +169,25 @@ export function buildInbox(input: InboxInput): InboxItem[] {
     }
   }
 
+  const cert = input.certifications;
+  if (cert?.enabled && cert.expired > 0) {
+    items.push({
+      id: "certifications",
+      severity: "critical",
+      title: `${cert.expired} kişinin belgesinin süresi doldu`,
+      detail: "Bu belgeyi gerektiren rollere otomatik planlamada atanmazlar.",
+      action: { label: "Ekibe Git", href: "/personnel" },
+    });
+  } else if (cert?.enabled && cert.expiring > 0) {
+    items.push({
+      id: "certifications",
+      severity: "week",
+      title: `${cert.expiring} kişinin belgesi 30 gün içinde doluyor`,
+      detail: "Yenilenmezse ilgili role atanamazlar.",
+      action: { label: "Ekibe Git", href: "/personnel" },
+    });
+  }
+
   if (input.overtime.enabled && input.overtime.nearLimit > 0) {
     items.push({
       id: "overtime",
@@ -168,8 +197,23 @@ export function buildInbox(input: InboxInput): InboxItem[] {
     });
   }
 
-  // Aynı öncelikte ekleme sırası korunur (Array.prototype.sort kararlıdır)
-  return items.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]);
+  // Sektör dili: sayı içeren maddelerde başlık/açıklama sektöre özel kalıpla yazılır
+  const counts: Record<string, number> = {
+    late: input.lateCount, approvals: input.pendingApprovals, accounts: input.pendingAccounts,
+    handover: input.handover.unread, "open-shifts": input.openShifts.count,
+    availability: input.availability.missing, overtime: input.overtime.nearLimit,
+  };
+  const localized = input.nudges
+    ? items.map(it =>
+        // Sektör kalıbı "plan hazır değil" durumunu anlatır; taslak durumunun kendi metni korunur
+        it.id === "next-week" && input.nextWeek === "draft"
+          ? it
+          : { ...it, ...localizeCopy(input.nudges, it.id, counts[it.id] ?? 0, { title: it.title, detail: it.detail }) })
+    : items;
+
+  // Önce aciliyet, aynı aciliyette sektör önceliği; eşitse ekleme sırası (sort kararlıdır)
+  return localized.sort((a, b) =>
+    ORDER[a.severity] - ORDER[b.severity] || priorityIndex(input.nudges, a.id) - priorityIndex(input.nudges, b.id));
 }
 
 /** Saate göre selamlama. */

@@ -380,6 +380,8 @@ function SchedulePageInner() {
   const [aiLoading, setAiLoading]                 = useState(false);
   const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
   const [excludedCompliance, setExcludedCompliance] = useState<{ id: string; name: string; doc_type: string; expiry_date: string }[]>([]);
+  // Sertifika Kalkanı: belgesi geçersiz olduğu için bu haftalık planda düşürülen roller (/api/generate revoked_skills)
+  const [revokedSkills, setRevokedSkills] = useState<{ id: string; name: string; skill: string; document: string; reason: "expired" | "missing" }[]>([]);
   const [personnelFilter, setPersonnelFilter]     = useState('');
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
@@ -1096,6 +1098,7 @@ function SchedulePageInner() {
       });
       const data = await res.json();
       setExcludedCompliance(data.excluded_compliance ?? []);
+      setRevokedSkills(data.revoked_skills ?? []);
       if (data.error) { setError(data.error); return; }
       const newCellMap: CellMap = {};
       for (const a of (data.assignments || [])) {
@@ -2266,9 +2269,14 @@ loading ? (
       title: "Bazı vardiyalarda kıdemli personel yok",
       detail: <>{seniorViolations.map(v => `${["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} ${v.shift}`).join(", ")}</>,
     }] : []),
+    ...(revokedSkills.length > 0 ? [{
+      id: "revoked-skills", tone: "warning" as const,
+      title: `${new Set(revokedSkills.map(r => r.id)).size} kişi belge nedeniyle bazı rollere atanmadı`,
+      detail: <>{revokedSkills.map(r => `${r.name}: ${r.skill} (${r.document} ${r.reason === "expired" ? "süresi dolmuş" : "girilmemiş"})`).join(" · ")}</>,
+    }] : []),
     ...(excludedCompliance.length > 0 ? [{
       id: "compliance", tone: "warning" as const,
-      title: `${excludedCompliance.length} kişi süresi dolmuş belge nedeniyle plana alınmadı`,
+      title: `${excludedCompliance.length} kişi geçersiz belge nedeniyle plana alınmadı`,
       detail: <>{excludedCompliance.map(p => `${p.name} (${p.doc_type})`).join(", ")}</>,
     }] : []),
     ...(availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 ? [{

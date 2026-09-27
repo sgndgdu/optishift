@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * "Yeni Şube Aç" sihirbazı (amir paneli): 1) Şube bilgileri 2) Vardiya saatleri 3) Müdür.
+ * "Yeni Şube Aç" sihirbazı (amir paneli): 1) Şube ve işletme türü 2) Vardiya saatleri 3) Müdür.
+ * İşletme türü seçilince Sektörel Şablon Motoru (lib/templates) vardiyaları, kuralları,
+ * açılacak özellikleri ve görev listelerini akıllı varsayılanlarla doldurur.
  * Sadece mevcut API'leri sırayla çağırır:
  *   POST /api/locations            → şubeyi oluşturur (plan sınırı burada kontrol edilir)
  *   PATCH /api/locations?id=       → vardiyalar, çalışma saatleri, varsayılan kurallar, konum
@@ -11,7 +13,8 @@
 import { useState } from "react";
 import { Building2, CalendarClock, Check, Copy, MapPin, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
-import { SECTOR_PRESETS, getSectorPreset } from "@/lib/presets";
+import { buildIndustryDefaults, enabledHighlights, getIndustry, getVariant, industryFromRules } from "@/lib/templates";
+import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { geocodePlace } from "@/lib/geo";
@@ -22,12 +25,14 @@ const STEPS = [
   { label: "Müdür",      icon: UserPlus },
 ];
 
-type ExistingBranch = { id: string; name: string; shift_definitions?: unknown };
+type ExistingBranch = { id: string; name: string; shift_definitions?: unknown; rules?: unknown };
 
 type Created = {
   name: string;
   manager?: { name: string; username: string; tempPassword: string; inviteUrl: string };
   warnings: string[];
+  industry: string;
+  variant: string;
 };
 
 function parseDefs(raw: unknown): ShiftDefinition[] {
@@ -57,19 +62,34 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
 
-  // 2. Vardiyalar: hazır şablon ya da mevcut bir şubeden kopya
+  // İşletme türü: işletmenin diğer şubelerinde seçilmiş bir tür varsa o önerilir
+  const knownIndustry = existing.map(b => industryFromRules(b.rules)).find(Boolean) ?? null;
+  const [industry, setIndustry] = useState<string | null>(knownIndustry?.key ?? null);
+  const [variant, setVariant] = useState<string | null>(knownIndustry?.variants[0].key ?? null);
+
+  // 2. Vardiyalar: sektör şablonu (varsayılan) ya da mevcut bir şubeden kopya
   const copySources = existing.filter(b => parseDefs(b.shift_definitions).length > 0);
-  const [source, setSource] = useState<string>(copySources.length ? `copy:${copySources[0].id}` : "preset:cafe");
+  const [source, setSource] = useState<string>("template");
   const [shifts, setShifts] = useState<ShiftDefinition[]>(() =>
-    copySources.length ? parseDefs(copySources[0].shift_definitions).map(d => ({ ...d })) : getSectorPreset("cafe").shiftDefs.map(d => ({ ...d })));
+    knownIndustry ? getVariant(knownIndustry).shifts.map(d => ({ ...d })) : []);
+
+  const templateShifts = (ind: string | null, v: string | null) => {
+    const profile = getIndustry(ind);
+    return profile ? getVariant(profile, v).shifts.map(d => ({ ...d })) : [];
+  };
+
+  const pickIndustry = (ind: string, v: string) => {
+    setIndustry(ind);
+    setVariant(v);
+    // Kopya seçilmediyse vardiyalar seçilen çalışma düzenine göre yenilenir
+    if (source === "template") setShifts(templateShifts(ind, v));
+  };
 
   const pickSource = (value: string) => {
     setSource(value);
-    const [kind, key] = value.split(":");
-    const defs = kind === "copy"
-      ? parseDefs(existing.find(b => b.id === key)?.shift_definitions)
-      : getSectorPreset(key).shiftDefs;
-    setShifts(defs.map(d => ({ ...d })));
+    setShifts(value.startsWith("copy:")
+      ? parseDefs(existing.find(b => b.id === value.slice(5))?.shift_definitions).map(d => ({ ...d }))
+      : templateShifts(industry, variant));
   };
 
   // 3. Müdür
@@ -80,6 +100,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
   const next = () => {
     setError("");
     if (step === 0 && !name.trim()) { setError("Şube adı girin."); return; }
+    if (step === 0 && !industry) { setError("İşletme türünü seçin."); return; }
     if (step === 1 && !shifts.some(s => s.name.trim())) { setError("En az bir vardiya tanımlayın."); return; }
     if (step === 2) { finish(); return; }
     setStep(s => s + 1);
@@ -111,16 +132,17 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
         } catch { warnings.push("Konum aranamadı, sonra Ayarlar'dan girebilirsiniz."); }
       }
 
-      // 3) Vardiyalar + çalışma saatleri + varsayılan kurallar (ilk kurulumla aynı varsayılanlar)
-      const hours: Record<string, unknown> = {};
-      for (let i = 0; i < 7; i++) hours[i] = { isOpen: true, open: "09:00", close: "22:00" };
+      // 3) Akıllı varsayılanlar: sektör + çalışma düzenine göre kurallar, özellikler,
+      //    görev listeleri ve çalışma saatleri; vardiyalar müdürün düzenlediği hâliyle
+      const defaults = buildIndustryDefaults(industry!, variant)!;
       const patch = await fetch(`/api/locations?id=${locationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shift_definitions: shifts.filter(s => s.name.trim()),
-          operating_hours: hours,
-          rules: { max_weekly_hours: 45, min_rest_hours: 11 },
+          operating_hours: defaults.operating_hours,
+          rules: defaults.rules,
+          task_templates: defaults.task_templates,
           ...(coords ?? {}),
         }),
       });
@@ -147,7 +169,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
         }
       }
 
-      setCreated({ name: name.trim(), manager, warnings });
+      setCreated({ name: name.trim(), manager, warnings, industry: industry!, variant: variant! });
       onCreated?.();
     } catch {
       setError("Sunucuya ulaşılamadı, tekrar deneyin.");
@@ -165,7 +187,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start md:items-center justify-center p-3 md:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Yeni Şube Aç">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-auto">
         <div className="flex items-center justify-between px-5 md:px-8 pt-5 md:pt-6">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Şube Aç</p>
           <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30" aria-label="Kapat">
@@ -181,8 +203,42 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   <Check size={30} className="text-emerald-600" strokeWidth={3} />
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 mt-4">{created.name} açıldı</h2>
-                <p className="text-sm text-slate-500 mt-1">Vardiya saatleri hazır. Sırada personel eklemek ve ilk haftayı planlamak var.</p>
+                <p className="text-sm text-slate-500 mt-1">Vardiya saatleri ve kurallar {getIndustry(created.industry)?.label.toLocaleLowerCase("tr-TR")} için hazırlandı.</p>
               </div>
+
+              {(() => {
+                const ind = getIndustry(created.industry)!;
+                const recs = getVariant(ind, created.variant).skillRecommendations ?? [];
+                const highlights = enabledHighlights(ind);
+                return (
+                  <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+                    {highlights.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bu şube için açılan özellikler</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {highlights.map(h => <span key={h} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-forest-50 text-forest-700 border border-forest-100">{h}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">İlk adımlar</p>
+                      <ul className="space-y-1">
+                        {ind.nudges.firstSteps.map(t => <li key={t} className="text-sm text-slate-700 flex gap-2"><Check size={14} className="text-forest-600 shrink-0 mt-0.5" />{t}</li>)}
+                      </ul>
+                    </div>
+                    {recs.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Önerilen kural</p>
+                        {recs.map(r => (
+                          <p key={r.shiftId + r.skill} className="text-sm text-slate-700">
+                            Roller işaretlendikten sonra Ayarlar&apos;da <strong>{shifts.find(s => s.id === r.shiftId)?.name ?? r.shiftId}</strong> vardiyasına &ldquo;en az {r.count} {r.skill}&rdquo; zorunluluğu ekleyin. <span className="text-slate-500">{r.reason}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {created.manager && (
                 <div className="rounded-2xl border border-slate-200 p-4 space-y-2">
@@ -212,7 +268,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
               {step === 0 && (
                 <WizardStep icon={<Building2 size={24} />} color="bg-ember-100 text-ember-600"
-                  title="Şube bilgileri" sub="Şubeye bir ad verin. Konum, vardiya takviminde hava durumunu göstermek için kullanılır.">
+                  title="Şube ve işletme türü" sub="İşletme türünü seçin; vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
                   {planLimited && (
                     <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
                       Ücretsiz planda tek şube açılabilir. Yeni şube için planınızı yükseltmeniz gerekecek.
@@ -229,21 +285,23 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       <input value={city} onChange={e => setCity(e.target.value)} placeholder="İstanbul, Kadıköy" className={cn(inputCls, "pl-10")} />
                     </div>
                   </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşletme türü</label>
+                    <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
+                  </div>
                 </WizardStep>
               )}
 
               {step === 1 && (
                 <WizardStep icon={<CalendarClock size={24} />} color="bg-forest-100 text-forest-700"
-                  title="Vardiya saatleri" sub="Hazır bir şablon seçin ya da mevcut bir şubenin saatlerini kopyalayın. Saatleri burada düzeltebilirsiniz.">
+                  title="Vardiya saatleri" sub="Seçtiğiniz çalışma düzenine göre hazırlandı. Saatleri burada düzeltebilir ya da mevcut bir şubenin saatlerini kopyalayabilirsiniz.">
                   <select value={source} onChange={e => pickSource(e.target.value)} className={inputCls}>
+                    <option value="template">Önerilen: {getVariant(getIndustry(industry)!, variant).label}</option>
                     {copySources.length > 0 && (
                       <optgroup label="Mevcut şubeden kopyala">
                         {copySources.map(b => <option key={b.id} value={`copy:${b.id}`}>{b.name} ile aynı</option>)}
                       </optgroup>
                     )}
-                    <optgroup label="Hazır şablonlar">
-                      {SECTOR_PRESETS.map(p => <option key={p.key} value={`preset:${p.key}`}>{p.label}</option>)}
-                    </optgroup>
                   </select>
                   <div className="space-y-2">
                     {shifts.map((s, i) => (

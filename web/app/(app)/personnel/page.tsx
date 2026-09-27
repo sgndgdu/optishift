@@ -8,6 +8,7 @@ import {
   Phone, Mail, Link, Upload, CheckCircle, AlertCircle, Loader2, RefreshCw,
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 
 type MergedPerson = {
   userId: string;
@@ -409,6 +410,20 @@ export default function PersonnelPage() {
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   const complianceTrackingEnabled = locations.some(l => isModuleOn(l.rules, "compliance_tracking_enabled"));
+  // Şubenin işletme türü (lib/templates): rol listesi ve belge kataloğu buradan gelir
+  const branchIndustry = industryFromRules(locations.find(l => l.id === authUser?.location_id)?.rules);
+  const roleLabels = new Set(branchIndustry?.roles.map(r => r.label) ?? []);
+  // Seçili rollerin gerektirdiği belgeler ve bu kişideki durumu (geçerli / süresi dolmuş / girilmemiş)
+  const requiredDocStates = (() => {
+    if (!branchIndustry) return [] as { spec: DocumentSpec; state: "valid" | "expired" | "missing" }[];
+    const ids = new Set(branchIndustry.roles.filter(r => editForm.roles.includes(r.label)).flatMap(r => r.requiredDocs ?? []));
+    for (const d of branchIndustry.documents) if (d.requiredForAll) ids.add(d.id);
+    return branchIndustry.documents.filter(d => ids.has(d.id)).map(spec => {
+      const mine = personnelDocs.filter(pd => matchDocument(branchIndustry, pd.doc_type)?.id === spec.id).map(pd => pd.expiry_date).sort();
+      const state: "valid" | "expired" | "missing" = !mine.length ? "missing" : mine[mine.length - 1] < todayISO ? "expired" : "valid";
+      return { spec, state };
+    });
+  })();
   const kioskModeEnabled = locations.some(l => isModuleOn(l.rules, "kiosk_mode_enabled"));
   const todayISO = new Date().toISOString().split("T")[0];
 
@@ -878,6 +893,27 @@ export default function PersonnelPage() {
                       </select>
                     </div>
                   )}
+                  {branchIndustry && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1 block">Rol ve Yetkinlikler</label>
+                      <p className="text-[10px] text-slate-400 mb-2">Otomatik planlama, bir vardiyada &quot;en az 1 Bakım Teknisyeni&quot; gibi zorunluluğu bu listeye bakarak karşılar.</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {branchIndustry.roles.map(role => {
+                          const selected = editForm.roles.includes(role.label);
+                          return (
+                            <button key={role.id} type="button"
+                              onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                              {selected && <Check size={10} className="inline mr-1" />}{role.label}
+                            </button>
+                          );
+                        })}
+                        {editForm.roles.filter(r => !roleLabels.has(r) && !editDepts.some(d => d.name === r)).map(r => (
+                          <span key={r} className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200">{r}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {editDepts.length > 0 && (
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-2 block">Bölge / Zon Ataması</label>
@@ -896,7 +932,25 @@ export default function PersonnelPage() {
                   {complianceTrackingEnabled && (
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Belgeler</label>
-                      <p className="text-[10px] text-slate-400 mb-2">Süresi dolmuş zorunlu bir belgesi olan personel, Belge/Sertifika Uyumluluğu açıkken o haftaki otomatik plana hiç dahil edilmez.</p>
+                      <p className="text-[10px] text-slate-400 mb-2">
+                        {branchIndustry
+                          ? "Bir rolün gerektirdiği belge geçersizse kişi o role atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
+                          : "Süresi dolmuş zorunlu bir belgesi olan personel, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
+                      </p>
+                      {requiredDocStates.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {requiredDocStates.map(({ spec, state }) => (
+                            <button key={spec.id} type="button" onClick={() => state !== "valid" && setNewDocType(spec.label)}
+                              title={state === "valid" ? "Geçerli" : state === "expired" ? "Süresi dolmuş, yenisini ekleyin" : spec.strict ? "Kritik belge girilmemiş: ilgili role atanamaz" : "Girilmemiş"}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                state === "valid" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                : state === "expired" || spec.strict ? "bg-red-50 text-red-700 border-red-100"
+                                : "bg-amber-50 text-amber-700 border-amber-100"}`}>
+                              {state === "valid" ? "✓ " : "! "}{spec.label}{state === "expired" ? " · süresi doldu" : state === "missing" ? " · girilmemiş" : ""}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {docsLoading ? (
                         <p className="text-xs text-slate-400">Yükleniyor...</p>
                       ) : (
@@ -915,7 +969,12 @@ export default function PersonnelPage() {
                         </div>
                       )}
                       <div className="flex gap-2">
-                        <input value={newDocType} onChange={e => setNewDocType(e.target.value)} placeholder="Belge adı (örn. İş Güvenliği Belgesi)" className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        <input value={newDocType} onChange={e => setNewDocType(e.target.value)} list="industry-doc-catalog" placeholder="Belge adı (örn. İş Güvenliği Belgesi)" className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        {branchIndustry && (
+                          <datalist id="industry-doc-catalog">
+                            {branchIndustry.documents.map(d => <option key={d.id} value={d.label} />)}
+                          </datalist>
+                        )}
                         <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
                         <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
