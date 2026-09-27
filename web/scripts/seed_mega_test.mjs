@@ -289,6 +289,8 @@ async function cleanup() {
   await sql`DELETE FROM tip_pools WHERE org_id = ${ORG}`;
   await sql`DELETE FROM personnel_documents WHERE org_id = ${ORG}`;
   await sql`DELETE FROM location_sales_data WHERE org_id = ${ORG}`;
+  // Arayüzden (örn. Yeni Şube sihirbazı) açılan hesapların davet kayıtları şubeye bağlı
+  await sql`DELETE FROM invite_tokens WHERE org_id = ${ORG}`;
   await sql`DELETE FROM users WHERE org_id = ${ORG}`;
   await sql`DELETE FROM personnel WHERE org_id = ${ORG}`;
   await sql`DELETE FROM departments WHERE location_id = ANY(${locIds})`;
