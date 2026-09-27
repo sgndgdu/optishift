@@ -120,7 +120,7 @@ export default function TipPoolsPage() {
         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
           <Wallet size={28} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-600">Bahşiş Havuzu bu şubede kapalı</p>
-          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Kurallar &gt; Ek Özellikler bölümünden açabilirsiniz.</p>
+          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Ek Özellikler sekmesinden açabilirsiniz.</p>
         </div>
       </div>
     );

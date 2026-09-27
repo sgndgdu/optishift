@@ -252,7 +252,7 @@ export default function FairnessReport() {
               ))}
             </div>
             <p className="text-[10px] text-slate-400 mt-2">
-              Değiştirmek için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Adalet Puanı</a>
+              Değiştirmek için: <a href="/settings?tab=advanced&group=fairness" className="text-primary font-semibold hover:underline">Ayarlar → Gelişmiş Seçenekler → Adalet Puanı</a>
             </p>
           </div>
 
@@ -277,7 +277,7 @@ export default function FairnessReport() {
                 ))}
               </div>
               <p className="text-[10px] text-slate-400 mt-2">
-                Gece işareti veya zorluk puanı için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Vardiya Şablonları</a>
+                Gece işareti veya zorluk puanı için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Temel Ayarlar → Vardiya Tanımları</a>
               </p>
             </div>
           )}

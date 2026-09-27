@@ -73,7 +73,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Timer,
         paragraphs: [
           "Vardiya Planı sayfasının üst barında, personel kartlarına girdiğiniz saatlik ücrete göre hesaplanan “bu hafta planlanan işçilik maliyeti” çipini görürsünüz (örn. ₺172.520). Fazla mesai eşiğini aşan saatler otomatik ×1,5 ile hesaba katılır.",
-          "Ayarlar → Kurallar → Fazla Mesai’den isteğe bağlı bir haftalık ₺ bütçe tavanı belirleyebilirsiniz. Plan bu tavanı aşarsa çip kırmızıya döner ve “Yayınla”ya basmadan önce bir uyarı daha görürsünüz, yine de yayınlamak size kalır.",
+          "Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları’ndan isteğe bağlı bir haftalık ₺ bütçe tavanı belirleyebilirsiniz. Plan bu tavanı aşarsa çip kırmızıya döner ve “Yayınla”ya basmadan önce bir uyarı daha görürsünüz, yine de yayınlamak size kalır.",
         ],
       },
       {
@@ -143,16 +143,13 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ayarlar",
         icon: Settings,
         paragraphs: [
-          "Ayarlar yedi bölüme ayrılır:",
+          "Ayarlar üç ana sekmeden oluşur. Yeni başlayan bir müdürün ihtiyaç duyduğu her şey ilk sekmededir; diğerlerine sadece gerektiğinde bakarsınız.",
         ],
         steps: [
-          "Vardiyalar: çalışma saatleriniz ve vardiya tipleriniz. İstediğiniz kadar tanımlayabilirsiniz, “sabah/akşam” gibi sabit bir kalıp yoktur.",
-          "Kurallar: haftalık azami çalışma saati, vardiyalar arası en az dinlenme süresi, fazla mesai eşiği ve haftalık işçilik maliyeti bütçesi gibi sınırlar; “Sosyal Kurallar” bölümünden iki personelin hiçbir gün aynı vardiyaya birlikte yazılmamasını sağlayabilirsiniz (örn. anlaşmazlık yaşayan iki kişi); “QR ile Vardiya Girişi” bölümünden şubenize asabileceğiniz bir QR kod üretebilir, isterseniz “GPS Doğrulamalı Vardiya Girişi” ile personelin gerçekten şubede olup olmadığını da kontrol edebilirsiniz.",
-          "Personel Talepleri: uygunluk toplamayı açma/kapama, hatırlatma zamanlaması, takas ve değişiklik izinleri, izin politikası.",
-          "Adalet Puanı: ileri düzey çarpanlar ve “Adalet Penceresi” (birikimli puanın kaç haftalık geçmişi dikkate alacağı, varsayılan 8 hafta, isterseniz 90 güne/13 haftaya kadar uzatabilirsiniz). Çoğu işletme varsayılan ayarları hiç değiştirmeden kullanır.",
-          "Departmanlar & Alanlar: birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) burada tanımlarsınız.",
-          "Ekipler & Rotasyon: vardiyalı çalışan üretim/fabrika işletmeleri için dönüşümlü ekip planı.",
-          "Hesap: işletme bilgileriniz ve abonelik/fatura bilgileriniz.",
+          "Temel Ayarlar: çalışma saatleriniz, vardiya tipleriniz (“sabah/akşam” gibi sabit bir kalıp yoktur, istediğiniz kadar tanımlarsınız), personel talepleri (uygunluk toplama, hatırlatma, takas ve değişiklik izinleri, izin politikası) ve şube konumu.",
+          "Gelişmiş Seçenekler: kapalı gelen başlıklar halinde planlama kuralları (haftalık çalışma sınırı, dinlenme süresi, gece kuralları, işçilik bütçesi), vardiya girişi ve canlı durum (giriş zorunluluğu, GPS, QR kod), yayın, adalet puanı, departmanlar ve alanlar, ekipler ve rotasyon. Çoğu işletme bunları hiç değiştirmez.",
+          "Ek Özellikler: mesajlaşma, açık vardiyalar, fazla mesai takibi, ortak tablet, kaza risk radarı gibi isteğe bağlı özelliklerin kartları. Kartın anahtarını açtığınızda özellik menüde ve ekranlarda görünür, ayarları da kartın içinde açılır; kapattığınızda hiçbir iz bırakmaz.",
+          "Hesabım: kendi adınız, şifreniz ve giriş yöntemleriniz.",
         ],
       },
     ],

@@ -846,7 +846,7 @@ export default function PersonnelPage() {
                       className="w-4 h-4 rounded accent-forest-600"
                     />
                     <span className="text-sm font-semibold text-slate-700">Kıdemli Personel</span>
-                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Kurallar&apos;daki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları&apos;ndaki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>

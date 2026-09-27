@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
-import { Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Users, Scale, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode, type ComponentType } from "react";
+import {
+  Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
+  MessageSquare, Megaphone, Gavel, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Tablet, Timer, Wallet,
+} from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
@@ -14,17 +17,33 @@ const CREW_COLORS = [
   "#8b5cf6", "#f97316", "#14b8a6", "#ef4444", "#84cc16",
 ];
 
-type TabKey = "shifts" | "rules" | "requests" | "fairness" | "zones" | "crews" | "account";
+type TabKey = "basic" | "advanced" | "features" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "shifts",   label: "Vardiyalar" },
-  { key: "rules",    label: "Kurallar" },
-  { key: "requests", label: "Personel Talepleri" },
-  { key: "fairness", label: "Adalet Puanı" },
-  { key: "zones",    label: "Departmanlar & Alanlar" },
-  { key: "crews",    label: "Ekipler & Rotasyon" },
-  { key: "account",  label: "Hesap" },
+  { key: "basic",    label: "Temel Ayarlar" },
+  { key: "advanced", label: "Gelişmiş Seçenekler" },
+  { key: "features", label: "Ek Özellikler" },
+  { key: "account",  label: "Hesabım" },
 ];
+
+// Eski sekme adlarıyla gelen derin linkler (?tab=shifts, ?tab=rules...) yeni yapıya eşlenir.
+// Gelişmiş Seçenekler altındaki bir başlığa işaret ediyorsa o başlık açık gelir.
+const LEGACY_TABS: Record<string, { tab: TabKey; group?: string }> = {
+  shifts:   { tab: "basic" },
+  requests: { tab: "basic" },
+  rules:    { tab: "advanced", group: "planning" },
+  fairness: { tab: "advanced", group: "fairness" },
+  zones:    { tab: "advanced", group: "zones" },
+  crews:    { tab: "advanced", group: "crews" },
+};
+
+function tabFromUrl(): { tab: TabKey; group?: string } {
+  if (typeof window === "undefined") return { tab: "basic" };
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get("tab") ?? "";
+  if (TABS.some(x => x.key === t)) return { tab: t as TabKey, group: params.get("group") ?? undefined };
+  return LEGACY_TABS[t] ?? { tab: "basic" };
+}
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -104,6 +123,63 @@ function SectionCard({ title, children }: { title: string; children: ReactNode }
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{children}</h3>;
+}
+
+// Gelişmiş Seçenekler: kapalı gelen başlıklar (aşamalı gösterim)
+function SettingsGroup({ id, title, description, open, onToggle, children }: {
+  id: string; title: string; description: string; open: boolean; onToggle: (id: string) => void; children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left bg-white hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-800">{title}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+        </div>
+        <ChevronDown size={16} className={cn("text-slate-400 transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+      {open && <div className="px-4 md:px-5 pb-5 pt-1 space-y-4 bg-slate-50/40 border-t border-slate-100">{children}</div>}
+    </div>
+  );
+}
+
+// Ek Özellikler: tek bir özelliğin aç/kapa kartı; açıkken kendi ayarları kartın içinde görünür
+function FeatureCard({ icon: Icon, title, description, on, onToggle, children }: {
+  icon: ComponentType<{ size?: number }>; title: string; description: string; on: boolean; onToggle: () => void; children?: ReactNode;
+}) {
+  return (
+    <div className={cn(
+      "rounded-2xl border p-4 transition-colors",
+      on ? "border-forest-200 bg-forest-50/40" : "border-slate-200 bg-white",
+      on && children ? "md:col-span-2" : "",
+    )}>
+      <div className="flex items-start gap-3">
+        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", on ? "bg-forest-100 text-forest-700" : "bg-slate-100 text-slate-500")}>
+          <Icon size={17} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-800">{title}</p>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
+        </div>
+        <Toggle on={on} onToggle={onToggle} />
+      </div>
+      {on && children && <div className="mt-4 pt-4 border-t border-forest-100">{children}</div>}
+    </div>
+  );
+}
+
+function FeatureGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <SectionLabel>{title}</SectionLabel>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{children}</div>
+    </div>
+  );
 }
 
 // Shared time input style — same everywhere on the page
@@ -187,14 +263,13 @@ function RequiredSkillsEditor({
 }
 
 export default function SettingsPage() {
-  // ?tab=shifts gibi derin linkler desteklenir (boş durum yönlendirmeleri buraya iner)
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (typeof window !== "undefined") {
-      const t = new URLSearchParams(window.location.search).get("tab");
-      if (t && TABS.some(x => x.key === t)) return t as TabKey;
-    }
-    return "shifts";
+  // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
+  const [activeTab, setActiveTab] = useState<TabKey>(() => tabFromUrl().tab);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const g = tabFromUrl().group;
+    return g ? { [g]: true } : {};
   });
+  const toggleGroup = (id: string) => setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
 
   // Departman yönetimi — anında DB'ye kaydedilir (/api/departments)
   const [newDeptName, setNewDeptName] = useState("");
@@ -939,15 +1014,14 @@ export default function SettingsPage() {
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
-          className={`px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab.key === "account" ? "ml-auto" : ""} ${
             activeTab === tab.key
               ? "border-forest-600 text-forest-700"
               : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
           }`}
         >
+          {tab.key === "features" && <Sparkles size={13} />}
           {tab.key === "account" && <UserCircle size={13} />}
-          {tab.key === "fairness" && <Scale size={13} />}
-          {tab.key === "crews" && <Users size={13} />}
           {tab.label}
         </button>
       ))}
@@ -981,8 +1055,8 @@ export default function SettingsPage() {
 
         <div className="p-5 md:p-6">
 
-          {/* ─── VARDIYALAR ─── */}
-          {activeTab === "shifts" && (
+          {/* ─── TEMEL AYARLAR ─── */}
+          {activeTab === "basic" && (
             <div className="space-y-8">
 
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
@@ -1153,395 +1227,130 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-            </div>
-          )}
-
-          {/* ─── KURALLAR ─── */}
-          {activeTab === "rules" && (
-            <div className="space-y-4">
-              <SectionCard title="Planlama Kuralları">
-                <RuleRow
-                  label="Kıdemli Personel Kuralı"
-                  description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir.</>}
-                  right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
-                />
-                <RuleRow
-                  label="Gececi→Sabahçı Yasağı"
-                  description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
-                  right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
-                />
-                <RuleRow
-                  label="Arka Arkaya İki Hafta Gece Yasağı"
-                  description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
-                  right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
-                />
-                <RuleRow
-                  label="Gece 7,5 Saat Uyarısı"
-                  description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
-                  right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
-                />
-                <RuleRow
-                  label="Vardiya Devri Notu"
-                  description="Personel çıkış yaparken sonraki vardiyaya not bırakabilir; not, sonraki vardiyanın personeline ana sayfada gösterilir. Kapalıysa çıkışta not sorulmaz."
-                  right={<Toggle on={handoverNotesEnabled} onToggle={() => setHandoverNotesEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Müdürü Planlamaya Dahil Et"
-                  description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
-                  right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
-                />
-                <RuleRow
-                  label="Kapanış→Açılış Tespiti"
-                  description="Geç çıkıp ertesi sabah erken gelme (kapanış→açılış) tespit edilir: plan oluştururken bu geçişten kaçınılır ve yayınlamadan önce uyarı olarak gösterilir."
-                  right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
-                />
-                {clopeningEnabled && (
-                  <>
+              <div className="space-y-4">
+                <SectionLabel>Personel Talepleri</SectionLabel>
+                <SectionCard title="Uygunluk">
+                  <RuleRow
+                    label="Uygunluk Toplama"
+                    description="Kapalıysa vardiyaları müdür tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
+                    right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
+                  />
+                  {availabilityCollectionEnabled && (
                     <RuleRow
-                      label="Kapanış→Açılış Eşiği"
-                      description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal alt sınır olan 11 saatten fazla olmalı)."
-                      right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
+                      label="Haftalık Sarı Gün Hakkı"
+                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">tercih etmiyorum</span> (sarı) olarak işaretleyebilir. Sarı güne atamanın puan karşılığı Adalet Puanı sekmesindedir.</>}
+                      right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
                     />
+                  )}
+                  {availabilityCollectionEnabled && (
                     <RuleRow
-                      label="Kaçınma Hassasiyeti"
-                      description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
-                      right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
+                      label="Otomatik Uygunluk Hatırlatması"
+                      description={
+                        <span>
+                          Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş personele haftada bir kez bildirim gönderilir.
+                          {reminderEnabled && (
+                            <span className="flex flex-wrap items-center gap-2 mt-2">
+                              <span>Her</span>
+                              <select
+                                value={reminderDay}
+                                onChange={e => setReminderDay(e.target.value)}
+                                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-forest-400 bg-white"
+                              >
+                                {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
+                              </select>
+                              <span>günü saat</span>
+                              <TimeInput value={reminderTime} onChange={setReminderTime} />
+                            </span>
+                          )}
+                        </span>
+                      }
+                      right={<Toggle on={reminderEnabled} onToggle={() => setReminderEnabled(v => !v)} />}
                     />
-                  </>
-                )}
-                <RuleRow
-                  label="Haftalık En Fazla Çalışma"
-                  description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
-                  right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
-                />
-                <RuleRow
-                  label="En Az Dinlenme Süresi"
-                  description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
-                  right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
-                />
-                <RuleRow
-                  label="Denkleştirme Dönemi"
-                  description="0 = kapalı (haftalık limit katı uygulanır). 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir: dönem ortalaması haftalık limiti aşamaz, tek hafta en fazla 66 saat olabilir (İş K. m.63)."
-                  right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
-                />
-                <RuleRow
-                  label="Maks. Ardışık Çalışma"
-                  description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
-                  right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
-                />
-              </SectionCard>
-
-              <SectionCard title="Sosyal Kurallar · Birlikte Çalışamaz">
-                {!personnelConflictsEnabled && (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-                    Bu özellik Özellikler bölümünde kapalı, tanımlı çiftler olsa bile Otomatik Oluştur bu kuralı uygulamaz.
-                  </p>
-                )}
-                <p className="text-xs text-slate-500 mb-4">
-                  Seçtiğiniz iki personel hiçbir gün aynı vardiyada birlikte atanmaz (kesin kural, otomatik oluşturma bu çifti asla aynı vardiyaya yazmaz).
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                  <select
-                    value={newConflictA}
-                    onChange={e => setNewConflictA(e.target.value)}
-                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
-                  >
-                    <option value="">Birinci kişi</option>
-                    {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <select
-                    value={newConflictB}
-                    onChange={e => setNewConflictB(e.target.value)}
-                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
-                  >
-                    <option value="">İkinci kişi</option>
-                    {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <button
-                    onClick={async () => {
-                      setConflictError("");
-                      if (!newConflictA || !newConflictB) { setConflictError("İki kişi de seçilmeli"); return; }
-                      if (newConflictA === newConflictB) { setConflictError("Aynı kişi seçilemez"); return; }
-                      const res = await fetch("/api/personnel-conflicts", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ location_id: selectedLocationId, personnel_id_a: newConflictA, personnel_id_b: newConflictB }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) { setConflictError(data.error ?? "Eklenemedi"); return; }
-                      const nameA = conflictPersonnel.find(p => p.id === newConflictA)?.name ?? "";
-                      const nameB = conflictPersonnel.find(p => p.id === newConflictB)?.name ?? "";
-                      setConflictPairs(prev => [{ id: data.id, personnel_id_a: newConflictA, personnel_id_b: newConflictB, personnel_a_name: nameA, personnel_b_name: nameB }, ...prev]);
-                      setNewConflictA(""); setNewConflictB("");
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-bold hover:bg-forest-800 transition-colors shrink-0"
-                  >
-                    Ekle
-                  </button>
-                </div>
-                {conflictError && <p className="text-xs text-red-600 mb-3">{conflictError}</p>}
-                {conflictPairs.length === 0 ? (
-                  <p className="text-sm text-slate-400">Henüz tanımlı çift yok.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {conflictPairs.map(pair => (
-                      <div key={pair.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-                        <span className="text-sm font-semibold text-slate-700">{pair.personnel_a_name} <span className="text-slate-400 font-normal">↔</span> {pair.personnel_b_name}</span>
+                  )}
+                  {availabilityCollectionEnabled && (
+                    <RuleRow
+                      label="Şimdi Hatırlatma Gönder"
+                      description={remindResult ?? "Bu haftanın uygunluğunu henüz girmemiş tüm personele anında bildirim gönderir."}
+                      right={
                         <button
+                          disabled={reminding}
                           onClick={async () => {
-                            await fetch(`/api/personnel-conflicts?id=${pair.id}`, { method: "DELETE" });
-                            setConflictPairs(prev => prev.filter(p => p.id !== pair.id));
+                            setReminding(true);
+                            setRemindResult(null);
+                            try {
+                              const userRaw = localStorage.getItem("optishift_manager_user");
+                              const u = userRaw ? JSON.parse(userRaw) : null;
+                              const locId = localStorage.getItem("optishift_selected_location") || u?.location_id || "";
+                              const res = await fetch("/api/availability/remind", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
+                              });
+                              const data = await res.json();
+                              setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten uygunluğunu girmiş.");
+                            } catch {
+                              setRemindResult("Hata oluştu, tekrar deneyin.");
+                            }
+                            setReminding(false);
                           }}
-                          className="text-xs font-bold text-red-500 hover:text-red-700"
+                          className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                         >
-                          Kaldır
+                          <Send size={14} /> {reminding ? "Gönderiliyor…" : "Gönder"}
                         </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </SectionCard>
-
-              <SectionCard title="Canlı Durum">
-                <RuleRow
-                  label="Vardiya Girişi Zorunluluğu"
-                  description="Personel portaldaki vardiya kartından giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
-                  right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
-                />
-                <RuleRow
-                  label="Geç Kalan → Otomatik Açık Vardiya"
-                  description={
-                    <span>
-                      Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş kaydı olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
-                      {autoOpenShiftOnLate && (
-                        <span className="flex items-center gap-2 mt-2">
-                          <span>Eşik:</span>
-                          <input
-                            type="number" min={10} max={120} value={lateThresholdMin}
-                            onChange={e => setLateThresholdMin(Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
-                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                          />
-                          <span>dakika</span>
-                        </span>
-                      )}
-                    </span>
-                  }
-                  right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
-                />
-                <RuleRow
-                  label="GPS Doğrulamalı Vardiya Girişi"
-                  description={
-                    <span>
-                      Personel giriş yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki giriş reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
-                      {gpsCheckinRequired && (
-                        <span className="flex items-center gap-2 mt-2">
-                          <span>Yarıçap:</span>
-                          <input
-                            type="number" min={20} max={2000} value={checkinRadiusM}
-                            onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
-                            className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                          />
-                          <span>metre</span>
-                        </span>
-                      )}
-                    </span>
-                  }
-                  right={<Toggle on={gpsCheckinRequired} onToggle={() => setGpsCheckinRequired(v => !v)} />}
-                />
-                <RuleRow
-                  label="Eş Zamanlı Mola Limiti"
-                  description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
-                  right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
-                />
-                <RuleRow
-                  label="Uzun Mola Uyarı Eşiği"
-                  description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
-                  right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
-                />
-              </SectionCard>
-
-              <SectionCard title="Özellikler">
-                <p className="text-xs text-slate-500 mb-4">
-                  İşletmenize göre ihtiyacınız olmayan özellikleri kapatın, menüden ve personel portalından tamamen kalkar.
-                </p>
-                <RuleRow
-                  label="Sohbet (Mesajlaşma)"
-                  description="Kapalıyken müdür ve personel portalındaki sohbet linki kaybolur."
-                  right={<Toggle on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="İzin Talepleri"
-                  description="Kapalıyken personel portalından izin talebi oluşturulamaz, müdür Onaylar sayfasında izin sekmesi görünmez."
-                  right={<Toggle on={leaveRequestsEnabled} onToggle={() => setLeaveRequestsEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Fazla Mesai Takibi"
-                  description="Kapalıyken yayınlanan haftalardan otomatik fazla mesai kaydı oluşturulmaz, Fazla Mesai sayfası kalkar."
-                  right={<Toggle on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Açık Vardiya / Kahraman Sistemi"
-                  description="Kapalıyken personel vardiyasını 'herkese aç' ile paylaşamaz, geç kalanlar otomatik açık vardiyaya dönüşmez, Açık Vardiyalar sayfası kalkar."
-                  right={<Toggle on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Birlikte Çalışamaz Çiftleri"
-                  description="Kapalıyken tanımlı çiftler olsa bile Otomatik Oluştur bu kuralı uygulamaz."
-                  right={<Toggle on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)} />}
-                />
-              </SectionCard>
-
-              <SectionCard title="Ek Özellikler">
-                <p className="text-xs text-slate-500 mb-4">
-                  Varsayılan olarak kapalıdır. Açtığınızda ilgili sayfa/alan görünür hale gelir, kapalıyken hiçbir iz bırakmaz.
-                </p>
-                <RuleRow
-                  label="Belge / Sertifika Uyumluluğu"
-                  description="Açıkken: süresi dolmuş zorunlu belgesi olan personel o haftaki otomatik plana hiç dahil edilmez. Personel düzenleme ekranında 'Belgeler' bölümü görünür."
-                  right={<Toggle on={complianceTrackingEnabled} onToggle={() => setComplianceTrackingEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Görev ve Kontrol Listeleri"
-                  description="Açıkken: yeni oluşturulan vardiyalara aşağıdaki şablona göre otomatik görev listesi eklenir, personel portalında 'Görevlerim' kartı görünür."
-                  right={<Toggle on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)} />}
-                />
-                {taskManagementEnabled && (
-                  <div className="mt-3 space-y-3 pl-1">
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Tüm Vardiyalar İçin Ortak Görevler</label>
-                      <textarea
-                        rows={3}
-                        placeholder={"Her satıra bir görev, örn:\nKasa Sayımı\nMutfak Temizliği"}
-                        value={(taskTemplates["*"] ?? []).join("\n")}
-                        onChange={e => setTaskTemplates(prev => ({ ...prev, "*": e.target.value.split("\n") }))}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
-                      />
-                    </div>
-                    {(locationData?.shift_definitions ?? []).map((sd: ShiftDefinition) => (
-                      <div key={sd.id}>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">{sd.name} Vardiyasına Özel Görevler</label>
-                        <textarea
-                          rows={2}
-                          placeholder="Her satıra bir görev"
-                          value={(taskTemplates[sd.id] ?? []).join("\n")}
-                          onChange={e => setTaskTemplates(prev => ({ ...prev, [sd.id]: e.target.value.split("\n") }))}
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <RuleRow
-                  label="Dijital Bahşiş ve Prim Dağıtımı"
-                  description="Açıkken: menüde 'Bahşiş Havuzu' sayfası görünür, müdür dönemlik toplam bahşiş tutarı girip gerçek çalışılan dakikaya göre dağıtabilir, personel portalında 'Bu Hafta Kazanılan Prim' kartı görünür."
-                  right={<Toggle on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Ortak Tablet Modu"
-                  description="Açıkken: personel oturum açmadan, ortak bir tablette 4 haneli PIN girerek giriş/çıkış yapabilir. PIN'ler Personel sayfasından atanır."
-                  right={<Toggle on={kioskModeEnabled} onToggle={() => setKioskModeEnabled(v => !v)} />}
-                />
-                {kioskModeEnabled && selectedLocationId && (
-                  <div className="mt-3 pl-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
-                        setKioskLinkCopied(true);
-                        setTimeout(() => setKioskLinkCopied(false), 2000);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
-                    >
-                      {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
-                    </button>
-                    <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
-                  </div>
-                )}
-                <RuleRow
-                  label="Tersine Vardiya Pazarı (Teklif Sistemi)"
-                  description="Açıkken: açık vardiyalara personel doğrudan üstlenmek yerine istediği bonus puanı teklif eder, müdür teklifler arasından seçer. Müdür ataması bundan etkilenmez."
-                  right={<Toggle on={shiftBiddingEnabled} onToggle={() => setShiftBiddingEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Satış ve Yoğunluk Tahmini"
-                  description="Açıkken: Personel İhtiyacı tablosunda geçmiş haftaların hareketli ortalamasına dayalı bir tahmin gösterilir. Aşağıdaki günlük ciro girişleri isteğe bağlıdır, girilirse tahmini ±%50'ye kadar ciro eğilimine göre ayarlar."
-                  right={<Toggle on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)} />}
-                />
-                {forecastingEnabled && (
-                  <div className="mt-3 pl-1 space-y-2">
-                    <div className="flex gap-2">
-                      <input
-                        type="date" value={newSalesDate} onChange={e => setNewSalesDate(e.target.value)}
-                        className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
-                      />
-                      <input
-                        type="number" min="0" step="0.01" value={newSalesRevenue} onChange={e => setNewSalesRevenue(e.target.value)}
-                        placeholder="Günlük ciro (₺)"
-                        className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
-                      />
-                      <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
-                    </div>
-                    {salesDataError && <p className="text-[10px] text-red-600">{salesDataError}</p>}
-                    {salesData.length > 0 && (
-                      <div className="space-y-1 max-h-40 overflow-y-auto">
-                        {salesData.slice(0, 14).map(s => (
-                          <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs bg-slate-50 border border-slate-200">
-                            <span className="flex-1 font-semibold text-slate-700">{s.date}</span>
-                            <span className="text-slate-500">{s.revenue != null ? `₺${s.revenue}` : s.footfall != null ? `${s.footfall} kişi` : ""}</span>
-                            <button onClick={() => handleDeleteSalesData(s.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <RuleRow
-                  label="Dijital Devir-Teslim Defteri"
-                  description="Açıkken: çıkışta sonraki vardiyaya not bırakılabilir; hedef vardiyaya gelen ilk kişi notu okuyup 'Teslim Aldım' demeden giriş yapamaz. Menüde 'Devir-Teslim Kayıtları' sayfası görünür. Açık olduğu sürece eski (isteğe bağlı) devir notu kartı bu şubede otomatik gizlenir, eski veriler silinmez."
-                  right={<Toggle on={handoverLogEnabled} onToggle={() => setHandoverLogEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Yorgunluk ve Kaza Risk Radarı"
-                  description="Açıkken: ana sayfada üst üste gece vardiyası / kapanıştan açılışa / yüksek mesai yapan personeli listeleyen bir risk kartı, Vardiya Planı sayfasında ilgili personelin satırında risk ikonu görünür."
-                  right={<Toggle on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />}
-                />
-              </SectionCard>
-
-              <SectionCard title="QR ile Vardiya Girişi">
-                <p className="text-xs text-slate-500 mb-4">
-                  Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
-                </p>
-                <div className="flex items-center gap-6">
-                  <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
-                    <QRCodeSVG
-                      value={typeof window !== "undefined" ? `${window.location.origin}/portal?qr=1` : "/portal?qr=1"}
-                      size={140}
+                      }
                     />
-                  </div>
-                  <div className="text-xs text-slate-500 space-y-2">
-                    <p>Yazdırıp panoya asabilir ya da ekrandan doğrudan gösterebilirsiniz.</p>
-                    <button
-                      onClick={() => window.print()}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
-                    >
-                      Yazdır
-                    </button>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Yayın Akışı">
-                <RuleRow
-                  label="Yayın Öncesi İhlal Kontrolü"
-                  description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
-                  right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Erken Yayın Göstergesi"
-                  description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
-                  right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
-                />
-              </SectionCard>
+                  )}
+                </SectionCard>
+                <SectionCard title="Vardiya Talepleri">
+                  <RuleRow
+                    label="Vardiya Takas Talebi"
+                    description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
+                    right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Vardiya Değişiklik Talebi"
+                    description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
+                    right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
+                  />
+                </SectionCard>
+                <SectionCard title="İzin Politikası">
+                  <RuleRow
+                    label="İzin Talepleri"
+                    description="Kapalıyken personel portalından izin talebi oluşturulamaz, müdür Onaylar sayfasında izin sekmesi görünmez."
+                    right={<Toggle on={leaveRequestsEnabled} onToggle={() => setLeaveRequestsEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Kıdeme Göre İzin Hak Edişi"
+                    description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken personel kartındaki sabit gün geçerlidir."
+                    right={<Toggle on={autoLeaveEntitlement} onToggle={() => setAutoLeaveEntitlement(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="İzin İçin Mazeret Zorunlu"
+                    description="Personel izin talebi oluştururken mazeret girmeden gönderemez."
+                    right={<Toggle on={leaveRequireReason} onToggle={() => setLeaveRequireReason(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Çoklu Gün İzin Talebi"
+                    description={
+                      <span>
+                        Personel birden fazla günü kapsayan izin talebi oluşturabilir.
+                        {leaveAllowMultiDay && (
+                          <span className="flex items-center gap-2 mt-2">
+                            <span>Tek talep için max:</span>
+                            <input
+                              type="number" min={2} max={30} value={leaveMaxDays}
+                              onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
+                              className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
+                            />
+                            <span>gün</span>
+                          </span>
+                        )}
+                      </span>
+                    }
+                    right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
+                  />
+                </SectionCard>
+              </div>
 
               <SectionCard title="Konum & Hava Durumu">
                 <RuleRow
@@ -1607,619 +1416,833 @@ export default function SettingsPage() {
                   }
                 />
               </SectionCard>
-
-              {/* ─── FABRİKA MODÜLÜ: FAZLA MESAİ ─── */}
-              <SectionCard title="Fazla Mesai Takibi">
-                <RuleRow
-                  label="Haftalık Mesai Eşiği"
-                  description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık En Fazla Çalışma'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
-                  right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
-                />
-                <RuleRow
-                  label="Yıllık Fazla Mesai Sınırı"
-                  description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
-                  right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
-                />
-                <RuleRow
-                  label="Adil Mesai Dağılımı"
-                  description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
-                  right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
-                />
-                <RuleRow
-                  label="Haftalık Mesai Bütçesi"
-                  description="Tüm personelin haftalık toplam fazla mesai saati bu sınırı aşarsa yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
-                  right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
-                />
-                <RuleRow
-                  label="Haftalık İşçilik Maliyeti Bütçesi"
-                  description="Bu haftanın planlanan toplam işçilik maliyeti (hourly_wage tanımlı personelin saatleri ×ücret, mesai ×1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
-                  right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
-                />
-                <RuleRow
-                  label="Ekip Vardiyası · Kesin Kural"
-                  description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
-                  right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
-                />
-              </SectionCard>
-
             </div>
           )}
 
-          {/* ─── PERSONEL TALEPLERİ ─── */}
-          {activeTab === "requests" && (
-            <div className="space-y-4">
-              <SectionCard title="Uygunluk">
-                <RuleRow
-                  label="Uygunluk Toplama"
-                  description="Kapalıysa vardiyaları müdür tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
-                  right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
-                />
-                {availabilityCollectionEnabled && (
+          {/* ─── GELİŞMİŞ SEÇENEKLER ─── */}
+          {activeTab === "advanced" && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500">
+                Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Bir başlığa tıklayarak açabilirsiniz.
+              </p>
+              <SettingsGroup id="planning" title="Planlama Kuralları" description="Çalışma ve dinlenme sınırları, gece kuralları, bütçe" open={!!openGroups["planning"]} onToggle={toggleGroup}>
+                <SectionCard title="Planlama Kuralları">
                   <RuleRow
-                    label="Haftalık Sarı Gün Hakkı"
-                    description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">tercih etmiyorum</span> (sarı) olarak işaretleyebilir. Sarı güne atamanın puan karşılığı Adalet Puanı sekmesindedir.</>}
-                    right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
+                    label="Kıdemli Personel Kuralı"
+                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir.</>}
+                    right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
-                )}
-                {availabilityCollectionEnabled && (
                   <RuleRow
-                    label="Otomatik Uygunluk Hatırlatması"
+                    label="Gececi→Sabahçı Yasağı"
+                    description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
+                    right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Arka Arkaya İki Hafta Gece Yasağı"
+                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
+                    right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Gece 7,5 Saat Uyarısı"
+                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
+                    right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Vardiya Devri Notu"
+                    description="Personel çıkış yaparken sonraki vardiyaya not bırakabilir; not, sonraki vardiyanın personeline ana sayfada gösterilir. Kapalıysa çıkışta not sorulmaz."
+                    right={<Toggle on={handoverNotesEnabled} onToggle={() => setHandoverNotesEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Müdürü Planlamaya Dahil Et"
+                    description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
+                    right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Kapanış→Açılış Tespiti"
+                    description="Geç çıkıp ertesi sabah erken gelme (kapanış→açılış) tespit edilir: plan oluştururken bu geçişten kaçınılır ve yayınlamadan önce uyarı olarak gösterilir."
+                    right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
+                  />
+                  {clopeningEnabled && (
+                    <>
+                      <RuleRow
+                        label="Kapanış→Açılış Eşiği"
+                        description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal alt sınır olan 11 saatten fazla olmalı)."
+                        right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
+                      />
+                      <RuleRow
+                        label="Kaçınma Hassasiyeti"
+                        description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
+                        right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
+                      />
+                    </>
+                  )}
+                  <RuleRow
+                    label="Haftalık En Fazla Çalışma"
+                    description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
+                    right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
+                  />
+                  <RuleRow
+                    label="En Az Dinlenme Süresi"
+                    description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
+                    right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
+                  />
+                  <RuleRow
+                    label="Denkleştirme Dönemi"
+                    description="0 = kapalı (haftalık limit katı uygulanır). 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir: dönem ortalaması haftalık limiti aşamaz, tek hafta en fazla 66 saat olabilir (İş K. m.63)."
+                    right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
+                  />
+                  <RuleRow
+                    label="Maks. Ardışık Çalışma"
+                    description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
+                    right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
+                  />
+                  <RuleRow
+                    label="Haftalık İşçilik Maliyeti Bütçesi"
+                    description="Bu haftanın planlanan toplam işçilik maliyeti (saatlik ücreti girilmiş personelin saatleri × ücret, mesai × 1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
+                    right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
+                  />
+                </SectionCard>
+              </SettingsGroup>
+              <SettingsGroup id="live" title="Vardiya Girişi ve Canlı Durum" description="Giriş zorunluluğu, geç kalma, GPS, mola, QR kod" open={!!openGroups["live"]} onToggle={toggleGroup}>
+                <SectionCard title="Canlı Durum">
+                  <RuleRow
+                    label="Vardiya Girişi Zorunluluğu"
+                    description="Personel portaldaki vardiya kartından giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
+                    right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Geç Kalan → Otomatik Açık Vardiya"
                     description={
                       <span>
-                        Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş personele haftada bir kez bildirim gönderilir.
-                        {reminderEnabled && (
-                          <span className="flex flex-wrap items-center gap-2 mt-2">
-                            <span>Her</span>
-                            <select
-                              value={reminderDay}
-                              onChange={e => setReminderDay(e.target.value)}
-                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-forest-400 bg-white"
-                            >
-                              {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
-                            </select>
-                            <span>günü saat</span>
-                            <TimeInput value={reminderTime} onChange={setReminderTime} />
+                        Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş kaydı olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
+                        {autoOpenShiftOnLate && (
+                          <span className="flex items-center gap-2 mt-2">
+                            <span>Eşik:</span>
+                            <input
+                              type="number" min={10} max={120} value={lateThresholdMin}
+                              onChange={e => setLateThresholdMin(Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
+                              className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
+                            />
+                            <span>dakika</span>
                           </span>
                         )}
                       </span>
                     }
-                    right={<Toggle on={reminderEnabled} onToggle={() => setReminderEnabled(v => !v)} />}
+                    right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
                   />
-                )}
-                {availabilityCollectionEnabled && (
                   <RuleRow
-                    label="Şimdi Hatırlatma Gönder"
-                    description={remindResult ?? "Bu haftanın uygunluğunu henüz girmemiş tüm personele anında bildirim gönderir."}
-                    right={
+                    label="GPS Doğrulamalı Vardiya Girişi"
+                    description={
+                      <span>
+                        Personel giriş yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki giriş reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
+                        {gpsCheckinRequired && (
+                          <span className="flex items-center gap-2 mt-2">
+                            <span>Yarıçap:</span>
+                            <input
+                              type="number" min={20} max={2000} value={checkinRadiusM}
+                              onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
+                              className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
+                            />
+                            <span>metre</span>
+                          </span>
+                        )}
+                      </span>
+                    }
+                    right={<Toggle on={gpsCheckinRequired} onToggle={() => setGpsCheckinRequired(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Eş Zamanlı Mola Limiti"
+                    description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
+                    right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
+                  />
+                  <RuleRow
+                    label="Uzun Mola Uyarı Eşiği"
+                    description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
+                    right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
+                  />
+                </SectionCard>
+
+                <SectionCard title="QR ile Vardiya Girişi">
+                  <p className="text-xs text-slate-500 mb-4">
+                    Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
+                  </p>
+                  <div className="flex items-center gap-6">
+                    <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
+                      <QRCodeSVG
+                        value={typeof window !== "undefined" ? `${window.location.origin}/portal?qr=1` : "/portal?qr=1"}
+                        size={140}
+                      />
+                    </div>
+                    <div className="text-xs text-slate-500 space-y-2">
+                      <p>Yazdırıp panoya asabilir ya da ekrandan doğrudan gösterebilirsiniz.</p>
                       <button
-                        disabled={reminding}
-                        onClick={async () => {
-                          setReminding(true);
-                          setRemindResult(null);
-                          try {
-                            const userRaw = localStorage.getItem("optishift_manager_user");
-                            const u = userRaw ? JSON.parse(userRaw) : null;
-                            const locId = localStorage.getItem("optishift_selected_location") || u?.location_id || "";
-                            const res = await fetch("/api/availability/remind", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
-                            });
-                            const data = await res.json();
-                            setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten uygunluğunu girmiş.");
-                          } catch {
-                            setRemindResult("Hata oluştu, tekrar deneyin.");
-                          }
-                          setReminding(false);
-                        }}
-                        className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                        onClick={() => window.print()}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                       >
-                        <Send size={14} /> {reminding ? "Gönderiliyor…" : "Gönder"}
+                        Yazdır
                       </button>
+                    </div>
+                  </div>
+                </SectionCard>
+              </SettingsGroup>
+              <SettingsGroup id="publish" title="Yayın" description="Yayın öncesi kontrol ve erken yayın göstergesi" open={!!openGroups["publish"]} onToggle={toggleGroup}>
+                <SectionCard title="Yayın Akışı">
+                  <RuleRow
+                    label="Yayın Öncesi İhlal Kontrolü"
+                    description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
+                    right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Erken Yayın Göstergesi"
+                    description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
+                    right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
+                  />
+                </SectionCard>
+              </SettingsGroup>
+              <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor vardiyaların puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
+
+                {/* Açıklama banner */}
+                <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
+                  <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
+                    <p className="text-xs text-forest-600 mt-0.5">
+                      Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama, kimse çarpan zinciri takip etmek zorunda kalmaz.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. ZOR VARDİYA TANIMI */}
+                <SectionCard title="Zor Vardiya Tanımı">
+                  <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır, birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
+                  <RuleRow
+                    label="Zor Vardiya Puanı"
+                    description="Zor sayılan bir vardiyaya eklenen düz bonus puanı. 0 = kapalı."
+                    right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
+                  />
+                  <RuleRow
+                    label="Hangi vardiyalar zor sayılsın?"
+                    description="Haftalık sarı gün hakkı Personel Talepleri sekmesindedir."
+                    right={
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                          <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                          <Moon size={11} className="text-forest-400" />
+                          <Toggle on={hardShiftNight} onToggle={() => setHardShiftNight(v => !v)} /> Gece
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Sarı gün
+                        </label>
+                      </div>
                     }
                   />
-                )}
-              </SectionCard>
+                </SectionCard>
 
-              <SectionCard title="Vardiya Talepleri">
-                <RuleRow
-                  label="Vardiya Takas Talebi"
-                  description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
-                  right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
-                />
-                <RuleRow
-                  label="Vardiya Değişiklik Talebi"
-                  description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
-                  right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
-                />
-              </SectionCard>
-
-              <SectionCard title="İzin Politikası">
-                <RuleRow
-                  label="Kıdeme Göre İzin Hak Edişi"
-                  description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken personel kartındaki sabit gün geçerlidir."
-                  right={<Toggle on={autoLeaveEntitlement} onToggle={() => setAutoLeaveEntitlement(v => !v)} />}
-                />
-                <RuleRow
-                  label="İzin İçin Mazeret Zorunlu"
-                  description="Personel izin talebi oluştururken mazeret girmeden gönderemez."
-                  right={<Toggle on={leaveRequireReason} onToggle={() => setLeaveRequireReason(v => !v)} />}
-                />
-                <RuleRow
-                  label="Çoklu Gün İzin Talebi"
-                  description={
-                    <span>
-                      Personel birden fazla günü kapsayan izin talebi oluşturabilir.
-                      {leaveAllowMultiDay && (
-                        <span className="flex items-center gap-2 mt-2">
-                          <span>Tek talep için max:</span>
-                          <input
-                            type="number" min={2} max={30} value={leaveMaxDays}
-                            onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
-                            className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                          />
-                          <span>gün</span>
-                        </span>
-                      )}
-                    </span>
-                  }
-                  right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
-                />
-              </SectionCard>
-            </div>
-          )}
-
-          {/* ─── ADALET PUANI ─── */}
-          {activeTab === "fairness" && (
-            <div className="space-y-4">
-
-              {/* Açıklama banner */}
-              <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
-                <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
-                  <p className="text-xs text-forest-600 mt-0.5">
-                    Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama, kimse çarpan zinciri takip etmek zorunda kalmaz.
-                  </p>
-                </div>
-              </div>
-
-              {/* 1. ZOR VARDİYA TANIMI */}
-              <SectionCard title="Zor Vardiya Tanımı">
-                <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır, birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
-                <RuleRow
-                  label="Zor Vardiya Puanı"
-                  description="Zor sayılan bir vardiyaya eklenen düz bonus puanı. 0 = kapalı."
-                  right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
-                />
-                <RuleRow
-                  label="Hangi vardiyalar zor sayılsın?"
-                  description="Haftalık sarı gün hakkı Personel Talepleri sekmesindedir."
-                  right={
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                        <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
-                      </label>
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                        <Moon size={11} className="text-forest-400" />
-                        <Toggle on={hardShiftNight} onToggle={() => setHardShiftNight(v => !v)} /> Gece
-                      </label>
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                        <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Sarı gün
-                      </label>
-                    </div>
-                  }
-                />
-              </SectionCard>
-
-              {/* 2. BONUS PUANLARI */}
-              <SectionCard title="Bonus Puanları">
-                <RuleRow
-                  label="⭐ Kahraman Bonusu"
-                  description="Açık vardiyayı gönüllü üstlenen personele düz puan bonusu. 0 = kapalı."
-                  right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
-                />
-                <RuleRow
-                  label="Yayın Sonrası Değişiklik Telafisi"
-                  description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
-                  right={
-                    <div className="flex items-center gap-2">
-                      <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
-                        <NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />
+                {/* 2. BONUS PUANLARI */}
+                <SectionCard title="Bonus Puanları">
+                  <RuleRow
+                    label="⭐ Kahraman Bonusu"
+                    description="Açık vardiyayı gönüllü üstlenen personele düz puan bonusu. 0 = kapalı."
+                    right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
+                  />
+                  <RuleRow
+                    label="Yayın Sonrası Değişiklik Telafisi"
+                    description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
+                    right={
+                      <div className="flex items-center gap-2">
+                        <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
+                          <NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />
+                        </div>
+                        <Toggle on={changeCompensationEnabled} onToggle={() => setChangeCompensationEnabled(v => !v)} />
                       </div>
-                      <Toggle on={changeCompensationEnabled} onToggle={() => setChangeCompensationEnabled(v => !v)} />
+                    }
+                  />
+                  <RuleRow
+                    label="Zorunlu Atama Bonusu"
+                    description="İzinliyken müdür tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
+                    right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
+                  />
+                </SectionCard>
+
+                {/* 3. GELİŞMİŞ */}
+                <SectionCard title="Gelişmiş Ayarlar">
+                  <RuleRow
+                    label="Adalet Penceresi"
+                    description="Birikimli adalet puanı kaç haftalık geçmişin toplamı olsun. Varsayılan 4 hafta."
+                    right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
+                  />
+                </SectionCard>
+              </SettingsGroup>
+              <SettingsGroup id="zones" title="Departmanlar ve Alanlar" description="Kasa, mutfak, hat gibi bölümler ve günlük alan kotaları" open={!!openGroups["zones"]} onToggle={toggleGroup}>
+
+                {/* 1. Departmanlar — anında DB'ye kaydedilir */}
+                <div>
+                  <SectionLabel>Departmanlar</SectionLabel>
+                  <p className="text-xs text-slate-400 mb-3">
+                    Departmanlar (Kasa, Mutfak, Hat-A…) planlamanın çalıştığı operasyonel birimlerdir: personel bir
+                    departmana atanır, personel ihtiyacı departman bazında girilir ve otomatik oluşturma talebi departman
+                    içinde karşılar. Değişiklikler anında kaydedilir.
+                  </p>
+
+                  {deptError && (
+                    <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{deptError}</div>
+                  )}
+
+                  {/* Yeni departman */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      value={newDeptName}
+                      onChange={e => setNewDeptName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
+                      placeholder="Yeni departman adı (örn: Kasa)"
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
+                    />
+                    <button
+                      disabled={!newDeptName.trim()}
+                      onClick={handleAddDepartment}
+                      className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+                    >
+                      <Plus size={14} /> Ekle
+                    </button>
+                  </div>
+
+                  {/* Departman listesi */}
+                  {departments.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
+                      Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {departments.map(dept => (
+                        <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                          <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
+                          {editingDeptId === dept.id ? (
+                            <input
+                              value={editingDeptName}
+                              onChange={e => setEditingDeptName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleRenameDepartment(dept.id);
+                                if (e.key === "Escape") setEditingDeptId(null);
+                              }}
+                              autoFocus
+                              className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
+                            />
+                          ) : (
+                            <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
+                          )}
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {(dept as any).personnel_count !== undefined && (
+                            <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {(dept as any).personnel_count} personel
+                            </span>
+                          )}
+                          {editingDeptId === dept.id ? (
+                            <>
+                              <button onClick={() => handleRenameDepartment(dept.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0" title="Kaydet"><Check size={14} /></button>
+                              <button onClick={() => setEditingDeptId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="Vazgeç"><X size={14} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
+                              <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  }
-                />
-                <RuleRow
-                  label="Zorunlu Atama Bonusu"
-                  description="İzinliyken müdür tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
-                  right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
-                />
-              </SectionCard>
+                  )}
+                </div>
 
-              {/* 3. GELİŞMİŞ */}
-              <SectionCard title="Gelişmiş Ayarlar">
-                <RuleRow
-                  label="Adalet Penceresi"
-                  description="Birikimli adalet puanı kaç haftalık geçmişin toplamı olsun. Varsayılan 4 hafta."
-                  right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
-                />
-              </SectionCard>
+                <hr className="border-slate-100" />
 
-            </div>
-          )}
-
-          {/* ─── DEPARTMANLAR & ALAN KOTALARI ─── */}
-          {activeTab === "zones" && (
-            <div className="space-y-8">
-
-              {/* 1. Departmanlar — anında DB'ye kaydedilir */}
-              <div>
-                <SectionLabel>Departmanlar</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">
-                  Departmanlar (Kasa, Mutfak, Hat-A…) planlamanın çalıştığı operasyonel birimlerdir: personel bir
-                  departmana atanır, personel ihtiyacı departman bazında girilir ve otomatik oluşturma talebi departman
-                  içinde karşılar. Değişiklikler anında kaydedilir.
+                {/* 2. Günlük Alan Kotaları — lokasyon ayarı, Kaydet butonu ile */}
+                <div>
+                  <div className="mb-3">
+                    <SectionLabel>Günlük Alan Kotaları</SectionLabel>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Departmanlardan bağımsız, serbest tanımlı fiziksel alanlardır (Teras, Depo…). Personelin yetenek
+                      etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; koşulu her planda garanti edilir.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {zoneQuotas.map((entry, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                        <input
+                          value={entry.zone}
+                          onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
+                          placeholder="Bölge adı (Örn: Kasa)"
+                          className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-forest-500 py-0.5 text-slate-800 font-medium"
+                        />
+                        <span className="text-xs text-slate-400 shrink-0">min</span>
+                        <input
+                          type="number" min={0} max={99}
+                          value={entry.min}
+                          onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
+                          className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-forest-500 font-bold"
+                        />
+                        <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
+                        <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
+                      className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus size={14} /> Kota Ekle
+                    </button>
+                  </div>
+                </div>
+              </SettingsGroup>
+              <SettingsGroup id="crews" title="Ekipler ve Rotasyon" description="A/B/C ekipleri ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
+                <p className="text-sm text-slate-500">
+                  Ekipler, personeli vardiya gruplarına ayırmanızı sağlar. Fabrika ortamında A/B/C ekibi gibi rotasyonlu gruplar oluşturun.
                 </p>
 
-                {deptError && (
-                  <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{deptError}</div>
-                )}
-
-                {/* Yeni departman */}
-                <div className="flex items-center gap-2 mb-3">
-                  <input
-                    value={newDeptName}
-                    onChange={e => setNewDeptName(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
-                    placeholder="Yeni departman adı (örn: Kasa)"
-                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
-                  />
-                  <button
-                    disabled={!newDeptName.trim()}
-                    onClick={handleAddDepartment}
-                    className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
-                  >
-                    <Plus size={14} /> Ekle
-                  </button>
+                {/* Ekip Ekle */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Ekip</p>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Ekip Adı</label>
+                      <input
+                        value={newCrewName}
+                        onChange={e => setNewCrewName(e.target.value)}
+                        placeholder="A Ekibi, Sabah Grubu…"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Renk</label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {CREW_COLORS.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setNewCrewColor(c)}
+                            style={{ backgroundColor: c }}
+                            className={`w-6 h-6 rounded-full border-2 transition-transform ${newCrewColor === c ? "border-slate-700 scale-110" : "border-transparent"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      disabled={!newCrewName.trim()}
+                      onClick={async () => {
+                        if (!newCrewName.trim() || !selectedLocationId) return;
+                        try {
+                          const res = await fetch("/api/crews", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }),
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setCrews(prev => [...prev, { id: data.id, org_id: "", location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }]);
+                            setNewCrewName("");
+                          }
+                        } catch { /* ignore */ }
+                      }}
+                      className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Plus size={14} /> Ekle
+                    </button>
+                  </div>
                 </div>
 
-                {/* Departman listesi */}
-                {departments.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
-                    Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
-                  </p>
+                {/* Ekip Listesi */}
+                {crewsLoading ? (
+                  <p className="text-sm text-slate-400">Yükleniyor…</p>
+                ) : crews.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-8">Henüz ekip oluşturulmamış.</p>
                 ) : (
                   <div className="space-y-2">
-                    {departments.map(dept => (
-                      <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
-                        {editingDeptId === dept.id ? (
+                    {crews.map(crew => (
+                      <div key={crew.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                        <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
+                        {editingCrewId === crew.id ? (
                           <input
-                            value={editingDeptName}
-                            onChange={e => setEditingDeptName(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") handleRenameDepartment(dept.id);
-                              if (e.key === "Escape") setEditingDeptId(null);
-                            }}
+                            value={editingCrewName}
+                            onChange={e => setEditingCrewName(e.target.value)}
                             autoFocus
                             className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
                           />
                         ) : (
-                          <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
+                          <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
                         )}
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        {(dept as any).personnel_count !== undefined && (
-                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {(dept as any).personnel_count} personel
-                          </span>
+                        {(crew as any).member_count !== undefined && (
+                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{(crew as any).member_count} üye</span>
                         )}
-                        {editingDeptId === dept.id ? (
+                        {editingCrewId === crew.id ? (
                           <>
-                            <button onClick={() => handleRenameDepartment(dept.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0" title="Kaydet"><Check size={14} /></button>
-                            <button onClick={() => setEditingDeptId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="Vazgeç"><X size={14} /></button>
+                            <button onClick={async () => {
+                              await fetch("/api/crews", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: crew.id, name: editingCrewName }) });
+                              setCrews(prev => prev.map(c => c.id === crew.id ? { ...c, name: editingCrewName } : c));
+                              setEditingCrewId(null);
+                            }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={14} /></button>
+                            <button onClick={() => setEditingCrewId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={14} /></button>
                           </>
                         ) : (
                           <>
-                            <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
-                            <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
+                            <button onClick={() => { setEditingCrewId(crew.id); setEditingCrewName(crew.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><Pencil size={13} /></button>
+                            <button onClick={async () => {
+                              if (!confirm(`"${crew.name}" ekibini silmek istediğinize emin misiniz? Üyelerden ekip ataması kaldırılır.`)) return;
+                              await fetch(`/api/crews?id=${crew.id}`, { method: "DELETE" });
+                              setCrews(prev => prev.filter(c => c.id !== crew.id));
+                              // Rotasyon şablonundan da kaldır
+                              setRotationPattern(prev => { const next = { ...prev }; delete next[crew.id]; return next; });
+                            }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
                           </>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
+  <SectionCard title="Ekip Kuralı">
+    <RuleRow
+                    label="Ekip Vardiyası · Kesin Kural"
+                    description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
+                    right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
+                  />
+  </SectionCard>
 
-              <hr className="border-slate-100" />
-
-              {/* 2. Günlük Alan Kotaları — lokasyon ayarı, Kaydet butonu ile */}
-              <div>
-                <div className="mb-3">
-                  <SectionLabel>Günlük Alan Kotaları</SectionLabel>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Departmanlardan bağımsız, serbest tanımlı fiziksel alanlardır (Teras, Depo…). Personelin yetenek
-                    etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; koşulu her planda garanti edilir.
+                <div>
+                  <SectionLabel>Rotasyon</SectionLabel>
+                  <p className="text-sm text-slate-500">
+                    Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
+                    Rotasyon aktifken ekip atamaları otomatik uygulanır.
                   </p>
                 </div>
-                <div className="space-y-2">
-                  {zoneQuotas.map((entry, idx) => (
-                    <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                      <input
-                        value={entry.zone}
-                        onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
-                        placeholder="Bölge adı (Örn: Kasa)"
-                        className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-forest-500 py-0.5 text-slate-800 font-medium"
-                      />
-                      <span className="text-xs text-slate-400 shrink-0">min</span>
-                      <input
-                        type="number" min={0} max={99}
-                        value={entry.min}
-                        onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
-                        className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-forest-500 font-bold"
-                      />
-                      <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
-                      <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
-                    className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Plus size={14} /> Kota Ekle
-                  </button>
-                </div>
-              </div>
 
-            </div>
-          )}
-
-          {/* ─── HESAP ─── */}
-          {activeTab === "account" && (
-            <div className="space-y-8">
-              <div>
-                <SectionLabel>Hesabım</SectionLabel>
-                <div className="max-w-2xl">
-                  <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── EKİPLER ─── */}
-          {activeTab === "crews" && (
-            <div className="space-y-6">
-              <p className="text-sm text-slate-500">
-                Ekipler, personeli vardiya gruplarına ayırmanızı sağlar. Fabrika ortamında A/B/C ekibi gibi rotasyonlu gruplar oluşturun.
-              </p>
-
-              {/* Ekip Ekle */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Ekip</p>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-500 mb-1">Ekip Adı</label>
-                    <input
-                      value={newCrewName}
-                      onChange={e => setNewCrewName(e.target.value)}
-                      placeholder="A Ekibi, Sabah Grubu…"
-                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-500 mb-1">Renk</label>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {CREW_COLORS.map(c => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setNewCrewColor(c)}
-                          style={{ backgroundColor: c }}
-                          className={`w-6 h-6 rounded-full border-2 transition-transform ${newCrewColor === c ? "border-slate-700 scale-110" : "border-transparent"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    disabled={!newCrewName.trim()}
-                    onClick={async () => {
-                      if (!newCrewName.trim() || !selectedLocationId) return;
-                      try {
-                        const res = await fetch("/api/crews", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }),
-                        });
-                        if (res.ok) {
-                          const data = await res.json();
-                          setCrews(prev => [...prev, { id: data.id, org_id: "", location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }]);
-                          setNewCrewName("");
+                <SectionCard title="Rotasyon Ayarları">
+                  <RuleRow
+                    label="Rotasyonu Etkinleştir"
+                    description="Açıkken her ekip, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
+                    right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
+                  />
+                  {rotationEnabled && (
+                    <>
+                      <RuleRow
+                        label="Rotasyon Tipi"
+                        description="3-vardiyalı, Continental veya özel döngü."
+                        right={
+                          <select
+                            value={rotationType}
+                            onChange={e => {
+                              const t = e.target.value as RotationTemplate["type"];
+                              setRotationType(t);
+                              if (t === "3-shift") setCycleWeeks(3);
+                              else if (t === "continental") setCycleWeeks(4);
+                              else if (t === "4x10") setCycleWeeks(1);
+                            }}
+                            className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
+                          >
+                            <option value="3-shift">3 Vardiyalı (Sabah / Öğleden Sonra / Gece)</option>
+                            <option value="continental">Continental (2 çalış – 2 dinlen – 3 çalış)</option>
+                            <option value="4x10">4×10 Saat (Cuma serbest)</option>
+                            <option value="custom">Özel</option>
+                          </select>
                         }
-                      } catch { /* ignore */ }
-                    }}
-                    className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  >
-                    <Plus size={14} /> Ekle
-                  </button>
-                </div>
-              </div>
+                      />
+                      <RuleRow
+                        label="Döngü Uzunluğu"
+                        description="Kaç hafta sonra rotasyon başa döner."
+                        right={<NumberInput value={cycleWeeks} onChange={setCycleWeeks} min={1} max={12} suffix="hafta" />}
+                      />
+                      <RuleRow
+                        label="Başlangıç Haftası"
+                        description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi ekip 0. pozisyonda sayılır."
+                        right={
+                          <input
+                            type="date"
+                            value={referenceWeek}
+                            onChange={e => setReferenceWeek(e.target.value)}
+                            className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
+                          />
+                        }
+                      />
+                    </>
+                  )}
+                </SectionCard>
 
-              {/* Ekip Listesi */}
-              {crewsLoading ? (
-                <p className="text-sm text-slate-400">Yükleniyor…</p>
-              ) : crews.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">Henüz ekip oluşturulmamış.</p>
-              ) : (
-                <div className="space-y-2">
-                  {crews.map(crew => (
-                    <div key={crew.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                      <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
-                      {editingCrewId === crew.id ? (
-                        <input
-                          value={editingCrewName}
-                          onChange={e => setEditingCrewName(e.target.value)}
-                          autoFocus
-                          className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
-                        />
-                      ) : (
-                        <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
-                      )}
-                      {(crew as any).member_count !== undefined && (
-                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{(crew as any).member_count} üye</span>
-                      )}
-                      {editingCrewId === crew.id ? (
-                        <>
-                          <button onClick={async () => {
-                            await fetch("/api/crews", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: crew.id, name: editingCrewName }) });
-                            setCrews(prev => prev.map(c => c.id === crew.id ? { ...c, name: editingCrewName } : c));
-                            setEditingCrewId(null);
-                          }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={14} /></button>
-                          <button onClick={() => setEditingCrewId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={14} /></button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => { setEditingCrewId(crew.id); setEditingCrewName(crew.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><Pencil size={13} /></button>
-                          <button onClick={async () => {
-                            if (!confirm(`"${crew.name}" ekibini silmek istediğinize emin misiniz? Üyelerden ekip ataması kaldırılır.`)) return;
-                            await fetch(`/api/crews?id=${crew.id}`, { method: "DELETE" });
-                            setCrews(prev => prev.filter(c => c.id !== crew.id));
-                            // Rotasyon şablonundan da kaldır
-                            setRotationPattern(prev => { const next = { ...prev }; delete next[crew.id]; return next; });
-                          }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
-                        </>
-                      )}
+                {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ─── ROTASYON (Ekipler sekmesinin devamı) ─── */}
-          {activeTab === "crews" && (
-            <div className="space-y-6 mt-10 pt-8 border-t border-slate-100">
-              <div>
-                <SectionLabel>Rotasyon</SectionLabel>
-                <p className="text-sm text-slate-500">
-                  Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
-                  Rotasyon aktifken ekip atamaları otomatik uygulanır.
-                </p>
-              </div>
-
-              <SectionCard title="Rotasyon Ayarları">
-                <RuleRow
-                  label="Rotasyonu Etkinleştir"
-                  description="Açıkken her ekip, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
-                  right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
-                />
-                {rotationEnabled && (
-                  <>
-                    <RuleRow
-                      label="Rotasyon Tipi"
-                      description="3-vardiyalı, Continental veya özel döngü."
-                      right={
-                        <select
-                          value={rotationType}
-                          onChange={e => {
-                            const t = e.target.value as RotationTemplate["type"];
-                            setRotationType(t);
-                            if (t === "3-shift") setCycleWeeks(3);
-                            else if (t === "continental") setCycleWeeks(4);
-                            else if (t === "4x10") setCycleWeeks(1);
-                          }}
-                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                        >
-                          <option value="3-shift">3 Vardiyalı (Sabah / Öğleden Sonra / Gece)</option>
-                          <option value="continental">Continental (2 çalış – 2 dinlen – 3 çalış)</option>
-                          <option value="4x10">4×10 Saat (Cuma serbest)</option>
-                          <option value="custom">Özel</option>
-                        </select>
-                      }
-                    />
-                    <RuleRow
-                      label="Döngü Uzunluğu"
-                      description="Kaç hafta sonra rotasyon başa döner."
-                      right={<NumberInput value={cycleWeeks} onChange={setCycleWeeks} min={1} max={12} suffix="hafta" />}
-                    />
-                    <RuleRow
-                      label="Başlangıç Haftası"
-                      description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi ekip 0. pozisyonda sayılır."
-                      right={
-                        <input
-                          type="date"
-                          value={referenceWeek}
-                          onChange={e => setReferenceWeek(e.target.value)}
-                          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                        />
-                      }
-                    />
-                  </>
-                )}
-              </SectionCard>
-
-              {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
-                  </div>
-                  <div className="p-5 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr>
-                          <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Ekip</th>
-                          {Array.from({ length: cycleWeeks }, (_, i) => (
-                            <th key={i} className="text-center text-xs text-slate-400 font-medium pb-3 px-2 min-w-[120px]">Hafta {i + 1}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {crews.map(crew => (
-                          <tr key={crew.id}>
-                            <td className="pr-4 py-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
-                                <span className="font-medium text-slate-700 text-xs">{crew.name}</span>
-                              </div>
-                            </td>
-                            {Array.from({ length: cycleWeeks }, (_, weekIdx) => (
-                              <td key={weekIdx} className="px-2 py-2">
-                                <select
-                                  value={(rotationPattern[crew.id] ?? [])[weekIdx] ?? ""}
-                                  onChange={e => {
-                                    setRotationPattern(prev => {
-                                      const arr = [...(prev[crew.id] ?? Array(cycleWeeks).fill(""))];
-                                      while (arr.length < cycleWeeks) arr.push("");
-                                      arr[weekIdx] = e.target.value;
-                                      return { ...prev, [crew.id]: arr };
-                                    });
-                                  }}
-                                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                                >
-                                  <option value="">— İzin / Serbest —</option>
-                                  {locationData.shift_definitions.map(sd => (
-                                    <option key={sd.id} value={sd.id}>{sd.name} ({sd.start}–{sd.end})</option>
-                                  ))}
-                                </select>
-                              </td>
+                    <div className="p-5 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr>
+                            <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Ekip</th>
+                            {Array.from({ length: cycleWeeks }, (_, i) => (
+                              <th key={i} className="text-center text-xs text-slate-400 font-medium pb-3 px-2 min-w-[120px]">Hafta {i + 1}</th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {crews.map(crew => (
+                            <tr key={crew.id}>
+                              <td className="pr-4 py-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
+                                  <span className="font-medium text-slate-700 text-xs">{crew.name}</span>
+                                </div>
+                              </td>
+                              {Array.from({ length: cycleWeeks }, (_, weekIdx) => (
+                                <td key={weekIdx} className="px-2 py-2">
+                                  <select
+                                    value={(rotationPattern[crew.id] ?? [])[weekIdx] ?? ""}
+                                    onChange={e => {
+                                      setRotationPattern(prev => {
+                                        const arr = [...(prev[crew.id] ?? Array(cycleWeeks).fill(""))];
+                                        while (arr.length < cycleWeeks) arr.push("");
+                                        arr[weekIdx] = e.target.value;
+                                        return { ...prev, [crew.id]: arr };
+                                      });
+                                    }}
+                                    className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
+                                  >
+                                    <option value="">— İzin / Serbest —</option>
+                                    {locationData.shift_definitions.map(sd => (
+                                      <option key={sd.id} value={sd.id}>{sd.name} ({sd.start}–{sd.end})</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {rotationEnabled && crews.length === 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                  Rotasyon şablonu için önce yukarıdan bir ekip oluşturun.
-                </div>
-              )}
+                {rotationEnabled && crews.length === 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+                    Rotasyon şablonu için önce yukarıdan bir ekip oluşturun.
+                  </div>
+                )}
+              </SettingsGroup>
+            </div>
+          )}
 
+          {/* ─── EK ÖZELLİKLER ─── */}
+          {activeTab === "features" && (
+            <div className="space-y-6">
+              <p className="text-sm text-slate-500">
+                İhtiyacınız olan özelliği açın. Kapalı bir özelliğin menüsü, düğmesi ve sütunu hiçbir ekranda görünmez; açtığınızda ayarları bu kartın içinde çıkar.
+              </p>
+
+              <FeatureGroup title="Ekip ve İletişim">
+                <FeatureCard icon={MessageSquare} title="Mesajlaşma"
+                  description="Müdür ve personel arasında şube içi sohbet."
+                  on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
+                <FeatureCard icon={Megaphone} title="Açık Vardiyalar"
+                  description="Boşalan vardiyayı ilan edin, ekipten biri üstlensin. Geç kalanların vardiyası da buraya düşebilir."
+                  on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />
+                <FeatureCard icon={Gavel} title="Vardiya Teklif Pazarı"
+                  description="Personel açık vardiyayı doğrudan almak yerine istediği ek puanı teklif eder, siz seçersiniz."
+                  on={shiftBiddingEnabled} onToggle={() => setShiftBiddingEnabled(v => !v)} />
+                <FeatureCard icon={BookOpen} title="Devir-Teslim Defteri"
+                  description="Çıkışta sonraki vardiyaya not bırakılır; ilk gelen notu okumadan vardiyaya giremez."
+                  on={handoverLogEnabled} onToggle={() => setHandoverLogEnabled(v => !v)} />
+              </FeatureGroup>
+
+              <FeatureGroup title="Planlama ve Güvenlik">
+                <FeatureCard icon={UserX} title="Birlikte Çalışamaz"
+                  description="Seçtiğiniz iki kişi hiçbir gün aynı vardiyaya yazılmaz."
+                  on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)}>
+                  <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                    <select
+                      value={newConflictA}
+                      onChange={e => setNewConflictA(e.target.value)}
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
+                    >
+                      <option value="">Birinci kişi</option>
+                      {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <select
+                      value={newConflictB}
+                      onChange={e => setNewConflictB(e.target.value)}
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
+                    >
+                      <option value="">İkinci kişi</option>
+                      {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <button
+                      onClick={async () => {
+                        setConflictError("");
+                        if (!newConflictA || !newConflictB) { setConflictError("İki kişi de seçilmeli"); return; }
+                        if (newConflictA === newConflictB) { setConflictError("Aynı kişi seçilemez"); return; }
+                        const res = await fetch("/api/personnel-conflicts", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ location_id: selectedLocationId, personnel_id_a: newConflictA, personnel_id_b: newConflictB }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) { setConflictError(data.error ?? "Eklenemedi"); return; }
+                        const nameA = conflictPersonnel.find(p => p.id === newConflictA)?.name ?? "";
+                        const nameB = conflictPersonnel.find(p => p.id === newConflictB)?.name ?? "";
+                        setConflictPairs(prev => [{ id: data.id, personnel_id_a: newConflictA, personnel_id_b: newConflictB, personnel_a_name: nameA, personnel_b_name: nameB }, ...prev]);
+                        setNewConflictA(""); setNewConflictB("");
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-bold hover:bg-forest-800 transition-colors shrink-0"
+                    >
+                      Ekle
+                    </button>
+                  </div>
+                  {conflictError && <p className="text-xs text-red-600 mb-3">{conflictError}</p>}
+                  {conflictPairs.length === 0 ? (
+                    <p className="text-sm text-slate-400">Henüz tanımlı çift yok.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {conflictPairs.map(pair => (
+                        <div key={pair.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+                          <span className="text-sm font-semibold text-slate-700">{pair.personnel_a_name} <span className="text-slate-400 font-normal">↔</span> {pair.personnel_b_name}</span>
+                          <button
+                            onClick={async () => {
+                              await fetch(`/api/personnel-conflicts?id=${pair.id}`, { method: "DELETE" });
+                              setConflictPairs(prev => prev.filter(p => p.id !== pair.id));
+                            }}
+                            className="text-xs font-bold text-red-500 hover:text-red-700"
+                          >
+                            Kaldır
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </FeatureCard>
+                <FeatureCard icon={AlertTriangle} title="Kaza Risk Radarı"
+                  description="Üst üste gece, kapanıştan açılışa ya da yüksek mesai yapanları Ana Sayfa'da ve planda uyarır."
+                  on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />
+                <FeatureCard icon={FileCheck} title="Belge ve Sertifika Takibi"
+                  description="Süresi dolmuş zorunlu belgesi olan kişi otomatik plana alınmaz."
+                  on={complianceTrackingEnabled} onToggle={() => setComplianceTrackingEnabled(v => !v)} />
+                <FeatureCard icon={TrendingUp} title="Satış ve Yoğunluk Tahmini"
+                  description="Personel İhtiyacı tablosunda geçmiş haftalara dayalı öneri gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
+                  on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)}>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="date" value={newSalesDate} onChange={e => setNewSalesDate(e.target.value)}
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                        />
+                        <input
+                          type="number" min="0" step="0.01" value={newSalesRevenue} onChange={e => setNewSalesRevenue(e.target.value)}
+                          placeholder="Günlük ciro (₺)"
+                          className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                        />
+                        <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                      </div>
+                      {salesDataError && <p className="text-[10px] text-red-600">{salesDataError}</p>}
+                      {salesData.length > 0 && (
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {salesData.slice(0, 14).map(s => (
+                            <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs bg-slate-50 border border-slate-200">
+                              <span className="flex-1 font-semibold text-slate-700">{s.date}</span>
+                              <span className="text-slate-500">{s.revenue != null ? `₺${s.revenue}` : s.footfall != null ? `${s.footfall} kişi` : ""}</span>
+                              <button onClick={() => handleDeleteSalesData(s.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                </FeatureCard>
+              </FeatureGroup>
+
+              <FeatureGroup title="Vardiya İçi İşler">
+                <FeatureCard icon={ListChecks} title="Görev ve Kontrol Listeleri"
+                  description="Her vardiyaya otomatik görev listesi eklenir, personel portalında işaretlenir."
+                  on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)}>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">Tüm Vardiyalar İçin Ortak Görevler</label>
+                        <textarea
+                          rows={3}
+                          placeholder={"Her satıra bir görev, örn:\nKasa Sayımı\nMutfak Temizliği"}
+                          value={(taskTemplates["*"] ?? []).join("\n")}
+                          onChange={e => setTaskTemplates(prev => ({ ...prev, "*": e.target.value.split("\n") }))}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
+                        />
+                      </div>
+                      {(locationData?.shift_definitions ?? []).map((sd: ShiftDefinition) => (
+                        <div key={sd.id}>
+                          <label className="text-xs font-bold text-slate-600 mb-1.5 block">{sd.name} Vardiyasına Özel Görevler</label>
+                          <textarea
+                            rows={2}
+                            placeholder="Her satıra bir görev"
+                            value={(taskTemplates[sd.id] ?? []).join("\n")}
+                            onChange={e => setTaskTemplates(prev => ({ ...prev, [sd.id]: e.target.value.split("\n") }))}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white resize-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                </FeatureCard>
+                <FeatureCard icon={Tablet} title="Ortak Tablet"
+                  description="Personel oturum açmadan, ortak bir tablette 4 haneli PIN ile vardiyaya girer ve çıkar."
+                  on={kioskModeEnabled} onToggle={() => setKioskModeEnabled(v => !v)}>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
+                          setKioskLinkCopied(true);
+                          setTimeout(() => setKioskLinkCopied(false), 2000);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
+                      >
+                        {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
+                      </button>
+                      <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
+                    </div>
+                </FeatureCard>
+              </FeatureGroup>
+
+              <FeatureGroup title="Maaş ve Mesai">
+                <FeatureCard icon={Timer} title="Fazla Mesai Takibi"
+                  description="Yayınlanan planlardan fazla mesai kaydı çıkarılır, onay akışına girer ve yıllık sınır izlenir."
+                  on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)}>
+  <div className="divide-y divide-slate-100">
+                  <RuleRow
+                    label="Haftalık Mesai Eşiği"
+                    description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık En Fazla Çalışma'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
+                    right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
+                  />
+                  <RuleRow
+                    label="Yıllık Fazla Mesai Sınırı"
+                    description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
+                    right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
+                  />
+                  <RuleRow
+                    label="Adil Mesai Dağılımı"
+                    description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
+                    right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Haftalık Mesai Bütçesi"
+                    description="Tüm personelin haftalık toplam fazla mesai saati bu sınırı aşarsa yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
+                    right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
+                  />
+  </div>
+                </FeatureCard>
+                <FeatureCard icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
+                  description="Dönemlik bahşiş tutarını gerçek çalışılan süreye göre ekibe paylaştırır."
+                  on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />
+              </FeatureGroup>
+            </div>
+          )}
+
+          {/* ─── HESABIM ─── */}
+          {activeTab === "account" && (
+            <div className="max-w-2xl">
+              <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
             </div>
           )}
 

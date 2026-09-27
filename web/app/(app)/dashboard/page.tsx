@@ -222,7 +222,7 @@ export default function DashboardPage() {
     } catch { lateAutoCreated.current.delete(s.id); }
   };
 
-  // Geç kalanların vardiyasını otomatik ilana çevir (Ayarlar → Kurallar → Canlı Durum).
+  // Geç kalanların vardiyasını otomatik ilana çevir (Ayarlar → Gelişmiş Seçenekler → Vardiya Girişi ve Canlı Durum).
   // Her dakika "now" ile yeniden değerlendirilir; aynı atama iki kez çevrilmez (lateAutoCreated).
   useEffect(() => {
     if (!openShiftsEnabled || !autoOpenOnLate) return;

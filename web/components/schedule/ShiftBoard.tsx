@@ -377,7 +377,7 @@ export function ShiftBoard({
           <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
             <Clock size={28} className="opacity-40" />
             <p className="text-sm font-semibold">Vardiya tanımı yok</p>
-            <p className="text-xs">Ayarlar → Vardiyalar</p>
+            <p className="text-xs">Ayarlar → Temel Ayarlar → Vardiya Tanımları</p>
           </div>
         ) : (
           <div className="flex h-full overflow-x-auto overflow-y-auto">

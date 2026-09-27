@@ -282,7 +282,7 @@ export default function OpenShiftsPage() {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Adalet Puanı&apos;ndaki varsayılan bonus</p>
+            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Gelişmiş Seçenekler → Adalet Puanı&apos;ndaki varsayılan bonus</p>
             <p className="text-xs text-slate-400 mt-1.5">
               {bonus === 0 ? "Standart puan (bonus yok)" : `Bu vardiyayı üstlenen personel +${bonus} puan kahraman bonusu kazanır`}
             </p>
