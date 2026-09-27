@@ -1538,7 +1538,7 @@ export default function SettingsPage() {
                 />
                 <RuleRow
                   label="Erken Yayın Göstergesi"
-                  description="Müdür panelinde 'vardiya planı kaç gün önceden yayınlandı' gösterge kartı gösterilir."
+                  description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
                   right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
                 />
               </SectionCard>

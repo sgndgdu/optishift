@@ -312,7 +312,9 @@ interface Popover {
 
 export default function SchedulePage() {
   const [mounted, setMounted]                      = useState(false);
-  const [weekOffset, setWeekOffset]               = useState(0);
+  // ?week=next → gelecek hafta açılır (Ana Sayfa "Planı Oluştur" bağlantısı)
+  const [weekOffset, setWeekOffset]               = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("week") === "next" ? 1 : 0);
   const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);
   const weekLabel = useMemo(() => mounted ? getWeekLabel(weekOffset).label : "", [weekOffset, mounted]);
   // dates, weekStart'tan türetilir — ayrı state tutmak senkron sorununa yol açıyor

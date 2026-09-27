@@ -102,6 +102,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pendingApprovals = usePendingApprovals(user?.org_id);
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [orgName, setOrgName] = useState<string>(""); // şube kutusundaki işletme adı (/api/organizations)
   const [moreOpen, setMoreOpen] = useState(false); // "Daha Fazla" grubu, tercih localStorage'da hatırlanır
 
   const toggleMore = () => setMoreOpen(v => {
@@ -121,6 +122,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
     if (parsedUser) setUser(parsedUser);
     try { if (localStorage.getItem(MORE_OPEN_KEY) === "1") setMoreOpen(true); } catch { /* yok say */ }
+
+    // Giriş yanıtı işletme adını taşımıyor; oturumdaki işletmeyi ayrıca sor
+    fetch("/api/organizations")
+      .then(r => (r.ok ? r.json() : null))
+      .then(org => { if (typeof org?.name === "string") setOrgName(org.name); })
+      .catch(() => {});
 
     // Manager: her zaman kendi location_id'sini kullan, localStorage'daki eski değeri yok say
     if (parsedUser?.role === "manager") {
@@ -266,9 +273,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               <span className="text-sm font-semibold text-slate-800 truncate">
                 {activeLocation?.name ?? "Yükleniyor..."}
               </span>
-              <span className="text-xs text-slate-500 truncate">
-                {user?.org_name ?? "Şirket"}
-              </span>
+              {(orgName || user?.org_name) && (
+                <span className="text-xs text-slate-500 truncate">
+                  {orgName || user?.org_name}
+                </span>
+              )}
             </div>
             {locations.length > 1 && (
               <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-200", isDropdownOpen && "rotate-180")} />

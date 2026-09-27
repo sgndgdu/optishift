@@ -1,41 +1,62 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// Ana Sayfa: tablo ve KPI kartı yerine "Günün Özeti ve Bekleyen İşler".
+// Maddeleri lib/inbox.ts üretir; bu sayfa sadece veriyi toplar ve çizer.
+
 import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Users, CalendarCheck, AlertTriangle, TrendingUp, Clock, Check, X, ArrowRight, RefreshCw, ClipboardList } from "lucide-react";
+import {
+  Users, AlertTriangle, Clock, Check, X, ArrowRight, RefreshCw, CheckCircle2,
+  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { kpiToneClasses } from "@/lib/kpiColors";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
+import { cn } from "@/lib/utils";
+
+const ITEM_ICON: Record<string, any> = {
+  "add-personnel": UserPlus,
+  late:            AlertTriangle,
+  fatigue:         AlertTriangle,
+  approvals:       ClipboardList,
+  accounts:        UserPlus,
+  handover:        BookOpen,
+  tasks:           CheckCircle2,
+  "open-shifts":   Megaphone,
+  "next-week":     CalendarClock,
+  availability:    Bell,
+  overtime:        Timer,
+};
+
+const SEVERITY_STYLE = {
+  critical: { dot: "bg-red-500",   icon: "bg-red-50 text-red-600",     label: "Acil",      labelCls: "text-red-600" },
+  today:    { dot: "bg-amber-500", icon: "bg-amber-50 text-amber-600", label: "Bugün",     labelCls: "text-amber-600" },
+  week:     { dot: "bg-slate-300", icon: "bg-slate-100 text-slate-500", label: "Bu hafta", labelCls: "text-slate-400" },
+} as const;
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
   const [personnel, setPersonnel] = useState<any[]>([]);
-  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
-  const [openShifts, setOpenShifts] = useState<any[]>([]);
-  const [availMissing, setAvailMissing] = useState<any[]>([]);
+  const [openShiftCount, setOpenShiftCount] = useState(0);
+  const [availMissing, setAvailMissing] = useState(0);
+  const [nextWeek, setNextWeek] = useState<NextWeekState>("published");
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingAccounts, setPendingAccounts] = useState(0);
+  const [handoverUnread, setHandoverUnread] = useState(0);
   const [publishLead, setPublishLead] = useState<number | null>(null);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent">("idle");
-  const [nextWeekPublished, setNextWeekPublished] = useState(true);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
-  const [heroBonusMultiplier, setHeroBonusMultiplier] = useState(6);
-  const [maxYtdOvertime, setMaxYtdOvertime] = useState(270); // rules.max_ytd_overtime_hours
-  const [autoOpenOnLate, setAutoOpenOnLate] = useState(true); // rules.auto_open_shift_on_late
-  const [lateThresholdMin, setLateThresholdMin] = useState(30); // rules.late_threshold_min
-  const [checkinRequired, setCheckinRequired] = useState(false); // rules.checkin_required — kapalıyken giriş eksikliği "geç kalan" saymaz
-  const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
-  const [publishLeadKpiEnabled, setPublishLeadKpiEnabled] = useState(true); // rules.publish_lead_kpi_enabled
-  const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — rules.task_management_enabled
-  const [todayTasks, setTodayTasks] = useState<any[]>([]); // bugünkü vardiyaların görev listesi (tamamlanma oranı için)
-  const [fatigueRadarEnabled, setFatigueRadarEnabled] = useState(false); // ileri seviye modül — rules.fatigue_radar_enabled
-  const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]); // /api/fatigue-radar — üst üste gece/clopening/yüksek mesai riski taşıyan personel
+  const [rules, setRules] = useState<Record<string, unknown>>({});
+  const [todayTasks, setTodayTasks] = useState<any[]>([]);
+  const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -56,74 +77,63 @@ export default function DashboardPage() {
 
   const loadData = async (u: typeof user) => {
     setLoading(true);
+    const json = (url: string) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    const list = (d: any) => (Array.isArray(d) ? d : []);
     try {
+      const loc = u.location_id;
       const weekStart = getTodayWeekStart();
-      const [personnelRes, leaveRes, shiftsRes, openShiftsRes, availRes, nextShiftsRes, publishStatsRes, locRes] = await Promise.all([
-        fetch(`/api/personnel?location_id=${u.location_id}`),
-        fetch(`/api/leave-requests?location_id=${u.location_id}`),
-        fetch(`/api/shifts?location_id=${u.location_id}&week_start=${weekStart}`),
-        fetch(`/api/open-shifts?location_id=${u.location_id}`),
-        fetch(`/api/availability/team?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
-        fetch(`/api/shifts?location_id=${u.location_id}&week_start=${getNextWeekStart()}`),
-        fetch(`/api/schedule/publish-stats?location_id=${u.location_id}`),
-        fetch(`/api/locations?id=${u.location_id}`),
+      const canApproveAccounts = u.role === "admin" || u.role === "supervisor";
+      const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, publishStatsData, locData,
+             leaves, swaps, edits, overtimes, accounts] = await Promise.all([
+        json(`/api/personnel?location_id=${loc}`),
+        json(`/api/shifts?location_id=${loc}&week_start=${weekStart}`),
+        json(`/api/open-shifts?location_id=${loc}`),
+        json(`/api/availability/team?location_id=${loc}&week_start=${getNextWeekStart()}`),
+        json(`/api/shifts?location_id=${loc}&week_start=${getNextWeekStart()}`),
+        json(`/api/schedule/publish-stats?location_id=${loc}`),
+        json(`/api/locations?id=${loc}`),
+        // Onaylar sayfasının "bekleyen" saydığı dört kalem (aynı filtreler requests/page.tsx'te)
+        json(`/api/leave-requests?location_id=${loc}`),
+        json(`/api/swap-requests?org_id=${u.org_id}&location_id=${loc}&status=peer_accepted`),
+        json(`/api/shift-edit-requests?org_id=${u.org_id}&location_id=${loc}`),
+        json(`/api/overtime?location_id=${loc}&status=pending`),
+        canApproveAccounts ? json(`/api/users?approval_status=pending`) : Promise.resolve([]),
       ]);
-      const personnelData = await personnelRes.json();
-      const leaveData = await leaveRes.json();
-      const shiftsData = await shiftsRes.json();
-      const openShiftsData = await openShiftsRes.json();
-      const availData = await availRes.json();
-      const nextShiftsData = await nextShiftsRes.json();
-      const publishStatsData = await publishStatsRes.json();
-      const locData = await locRes.json();
 
-      setPersonnel(Array.isArray(personnelData) ? personnelData : []);
-      setLeaveRequests(Array.isArray(leaveData) ? leaveData.filter((l: any) => l.status === "pending") : []);
-      setTodayShifts(Array.isArray(shiftsData) ? shiftsData.filter((s: any) => s.day === todayIdx) : []);
-      setOpenShifts(Array.isArray(openShiftsData) ? openShiftsData : []);
-      setAvailMissing(Array.isArray(availData?.personnel) ? availData.personnel.filter((p: any) => !p.submitted) : []);
-      setNextWeekPublished(
-        Array.isArray(nextShiftsData) &&
-        nextShiftsData.some((s: any) => !s.publication_status || s.publication_status === "published")
+      const next = list(nextShiftsData);
+      setPersonnel(list(personnelData));
+      setTodayShifts(list(shiftsData).filter((s: any) => s.day === todayIdx));
+      setOpenShiftCount(list(openShiftsData).filter((s: any) => s.status === "open").length);
+      setAvailMissing(Array.isArray(availData?.personnel) ? availData.personnel.filter((p: any) => !p.submitted).length : 0);
+      setNextWeek(
+        next.length === 0 ? "none"
+        : next.some((s: any) => !s.publication_status || s.publication_status === "published") ? "published"
+        : "draft"
       );
       setPublishLead(typeof publishStatsData?.avg_lead_days === "number" ? publishStatsData.avg_lead_days : null);
-      const loc = Array.isArray(locData) ? locData[0] : null;
-      if (loc?.rules) {
-        try {
-          const rules = JSON.parse(loc.rules);
-          if (typeof rules.hero_bonus_points === "number") setHeroBonusMultiplier(rules.hero_bonus_points);
-          if (typeof rules.max_ytd_overtime_hours === "number") setMaxYtdOvertime(rules.max_ytd_overtime_hours);
-          setAutoOpenOnLate(rules.auto_open_shift_on_late !== false);
-          if (typeof rules.late_threshold_min === "number") setLateThresholdMin(rules.late_threshold_min);
-          setCheckinRequired(isModuleOn(rules, "checkin_required"));
-          setOpenShiftsEnabled(isModuleOn(rules, "open_shifts_enabled"));
-          setPublishLeadKpiEnabled(isModuleOn(rules, "publish_lead_kpi_enabled"));
-          setTaskManagementEnabled(isModuleOn(rules, "task_management_enabled"));
-          if (isModuleOn(rules, "task_management_enabled")) {
-            fetch(`/api/shift-tasks?location_id=${u.location_id}&week_start=${weekStart}`)
-              .then(r => r.ok ? r.json() : [])
-              .then(d => setTodayTasks(Array.isArray(d) ? d.filter((t: any) => t.day === todayIdx) : []))
-              .catch(() => setTodayTasks([]));
-          } else {
-            setTodayTasks([]);
-          }
-          setFatigueRadarEnabled(isModuleOn(rules, "fatigue_radar_enabled"));
-          if (isModuleOn(rules, "fatigue_radar_enabled")) {
-            fetch(`/api/fatigue-radar?location_id=${u.location_id}`)
-              .then(r => r.ok ? r.json() : null)
-              .then(d => setFatigueAtRisk(Array.isArray(d?.at_risk) ? d.at_risk : []))
-              .catch(() => setFatigueAtRisk([]));
-          } else {
-            setFatigueAtRisk([]);
-          }
-        } catch {}
-      }
+      setPendingApprovals(
+        list(leaves).filter((l: any) => l.status === "pending").length +
+        list(swaps).filter((s: any) => s.status === "peer_accepted").length +
+        list(edits).filter((e: any) => e.status === "pending").length +
+        list(overtimes).filter((o: any) => o.status === "pending").length
+      );
+      setPendingAccounts(list(accounts).length);
+
+      const r = Array.isArray(locData) && locData[0]?.rules ? JSON.parse(locData[0].rules) : {};
+      setRules(r);
+      const [tasks, fatigue, handovers] = await Promise.all([
+        isModuleOn(r, "task_management_enabled") ? json(`/api/shift-tasks?location_id=${loc}&week_start=${weekStart}`) : null,
+        isModuleOn(r, "fatigue_radar_enabled") ? json(`/api/fatigue-radar?location_id=${loc}`) : null,
+        isModuleOn(r, "handover_log_enabled") ? json(`/api/shift-handovers?location_id=${loc}&status=unread`) : null,
+      ]);
+      setTodayTasks(list(tasks).filter((t: any) => t.day === todayIdx));
+      setFatigueAtRisk(Array.isArray(fatigue?.at_risk) ? fatigue.at_risk : []);
+      setHandoverUnread(list(handovers).length);
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
   };
-
 
   useEffect(() => {
     if (!mounted || !user) return;
@@ -141,7 +151,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user]);
 
-  // Dakikada bir "now" güncelle (geç kalan tespiti için) + 60 sn'de bir canlı operasyon yenile
+  // Dakikada bir "now" güncelle (geç kalan tespiti için) + 60 sn'de bir canlı durumu yenile
   useEffect(() => {
     const tickClock = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(tickClock);
@@ -151,27 +161,14 @@ export default function DashboardPage() {
     if (!user?.location_id) return;
     const refreshShifts = setInterval(async () => {
       try {
-        const weekStart = getTodayWeekStart();
-        const res = await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${weekStart}`);
+        const res = await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${getTodayWeekStart()}`);
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setTodayShifts(data.filter((s: any) => s.day === todayIdx));
-        }
+        if (Array.isArray(data)) setTodayShifts(data.filter((s: any) => s.day === todayIdx));
       } catch {}
     }, 60_000);
     return () => clearInterval(refreshShifts);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.location_id]);
-
-  const handleLeaveAction = async (id: number, action: "approved" | "rejected") => {
-    if (!user) return;
-    await fetch(`/api/leave-requests/review?id=${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: action, reviewed_by: user.personnel_id }),
-    });
-    setLeaveRequests(prev => prev.filter(l => l.id !== id));
-  };
 
   // Gelecek hafta uygunluğunu girmeyenlere hatırlatma bildirimi gönder
   const handleRemindAvailability = async () => {
@@ -189,14 +186,18 @@ export default function DashboardPage() {
     }
   };
 
+  const openShiftsEnabled = isModuleOn(rules, "open_shifts_enabled");
+  const autoOpenOnLate    = rules.auto_open_shift_on_late !== false;
+  const lateThresholdMin  = typeof rules.late_threshold_min === "number" ? rules.late_threshold_min : 30;
+  const heroBonus         = typeof rules.hero_bonus_points === "number" ? rules.hero_bonus_points : 6;
+  const maxYtdOvertime    = typeof rules.max_ytd_overtime_hours === "number" ? rules.max_ytd_overtime_hours : 270;
+
   // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz giriş yok → geç kalan
   // rules.checkin_required kapalıyken giriş bilgi amaçlıdır, eksikliği hiç kimseyi "geç kalan" yapmaz
   const isLate = (s: any): boolean => {
-    if (!checkinRequired || s.check_in_at || !s.start_time) return false;
+    if (!isModuleOn(rules, "checkin_required") || s.check_in_at || !s.start_time) return false;
     const [h, m] = s.start_time.split(":").map(Number);
-    const shiftStartMin = h * 60 + m;
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    return nowMin >= shiftStartMin + lateThresholdMin;
+    return now.getHours() * 60 + now.getMinutes() >= h * 60 + m + lateThresholdMin;
   };
 
   // Gelmeyen personelin vardiyasını açık vardiyaya dönüştür: atama kişinin
@@ -211,372 +212,203 @@ export default function DashboardPage() {
         body: JSON.stringify({
           convert_assignment_id: s.id,
           reason: auto ? "no_show" : "absence",
-          hero_bonus_multiplier: heroBonusMultiplier,
+          hero_bonus_multiplier: heroBonus,
         }),
       });
       if (!res.ok) { lateAutoCreated.current.delete(s.id); return; }
       // Atama artık ilanda — canlı listeden düşür, açık vardiya sayısını güncelle
       setTodayShifts(prev => prev.filter((x: any) => x.id !== s.id));
-      setOpenShifts(prev => [...prev, { status: "open", id: Date.now() }]);
+      setOpenShiftCount(c => c + 1);
     } catch { lateAutoCreated.current.delete(s.id); }
   };
 
+  // Geç kalanların vardiyasını otomatik ilana çevir (Ayarlar → Kurallar → Canlı Durum).
+  // Her dakika "now" ile yeniden değerlendirilir; aynı atama iki kez çevrilmez (lateAutoCreated).
+  useEffect(() => {
+    if (!openShiftsEnabled || !autoOpenOnLate) return;
+    todayShifts.filter(s => !s.check_in_at && isLate(s)).forEach(s => convertToOpenShift(s, true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayShifts, now, rules]);
+
   if (!mounted || !user) return <div className="space-y-8" />;
 
+  const lateShifts = todayShifts.filter(s => !s.check_in_at && isLate(s));
+
+  const inbox = loading ? [] : buildInbox({
+    now,
+    personnelCount: personnel.length,
+    lateCount: openShiftsEnabled && autoOpenOnLate ? 0 : lateShifts.length,
+    nextWeek,
+    pendingApprovals,
+    pendingAccounts,
+    availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },
+    openShifts:   { enabled: openShiftsEnabled, count: openShiftCount },
+    overtime:     { enabled: isModuleOn(rules, "overtime_tracking_enabled"),
+                    nearLimit: personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= maxYtdOvertime * 0.8).length },
+    fatigue:      { enabled: isModuleOn(rules, "fatigue_radar_enabled"),
+                    critical: fatigueAtRisk.filter((r: any) => r.riskLevel === "danger").length,
+                    warning:  fatigueAtRisk.filter((r: any) => r.riskLevel !== "danger").length },
+    handover:     { enabled: isModuleOn(rules, "handover_log_enabled"), unread: handoverUnread },
+    tasks:        { enabled: isModuleOn(rules, "task_management_enabled"),
+                    total: todayTasks.length, done: todayTasks.filter((t: any) => t.is_completed).length },
+  });
+
   const activeCount = personnel.filter(p => p.status === "active").length;
-  const scores = personnel.map(p => p.prev_score ?? 0);
-  const maxScore = Math.max(...scores, 1);
+  const summary = [
+    { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi vardiyada` : "Bugün planlı vardiya yok" },
+    { icon: CheckCircle2, text: `${activeCount} aktif personel` },
+    ...(isModuleOn(rules, "publish_lead_kpi_enabled") && publishLead !== null
+      ? [{ icon: CalendarCheck, text: `Planlar ortalama ${publishLead.toLocaleString("tr-TR")} gün önceden yayınlanıyor` }]
+      : []),
+  ];
 
-  // YTD mesai uyarısı: lokasyon limitinin (rules.max_ytd_overtime_hours) %80'ini aşmış personel
-  const overtimeWarning = personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= maxYtdOvertime * 0.8);
-
-  const openCount = openShifts.filter((s: any) => s.status === "open").length;
-
-  // "Sıradaki adım" — müdürün şu an yapması gereken en öncelikli tek iş
-  const nextStep = loading ? null : (() => {
-    if (personnel.length === 0)
-      return { title: "Ekibinizi ekleyin", desc: "Plan yapabilmek için önce personel ekleyin, sadece isim yeterli.", cta: "Personel Ekle", href: "/personnel" };
-    if (!nextWeekPublished)
-      return { title: "Gelecek haftayı planlayın", desc: "Gelecek haftanın programı henüz yayınlanmadı. Personel plan yapabilsin diye erken yayınlayın.", cta: "Haftayı Planla", href: "/schedule" };
-    if (leaveRequests.length > 0)
-      return { title: `${leaveRequests.length} izin talebi onay bekliyor`, desc: "Personel yanıtınızı bekliyor.", cta: "Onaylara Git", href: "/requests" };
-    if (availMissing.length > 0)
-      return { title: `${availMissing.length} personel uygunluk girmedi`, desc: "Gelecek haftanın uygunluğu eksik, hatırlatma gönderebilirsiniz.", cta: "Aşağıda: Hatırlat ↓", href: null };
-    return null;
-  })();
-
-  const kpi = [
-    { label: "Toplam Personel",      value: String(activeCount), sub: `${personnel.length} kayıtlı`,     icon: Users,         ...kpiToneClasses("neutral"),  href: "/personnel" },
-    { label: "Bekleyen İzin",        value: String(leaveRequests.length), sub: "Onay bekliyor",           icon: Clock,         ...kpiToneClasses("attention"), href: "/requests" },
-    { label: "Açık Vardiya",         value: String(openCount), sub: openCount > 0 ? `${openCount} boş vardiya` : "Tüm vardiyalar dolu", icon: CalendarCheck, ...kpiToneClasses(openCount > 0 ? "attention" : "neutral"), href: "/open-shifts" },
-    { label: "Puan Ortalaması",      value: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : "—", sub: "Adalet puanı", icon: TrendingUp, ...kpiToneClasses("neutral"), href: "/reports?tab=adalet" },
-    // Yayın öncülüğü: program ortalama kaç gün önceden yayınlanıyor (OPTI-023), rules.publish_lead_kpi_enabled ile kapatılabilir
-    ...(publishLeadKpiEnabled ? [{
-      label: "Erken Yayın",
-      value: publishLead === null ? "—" : `${publishLead.toLocaleString("tr-TR")} gün`,
-      sub: publishLead === null ? "Henüz yayın verisi yok"
-        : publishLead >= 7 ? "Harika, tam hafta önceden"
-        : publishLead >= 3 ? "İyi, daha erken hedefleyin"
-        : "Geç, personel plan yapamıyor",
-      icon: CalendarCheck,
-      ...kpiToneClasses(publishLead === null ? "neutral" : publishLead >= 7 ? "positive" : publishLead >= 3 ? "attention" : "danger"),
-      href: "/schedule",
-    }] : []),
-    // Görev/Kontrol Listeleri (ileri seviye modül) — bugünkü vardiyaların görev tamamlanma oranı
-    ...(taskManagementEnabled && todayTasks.length > 0 ? [{
-      label: "Görev Tamamlanma",
-      value: `${todayTasks.filter((t: any) => t.is_completed).length}/${todayTasks.length}`,
-      sub: "Bugünkü vardiya görevleri",
-      icon: ClipboardList,
-      ...kpiToneClasses(todayTasks.every((t: any) => t.is_completed) ? "positive" : "attention"),
-    }] : []),
-  ] as { label: string; value: string | number; sub: string; icon: any; color: string; bg: string; href?: string }[];
+  const renderAction = (item: InboxItem) => {
+    const a = item.action;
+    const cls = "shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors";
+    if ("href" in a) {
+      return (
+        <Link href={a.href} className={cn(cls, item.severity === "critical" ? "bg-primary text-white hover:bg-primary/90" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
+          {a.label} <ArrowRight size={13} />
+        </Link>
+      );
+    }
+    if (a.kind === "remind-availability") {
+      return (
+        <button onClick={handleRemindAvailability} disabled={remindState !== "idle"} className={cn(cls, "bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-70")}>
+          {remindState === "sent" ? <><Check size={13} /> Gönderildi</> : remindState === "sending" ? "Gönderiliyor…" : <><Bell size={13} /> {a.label}</>}
+        </button>
+      );
+    }
+    const open = expanded[item.id] ?? item.severity === "critical";
+    return (
+      <button onClick={() => setExpanded(e => ({ ...e, [item.id]: !open }))} aria-expanded={open} className={cn(cls, "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
+        {a.label} <ChevronDown size={13} className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+    );
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Ana Sayfa</h1>
-          <p className="text-muted-foreground mt-1">
-            Hoş geldiniz, <strong>{user.name}</strong> 👋
-          </p>
-        </div>
-        {openShiftsEnabled && (
-          <Button onClick={() => router.push("/open-shifts?new=1")} className="shrink-0 font-bold">
-            <CalendarCheck size={16} className="mr-2" /> Açık Vardiya Oluştur
-          </Button>
+    <div className="space-y-6 max-w-4xl animate-in fade-in duration-500">
+      {/* Günün özeti */}
+      <div>
+        <p className="text-sm font-medium text-slate-500">
+          {now.toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
+        </p>
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-1">
+          {greeting(now)}, {user.name}
+        </h1>
+        {!loading && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3">
+            {summary.map(({ icon: Icon, text }) => (
+              <span key={text} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <Icon size={15} className="text-slate-400" /> {text}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Sıradaki adım — tek öncelikli aksiyon */}
-      {nextStep && (
-        <div className="bg-gradient-to-r from-forest-50 to-ember-50 border border-forest-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1">
-            <p className="text-[10px] font-black text-forest-500 uppercase tracking-widest mb-0.5">Sıradaki Adım</p>
-            <p className="text-sm font-bold text-slate-900">{nextStep.title}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{nextStep.desc}</p>
+      {/* Bekleyen işler */}
+      <Card className="stripe-card border-0 shadow-none">
+        <CardHeader className="border-b border-border/40 pb-4">
+          <div className="flex items-center gap-2.5">
+            <CardTitle className="text-base font-bold">Bekleyen İşler</CardTitle>
+            {!loading && inbox.length > 0 && <Badge variant="secondary">{inbox.length}</Badge>}
           </div>
-          {nextStep.href && (
-            <Link
-              href={nextStep.href}
-              className="flex items-center justify-center gap-1.5 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors shrink-0"
-            >
-              {nextStep.cta} <ArrowRight size={14} />
-            </Link>
-          )}
-          {!nextStep.href && (
-            <span className="text-xs font-bold text-forest-500 shrink-0">{nextStep.cta}</span>
-          )}
-        </div>
-      )}
-
-      {/* KPI Kartları */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
-        {kpi.map(({ label, value, sub, icon: Icon, color, bg, href }) => (
-          <Card
-            key={label}
-            onClick={href ? () => router.push(href) : undefined}
-            className={`stripe-card group border-0 shadow-none ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
-          >
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-2.5 rounded-xl ${bg} ${color}`}>
-                  <Icon size={20} />
-                </div>
-                {href && <ArrowRight size={15} className="text-slate-300 group-hover:text-slate-500 transition-colors" />}
-              </div>
-              <div>
-                {loading ? (
-                  <>
-                    <div className="h-8 w-14 bg-slate-100 rounded-md animate-pulse" />
-                    <div className="h-4 w-24 bg-slate-100 rounded-md animate-pulse mt-2" />
-                    <div className="h-3 w-20 bg-slate-100 rounded-md animate-pulse mt-1.5" />
-                  </>
-                ) : (
-                  <>
-                    <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
-                    <div className="text-sm font-semibold text-slate-600 mt-1">{label}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{sub}</div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Cuma'dan itibaren: gelecek haftanın planı hâlâ yayınlanmadıysa uyar */}
-      {!loading && !nextWeekPublished && [5, 6, 0].includes(now.getDay()) && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-red-200 bg-red-50">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <AlertTriangle size={18} className="text-red-600 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-sm font-bold text-red-800">Gelecek haftanın planı henüz yayınlanmadı</span>
-              <p className="text-xs text-red-700">Personel önümüzdeki haftanın vardiyalarını göremiyor.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-5 space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
             </div>
-          </div>
-          <Button
-            onClick={() => router.push("/schedule")}
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-red-300 text-red-800 hover:bg-red-100"
-          >
-            Plana Git <ArrowRight size={14} className="ml-1.5" />
-          </Button>
-        </div>
-      )}
-
-      {/* Gelecek hafta uygunluk girmeyenler */}
-      {!loading && availMissing.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <AlertTriangle size={18} className="text-amber-600 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-sm font-bold text-amber-800">
-                Gelecek hafta için uygunluk girmeyen: {availMissing.length} kişi
-              </span>
-              <p className="text-xs text-amber-700 truncate">
-                {availMissing.map((p: any, i: number) => (
-                  <span key={p.id ?? i}>
-                    {i > 0 && ", "}
-                    <Link href="/personnel" className="font-semibold hover:underline">{p.name}</Link>
-                  </span>
-                ))}
-              </p>
+          ) : inbox.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-center px-6">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
+                <Check size={28} className="text-emerald-500" strokeWidth={3} />
+              </div>
+              <p className="text-base font-bold text-slate-800">Her şey yolunda</p>
+              <p className="text-sm text-slate-500 mt-1">Şu an bekleyen bir işiniz yok.</p>
             </div>
-          </div>
-          <Button
-            onClick={handleRemindAvailability}
-            disabled={remindState !== "idle"}
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
-          >
-            {remindState === "sent" ? <><Check size={14} className="mr-1.5" />Hatırlatma gönderildi</>
-              : remindState === "sending" ? "Gönderiliyor…"
-              : "Hatırlatma Gönder"}
-          </Button>
-        </div>
-      )}
-
-      {/* YTD Fazla Mesai Uyarısı — kompakt link */}
-      {!loading && overtimeWarning.length > 0 && (
-        <button
-          onClick={() => router.push("/overtime#warnings")}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
-        >
-          <AlertTriangle size={16} className="text-orange-500 shrink-0" />
-          <span className="text-sm font-semibold text-orange-800 flex-1">
-            {overtimeWarning.length} mesai uyarısı var
-          </span>
-          <span className="text-xs text-orange-600 font-medium flex items-center gap-1">
-            Fazla Mesai → Uyarılar <ArrowRight size={12} />
-          </span>
-        </button>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* İzin Talepleri */}
-        <Card className="flex flex-col stripe-card border-0 shadow-none">
-          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
-                  <Clock size={18} />
-                </div>
-                <CardTitle className="text-base font-bold">Bekleyen Talepler</CardTitle>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={leaveRequests.length > 0 ? "warning" : "secondary"}>
-                  {leaveRequests.length} Talep
-                </Badge>
-                <Link href="/requests" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5">
-                  Tümü <ArrowRight size={12} />
-                </Link>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 p-5 space-y-3">
-            {loading ? (
-              <div className="space-y-3">
-                {[1,2].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
-              </div>
-            ) : leaveRequests.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-                <Check size={32} className="text-slate-300 mb-3" />
-                <p className="text-sm font-semibold">Tüm talepler yanıtlandı.</p>
-              </div>
-            ) : (
-              leaveRequests.map(req => (
-                <div key={req.id} className="group flex items-center justify-between p-4 rounded-xl border border-slate-200/60 bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
-                  <div>
-                    <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                      <Link href="/personnel" className="hover:underline hover:text-primary transition-colors">
-                        {req.personnel_name ?? req.personnel_id}
-                      </Link>
-                    </div>
-                    <div className="text-xs text-slate-500 font-medium mt-1 bg-slate-50 px-2.5 py-1 rounded-md inline-block border border-slate-100">
-                      {req.start_date} → {req.end_date} <span className="font-bold text-slate-400 mx-1">|</span> {req.days} gün
-                    </div>
-                    {req.note && <div className="text-xs text-slate-400 mt-2 italic">&quot;{req.note}&quot;</div>}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => handleLeaveAction(req.id, "approved")} variant="outline" size="icon" className="h-9 w-9 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200">
-                      <Check size={18} />
-                    </Button>
-                    <Button onClick={() => handleLeaveAction(req.id, "rejected")} variant="outline" size="icon" className="h-9 w-9 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200">
-                      <X size={18} />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Personel Puanları */}
-        <Card className="flex flex-col stripe-card border-0 shadow-none">
-          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5 flex-1">
-                <div className="p-2 bg-forest-100 rounded-xl text-primary">
-                  <TrendingUp size={18} />
-                </div>
-                <CardTitle className="text-base font-bold">Adalet Puanı Dağılımı</CardTitle>
-              </div>
-              <Link href="/reports?tab=adalet" className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
-                Tümü <ArrowRight size={12} />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-5">
-            {loading ? (
-              <div className="space-y-4">
-                {[1,2,3,4].map(i => <div key={i} className="h-4 bg-slate-100 rounded-md animate-pulse" />)}
-              </div>
-            ) : personnel.filter(p => p.status === "active").length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">
-                Henüz personel yok.<br />
-                <a href="/personnel" className="text-primary hover:underline font-bold mt-2 inline-block">Personel ekle →</a>
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {personnel.filter(p => p.status === "active").slice(0, 6).map(p => {
-                  const score = p.prev_score ?? 0;
-                  const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
-                  return (
-                    <div key={p.id} className="flex items-center gap-4 group">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                        {p.name.charAt(0)}
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {inbox.map(item => {
+                const Icon = ITEM_ICON[item.id] ?? ClipboardList;
+                const sev = SEVERITY_STYLE[item.severity];
+                const showRisk = item.id === "fatigue" && (expanded.fatigue ?? item.severity === "critical");
+                return (
+                  <li key={item.id} className="px-5 py-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", sev.icon)}>
+                        <Icon size={18} />
                       </div>
-                      <Link href="/personnel" className="w-24 text-sm font-semibold text-slate-700 truncate hover:text-primary hover:underline transition-colors">{p.name.split(" ")[0]}</Link>
-                      <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                        <div className="bg-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${pct}%` }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800">{item.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          <span className={cn("font-bold", sev.labelCls)}>{sev.label}</span>
+                          {item.detail && <> · {item.detail}</>}
+                        </p>
                       </div>
-                      <div className="text-sm font-bold text-slate-700 w-12 text-right">{score}p</div>
+                      {renderAction(item)}
                     </div>
+                    {showRisk && (
+                      <div className="mt-3 ml-[54px] space-y-2">
+                        {fatigueAtRisk.map((r: any) => (
+                          <div key={r.personnel_id} className={cn("flex items-start gap-2.5 p-2.5 rounded-lg border",
+                            r.riskLevel === "danger" ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100")}>
+                            <AlertTriangle size={14} className={cn("shrink-0 mt-0.5", r.riskLevel === "danger" ? "text-red-500" : "text-amber-500")} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-800">{r.name}</p>
+                              <p className="text-xs text-slate-500">{r.reasons.join(" · ")}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-          </CardContent>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Canlı Operasyon — Bugün */}
+      {/* Bugün vardiyada — canlı durum */}
       {todayShifts.length > 0 && (() => {
         const checkedIn  = todayShifts.filter(s => s.check_in_at && !s.check_out_at);
         const checkedOut = todayShifts.filter(s => s.check_out_at);
-        const lateShifts = todayShifts.filter(s => !s.check_in_at && isLate(s));
         const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s));
-
-        // Geç kalanların vardiyasını otomatik açığa çıkar (Ayarlar → Kurallar → Canlı Operasyon toggle'ı)
-        if (openShiftsEnabled && autoOpenOnLate) lateShifts.forEach(s => convertToOpenShift(s, true));
-
         return (
-          <Card className="stripe-card border-0 shadow-none">
-            <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+          <Card id="bugun" className="stripe-card border-0 shadow-none scroll-mt-6">
+            <CardHeader className="border-b border-border/40 pb-4">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600 shrink-0">
-                  <Users size={18} />
+                <CardTitle className="text-base font-bold">Bugün Vardiyada</CardTitle>
+                <div className="flex flex-wrap gap-3 ml-1">
+                  {[
+                    { label: "Aktif",    value: checkedIn.length,  color: "text-emerald-600" },
+                    { label: "Bekliyor", value: waiting.length,    color: "text-amber-600" },
+                    { label: "Geç",      value: lateShifts.length, color: "text-red-600" },
+                    { label: "Çıktı",    value: checkedOut.length, color: "text-slate-400" },
+                  ].filter(x => x.value > 0).map(({ label, value, color }) => (
+                    <span key={label} className="flex items-center gap-1 text-xs text-slate-400 font-medium">
+                      <span className={`text-sm font-black ${color}`}>{value}</span> {label}
+                    </span>
+                  ))}
                 </div>
-                <CardTitle className="text-base font-bold">Canlı Durum · Bugün</CardTitle>
-                {lateShifts.length > 0 && (
-                  <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
-                    <AlertTriangle size={11} className="mr-1" />{lateShifts.length} Geç
-                  </Badge>
-                )}
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 font-medium">
                   <RefreshCw size={11} />
                   {now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
-
-              {/* Özet satırı */}
-              <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border/30">
-                {[
-                  { label: "Beklenen", value: todayShifts.length, color: "text-slate-600" },
-                  { label: "Aktif",    value: checkedIn.length,   color: "text-emerald-600" },
-                  { label: "Çıktı",   value: checkedOut.length,   color: "text-slate-400" },
-                  { label: "Bekliyor",value: waiting.length,      color: "text-amber-600" },
-                  { label: "Geç",     value: lateShifts.length,   color: "text-red-600" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <span className={`text-sm font-black ${color}`}>{value}</span>
-                    <span className="text-xs text-slate-400 font-medium">{label}</span>
-                  </div>
-                ))}
-              </div>
             </CardHeader>
             <CardContent className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {todayShifts.map((s: any) => {
-                  const p           = personnel.find(px => px.id === s.personnel_id);
+                  const p            = personnel.find(px => px.id === s.personnel_id);
                   const isCheckedIn  = !!s.check_in_at;
                   const isCheckedOut = !!s.check_out_at;
                   const late         = isLate(s);
                   return (
-                    <Link key={s.id} href="/personnel" className={`flex items-center gap-3 p-3.5 rounded-xl border transition-colors hover:shadow-sm ${
+                    <div key={s.id} className={`flex items-center gap-3 p-3 rounded-xl border ${
                       isCheckedOut ? "bg-slate-50 border-slate-100" :
                       isCheckedIn  ? "bg-emerald-50 border-emerald-200" :
                       late         ? "bg-red-50 border-red-200" :
@@ -595,20 +427,20 @@ export default function DashboardPage() {
                         <div className="text-xs text-slate-500">{s.start_time}–{s.end_time}
                           {isCheckedOut && <span className="ml-1 text-slate-400">• Çıktı</span>}
                           {isCheckedIn && !isCheckedOut && <span className="ml-1 text-emerald-600 font-semibold">• Aktif</span>}
-                          {!isCheckedIn && late && <span className="ml-1 text-red-600 font-semibold">• Geç geldi</span>}
+                          {!isCheckedIn && late && <span className="ml-1 text-red-600 font-semibold">• Gelmedi</span>}
                           {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
                         </div>
                       </div>
-                      {!isCheckedIn && !isCheckedOut && late && !autoOpenOnLate && (
+                      {!isCheckedIn && !isCheckedOut && late && openShiftsEnabled && !autoOpenOnLate && (
                         <button
-                          onClick={e => { e.preventDefault(); e.stopPropagation(); convertToOpenShift(s, false); }}
+                          onClick={() => convertToOpenShift(s, false)}
                           className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                           title="Vardiyayı açık ilana dönüştür, ekip üstlenebilir"
                         >
                           İlana Çevir
                         </button>
                       )}
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
@@ -616,73 +448,6 @@ export default function DashboardPage() {
           </Card>
         );
       })()}
-
-      {/* Yorgunluk ve Kaza Risk Radarı (rules.fatigue_radar_enabled) */}
-      {fatigueRadarEnabled && fatigueAtRisk.length > 0 && (
-        <Card className="stripe-card border-0 shadow-none">
-          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div className="p-2 bg-red-100 rounded-xl text-red-600 shrink-0">
-                <AlertTriangle size={18} />
-              </div>
-              <CardTitle className="text-base font-bold">⚠️ Kaza Risk Radarı</CardTitle>
-              <Badge className="bg-red-100 text-red-700 border-red-200 font-bold">
-                {fatigueAtRisk.filter((r: any) => r.riskLevel === "danger").length} kritik
-              </Badge>
-              <Link href="/schedule" className="ml-auto text-xs text-primary font-bold hover:underline flex items-center gap-0.5 shrink-0">
-                Vardiya Planı <ArrowRight size={12} />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-5 space-y-2.5">
-            {fatigueAtRisk.map((r: any) => (
-              <div
-                key={r.personnel_id}
-                className={`flex items-start gap-3 p-3 rounded-xl border ${
-                  r.riskLevel === "danger" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
-                }`}
-              >
-                <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${r.riskLevel === "danger" ? "text-red-500" : "text-amber-500"}`} />
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800">{r.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{r.reasons.join(" · ")}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Hızlı Eylemler — Onboarding */}
-      {!loading && personnel.filter(p => p.status === "active").length <= 1 && (
-        <Card className="bg-gradient-to-r from-forest-50/50 to-ember-50/50 border-forest-100/50 shadow-none">
-          <CardContent className="p-6">
-            <h2 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-              <span>🚀</span> Başlangıç Rehberi
-            </h2>
-            <p className="text-muted-foreground text-sm mb-5">Sistemi kullanmaya başlamak için şu adımları tamamlayın:</p>
-            <div className="space-y-3">
-              {[
-                { step: "1", label: "Personel ekleyin", href: "/personnel", done: personnel.length > 1 },
-                { step: "2", label: "Personellerden uygunluk toplayın", href: "/schedule", done: false },
-                { step: "3", label: "Vardiya planı oluşturun", href: "/schedule", done: false },
-              ].map(({ step, label, href, done }) => (
-                <a key={step} href={href} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${done ? "bg-emerald-50/50 border-emerald-100" : "bg-white border-slate-200 hover:border-primary/30 hover:shadow-sm"}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${done ? "bg-emerald-500 text-white shadow-sm" : "bg-primary/10 text-primary"}`}>
-                    {done ? <Check size={14} /> : step}
-                  </div>
-                  <span className={`text-sm font-semibold ${done ? "text-emerald-700 line-through opacity-80" : "text-slate-800"}`}>{label}</span>
-                  {!done && (
-                    <div className="ml-auto flex items-center gap-1 text-primary text-xs font-bold">
-                      Git <ArrowRight size={14} />
-                    </div>
-                  )}
-                </a>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

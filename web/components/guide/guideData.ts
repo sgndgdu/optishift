@@ -43,12 +43,12 @@ export const ROLE_GUIDES: RoleGuide[] = [
       },
       {
         id: "mudur-panel",
-        title: "Panel",
+        title: "Ana Sayfa",
         icon: LayoutDashboard,
         paragraphs: [
-          "Panel, o günün canlı durumunu özetler: kaç kişinin gelmesi beklendiği, kaç kişinin giriş yaptığı, kaç kişinin molada olduğu ve kimin geç kaldığı.",
-          "Planlanan saatten 30 dakika sonra hâlâ giriş yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
-          "“Sıradaki Adım” kartı o an yapmanız gereken en öncelikli işi gösterir. Personel eklenmemiş olabilir, gelecek haftanın planı yayınlanmamış olabilir ya da bekleyen bir izin talebiniz olabilir.",
+          "Ana Sayfa size tablo değil, yapmanız gereken işlerin listesini gösterir: onay bekleyen talepler, henüz hazırlanmamış ya da yayınlanmamış gelecek hafta planı, uygunluk girmeyen personel, dolmamış açık vardiyalar gibi. Her maddenin yanında tek bir düğme vardır, tıklayınca doğrudan ilgili sayfaya gidersiniz. Liste boşsa “Her şey yolunda” yazar.",
+          "Maddeler aciliyete göre sıralanır: “Acil” (örneğin vardiyasına gelmeyen biri ya da hafta sonuna gelinmiş ama gelecek haftanın planı hazır değil), “Bugün” ve “Bu hafta”. Açık olmayan özellikler (örneğin Kaza Risk Radarı) listede hiç görünmez.",
+          "Listenin altındaki “Bugün Vardiyada” bölümü o günün canlı durumunu gösterir: kim geldi, kim bekleniyor, kim geç kaldı. Planlanan saatten 30 dakika sonra hâlâ giriş yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
         ],
       },
       {
