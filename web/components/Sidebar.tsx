@@ -189,6 +189,50 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   // Aktif şubenin rules objesi — özellik aç/kapa bayrakları buradan okunur
   const rules = parseRules(activeLocation?.rules);
 
+
+  const items = NAV
+    .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
+    .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
+    .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
+  const badgeOf = (href: string) =>
+    href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
+    href === "/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
+    href === "/requests"  ? { n: pendingApprovals, tone: "bg-amber-500" } :
+    { n: 0, tone: "" };
+  const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
+    const active = pathname.startsWith(href);
+    const badge  = badgeOf(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        onClick={onClose}
+        className={cn(
+          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+          active
+            ? "bg-primary/10 text-primary"
+            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+        )}
+      >
+        {active && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+        )}
+        <Icon size={18} className={cn("shrink-0 transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+        {label}
+        {badge.n > 0 && (
+          <span className={cn("ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center", badge.tone)}>{badge.n}</span>
+        )}
+      </Link>
+    );
+  };
+
+  const main   = items.filter(i => i.group === "main");
+  const more   = items.filter(i => i.group === "more");
+  const footer = items.filter(i => i.group === "footer");
+  // Aktif sayfa gruptaysa grup açık görünür; kapalıyken grup içindeki okunmamış mesaj başlıkta gösterilir
+  const open = moreOpen || more.some(i => pathname.startsWith(i.href));
+  const hiddenUnread = more.some(i => i.href === "/chat") ? chatUnread : 0;
+
   return (
     <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
       {/* Brand */}
@@ -262,75 +306,29 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation: ana bağlantılar + katlanır grup (kaydırılabilir) */}
       <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
-        {(() => {
-          const items = NAV
-            .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
-            .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
-            .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
-          const badgeOf = (href: string) =>
-            href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
-            href === "/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
-            href === "/requests"  ? { n: pendingApprovals, tone: "bg-amber-500" } :
-            { n: 0, tone: "" };
-          const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
-            const active = pathname.startsWith(href);
-            const badge  = badgeOf(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
-                )}
-                <Icon size={18} className={cn("shrink-0 transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
-                {label}
-                {badge.n > 0 && (
-                  <span className={cn("ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center", badge.tone)}>{badge.n}</span>
-                )}
-              </Link>
-            );
-          };
-
-          const main   = items.filter(i => i.group === "main");
-          const more   = items.filter(i => i.group === "more");
-          const footer = items.filter(i => i.group === "footer");
-          // Aktif sayfa gruptaysa grup açık görünür; kapalıyken grup içindeki okunmamış mesaj başlıkta gösterilir
-          const open = moreOpen || more.some(i => pathname.startsWith(i.href));
-          const hiddenUnread = more.some(i => i.href === "/chat") ? chatUnread : 0;
-          return (
-            <>
-              {main.map(renderItem)}
-              {more.length > 0 && (
-                <>
-                  <button
-                    onClick={toggleMore}
-                    aria-expanded={open}
-                    className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
-                  >
-                    Daha Fazla
-                    <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
-                    {!open && hiddenUnread > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{hiddenUnread}</span>
-                    )}
-                  </button>
-                  {open && more.map(renderItem)}
-                </>
+        {main.map(renderItem)}
+        {more.length > 0 && (
+          <>
+            <button
+              onClick={toggleMore}
+              aria-expanded={open}
+              className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            >
+              Daha Fazla
+              <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+              {!open && hiddenUnread > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{hiddenUnread}</span>
               )}
-              {footer.length > 0 && <div className="pt-3 mt-3 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
-            </>
-          );
-        })()}
+            </button>
+            {open && more.map(renderItem)}
+          </>
+        )}
       </nav>
+
+      {/* Ayarlar: kaydırma alanının dışında, grup açıkken de hep görünür */}
+      {footer.length > 0 && <div className="px-1 pt-3 mt-2 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
 
       {/* Yardım */}
       <div className="px-1 pt-2">
