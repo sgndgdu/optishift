@@ -98,6 +98,5 @@ export const callcenter: IndustryProfile = {
 
   limitations: [
     "Mikro mola (kısa ekran molası) takibi Mola Takibi modülüne bağlı; modül genel kullanıma açılınca bu şablonda varsayılan açık gelecek.",
-    "Çağrı yoğunluğu şimdilik günlük toplam olarak girilir (ciro alanı); saatlik Erlang hesabı yol haritasında.",
   ],
 };

@@ -19,7 +19,8 @@ import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, getWeekStart } from "@/lib/date";
-import { DAY_SHORT } from "@/lib/constants";
+import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
+import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
 import { FEATURES } from "@/lib/features";
 import {
   DndContext,
@@ -428,6 +429,10 @@ function SchedulePageInner() {
   const [calloutModal, setCalloutModal]           = useState<{ assignmentId: number; title: string } | null>(null);
   const [calloutForm, setCalloutForm]             = useState({ start: "", end: "", note: "" });
   const [calloutBusy, setCalloutBusy]             = useState(false);
+  // Çağrı merkezi: Erlang C ile ihtiyaç (lib/erlang), girdiler rules.call_forecast'ta saklanır
+  const [callFormOpen, setCallFormOpen]           = useState(false);
+  const [callForm, setCallForm]                   = useState<CallForecastInput>({ dailyCalls: [0, 0, 0, 0, 0, 0, 0], curve: "office", ahtSec: 240, slPercent: 80, slSeconds: 20, shrinkagePercent: 30 });
+  const [callSummary, setCallSummary]             = useState<string | null>(null);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -944,6 +949,34 @@ function SchedulePageInner() {
       .catch(() => {});
     return () => { stale = true; };
   }, [wizardOpen, activeLocationId, weekStart, departments.length, personnel.length]);
+
+  const openCallForm = () => {
+    const saved = (locRules as Record<string, unknown>).call_forecast as Partial<CallForecastInput> | undefined;
+    if (saved && Array.isArray(saved.dailyCalls)) setCallForm(f => ({ ...f, ...saved }));
+    setCallFormOpen(true);
+  };
+  const applyCallForecast = async () => {
+    if (!activeLocationId) return;
+    const res = callDemand(shiftDefs.filter(d => !d.on_call), callForm);
+    setDemandMatrix(res.matrix);
+    const pk = res.peak;
+    setCallSummary(pk && pk.agents > 0
+      ? `En yoğun saat: ${DAY_NAMES[pk.day]} ${String(pk.hour).padStart(2, "0")}:00, ${pk.agents} temsilci (mola payı dahil).`
+      : "Çağrı girilmedi, ihtiyaç 0.");
+    try {
+      // rules REPLACE edildiği için taze kurallar üzerine yazılır
+      const locRes = await fetch(`/api/locations?id=${activeLocationId}`);
+      const locData = await locRes.json();
+      const raw = Array.isArray(locData) ? locData[0]?.rules : null;
+      const fresh = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
+      await fetch(`/api/locations?id=${activeLocationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_matrix: res.matrix, rules: { ...fresh, call_forecast: callForm } }),
+      });
+      showToast("Çağrı yoğunluğuna göre ihtiyaç tabloya yazıldı.", "success");
+    } catch { showToast("Kaydedilemedi.", "error"); }
+  };
 
   const applyDemandSuggestion = async () => {
     if (!demandSuggestion || !activeLocationId) return;
@@ -2194,6 +2227,59 @@ loading ? (
             ) : (
               <div className="overflow-x-auto">
                 {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
+                {departments.length === 0 && (locRules as Record<string, unknown>).industry === "callcenter" && (
+                  <div className="px-5 py-3 border-t border-slate-100 bg-sky-50/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <p className="flex-1 text-xs font-bold text-sky-900">Çağrı yoğunluğundan hesapla (Erlang C)</p>
+                      {!callFormOpen && (
+                        <button onClick={openCallForm} className="text-xs font-bold px-3 py-2 rounded-lg text-sky-800 border border-sky-200 hover:bg-sky-100">Hesapla</button>
+                      )}
+                    </div>
+                    {callSummary && !callFormOpen && <p className="text-[11px] text-sky-800 mt-1">{callSummary}</p>}
+                    {callFormOpen && (
+                      <div className="mt-2 space-y-2 text-[11px] text-slate-700">
+                        <div className="grid grid-cols-7 gap-1">
+                          {DAYS.map((d, i) => (
+                            <label key={d} className="flex flex-col items-center gap-0.5 font-semibold">
+                              {d}
+                              <input type="number" min={0} value={callForm.dailyCalls[i] || ""} placeholder="0" aria-label={`${d} günlük çağrı`}
+                                onChange={e => setCallForm(f => ({ ...f, dailyCalls: f.dailyCalls.map((v, j) => j === i ? Math.max(0, Number(e.target.value) || 0) : v) }))}
+                                className="w-full min-w-0 border border-slate-200 rounded-md px-1 py-1 text-center bg-white" />
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-slate-400">Günlük beklenen çağrı sayısı</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-2 items-center">
+                          <label className="flex items-center gap-1">Yoğunluk
+                            <select value={callForm.curve} onChange={e => setCallForm(f => ({ ...f, curve: e.target.value as CurveKey }))}
+                              className="border border-slate-200 rounded-md px-1 py-1 bg-white">
+                              {Object.entries(CURVES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
+                            </select>
+                          </label>
+                          <label className="flex items-center gap-1">Ort. görüşme
+                            <input type="number" min={10} value={callForm.ahtSec} onChange={e => setCallForm(f => ({ ...f, ahtSec: Math.max(10, Number(e.target.value) || 0) }))}
+                              className="w-16 border border-slate-200 rounded-md px-1 py-1 bg-white" /> sn
+                          </label>
+                          <label className="flex items-center gap-1">Hedef: çağrıların %
+                            <input type="number" min={1} max={99} value={callForm.slPercent} onChange={e => setCallForm(f => ({ ...f, slPercent: Number(e.target.value) || 80 }))}
+                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" />&apos;i
+                            <input type="number" min={1} value={callForm.slSeconds} onChange={e => setCallForm(f => ({ ...f, slSeconds: Number(e.target.value) || 20 }))}
+                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" /> sn içinde
+                          </label>
+                          <label className="flex items-center gap-1">Mola/izin payı %
+                            <input type="number" min={0} max={80} value={callForm.shrinkagePercent} onChange={e => setCallForm(f => ({ ...f, shrinkagePercent: Math.max(0, Number(e.target.value) || 0) }))}
+                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" />
+                          </label>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setCallFormOpen(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 font-semibold hover:bg-slate-50">Vazgeç</button>
+                          <button onClick={() => { applyCallForecast(); setCallFormOpen(false); }}
+                            className="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-bold hover:bg-sky-800">Hesapla ve tabloya yaz</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {demandSuggestion && departments.length === 0 && (() => {
                   const same = shiftDefs.every(def => Array.from({ length: 7 }, (_, d) => d)
                     .every(d => (demandMatrix[def.id]?.[d] ?? 0) === (demandSuggestion.matrix[def.id]?.[d] ?? 0)));
