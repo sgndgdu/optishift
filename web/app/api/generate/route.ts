@@ -759,6 +759,10 @@ export async function POST(req: NextRequest) {
       prev_week_driving_hours: prevWeekDriving,
       closed_days: closedDays,
       fixed_assignments: fixedAssignments,
+      // En az değişiklik: mevcut plan (istemci gönderirse); motor yer değiştirmeyi cezalandırır
+      current_assignments: Array.isArray(body.current_assignments)
+        ? body.current_assignments.slice(0, 5000).filter((c: any) => c && typeof c.personnel_id === "string" && Number.isInteger(c.day))
+        : [],
       branchId,
       orgId,
       week_start,

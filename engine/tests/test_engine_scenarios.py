@@ -510,3 +510,31 @@ def test_labor_budget_prefers_cheaper_within_budget():
     assert "error" not in tight, tight
     tight_pricey = sum(1 for a in tight["assignments"] if a["personnelId"] == "P2")
     assert tight_pricey < free_pricey
+
+
+def test_minimize_changes_keeps_existing_plan():
+    """En az değişiklik: biri tüm hafta gelemeyince sadece onun vardiyaları başkasına geçer;
+    mevcut planın geri kalanı aynen kalır. Bu seçenek olmadan plan baştan karışabilir."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 7)]
+    base = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=CAFE_SHIFTS,
+        demand_matrix={"acilis": {str(d): 1 for d in range(7)}, "yogun": {str(d): 1 for d in range(7)}, "kapanis": {str(d): 1 for d in range(7)}},
+    )
+    first = run_engine(base)
+    assert "error" not in first, first
+    current = [{"personnel_id": a["personnelId"], "day": a["day"], "shift_id": CAFE_SHIFTS[a["shiftId"]]["id"]} for a in first["assignments"]]
+    leaver_shifts = [c for c in current if c["personnel_id"] == "P1"]
+    assert leaver_shifts
+
+    changed = dict(base)
+    changed["availability"] = {**base["availability"], "P1": {str(d): "unavailable" for d in range(7)}}
+    changed["current_assignments"] = current
+    second = run_engine(changed)
+    assert "error" not in second, second
+    before = {(c["personnel_id"], c["day"], c["shift_id"]) for c in current}
+    after = {(a["personnelId"], a["day"], CAFE_SHIFTS[a["shiftId"]]["id"]) for a in second["assignments"]}
+    kept = before & after
+    # P1 dışındaki herkesin mevcut vardiyası korunur
+    assert kept == {b for b in before if b[0] != "P1"}, (before - after, after - before)

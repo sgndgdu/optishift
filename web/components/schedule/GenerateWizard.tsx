@@ -37,7 +37,7 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 export default function GenerateWizard({
   weekLabel, demandTable, demandEmpty, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
-  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, generating, error, generatedCount, seniorViolationCount, excludedCount,
+  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, changedCount, generating, error, generatedCount, seniorViolationCount, excludedCount,
   onGenerate, onPublish, onClose,
 }: {
   weekLabel: string;
@@ -53,6 +53,11 @@ export default function GenerateWizard({
   pinnedCount: number;
   keepPinned: boolean;
   onKeepPinnedChange: (v: boolean) => void;
+  /** En az değişiklik: mevcut planı olabildiğince koru */
+  minimizeChanges: boolean;
+  onMinimizeChangesChange: (v: boolean) => void;
+  /** Oluşturma sonrası değişen hücre sayısı (mevcut plan varsa) */
+  changedCount: number | null;
   generating: boolean;
   error: string | null;
   generatedCount: number;
@@ -143,9 +148,15 @@ export default function GenerateWizard({
                   </CheckRow>
                 ) : (
                   <CheckRow tone="warn">
-                    <span className="font-bold">Bu haftada {initialCells} vardiya var.</span> Oluşturunca silinip yeniden yazılacak.
+                    <span className="font-bold">Bu haftada {initialCells} vardiya var.</span> {minimizeChanges ? "Olabildiğince korunacak; sadece gereken yerler değişecek." : "Oluşturunca silinip yeniden yazılacak."}
                   </CheckRow>
                 ))}
+                {initialCells > 0 && (
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer px-1">
+                    <input type="checkbox" checked={minimizeChanges} onChange={e => onMinimizeChangesChange(e.target.checked)} className="accent-forest-600" />
+                    Mevcut planı olabildiğince koru (izin, istifa gibi değişikliklerde sadece gerekeni değiştir)
+                  </label>
+                )}
               </div>
             </WizardStep>
           )}
@@ -178,7 +189,7 @@ export default function GenerateWizard({
               ) : (
                 <div className="space-y-3">
                   <CheckRow tone="ok">
-                    <span className="font-bold">{generatedCount} vardiya yazıldı.</span> Plan taslak olarak kaydedildi, personel siz yayınlayana kadar göremez.
+                    <span className="font-bold">{generatedCount} vardiya yazıldı{changedCount !== null ? `, ${changedCount} hücre değişti` : ""}.</span> Plan taslak olarak kaydedildi, personel siz yayınlayana kadar göremez.
                   </CheckRow>
                   {seniorViolationCount > 0 && (
                     <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli personel bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>

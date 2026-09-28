@@ -65,6 +65,13 @@ IMPLICIT_AVOID: dict = {}
 # kapsamayı boşaltmaz, fazladan atamayı ve pahalı seçimi azaltır. Ücret: personnel.hourly_wage.
 LABOR_BUDGET_TRY = 0
 LABOR_OVER_WEIGHT = 2
+
+# En az değişiklikle yeniden planlama: mevcut plan {(personnel_id, gün): vardiya_idx}.
+# Mevcut atamayı bırakmak ×800, yeni atama eklemek ×400 cezalı: boş vardiya (5.000) ve
+# zorunlu kapsama yine doldurulur, ama gereksiz yer değiştirme ve fazladan atama olmaz.
+CURRENT_ASSIGNMENTS: dict = {}
+CHANGE_DROP_PENALTY = 800
+CHANGE_ADD_PENALTY = 400
 IMPLICIT_WEIGHT_PER_EVIDENCE = 3
 IMPLICIT_WEIGHT_MAX = 9
 PATTERN_MISS_PENALTY = 5000  # adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük
@@ -498,6 +505,7 @@ def build_model():
     # Çalışma döngüsü deseni kişiye özeldir; desenli kişiler birbirinin yerine geçemez
     conflict_person_ids |= set(DAY_PATTERNS)
     conflict_person_ids |= {pid for pid, v in IMPLICIT_AVOID.items() if v}
+    conflict_person_ids |= {pid for pid, _d in CURRENT_ASSIGNMENTS}
 
     def _person_signature(person):
         pid = person["id"]
@@ -671,6 +679,23 @@ def build_model():
             for s in range(NUM_SHIFTS)
             if get_avail(person["id"], d, s) == "preferred_not"
         ]
+
+    # En az değişiklik (mevcut plana sadakat)
+    change_terms = []
+    if CURRENT_ASSIGNMENTS:
+        idx_of = {person["id"]: i for i, person in enumerate(PERSONNEL)}
+        current_vars = set()
+        for (pid, d), s_idx in CURRENT_ASSIGNMENTS.items():
+            p_idx = idx_of.get(pid)
+            if p_idx is None or not (0 <= d < NUM_DAYS) or not (0 <= s_idx < NUM_SHIFTS):
+                continue
+            current_vars.add((p_idx, d, s_idx))
+            change_terms.append((1 - shifts[(p_idx, d, s_idx)]) * CHANGE_DROP_PENALTY)
+        for p_idx in range(num_p):
+            for d in range(NUM_DAYS):
+                for s in _regular_idxs():
+                    if (p_idx, d, s) not in current_vars:
+                        change_terms.append(shifts[(p_idx, d, s)] * CHANGE_ADD_PENALTY)
 
     # İşçilik bütçesi (esnek)
     budget_over = 0
@@ -891,6 +916,7 @@ def build_model():
         + sum(pattern_misses) * PATTERN_MISS_PENALTY
         + sum(implicit_penalties)
         + budget_over * LABOR_OVER_WEIGHT
+        + sum(change_terms)
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -1366,7 +1392,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS, IMPLICIT_AVOID, LABOR_BUDGET_TRY
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS, IMPLICIT_AVOID, LABOR_BUDGET_TRY, CURRENT_ASSIGNMENTS
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1473,6 +1499,15 @@ def api_mode(payload: dict):
         LABOR_BUDGET_TRY = max(0, int(float(payload.get("labor_budget_try") or 0)))
     except (TypeError, ValueError):
         LABOR_BUDGET_TRY = 0
+    CURRENT_ASSIGNMENTS = {}
+    cur_idx = {str(sd.get("id", i)): i for i, sd in enumerate(payload.get("shifts") or [])}
+    for ca in payload.get("current_assignments") or []:
+        try:
+            s_idx = cur_idx.get(str(ca["shift_id"]))
+            if s_idx is not None:
+                CURRENT_ASSIGNMENTS[(str(ca["personnel_id"]), int(ca["day"]))] = s_idx
+        except (KeyError, TypeError, ValueError):
+            continue
     IMPLICIT_AVOID = {str(k): v for k, v in (payload.get("implicit_avoid") or {}).items() if isinstance(v, list)}
     DAY_PATTERNS = {
         str(k): [str(x) for x in v][:7]

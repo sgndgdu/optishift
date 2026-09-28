@@ -453,6 +453,9 @@ function SchedulePageInner() {
   type ScnSide = { error?: string; snap?: WeekSnapshot; problems?: Insight[]; extraShifts?: number; cost?: number };
   const [scnResult, setScnResult]                 = useState<{ base: ScnSide; scn: ScnSide } | null>(null);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
+  // En az değişiklik: mevcut planı olabildiğince koru (yayınlanmış haftada varsayılan açık; sihirbaz açılınca ayarlanır)
+  const [minimizeChanges, setMinimizeChanges]     = useState(false);
+  const [changedCount, setChangedCount]           = useState<number | null>(null);
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
@@ -987,6 +990,14 @@ function SchedulePageInner() {
     return () => { stale = true; };
   }, [activeLocationId, weekStart]);
 
+  // Sihirbaz açılınca: yayınlanmış haftada "mevcut planı koru" varsayılan açık
+  useEffect(() => {
+    if (!wizardOpen) return;
+    setMinimizeChanges(dbShiftCount > 0 && !isDraftWeek);
+    setChangedCount(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardOpen]);
+
   // Sihirbaz açılınca (ve ekip değişince) ihtiyaç önerisini al; departmanlı şubede öneri yok
   useEffect(() => {
     if (!wizardOpen || !activeLocationId || !weekStart || departments.length > 0) return;
@@ -1512,11 +1523,22 @@ function SchedulePageInner() {
         end_time:     minToHHMM(val.endMin),
       };
     }), ...onCallRows(Object.fromEntries(pinnedOnCall))];
+    // Mevcut plan (korunanlar hariç, onlar zaten sabit): motor gereksiz yer değiştirmeyi cezalandırır
+    const current_assignments = minimizeChanges
+      ? Object.entries(cellMap).filter(([, v]) => !(keepPinned && v.pinned)).flatMap(([key, val]) => {
+          const def = matchShiftDef(val.startMin, val.endMin, shiftDefs);
+          if (!def) return [];
+          const lastDash = key.lastIndexOf("-");
+          return [{ personnel_id: key.slice(0, lastDash), day: parseInt(key.slice(lastDash + 1)), shift_id: def.id }];
+        })
+      : [];
+    const before = { ...cellMap };
+    setChangedCount(null);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments }),
+        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments, current_assignments }),
       });
       const data = await res.json();
       setExcludedCompliance(data.excluded_compliance ?? []);
@@ -1541,6 +1563,16 @@ function SchedulePageInner() {
       // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
       for (const [key, val] of pinned) newCellMap[key] = val;
       for (const [key, val] of pinnedOnCall) newOnCall[key] = val;
+      // Kaç hücre değişti (eklenen + silinen + saati değişen)
+      if (Object.keys(before).length > 0) {
+        const keys = new Set([...Object.keys(before), ...Object.keys(newCellMap)]);
+        let n = 0;
+        for (const k of keys) {
+          const a = before[k], b = newCellMap[k];
+          if (!a || !b || a.startMin !== b.startMin || a.endMin !== b.endMin) n++;
+        }
+        setChangedCount(n);
+      }
       pushCellMap(newCellMap);
       setOnCallMap(newOnCall);
       setDbShiftCount(0); // OR-Tools taslağı — henüz yayınlanmadı
@@ -3355,6 +3387,9 @@ loading ? (
               onRemindAvailability={() => handleRequestAvailability(weekOffset)}
               existingCellCount={cellCount}
               pinnedCount={Object.values(cellMap).filter(c => c.pinned).length}
+              minimizeChanges={minimizeChanges}
+              onMinimizeChangesChange={setMinimizeChanges}
+              changedCount={changedCount}
               keepPinned={keepPinned}
               onKeepPinnedChange={setKeepPinned}
               generating={generating}
