@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
       params.push(status);
     }
 
-    // Manager sadece kendisi veya astlarını görebilir
+    // Manager sadece kendisini ve KENDİ ŞUBESİNİN personel hesaplarını görür (başka şubelerin
+    // çalışanları ve e-postaları listelenmez). Birden çok şubeye atanmış personel de dahil.
     if (auth.role === "manager") {
-      query += " AND (role = 'employee' OR id = ?)";
-      params.push(auth.id);
+      query += ` AND (id = ? OR (role = 'employee' AND (location_id = ? OR personnel_id IN (
+        SELECT id FROM personnel WHERE org_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?)))))`;
+      params.push(auth.id, auth.location_id, auth.org_id, auth.location_id, `%"${auth.location_id}"%`);
     }
 
     query += " ORDER BY created_at DESC";

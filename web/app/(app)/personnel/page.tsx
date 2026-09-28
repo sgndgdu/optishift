@@ -11,7 +11,8 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 
 type MergedPerson = {
-  userId: string;
+  /** Giriş hesabı; hızlı eklenen personelde yoktur (portala giremez). */
+  userId: string | null;
   personnelId: string | null;
   name: string;
   username: string;
@@ -136,30 +137,39 @@ export default function PersonnelPage() {
       const personnelList = await personnelRes.json();
       const crewData = await crewRes.json();
       if (Array.isArray(crewData)) setCrewList(crewData.map((c: any) => ({ id: c.id, name: c.name, color: c.color ?? "#6366f1" })));
-      const pMap = new Map<string, any>();
-      if (Array.isArray(personnelList)) personnelList.forEach((p: any) => pMap.set(p.id, p));
-      const merged: MergedPerson[] = (Array.isArray(users) ? users : []).map((u: any) => {
-        const p = u.personnel_id ? pMap.get(u.personnel_id) : undefined;
-        return {
-          userId: u.id, personnelId: u.personnel_id, name: u.name, username: u.username,
-          email: u.email, phone: u.phone, role: u.role, display_title: u.display_title,
-          approval_status: u.approval_status, is_temp_password: !!u.is_temp_password,
-          title: p?.title ?? null, employment_type: p?.employment_type ?? null,
-          prev_score: p?.prev_score ?? 0, hero_count: p?.hero_count ?? 0,
-          roles: Array.isArray(p?.roles) ? p.roles : [],
-          weekly_off_day: p?.weekly_off_day ?? null, max_weekly_hours: p?.max_weekly_hours ?? null,
-          min_weekly_hours: p?.min_weekly_hours ?? null, location_id: u.location_id,
-          crew_id: p?.crew_id ?? null,
-          ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
-          hourly_wage: p?.hourly_wage ?? null,
-          night_restriction: p?.night_restriction ?? null,
-          role_levels: p?.role_levels ?? null,
-          hire_date: p?.hire_date ?? null,
-          annual_leave_days_total: p?.annual_leave_days_total ?? null,
-          leave_adjustment_days: p?.leave_adjustment_days ?? null,
-          kiosk_pin_set: !!p?.kiosk_pin_set,
-        };
+      // Liste şubenin PERSONELİNDEN kurulur (hızlı eklenen, hesabı olmayanlar dahil), hesap bilgisi
+      // eklenir; personel kaydı olmayan hesaplar (müdürler, onay bekleyenler) sona eklenir.
+      const userList: any[] = Array.isArray(users) ? users : [];
+      const userByPersonnel = new Map<string, any>(userList.filter(x => x.personnel_id).map(x => [x.personnel_id, x]));
+      const toMerged = (acc: any | undefined, p: any | undefined): MergedPerson => ({
+        userId: acc?.id ?? null, personnelId: p?.id ?? acc?.personnel_id ?? null,
+        name: p?.name ?? acc?.name ?? "", username: acc?.username ?? "",
+        email: acc?.email ?? p?.email ?? null, phone: acc?.phone ?? p?.phone ?? null,
+        role: acc?.role ?? "employee", display_title: acc?.display_title ?? null,
+        approval_status: acc?.approval_status ?? "active", is_temp_password: !!acc?.is_temp_password,
+        title: p?.title ?? null, employment_type: p?.employment_type ?? null,
+        prev_score: p?.prev_score ?? 0, hero_count: p?.hero_count ?? 0,
+        roles: Array.isArray(p?.roles) ? p.roles : [],
+        weekly_off_day: p?.weekly_off_day ?? null, max_weekly_hours: p?.max_weekly_hours ?? null,
+        min_weekly_hours: p?.min_weekly_hours ?? null, location_id: acc?.location_id ?? p?.primary_location_id ?? null,
+        crew_id: p?.crew_id ?? null,
+        ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
+        hourly_wage: p?.hourly_wage ?? null,
+        night_restriction: p?.night_restriction ?? null,
+        role_levels: p?.role_levels ?? null,
+        hire_date: p?.hire_date ?? null,
+        annual_leave_days_total: p?.annual_leave_days_total ?? null,
+        leave_adjustment_days: p?.leave_adjustment_days ?? null,
+        kiosk_pin_set: !!p?.kiosk_pin_set,
       });
+      const staff: any[] = Array.isArray(personnelList) ? personnelList.filter((p: any) => p.status !== "inactive") : [];
+      const staffIds = new Set(staff.map(p => p.id));
+      const merged: MergedPerson[] = [
+        ...staff.map(p => toMerged(userByPersonnel.get(p.id), p)),
+        ...userList.filter(acc => !acc.personnel_id || !staffIds.has(acc.personnel_id))
+          .filter(acc => acc.id === u.id || acc.location_id === u.location_id)
+          .map(acc => toMerged(acc, undefined)),
+      ];
       setPersons(merged);
     } finally { setLoading(false); }
   };
@@ -288,12 +298,14 @@ export default function PersonnelPage() {
   };
 
   const handleApprove = async (person: MergedPerson, status: "active" | "rejected") => {
+    if (!person.userId) return;
     await fetch(`/api/users?id=${person.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approval_status: status }) });
     fetchData(authUser);
     showToast(status === "active" ? "Hesap onaylandı" : "Hesap reddedildi");
   };
 
   const handleDelete = async (person: MergedPerson) => {
+    if (!person.userId) return;
     if (!confirm(`${person.name} hesabını silmek istediğinize emin misiniz?`)) return;
     await fetch(`/api/users?id=${person.userId}`, { method: "DELETE" });
     fetchData(authUser);
@@ -374,9 +386,13 @@ export default function PersonnelPage() {
     if (editForm.min_weekly_hours > editForm.max_weekly_hours) { setEditError("Min haftalık saat, max haftalık saatten büyük olamaz."); return; }
     setEditLoading(true); setEditError("");
     try {
-      await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
+      if (editingPerson.userId) {
+        await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
+      }
       if (editingPerson.personnelId) {
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
+        // Hesabı olmayan personelde ad ve telefon yalnızca personel kaydında tutulur
+        const nameFields = editingPerson.userId ? {} : { name: editForm.name, phone: editForm.phone };
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -442,7 +458,7 @@ export default function PersonnelPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">Ekip</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{persons.length} hesap</p>
+          <p className="text-slate-500 text-sm mt-0.5">{persons.length} kişi</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors shadow-sm">
@@ -512,7 +528,7 @@ export default function PersonnelPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
           <Users size={40} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-500 font-medium">{search ? "Arama sonucu bulunamadı" : "Henüz hesap yok"}</p>
+          <p className="text-slate-500 font-medium">{search ? "Arama sonucu bulunamadı" : "Henüz kimse eklenmedi"}</p>
           {!search && <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="mt-4 text-forest-600 font-bold text-sm hover:underline">+ İlk hesabı ekle</button>}
         </div>
       ) : (
@@ -521,7 +537,7 @@ export default function PersonnelPage() {
             const badge = roleBadge(p);
             const isPending = p.approval_status === "pending";
             return (
-              <div key={p.userId} className={`group bg-white rounded-3xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
+              <div key={p.personnelId ?? p.userId} className={`group bg-white rounded-3xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.role === "manager" ? "bg-gradient-to-br from-forest-100 to-forest-200 text-forest-700" : "bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600"}`}>
                   {p.name.charAt(0)}
                 </div>
@@ -529,7 +545,9 @@ export default function PersonnelPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="font-extrabold text-slate-800 text-base truncate">{p.name}</h3>
-                      <p className="text-xs font-mono text-slate-400 mt-0.5">{p.username}</p>
+                      {p.userId
+                        ? <p className="text-xs font-mono text-slate-400 mt-0.5">{p.username}</p>
+                        : <p className="text-xs text-slate-400 mt-0.5">Giriş hesabı yok, portala giremez</p>}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${badge.color}`}>{badge.label}</span>
@@ -577,10 +595,10 @@ export default function PersonnelPage() {
 
                   <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-lg transition-colors" title="Düzenle"><Edit2 size={15} /></button>
-                    <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
+                    {p.userId && <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
                       {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}
-                    </button>
-                    {(authUser?.role === "admin" || authUser?.role === "supervisor") && (
+                    </button>}
+                    {p.userId && (authUser?.role === "admin" || authUser?.role === "supervisor") && (
                       <button onClick={() => handleDelete(p)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hesabı Sil"><Trash2 size={15} /></button>
                     )}
                   </div>

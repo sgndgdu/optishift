@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
-import { ShiftWordsContext } from "@/hooks/useShiftWords";
+import { AvailabilityEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
 
 function useChatUnread() {
@@ -61,6 +61,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true);
+  const [availKnown, setAvailKnown] = useState(false);
   const [chatEnabled, setChatEnabled] = useState(true);
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true);
   // Şubenin sektörü seçiliyse "vardiya" yerine sektörün kelimesi (nöbet, posta)
@@ -80,6 +81,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             .then(r => r.json())
             .then(data => {
               const loc = Array.isArray(data) ? data[0] : null;
+              setAvailKnown(true);
               if (!loc?.rules) return;
               const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;
               setAvailCollectionEnabled(rules?.availability_collection_enabled !== false);
@@ -87,7 +89,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
               setWords(shiftWords(industryFromRules(rules)?.nudges));
             })
-            .catch(() => {});
+            // Kurallar okunamazsa varsayılan: uygunluk açık (eski davranış)
+            .catch(() => setAvailKnown(true));
+        } else {
+          setAvailKnown(true);
         }
       }
     } catch {}
@@ -224,7 +229,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
         <div className="flex-1 overflow-auto">
           <div className="pb-20 md:pb-0">
-            <ShiftWordsContext.Provider value={words}>{children}</ShiftWordsContext.Provider>
+            <ShiftWordsContext.Provider value={words}>
+              <AvailabilityEnabledContext.Provider value={availKnown ? availCollectionEnabled : null}>{children}</AvailabilityEnabledContext.Provider>
+            </ShiftWordsContext.Provider>
           </div>
         </div>
 

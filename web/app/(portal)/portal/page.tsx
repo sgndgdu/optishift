@@ -15,7 +15,7 @@ import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
 
-import { useShiftWords } from "@/hooks/useShiftWords";
+import { useAvailabilityEnabled, useShiftWords } from "@/hooks/useShiftWords";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -34,6 +34,8 @@ function elapsedLabel(checkInAt: number): string {
 
 export default function PortalDashboard() {
   const words = useShiftWords();
+  // Şubede uygunluk toplama kapalıysa uygunluk kısayolu ve "eksik" uyarısı gösterilmez
+  const availEnabled = useAvailabilityEnabled();
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
@@ -628,9 +630,9 @@ export default function PortalDashboard() {
       </div>
 
       {/* ── Hızlı Erişim ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${availEnabled === false ? "grid-cols-2" : "grid-cols-3"}`}>
         {[
-          { href: "/portal/availability", icon: <Zap size={18} />,         label: "Uygunluk", color: "text-ember-600 bg-ember-50" },
+          ...(availEnabled === false ? [] : [{ href: "/portal/availability", icon: <Zap size={18} />, label: "Uygunluk", color: "text-ember-600 bg-ember-50" }]),
           { href: "/portal/requests",     icon: <ClipboardList size={18}/>, label: "Talepler",  color: "text-amber-600  bg-amber-50"  },
           { href: "/portal/calendar",     icon: <CalIcon size={18} />,      label: "Takvim",    color: "text-emerald-600 bg-emerald-50"},
         ].map(item => (
@@ -770,7 +772,7 @@ export default function PortalDashboard() {
       )}
 
       {/* ── Uygunluk hatırlatıcı ────────────────────────────────────────── */}
-      {nextWeekAvail === false && (
+      {availEnabled === true && nextWeekAvail === false && (
         <div className="flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5">
           <div className="w-9 h-9 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
             <AlertCircle size={18} className="text-ember-600" />
