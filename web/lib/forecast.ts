@@ -46,6 +46,11 @@ async function computeTrendMultiplier(db: any, locationId: string, weekStart: st
 
 /** Verilen hafta için {shiftDefId → {day → tahmini kişi sayısı}} döner. */
 export async function computeForecast(locationId: string, weekStart: string): Promise<ForecastMatrix> {
+  return (await computeForecastWithWeeks(locationId, weekStart)).matrix;
+}
+
+/** Aynı hesap + ortalamaya giren yayınlanmış hafta sayısı (ihtiyaç önerisi az geçmişe güvenmez). */
+export async function computeForecastWithWeeks(locationId: string, weekStart: string): Promise<{ matrix: ForecastMatrix; weeks: number }> {
   const db = getDB();
 
   const pastWeeksRows = await db.prepare(
@@ -55,7 +60,7 @@ export async function computeForecast(locationId: string, weekStart: string): Pr
   ).all(locationId, weekStart, HISTORY_WEEKS) as { week_start: string }[];
 
   const pastWeeks = pastWeeksRows.map(r => r.week_start);
-  if (pastWeeks.length === 0) return {};
+  if (pastWeeks.length === 0) return { matrix: {}, weeks: 0 };
 
   const placeholders = pastWeeks.map(() => "?").join(",");
   const rows = await db.prepare(
@@ -73,5 +78,5 @@ export async function computeForecast(locationId: string, weekStart: string): Pr
     matrix[r.shift_id] ??= {};
     matrix[r.shift_id][Number(r.day)] = Math.max(0, Math.round(avg * trendMultiplier));
   }
-  return matrix;
+  return { matrix, weeks: pastWeeks.length };
 }

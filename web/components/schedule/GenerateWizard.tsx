@@ -90,7 +90,7 @@ export default function GenerateWizard({
           {step === 0 && (
             <WizardStep icon={<Users size={24} />} color="bg-forest-100 text-forest-700"
               title="Kaç kişi gerekli?"
-              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Geçen haftanın sayıları hazır gelir, genelde sadece değişeni düzeltirsiniz.">
+              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Tablo haftadan haftaya aynı kalır; öneriyi tek tıkla uygulayıp sadece değişeni düzeltebilirsiniz.">
               <div className="rounded-2xl border border-slate-200 overflow-hidden">{demandTable}</div>
               {demandEmpty && (
                 <p className="text-xs text-slate-500">Tabloyu boş bırakırsanız ekip, uygunluğa göre mümkün olduğunca adil dağıtılır.</p>

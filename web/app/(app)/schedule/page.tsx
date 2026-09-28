@@ -17,7 +17,7 @@ import { buildInsights, buildWeekSnapshot, findProblems, type DayState, type Ins
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
-import { TURKISH_HOLIDAYS } from "@/lib/holidays";
+import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { FEATURES } from "@/lib/features";
@@ -410,6 +410,8 @@ function SchedulePageInner() {
   const [publishSuccess, setPublishSuccess]       = useState(false);
   const [error, setError]                         = useState<string | null>(null);
   const [toast, setToast]                         = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  // Personel İhtiyacı önerisi (/api/demand-suggestion): sihirbaz açılınca alınır, uygulanana kadar kaydedilmez
+  const [demandSuggestion, setDemandSuggestion]   = useState<{ matrix: Record<string, Record<number, number>>; source: "history" | "starter"; notes: string[]; history_weeks: number } | null>(null);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -872,6 +874,30 @@ function SchedulePageInner() {
       setSaveState("idle");
       return false;
     }
+  };
+
+  // Sihirbaz açılınca (ve ekip değişince) ihtiyaç önerisini al; departmanlı şubede öneri yok
+  useEffect(() => {
+    if (!wizardOpen || !activeLocationId || !weekStart || departments.length > 0) return;
+    let stale = false;
+    fetch(`/api/demand-suggestion?location_id=${activeLocationId}&week_start=${weekStart}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!stale) setDemandSuggestion(d && d.matrix ? d : null); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [wizardOpen, activeLocationId, weekStart, departments.length, personnel.length]);
+
+  const applyDemandSuggestion = async () => {
+    if (!demandSuggestion || !activeLocationId) return;
+    setDemandMatrix(demandSuggestion.matrix);
+    try {
+      await fetch(`/api/locations?id=${activeLocationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_matrix: demandSuggestion.matrix }),
+      });
+      showToast("Öneri tabloya uygulandı, istediğiniz hücreyi değiştirebilirsiniz.", "success");
+    } catch { showToast("Öneri kaydedilemedi.", "error"); }
   };
 
   // ── Otomatik taslak kaydı (OPTI-024) ──────────────────────────────────────
@@ -2038,6 +2064,10 @@ function SchedulePageInner() {
     pushCellMap(newMap);
   };
 
+  const demandEmpty =
+    Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v)) &&
+    Object.values(deptDemandMatrix).every(d => Object.values(d ?? {}).every(row => Object.values(row ?? {}).every(v => !v)));
+
   // Personel İhtiyacı tablosu: hem sihirbazın 1. adımında hem de isteğe bağlı panelde kullanılır
   const demandTableEl = (
 loading ? (
@@ -2047,6 +2077,29 @@ loading ? (
             ) : (
               <div className="overflow-x-auto">
                 {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
+                {demandSuggestion && departments.length === 0 && (() => {
+                  const same = shiftDefs.every(def => Array.from({ length: 7 }, (_, d) => d)
+                    .every(d => (demandMatrix[def.id]?.[d] ?? 0) === (demandSuggestion.matrix[def.id]?.[d] ?? 0)));
+                  if (same) return null;
+                  return (
+                    <div className={cn("px-5 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3", demandEmpty ? "bg-forest-50/70" : "bg-white")}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-forest-800 flex items-center gap-1.5">
+                          <Sparkles size={13} className="text-forest-600 shrink-0" />
+                          {demandSuggestion.source === "history"
+                            ? `Öneri: son ${demandSuggestion.history_weeks} yayınlanmış haftanın ortalaması`
+                            : "Başlangıç önerisi: açık her gün, her vardiyaya 1 kişi"}
+                        </p>
+                        {demandSuggestion.notes.map(n => <p key={n} className="text-[11px] text-slate-500 mt-0.5">{n}</p>)}
+                      </div>
+                      <button onClick={applyDemandSuggestion}
+                        className={cn("shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors",
+                          demandEmpty ? "bg-forest-600 text-white hover:bg-forest-700" : "text-forest-700 border border-forest-200 hover:bg-forest-50")}>
+                        {demandEmpty ? "Tabloya uygula" : "Öneriyle değiştir"}
+                      </button>
+                    </div>
+                  );
+                })()}
                 {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
                 {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
@@ -2288,10 +2341,6 @@ loading ? (
       detail: "Yayınlayınca kapanır.",
     }] : []),
   ];
-
-  const demandEmpty =
-    Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v)) &&
-    Object.values(deptDemandMatrix).every(d => Object.values(d ?? {}).every(row => Object.values(row ?? {}).every(v => !v)));
 
   return (
     <DndContext
@@ -2625,7 +2674,8 @@ loading ? (
                     {Array.from({ length: 7 }, (_, i) => {
                       const isWeekend = i === 5 || i === 6;
                       const isoDate = isoDates[i];
-                      const holiday = (TURKISH_HOLIDAYS as unknown as Record<string, string>)?.[isoDate];
+                      // TURKISH_HOLIDAYS bir dizi: eskiden sözlük gibi okunduğu için tatil hiç görünmüyordu
+                      const holiday = getHolidaysForDate(isoDate)[0]?.name;
                       const dayEvents = events.filter(ev => ev.scope === "day" && eventCoversDate(ev, isoDate));
                       const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
