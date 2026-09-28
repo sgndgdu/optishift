@@ -25,3 +25,7 @@ engine/optishift_schedule.xlsx
 .vercel
 .env*
 .claude/settings.local.json
+
+# Geçici betik ve testler (denetim/temizlik), depoya girmez
+web/scripts/tmp_*
+web/tests/_tmp_*
