@@ -13,6 +13,7 @@ import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
 import WeekAlerts, { type WeekAlert } from "@/components/schedule/WeekAlerts";
+import WeekCopilot from "@/components/schedule/WeekCopilot";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, type Rules as FairnessRules } from "@/lib/fairness";
@@ -2483,6 +2484,9 @@ loading ? (
 
           {/* ── Uyarılar: tek şerit ── */}
           <WeekAlerts alerts={weekAlerts} />
+          {!loading && activeLocationId && weekStart && shiftDefs.length > 0 && personnel.length > 0 && (
+            <WeekCopilot locationId={activeLocationId} weekStart={weekStart} />
+          )}
           {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
             <QuickSetup
               locationId={activeLocationId}
