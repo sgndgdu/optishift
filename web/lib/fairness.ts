@@ -312,6 +312,20 @@ export function calcFairnessRank(
 }
 
 /**
+ * Takım ortalamasına göre yük etiketi (raporda ve personel portalında gösterilen).
+ * Sıraya değil puan farkına bakar: herkes birbirine yakınsa kimse "çok yüklü" olmaz,
+ * eşit puanlı iki kişi aynı etiketi alır. Eşikler rapordaki çubuk rengiyle aynı (±%20).
+ */
+export function fairnessLabelFromAverage(burden: number, teamAvg: number): { text: string; level: "low" | "ok" | "high" } {
+  if (!(teamAvg > 0)) return { text: "Takım ortalamasında", level: "ok" };
+  const ratio = burden / teamAvg;
+  if (ratio < 0.8) return { text: "Az yüklü, sıra sende", level: "low" };
+  if (ratio > 1.2) return { text: "Çok yüklü, yük azaltılmalı", level: "high" };
+  if (ratio > 1.05) return { text: "Ortalamanın üstü yük", level: "ok" };
+  return { text: "Takım ortalamasında", level: "ok" };
+}
+
+/**
  * Percentile'ı kullanıcıya anlamlı Türkçe metne dönüştürür.
  * percentile: 0-100, yüksek = takımda az yüklü.
  */

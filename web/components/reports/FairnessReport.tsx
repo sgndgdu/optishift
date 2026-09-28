@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { fairnessLabel, calcFairnessRank } from "@/lib/fairness";
+import { fairnessLabelFromAverage } from "@/lib/fairness";
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 
@@ -97,10 +97,6 @@ export default function FairnessReport() {
   const maxBurden = Math.max(...burdens, 1);
   const gap       = burdens.length ? Math.max(...burdens) - Math.min(...burdens) : 0;
 
-  // Takım içi sıralama — peer verisi zaten elimizde, canlı hesaplanır (z-score/stddev yok)
-  const pointsByPid: Record<string, number> = {};
-  for (const p of personnel) pointsByPid[p.id] = p.prev_score ?? 0;
-  const liveRank = calcFairnessRank(pointsByPid);
   const leastLoaded = [...personnel].sort((a, b) => (a.prev_score ?? 0) - (b.prev_score ?? 0))[0];
 
   const noShowPersonnel = personnel.filter(p => (p.no_show_count ?? 0) > 0);
@@ -195,7 +191,7 @@ export default function FairnessReport() {
               <p className="font-semibold">Henüz veri yok.</p>
             </div>
           ) : view === "current" ? (
-            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} liveRank={liveRank} scoreHist={scoreHist} adjustments={adjustments} />
+            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} scoreHist={scoreHist} adjustments={adjustments} />
           ) : (
             <HistoryView personnel={personnel} scoreHist={scoreHist} />
           )}
@@ -313,7 +309,6 @@ function CurrentView({
   avgBurden,
   maxBurden,
   gap,
-  liveRank,
   scoreHist,
   adjustments,
 }: {
@@ -321,7 +316,6 @@ function CurrentView({
   avgBurden: number;
   maxBurden: number;
   gap: number;
-  liveRank: Record<string, { rank: number; teamSize: number; percentile: number }>;
   scoreHist: Record<string, any[]>;
   adjustments: any[];
 }) {
@@ -332,8 +326,7 @@ function CurrentView({
     <div className="space-y-2.5">
       {sorted.map(p => {
         const burden = p.prev_score ?? 0;
-        const percentile = liveRank[p.id]?.percentile ?? 0;
-        const { text: fairnessText, level } = fairnessLabel(percentile);
+        const { text: fairnessText, level } = fairnessLabelFromAverage(burden, avgBurden);
         const color = burdenColor(burden, avgBurden);
         const isExpanded = expandedId === p.id;
         const pHist = scoreHist[p.id] ?? [];

@@ -5,6 +5,7 @@ import {
   calcCumulativeWindow,
   calcFairnessRank,
   fairnessLabel,
+  fairnessLabelFromAverage,
   resolveShiftDef,
   type AssignmentInput,
   type ShiftDef,
@@ -269,5 +270,22 @@ describe("resolveShiftDef", () => {
   it("gerçekten özel saat → null", () => {
     expect(resolveShiftDef(null, "10:00", "16:00", defs)).toBeNull();
     expect(resolveShiftDef(null, null, null, defs)).toBeNull();
+  });
+});
+
+describe("fairnessLabelFromAverage", () => {
+  it("puanlar birbirine yakınsa kimse çok yüklü değil", () => {
+    // Kafe örneği: 319-372 arası, ortalama ~345
+    for (const b of [319, 330, 345, 360, 372]) expect(fairnessLabelFromAverage(b, 345).level).toBe("ok");
+    expect(fairnessLabelFromAverage(372, 345).text).toBe("Ortalamanın üstü yük");
+  });
+  it("±%20 dışı: az yüklü / çok yüklü (çubuk rengiyle aynı eşik)", () => {
+    expect(fairnessLabelFromAverage(79, 100)).toMatchObject({ level: "low" });
+    expect(fairnessLabelFromAverage(121, 100)).toMatchObject({ level: "high", text: "Çok yüklü, yük azaltılmalı" });
+    expect(fairnessLabelFromAverage(100, 100).text).toBe("Takım ortalamasında");
+  });
+  it("eşit puan eşit etiket; ortalama 0 ise nötr", () => {
+    expect(fairnessLabelFromAverage(50, 50)).toEqual(fairnessLabelFromAverage(50, 50));
+    expect(fairnessLabelFromAverage(0, 0).level).toBe("ok");
   });
 });

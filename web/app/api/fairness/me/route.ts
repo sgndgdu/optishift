@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { personnel, locations, scoreHistory, scoreAdjustments } from "@/lib/db/schema";
-import { and, eq, desc } from "drizzle-orm";
-import { fairnessLabel } from "@/lib/fairness";
+import { and, eq, desc, avg } from "drizzle-orm";
+import { fairnessLabelFromAverage } from "@/lib/fairness";
 
 /**
  * GET /api/fairness/me — personelin KENDİ adalet puanı görünümü.
  * Başka personelin puanı/sıralaması asla serialize edilmez; takım konumu
- * yalnızca fairnessLabel etiketi olarak döner (percentile, scoring.ts tarafından
- * lokasyon genelinde hesaplanıp personnel.fairness_z_score'a yazılmıştır —
- * additive rewrite sonrası bu kolon artık z-score değil percentile tutar).
+ * yalnızca etiket olarak döner (şubenin aktif personel ortalamasına göre,
+ * raporla aynı kural: fairnessLabelFromAverage).
  */
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -27,7 +26,6 @@ export async function GET(req: NextRequest) {
         org_id: personnel.org_id,
         primary_location_id: personnel.primary_location_id,
         prev_score: personnel.prev_score,
-        fairness_z_score: personnel.fairness_z_score,
         hero_count: personnel.hero_count,
       })
       .from(personnel)
@@ -79,10 +77,18 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(scoreAdjustments.created_at))
       .limit(20);
 
-    const percentile = me.fairness_z_score ?? 0;
+    const team = (await db
+      .select({ avg: avg(personnel.prev_score) })
+      .from(personnel)
+      .where(and(
+        eq(personnel.org_id, me.org_id),
+        eq(personnel.primary_location_id, me.primary_location_id),
+        eq(personnel.status, "active"),
+      )))[0];
+    const teamAvg = Number(team?.avg ?? 0);
     return NextResponse.json({
       score: me.prev_score ?? 0,
-      label: fairnessLabel(percentile), // { text, level } — sayısal percentile bile dönmüyoruz
+      label: fairnessLabelFromAverage(me.prev_score ?? 0, teamAvg), // { text, level }; ortalama da dönmüyor
       hero_count: me.hero_count ?? 0,
       // Kronolojik sıra (en eski önce) — sparkline için
       history: history.reverse().map(h => ({
