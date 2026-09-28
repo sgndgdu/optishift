@@ -37,9 +37,13 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Liste bu kadar kişiden uzunsa katlanır (telefonda sayfa 6 ekran boyuna çıkıyordu); tamamı Excel'de
+const ROW_PREVIEW = 8;
+
 function WorkHoursReport() {
   const [month, setMonth] = useState(currentMonth());
   const [rows, setRows] = useState<ReportRow[]>([]);
+  const [showAllRows, setShowAllRows] = useState(false);
   const [locationName, setLocationName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +134,7 @@ function WorkHoursReport() {
   const totalHours = Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10;
   const totalOvertime = Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10;
   const totalOvertimeCost = rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0);
+  const visibleRows = showAllRows ? rows : rows.slice(0, ROW_PREVIEW);
   const hasCost = rows.some(r => r.overtime_cost !== null && r.overtime_cost !== undefined);
 
   return (
@@ -265,22 +270,26 @@ function WorkHoursReport() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="text-left px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Ad Soyad</th>
-                <th className="text-left px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Unvan</th>
-                <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Vardiya</th>
-                <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Toplam Saat</th>
-                <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Fazla Mesai</th>
-                {hasCost && <th className="text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Maliyet</th>}
+                <th className="text-left px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Ad Soyad</th>
+                <th className="hidden sm:table-cell text-left px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Unvan</th>
+                <th className="hidden sm:table-cell text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Vardiya</th>
+                <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Saat</th>
+                <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Mesai</th>
+                {hasCost && <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Maliyet</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {rows.map((row, i) => (
+              {visibleRows.map((row, i) => (
                 <tr key={row.personnel_id} className={`hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/20"}`}>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">{row.name}</td>
-                  <td className="px-5 py-3.5 text-slate-500">{row.title || "—"}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-700">{row.shift_count}</td>
-                  <td className="px-5 py-3.5 text-right font-semibold text-slate-900">{row.total_hours} sa</td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-3 sm:px-5 py-3.5 font-medium text-slate-900">
+                    {row.name}
+                    {/* Telefonda Unvan/Vardiya sütunları gizli: ismin altında kısa özet */}
+                    <span className="sm:hidden block text-[11px] font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
+                  </td>
+                  <td className="hidden sm:table-cell px-5 py-3.5 text-slate-500">{row.title || "—"}</td>
+                  <td className="hidden sm:table-cell px-5 py-3.5 text-right text-slate-700">{row.shift_count}</td>
+                  <td className="px-3 sm:px-5 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap">{row.total_hours} sa</td>
+                  <td className="px-3 sm:px-5 py-3.5 text-right whitespace-nowrap">
                     {row.overtime_hours > 0 ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
                         +{row.overtime_hours} sa
@@ -290,7 +299,7 @@ function WorkHoursReport() {
                     )}
                   </td>
                   {hasCost && (
-                    <td className="px-5 py-3.5 text-right text-slate-700">
+                    <td className="px-3 sm:px-5 py-3.5 text-right text-slate-700 whitespace-nowrap">
                       {row.overtime_cost ? `₺${row.overtime_cost.toLocaleString("tr-TR")}` : <span className="text-slate-400">—</span>}
                     </td>
                   )}
@@ -299,14 +308,21 @@ function WorkHoursReport() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="px-5 py-3.5 font-bold text-slate-900" colSpan={2}>Toplam</td>
-                <td className="px-5 py-3.5 text-right font-bold text-slate-900">{totalShifts}</td>
-                <td className="px-5 py-3.5 text-right font-bold text-slate-900">{totalHours} sa</td>
-                <td className="px-5 py-3.5 text-right font-bold text-amber-700">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
-                {hasCost && <td className="px-5 py-3.5 text-right font-bold text-red-700">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
+                <td className="px-3 sm:px-5 py-3.5 font-bold text-slate-900">Toplam <span className="font-normal text-slate-400">({rows.length} kişi)</span></td>
+                <td className="hidden sm:table-cell" />
+                <td className="hidden sm:table-cell px-5 py-3.5 text-right font-bold text-slate-900">{totalShifts}</td>
+                <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">{totalHours} sa</td>
+                <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
+                {hasCost && <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-red-700 whitespace-nowrap">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
               </tr>
             </tfoot>
           </table>
+        )}
+        {!loading && !error && rows.length > ROW_PREVIEW && (
+          <button onClick={() => setShowAllRows(v => !v)}
+            className="w-full py-3 text-sm font-bold text-forest-600 hover:bg-forest-50 border-t border-slate-100 transition-colors">
+            {showAllRows ? "Daha az göster" : `Tümünü göster (${rows.length} kişi)`}
+          </button>
         )}
       </div>
 
