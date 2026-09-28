@@ -466,3 +466,24 @@ def test_day_patterns_off_days_and_day_night():
                 assert (pid, d) not in got, (pid, d)
             else:
                 assert got.get((pid, d)) == (0 if st == "D" else 1), (pid, d, st, got.get((pid, d)))
+
+
+def test_implicit_avoid_steers_but_does_not_block():
+    """Örtük tercih: eşdeğer iki kişiden Cuma'yı istemeyen Cuma'ya yazılmaz; tek seçenekse yine yazılır."""
+    people = [make_person("P1", "Cumayı sevmez"), make_person("P2", "Farketmez")]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        demand_matrix={"morning": {"4": 1}},
+        implicit_avoid={"P1": [[4, -1, 3]]},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    fri = [a["personnelId"] for a in result["assignments"] if a["day"] == 4 and a["shiftId"] == 0]
+    assert fri == ["P2"], fri
+
+    payload["personnel"] = [people[0]]
+    payload["availability"] = {"P1": FULL_WEEK_AVAILABLE}
+    result = run_engine(payload)
+    assert "error" not in result, result
+    assert any(a["day"] == 4 for a in result["assignments"])  # kesin kural değil

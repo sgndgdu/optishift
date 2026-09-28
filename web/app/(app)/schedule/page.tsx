@@ -442,6 +442,8 @@ function SchedulePageInner() {
   const [absenceBusy, setAbsenceBusy] = useState(false);
   // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
   const [reliabilityNotes, setReliabilityNotes]   = useState<Record<string, string>>({});
+  // Öğrenilen tercihler (lib/implicitPrefs): personelId → [{gün, vardiya, not}]
+  const [learnedPrefs, setLearnedPrefs]           = useState<Record<string, { day: number; shiftId: string | null; note: string }[]>>({});
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -966,6 +968,16 @@ function SchedulePageInner() {
       .catch(() => {});
     return () => { stale = true; };
   }, [activeLocationId]);
+
+  useEffect(() => {
+    if (!activeLocationId || !weekStart) return;
+    let stale = false;
+    fetch(`/api/implicit-prefs?location_id=${activeLocationId}&week_start=${weekStart}`)
+      .then(r => (r.ok ? r.json() : {}))
+      .then((d: Record<string, { day: number; shiftId: string | null; note: string }[]>) => { if (!stale) setLearnedPrefs(d && typeof d === "object" ? d : {}); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [activeLocationId, weekStart]);
 
   // Sihirbaz açılınca (ve ekip değişince) ihtiyaç önerisini al; departmanlı şubede öneri yok
   useEffect(() => {
@@ -3587,6 +3599,9 @@ loading ? (
               cycleState: weekStates(wc, popover!.personnelId, weekStart)?.[popover!.day] ?? null,
               requiredRoles: (def?.required_skills ?? []).map(r => r.skill),
               reliabilityNote: reliabilityNotes[popover!.personnelId] ?? null,
+              learned: (learnedPrefs[popover!.personnelId] ?? [])
+                .filter(l => l.day === popover!.day && (l.shiftId === null || l.shiftId === def?.id))
+                .map(l => l.note),
             });
             if (!lines.length) return null;
             return (

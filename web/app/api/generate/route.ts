@@ -9,6 +9,7 @@ import { logPlatformEvent } from "@/lib/platform-logger";
 import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
 import { weekStates } from "@/lib/workCycle";
+import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -694,8 +695,26 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) { console.error("[generate] çalışma döngüsü:", e); }
 
+    // Örtük tercihler (lib/implicitPrefs): uygunluk ve takas geçmişinden, açık tercihten zayıf esnek ceza.
+    // rules.implicit_preferences_enabled === false ise kapalı.
+    const implicitAvoid: Record<string, [number, number, number][]> = {};
+    try {
+      const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
+      if (lr?.implicit_preferences_enabled !== false) {
+        const learned = await loadImplicitPrefs(db, (personnelData as any[]).map(p => String(p.id)), week_start);
+        const idxById = new Map(shiftsPayload.map((sd: any, i: number) => [String(sd.id), i]));
+        for (const [pid, items] of Object.entries(learned)) {
+          implicitAvoid[pid] = items.flatMap(it => {
+            const idx = it.shiftId === null ? -1 : idxById.get(it.shiftId);
+            return idx === undefined ? [] : [[it.day, idx, it.count] as [number, number, number]];
+          });
+        }
+      }
+    } catch (e) { console.error("[generate] örtük tercihler:", e); }
+
     const enginePayload = {
       prevScores,
+      implicit_avoid: implicitAvoid,
       day_patterns: dayPatterns,
       prev_week_driving_hours: prevWeekDriving,
       closed_days: closedDays,

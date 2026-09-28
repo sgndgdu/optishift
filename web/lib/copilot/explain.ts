@@ -18,6 +18,8 @@ export interface ExplainExtras {
   requiredRoles?: string[];
   /** Güvenilirlik notu (lib/reliability reliabilityNote); null: sorun yok ya da veri yok */
   reliabilityNote?: string | null;
+  /** Bu güne/vardiyaya denk gelen öğrenilmiş tercih notları (lib/implicitPrefs) */
+  learned?: string[];
 }
 
 const fmt = (h: number) => `${Math.round(h * 10) / 10}`.replace(".", ",");
@@ -46,6 +48,7 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
   if (needed.length) out.push({ tone: "ok", text: `Vardiyanın gerektirdiği rolü taşıyor: ${needed.join(", ")}` });
 
   if (extras.reliabilityNote) out.push({ tone: "warn", text: extras.reliabilityNote });
+  for (const n of extras.learned ?? []) out.push({ tone: "warn", text: `Geçmişten öğrenilen: ${n}` });
 
   // Adalet
   const pct = Math.round(p.loadRatio * 100);

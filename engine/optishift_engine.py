@@ -55,6 +55,12 @@ FIXED_EXTRA_MINUTES: dict = {}
 # Çalışma döngüsü (lib/workCycle): {personnel_id: ["W"|"D"|"N"|"O"] × 7}
 # O: o gün hiç vardiya yok; D: sadece gündüz; N: sadece gece; W/D/N günü çalışmamak esnek cezalı.
 DAY_PATTERNS: dict = {}
+
+# Örtük tercihler (lib/implicitPrefs): {personnel_id: [[gün, vardiya_idx | -1, kanıt]]}
+# -1 = günün tüm normal vardiyaları. Açık "tercih etmem"den (×10) zayıf: kanıt başına ×3, en çok ×9.
+IMPLICIT_AVOID: dict = {}
+IMPLICIT_WEIGHT_PER_EVIDENCE = 3
+IMPLICIT_WEIGHT_MAX = 9
 PATTERN_MISS_PENALTY = 5000  # adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük
 
 # Sürüş süresi (AETR / AB 561/2006): geçen hafta yayınlanmış sürüş saati {personnel_id: saat}
@@ -485,6 +491,7 @@ def build_model():
     conflict_person_ids |= {pid for pid, _d, _k in FIXED_ASSIGNMENTS}
     # Çalışma döngüsü deseni kişiye özeldir; desenli kişiler birbirinin yerine geçemez
     conflict_person_ids |= set(DAY_PATTERNS)
+    conflict_person_ids |= {pid for pid, v in IMPLICIT_AVOID.items() if v}
 
     def _person_signature(person):
         pid = person["id"]
@@ -658,6 +665,21 @@ def build_model():
             for s in range(NUM_SHIFTS)
             if get_avail(person["id"], d, s) == "preferred_not"
         ]
+
+    # Örtük tercih: kişinin geçmişte sürekli istemediği gün/vardiya (esnek, zayıf)
+    implicit_penalties = []
+    for p_idx, person in enumerate(PERSONNEL):
+        for item in IMPLICIT_AVOID.get(person["id"], []):
+            try:
+                d, s_idx, evidence = int(item[0]), int(item[1]), int(item[2])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if not 0 <= d < NUM_DAYS:
+                continue
+            w = min(IMPLICIT_WEIGHT_MAX, IMPLICIT_WEIGHT_PER_EVIDENCE * max(1, evidence))
+            targets = _regular_idxs() if s_idx < 0 else ([s_idx] if 0 <= s_idx < NUM_SHIFTS else [])
+            for s in targets:
+                implicit_penalties.append(shifts[(p_idx, d, s)] * w)
 
     # Clopening (kapanış→açılış) soft cezası — OPTI-023.
     # Dinlenme yasal minimumun (min_rest_hours) üstünde ama clopening eşiğinin
@@ -844,6 +866,7 @@ def build_model():
         + ot_penalty_term
         + sum(empty_shift_penalties) * EMPTY_SHIFT_PENALTY
         + sum(pattern_misses) * PATTERN_MISS_PENALTY
+        + sum(implicit_penalties)
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -1319,7 +1342,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS, IMPLICIT_AVOID
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1422,6 +1445,7 @@ def api_mode(payload: dict):
             CLOSED_DAYS.add(d)
 
     PREV_WEEK_DRIVING = {str(k): v for k, v in (payload.get("prev_week_driving_hours") or {}).items()}
+    IMPLICIT_AVOID = {str(k): v for k, v in (payload.get("implicit_avoid") or {}).items() if isinstance(v, list)}
     DAY_PATTERNS = {
         str(k): [str(x) for x in v][:7]
         for k, v in (payload.get("day_patterns") or {}).items()

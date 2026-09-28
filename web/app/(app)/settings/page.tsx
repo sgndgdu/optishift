@@ -314,6 +314,7 @@ export default function SettingsPage() {
   const [maxConsecutiveDays, setMaxConsecutiveDays]               = useState(6);
   const [maxOnCallPerWeek, setMaxOnCallPerWeek]                   = useState(3);
   const [noNightToMorning, setNoNightToMorning]                   = useState(false);
+  const [implicitPrefsEnabled, setImplicitPrefsEnabled]           = useState(true);
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
@@ -486,6 +487,7 @@ export default function SettingsPage() {
           setMaxConsecutiveDays(loc.rules?.max_consecutive_days ?? 6);
           setMaxOnCallPerWeek(loc.rules?.max_on_call_per_week ?? 3);
           setNoNightToMorning(!!loc.rules?.no_night_to_morning);
+          setImplicitPrefsEnabled(loc.rules?.implicit_preferences_enabled !== false);
           setIncludeManagersInSchedule(!!loc.rules?.include_managers_in_schedule);
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
@@ -624,6 +626,7 @@ export default function SettingsPage() {
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
             maxOnCallPerWeek: loc.rules?.max_on_call_per_week ?? 3,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
+            implicitPrefsEnabled: loc.rules?.implicit_preferences_enabled !== false,
             includeManagersInSchedule: !!loc.rules?.include_managers_in_schedule,
             maxPreferredNotDays: typeof loc.rules?.max_preferred_not_days === "number" ? loc.rules.max_preferred_not_days : 1,
             clopeningMinRestHours: typeof loc.rules?.clopening_min_rest_hours === "number" ? loc.rules.clopening_min_rest_hours : 13,
@@ -710,7 +713,7 @@ export default function SettingsPage() {
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
       zone_quotas: zoneQuotas,
-      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
+      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
       hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -730,7 +733,7 @@ export default function SettingsPage() {
     setIsDirty(current !== savedSnapshot.current);
   }, [
     locationData, zoneQuotas,
-    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
+    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
     hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -865,6 +868,7 @@ export default function SettingsPage() {
             max_consecutive_days:         maxConsecutiveDays,
             max_on_call_per_week:         maxOnCallPerWeek,
             no_night_to_morning:          noNightToMorning,
+            implicit_preferences_enabled: implicitPrefsEnabled,
             include_managers_in_schedule: includeManagersInSchedule,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
@@ -946,7 +950,7 @@ export default function SettingsPage() {
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
         zone_quotas: zoneQuotas,
-        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
+        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
         hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -1686,6 +1690,11 @@ export default function SettingsPage() {
                     label="Gececi→Sabahçı Yasağı"
                     description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
                     right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Geçmişten Tercih Öğrenme"
+                    description="Kişi uygunluk girmeyi unutsa da son haftalarda sürekli istemediği günlerden ve sık takasa verdiği vardiyalardan kaçınılır. Esnektir; açık girilen tercihten zayıftır, gerekirse yine yazılır."
+                    right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
                   />
                   <RuleRow
                     label="Arka Arkaya İki Hafta Gece Yasağı"
