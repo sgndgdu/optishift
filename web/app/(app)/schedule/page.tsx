@@ -13,7 +13,8 @@ import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
-import { buildInsights, buildWeekSnapshot, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
+import { buildInsights, buildWeekSnapshot, explainAssignment, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
+import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
@@ -3552,6 +3553,30 @@ loading ? (
               <p className="text-[11px] text-amber-700">Şablon yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
             </div>
           )}
+          {hasExisting && (() => {
+            const key = `${popover!.personnelId}-${popover!.day}`;
+            const c = cellMap[key];
+            const def = c ? matchShiftDef(c.startMin, c.endMin, shiftDefs) : null;
+            const wc = (locRules as Record<string, unknown>).work_cycle as WorkCycleConfig | undefined;
+            const lines = explainAssignment(weekSnapshot, popover!.personnelId, popover!.day, {
+              pinned: !!c?.pinned,
+              cycleState: weekStates(wc, popover!.personnelId, weekStart)?.[popover!.day] ?? null,
+              requiredRoles: (def?.required_skills ?? []).map(r => r.skill),
+            });
+            if (!lines.length) return null;
+            return (
+              <details className="mb-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <summary className="text-[11px] font-bold text-slate-600 cursor-pointer select-none">Neden bu kişi?</summary>
+                <ul className="mt-1.5 space-y-1">
+                  {lines.map(l => (
+                    <li key={l.text} className={cn("text-[11px] leading-snug", l.tone === "warn" ? "text-amber-700" : l.tone === "ok" ? "text-slate-700" : "text-slate-500")}>
+                      {l.tone === "warn" ? "! " : l.tone === "ok" ? "✓ " : "· "}{l.text}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })()}
           {shiftDefs.some(d => !d.on_call) && (
             <div className="mb-3">
               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1.5">Şablondan seç</p>

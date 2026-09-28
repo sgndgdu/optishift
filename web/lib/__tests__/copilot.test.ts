@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerQuestion, buildInsights, buildWeekSnapshot, findProblems, type CopilotInput } from "@/lib/copilot";
+import { answerQuestion, buildInsights, buildWeekSnapshot, explainAssignment, findProblems, type CopilotInput } from "@/lib/copilot";
 
 // 2026-09-28 Pazartesi haftası
 const defs = [
@@ -258,5 +258,33 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(list.map(i => i.id)).toEqual(["no-availability", "empty"]);
     expect(list[0]).toMatchObject({ title: "2 kişi uygunluk girmedi", action: "remind-availability" });
     expect(findProblems(buildWeekSnapshot(input))).toEqual([]);
+  });
+});
+
+
+describe("neden bu kişi", () => {
+  it("uygunluk, adalet, saat, rol ve boştaki alternatifleri söyler", () => {
+    const input = base();
+    input.personnel[0].score = 60;   // Ali az yüklü
+    input.personnel[2].score = 30;   // Can daha az yüklü ve Salı boşta
+    input.availability = { ali: ["available", "available", "available", "available", "available", "available", "available"] };
+    input.assignments = [a("ali", 1, "s-sabah"), a("ayse", 1, "s-gece")];
+    const lines = explainAssignment(buildWeekSnapshot(input), "ali", 1, { pinned: true, requiredRoles: [] });
+    const texts = lines.map(l => l.text);
+    expect(texts[0]).toBe("Elle düzenlendi; yeniden oluşturmada korunuyor");
+    expect(texts).toContain("Bu gün için uygun olduğunu girmiş");
+    expect(texts.some(t => t.startsWith("Bu hafta 8 saat"))).toBe(true);
+    expect(lines.find(l => l.text.startsWith("O gün boşta ve daha az yüklü"))!.text).toContain("Can");
+  });
+
+  it("gerekli rolü ve dinlenme uyarısını gösterir", () => {
+    const input = base();
+    // Pzt gece 22-06, Sal sabah 08-16: 2 saat dinlenme
+    input.assignments = [a("ayse", 0, "s-gece"), a("ayse", 1, "s-sabah")];
+    const lines = explainAssignment(buildWeekSnapshot(input), "ayse", 1, { requiredRoles: ["Bakım Teknisyeni"] });
+    expect(lines.map(l => l.text)).toContain("Vardiyanın gerektirdiği rolü taşıyor: Bakım Teknisyeni");
+    const rest = lines.find(l => l.text.startsWith("Önceki vardiyasından"))!;
+    expect(rest.tone).toBe("warn");
+    expect(rest.text).toBe("Önceki vardiyasından 2 saat sonra başlıyor");
   });
 });
