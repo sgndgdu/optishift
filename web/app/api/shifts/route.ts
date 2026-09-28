@@ -5,7 +5,7 @@ import { scoreAdjustments } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { recomputeLocationFairness } from "@/lib/scoring";
-import { getWeekStart } from "@/lib/date";
+import { businessToday, getWeekStart } from "@/lib/date";
 import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { checkHandoverGate } from "@/lib/handover";
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = businessToday();
 
     await (async () => {
       for (const shift of shifts) {

@@ -2,19 +2,13 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { addDays, businessToday, weekStartOf } from "@/lib/date";
 import { computeFatigueRisk, type FatigueDayEntry } from "@/lib/fatigue";
 
 const LOOKBACK_DAYS = 10;
 
 function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function mondayOf(d: Date): string {
-  const c = new Date(d);
-  const day = c.getDay();
-  c.setDate(c.getDate() - ((day + 6) % 7));
-  return isoDate(c);
 }
 
 function dateForWeekDay(weekStart: string, day: number): string {
@@ -65,9 +59,9 @@ export async function GET(req: NextRequest) {
     ).all(`%"${location_id}"%`) as any[];
     if (personnelRows.length === 0) return NextResponse.json({ enabled: true, at_risk: [] });
 
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - LOOKBACK_DAYS);
-    const cutoffWeekStart = mondayOf(cutoff);
+    const today = businessToday();
+    const cutoff = addDays(today, -LOOKBACK_DAYS);
+    const cutoffWeekStart = weekStartOf(cutoff);
 
     const assignRows = await db.prepare(
       `SELECT personnel_id, week_start, day, shift_id, start_time, end_time
@@ -80,7 +74,7 @@ export async function GET(req: NextRequest) {
     for (const r of assignRows) {
       if (!r.start_time || !r.end_time) continue;
       const date = dateForWeekDay(r.week_start, Number(r.day));
-      if (date < isoDate(cutoff)) continue; // hafta sınırından çekildi ama gün bazında hâlâ pencerenin dışında olabilir
+      if (date < cutoff) continue; // hafta sınırından çekildi ama gün bazında hâlâ pencerenin dışında olabilir
       const isNight = nightDefIds.has(String(r.shift_id)) || isNightTime(r.start_time, r.end_time);
       const list = entriesByPerson.get(r.personnel_id) || [];
       list.push({ date, is_night: isNight, start_time: r.start_time, end_time: r.end_time });
@@ -89,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     const thresholdHours = typeof rules.overtime_threshold_hours === "number" ? rules.overtime_threshold_hours : 45;
 
-    const thisWeekStart = mondayOf(new Date());
+    const thisWeekStart = weekStartOf(today);
     const overtimeRows = await db.prepare(
       `SELECT personnel_id, overtime_hours FROM overtime_records WHERE location_id = ? AND week_start = ?`
     ).all(location_id, thisWeekStart) as any[];

@@ -8,16 +8,9 @@
  * lokasyon listesinden almasıdır.
  */
 import { getDB } from "@/lib/db/client";
+import { addDays, businessWallTime, getWeekStart } from "@/lib/date";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-function getWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split("T")[0];
-}
 
 export interface ReminderResult {
   sent: number;
@@ -59,15 +52,13 @@ export async function sendAvailabilityReminders(params: {
     if (!ar?.enabled) return { sent: 0, skipped: "disabled" };
 
     const thisMonday = getWeekStart();
-    const scheduled = new Date(`${thisMonday}T${ar.time ?? "18:00"}:00`);
-    scheduled.setDate(scheduled.getDate() + (typeof ar.day === "number" ? ar.day : 0));
+    // Planlanan an Türkiye saatiyle yorumlanır (sunucu UTC; aksi halde 3 saat geç gider)
+    const scheduled = businessWallTime(addDays(thisMonday, typeof ar.day === "number" ? ar.day : 0), ar.time ?? "18:00");
     if (new Date() < scheduled) return { sent: 0, skipped: "not_due" };
     if (ar.last_sent_week === thisMonday) return { sent: 0, skipped: "already_sent" };
 
     // Hatırlatma gelecek haftanın uygunluğu içindir
-    const nextMonday = new Date(thisMonday + "T00:00:00");
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    week_start = nextMonday.toISOString().split("T")[0];
+    week_start = addDays(thisMonday, 7);
 
     // Aynı hafta içinde tekrar tetiklenmemesi için işaretle (gönderim sayısından bağımsız)
     const nextRules = { ...rules, availability_reminder: { ...ar, last_sent_week: thisMonday } };

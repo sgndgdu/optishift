@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { businessToday } from "@/lib/date";
 
 
 function getDb() {
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const org_id      = auth.org_id;
   const location_id = searchParams.get("location_id");
-  const date        = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+  const date        = searchParams.get("date") ?? businessToday();
 
   if (!location_id) {
     return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
@@ -55,14 +56,14 @@ export async function POST(req: NextRequest) {
     const active = await db.prepare(`
       SELECT id FROM break_sessions
       WHERE org_id = ? AND personnel_id = ? AND date = ? AND end_at IS NULL
-    `).get(org_id, personnel_id, date ?? new Date().toISOString().slice(0, 10));
+    `).get(org_id, personnel_id, date ?? businessToday());
 
     if (active) {
       return NextResponse.json({ error: "Zaten aktif bir molası var" }, { status: 409 });
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const today = date ?? new Date().toISOString().slice(0, 10);
+    const today = date ?? businessToday();
     const result = await db.prepare(`
       INSERT INTO break_sessions (org_id, location_id, personnel_id, personnel_name, date, start_at)
       VALUES (?, ?, ?, ?, ?, ?)

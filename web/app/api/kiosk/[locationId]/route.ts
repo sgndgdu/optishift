@@ -8,7 +8,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyKioskPin, isKioskRateLimited } from "@/lib/kiosk-auth";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
-import { getWeekStart } from "@/lib/date";
+import { businessNow } from "@/lib/date";
 import { checkHandoverGate } from "@/lib/handover";
 
 function requestIp(req: NextRequest): string {
@@ -50,9 +50,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   const person = await verifyKioskPin(db, locationId, pin);
   if (!person) return NextResponse.json({ error: "Geçersiz PIN" }, { status: 401 });
 
-  const weekStart = getWeekStart(0);
-  const now = new Date();
-  const day = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  // Türkiye saatine göre bugün (sunucu UTC; gece yarısından sonra önceki gün aranmasın)
+  const { weekStart, dayIdx: day } = businessNow();
   const shift = await db.prepare(
     `SELECT * FROM shift_assignments
      WHERE personnel_id = ? AND location_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'`

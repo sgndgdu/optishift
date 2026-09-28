@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { addDays, businessToday } from "@/lib/date";
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
   const attentionLoc = searchParams.get("attention") === "1" ? searchParams.get("location_id") : null;
   if (attentionLoc) {
     if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
-    const today = new Date().toISOString().slice(0, 10);
-    const soon = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+    const today = businessToday();
+    const soon = addDays(today, 30);
     try {
       const rows = await db.prepare(
         `SELECT pd.personnel_id, p.name, pd.doc_type, pd.expiry_date,

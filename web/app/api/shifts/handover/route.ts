@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { businessNow } from "@/lib/date";
 
 // GET — bugünkü vardiyamdan ÖNCE biten vardiyaların devir notları.
 // Personel başkasının takvimini göremez; bu endpoint yalnızca paylaşılmak üzere
@@ -13,12 +14,8 @@ export async function GET(req: NextRequest) {
 
   const db = getDB();
   try {
-    // Bu haftanın pazartesi'si ve bugünün gün indeksi
-    const nowD = new Date();
-    const dayIdx = (nowD.getDay() + 6) % 7;
-    const monday = new Date(nowD);
-    monday.setDate(nowD.getDate() - dayIdx);
-    const week_start = monday.toISOString().split("T")[0];
+    // Bu haftanın pazartesi'si ve bugünün gün indeksi (Türkiye saatine göre)
+    const { dayIdx, weekStart: week_start } = businessNow();
 
     // Benim bugünkü vardiyam (yayınlanmış)
     const mine = await db.prepare(`

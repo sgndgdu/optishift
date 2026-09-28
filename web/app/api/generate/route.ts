@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { businessNow } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
@@ -72,11 +73,7 @@ export async function POST(req: NextRequest) {
   const week_start: string = (() => {
     if (body.week_start && /^\d{4}-\d{2}-\d{2}$/.test(body.week_start))
       return body.week_start;
-    const now = new Date();
-    const day = now.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    now.setDate(now.getDate() + diff);
-    return now.toISOString().split("T")[0];
+    return businessNow().weekStart;
   })();
 
   try {
