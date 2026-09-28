@@ -15,6 +15,7 @@ import GenerateWizard from "@/components/schedule/GenerateWizard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
 import { buildInsights, buildWeekSnapshot, explainAssignment, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
+import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
@@ -439,6 +440,8 @@ function SchedulePageInner() {
   const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[] }[] | null>(null);
   const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
   const [absenceBusy, setAbsenceBusy] = useState(false);
+  // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
+  const [reliabilityNotes, setReliabilityNotes]   = useState<Record<string, string>>({});
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -944,6 +947,25 @@ function SchedulePageInner() {
       return false;
     }
   };
+
+  // Güvenilirlik: şube değişince bir kez
+  useEffect(() => {
+    if (!activeLocationId) return;
+    let stale = false;
+    fetch(`/api/reliability?location_id=${activeLocationId}`)
+      .then(r => (r.ok ? r.json() : {}))
+      .then((d: Record<string, Reliability>) => {
+        if (stale) return;
+        const notes: Record<string, string> = {};
+        for (const [pid, r] of Object.entries(d ?? {})) {
+          const n = reliabilityNote(r);
+          if (n && isUnreliable(r)) notes[pid] = n;
+        }
+        setReliabilityNotes(notes);
+      })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [activeLocationId]);
 
   // Sihirbaz açılınca (ve ekip değişince) ihtiyaç önerisini al; departmanlı şubede öneri yok
   useEffect(() => {
@@ -1537,7 +1559,8 @@ function SchedulePageInner() {
       return;
     }
     const prePublishCheckEnabled = (locRules as Record<string, unknown>).pre_publish_check !== false;
-    const problems = prePublishCheckEnabled ? findProblems(weekSnapshot, weekBudgets) : [];
+    // Güvenilirlik bir kural ihlali değil, bilgi: yayını durdurmaz, sadece Plan Asistanı'nda görünür
+    const problems = prePublishCheckEnabled ? findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability") : [];
     if (problems.length > 0) {
       setViolationModal({ problems, onConfirm: doPublish });
     } else {
@@ -2060,6 +2083,7 @@ function SchedulePageInner() {
     clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart });
 
   const weekBudgets: WeekBudgets = {
+    unreliable: reliabilityNotes,
     labor: { total: laborCost.total, budget: weeklyLaborBudgetTry },
     overtime: {
       thresholdHours: typeof (locRules as Record<string, unknown>).overtime_threshold_hours === "number" ? (locRules as Record<string, number>).overtime_threshold_hours : 45,
@@ -3562,6 +3586,7 @@ loading ? (
               pinned: !!c?.pinned,
               cycleState: weekStates(wc, popover!.personnelId, weekStart)?.[popover!.day] ?? null,
               requiredRoles: (def?.required_skills ?? []).map(r => r.skill),
+              reliabilityNote: reliabilityNotes[popover!.personnelId] ?? null,
             });
             if (!lines.length) return null;
             return (

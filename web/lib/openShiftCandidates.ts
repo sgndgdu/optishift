@@ -6,6 +6,9 @@
  * Adalet Puanı düşük (en az yük taşıyan). Her adayın gerekçesi (reasons) ve uyarıları döner.
  */
 
+import { loadReliability } from "@/lib/reliabilityData";
+import { RELIABILITY_WEEKS, isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
+
 export interface SlotInput {
   location_id: string;
   date: string;        // YYYY-MM-DD
@@ -88,6 +91,8 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     try { const r = JSON.parse(p.roles ?? "[]"); return Array.isArray(r) ? r : []; } catch { return []; }
   };
   const required = (slot.requiredRoles ?? []).filter(Boolean);
+  // Güvenilirlik (giriş kayıtlarından; şube giriş kullanmıyorsa boş)
+  const reliability: Record<string, Reliability> = await loadReliability(db, slot.location_id).catch(() => ({}));
 
   const candidates: Candidate[] = [];
   for (const p of eligible) {
@@ -132,6 +137,11 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
         if (gap < 11 * 60) warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`);
       }
     }
+
+    const rel = reliability[p.id];
+    const relNote = reliabilityNote(rel);
+    if (relNote && isUnreliable(rel)) warnings.push(relNote);
+    else if (rel && !relNote) reasons.push(`Son ${RELIABILITY_WEEKS} haftada ${rel.shifts} vardiyanın hiçbirini kaçırmadı`);
 
     const myRoles = rolesOf(p);
     const matched = required.filter(r => myRoles.includes(r));

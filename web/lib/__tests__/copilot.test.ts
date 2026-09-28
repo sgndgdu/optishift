@@ -202,6 +202,13 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(problems(input).map(i => i.id)).not.toContain("driving");
   });
 
+  it("güvenilirlik: gelmeme geçmişi olan kişinin vardiyaları uyarılır", () => {
+    const input = base();
+    input.assignments = [a("ali", 0, "s-sabah"), a("ali", 5, "s-aksam"), a("can", 1, "s-sabah")];
+    const hit = problems(input, { unreliable: { ali: "Son 8 haftada 3 kez gelmedi" } }).find(i => i.id === "reliability")!;
+    expect(hit.lines).toEqual(["Ali (son 8 haftada 3 kez gelmedi): Pzt Sabah, Cmt Akşam"]);
+  });
+
   it("kişiye özel haftalık sınır ve denkleştirme", () => {
     const input = base();
     input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı

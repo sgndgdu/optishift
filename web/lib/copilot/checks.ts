@@ -27,6 +27,8 @@ export interface WeekBudgets {
   labor?: { total: number; budget: number };
   /** Kişi başı fazla mesai eşiği ve haftalık toplam fazla mesai bütçesi (saat); bütçe 0 ise kontrol yok. */
   overtime?: { thresholdHours: number; budgetHours: number };
+  /** Güvenilirliği düşük personel → kısa not (lib/reliability; giriş verisi yoksa boş) */
+  unreliable?: Record<string, string>;
 }
 
 export const fmtHours = (h: number) => `${h.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
@@ -158,6 +160,13 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   const nightStreak = working.filter(p => p.nightStreak >= 3);
   add("night-streak", "warning", `${nightStreak.length} kişi üst üste 3 ya da daha fazla gece çalışıyor`,
     nightStreak.map(p => `${p.name}: üst üste ${p.nightStreak} gece`));
+
+  // Güvenilirlik: son haftalarda gelmeyen/geç kalan kişinin vardiyaları (yedek düşünülebilir)
+  if (budgets.unreliable) {
+    const risky = working.filter(p => budgets.unreliable![p.id]).map(p =>
+      `${p.name} (${budgets.unreliable![p.id].replace(/^Son/, "son")}): ${p.shifts.map(x => `${DAY_SHORT[x.day]} ${x.shiftName}`).join(", ")}`);
+    add("reliability", "warning", `${risky.length} kişinin vardiyalarında gelmeme riski var`, risky);
+  }
 
   const prefNot = per(p => p.preferredNotDays, (n, d) => `${n}: ${dayList(d)}`);
   add("preferred-not", "warning", `${prefNot.length} kişi "Esnek" işaretlediği gün vardiyada`, prefNot);
