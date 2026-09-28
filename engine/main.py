@@ -24,6 +24,14 @@ import hmac
 # optishift_engine.py aynı klasörde
 sys.path.insert(0, os.path.dirname(__file__))
 import optishift_engine as engine
+import threading
+
+# Motor modül düzeyindeki küresel değişkenlerle çalışır ve çıktıyı sys.stdout'a yazar
+# (redirect_stdout süreç genelidir). FastAPI senkron uç noktaları paralel iş
+# parçacıklarında çalıştırdığı için eşzamanlı iki istek birbirinin verisini ve
+# çıktısını karıştırıyordu (boş yanıt, başka işletmenin personeli). Çözümler sıraya alınır;
+# her biri en çok ~10 sn (çözücü sınırı).
+_SOLVE_LOCK = threading.Lock()
 
 app = FastAPI(title="OptiShift Engine", version="1.0.0")
 
@@ -102,7 +110,7 @@ def generate(req: GenerateRequest):
 
     buf = io.StringIO()
     try:
-        with redirect_stdout(buf):
+        with _SOLVE_LOCK, redirect_stdout(buf):
             engine.api_mode(payload)
         output = buf.getvalue()
         if not output.strip():
