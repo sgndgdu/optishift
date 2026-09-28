@@ -219,7 +219,7 @@ export default function OnboardingWizard() {
                         onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
                         className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-slate-400 font-bold">{s.base_points}p</span>
+                        <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">Zorluk {s.base_points}</span>
                         <input type="range" min={1} max={10} value={s.base_points}
                           onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: +e.target.value } : x))}
                           className="w-14 accent-primary" />

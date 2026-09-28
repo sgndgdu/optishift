@@ -4,6 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 
+// Ortalama bu kadar yayınlanmış hafta birikmeden gösterilmez (aşağıda avg)
+const MIN_WEEKS_FOR_AVERAGE = 3;
+
 /**
  * Yayın öncülüğü KPI'ı (OPTI-023): her hafta için programın hafta başlangıcından
  * kaç gün önce yayınlandığını hesaplar. Fair workweek pratiği — 7+ gün ideal.
@@ -53,7 +56,9 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const avg = weeks.length
+    // Tek-iki haftalık ortalama yanıltıcı: ilk kurulumda hafta ortasında yayınlanan ilk plan
+    // "planlar geç yayınlanıyor" diye gösteriliyordu. Gösterge 3 yayınlanmış hafta birikince açılır.
+    const avg = weeks.length >= MIN_WEEKS_FOR_AVERAGE
       ? Math.round((weeks.reduce((s, w) => s + w.lead_days, 0) / weeks.length) * 10) / 10
       : null;
 

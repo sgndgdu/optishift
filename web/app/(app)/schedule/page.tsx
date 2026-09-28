@@ -2566,15 +2566,18 @@ loading ? (
                 <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             )}
+            {/* Ekip boşken kaydırılacak satır yok: ipucu ve gün yakalama kapalı (yakalama tabloyu yana itiyordu) */}
+            {personnel.length > 0 && (
             <div className="sm:hidden flex items-center justify-between px-3 py-1.5 bg-slate-50/80 border-b border-slate-100">
               <span className="text-[10px] font-semibold text-slate-400">Diğer günleri görmek için kaydırın →</span>
               <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 rounded-full px-2 py-0.5 shrink-0">{visibleDayIndex + 1}/7</span>
             </div>
-            <div className="sm:hidden pointer-events-none absolute right-0 top-8 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent z-20" />
+            )}
+            {personnel.length > 0 && <div className="sm:hidden pointer-events-none absolute right-0 top-8 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent z-20" />}
             <div
               ref={gridScrollRef}
               onScroll={handleGridScroll}
-              className="overflow-x-auto relative [scroll-snap-type:x_mandatory] sm:[scroll-snap-type:none]"
+              className={cn("overflow-x-auto relative", personnel.length > 0 && "[scroll-snap-type:x_mandatory] sm:[scroll-snap-type:none]")}
             >
               <table className="w-full min-w-[700px] border-collapse">
                 <thead>
@@ -2632,8 +2635,11 @@ loading ? (
                 <tbody>
                   {tableRows.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400 text-sm">
-                        {personnel.length === 0 ? "Henüz personel eklenmemiş." : "Arama sonucu bulunamadı."}
+                      <td colSpan={8} className="py-16 text-slate-400 text-sm">
+                        {/* Telefonda tablo ekrandan geniş: mesaj görünür alanda kalsın */}
+                        <div className="sticky left-0 w-[calc(100vw-4rem)] sm:w-auto text-center px-4">
+                          {personnel.length === 0 ? "Henüz personel eklenmemiş. Yukarıdaki Hızlı Kurulum'dan ekleyebilirsiniz." : "Arama sonucu bulunamadı."}
+                        </div>
                       </td>
                     </tr>
                   )}

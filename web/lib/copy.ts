@@ -62,4 +62,5 @@ export const GLOSSARY: GlossaryEntry[] = [
   { avoid: "Check-in",          use: "vardiya girişi", why: "İngilizce" },
   { avoid: "Check-out",         use: "çıkış", why: "İngilizce" },
   { avoid: "Kiosk Modu",        use: "Ortak Tablet Modu", why: "Teknik terim" },
+  { avoid: "YTD",               use: "yıllık / bu yıl", why: "İngilizce kısaltma" },
 ];

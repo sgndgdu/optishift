@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
   try {
     const { org_name, owner_name, username, email, password, promo_code } = await req.json();
 
-    if (!org_name?.trim() || !owner_name?.trim() || !username?.trim() || !password) {
+    // Kullanıcı adı formda sorulmaz (giriş e-postayla da yapılır); verilmezse e-postadan türetilir
+    if (!org_name?.trim() || !owner_name?.trim() || (!username?.trim() && !email?.trim()) || !password) {
       return NextResponse.json({ error: "Tüm alanlar zorunlu" }, { status: 400 });
     }
     if (password.length < 6) {
@@ -30,14 +31,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-    if (cleanUsername.length < 3) {
-      return NextResponse.json({ error: "Kullanıcı adı en az 3 karakter olmalı" }, { status: 400 });
-    }
-
-    const existingUsername = await db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername);
-    if (existingUsername) {
-      return NextResponse.json({ error: "Bu kullanıcı adı zaten alınmış" }, { status: 409 });
+    let cleanUsername: string;
+    if (username?.trim()) {
+      cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
+      if (cleanUsername.length < 3) {
+        return NextResponse.json({ error: "Kullanıcı adı en az 3 karakter olmalı" }, { status: 400 });
+      }
+      const existingUsername = await db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername);
+      if (existingUsername) {
+        return NextResponse.json({ error: "Bu kullanıcı adı zaten alınmış" }, { status: 409 });
+      }
+    } else {
+      const base = (email.trim().toLowerCase().split("@")[0].replace(/[^a-z0-9._-]/g, "") || "yonetici").padEnd(3, "0").slice(0, 30);
+      cleanUsername = base;
+      for (let n = 2; await db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername); n++) {
+        cleanUsername = `${base}${n}`;
+      }
     }
 
     if (email?.trim()) {

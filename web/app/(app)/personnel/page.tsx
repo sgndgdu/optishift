@@ -608,7 +608,7 @@ export default function PersonnelPage() {
                       <span className="text-xs font-bold text-slate-500">Adalet Puanı: <strong className="text-forest-600">{p.prev_score}</strong></span>
                       {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">⭐ {p.hero_count}x</span>}
                       {p.crew_id && (() => { const crew = crewList.find(c => c.id === p.crew_id); return crew ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: crew.color }}>{crew.name}</span> : null; })()}
-                      {(p.ytd_overtime_hours ?? 0) > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">⏱ {p.ytd_overtime_hours}s YTD</span>}
+                      {(p.ytd_overtime_hours ?? 0) > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">⏱ Bu yıl {p.ytd_overtime_hours} s mesai</span>}
                     </div>
                   )}
 

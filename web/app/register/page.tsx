@@ -65,7 +65,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    if (!form.org_name || !form.owner_name || !form.username || !form.email || !form.password) {
+    if (!form.org_name || !form.owner_name || !form.email || !form.password) {
       setError("Lütfen tüm alanları doldurun.");
       return;
     }
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-slate-950 hover:bg-black active:bg-slate-900 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 mt-4 group"
+                  className="w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-forest-200 mt-4 group"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -295,21 +295,8 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <AtSign size={14} className="text-forest-500" />
-                    Kullanıcı Adı
-                  </label>
-                  <input
-                    value={form.username}
-                    onChange={(e) => set("username", e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
-                    placeholder="ahmet.yilmaz"
-                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium font-mono bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1.5">Giriş yaparken kullanacaksınız. Sadece harf, rakam, nokta ve tire.</p>
-                </div>
-
-                <div>
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">E-posta Adresi</label>
+                  {/* Kullanıcı adı ayrıca sorulmaz: giriş e-postayla yapılır, kullanıcı adı sunucuda türetilir */}
                   <input
                     type="email"
                     value={form.email}
@@ -387,7 +374,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-slate-950 hover:bg-black active:bg-slate-900 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 mt-4 group"
+                  className="w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-forest-200 mt-4 group"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

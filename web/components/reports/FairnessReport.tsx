@@ -235,7 +235,7 @@ export default function FairnessReport() {
                     {icon}
                     <span className="text-[10px] text-slate-500 font-medium">{label}</span>
                   </div>
-                  <span className="text-lg font-black text-slate-800">+{value}p</span>
+                  <span className="text-lg font-black text-slate-800">+{value} puan</span>
                   <p className="text-[10px] text-slate-400 mt-0.5">{note}</p>
                 </div>
               ))}

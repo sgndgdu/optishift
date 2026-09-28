@@ -135,7 +135,7 @@ function WorkHoursReport() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Çalışma Saatleri</h2>
           <p className="text-sm text-slate-500">Personel bazında aylık özet (sadece yayınlanan vardiyalar)</p>
@@ -182,7 +182,7 @@ function WorkHoursReport() {
       </div>
 
       {/* Puantaj Dönem Kilidi */}
-      <div className={`rounded-2xl p-4 flex items-center justify-between border ${periodLock ? "bg-slate-50 border-slate-200" : "bg-amber-50 border-amber-200"}`}>
+      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border ${periodLock ? "bg-slate-50 border-slate-200" : "bg-amber-50 border-amber-200"}`}>
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${periodLock ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-600"}`}>
             {periodLock ? <Lock size={16} /> : <Unlock size={16} />}
@@ -212,7 +212,7 @@ function WorkHoursReport() {
           <button
             onClick={handleLockPeriod}
             disabled={lockActionLoading}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0"
+            className="px-4 py-2 rounded-xl bg-forest-600 text-white text-sm font-bold hover:bg-forest-700 transition-colors disabled:opacity-50 shrink-0"
           >
             Dönemi Kilitle
           </button>
@@ -221,13 +221,13 @@ function WorkHoursReport() {
 
       {/* Summary Cards */}
       {rows.length > 0 && (
-        <div className={`grid ${hasCost ? "grid-cols-4" : "grid-cols-3"} gap-4`}>
+        <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3 md:gap-4`}>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
             <p className="text-2xl font-bold text-slate-900">{rows.length}</p>
             <p className="text-xs text-slate-500 mt-1">Personel</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-bold text-slate-900">{totalHours}<span className="text-sm font-medium text-slate-400"> sa</span></p>
+            <p className="text-xl md:text-2xl font-bold text-slate-900 break-words">{totalHours}<span className="text-sm font-medium text-slate-400"> sa</span></p>
             <p className="text-xs text-slate-500 mt-1">Toplam Çalışma</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
@@ -238,7 +238,7 @@ function WorkHoursReport() {
           </div>
           {hasCost && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-              <p className={`text-2xl font-bold ${totalOvertimeCost > 0 ? "text-red-600" : "text-slate-900"}`}>
+              <p className={`text-xl md:text-2xl font-bold break-words ${totalOvertimeCost > 0 ? "text-red-600" : "text-slate-900"}`}>
                 ₺{totalOvertimeCost.toLocaleString("tr-TR")}
               </p>
               <p className="text-xs text-slate-500 mt-1">Mesai Maliyeti (×1,5)</p>
@@ -350,7 +350,7 @@ function ReportsPageInner() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-ember-100 flex items-center justify-center">
           <BarChart2 size={20} className="text-ember-600" />
@@ -365,7 +365,7 @@ function ReportsPageInner() {
             role="tab"
             aria-selected={tab === key}
             onClick={() => selectTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               tab === key ? "border-forest-600 text-forest-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >

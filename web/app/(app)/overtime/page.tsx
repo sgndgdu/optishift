@@ -188,7 +188,7 @@ export default function OvertimePage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Fazla Mesai</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Onay bekleyenler · YTD durum · Kayıt oluştur</p>
+          <p className="text-sm text-slate-500 mt-0.5">Onay bekleyenler · Yıllık durum · Kayıt oluştur</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -561,7 +561,7 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
           {onUndo && (
             <button
               onClick={() => onUndo(r.id, "pending")}
-              title="Kararı geri al, kayıt tekrar beklemeye düşer, YTD yeniden hesaplanır"
+              title="Kararı geri al, kayıt tekrar beklemeye düşer, yıllık toplam yeniden hesaplanır"
               className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
             >
               <RotateCcw size={13} />
@@ -665,7 +665,7 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
     <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-50 flex items-center justify-between">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Personel</span>
-        <span className="text-xs text-slate-400">YTD Limit: {maxYtd} saat</span>
+        <span className="text-xs text-slate-400">Yıllık sınır: {maxYtd} saat</span>
       </div>
       <div className="divide-y divide-slate-50">
         {sorted.map(p => {
@@ -697,7 +697,7 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
               </div>
               <div className="text-right shrink-0">
                 <p className="text-sm font-bold text-slate-900">{ytd.toFixed(0)}s</p>
-                <p className="text-[10px] text-slate-400">YTD mesai</p>
+                <p className="text-[10px] text-slate-400">Bu yıl mesai</p>
               </div>
               <ChevronRight size={14} className="text-slate-300 shrink-0" />
             </div>
