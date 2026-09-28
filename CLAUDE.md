@@ -481,6 +481,15 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - **Akıllı yedek (`ad737ef`):** `lib/openShiftCandidates.ts` (izin/rol/gerekçe), `GET /api/open-shifts/candidates?assignment_id=`, `POST /api/open-shifts` `notify: all|top|none`; yayınlanmış hücreye tıklayınca Gelemiyor penceresi.
   - **Neden bu kişi (`2aa08a7`):** `lib/copilot/explain.ts`, açılır pencerede katlanır bölüm.
 
+- [x] **Akıllı Planlama 3. Tur (2026-09-28):**
+  - **Güvenilirlik (`2a6c858`):** `lib/reliability.ts` + `/api/reliability`; giriş kaydı yok = gelmedi, >10 dk geç. Şube girişi düzenli kullanmıyorsa (vardiyaların yarısından azında giriş) değerlendirme yok. Yedek sıralamasında uyarı, Asistan "gelmeme riski" (yayını durdurmaz), "Neden bu kişi?".
+  - **Örtük tercih (`174510d`):** `lib/implicitPrefs.ts` + `/api/implicit-prefs`; uygunluk ve takas geçmişinden, motor `implicit_avoid` (kanıt ×3, en çok ×9; açık tercihten zayıf). Ayar `implicit_preferences_enabled`.
+  - **Bütçe motorda (`b093988`):** `labor_budget_try`, aşan ₺ ×2 (boş vardiya cezasından küçük).
+  - **Senaryo (`8b59677`):** `/api/generate` `scenario` (izin, yeni personel, ihtiyaç %); mesai yazılmaz. İşlemler › "Ya şöyle olursa?" senaryosuz ve senaryolu çözümü karşılaştırır.
+  - **KRİTİK motor düzeltmesi (`3ab50e3`):** `engine/main.py` eşzamanlı istekleri kilitle sıraya alır; önce küresel değişken + `redirect_stdout` yüzünden iki işletmenin planı karışabiliyordu. Motora eşzamanlılık eklenecekse (ör. çoklu işçi) çözümü alt sürece taşımak gerekir.
+  - **Çapraz eğitim (`fda79c8`):** `lib/copilot/crossTraining.ts`, Asistan bilgi maddesi.
+  - **En az değişiklik (`d2cd6ee`):** motor `current_assignments` (bırakma ×800, ekleme ×400); sihirbazda "Mevcut planı olabildiğince koru" (yayınlanmış haftada varsayılan), "N hücre değişti".
+
 ---
 
 ### Tier 1, 2 ve eski Tier 3 — TAMAMLANDI (2026-09-20 kod denetimiyle doğrulandı)
