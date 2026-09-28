@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
 import { industryFromRules } from "@/lib/templates";
+import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
 
 const ITEM_ICON: Record<string, any> = {
@@ -274,7 +275,7 @@ export default function DashboardPage() {
     { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi vardiyada` : "Bugün planlı vardiya yok" },
     { icon: CheckCircle2, text: `${activeCount} aktif personel` },
     ...(isModuleOn(rules, "publish_lead_kpi_enabled") && publishLead !== null
-      ? [{ icon: CalendarCheck, text: `Planlar ortalama ${publishLead.toLocaleString("tr-TR")} gün önceden yayınlanıyor` }]
+      ? [{ icon: CalendarCheck, text: formatPublishLead(publishLead).sentence! }]
       : []),
   ];
 

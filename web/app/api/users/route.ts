@@ -54,7 +54,21 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const body = await req.json();
-    const { name, email, phone, role, display_title, location_id, department_id, location_ids, department_ids, title, employment_type, max_weekly_hours } = body;
+    const { email, phone, role, display_title, location_id, department_id, location_ids, department_ids, title, employment_type, max_weekly_hours, existing_personnel_id } = body;
+    let { name } = body;
+
+    // Var olan personele giriş hesabı açma (hızlı eklenen, hesabı olmayan personel).
+    // Personel kaydı yeniden oluşturulmaz; ad ve şube personel kaydından gelir.
+    let existing: any = null;
+    if (existing_personnel_id) {
+      if (role && role !== "employee") return NextResponse.json({ error: "Var olan personele sadece personel hesabı açılabilir" }, { status: 400 });
+      existing = await db.prepare(`SELECT id, name, phone, email, primary_location_id, assigned_location_ids, department_id FROM personnel WHERE id = ? AND org_id = ?`)
+        .get(existing_personnel_id, auth.org_id);
+      if (!existing) return NextResponse.json({ error: "Personel bulunamadı" }, { status: 404 });
+      const taken = await db.prepare(`SELECT id FROM users WHERE personnel_id = ?`).get(existing.id);
+      if (taken) return NextResponse.json({ error: "Bu kişinin zaten bir hesabı var" }, { status: 409 });
+      name = name?.trim() ? name : existing.name;
+    }
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Ad soyad zorunlu" }, { status: 400 });
@@ -71,14 +85,18 @@ export async function POST(req: NextRequest) {
     const isEmployee = !role || role === "employee";
 
     // Personel için çoklu şube/departman desteği
-    const effLocIds: string[] = Array.isArray(location_ids) && location_ids.length
+    const effLocIds: string[] = existing
+      ? [existing.primary_location_id].filter(Boolean)
+      : Array.isArray(location_ids) && location_ids.length
       ? location_ids
       : (location_id ? [location_id] : []);
-    const effDeptIds: string[] = Array.isArray(department_ids) && department_ids.length
+    const effDeptIds: string[] = existing
+      ? [existing.department_id].filter(Boolean)
+      : Array.isArray(department_ids) && department_ids.length
       ? department_ids
       : (department_id ? [department_id] : []);
 
-    if (isEmployee) {
+    if (isEmployee && !existing) {
       if (!effLocIds.length) return NextResponse.json({ error: "Personel için en az bir şube seçmelisiniz" }, { status: 400 });
       // Departman seçimi sadece seçili şube(ler)de gerçekten departman tanımlıysa zorunlu —
       // departmansız (Basit Mod) şubelerde department_id null kalır.
@@ -96,8 +114,11 @@ export async function POST(req: NextRequest) {
     // Birincil şube
     const primaryLocId = effLocIds[0] ?? location_id ?? auth.location_id;
 
-    // Manager sadece kendi şubesine ekleyebilir
-    if (auth.role === "manager" && auth.location_id && primaryLocId !== auth.location_id) {
+    // Manager sadece kendi şubesine ekleyebilir (var olan personel için: o şubeye atanmış olmalı)
+    const inManagersBranch = existing
+      ? existing.primary_location_id === auth.location_id || String(existing.assigned_location_ids ?? "").includes(`"${auth.location_id}"`)
+      : primaryLocId === auth.location_id;
+    if (auth.role === "manager" && auth.location_id && !inManagersBranch) {
       return NextResponse.json({ error: "Sadece kendi şubenize hesap oluşturabilirsiniz" }, { status: 403 });
     }
 
@@ -112,8 +133,8 @@ export async function POST(req: NextRequest) {
     const approvalStatus = (auth.role === "manager") ? "pending" : "active";
 
     // Personnel kaydı da oluştur (employee rolü için)
-    let personnelId: string | null = null;
-    if (isEmployee) {
+    let personnelId: string | null = existing?.id ?? null;
+    if (isEmployee && !existing) {
       const employeeId = `EMP-${Math.floor(10000 + Math.random() * 90000)}`;
       personnelId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       await db.prepare(`
@@ -137,10 +158,10 @@ export async function POST(req: NextRequest) {
       await db.prepare(`
         INSERT INTO users (id, personnel_id, username, email, phone, password_hash, role, display_title, org_id, location_id, department_id, name, is_temp_password, approval_status, created_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)
-      `).run(userId, personnelId, username, email?.trim()?.toLowerCase() ?? null, phone?.trim() ?? null, passwordHash, role ?? "employee", display_title ?? null, auth.org_id, primaryLocId ?? null, effDeptIds[0] ?? department_id ?? null, name.trim(), approvalStatus, auth.id, now);
+      `).run(userId, personnelId, username, (email ?? existing?.email)?.trim()?.toLowerCase() || null, (phone ?? existing?.phone)?.trim() || null, passwordHash, role ?? "employee", display_title ?? null, auth.org_id, primaryLocId ?? null, effDeptIds[0] ?? department_id ?? null, name.trim(), approvalStatus, auth.id, now);
     } catch (userInsertErr) {
-      // users INSERT başarısız olduysa orphan personnel kaydını temizle
-      if (personnelId) {
+      // users INSERT başarısız olduysa orphan personnel kaydını temizle (var olan personele dokunulmaz)
+      if (personnelId && !existing) {
         await db.prepare("DELETE FROM personnel WHERE id = ?").run(personnelId).catch(() => undefined);
       }
       throw userInsertErr;

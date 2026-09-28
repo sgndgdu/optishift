@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useSupervisorAuth } from "@/hooks/useAuth";
 import {
   Building2, Users, CalendarClock, ChevronRight,
-  Plus, MapPin, Layers, AlertCircle, Zap, CheckCircle2, X,
+  Plus, MapPin, Layers, Zap, CheckCircle2, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+import { formatPublishLead } from "@/lib/publishLead";
 type Location = {
   id: string;
   name: string;
@@ -270,17 +271,8 @@ export default function SupervisorDashboard() {
                       </div>
                       <div>
                         <p className="font-black text-slate-800 text-base">{loc.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {loc.dept_count} departman · {loc.personnel_count} aktif personel
-                        </p>
                       </div>
                     </div>
-                    {loc.dept_count === 0 && (
-                      <div className="flex items-center gap-1 text-[11px] text-amber-500 font-bold bg-amber-50 px-2 py-1 rounded-lg">
-                        <AlertCircle size={11} />
-                        Departman yok
-                      </div>
-                    )}
                   </div>
 
                   {/* Sayaçlar */}
@@ -296,15 +288,17 @@ export default function SupervisorDashboard() {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-ember-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
-                      <p className={`text-lg font-black ${
-                        loc.publish_lead === null ? "text-slate-300"
-                        : loc.publish_lead >= 7 ? "text-emerald-600"
-                        : loc.publish_lead >= 3 ? "text-amber-600"
-                        : "text-red-600"
-                      }`}>
-                        {loc.publish_lead === null ? "—" : `${loc.publish_lead.toLocaleString("tr-TR")}g`}
-                      </p>
-                      <p className="text-[11px] font-semibold text-slate-500">Erken Yayın</p>
+                      {(() => {
+                        const lead = formatPublishLead(loc.publish_lead);
+                        return (
+                          <p className={`text-base font-black leading-7 ${
+                            lead.tone === "none" ? "text-slate-300" : lead.tone === "good" ? "text-emerald-600"
+                            : lead.tone === "ok" ? "text-amber-600" : "text-red-600"}`}>
+                            {lead.short}
+                          </p>
+                        );
+                      })()}
+                      <p className="text-[11px] font-semibold text-slate-500">Plan yayını</p>
                     </div>
                   </div>
 

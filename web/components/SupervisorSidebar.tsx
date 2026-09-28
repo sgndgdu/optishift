@@ -42,7 +42,7 @@ function usePendingAccounts() {
 const NAV = [
   { href: "/supervisor",            label: "Genel Bakış",    icon: LayoutDashboard, exact: true },
   { href: "/supervisor/schedule",   label: "Vardiya Planı",  icon: CalendarClock },
-  { href: "/supervisor/personnel",  label: "Personel & Hesaplar", icon: Users },
+  { href: "/supervisor/personnel",  label: "Ekip", icon: Users },
   { href: "/supervisor/reports",    label: "Raporlar",       icon: BarChart3 },
   { href: "/supervisor/chat",       label: "Mesajlaşma",     icon: MessageSquare },
   { href: "/supervisor/settings",   label: "Ayarlar",        icon: Settings },

@@ -297,6 +297,24 @@ export default function PersonnelPage() {
     } finally { setSelfSignupLoading(false); }
   };
 
+  // Hızlı eklenen (hesabı olmayan) personele portal hesabı aç; aynı davet penceresi gösterilir
+  const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
+  const handleOpenAccount = async (person: MergedPerson) => {
+    if (!person.personnelId || person.userId) return;
+    setOpeningAccountId(person.personnelId);
+    try {
+      const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ existing_personnel_id: person.personnelId, role: "employee" }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "Hesap açılamadı"); return; }
+      setInviteModal({
+        name: data.user.name, username: data.credentials.username,
+        tempPassword: data.credentials.temp_password,
+        inviteUrl: `${window.location.origin}/setup?token=${data.inviteToken}`,
+      });
+      fetchData(authUser);
+    } finally { setOpeningAccountId(null); }
+  };
+
   const handleApprove = async (person: MergedPerson, status: "active" | "rejected") => {
     if (!person.userId) return;
     await fetch(`/api/users?id=${person.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approval_status: status }) });
@@ -547,7 +565,15 @@ export default function PersonnelPage() {
                       <h3 className="font-extrabold text-slate-800 text-base truncate">{p.name}</h3>
                       {p.userId
                         ? <p className="text-xs font-mono text-slate-400 mt-0.5">{p.username}</p>
-                        : <p className="text-xs text-slate-400 mt-0.5">Giriş hesabı yok, portala giremez</p>}
+                        : (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Giriş hesabı yok, portala giremez.{" "}
+                            <button onClick={() => handleOpenAccount(p)} disabled={openingAccountId === p.personnelId}
+                              className="font-bold text-forest-700 underline disabled:opacity-50">
+                              {openingAccountId === p.personnelId ? "Açılıyor…" : "Hesap Aç"}
+                            </button>
+                          </p>
+                        )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${badge.color}`}>{badge.label}</span>

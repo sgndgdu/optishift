@@ -272,7 +272,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
       },
       {
         id: "supervisor-personel",
-        title: "Personel & Hesaplar",
+        title: "Ekip",
         icon: Users,
         paragraphs: [
           "İşletme genelindeki tüm personel listesini buradan görürsünüz. Şube müdürlerinin oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
