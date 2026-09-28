@@ -59,6 +59,12 @@ DAY_PATTERNS: dict = {}
 # Örtük tercihler (lib/implicitPrefs): {personnel_id: [[gün, vardiya_idx | -1, kanıt]]}
 # -1 = günün tüm normal vardiyaları. Açık "tercih etmem"den (×10) zayıf: kanıt başına ×3, en çok ×9.
 IMPLICIT_AVOID: dict = {}
+
+# Haftalık işçilik bütçesi (₺, rules.weekly_labor_budget_try; 0 = yok). Aşılan her ₺ ×2 cezalı:
+# 8 saatlik bir vardiya ~1.600 ₺ → ~3.200 ceza, boş vardiya cezasından (5.000) küçük; bütçe zorunlu
+# kapsamayı boşaltmaz, fazladan atamayı ve pahalı seçimi azaltır. Ücret: personnel.hourly_wage.
+LABOR_BUDGET_TRY = 0
+LABOR_OVER_WEIGHT = 2
 IMPLICIT_WEIGHT_PER_EVIDENCE = 3
 IMPLICIT_WEIGHT_MAX = 9
 PATTERN_MISS_PENALTY = 5000  # adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük
@@ -666,6 +672,23 @@ def build_model():
             if get_avail(person["id"], d, s) == "preferred_not"
         ]
 
+    # İşçilik bütçesi (esnek)
+    budget_over = 0
+    if LABOR_BUDGET_TRY > 0:
+        cost_terms = []
+        for p_idx, person in enumerate(PERSONNEL):
+            wage = float(person.get("hourly_wage") or 0)
+            if wage <= 0:
+                continue
+            for d in range(NUM_DAYS):
+                for s in range(NUM_SHIFTS):
+                    c = int(round(shift_durations_min[s] * wage / 60))
+                    if c > 0:
+                        cost_terms.append(shifts[(p_idx, d, s)] * c)
+        if cost_terms:
+            budget_over = model.new_int_var(0, 10_000_000, "labor_budget_over")
+            model.add(budget_over >= sum(cost_terms) - int(LABOR_BUDGET_TRY))
+
     # Örtük tercih: kişinin geçmişte sürekli istemediği gün/vardiya (esnek, zayıf)
     implicit_penalties = []
     for p_idx, person in enumerate(PERSONNEL):
@@ -867,6 +890,7 @@ def build_model():
         + sum(empty_shift_penalties) * EMPTY_SHIFT_PENALTY
         + sum(pattern_misses) * PATTERN_MISS_PENALTY
         + sum(implicit_penalties)
+        + budget_over * LABOR_OVER_WEIGHT
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -1342,7 +1366,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS, IMPLICIT_AVOID
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS, IMPLICIT_AVOID, LABOR_BUDGET_TRY
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1445,6 +1469,10 @@ def api_mode(payload: dict):
             CLOSED_DAYS.add(d)
 
     PREV_WEEK_DRIVING = {str(k): v for k, v in (payload.get("prev_week_driving_hours") or {}).items()}
+    try:
+        LABOR_BUDGET_TRY = max(0, int(float(payload.get("labor_budget_try") or 0)))
+    except (TypeError, ValueError):
+        LABOR_BUDGET_TRY = 0
     IMPLICIT_AVOID = {str(k): v for k, v in (payload.get("implicit_avoid") or {}).items() if isinstance(v, list)}
     DAY_PATTERNS = {
         str(k): [str(x) for x in v][:7]

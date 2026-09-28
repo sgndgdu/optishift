@@ -487,3 +487,26 @@ def test_implicit_avoid_steers_but_does_not_block():
     result = run_engine(payload)
     assert "error" not in result, result
     assert any(a["day"] == 4 for a in result["assignments"])  # kesin kural değil
+
+
+def test_labor_budget_prefers_cheaper_within_budget():
+    """Bütçe motorda: bütçe dar iken aynı işi ucuz personel yapar; bütçe yokken adalet işi böler."""
+    cheap = make_person("P1", "Ucuz")
+    cheap["hourly_wage"] = 100
+    pricey = make_person("P2", "Pahalı")
+    pricey["hourly_wage"] = 300
+    payload = base_payload(
+        personnel=[cheap, pricey],
+        availability={"P1": FULL_WEEK_AVAILABLE, "P2": FULL_WEEK_AVAILABLE},
+        demand_matrix={"morning": {str(d): 1 for d in range(5)}},
+    )
+    free = run_engine(payload)
+    assert "error" not in free, free
+    free_pricey = sum(1 for a in free["assignments"] if a["personnelId"] == "P2")
+    assert free_pricey >= 2  # bütçesizken iş bölünür
+
+    payload["labor_budget_try"] = 4000  # 5 × 8 s × 100 ₺
+    tight = run_engine(payload)
+    assert "error" not in tight, tight
+    tight_pricey = sum(1 for a in tight["assignments"] if a["personnelId"] == "P2")
+    assert tight_pricey < free_pricey

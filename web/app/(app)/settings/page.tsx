@@ -1764,7 +1764,7 @@ export default function SettingsPage() {
                   )}
                   <RuleRow
                     label="Haftalık İşçilik Maliyeti Bütçesi"
-                    description="Bu haftanın planlanan toplam işçilik maliyeti (saatlik ücreti girilmiş personelin saatleri × ücret, mesai × 1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
+                    description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                   />
                 </SectionCard>

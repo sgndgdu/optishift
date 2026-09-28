@@ -249,6 +249,7 @@ export async function POST(req: NextRequest) {
         cumulative_burden: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
         max_weekly_hours: p.max_weekly_hours ?? 45,
+        hourly_wage: typeof p.hourly_wage === "number" && p.hourly_wage > 0 ? p.hourly_wage : 0,
         min_weekly_hours: p.min_weekly_hours ?? 0,
         branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
         org_id: p.org_id,
@@ -712,8 +713,16 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) { console.error("[generate] örtük tercihler:", e); }
 
+    // Haftalık işçilik bütçesi (Ayarlar › Kurallar): motor aşan her ₺'yi esnek cezalandırır
+    let laborBudgetTry = 0;
+    try {
+      const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
+      if (typeof lr?.weekly_labor_budget_try === "number" && lr.weekly_labor_budget_try > 0) laborBudgetTry = lr.weekly_labor_budget_try;
+    } catch { /* bütçe yok */ }
+
     const enginePayload = {
       prevScores,
+      labor_budget_try: laborBudgetTry,
       implicit_avoid: implicitAvoid,
       day_patterns: dayPatterns,
       prev_week_driving_hours: prevWeekDriving,
