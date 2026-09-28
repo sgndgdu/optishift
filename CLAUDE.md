@@ -473,6 +473,14 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - **Taslak kaydı yarışı (`fd2888e`):** sihirbazın kaydı ile otomatik kayıt eşzamanlı "sil + yaz" yapıp kopya taslak bırakıyordu. Kayıtlar `saveChainRef` ile sıralı, kuyruktaki kayıt `latestPlanRef`'ten en güncel veriyi alır, aynı gövde tekrar yazılmaz; sunucu tek sorgu + tek toplu INSERT, yayında artık taslak kopyalar silinir.
   - **Bilinen açık:** yayın (`POST /api/shifts`) satır başına çok sorgu yapıyor, 25 satır ~26 sn; büyük şubede Vercel süre sınırına yaklaşabilir, toplu hale getirilmeli.
 
+- [x] **Akıllı Planlama 2. Tur (2026-09-28):**
+  - **Yayın hızı (`7bc0030`):** `POST /api/shifts` haftanın satırlarını, uygunluk ve izinleri tek seferde okur, güncellemeleri tek `UPDATE ... FROM (VALUES ...)` ile yazar (60 satır 1,1 sn). Dinlenme kontrolü aynı partide işlenen satırların yeni saatlerini görür.
+  - **Sürüş süresi (`e0b6411`):** vardiyada `driving_hours`; motor AETR: >10 s yok, 9-10 s haftada 2 kez, haftalık 56, iki haftalık 90 (`prev_week_driving_hours`). Kontrol `driving`, sabitler `lib/legal.ts`.
+  - **Erlang C (`7f04fb2`):** `lib/erlang.ts`; çağrı merkezi şubelerinde (rules.industry=callcenter) sihirbazda form, girdiler `rules.call_forecast`.
+  - **Çalışma döngüsü (`b83deb2`):** `lib/workCycle.ts`, `rules.work_cycle = {pattern, anchor, offsets}`; motor `day_patterns` (O: vardiya yok, D/N: sadece gündüz/gece, çalışma günü boşsa 5000 ceza). Ayarlar › Ekipler ve Rotasyon kartı anında kaydeder. **Simetri kırma:** kişiye özel kısıtı olan (korunan hücre, desen, farklı geçmiş sürüş) herkes gruplamadan çıkarılmalı; yeni kişiye özel kısıt eklerken `_person_signature`/`conflict_person_ids`'i güncelle.
+  - **Akıllı yedek (`ad737ef`):** `lib/openShiftCandidates.ts` (izin/rol/gerekçe), `GET /api/open-shifts/candidates?assignment_id=`, `POST /api/open-shifts` `notify: all|top|none`; yayınlanmış hücreye tıklayınca Gelemiyor penceresi.
+  - **Neden bu kişi (`2. tur son commit`):** `lib/copilot/explain.ts`, açılır pencerede katlanır bölüm.
+
 ---
 
 ### Tier 1, 2 ve eski Tier 3 — TAMAMLANDI (2026-09-20 kod denetimiyle doğrulandı)
