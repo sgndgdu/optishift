@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AccountTab from "@/components/AccountTab";
+import BiometricCard from "@/components/portal/BiometricCard";
 
 export default function PortalSettingsPage() {
   const router = useRouter();
@@ -20,8 +21,10 @@ export default function PortalSettingsPage() {
     <div className="p-5 space-y-6">
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Hesabım</h1>
-        <p className="text-sm text-slate-500 mt-1">Profil ve şifre ayarları</p>
+        <p className="text-sm text-slate-500 mt-1">Profil, şifre ve giriş ayarları</p>
       </div>
+      {/* Cihaz desteklemiyorsa görünmez */}
+      <BiometricCard />
       <AccountTab storageKey="optishift_portal_user" />
     </div>
   );
