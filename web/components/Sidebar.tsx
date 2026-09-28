@@ -62,7 +62,7 @@ function usePendingApprovals(orgId: string | undefined) {
   }, [orgId]);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Timer, HelpCircle, Wallet, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Timer, HelpCircle, Wallet, ClipboardCheck, Building2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
@@ -188,6 +188,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const handleLogout = () => {
     localStorage.removeItem("optishift_manager_user");
+    localStorage.removeItem("optishift_supervisor_user");
     router.push("/login");
   };
 
@@ -339,8 +340,23 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       {/* Ayarlar: kaydırma alanının dışında, grup açıkken de hep görünür */}
       {footer.length > 0 && <div className="px-1 pt-3 mt-2 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
 
-      {/* Yardım */}
+      {/* Yardım (+ sahip için amir paneline geçiş: şube ekleme, şubeler arası özet) */}
       <div className="px-1 pt-2">
+        {user?.role === "admin" && (
+          <button
+            onClick={() => {
+              if (!localStorage.getItem("optishift_supervisor_user")) {
+                localStorage.setItem("optishift_supervisor_user", JSON.stringify({ ...user, location_id: null }));
+              }
+              onClose?.();
+              router.push("/supervisor");
+            }}
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <Building2 size={18} className="text-slate-400" />
+            {locations.length > 1 ? "Tüm Şubeler" : "Şube Ekle ve Genel Bakış"}
+          </button>
+        )}
         <a
           href="/kilavuz?role=manager"
           target="_blank"

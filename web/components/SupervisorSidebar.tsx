@@ -74,6 +74,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
 
   const handleLogout = () => {
     localStorage.removeItem("optishift_supervisor_user");
+    localStorage.removeItem("optishift_manager_user");
     router.push("/login");
   };
 

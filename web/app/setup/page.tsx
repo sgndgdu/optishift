@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { routeAfterLogin } from "@/lib/sessionRouting";
 
 function SetupForm() {
   const router = useRouter();
@@ -110,17 +111,7 @@ function SetupForm() {
       setDone(true);
 
       setTimeout(() => {
-        const user = data.user;
-        if (user.role === "supervisor" || (user.role === "admin" && !user.location_id)) {
-          localStorage.setItem("optishift_supervisor_user", JSON.stringify(user));
-          router.push("/supervisor");
-        } else if (user.role === "manager" || user.role === "admin") {
-          localStorage.setItem("optishift_manager_user", JSON.stringify(user));
-          router.push("/dashboard");
-        } else {
-          localStorage.setItem("optishift_portal_user", JSON.stringify(user));
-          router.push("/portal");
-        }
+        routeAfterLogin({ ...data.user, is_temp_password: false }, router.push);
       }, 1800);
     } catch {
       setError("Sunucuya bağlanılamadı");

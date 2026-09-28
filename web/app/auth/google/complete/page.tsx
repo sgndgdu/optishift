@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { routeAfterLogin } from "@/lib/sessionRouting";
 
 // Google OAuth callback oturum cookie'sini set edip buraya yönlendirir.
-// /api/auth/login ile aynı şekilli veriyi çekip AYNI rol bazlı yönlendirme +
-// localStorage mantığını uygular (bkz. app/login/page.tsx handleLogin).
+// /api/auth/login ile aynı şekilli veriyi çekip AYNI yönlendirmeyi uygular (lib/sessionRouting.ts).
 export default function GoogleAuthCompletePage() {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -25,28 +25,7 @@ export default function GoogleAuthCompletePage() {
           return;
         }
 
-        if (data.is_temp_password) {
-          localStorage.setItem("optishift_setup_user", JSON.stringify(data));
-          router.push("/setup");
-          return;
-        }
-
-        if (data.role === "supervisor" || (data.role === "admin" && !data.location_id)) {
-          localStorage.removeItem("optishift_portal_user");
-          localStorage.removeItem("optishift_manager_user");
-          localStorage.setItem("optishift_supervisor_user", JSON.stringify(data));
-          router.push("/supervisor");
-        } else if (data.role === "manager" || data.role === "admin") {
-          localStorage.removeItem("optishift_portal_user");
-          localStorage.removeItem("optishift_supervisor_user");
-          localStorage.setItem("optishift_manager_user", JSON.stringify(data));
-          router.push("/dashboard");
-        } else {
-          localStorage.removeItem("optishift_manager_user");
-          localStorage.removeItem("optishift_supervisor_user");
-          localStorage.setItem("optishift_portal_user", JSON.stringify(data));
-          router.push("/portal");
-        }
+        await routeAfterLogin(data, router.push);
       } catch {
         if (!cancelled) setError("Sunucuya bağlanılamadı");
       }

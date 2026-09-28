@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 import { formatPublishLead } from "@/lib/publishLead";
+import { openBranchPanel } from "@/lib/sessionRouting";
 type Location = {
   id: string;
   name: string;
@@ -89,6 +90,8 @@ export default function SupervisorDashboard() {
       const locRes = await fetch(`/api/locations?org_id=${user.org_id}`);
       const locs: any[] = await locRes.json();
       if (!Array.isArray(locs)) { setLoading(false); return; }
+      // Kurulumu yarıda bırakan sahip (hiç şube yok) ilk kuruluma döner
+      if (locs.length === 0 && user.role === "admin") { router.replace("/onboarding"); return; }
 
       // Her şube için departman + personel sayısını paralel çek
       const enriched = await Promise.all(
@@ -304,13 +307,23 @@ export default function SupervisorDashboard() {
 
                   {/* Aksiyonlar */}
                   <div className="flex gap-2 pt-1">
-                    <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"
-                      onClick={e => e.stopPropagation()}>
-                      <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-ember-600 bg-ember-50 hover:bg-ember-100 rounded-xl transition-colors">
+                    {user?.role === "admin" ? (
+                      // Sahip planı kendisi yapar: şubenin müdür paneline geçer (amir görünümü salt okunur)
+                      <button
+                        onClick={e => { e.stopPropagation(); openBranchPanel(user, loc.id); router.push("/schedule"); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-white bg-forest-600 hover:bg-forest-700 rounded-xl transition-colors">
                         <CalendarClock size={13} />
-                        Vardiya Planı
+                        Planı Yönet
                       </button>
-                    </Link>
+                    ) : (
+                      <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"
+                        onClick={e => e.stopPropagation()}>
+                        <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-ember-600 bg-ember-50 hover:bg-ember-100 rounded-xl transition-colors">
+                          <CalendarClock size={13} />
+                          Vardiya Planı
+                        </button>
+                      </Link>
+                    )}
                     <Link href={`/supervisor/personnel?location_id=${loc.id}`} className="flex-1"
                       onClick={e => e.stopPropagation()}>
                       <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">

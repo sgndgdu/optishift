@@ -11,6 +11,7 @@ import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates"
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
+import { openBranchPanel } from "@/lib/sessionRouting";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
@@ -30,6 +31,7 @@ export default function OnboardingWizard() {
   const [step, setStep]       = useState(0);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
+  const [singleLocationId, setSingleLocationId] = useState<string | null>(null);
 
   // Adım 0 — Sektör + şubeler
   // İşletme türü + çalışma düzeni (lib/templates): vardiyalar, kurallar ve özellikler buna göre gelir
@@ -126,6 +128,9 @@ export default function OnboardingWizard() {
         )
       );
 
+      // İşletmenin tek şubesi varsa sahip doğrudan o şubenin müdür paneline geçer
+      const allIds = [...existingByName.values(), ...newLocationIds];
+      setSingleLocationId(allIds.length === 1 ? allIds[0] : null);
       setStep(2);
     } catch (e: any) {
       setError(e.message ?? "Beklenmedik bir hata oluştu.");
@@ -262,10 +267,18 @@ export default function OnboardingWizard() {
                 </div>
 
                 <div className="pt-2">
-                  <button onClick={() => router.push("/supervisor")}
+                  <button onClick={() => {
+                    if (singleLocationId) {
+                      openBranchPanel(user, singleLocationId);
+                      // Tam yükleme: kenar menü kurulum sırasında (şube yokken) yüklendi, yeniden okumalı
+                      window.location.assign("/schedule");
+                    } else {
+                      router.push("/supervisor");
+                    }
+                  }}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 group">
                     <Zap size={18} />
-                    Yönetim Paneline Git
+                    {singleLocationId ? "Vardiya Planına Git" : "Yönetim Paneline Git"}
                     <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>

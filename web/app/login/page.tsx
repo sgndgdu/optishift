@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication } from "@simplewebauthn/browser";
+import { routeAfterLogin as routeAfterLoginShared, type LoginData } from "@/lib/sessionRouting";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
@@ -42,35 +43,8 @@ export default function LoginPage() {
     platformAuthenticatorIsAvailable().then(setWebauthnAvailable).catch(() => {});
   }, []);
 
-  // Giriş başarılı olduktan sonra role'e göre doğru panele yönlendirir —
-  // hem şifreli hem biyometrik girişte aynı mantık.
-  const routeAfterLogin = (data: {
-    role: string;
-    location_id: string | null;
-    is_temp_password?: boolean;
-  }) => {
-    if (data.is_temp_password) {
-      localStorage.setItem("optishift_setup_user", JSON.stringify(data));
-      router.push("/setup");
-      return;
-    }
-    if (data.role === "supervisor" || (data.role === "admin" && !data.location_id)) {
-      localStorage.removeItem("optishift_portal_user");
-      localStorage.removeItem("optishift_manager_user");
-      localStorage.setItem("optishift_supervisor_user", JSON.stringify(data));
-      router.push("/supervisor");
-    } else if (data.role === "manager" || data.role === "admin") {
-      localStorage.removeItem("optishift_portal_user");
-      localStorage.removeItem("optishift_supervisor_user");
-      localStorage.setItem("optishift_manager_user", JSON.stringify(data));
-      router.push("/dashboard");
-    } else {
-      localStorage.removeItem("optishift_manager_user");
-      localStorage.removeItem("optishift_supervisor_user");
-      localStorage.setItem("optishift_portal_user", JSON.stringify(data));
-      router.push("/portal");
-    }
-  };
+  // Giriş başarılı olduktan sonra doğru panele yönlendirir (şifreli, biyometrik ve Google aynı kural)
+  const routeAfterLogin = (data: LoginData) => routeAfterLoginShared(data, router.push);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
