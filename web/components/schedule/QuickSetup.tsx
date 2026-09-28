@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Check, X, Plus, Trash2, CalendarClock, Users, Grid3x3, Sparkles } from "lucide-react";
 import { SECTOR_PRESETS } from "@/lib/presets";
 import type { ShiftDefinition } from "@/lib/types";
+import BulkImportModal from "@/components/personnel/BulkImportModal";
 
 /**
  * Schedule sayfası yerinde kurulum: vardiya şablonu ve personel eksikken
@@ -23,7 +24,7 @@ interface QuickSetupProps {
 }
 
 export default function QuickSetup({ locationId, shiftDefsCount, personnelCount, demandFilled, onOpenDemand }: QuickSetupProps) {
-  const [modal, setModal] = useState<"shifts" | "personnel" | null>(null);
+  const [modal, setModal] = useState<"shifts" | "personnel" | "import" | null>(null);
 
   const steps = [
     { key: "shifts",    label: "Vardiyaları tanımla",  done: shiftDefsCount > 0,  icon: CalendarClock, action: () => setModal("shifts") },
@@ -61,7 +62,8 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
       </div>
 
       {modal === "shifts" && <ShiftDefModal locationId={locationId} onClose={() => setModal(null)} />}
-      {modal === "personnel" && <QuickPersonnelModal locationId={locationId} onClose={() => setModal(null)} />}
+      {modal === "personnel" && <QuickPersonnelModal locationId={locationId} onClose={() => setModal(null)} onImport={() => setModal("import")} />}
+      {modal === "import" && <BulkImportModal locationId={locationId} onClose={() => setModal(null)} />}
     </>
   );
 }
@@ -160,7 +162,7 @@ export function ShiftDefModal({ locationId, onClose }: { locationId: string; onC
 
 // ─── Yerinde hızlı personel ekleme ────────────────────────────────────────────
 
-function QuickPersonnelModal({ locationId, onClose }: { locationId: string; onClose: () => void }) {
+function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: string; onClose: () => void; onImport: () => void }) {
   const [rows, setRows] = useState([{ name: "", phone: "" }, { name: "", phone: "" }, { name: "", phone: "" }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -214,6 +216,10 @@ function QuickPersonnelModal({ locationId, onClose }: { locationId: string; onCl
           <Plus size={13} /> Satır ekle
         </button>
       </div>
+
+      <button onClick={onImport} className="w-full text-left text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 hover:bg-slate-100">
+        <strong className="text-forest-700">Listeniz Excel&apos;de mi?</strong> Şablonu indirip tüm ekibi tek seferde içe aktarın (isim, departman, yetenek, telefon).
+      </button>
 
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
 
