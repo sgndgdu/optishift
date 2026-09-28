@@ -300,3 +300,15 @@ describe("fairnessLabelForEmployee", () => {
     for (const b of [50, 100, 150]) expect(fairnessLabelForEmployee(b, 100).text).not.toContain("azaltılmalı");
   });
 });
+
+describe("fairnessBarColor", async () => {
+  const { fairnessBarColor } = await import("@/lib/fairness");
+  it("herkes eşit puandayken kırmızı değil (2026-09-28 denetimi)", () => {
+    expect(fairnessBarColor(12, 12)).toBe("bg-blue-400");
+  });
+  it("±%20 dışı yeşil / kırmızı, ortalama 0 iken nötr", () => {
+    expect(fairnessBarColor(7, 10)).toBe("bg-emerald-500");
+    expect(fairnessBarColor(13, 10)).toBe("bg-red-400");
+    expect(fairnessBarColor(0, 0)).toBe("bg-blue-400");
+  });
+});

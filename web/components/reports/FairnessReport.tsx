@@ -8,16 +8,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { fairnessLabelFromAverage } from "@/lib/fairness";
+import { fairnessBarColor, fairnessLabelFromAverage } from "@/lib/fairness";
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
-
-function burdenColor(burden: number, avg: number) {
-  if (avg === 0) return "bg-blue-400";
-  if (burden < avg * 0.8) return "bg-emerald-500";
-  if (burden > avg * 1.2) return "bg-red-400";
-  return "bg-blue-400";
-}
 
 // ─── Raporlar → Adalet Puanı sekmesi ─────────────────────────────────────────
 // Eskiden /fairness sayfasıydı; menü sadeleştirmesiyle Raporlar'ın içine taşındı
@@ -327,7 +320,7 @@ function CurrentView({
       {sorted.map(p => {
         const burden = p.prev_score ?? 0;
         const { text: fairnessText, level } = fairnessLabelFromAverage(burden, avgBurden);
-        const color = burdenColor(burden, avgBurden);
+        const color = fairnessBarColor(burden, avgBurden);
         const isExpanded = expandedId === p.id;
         const pHist = scoreHist[p.id] ?? [];
         const pAdjs = adjustments.filter(a => a.personnel_id === p.id);

@@ -311,6 +311,14 @@ export function calcFairnessRank(
   return result;
 }
 
+/** Adalet çubuğu rengi: etiketle aynı ±%20 kuralı (herkes eşitken hepsi mavi, kırmızı değil). */
+export function fairnessBarColor(burden: number, teamAvg: number): string {
+  if (!(teamAvg > 0)) return "bg-blue-400";
+  if (burden < teamAvg * 0.8) return "bg-emerald-500";
+  if (burden > teamAvg * 1.2) return "bg-red-400";
+  return "bg-blue-400";
+}
+
 /**
  * Takım ortalamasına göre yük etiketi (raporda ve personel portalında gösterilen).
  * Sıraya değil puan farkına bakar: herkes birbirine yakınsa kimse "çok yüklü" olmaz,

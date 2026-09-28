@@ -421,11 +421,11 @@ export default function SupervisorChatPage() {
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-ember-50 text-ember-700 rounded-xl text-sm font-bold">
-                <ChevronRight size={16} className="rotate-180" /> Rehberi Aç
+                <ChevronRight size={16} className="rotate-180" /> Kanalları ve Müdürleri Göster
               </button>
               <MessageSquare size={40} className="mb-3 text-slate-300" />
               <p className="font-semibold text-slate-500">Kime yazmak istiyorsunuz?</p>
-              <p className="text-sm text-slate-400 mt-1">Soldan bir kanal veya müdür seçin.</p>
+              <p className="text-sm text-slate-400 mt-1"><span className="md:hidden">Yukarıdaki düğmeyle bir kanal veya müdür seçin.</span><span className="hidden md:inline">Soldan bir kanal veya müdür seçin.</span></p>
             </div>
           ) : (
             <>

@@ -495,14 +495,17 @@ export default function ManagerChatPage() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-300">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold">
-              <ChevronRight size={16} className="rotate-180" /> Rehberi Aç
-            </button>
-            <div className="hidden md:flex flex-col items-center gap-3 text-center">
+            <div className="flex flex-col items-center gap-3 text-center px-6">
               <MessageSquare size={48} strokeWidth={1.5} />
               <p className="text-sm font-semibold text-slate-400">Kime yazmak istiyorsunuz?</p>
-              <p className="text-xs text-slate-300">Soldan bir kişi veya kanal seçin.</p>
+              <p className="text-xs text-slate-400">
+                <span className="md:hidden">Ekip kanalını ya da bir kişiyi seçmek için aşağıdaki düğmeye dokunun.</span>
+                <span className="hidden md:inline">Soldan bir kişi veya kanal seçin.</span>
+              </p>
             </div>
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold">
+              <ChevronRight size={16} className="rotate-180" /> Kişileri ve Kanalları Göster
+            </button>
           </div>
         )}
       </div>

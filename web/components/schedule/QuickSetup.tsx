@@ -18,15 +18,17 @@ interface QuickSetupProps {
   shiftDefsCount: number;
   personnelCount: number;
   demandFilled: boolean;
+  /** Personel ihtiyacı tablosu Haftayı Oluştur sihirbazının 1. adımında */
+  onOpenDemand: () => void;
 }
 
-export default function QuickSetup({ locationId, shiftDefsCount, personnelCount, demandFilled }: QuickSetupProps) {
+export default function QuickSetup({ locationId, shiftDefsCount, personnelCount, demandFilled, onOpenDemand }: QuickSetupProps) {
   const [modal, setModal] = useState<"shifts" | "personnel" | null>(null);
 
   const steps = [
     { key: "shifts",    label: "Vardiyaları tanımla",  done: shiftDefsCount > 0,  icon: CalendarClock, action: () => setModal("shifts") },
     { key: "personnel", label: "Personel ekle",         done: personnelCount > 0,  icon: Users,          action: () => setModal("personnel") },
-    { key: "demand",    label: "Kaç kişi gerekli? gir", done: demandFilled,        icon: Grid3x3,        action: null }, // Kapasite Planı hemen altta
+    { key: "demand",    label: "Kaç kişi gerekli? gir", done: demandFilled,        icon: Grid3x3,        action: onOpenDemand },
   ];
   const allDone = steps.every(s => s.done);
   if (allDone) return null;
@@ -45,16 +47,13 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
                 {s.done ? <Check size={13} /> : i + 1}
               </div>
               <span className={`text-xs font-semibold flex-1 ${s.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{s.label}</span>
-              {!s.done && s.action && (
+              {!s.done && (
                 <button
                   onClick={s.action}
                   className="text-xs font-bold text-forest-600 bg-forest-50 hover:bg-forest-100 border border-forest-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
                 >
                   Başla
                 </button>
-              )}
-              {!s.done && !s.action && (
-                <span className="text-[10px] text-slate-400 shrink-0">hemen aşağıda ↓</span>
               )}
             </div>
           ))}

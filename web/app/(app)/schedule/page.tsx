@@ -16,7 +16,7 @@ import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
 import { buildInsights, buildWeekSnapshot, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentPoints, type Rules as FairnessRules } from "@/lib/fairness";
+import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 import { addDays, getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
@@ -94,14 +94,6 @@ function normTime(t: string): string {
   const [h, m] = t.split(":").map(Number);
   if (isNaN(h) || h < 24) return t;
   return `${String(h % 24).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
-}
-
-function scoreColor(score: number, max: number): string {
-  const pct = max > 0 ? score / max : 0;
-  if (pct < 0.35) return "bg-emerald-500";
-  if (pct < 0.65) return "bg-blue-500";
-  if (pct < 0.85) return "bg-amber-500";
-  return "bg-red-500";
 }
 
 const AVAIL_BG: Record<string, string> = {
@@ -417,6 +409,7 @@ function SchedulePageInner() {
   const [publishSuccess, setPublishSuccess]       = useState(false);
   const [error, setError]                         = useState<string | null>(null);
   const [toast, setToast]                         = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
@@ -444,6 +437,7 @@ function SchedulePageInner() {
   const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
   const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
   const [tplName, setTplName]                     = useState("");
+  const [tplOpen, setTplOpen]                     = useState(false); // ilk kullanımda şablon çubuğu kapalı
   const [tplBusy, setTplBusy]                     = useState(false);
   const [aiSummary, setAiSummary]                 = useState<string | null>(null);
   const [aiLoading, setAiLoading]                 = useState(false);
@@ -593,6 +587,8 @@ function SchedulePageInner() {
       setActiveLocationId(cur);
       setCellMap({});
       setError(null);
+      // Aynı şubede kayıt (Hızlı Kurulum: personel/vardiya eklendi) da haftayı yeniden yükler
+      setReloadTick(t => t + 1);
     };
     window.addEventListener("optishift_location_changed", handleLocChange);
     return () => window.removeEventListener("optishift_location_changed", handleLocChange);
@@ -830,7 +826,44 @@ function SchedulePageInner() {
       } catch {}
       setLoading(false);
     })();
-  }, [activeLocationId, weekOffset]);
+  }, [activeLocationId, weekOffset, reloadTick]);
+
+  // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Haftayı Oluştur aynı yolu kullanır)
+  const saveDraftWeek = async (map: CellMap): Promise<boolean> => {
+    setSaveState("saving");
+    try {
+      const res = await fetch("/api/shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_draft_week",
+          location_id: activeLocationId,
+          week_start: weekStart,
+          shifts: Object.entries(map).map(([key, val]) => {
+            const lastDash = key.lastIndexOf("-");
+            return {
+              personnel_id: key.slice(0, lastDash),
+              day:          parseInt(key.slice(lastDash + 1)),
+              // shift_id olmadan publish puanlaması vardiya zorluğunu (base_points) bulamaz
+              shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
+              start_time:   minToHHMM(val.startMin),
+              end_time:     minToHHMM(val.endMin),
+            };
+          }),
+        }),
+      });
+      if (!res.ok) { setSaveState("idle"); return false; }
+      userEditRef.current = false;
+      setSaveState("saved");
+      const n = Object.keys(map).length;
+      setIsDraftWeek(n > 0);
+      setDbShiftCount(n);
+      return true;
+    } catch {
+      setSaveState("idle");
+      return false;
+    }
+  };
 
   // ── Otomatik taslak kaydı (OPTI-024) ──────────────────────────────────────
   // Kullanıcı düzenlemesinden 1.2 sn sonra haftanın draft satırları DB ile
@@ -840,42 +873,7 @@ function SchedulePageInner() {
     if (!userEditRef.current || !activeLocationId || !weekStart) return;
     const isPublishedWeek = dbShiftCount > 0 && !isDraftWeek;
     if (isPublishedWeek) return;
-    const t = setTimeout(async () => {
-      setSaveState("saving");
-      try {
-        const res = await fetch("/api/shifts", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "sync_draft_week",
-            location_id: activeLocationId,
-            week_start: weekStart,
-            shifts: Object.entries(cellMap).map(([key, val]) => {
-              const lastDash = key.lastIndexOf("-");
-              return {
-                personnel_id: key.slice(0, lastDash),
-                day:          parseInt(key.slice(lastDash + 1)),
-                // shift_id olmadan publish puanlaması vardiya zorluğunu (base_points) bulamaz
-                shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
-                start_time:   minToHHMM(val.startMin),
-                end_time:     minToHHMM(val.endMin),
-              };
-            }),
-          }),
-        });
-        if (res.ok) {
-          userEditRef.current = false;
-          setSaveState("saved");
-          const n = Object.keys(cellMap).length;
-          setIsDraftWeek(n > 0);
-          setDbShiftCount(n);
-        } else {
-          setSaveState("idle");
-        }
-      } catch {
-        setSaveState("idle");
-      }
-    }, 1200);
+    const t = setTimeout(() => { saveDraftWeek(cellMap); }, 1200);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cellMap, activeLocationId, weekStart]);
@@ -1082,6 +1080,8 @@ function SchedulePageInner() {
     return { id: p.id, name: p.name, score: Math.round((base + weekPoints) * 10) / 10 };
   });
   const maxScore = Math.max(...personScores.map(s => s.score), 1);
+  // Çubuk rengi takım ortalamasına göre (Raporlar → Adalet ile aynı kural)
+  const avgScore = personScores.length ? personScores.reduce((t, s) => t + s.score, 0) / personScores.length : 0;
 
   // Canlı TL maliyet bütçesi — hourly_wage tanımlı personelin saatlerini eşik-altı normal + eşik-üstü ×1.5 mesai olarak fiyatlar
   const laborCost = useMemo(() => {
@@ -1189,6 +1189,11 @@ function SchedulePageInner() {
       // Engine'in base_points tabanlı puanlarını sakla — publish sırasında prev_score güncellemesinde kullanılır
       setEngineScores(data.scores ?? {});
       setSeniorViolations(data.senior_violations ?? []);
+      // Taslak hemen kaydedilir: sihirbaz "kaydedildi" dediğinde plan DB'de olmalı
+      // (eskiden 1,2 sn'lik otomatik kayda kalıyordu, hemen çıkan kullanıcı planı kaybediyordu)
+      if (!(await saveDraftWeek(newCellMap))) {
+        setError("Plan oluşturuldu ama kaydedilemedi. Bağlantınızı kontrol edip bir hücreyi düzenleyin, otomatik kaydedilir.");
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -2009,10 +2014,12 @@ loading ? (
             ) : (
               <div className="overflow-x-auto">
                 {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
+                {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
+                {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Şablonlar</span>
                   {Object.keys(demandTemplates).length === 0 && (
-                    <span className="text-[11px] text-slate-400">Henüz şablon yok, aşağıdaki planı doldurup isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Bakım Duruşu&quot;).</span>
+                    <span className="text-[11px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
                   )}
                   {Object.keys(demandTemplates).map(name => (
                     <span key={name} className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg pl-2 pr-1 py-1">
@@ -2050,6 +2057,7 @@ loading ? (
                     </button>
                   </span>
                 </div>
+                )}
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-slate-100">
@@ -2196,6 +2204,12 @@ loading ? (
                     )}
                   </tbody>
                 </table>
+                {Object.keys(demandTemplates).length === 0 && !tplOpen && (
+                  <button onClick={() => setTplOpen(true)}
+                    className="px-5 py-2.5 text-[11px] font-bold text-forest-600 hover:text-forest-800 transition-colors">
+                    Bu tabloyu şablon olarak kaydet
+                  </button>
+                )}
               </div>
             )
   );
@@ -2440,6 +2454,7 @@ loading ? (
               shiftDefsCount={shiftDefs.length}
               personnelCount={personnel.length}
               demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
+              onOpenDemand={() => setWizardOpen(true)}
             />
           )}
           {publishSuccess && (
@@ -2682,7 +2697,7 @@ loading ? (
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
-                                  <div className={cn("h-full rounded-full", scoreColor(score, maxScore))} style={{ width: scoreBarWidth }} />
+                                  <div className={cn("h-full rounded-full", fairnessBarColor(score, avgScore))} style={{ width: scoreBarWidth }} />
                                 </div>
                                 <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: son haftalarda aldığı yük (yüksek = daha yüklü)">{Math.round(score * 10) / 10}</span>
                               </div>
@@ -3044,7 +3059,7 @@ loading ? (
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all duration-300", scoreColor(s.score, maxScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
+                    <div className={cn("h-full rounded-full transition-all duration-300", fairnessBarColor(s.score, avgScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
                   </div>
                 </div>
                 );
