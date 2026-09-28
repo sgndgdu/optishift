@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   Users, AlertTriangle, Clock, Check, X, ArrowRight, RefreshCw, CheckCircle2,
-  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck, FileWarning,
+  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck, FileWarning, Store,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -32,6 +32,7 @@ const ITEM_ICON: Record<string, any> = {
   availability:    Bell,
   overtime:        Timer,
   certifications:  FileWarning,
+  industry:        Store,
 };
 
 const SEVERITY_STYLE = {
@@ -265,6 +266,7 @@ export default function DashboardPage() {
     certifications: { enabled: isModuleOn(rules, "compliance_tracking_enabled"), ...certAttention },
     // Şubenin sektörü seçiliyse maddeler sektörün diliyle ve önceliğiyle gelir
     nudges: industryFromRules(rules)?.nudges ?? null,
+    industrySelected: industryFromRules(rules) !== null,
   });
 
   const activeCount = personnel.filter(p => p.status === "active").length;

@@ -114,7 +114,7 @@ export interface LegalNote {
 /** Ana Sayfa Bekleyen İşler maddelerinin kimlikleri (lib/inbox.ts ile aynı). */
 export type InboxItemId =
   | "add-personnel" | "late" | "fatigue" | "approvals" | "accounts" | "handover"
-  | "tasks" | "open-shifts" | "next-week" | "availability" | "overtime" | "certifications";
+  | "tasks" | "open-shifts" | "next-week" | "availability" | "overtime" | "certifications" | "industry";
 
 /** Sektöre göre dil ve öncelik (Davranışsal Dürtme katmanı). */
 export interface IndustryNudges {

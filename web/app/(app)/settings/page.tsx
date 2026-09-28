@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
 import IndustryPicker from "@/components/IndustryPicker";
-import { buildIndustryDefaults, getIndustry, industryFromRules } from "@/lib/templates";
+import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -370,6 +370,8 @@ export default function SettingsPage() {
   // Sosyal Kurallar — Birlikte Çalışamaz çiftleri
   const [conflictPairs, setConflictPairs] = useState<any[]>([]);
   const [conflictPersonnel, setConflictPersonnel] = useState<{ id: string; name: string }[]>([]);
+  // Aktif personelin rolleri: önerilen zorunlu rolü uygulamadan önce rol sahibi var mı diye bakılır
+  const [personnelRoles, setPersonnelRoles] = useState<string[][]>([]);
   const [newConflictA, setNewConflictA]   = useState("");
   const [newConflictB, setNewConflictB]   = useState("");
   const [conflictError, setConflictError] = useState("");
@@ -549,7 +551,12 @@ export default function SettingsPage() {
             if (pcRes.ok) { const pcData = await pcRes.json(); if (Array.isArray(pcData)) setConflictPairs(pcData); }
             if (pRes.ok) {
               const pData = await pRes.json();
-              if (Array.isArray(pData)) setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
+              if (Array.isArray(pData)) {
+                setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
+                setPersonnelRoles((pData as { status?: string; roles?: unknown }[])
+                  .filter(p => p.status === "active")
+                  .map(p => Array.isArray(p.roles) ? p.roles as string[] : []));
+              }
             }
           } catch { /* ignore */ }
 
@@ -1018,6 +1025,10 @@ export default function SettingsPage() {
   const [industrySaving, setIndustrySaving] = useState(false);
   const pickedIndustry = industryDraft?.industry ?? savedIndustry?.key ?? null;
   const pickedVariant = industryDraft?.variant ?? savedVariant ?? savedIndustry?.variants[0].key ?? null;
+  // Önerilen zorunlu roller (henüz uygulanmamış olanlar), rol sahibi sayısıyla
+  const skillRecs = savedIndustry && locationData
+    ? pendingSkillRecommendations(savedIndustry, savedVariant, locationData.shift_definitions ?? [], personnelRoles)
+    : [];
   const industryChanged = !!industryDraft && (industryDraft.industry !== savedIndustry?.key || industryDraft.variant !== savedVariant);
 
   const saveIndustry = async (applyDefaults: boolean) => {
@@ -1046,6 +1057,12 @@ export default function SettingsPage() {
     } finally {
       setIndustrySaving(false);
     }
+  };
+
+  const applyRecommendation = (rec: { shiftId: string; skill: string; count: number }) => {
+    if (!locationData) return;
+    setLocationData({ ...locationData, shift_definitions: applySkillRecommendation(locationData.shift_definitions ?? [], rec) });
+    showToast("ok", "Kural eklendi. Kaydetmeyi unutmayın.");
   };
 
   const TabBar = () => (
@@ -1116,6 +1133,32 @@ export default function SettingsPage() {
                     <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
                     {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
                   </div>
+                )}
+                {savedIndustry && !industryChanged && skillRecs.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-slate-200 p-3 space-y-2.5">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Önerilen zorunlu roller</p>
+                      {skillRecs.map(r => (
+                        <div key={r.shiftId + r.skill} className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
+                          <div className="flex-1 min-w-[220px]">
+                            <p className="text-sm text-slate-800"><strong>{r.shiftName}</strong> vardiyasında en az {r.count} {r.skill}</p>
+                            <p className="text-xs text-slate-500">{r.reason}</p>
+                            {r.status === "no-holders" && (
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                {r.holders === 0 ? "Ekipte bu rol kimsede işaretli değil." : `Bu rol sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından rolü işaretleyin, yoksa bu vardiya hiç açılamaz.
+                              </p>
+                            )}
+                            {r.status === "thin" && (
+                              <p className="text-xs text-amber-700 mt-0.5">Bu rol {r.holders} kişide var. İzin günlerinde vardiya açılamayabilir.</p>
+                            )}
+                          </div>
+                          <button
+                            disabled={r.status === "no-holders"}
+                            onClick={() => applyRecommendation(r)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >Ekle</button>
+                        </div>
+                      ))}
+                    </div>
                 )}
                 {savedIndustry && !industryChanged && (
                   <details className="mt-3 text-xs text-slate-600">

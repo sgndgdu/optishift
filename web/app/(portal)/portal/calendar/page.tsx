@@ -11,7 +11,9 @@ import { usePortalAuth } from "@/hooks/useAuth";
 import { getWeekStart } from "@/lib/date";
 import { DAY_NAMES as DAYS } from "@/lib/constants";
 
+import { useShiftWords } from "@/hooks/useShiftWords";
 export default function PortalCalendar() {
+  const words = useShiftWords();
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [tab, setTab] = useState<"mine" | "all">("mine");
@@ -19,6 +21,8 @@ export default function PortalCalendar() {
   const [shifts, setShifts] = useState<any[]>([]);
   const [allShifts, setAllShifts] = useState<any[]>([]);
   const [personnelMap, setPersonnelMap] = useState<Record<string, string>>({});
+  // Vardiya kimliği (s-sabah) yerine şubedeki adı (Sabah Postası) gösterilir
+  const [shiftNames, setShiftNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const weekStart = getWeekStart(weekOffset);
@@ -34,7 +38,13 @@ export default function PortalCalendar() {
       user.location_id
         ? fetch(`/api/personnel?location_id=${user.location_id}`).then(r => r.json()).catch(() => [])
         : Promise.resolve([]),
-    ]).then(([mine, all, ppl]) => {
+      user.location_id
+        ? fetch(`/api/locations?id=${user.location_id}`).then(r => r.json()).catch(() => [])
+        : Promise.resolve([]),
+    ]).then(([mine, all, ppl, locs]) => {
+      const defs = Array.isArray(locs) ? locs[0]?.shift_definitions : null;
+      const parsed = typeof defs === "string" ? (() => { try { return JSON.parse(defs); } catch { return []; } })() : defs;
+      if (Array.isArray(parsed)) setShiftNames(Object.fromEntries(parsed.map((d: any) => [d.id, d.name])));
       setShifts(Array.isArray(mine) ? mine : []);
       setAllShifts(Array.isArray(all) ? all : []);
       const map: Record<string, string> = {};
@@ -56,7 +66,7 @@ export default function PortalCalendar() {
     <div className="p-5 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tab === "mine" ? "Vardiyalarım" : "Şube Programı"}</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tab === "mine" ? words.MyShifts : "Şube Programı"}</h1>
           <p className="text-sm text-slate-500 mt-1">{getWeekLabel()}</p>
         </div>
       </div>
@@ -91,7 +101,7 @@ export default function PortalCalendar() {
           onClick={() => setTab("mine")}
           className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${tab === "mine" ? "bg-white text-primary shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
         >
-          Benim Vardiyalarım
+          Benim {words.MyShifts}
         </button>
         <button
           onClick={() => setTab("all")}
@@ -137,7 +147,7 @@ export default function PortalCalendar() {
                                   <Clock size={12} strokeWidth={3} /> {shift.start_time || "09:00"} - {shift.end_time || "17:00"}
                                 </Badge>
                                 <Badge className="font-bold px-3 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">
-                                  {shift.shift_id === "custom" ? "Özel" : shift.shift_id}
+                                  {shift.shift_id === "custom" ? "Özel" : shiftNames[shift.shift_id] ?? words.Shift}
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-border/40 inline-flex">
@@ -148,7 +158,7 @@ export default function PortalCalendar() {
                           ) : (
                             <div className="text-muted-foreground text-sm font-semibold italic flex items-center gap-2">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                              Bu gün için vardiya yok
+                              Bu gün için {words.shift} yok
                             </div>
                           )}
                         </div>
@@ -178,7 +188,7 @@ export default function PortalCalendar() {
           {allShifts.length === 0 ? (
             <div className="text-center py-16 bg-slate-50/50 rounded-[2rem] border border-border/40">
               <Users size={40} className="mx-auto text-slate-300 mb-4" />
-              <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış vardiya yok.</p>
+              <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış {words.shift} yok.</p>
             </div>
           ) : (
             DAYS.map((dayName, dayIndex) => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   INDUSTRIES, LEGACY_SECTOR_MAP, getIndustry, industryFromRules,
   buildIndustryDefaults, enabledHighlights, applyCertificationShield, matchDocument,
+  pendingSkillRecommendations, applySkillRecommendation, shiftWords,
   type InboxItemId,
 } from "@/lib/templates";
 import { MODULE_DEFAULTS } from "@/lib/moduleVisibility";
@@ -16,7 +17,7 @@ const durationH = (s: { start: string; end: string }) => {
   return d / 60;
 };
 const INBOX_IDS: InboxItemId[] = ["add-personnel", "late", "fatigue", "approvals", "accounts", "handover",
-  "tasks", "open-shifts", "next-week", "availability", "overtime", "certifications"];
+  "tasks", "open-shifts", "next-week", "availability", "overtime", "certifications", "industry"];
 
 describe("sektör kayıtları: iç tutarlılık", () => {
   it("7 sektör, benzersiz anahtarlar", () => {
@@ -201,5 +202,47 @@ describe("Bekleyen İşler: sektör önceliği ve dili", () => {
       .toMatchObject({ id: "certifications", severity: "critical" });
     expect(buildInbox({ ...base, certifications: { enabled: true, expired: 0, expiring: 1 } })[0].severity).toBe("week");
     expect(buildInbox({ ...base, certifications: { enabled: false, expired: 2, expiring: 0 } })).toEqual([]);
+  });
+
+  it("işletme türü seçilmemişse hatırlatma, seçiliyse ya da bilinmiyorsa yok", () => {
+    expect(buildInbox({ ...base, industrySelected: false })).toMatchObject([{ id: "industry", severity: "week", action: { href: "/settings" } }]);
+    expect(buildInbox({ ...base, industrySelected: true })).toEqual([]);
+    expect(buildInbox(base)).toEqual([]);
+  });
+});
+
+describe("önerilen zorunlu roller", () => {
+  const mfg = getIndustry("manufacturing")!;
+  const shifts = buildIndustryDefaults("manufacturing", "three-shift")!.shift_definitions;
+  const holders = (n: number, role: string) => Array.from({ length: n }, () => [role]);
+
+  it("kimsede rol yoksa uygulanamaz, az kişide varsa uyarı, yeterliyse hazır", () => {
+    const status = (roles: string[][]) =>
+      pendingSkillRecommendations(mfg, "three-shift", shifts, roles).find(r => r.skill === "Bakım Teknisyeni")!.status;
+    expect(status([])).toBe("no-holders");
+    expect(status(holders(1, "Bakım Teknisyeni"))).toBe("thin");
+    expect(status(holders(2, "Bakım Teknisyeni"))).toBe("ready");
+    // Motor birebir eşleştirir: farklı yazım sayılmaz
+    expect(status(holders(3, "bakım teknisyeni"))).toBe("no-holders");
+  });
+
+  it("uygulanan öneri listeden düşer, diğer vardiyalar değişmez", () => {
+    const rec = pendingSkillRecommendations(mfg, "three-shift", shifts, holders(3, "Bakım Teknisyeni"))[0];
+    const next = applySkillRecommendation(shifts, rec);
+    expect(next.find(s => s.id === rec.shiftId)!.required_skills).toEqual([{ skill: rec.skill, count: rec.count }]);
+    expect(next.filter(s => s.id !== rec.shiftId)).toEqual(shifts.filter(s => s.id !== rec.shiftId));
+    expect(pendingSkillRecommendations(mfg, "three-shift", next, []).map(r => r.skill)).not.toContain(rec.skill);
+  });
+
+  it("vardiyası olmayan öneri atlanır", () => {
+    expect(pendingSkillRecommendations(mfg, "three-shift", [], [])).toEqual([]);
+  });
+});
+
+describe("portal kelimeleri", () => {
+  it("sektör yoksa vardiya, sağlıkta nöbet, üretimde posta (ek uyumu)", () => {
+    expect(shiftWords(null)).toEqual({ shift: "vardiya", Shift: "Vardiya", Shifts: "Vardiyalar", MyShifts: "Vardiyalarım", openShift: "açık vardiya", OpenShifts: "Açık Vardiyalar" });
+    expect(shiftWords(getIndustry("healthcare")!.nudges)).toMatchObject({ Shifts: "Nöbetler", MyShifts: "Nöbetlerim", OpenShifts: "Boş Nöbetler" });
+    expect(shiftWords(getIndustry("manufacturing")!.nudges)).toMatchObject({ Shift: "Posta", MyShifts: "Postalarım", OpenShifts: "Boş Postalar" });
   });
 });

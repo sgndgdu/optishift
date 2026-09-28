@@ -5,11 +5,13 @@ import { useEffect, useState, useCallback } from "react";
 import { Megaphone, Star, Gavel, Clock } from "lucide-react";
 import { usePortalAuth } from "@/hooks/useAuth";
 
+import { useShiftWords } from "@/hooks/useShiftWords";
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
 
 export default function PortalOpenShiftsPage() {
+  const words = useShiftWords();
   const { user, mounted } = usePortalAuth();
   const [shifts, setShifts]     = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -97,7 +99,7 @@ export default function PortalOpenShiftsPage() {
           <Megaphone size={20} className="text-amber-600" />
         </div>
         <div>
-          <h1 className="text-xl font-black text-slate-900">Açık Vardiyalar</h1>
+          <h1 className="text-xl font-black text-slate-900">{words.OpenShifts}</h1>
           <p className="text-xs text-slate-500">{biddingEnabled ? "Teklif ver, müdür seçsin" : "Üstlen, kahraman bonusu kazan"}</p>
         </div>
       </div>
@@ -107,7 +109,7 @@ export default function PortalOpenShiftsPage() {
       {!loading && shifts.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 p-10 flex flex-col items-center gap-3 text-slate-300">
           <Megaphone size={36} strokeWidth={1.5} />
-          <p className="text-sm font-semibold text-slate-400">Şu an açık vardiya ilanı yok</p>
+          <p className="text-sm font-semibold text-slate-400">Şu an {words.openShift} ilanı yok</p>
         </div>
       )}
 
@@ -139,7 +141,7 @@ export default function PortalOpenShiftsPage() {
                   onClick={() => handleClaim(s)}
                   className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {busyId === s.id ? "Üstleniliyor…" : "Vardiyayı Üstlen"}
+                  {busyId === s.id ? "Üstleniliyor…" : "Üstlen"}
                 </button>
               )}
 

@@ -28,3 +28,31 @@ export function localizeCopy(
     detail: copy?.detail ? fillTemplate(copy.detail, n) : fallback.detail,
   };
 }
+
+const titleCaseTr = (s: string) =>
+  s.split(" ").map(w => w.charAt(0).toLocaleUpperCase("tr-TR") + w.slice(1)).join(" ");
+
+/** Son ünlü kalın mı (a, ı, o, u)? Ek uyumu için. */
+const backVowel = (s: string) => /[aıou][^aeıioöuü]*$/.test(s);
+
+/** Personel portalında kullanılan hazır kelime biçimleri. Sektör seçili değilse "vardiya". */
+export interface ShiftWords {
+  shift: string;        // "vardiya" | "nöbet" | "posta"
+  Shift: string;        // "Vardiya"
+  Shifts: string;       // "Vardiyalar"
+  MyShifts: string;     // "Vardiyalarım" | "Nöbetlerim"
+  openShift: string;    // "açık vardiya" | "boş nöbet"
+  OpenShifts: string;   // "Açık Vardiyalar" | "Boş Nöbetler"
+}
+
+export function shiftWords(nudges: IndustryNudges | null | undefined): ShiftWords {
+  const { shift, shifts, openShift } = nudges?.terms ?? { shift: "vardiya", shifts: "vardiyalar", openShift: "açık vardiya" };
+  return {
+    shift,
+    Shift: titleCaseTr(shift),
+    Shifts: titleCaseTr(shifts),
+    MyShifts: titleCaseTr(shifts + (backVowel(shifts) ? "ım" : "im")),
+    openShift,
+    OpenShifts: titleCaseTr(openShift + (backVowel(openShift) ? "lar" : "ler")),
+  };
+}

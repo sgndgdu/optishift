@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
+import { ShiftWordsContext } from "@/hooks/useShiftWords";
+import { industryFromRules, shiftWords } from "@/lib/templates";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -61,6 +63,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true);
   const [chatEnabled, setChatEnabled] = useState(true);
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true);
+  // Şubenin sektörü seçiliyse "vardiya" yerine sektörün kelimesi (nöbet, posta)
+  const [words, setWords] = useState(() => shiftWords(null));
   const chatUnread = useChatUnread();
   const notifUnread = useNotifUnread();
 
@@ -81,6 +85,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               setAvailCollectionEnabled(rules?.availability_collection_enabled !== false);
               setChatEnabled(rules?.chat_enabled !== false);
               setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
+              setWords(shiftWords(industryFromRules(rules)?.nudges));
             })
             .catch(() => {});
         }
@@ -92,7 +97,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const nav = NAV
     .filter(i => availCollectionEnabled || i.href !== "/portal/availability")
     .filter(i => chatEnabled || i.href !== "/portal/chat")
-    .filter(i => openShiftsEnabled || i.href !== "/portal/open-shifts");
+    .filter(i => openShiftsEnabled || i.href !== "/portal/open-shifts")
+    .map(i => i.href === "/portal/calendar" ? { ...i, label: words.Shifts }
+      : i.href === "/portal/open-shifts" ? { ...i, label: words.OpenShifts } : i);
   const bottomNav = nav.slice(0, 5);
 
   if (!mounted) return null;
@@ -217,7 +224,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
         <div className="flex-1 overflow-auto">
           <div className="pb-20 md:pb-0">
-            {children}
+            <ShiftWordsContext.Provider value={words}>{children}</ShiftWordsContext.Provider>
           </div>
         </div>
 

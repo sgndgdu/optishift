@@ -15,6 +15,7 @@ import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
 
+import { useShiftWords } from "@/hooks/useShiftWords";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -32,6 +33,7 @@ function elapsedLabel(checkInAt: number): string {
 }
 
 export default function PortalDashboard() {
+  const words = useShiftWords();
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
@@ -371,7 +373,7 @@ export default function PortalDashboard() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-forest-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
                 {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
-                {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? "Vardiya bitti" : "Bugün"}
+                {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? `${words.Shift} bitti` : "Bugün"}
               </div>
               {crewName && (
                 <div className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20 text-white/80">
@@ -414,7 +416,7 @@ export default function PortalDashboard() {
                 </div>
               )}
               <p className="text-forest-200/70 text-sm flex items-center gap-2">
-                <span>{shiftDur(todayShift)} saatlik vardiya</span>
+                <span>{shiftDur(todayShift)} saatlik {words.shift}</span>
                 {todayShift.location_name && (
                   <><span className="opacity-40">·</span><MapPin size={11} className="inline -mt-px" /> {todayShift.location_name}</>
                 )}
@@ -422,13 +424,13 @@ export default function PortalDashboard() {
             </div>
           ) : (
             <div className="mb-5">
-              <div className="text-2xl font-black mb-1 text-white/70">Bugün vardiya yok</div>
+              <div className="text-2xl font-black mb-1 text-white/70">Bugün {words.shift} yok</div>
               {upcomingShifts.length > 0 ? (
                 <p className="text-forest-200/70 text-sm">
                   Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
                 </p>
               ) : (
-                <p className="text-forest-200/60 text-sm">Bu hafta başka vardiya yok.</p>
+                <p className="text-forest-200/60 text-sm">Bu hafta başka {words.shift} yok.</p>
               )}
             </div>
           )}
@@ -588,7 +590,7 @@ export default function PortalDashboard() {
           <span className="text-sm font-black text-slate-800">Bu Hafta</span>
           {!dataLoading && (
             <span className="text-xs font-bold text-slate-400">
-              {shifts.length} vardiya · {totalHours.toFixed(0)} saat
+              {shifts.length} {words.shift} · {totalHours.toFixed(0)} saat
             </span>
           )}
         </div>
@@ -788,7 +790,7 @@ export default function PortalDashboard() {
       {!dataLoading && upcomingShifts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-black text-slate-900 text-base">Yaklaşan Vardiyalar</h3>
+            <h3 className="font-black text-slate-900 text-base">Yaklaşan {words.Shifts}</h3>
             <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">
               Takvim <ChevronRight size={13} />
             </Link>
