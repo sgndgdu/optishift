@@ -207,21 +207,22 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">
-            <a href="/kilavuz?role=employee" target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <a href="/kilavuz?role=employee" target="_blank" rel="noopener noreferrer" aria-label="Yardım" title="Yardım" className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
               <HelpCircle size={20} />
             </a>
-            {openShiftsEnabled && (
-              <Link href="/portal/open-shifts" className={cn("p-2 rounded-xl transition-colors", pathname.startsWith("/portal/open-shifts") ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+            {/* Alt menüde zaten varsa üstte tekrar gösterilmez */}
+            {openShiftsEnabled && !bottomNav.some(i => i.href === "/portal/open-shifts") && (
+              <Link href="/portal/open-shifts" aria-label={words.OpenShifts} title={words.OpenShifts} className={cn("p-2 rounded-xl transition-colors", pathname.startsWith("/portal/open-shifts") ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
                 <Megaphone size={20} />
               </Link>
             )}
-            <Link href="/portal/notifications" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+            <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (
                 <span className="absolute top-1 right-1 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{notifUnread}</span>
               )}
             </Link>
-            <Link href="/portal/settings" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+            <Link href="/portal/settings" aria-label="Hesabım" title="Hesabım" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <UserCircle size={22} />
             </Link>
           </div>

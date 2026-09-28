@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Clock, Calendar as CalIcon, TrendingUp, BellRing, Check,
+  Clock, Calendar as CalIcon, TrendingUp, Check,
   MapPin, AlertCircle, Timer, ChevronRight,
   Zap, ClipboardList, PlayCircle, StopCircle, Fingerprint, X, Wallet,
 } from "lucide-react";
@@ -339,7 +339,6 @@ export default function PortalDashboard() {
   const shiftDays     = new Set(shifts.map((s: any) => s.day));
   const totalHours    = shifts.reduce((acc: number, s: any) => acc + shiftDur(s), 0);
   const upcomingShifts = shifts.filter(s => s.day >= todayIdx).sort((a, b) => a.day - b.day);
-  const unreadCount   = notifs.filter(n => !n.is_read).length;
   const isCheckedIn   = !!todayShift?.check_in_at && !todayShift?.check_out_at;
   const isCompleted   = !!todayShift?.check_out_at;
   const todayLabel    = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
@@ -355,13 +354,7 @@ export default function PortalDashboard() {
             Merhaba, {user?.name?.split(" ")[0]} 👋
           </h1>
         </div>
-        <Link href="/portal/notifications"
-          className="relative mt-1 p-2.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors">
-          <BellRing size={22} />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
-          )}
-        </Link>
+
       </div>
 
       {/* ── Hero: Bugün ─────────────────────────────────────────────────── */}
@@ -446,7 +439,7 @@ export default function PortalDashboard() {
           <div className="flex gap-2.5">
             <button onClick={() => router.push("/portal/calendar")}
               className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-bold py-3 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 active:scale-[0.97]">
-              <CalIcon size={14} /> Takvim
+              <CalIcon size={14} /> {words.Shifts}
             </button>
             {todayShift && !todayShift.check_in_at && !isCompleted && (
               <button onClick={() => handleCheckIn(todayShift.id)} disabled={checkInLoading}
@@ -460,7 +453,8 @@ export default function PortalDashboard() {
                 <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
               </button>
             )}
-            {(!todayShift || isCompleted) && (
+            {/* Uygunluk kapalıysa yok; eksikse aşağıdaki uyarı zaten aynı yere götürüyor */}
+            {(!todayShift || isCompleted) && availEnabled === true && nextWeekAvail !== false && (
               <button onClick={() => router.push("/portal/availability")}
                 className="flex-[2] bg-white text-primary text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97]">
                 <Zap size={14} /> Uygunluk Gir
@@ -629,21 +623,6 @@ export default function PortalDashboard() {
         </div>
       </div>
 
-      {/* ── Hızlı Erişim ────────────────────────────────────────────────── */}
-      <div className={`grid gap-3 ${availEnabled === false ? "grid-cols-2" : "grid-cols-3"}`}>
-        {[
-          ...(availEnabled === false ? [] : [{ href: "/portal/availability", icon: <Zap size={18} />, label: "Uygunluk", color: "text-ember-600 bg-ember-50" }]),
-          { href: "/portal/requests",     icon: <ClipboardList size={18}/>, label: "Talepler",  color: "text-amber-600  bg-amber-50"  },
-          { href: "/portal/calendar",     icon: <CalIcon size={18} />,      label: "Takvim",    color: "text-emerald-600 bg-emerald-50"},
-        ].map(item => (
-          <Link key={item.href} href={item.href}
-            className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-slate-100 py-4 shadow-sm hover:shadow-md hover:border-slate-200 transition-all active:scale-[0.97]">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>{item.icon}</div>
-            <span className="text-xs font-bold text-slate-600">{item.label}</span>
-          </Link>
-        ))}
-      </div>
-
       {/* ── Biyometrik Giriş ──────────────────────────────────────────────── */}
       {webauthnAvailable && biometricCreds !== null && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
@@ -794,7 +773,7 @@ export default function PortalDashboard() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-black text-slate-900 text-base">Yaklaşan {words.Shifts}</h3>
             <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">
-              Takvim <ChevronRight size={13} />
+              Tümü <ChevronRight size={13} />
             </Link>
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
@@ -831,17 +810,16 @@ export default function PortalDashboard() {
           <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-3">
             <TrendingUp size={18} />
           </div>
-          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">
-            {Math.round(((fairness?.score ?? user?.prev_score) ?? 0) * 10) / 10}
+          {/* Ham puan tek başına anlam taşımaz: asıl mesaj ekibe göre konum */}
+          <p className="text-xs text-slate-400 font-semibold">Adalet Puanı</p>
+          <p className={`text-sm font-black leading-snug mt-0.5 ${
+            fairness?.label?.level === "high" ? "text-amber-700"
+            : fairness?.label?.level === "low" ? "text-emerald-700" : "text-slate-900"}`}>
+            {fairness?.label?.text ?? "Hesaplanıyor"}
           </p>
-          <p className="text-xs text-slate-400 font-semibold mt-0.5">Adalet Puanı</p>
-          {fairness?.label && (
-            <span className={`inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              fairness.label.level === "high" ? "bg-red-50 text-red-600"
-              : fairness.label.level === "low" ? "bg-emerald-50 text-emerald-600"
-              : "bg-slate-100 text-slate-500"
-            }`}>{fairness.label.text}</span>
-          )}
+          <p className="text-[11px] text-slate-400 mt-1 tabular-nums">
+            {Math.round(((fairness?.score ?? user?.prev_score) ?? 0) * 10) / 10} puan · Ayrıntı için dokun
+          </p>
         </button>
         <Link href="/portal/calendar" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 block hover:shadow-md transition-shadow">
           <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">

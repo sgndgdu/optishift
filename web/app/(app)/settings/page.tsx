@@ -22,11 +22,11 @@ const CREW_COLORS = [
 
 type TabKey = "basic" | "advanced" | "features" | "account";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "basic",    label: "Temel Ayarlar" },
-  { key: "advanced", label: "Gelişmiş Seçenekler" },
-  { key: "features", label: "Ek Özellikler" },
-  { key: "account",  label: "Hesabım" },
+const TABS: { key: TabKey; label: string; short: string }[] = [
+  { key: "basic",    label: "Temel Ayarlar",       short: "Temel" },
+  { key: "advanced", label: "Gelişmiş Seçenekler", short: "Gelişmiş" },
+  { key: "features", label: "Ek Özellikler",       short: "Özellikler" },
+  { key: "account",  label: "Hesabım",             short: "Hesabım" },
 ];
 
 // Eski sekme adlarıyla gelen derin linkler (?tab=shifts, ?tab=rules...) yeni yapıya eşlenir.
@@ -99,14 +99,14 @@ function NumberInput({
   );
 }
 
-function RuleRow({ label, description, right }: { label: string; description: ReactNode; right: ReactNode }) {
+function RuleRow({ label, description, right, wide = false }: { label: string; description: ReactNode; right: ReactNode; wide?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-4">
+    <div className={cn("flex items-start justify-between gap-4 py-4", wide && "flex-col sm:flex-row gap-3")}>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-slate-800">{label}</p>
         <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
       </div>
-      <div className="shrink-0 mt-0.5">{right}</div>
+      <div className={cn("shrink-0 mt-0.5", wide && "w-full sm:w-auto")}>{right}</div>
     </div>
   );
 }
@@ -210,6 +210,7 @@ function RequiredSkillsEditor({
 }) {
   const [newSkill, setNewSkill] = useState("");
   const [newCount, setNewCount] = useState(1);
+  const [open, setOpen] = useState(false);
   const add = () => {
     const name = newSkill.trim();
     if (!name || skills.some(s => s.skill === name)) return;
@@ -217,9 +218,17 @@ function RequiredSkillsEditor({
     setNewSkill("");
     setNewCount(1);
   };
+  if (skills.length === 0 && !open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="text-xs font-semibold text-slate-400 hover:text-forest-700 pt-1 border-t border-slate-100 w-full text-left">
+        + Zorunlu rol ekle <span className="font-normal text-slate-300">(örn. her gece en az 1 bakımcı)</span>
+      </button>
+    );
+  }
   return (
     <div className="space-y-1.5 pt-1 border-t border-slate-100">
-      <span className="text-xs text-slate-400">Zorunlu yetkinlik <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
+      <span className="text-xs text-slate-400">Zorunlu rol <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
       {skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {skills.map((rs, i) => (
@@ -242,7 +251,7 @@ function RequiredSkillsEditor({
           onChange={e => setNewSkill(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           list="known-skills-list"
-          placeholder="Yetkinlik (örn. bakımcı)"
+          placeholder="Rol (örn. bakımcı)"
           className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
         />
         <datalist id="known-skills-list">
@@ -1079,7 +1088,8 @@ export default function SettingsPage() {
         >
           {tab.key === "features" && <Sparkles size={13} />}
           {tab.key === "account" && <UserCircle size={13} />}
-          {tab.label}
+          <span className="sm:hidden">{tab.short}</span>
+          <span className="hidden sm:inline">{tab.label}</span>
         </button>
       ))}
     </div>
@@ -1472,10 +1482,11 @@ export default function SettingsPage() {
 
               <SectionCard title="Konum & Hava Durumu">
                 <RuleRow
+                  wide
                   label="Şube Konumu"
                   description="Ayarlandıktan sonra vardiya takviminde o haftanın günlük hava durumu ikonları görünür."
                   right={
-                    <div className="flex flex-col items-end gap-2 min-w-[220px]">
+                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
                       {/* Mevcut konum göstergesi */}
                       {weatherStatus === "found" && weatherLabel && (
                         <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">

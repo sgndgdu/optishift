@@ -6,6 +6,7 @@ import {
   calcFairnessRank,
   fairnessLabel,
   fairnessLabelFromAverage,
+  fairnessLabelForEmployee,
   resolveShiftDef,
   type AssignmentInput,
   type ShiftDef,
@@ -287,5 +288,15 @@ describe("fairnessLabelFromAverage", () => {
   it("eşit puan eşit etiket; ortalama 0 ise nötr", () => {
     expect(fairnessLabelFromAverage(50, 50)).toEqual(fairnessLabelFromAverage(50, 50));
     expect(fairnessLabelFromAverage(0, 0).level).toBe("ok");
+  });
+});
+
+describe("fairnessLabelForEmployee", () => {
+  it("personele hitap eder, müdüre yönelik cümle yok", () => {
+    expect(fairnessLabelForEmployee(130, 100)).toEqual({ text: "Son haftalarda fazla yük aldın", level: "high" });
+    expect(fairnessLabelForEmployee(110, 100).text).toBe("Ortalamanın biraz üstünde");
+    expect(fairnessLabelForEmployee(100, 100).text).toBe("Ekip ortalamasında");
+    expect(fairnessLabelForEmployee(70, 100).level).toBe("low");
+    for (const b of [50, 100, 150]) expect(fairnessLabelForEmployee(b, 100).text).not.toContain("azaltılmalı");
   });
 });

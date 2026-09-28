@@ -593,7 +593,8 @@ export default function PersonnelPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Dokunmatik ekranda fare yok: telefonda hep görünür */}
+                  <div className="flex items-center gap-1 mt-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-lg transition-colors" title="Düzenle"><Edit2 size={15} /></button>
                     {p.userId && <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
                       {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}

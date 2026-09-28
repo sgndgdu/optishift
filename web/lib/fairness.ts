@@ -326,6 +326,18 @@ export function fairnessLabelFromAverage(burden: number, teamAvg: number): { tex
 }
 
 /**
+ * Aynı kural, personelin kendisine hitap eden dille (portal). "Yük azaltılmalı" gibi
+ * müdüre yönelik cümleler personele gösterilmez.
+ */
+export function fairnessLabelForEmployee(burden: number, teamAvg: number): { text: string; level: "low" | "ok" | "high" } {
+  const { level } = fairnessLabelFromAverage(burden, teamAvg);
+  const ratio = teamAvg > 0 ? burden / teamAvg : 1;
+  if (level === "low") return { text: "Ekibe göre hafif yük", level };
+  if (level === "high") return { text: "Son haftalarda fazla yük aldın", level };
+  return { text: ratio > 1.05 ? "Ortalamanın biraz üstünde" : "Ekip ortalamasında", level };
+}
+
+/**
  * Percentile'ı kullanıcıya anlamlı Türkçe metne dönüştürür.
  * percentile: 0-100, yüksek = takımda az yüklü.
  */

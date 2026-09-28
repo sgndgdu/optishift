@@ -2331,7 +2331,7 @@ loading ? (
 
               {/* Adalet dağılımı toggle */}
               <button
-                onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı"
+                onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı" aria-label="Adalet Dağılımı"
                 className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
               >
                 <BarChart2 size={15} />
@@ -2343,7 +2343,7 @@ loading ? (
                   onClick={() => setActionsOpen(o => !o)}
                   className="px-3 py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
                 >
-                  <MoreHorizontal size={15} /> <span className="hidden sm:inline">İşlemler</span>
+                  <MoreHorizontal size={15} /> İşlemler
                 </button>
                 {actionsOpen && (
                   <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
@@ -2564,10 +2564,12 @@ loading ? (
               <table className="w-full min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
-                    <th ref={personnelColRef} className="sticky left-0 bg-white z-30 px-3 py-3 text-left w-44 align-bottom">
+                    <th ref={personnelColRef} className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         Personel {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
+                      {/* İsim altındaki çubuk ve sayı ne anlatıyor */}
+                      <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Çubuk: Adalet Puanı</span>
                     </th>
                     {Array.from({ length: 7 }, (_, i) => {
                       const isWeekend = i === 5 || i === 6;
@@ -2661,9 +2663,9 @@ loading ? (
 
                     return (
                       <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
-                        <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-3 py-2 h-14">
+                        <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-2 sm:px-3 py-2 h-14">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            <div className="hidden sm:flex w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-bold flex items-center justify-center shrink-0">
                               {p.name.charAt(0)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2682,10 +2684,10 @@ loading ? (
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
                                   <div className={cn("h-full rounded-full", scoreColor(score, maxScore))} style={{ width: scoreBarWidth }} />
                                 </div>
-                                <span className="text-[10px] text-slate-400 tabular-nums">{Math.round(score * 10) / 10}</span>
+                                <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: son haftalarda aldığı yük (yüksek = daha yüklü)">{Math.round(score * 10) / 10}</span>
                               </div>
                             </div>
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button onClick={() => fillPersonRow(p.id)} title="Tüm uygun günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
                                 <CalendarCheck size={13} />
                               </button>
@@ -2815,7 +2817,7 @@ loading ? (
 
             {/* Kilitli floating badge */}
             {isPublishedWeek && !editUnlocked && (
-              <div className="absolute bottom-4 right-4 z-10 cursor-pointer" onClick={() => setUnlockModal(true)}>
+              <div className="hidden md:block absolute bottom-4 right-4 z-10 cursor-pointer" onClick={() => setUnlockModal(true)}>
                 <div className="bg-white border border-slate-200 shadow-lg rounded-xl px-4 py-2.5 flex items-center gap-2.5 hover:shadow-xl transition-shadow">
                   <div className="text-lg">🔒</div>
                   <div>

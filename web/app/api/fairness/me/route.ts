@@ -3,13 +3,13 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { personnel, locations, scoreHistory, scoreAdjustments } from "@/lib/db/schema";
 import { and, eq, desc, avg } from "drizzle-orm";
-import { fairnessLabelFromAverage } from "@/lib/fairness";
+import { fairnessLabelForEmployee } from "@/lib/fairness";
 
 /**
  * GET /api/fairness/me — personelin KENDİ adalet puanı görünümü.
  * Başka personelin puanı/sıralaması asla serialize edilmez; takım konumu
  * yalnızca etiket olarak döner (şubenin aktif personel ortalamasına göre,
- * raporla aynı kural: fairnessLabelFromAverage).
+ * raporla aynı kural, personele hitap eden dille: fairnessLabelForEmployee).
  */
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
     const teamAvg = Number(team?.avg ?? 0);
     return NextResponse.json({
       score: me.prev_score ?? 0,
-      label: fairnessLabelFromAverage(me.prev_score ?? 0, teamAvg), // { text, level }; ortalama da dönmüyor
+      label: fairnessLabelForEmployee(me.prev_score ?? 0, teamAvg), // { text, level }; ortalama da dönmüyor
       hero_count: me.hero_count ?? 0,
       // Kronolojik sıra (en eski önce) — sparkline için
       history: history.reverse().map(h => ({
