@@ -460,14 +460,14 @@ export async function PATCH(req: NextRequest) {
           WHERE personnel_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
         `);
         const insert = await db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?)
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?)
         `);
         for (const s of shifts) {
           if (!s?.personnel_id || s.day === undefined || !s.start_time || !s.end_time) continue;
           // Yayınlanmış satır varsa (bu veya başka şubede) draft kopya yazma
           if (await hasPublished.get(s.personnel_id, week_start, s.day)) continue;
-          await insert.run(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs), s.start_time, s.end_time, now);
+          await insert.run(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs), s.start_time, s.end_time, s.pinned === true, now);
           synced++;
         }
       })();

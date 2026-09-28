@@ -7,7 +7,7 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive, Pin, PinOff,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -292,7 +292,8 @@ function SnapshotGrid({ data }: { data: FullPub }) {
   );
 }
 
-type CellData = { startMin: number; endMin: number; points: number };
+// pinned: müdür elle düzeltti; Haftayı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
+type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
 type AvailMap = Record<string, Record<number, AvailDay>>;
@@ -409,6 +410,7 @@ function SchedulePageInner() {
   const [publishSuccess, setPublishSuccess]       = useState(false);
   const [error, setError]                         = useState<string | null>(null);
   const [toast, setToast]                         = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
@@ -805,7 +807,7 @@ function SchedulePageInner() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs) };
+              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), ...(s.pinned ? { pinned: true } : {}) };
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
                 newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 5 };
@@ -854,6 +856,7 @@ function SchedulePageInner() {
               shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
               start_time:   minToHHMM(val.startMin),
               end_time:     minToHHMM(val.endMin),
+              pinned:       val.pinned === true,
             };
           }),
         }),
@@ -1151,8 +1154,17 @@ function SchedulePageInner() {
         startMin: popover.startMin,
         endMin:   popover.endMin,
         points:   cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs),
+        pinned:   true,
       },
     });
+    setPopover(null);
+  };
+
+  const handlePopoverTogglePin = () => {
+    if (!popover) return;
+    const key = `${popover.personnelId}-${popover.day}`;
+    if (!cellMap[key]) return;
+    pushCellMap({ ...cellMap, [key]: { ...cellMap[key], pinned: !cellMap[key].pinned } });
     setPopover(null);
   };
 
@@ -1170,11 +1182,23 @@ function SchedulePageInner() {
   const runGenerate = async () => {
     setGenerating(true);
     setError(null);
+    // Elle düzeltilen (korunan) hücreler motora sabit olarak gider, gerisi yeniden çözülür
+    const pinned = keepPinned ? Object.entries(cellMap).filter(([, v]) => v.pinned) : [];
+    const fixed_assignments = pinned.map(([key, val]) => {
+      const lastDash = key.lastIndexOf("-");
+      return {
+        personnel_id: key.slice(0, lastDash),
+        day:          parseInt(key.slice(lastDash + 1)),
+        shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
+        start_time:   minToHHMM(val.startMin),
+        end_time:     minToHHMM(val.endMin),
+      };
+    });
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart }),
+        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments }),
       });
       const data = await res.json();
       setExcludedCompliance(data.excluded_compliance ?? []);
@@ -1190,6 +1214,8 @@ function SchedulePageInner() {
           newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs) };
         }
       }
+      // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
+      for (const [key, val] of pinned) newCellMap[key] = val;
       pushCellMap(newCellMap);
       setDbShiftCount(0); // OR-Tools taslağı — henüz yayınlanmadı
       // Engine'in base_points tabanlı puanlarını sakla — publish sırasında prev_score güncellemesinde kullanılır
@@ -1593,7 +1619,7 @@ function SchedulePageInner() {
       const key = `${personId}-${day}`;
       const isWeekOff = person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === day;
       if (!newMap[key] && availMap[personId]?.[day]?.status !== 'unavailable' && !isWeekOff) {
-        newMap[key] = { startMin: ds, endMin: de, points: cellBurden(ds, de, day, availMap, personId, locRules, shiftDefs) };
+        newMap[key] = { startMin: ds, endMin: de, points: cellBurden(ds, de, day, availMap, personId, locRules, shiftDefs), pinned: true };
         added++;
       }
     }
@@ -2004,7 +2030,8 @@ function SchedulePageInner() {
 
     newMap[targetId] = {
       ...sourceCell,
-      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs)
+      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs),
+      pinned: true,
     };
     delete newMap[sourceId];
     
@@ -2771,11 +2798,15 @@ loading ? (
                                 <DraggableShift id={cellKey} disabled={false}>
                                   <div
                                     onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
+                                    title={cell.pinned ? "Elle düzenlendi: Haftayı Oluştur bu vardiyayı korur" : undefined}
                                     className={cn(
-                                      "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
+                                      "relative mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
                                       forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : cellIsNight ? "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
                                     )}
                                   >
+                                    {cell.pinned && (
+                                      <Pin size={10} aria-label="Korunuyor" className="absolute top-0.5 right-0.5 text-forest-600 rotate-45" />
+                                    )}
                                     <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>
                                       {matchedDef ? matchedDef.name : "Özel"}
                                     </div>
@@ -2881,6 +2912,9 @@ loading ? (
               noAvailCount={noAvailCount}
               onRemindAvailability={() => handleRequestAvailability(weekOffset)}
               existingCellCount={cellCount}
+              pinnedCount={Object.values(cellMap).filter(c => c.pinned).length}
+              keepPinned={keepPinned}
+              onKeepPinnedChange={setKeepPinned}
               generating={generating}
               error={error}
               generatedCount={cellCount}
@@ -3183,6 +3217,16 @@ loading ? (
               className="w-full mt-3 py-2 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-xl hover:bg-sky-100 transition-colors flex items-center justify-center gap-1.5"
             >
               <MessageCircle size={13} /> Vardiya Teklifi Gönder
+            </button>
+          )}
+          {hasExisting && (
+            <button
+              onClick={handlePopoverTogglePin}
+              className="w-full mt-2 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5"
+            >
+              {cellMap[`${popover!.personnelId}-${popover!.day}`]?.pinned
+                ? <><PinOff size={13} /> Korumayı kaldır (yeniden oluşturmada değişebilir)</>
+                : <><Pin size={13} /> Koru (yeniden oluşturmada değişmesin)</>}
             </button>
           )}
           <div className="flex gap-2 mt-2">

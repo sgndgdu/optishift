@@ -281,3 +281,32 @@ def test_empty_demand_closed_day_stays_empty():
     result = run_engine(payload)
     assert "error" not in result, result
     assert not [a for a in result["assignments"] if a["day"] == 6]
+
+
+def test_fixed_assignments_are_kept_and_rest_is_solved():
+    """Müdürün elle koyduğu (korunan) hücreler aynen kalır, "gelemem" dediği gün olsa bile;
+    özel saatli korunan hücrede kişi o gün başka vardiyaya yazılmaz."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 5)]
+    avail = {p["id"]: FULL_WEEK_AVAILABLE for p in people}
+    avail["P1"] = {**FULL_WEEK_AVAILABLE, "2": "unavailable"}
+    payload = base_payload(
+        personnel=people,
+        availability=avail,
+        shifts=CAFE_SHIFTS,
+        fixed_assignments=[
+            {"personnel_id": "P1", "day": 2, "shift_id": "kapanis"},          # gelemem gününe bilerek
+            {"personnel_id": "P2", "day": 0, "shift_id": "acilis"},
+            {"personnel_id": "P3", "day": 4, "shift_id": "custom", "start_time": "10:00", "end_time": "14:00"},
+        ],
+        closed_days=[6],
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    got = {(a["personnelId"], a["day"]): a["shiftId"] for a in result["assignments"]}
+    assert got.get(("P1", 2)) == 2
+    assert got.get(("P2", 0)) == 0
+    assert ("P3", 4) not in got  # özel saat motor çıktısında yok, istemci korur
+    # Gerisi yine çözüldü: açık her gün × vardiya dolu (tablo boş)
+    for d in range(6):
+        for s in range(3):
+            assert any(a["day"] == d and a["shiftId"] == s for a in result["assignments"]), (d, s)

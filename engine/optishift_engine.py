@@ -46,6 +46,12 @@ CLOSED_DAYS: set = set()
 # her vardiyayı en az 1 kişiyle açar, sonra adaleti dengeler. Personel yetmezse plan yine çıkar.
 EMPTY_SHIFT_PENALTY = 5000
 
+# Müdürün elle yaptığı ve korunan (pinned) hücreler: yeniden oluşturmada dokunulmaz.
+# {(personnel_id, day): shift_idx | None} — None: tanımlı vardiyaya uymayan özel saat,
+# kişi o gün başka vardiyaya yazılmaz; süresi FIXED_EXTRA_MINUTES ile haftalık sınırdan düşülür.
+FIXED_ASSIGNMENTS: dict = {}
+FIXED_EXTRA_MINUTES: dict = {}
+
 # (kaldırıldı: PREFERRED_NOT_MULTIPLIER — additive model'de RULES["hard_shift_points"] kullanılıyor)
 
 # Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
@@ -237,8 +243,18 @@ def build_model():
     for p_idx, person in enumerate(PERSONNEL):
         for d in range(NUM_DAYS):
             for s in range(NUM_SHIFTS):
-                if get_avail(person["id"], d, s) == "unavailable":
+                if get_avail(person["id"], d, s) == "unavailable" and FIXED_ASSIGNMENTS.get((person["id"], d)) != s:
                     model.add(shifts[(p_idx, d, s)] == 0)
+
+    # Korunan hücreler (müdürün elle düzelttikleri): aynen kalır, motor gerisini çözer
+    for p_idx, person in enumerate(PERSONNEL):
+        for d in range(NUM_DAYS):
+            key = (person["id"], d)
+            if key not in FIXED_ASSIGNMENTS:
+                continue
+            fixed_s = FIXED_ASSIGNMENTS[key]
+            for s in range(NUM_SHIFTS):
+                model.add(shifts[(p_idx, d, s)] == (1 if s == fixed_s else 0))
 
     # Minimum dinlenme: Genel geçiş matrisi (N vardiya destekli)
     # Her (s1, s2) çifti için: ertesi güne geçen dinlenme süresi < min_rest_hours ise yasak.
@@ -327,7 +343,7 @@ def build_model():
     for p in range(num_p):
         # part-time personel için kendi max_weekly_hours'unu kullan
         person_max_min = int(PERSONNEL[p].get("max_weekly_hours", RULES["max_weekly_hours"])) * 60
-        effective_max  = min(max_weekly_minutes, person_max_min)
+        effective_max  = max(0, min(max_weekly_minutes, person_max_min) - FIXED_EXTRA_MINUTES.get(PERSONNEL[p]["id"], 0))
         model.add(
             sum(
                 shifts[(p, d, s)] * shift_durations_min[s]
@@ -351,6 +367,8 @@ def build_model():
     # gruplamadan tamamen hariç tutulur — onlar için kimliğe bağlı asimetrik
     # bir kısıt var, birbirlerinin yerine geçemezler.
     conflict_person_ids = {pid for pair in CONFLICT_PAIRS for pid in pair}
+    # Korunan hücresi olan kişi de kimliğe bağlı sabit bir kısıt taşır, gruplanmaz
+    conflict_person_ids |= {pid for pid, _d in FIXED_ASSIGNMENTS}
 
     def _person_signature(person):
         pid = person["id"]
@@ -1159,7 +1177,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1257,6 +1275,24 @@ def api_mode(payload: dict):
         if 0 <= d < 7:
             CLOSED_DAYS.add(d)
 
+    # Korunan hücreler: [{personnel_id, day, shift_id, start_time, end_time}]
+    FIXED_ASSIGNMENTS = {}
+    FIXED_EXTRA_MINUTES = {}
+    shift_id_to_idx = {str(sd.get("id", i)): i for i, sd in enumerate(payload.get("shifts") or [])}
+    known_ids = {p.get("id") for p in PERSONNEL}
+    for fa in payload.get("fixed_assignments") or []:
+        try:
+            pid, day = fa["personnel_id"], int(fa["day"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if pid not in known_ids or not 0 <= day < NUM_DAYS:
+            continue
+        s_idx = shift_id_to_idx.get(str(fa.get("shift_id")))
+        FIXED_ASSIGNMENTS[(pid, day)] = s_idx
+        if s_idx is None and fa.get("start_time") and fa.get("end_time"):
+            start_m, end_m = _shift_minutes({"start": fa["start_time"], "end": fa["end_time"]})
+            FIXED_EXTRA_MINUTES[pid] = FIXED_EXTRA_MINUTES.get(pid, 0) + max(0, end_m - start_m)
+
     DEMAND_MATRIX = {}
     raw_demand = payload.get("demand_matrix")
     if raw_demand and isinstance(raw_demand, dict):
@@ -1338,6 +1374,9 @@ def api_mode(payload: dict):
     if result is None:
         diagnosis = diagnose_infeasibility()
         message = diagnosis or (
+            "Elle düzenleyip korunan vardiyalar kurallarla çelişiyor (dinlenme süresi, haftalık saat ya da "
+            "gece kısıtı). Korunan hücrelerden birkaçının kilidini kaldırıp tekrar deneyin."
+            if FIXED_ASSIGNMENTS else
             "Bu kurallarla uygun bir plan bulunamadı. Haftalık saat limitini, "
             "dinlenme süresini veya Kapasite Planı'ndaki sayıları gözden geçirin."
         )

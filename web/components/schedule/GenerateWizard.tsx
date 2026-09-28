@@ -37,7 +37,7 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 export default function GenerateWizard({
   weekLabel, demandTable, demandEmpty, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
-  existingCellCount, generating, error, generatedCount, seniorViolationCount, excludedCount,
+  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, generating, error, generatedCount, seniorViolationCount, excludedCount,
   onGenerate, onPublish, onClose,
 }: {
   weekLabel: string;
@@ -49,6 +49,10 @@ export default function GenerateWizard({
   noAvailCount: number;
   onRemindAvailability: () => void;
   existingCellCount: number;
+  /** Elle düzeltilip korunan vardiya sayısı */
+  pinnedCount: number;
+  keepPinned: boolean;
+  onKeepPinnedChange: (v: boolean) => void;
   generating: boolean;
   error: string | null;
   generatedCount: number;
@@ -63,6 +67,7 @@ export default function GenerateWizard({
   const [reminded, setReminded] = useState(false);
   // Sihirbaz açıldığındaki vardiya sayısı: oluşturma sonrası değişeceği için ilk değer saklanır
   const [initialCells] = useState(existingCellCount);
+  const [initialPinned] = useState(pinnedCount);
 
   const run = async () => {
     await onGenerate();
@@ -127,11 +132,20 @@ export default function GenerateWizard({
                   <CheckRow tone="ok">Herkes bu hafta için uygunluğunu girdi.</CheckRow>
                 ))}
 
-                {initialCells > 0 && (
+                {initialCells > 0 && (initialPinned > 0 ? (
+                  <CheckRow tone={keepPinned ? "ok" : "warn"}>
+                    <span className="font-bold">Elle düzenlediğiniz {initialPinned} vardiya {keepPinned ? "korunacak" : "da silinecek"}.</span>{" "}
+                    {keepPinned ? `Kalan ${initialCells - initialPinned} vardiya yeniden oluşturulur.` : "Hafta baştan oluşturulur."}
+                    <label className="flex items-center gap-2 mt-1.5 text-xs font-semibold cursor-pointer">
+                      <input type="checkbox" checked={keepPinned} onChange={e => onKeepPinnedChange(e.target.checked)} className="accent-forest-600" />
+                      Elle düzenlediklerimi koru
+                    </label>
+                  </CheckRow>
+                ) : (
                   <CheckRow tone="warn">
                     <span className="font-bold">Bu haftada {initialCells} vardiya var.</span> Oluşturunca silinip yeniden yazılacak.
                   </CheckRow>
-                )}
+                ))}
               </div>
             </WizardStep>
           )}

@@ -648,9 +648,17 @@ export async function POST(req: NextRequest) {
       for (let d = 0; d < 7; d++) if (hours?.[d]?.isOpen === false) closedDays.push(d);
     } catch { /* bozuk JSON: her gün açık say */ }
 
+    // Müdürün elle düzeltip koruduğu hücreler (Vardiya Planı): motor bunlara dokunmaz.
+    // Kişi ve gün doğrulaması motorda (bilinmeyen personel_id yok sayılır).
+    const fixedAssignments = Array.isArray(body.fixed_assignments)
+      ? body.fixed_assignments.slice(0, 2000).filter((f: any) =>
+          f && typeof f.personnel_id === "string" && Number.isInteger(f.day) && f.day >= 0 && f.day <= 6)
+      : [];
+
     const enginePayload = {
       prevScores,
       closed_days: closedDays,
+      fixed_assignments: fixedAssignments,
       branchId,
       orgId,
       week_start,
