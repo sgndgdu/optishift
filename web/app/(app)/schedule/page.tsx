@@ -598,6 +598,9 @@ function SchedulePageInner() {
   useEffect(() => {
     if (!activeLocationId) return;
     const weekStart = getWeekStart(weekOffset);
+    // Hafta hızlı değiştirilince eski yükleme sonradan bitip yeni haftanın ekranına
+    // eski haftanın planını yazabiliyordu: yerini yenisi alan yükleme hiçbir state yazmaz
+    let stale = false;
     (async () => {
       setLoading(true);
       try {
@@ -616,6 +619,7 @@ function SchedulePageInner() {
         const sData = await sRes.json();
         const locData = await locRes.json();
         const deptData = await deptRes.json();
+        if (stale) return;
         const deptArr = Array.isArray(deptData) ? deptData : [];
         setDepartments(deptArr);
 
@@ -763,6 +767,7 @@ function SchedulePageInner() {
 
         // Mevcut yayın revizyonu
         const pubData = await pubRes.json();
+        if (stale) return;
         if (Array.isArray(pubData) && pubData.length > 0) {
           const maxRev = Math.max(...pubData.map((p: any) => p.revision ?? 0));
           setCurrentRevision(maxRev);
@@ -824,8 +829,9 @@ function SchedulePageInner() {
         setEditRequestReviewer(null);
         editRequestCheckedRef.current = null;
       } catch {}
-      setLoading(false);
+      if (!stale) setLoading(false);
     })();
+    return () => { stale = true; };
   }, [activeLocationId, weekOffset, reloadTick]);
 
   // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Haftayı Oluştur aynı yolu kullanır)
