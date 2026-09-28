@@ -14,6 +14,9 @@ import IndustryPicker from "@/components/IndustryPicker";
 import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
+import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
+import { getWeekStart } from "@/lib/date";
+import { DAY_SHORT } from "@/lib/constants";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -384,6 +387,11 @@ export default function SettingsPage() {
   // Sosyal Kurallar — Birlikte Çalışamaz çiftleri
   const [conflictPairs, setConflictPairs] = useState<any[]>([]);
   const [conflictPersonnel, setConflictPersonnel] = useState<{ id: string; name: string }[]>([]);
+  // Çalışma döngüsü (rules.work_cycle): aktif personel, anında kaydedilir
+  const [cyclePersonnel, setCyclePersonnel] = useState<{ id: string; name: string }[]>([]);
+  const [cycleSaving, setCycleSaving] = useState(false);
+  // Anında kaydedilen döngü sayfanın genel kayıt durumuna (kaydedilmemiş değişiklik çubuğu) karışmaz
+  const [savedWorkCycle, setSavedWorkCycle] = useState<WorkCycleConfig | null | undefined>(undefined);
   // Aktif personelin rolleri: önerilen zorunlu rolü uygulamadan önce rol sahibi var mı diye bakılır
   const [personnelRoles, setPersonnelRoles] = useState<string[][]>([]);
   const [newConflictA, setNewConflictA]   = useState("");
@@ -470,6 +478,7 @@ export default function SettingsPage() {
           if (!loc.zone_quotas) loc.zone_quotas = {};
           if (typeof loc.rules === "string")             { try { loc.rules             = JSON.parse(loc.rules);             } catch { loc.rules = {};             } }
           setLocationData(loc);
+          setSavedWorkCycle(undefined);
 
           setZoneQuotas(Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })));
 
@@ -568,6 +577,9 @@ export default function SettingsPage() {
               const pData = await pRes.json();
               if (Array.isArray(pData)) {
                 setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
+                setCyclePersonnel(pData.filter((p: any) => p.status === "active")
+                  .map((p: any) => ({ id: p.id, name: p.name }))
+                  .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")));
                 setPersonnelRoles((pData as { status?: string; roles?: unknown }[])
                   .filter(p => p.status === "active")
                   .map(p => Array.isArray(p.roles) ? p.roles as string[] : []));
@@ -1073,6 +1085,37 @@ export default function SettingsPage() {
       showToast("error", "İşletme türü kaydedilemedi.");
     } finally {
       setIndustrySaving(false);
+    }
+  };
+
+  // Çalışma döngüsü: deseni seç, aktif personele eşit dağıt (kaydırmalar), anında kaydet
+  const workCycle = (() => {
+    const r = locationData?.rules;
+    const obj = typeof r === "string" ? (() => { try { return JSON.parse(r); } catch { return {}; } })() : (r ?? {});
+    return savedWorkCycle !== undefined ? (savedWorkCycle ?? undefined) : (obj as Record<string, unknown>).work_cycle as WorkCycleConfig | undefined;
+  })();
+  const saveWorkCycle = async (pattern: string) => {
+    if (!locationData) return;
+    setCycleSaving(true);
+    try {
+      const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
+      const fr = Array.isArray(fresh) ? fresh[0]?.rules : null;
+      const base: Record<string, unknown> = fr ? (typeof fr === "string" ? JSON.parse(fr) : { ...fr }) : {};
+      const rules = pattern
+        ? { ...base, work_cycle: { pattern, anchor: getWeekStart(), offsets: distributeOffsets(cyclePersonnel.map(p => p.id), pattern) } }
+        : Object.fromEntries(Object.entries(base).filter(([k]) => k !== "work_cycle"));
+      const res = await fetch(`/api/locations?id=${locationData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules }),
+      });
+      if (!res.ok) throw new Error();
+      setSavedWorkCycle(((rules as Record<string, unknown>).work_cycle as WorkCycleConfig | undefined) ?? null);
+      showToast("ok", pattern ? "Çalışma döngüsü kaydedildi ve ekibe dağıtıldı." : "Çalışma döngüsü kapatıldı.");
+    } catch {
+      showToast("error", "Çalışma döngüsü kaydedilemedi.");
+    } finally {
+      setCycleSaving(false);
     }
   };
 
@@ -2123,6 +2166,55 @@ export default function SettingsPage() {
                     right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
                   />
   </SectionCard>
+
+                <SectionCard title="Çalışma Döngüsü (çalış / dinlen)">
+                  <div className="p-4 space-y-3">
+                    <p className="text-xs text-slate-500">Her kişiye tekrar eden bir çalışma deseni verilir; kişiler desene eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Planlama boş günlerde kimseyi yazmaz, gündüz/gece günlerinde sadece o vardiyayı verir. Değişiklik anında kaydedilir.</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select value={workCycle?.pattern ?? ""} disabled={cycleSaving}
+                        onChange={e => saveWorkCycle(e.target.value)}
+                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                        <option value="">Döngü yok</option>
+                        {Object.entries(WORK_CYCLES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
+                      </select>
+                      {workCycle?.pattern && (
+                        <button onClick={() => saveWorkCycle(workCycle.pattern)} disabled={cycleSaving}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
+                          Ekibe yeniden dağıt
+                        </button>
+                      )}
+                    </div>
+                    {workCycle?.pattern && WORK_CYCLES[workCycle.pattern] && (
+                      <>
+                        <p className="text-[11px] text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Ekibe yeniden dağıt&quot;a basın.</p>
+                        <div className="overflow-x-auto">
+                          <table className="text-[11px]">
+                            <thead><tr><th className="text-left pr-3 font-semibold text-slate-500">Bu hafta</th>{DAY_SHORT.map(d => <th key={d} className="px-1 font-semibold text-slate-500">{d}</th>)}</tr></thead>
+                            <tbody>
+                              {cyclePersonnel.map(p => {
+                                const st = weekStates(workCycle, p.id, getWeekStart());
+                                return (
+                                  <tr key={p.id}>
+                                    <td className="pr-3 py-0.5 text-slate-700 whitespace-nowrap">{p.name}</td>
+                                    {(st ?? Array(7).fill(null)).map((x, i) => (
+                                      <td key={i} className="px-1 py-0.5 text-center">
+                                        <span className={cn("inline-block w-6 rounded font-bold",
+                                          x === "O" ? "bg-slate-100 text-slate-400" : x === "N" ? "bg-indigo-100 text-indigo-700" : x === "D" ? "bg-amber-100 text-amber-700" : x === "W" ? "bg-forest-100 text-forest-700" : "text-slate-300")}>
+                                          {x === "O" ? "–" : x === "N" ? "G" : x === "D" ? "Gü" : x === "W" ? "Ç" : "?"}
+                                        </span>
+                                      </td>
+                                    ))}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          <p className="text-[10px] text-slate-400 mt-1">Ç: çalışır · Gü: gündüz · G: gece · –: dinlenme · ?: döngüye dağıtılmamış</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </SectionCard>
 
                 <div>
                   <SectionLabel>Rotasyon</SectionLabel>

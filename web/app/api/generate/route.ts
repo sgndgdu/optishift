@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
+import { weekStates } from "@/lib/workCycle";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -681,8 +682,21 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error("[generate] geçen hafta sürüş sorgusu hatası:", e); }
     }
 
+    // Çalışma döngüsü (rules.work_cycle, lib/workCycle): kişi başı bu haftanın W/D/N/O günleri
+    const dayPatterns: Record<string, string[]> = {};
+    try {
+      const wc = locationRow?.rules ? JSON.parse(locationRow.rules)?.work_cycle : null;
+      if (wc) {
+        for (const p of personnelData as any[]) {
+          const st = weekStates(wc, String(p.id), week_start);
+          if (st) dayPatterns[String(p.id)] = st;
+        }
+      }
+    } catch (e) { console.error("[generate] çalışma döngüsü:", e); }
+
     const enginePayload = {
       prevScores,
+      day_patterns: dayPatterns,
       prev_week_driving_hours: prevWeekDriving,
       closed_days: closedDays,
       fixed_assignments: fixedAssignments,

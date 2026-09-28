@@ -52,6 +52,11 @@ EMPTY_SHIFT_PENALTY = 5000
 FIXED_ASSIGNMENTS: dict = {}
 FIXED_EXTRA_MINUTES: dict = {}
 
+# Çalışma döngüsü (lib/workCycle): {personnel_id: ["W"|"D"|"N"|"O"] × 7}
+# O: o gün hiç vardiya yok; D: sadece gündüz; N: sadece gece; W/D/N günü çalışmamak esnek cezalı.
+DAY_PATTERNS: dict = {}
+PATTERN_MISS_PENALTY = 5000  # adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük
+
 # Sürüş süresi (AETR / AB 561/2006): geçen hafta yayınlanmış sürüş saati {personnel_id: saat}
 PREV_WEEK_DRIVING: dict = {}
 DAILY_DRIVING_MAX_MIN = 9 * 60          # günde 9 saat
@@ -285,6 +290,33 @@ def build_model():
                             if rs < ke and ks < re_:
                                 model.add(shifts[(p, d, s)] + shifts[(p, d2, k)] <= 1)
 
+    # Çalışma döngüsü: boş günde vardiya yok, gündüz/gece günü sadece o tür (korunan hücre desenden önce gelir)
+    pattern_misses = []
+    if DAY_PATTERNS:
+        night_reg = [s for s in REG if _is_night_shift(s)]
+        day_reg = [s for s in REG if not _is_night_shift(s)]
+        for p_idx, person in enumerate(PERSONNEL):
+            states = DAY_PATTERNS.get(person["id"])
+            if not states:
+                continue
+            for d in range(NUM_DAYS):
+                st = states[d] if d < len(states) else "W"
+                fixed_today = (person["id"], d, "regular") in FIXED_ASSIGNMENTS or (person["id"], d, "on_call") in FIXED_ASSIGNMENTS
+                if st == "O":
+                    if not fixed_today:
+                        for s in range(NUM_SHIFTS):
+                            model.add(shifts[(p_idx, d, s)] == 0)
+                    continue
+                allowed = day_reg if st == "D" else night_reg if st == "N" else REG
+                if not fixed_today:
+                    for s in REG:
+                        if s not in allowed:
+                            model.add(shifts[(p_idx, d, s)] == 0)
+                if allowed:
+                    miss = model.new_bool_var(f"pattern_miss_p{p_idx}_d{d}")
+                    model.add(sum(shifts[(p_idx, d, s)] for s in allowed) >= 1).only_enforce_if(miss.negated())
+                    pattern_misses.append(miss)
+
     # Sürüş süresi (AETR / AB 561/2006) — sadece direksiyon saati tanımlı vardiyalar
     DRIVE = [s for s in REG if _driving_min(s) > 0]
     if DRIVE:
@@ -451,6 +483,8 @@ def build_model():
     conflict_person_ids = {pid for pair in CONFLICT_PAIRS for pid in pair}
     # Korunan hücresi olan kişi de kimliğe bağlı sabit bir kısıt taşır, gruplanmaz
     conflict_person_ids |= {pid for pid, _d, _k in FIXED_ASSIGNMENTS}
+    # Çalışma döngüsü deseni kişiye özeldir; desenli kişiler birbirinin yerine geçemez
+    conflict_person_ids |= set(DAY_PATTERNS)
 
     def _person_signature(person):
         pid = person["id"]
@@ -467,6 +501,7 @@ def build_model():
             float(person.get("cumulative_burden", person.get("prev_score", 0)) or 0),
             float(person.get("ytd_overtime_hours", 0) or 0),
             tuple(get_avail(pid, d) for d in range(NUM_DAYS)),
+            float(PREV_WEEK_DRIVING.get(pid, 0) or 0),  # iki haftalık sürüş sınırı kişiye özel
         )
 
     signature_groups: dict = {}
@@ -808,6 +843,7 @@ def build_model():
         + sum(clopening_penalties) * int(RULES.get("clopening_penalty_weight", 30))
         + ot_penalty_term
         + sum(empty_shift_penalties) * EMPTY_SHIFT_PENALTY
+        + sum(pattern_misses) * PATTERN_MISS_PENALTY
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -1283,7 +1319,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING, DAY_PATTERNS
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1386,6 +1422,11 @@ def api_mode(payload: dict):
             CLOSED_DAYS.add(d)
 
     PREV_WEEK_DRIVING = {str(k): v for k, v in (payload.get("prev_week_driving_hours") or {}).items()}
+    DAY_PATTERNS = {
+        str(k): [str(x) for x in v][:7]
+        for k, v in (payload.get("day_patterns") or {}).items()
+        if isinstance(v, list)
+    }
 
     # Korunan hücreler: [{personnel_id, day, shift_id, start_time, end_time}]
     FIXED_ASSIGNMENTS = {}

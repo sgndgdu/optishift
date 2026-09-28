@@ -434,3 +434,35 @@ def test_driving_two_week_limit_uses_previous_week():
     assert "error" not in result, result
     p1 = sum(7 for a in result["assignments"] if a["personnelId"] == "P1")
     assert p1 <= 40
+
+
+def test_day_patterns_off_days_and_day_night():
+    """Çalışma döngüsü: O günü vardiya yok; D sadece gündüz, N sadece gece; çalışma günü doldurulur."""
+    shifts = [
+        {"id": "gunduz", "name": "Gündüz", "start": "08:00", "end": "20:00", "base_points": 5},
+        {"id": "gece", "name": "Gece", "start": "20:00", "end": "08:00", "base_points": 8, "is_night": True},
+    ]
+    people = [make_person(f"P{i}", f"Kişi {i}", max_weekly_hours=60) for i in range(1, 5)]
+    patterns = {
+        "P1": ["D", "N", "O", "O", "D", "N", "O"],
+        "P2": ["O", "D", "N", "O", "O", "D", "N"],
+        "P3": ["O", "O", "D", "N", "O", "O", "D"],
+        "P4": ["N", "O", "O", "D", "N", "O", "O"],
+    }
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=shifts,
+        rules={"max_weekly_hours": 60, "min_rest_hours": 11},
+        max_consecutive_days=7,
+        day_patterns=patterns,
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    got = {(a["personnelId"], a["day"]): a["shiftId"] for a in result["assignments"]}
+    for pid, states in patterns.items():
+        for d, st in enumerate(states):
+            if st == "O":
+                assert (pid, d) not in got, (pid, d)
+            else:
+                assert got.get((pid, d)) == (0 if st == "D" else 1), (pid, d, st, got.get((pid, d)))

@@ -118,6 +118,5 @@ export const security: IndustryProfile = {
 
   limitations: [
     "Saha devriyesi için ara nokta (checkpoint) okutma henüz yok; giriş GPS ile, tur kontrolü görev listesiyle takip edilir.",
-    "Sabit 12/24 rotasyonu gün gün değil, dinlenme süresi kuralıyla sağlanır: motor 12 saatlik vardiyadan sonra 24 (ya da 36) saat dinlenme bırakır.",
   ],
 };
