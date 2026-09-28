@@ -990,13 +990,12 @@ function SchedulePageInner() {
     return () => { stale = true; };
   }, [activeLocationId, weekStart]);
 
-  // Sihirbaz açılınca: yayınlanmış haftada "mevcut planı koru" varsayılan açık
-  useEffect(() => {
-    if (!wizardOpen) return;
+  // Sihirbazı aç: yayınlanmış haftada "mevcut planı koru" varsayılan açık
+  const openWizard = () => {
     setMinimizeChanges(dbShiftCount > 0 && !isDraftWeek);
     setChangedCount(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardOpen]);
+    setWizardOpen(true);
+  };
 
   // Sihirbaz açılınca (ve ekip değişince) ihtiyaç önerisini al; departmanlı şubede öneri yok
   useEffect(() => {
@@ -2836,7 +2835,7 @@ loading ? (
                 {actionsOpen && (
                   <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
                     {cellCount > 0 && !(isPublishedWeek && !editUnlocked) && (
-                      <button onClick={() => { setActionsOpen(false); setWizardOpen(true); }} disabled={generating}
+                      <button onClick={() => { setActionsOpen(false); openWizard(); }} disabled={generating}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                         <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
                       </button>
@@ -2907,7 +2906,7 @@ loading ? (
                   🔒 Düzenle
                 </button>
               ) : cellCount === 0 && !isPublishedWeek ? (
-                <button onClick={() => setWizardOpen(true)} disabled={generating || loading}
+                <button onClick={() => openWizard()} disabled={generating || loading}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-forest-700 rounded-xl hover:bg-forest-800 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                   <Sparkles size={14} /> Haftayı Oluştur
                 </button>
@@ -2934,7 +2933,7 @@ loading ? (
               shiftDefsCount={shiftDefs.length}
               personnelCount={personnel.length}
               demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
-              onOpenDemand={() => setWizardOpen(true)}
+              onOpenDemand={() => openWizard()}
             />
           )}
           {publishSuccess && (
