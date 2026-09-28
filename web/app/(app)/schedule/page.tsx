@@ -295,7 +295,7 @@ function SnapshotGrid({ data }: { data: FullPub }) {
 }
 
 // pinned: müdür elle düzeltti; Haftayı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
-type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean };
+type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean; id?: number };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
 type AvailMap = Record<string, Record<number, AvailDay>>;
@@ -433,6 +433,11 @@ function SchedulePageInner() {
   const [callFormOpen, setCallFormOpen]           = useState(false);
   const [callForm, setCallForm]                   = useState<CallForecastInput>({ dailyCalls: [0, 0, 0, 0, 0, 0, 0], curve: "office", ahtSec: 240, slPercent: 80, slSeconds: 20, shrinkagePercent: 30 });
   const [callSummary, setCallSummary]             = useState<string | null>(null);
+  // "Gelemiyor" (hastalık/acil) penceresi: yayınlanmış vardiya için akıllı yedek (lib/openShiftCandidates)
+  const [absence, setAbsence] = useState<{ assignmentId: number; personId: string; title: string } | null>(null);
+  const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[] }[] | null>(null);
+  const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
+  const [absenceBusy, setAbsenceBusy] = useState(false);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -836,7 +841,7 @@ function SchedulePageInner() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), ...(s.pinned ? { pinned: true } : {}) };
+              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}) };
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
                 newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 5 };
@@ -1281,6 +1286,52 @@ function SchedulePageInner() {
       },
     });
     setPopover(null);
+  };
+
+  const openAbsence = (assignmentId: number, personId: string, title: string) => {
+    setAbsence({ assignmentId, personId, title });
+    setAbsenceCands(null);
+    setAbsenceReason("sick");
+    fetch(`/api/open-shifts/candidates?assignment_id=${assignmentId}`)
+      .then(r => r.json())
+      .then(d => setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []))
+      .catch(() => setAbsenceCands([]));
+  };
+  const resolveAbsence = async (mode: "assign" | "top" | "all", pick?: { personnel_id: string; name: string }) => {
+    if (!absence) return;
+    setAbsenceBusy(true);
+    try {
+      const person = personnel.find((p: { id: string }) => p.id === absence.personId);
+      const reasonText = absenceReason === "sick" ? "hastalık nedeniyle gelemiyor" : absenceReason === "emergency" ? "acil bir durum nedeniyle gelemiyor" : "vardiyaya gelmedi";
+      const res = await fetch("/api/open-shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          convert_assignment_id: absence.assignmentId,
+          reason: absenceReason === "no_show" ? "no_show" : undefined,
+          note: `${person?.name ?? "Personel"} ${reasonText}`,
+          notify: mode === "assign" ? "none" : mode,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(d.error ?? "İşlem yapılamadı", "error"); return; }
+      if (mode === "assign" && pick) {
+        const r2 = await fetch("/api/open-shifts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: d.id, claimed_by: pick.personnel_id, claimed_by_name: pick.name, assigned_by_manager: true }),
+        });
+        if (!r2.ok) { showToast("Açık vardiya oluştu ama atanamadı; Açık Vardiyalar'dan atayın.", "error"); }
+        else showToast(`${pick.name} vardiyaya atandı ve bilgilendirildi.`, "success");
+      } else if (mode === "top") {
+        const names: string[] = Array.isArray(d.notified) ? d.notified : [];
+        showToast(names.length ? `${names.join(", ")} kişilerine teklif gitti; ilk kabul eden alır.` : "Uygun aday bulunamadı; vardiya açık ilanda.", names.length ? "success" : "info");
+      } else {
+        showToast("Vardiya açık ilana çıktı, tüm ekibe duyuruldu.", "success");
+      }
+      setAbsence(null);
+      setReloadTick(t => t + 1);
+    } finally { setAbsenceBusy(false); }
   };
 
   const reloadCallouts = async () => {
@@ -3046,8 +3097,12 @@ loading ? (
                             return (
                               <td key={day} className={tdClass}>
                                 {cell ? (
-                                  <div className={cn(
+                                  <div
+                                    onClick={cell.id ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
+                                    title={cell.id ? "Gelemiyorsa tıklayın: uygun yedek önerilir" : undefined}
+                                    className={cn(
                                     "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border",
+                                    cell.id && "cursor-pointer hover:shadow-sm",
                                     forceData ? "bg-amber-50 border-amber-200" : cellIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70"
                                   )}>
                                     {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>{matchedDef.name}</div>}
@@ -3199,6 +3254,52 @@ loading ? (
               onPublish={handlePublish}
               onClose={() => setWizardOpen(false)}
             />
+          )}
+
+          {/* ── Gelemiyor: akıllı yedek ── */}
+          {absence && (
+            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !absenceBusy && setAbsence(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Gelemiyor">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Gelemiyor · yerine kim geçsin?</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{absence.title}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([["sick", "Hastalık"], ["emergency", "Acil durum"], ["no_show", "Gelmedi"]] as const).map(([k, l]) => (
+                    <button key={k} onClick={() => setAbsenceReason(k)}
+                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border", absenceReason === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200")}>{l}</button>
+                  ))}
+                </div>
+                {absenceCands === null ? (
+                  <p className="text-xs text-slate-400">Uygun kişiler hesaplanıyor…</p>
+                ) : absenceCands.length === 0 ? (
+                  <p className="text-xs text-slate-500">O gün uygun kimse yok (vardiyası, izni ya da &quot;gelemem&quot; günü olmayan). Vardiyayı açık ilana çıkarabilirsiniz.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Önerilen yedekler</p>
+                    {absenceCands.slice(0, 5).map((c, i) => (
+                      <div key={c.personnel_id} className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-slate-400 w-4">{i + 1}</span>
+                          <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
+                          <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
+                        </div>
+                        {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[11px] text-slate-500 ml-6">✓ {r}</p>)}
+                        {c.warnings.map(w => <p key={w} className="text-[11px] text-amber-700 ml-6">! {w}</p>)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button disabled={absenceBusy || !absenceCands?.length} onClick={() => resolveAbsence("top")}
+                    className="flex-1 py-2 text-sm font-bold text-white bg-forest-600 rounded-xl hover:bg-forest-700 disabled:opacity-40">İlk 3&apos;e teklif gönder</button>
+                  <button disabled={absenceBusy} onClick={() => resolveAbsence("all")}
+                    className="flex-1 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Herkese duyur</button>
+                </div>
+                <p className="text-[11px] text-slate-400">Teklifte ilk kabul eden vardiyayı alır ve Kahraman Bonusu kazanır. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
+              </div>
+            </div>
           )}
 
           {/* ── İcap çağrısı (yayınlanmış hafta) ── */}

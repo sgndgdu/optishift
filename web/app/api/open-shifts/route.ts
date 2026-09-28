@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { claimOpenShift } from "@/lib/openShifts";
+import { rankCandidates } from "@/lib/openShiftCandidates";
 
 
 function getDb() {
@@ -62,6 +63,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let { location_id, date, start_time, end_time, note } = body;
     const { hero_bonus_multiplier, convert_assignment_id, reason } = body;
+    // Bildirim hedefi: "all" (şubenin tüm personeli, varsayılan), "top" (en uygun 3 aday,
+    // lib/openShiftCandidates), "none" (müdür doğrudan atayacak)
+    const notify: "all" | "top" | "none" = body.notify === "top" || body.notify === "none" ? body.notify : "all";
+    let absentPersonnelId: string | null = null;
     const org_id = auth.org_id;
 
     // Personel sadece "pazar yerine bırak" modunu ve sadece KENDİ atamasını kullanabilir —
@@ -121,6 +126,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Bu şubede açık vardiya sistemi kapalı." }, { status: 422 });
       }
 
+      absentPersonnelId = asg.personnel_id;
       // Atamayı kaldır: vardiya artık kişinin takviminde değil, ilan havuzunda
       await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);
       if (reason === "no_show") {
@@ -158,10 +164,17 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)
     `).run(org_id, location_id, date, start_time, end_time, note ?? null, heroPoints, now);
 
-    // Lokasyondaki tüm aktif personele bildirim gönder
-    const activePersonnel = await db.prepare(
-      `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
-    ).all(location_id) as any[];
+    // Bildirim: tüm ekip, en uygun 3 aday ya da kimse (vardiyası düşen kişi hariç)
+    let activePersonnel: { id: string; name?: string }[] = [];
+    if (notify === "all") {
+      activePersonnel = (await db.prepare(
+        `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
+      ).all(location_id) as any[]).filter(p => p.id !== absentPersonnelId);
+    } else if (notify === "top") {
+      const { candidates } = await rankCandidates(db, { location_id, date, start_time, end_time, excludePersonnelId: absentPersonnelId ?? undefined });
+      activePersonnel = candidates.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+      if (activePersonnel.length === 0) activePersonnel = candidates.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+    }
     const insertNotif = await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, created_at)
       VALUES (?, 'open_shift', ?, ?, ?)
@@ -169,8 +182,10 @@ export async function POST(req: NextRequest) {
     for (const p of activePersonnel) {
       insertNotif.run(
         p.id,
-        `Acil Açık Vardiya · ${date}`,
-        `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
+        notify === "top" ? `Senin için uygun bir vardiya · ${date}` : `Acil Açık Vardiya · ${date}`,
+        notify === "top"
+          ? `${start_time}–${end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; kabul edersen +${heroPoints} puan Kahraman Bonusu.`
+          : `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
         now
       );
       await sendPushToPersonnel(p.id, org_id, {
@@ -179,7 +194,7 @@ export async function POST(req: NextRequest) {
         url: "/portal/notifications",
       });
     }
-    return NextResponse.json({ success: true, id: result.lastInsertRowid });
+    return NextResponse.json({ success: true, id: result.lastInsertRowid, notified: activePersonnel.map(p => p.name ?? p.id) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
