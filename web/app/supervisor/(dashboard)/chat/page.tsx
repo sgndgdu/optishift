@@ -364,7 +364,7 @@ export default function SupervisorChatPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <MessageSquare size={15} className="text-ember-500" />
-                Rehber
+                Kanallar ve Müdürler
               </h2>
               <div className="flex items-center gap-2">
                 {totalUnread > 0 && (

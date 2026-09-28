@@ -262,7 +262,11 @@ export default function OnboardingWizard() {
                   <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
                     <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.
-                    Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.
+                    {singleLocationId ? (
+                      <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
+                    ) : (
+                      <>Genel bakışta her şubenin kartındaki <strong>Planı Yönet</strong> ile o şubeye geçip personel ekleyebilirsiniz.</>
+                    )}
                   </p>
                 </div>
 

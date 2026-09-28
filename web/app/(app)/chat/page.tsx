@@ -332,7 +332,7 @@ export default function ManagerChatPage() {
               <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                 <MessageSquare size={16} className="text-primary" />
               </div>
-              <h2 className="text-base font-black text-slate-900">Rehber</h2>
+              <h2 className="text-base font-black text-slate-900">Kişiler ve Kanallar</h2>
             </div>
             <div className="flex items-center gap-2">
               {totalUnread > 0 && (
