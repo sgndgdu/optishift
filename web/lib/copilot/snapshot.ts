@@ -13,6 +13,7 @@
 
 import type { ShiftDefinition } from "@/lib/types";
 import { addDays } from "@/lib/date";
+import { longestWeeklyRestHours } from "@/lib/legal";
 
 export type DayState = "available" | "partial" | "preferred_not" | "unavailable";
 
@@ -80,6 +81,8 @@ export interface PersonWeek {
   restGaps: { fromDay: number; toDay: number; hours: number }[];
   /** En uzun üst üste gece sayısı. */
   nightStreak: number;
+  /** Haftanın en uzun kesintisiz dinlenmesi (saat), İş K. m.46 için. */
+  longestRestHours: number;
   /** İzinli olduğu günde atama. */
   onLeaveDays: number[];
   /** "Uygun değilim" dediği günde atama. */
@@ -214,6 +217,10 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
       minRestHours: minRest === null ? null : round1(minRest),
       restGaps,
       nightStreak,
+      longestRestHours: round1(longestWeeklyRestHours(shifts.map(x => {
+        const span = shiftSpan(x.start, x.end);
+        return { start: x.day * 1440 + span.startMin, end: x.day * 1440 + span.endMin };
+      }))),
       onLeaveDays: daysWhere(d => leave.has(d)),
       unavailableDays: daysWhere(d => avail[d] === "unavailable"),
       preferredNotDays: daysWhere(d => avail[d] === "preferred_not"),

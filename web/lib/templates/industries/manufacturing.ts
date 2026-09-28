@@ -129,7 +129,6 @@ export const manufacturing: IndustryProfile = {
     ],
   },
 
-  limitations: [
-    "Günlük 11 saat üst sınırı ayrı bir kural olarak değil, vardiya süreleriyle korunur; 11 saati aşan vardiya tanımlamayın.",
-  ],
+  // Günlük 11 saat (m.63) artık vardiya düzenleyicide ve yayın kontrolünde uyarılıyor (lib/legal.ts)
+  limitations: [],
 };

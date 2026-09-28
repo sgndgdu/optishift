@@ -13,6 +13,7 @@ import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
 import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
+import { DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -1302,6 +1303,11 @@ export default function SettingsPage() {
                           setLocationData({ ...locationData, shift_definitions: next });
                         }} />
                       </div>
+                      {netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
+                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                          ⚠ Vardiya {shiftDurationHours(shift)} saat: yasal mola düşülse de günlük 11 saat sınırını aşıyor (İş Kanunu m.63). Saatleri kısaltın.
+                        </p>
+                      )}
                       {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
                         <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
@@ -1633,7 +1639,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Maks. Ardışık Çalışma"
-                    description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 = sınır yok."
+                    description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 seçilse de haftada en az 1 gün izin (24 saat kesintisiz hafta tatili, İş K. m.46) her zaman korunur."
                     right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                   />
                   <RuleRow

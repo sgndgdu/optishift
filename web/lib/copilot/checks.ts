@@ -8,6 +8,7 @@
 
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import type { WeekSnapshot } from "./snapshot";
+import { DAILY_MAX_NET_HOURS, WEEKLY_REST_HOURS, netWorkHours } from "@/lib/legal";
 
 export type InsightSeverity = "critical" | "warning" | "info";
 
@@ -69,6 +70,16 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   const shortRest = per(p => p.restGaps.filter(g => g.hours < rules.minRestHours),
     (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}`);
   add("short-rest", "critical", `${shortRest.length} kişinin iki vardiyası arasında ${rules.minRestHours} saatten az dinlenme var`, shortRest);
+
+  // İş K. m.46: 7 günde en az 24 saat kesintisiz hafta tatili
+  const noWeeklyRest = working.filter(p => p.longestRestHours < WEEKLY_REST_HOURS);
+  add("weekly-rest", "critical", `${noWeeklyRest.length} kişiye haftada 24 saat kesintisiz dinlenme kalmıyor`,
+    noWeeklyRest.map(p => `${p.name}: en uzun dinlenme ${fmtHours(p.longestRestHours)} (İş Kanunu m.46 hafta tatili)`));
+
+  // İş K. m.63: günlük çalışma 11 saati aşamaz (m.68 asgari mola düşülerek)
+  const longDays = per(p => p.shifts.filter(x => netWorkHours(x.hours) > DAILY_MAX_NET_HOURS),
+    (n, xs) => `${n}: ${xs.map(x => `${DAY_NAMES[x.day]} ${fmtHours(x.hours)}`).join(", ")}`);
+  add("daily-11", "critical", `${longDays.length} kişinin vardiyası molası düşüldükten sonra 11 saati aşıyor`, longDays);
 
   const restricted = working.filter(p => p.nights > 0 && p.nightRestriction);
   add("night-restriction", "critical", `${restricted.length} kişi gece çalışma engeline rağmen gece vardiyasında`,

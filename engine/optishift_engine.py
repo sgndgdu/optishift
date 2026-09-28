@@ -286,6 +286,15 @@ def build_model():
                     <= MAX_CONSECUTIVE_DAYS
                 )
 
+    # Hafta tatili (İş K. m.46): haftada en az 1 gün boş, "Maks. Ardışık Çalışma" 7 olsa da.
+    # Korunan özel saatli hücreler (motor dışı çalışma günü) bu 6 güne sayılır.
+    for p_idx, person in enumerate(PERSONNEL):
+        custom_days = sum(1 for (pid, _d), s_idx in FIXED_ASSIGNMENTS.items() if pid == person["id"] and s_idx is None)
+        model.add(
+            sum(shifts[(p_idx, d, s)] for d in range(NUM_DAYS) for s in range(NUM_SHIFTS))
+            <= max(0, NUM_DAYS - 1 - custom_days)
+        )
+
     # ── GECE KORUMASI (Postalar Yönetmeliği) ────────────────────────────────
     night_shift_idxs = [s for s in range(NUM_SHIFTS) if _is_night_shift(s)]
     if night_shift_idxs:
@@ -765,6 +774,14 @@ def diagnose_infeasibility() -> str | None:
                     f"{DAYS[d]}: {total} kişi isteniyor ama sadece {len(pool)} personel müsait "
                     f"(toplam {len(all_ids)} personel var; her personel günde en fazla 1 vardiyaya yazılabilir)."
                 )
+        # Hafta tatili (m.46): kişi haftada en fazla 6 gün
+        week_total = sum(day_totals.values())
+        if not problems and week_total > len(all_ids) * (NUM_DAYS - 1):
+            problems.append(
+                f"Haftada toplam {week_total} vardiya isteniyor; {len(all_ids)} personel hafta tatili "
+                f"(İş Kanunu m.46, haftada en az 1 gün izin) nedeniyle en fazla {len(all_ids) * (NUM_DAYS - 1)} "
+                f"vardiya karşılayabilir. Personel ekleyin ya da bazı günlerin ihtiyacını azaltın."
+            )
 
     if DEPARTMENT_DEMAND_MATRIX:
         dept_personnel: dict = {}

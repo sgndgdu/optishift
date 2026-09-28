@@ -162,6 +162,36 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(problems(input).map(i => i.id)).not.toContain("shift-unused");
   });
 
+  it("hafta tatili (m.46): 7 gün çalışan ya da 24 saat kesintisiz dinlenmesi olmayan", () => {
+    const seven = base();
+    seven.assignments = [0, 1, 2, 3, 4, 5, 6].map(d => a("ali", d, "s-sabah"));
+    const hit = problems(seven).find(i => i.id === "weekly-rest")!;
+    expect(hit.lines).toEqual(["Ali: en uzun dinlenme 16 saat (İş Kanunu m.46 hafta tatili)"]);
+
+    // Salı boş ama Pzt gece (22-06) ve Çar sabah 05:00: aradaki dinlenme 23 saat
+    const night = base();
+    night.rules.maxConsecutiveDays = 7;
+    night.assignments = [
+      a("ayse", 0, "s-gece"), { ...a("ayse", 2, "s-sabah"), start_time: "05:00", end_time: "13:00" },
+      ...[3, 4, 5, 6].map(d => a("ayse", d, "s-sabah")),
+    ];
+    // hafta başı Pzt 00:00-22:00 = 22 saat, sonra en uzun 23 saat → ihlal
+    expect(problems(night).map(i => i.id)).toContain("weekly-rest");
+
+    const ok = base();
+    ok.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ali", d, "s-sabah"));
+    expect(problems(ok).map(i => i.id)).not.toContain("weekly-rest");
+  });
+
+  it("günlük 11 saat (m.63): mola düşülünce 11 saati aşan vardiya", () => {
+    const input = base();
+    input.assignments = [
+      { ...a("ali", 0, "s-sabah"), start_time: "07:00", end_time: "20:00" }, // 13 s, net 12
+      { ...a("can", 0, "s-sabah"), start_time: "07:00", end_time: "19:00" }, // 12 s, net 11: yasal
+    ];
+    expect(problems(input).find(i => i.id === "daily-11")!.lines).toEqual(["Ali: Pazartesi 13 saat"]);
+  });
+
   it("kişiye özel haftalık sınır ve denkleştirme", () => {
     const input = base();
     input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı

@@ -95,7 +95,8 @@ def test_night_restricted_personnel_never_assigned_night_shift():
             {"id": "morning", "name": "Sabah", "start": "08:00", "end": "16:00", "base_points": 3},
             {"id": "night", "name": "Gece", "start": "22:00", "end": "05:30", "base_points": 5, "is_night": True},
         ],
-        demand_matrix={"night": {str(d): 1 for d in range(7)}},
+        # Talep 6 gün: tek uygun kişinin 7 gün çalışması hafta tatili (m.46) nedeniyle yasak
+        demand_matrix={"night": {str(d): 1 for d in range(6)}},
         night_restricted_ids=["P1"],
         rules={"max_weekly_hours": 60, "min_rest_hours": 11},
         max_consecutive_days=7,
@@ -107,8 +108,8 @@ def test_night_restricted_personnel_never_assigned_night_shift():
     assert all(a["personnelId"] != "P1" for a in night_assignments), (
         f"Gece kısıtlı personel (P1) gece vardiyasına atanmış: {night_assignments}"
     )
-    # Tek uygun kişi P2 olduğu için her gece P2'ye düşmeli
-    assert len(night_assignments) == 7
+    # Tek uygun kişi P2 olduğu için talep edilen 6 gecenin hepsi P2'ye düşmeli
+    assert len(night_assignments) == 6
     assert all(a["personnelId"] == "P2" for a in night_assignments)
 
 
@@ -124,7 +125,8 @@ def test_conflict_pair_never_assigned_same_shift():
         availability={
             "P1": FULL_WEEK_AVAILABLE, "P2": FULL_WEEK_AVAILABLE, "P3": FULL_WEEK_AVAILABLE,
         },
-        demand_matrix={"morning": {str(d): 2 for d in range(7)}},
+        # Talep 6 gün: P3 çiftin arasında her gün gerekiyor, 7. gün hafta tatili (m.46)
+        demand_matrix={"morning": {str(d): 2 for d in range(6)}},
         conflict_pairs=[["P1", "P2"]],
         rules={"max_weekly_hours": 60, "min_rest_hours": 11},
         max_consecutive_days=7,
@@ -158,7 +160,8 @@ def test_consecutive_night_weeks_restriction():
             {"id": "morning", "name": "Sabah", "start": "08:00", "end": "16:00", "base_points": 3},
             {"id": "night", "name": "Gece", "start": "22:00", "end": "05:30", "base_points": 5, "is_night": True},
         ],
-        demand_matrix={"night": {str(d): 1 for d in range(7)}},
+        # Talep 6 gün: tek uygun kişinin 7 gün çalışması hafta tatili (m.46) nedeniyle yasak
+        demand_matrix={"night": {str(d): 1 for d in range(6)}},
         prev_week_night_ids=["P1"],
         consecutive_night_weeks_enabled=True,
         rules={"max_weekly_hours": 60, "min_rest_hours": 11},
@@ -310,3 +313,19 @@ def test_fixed_assignments_are_kept_and_rest_is_solved():
     for d in range(6):
         for s in range(3):
             assert any(a["day"] == d and a["shiftId"] == s for a in result["assignments"]), (d, s)
+
+
+def test_weekly_rest_day_even_without_consecutive_limit():
+    """İş K. m.46: "üst üste gün" sınırı kapalı (7) olsa da kimse 7 gün yazılmaz."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 3)]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        max_consecutive_days=7,
+        rules={"max_weekly_hours": 80, "min_rest_hours": 11},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    for p in people:
+        days = {a["day"] for a in result["assignments"] if a["personnelId"] == p["id"]}
+        assert len(days) <= 6, (p["id"], sorted(days))
