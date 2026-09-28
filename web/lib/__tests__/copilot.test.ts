@@ -192,6 +192,16 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(problems(input).find(i => i.id === "daily-11")!.lines).toEqual(["Ali: Pazartesi 13 saat"]);
   });
 
+  it("sürüş süresi (AETR): 10 saat üstü gün, 9 saat üstü 2'den fazla gün, haftalık 56 saat", () => {
+    const input = base();
+    input.shiftDefs = [...defs, { id: "s-uzun", name: "Uzun Hat", start: "05:00", end: "17:00", base_points: 6, driving_hours: 9.5 }];
+    input.rules.maxConsecutiveDays = 7;
+    input.assignments = [0, 1, 2].map(d => a("ali", d, "s-uzun"));
+    expect(problems(input).find(i => i.id === "driving")!.lines).toEqual(["Ali: 3 gün 9 saatten uzun sürüş (haftada en fazla 2)"]);
+    input.assignments = [0, 1].map(d => a("ali", d, "s-uzun"));
+    expect(problems(input).map(i => i.id)).not.toContain("driving");
+  });
+
   it("kişiye özel haftalık sınır ve denkleştirme", () => {
     const input = base();
     input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı

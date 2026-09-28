@@ -52,6 +52,13 @@ EMPTY_SHIFT_PENALTY = 5000
 FIXED_ASSIGNMENTS: dict = {}
 FIXED_EXTRA_MINUTES: dict = {}
 
+# Sürüş süresi (AETR / AB 561/2006): geçen hafta yayınlanmış sürüş saati {personnel_id: saat}
+PREV_WEEK_DRIVING: dict = {}
+DAILY_DRIVING_MAX_MIN = 9 * 60          # günde 9 saat
+DAILY_DRIVING_EXTENDED_MAX_MIN = 10 * 60  # haftada en fazla 2 kez 10 saate uzatılabilir
+WEEKLY_DRIVING_MAX_MIN = 56 * 60
+TWO_WEEK_DRIVING_MAX_MIN = 90 * 60
+
 # (kaldırıldı: PREFERRED_NOT_MULTIPLIER — additive model'de RULES["hard_shift_points"] kullanılıyor)
 
 # Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
@@ -146,6 +153,12 @@ def _shift_minutes(shift: dict) -> tuple:
     if end_min <= start_min:   # 16:00–00:00 gibi gece geçişi
         end_min += 24 * 60
     return start_min, end_min
+
+
+def _driving_min(s_idx: int) -> int:
+    if s_idx >= len(SHIFTS) or SHIFTS[s_idx].get("on_call"):
+        return 0
+    return int(round(float(SHIFTS[s_idx].get("driving_hours") or 0) * 60))
 
 
 def _is_on_call(s_idx: int) -> bool:
@@ -271,6 +284,21 @@ def build_model():
                             ks, ke = _span(k, d2)
                             if rs < ke and ks < re_:
                                 model.add(shifts[(p, d, s)] + shifts[(p, d2, k)] <= 1)
+
+    # Sürüş süresi (AETR / AB 561/2006) — sadece direksiyon saati tanımlı vardiyalar
+    DRIVE = [s for s in REG if _driving_min(s) > 0]
+    if DRIVE:
+        too_long = [s for s in DRIVE if _driving_min(s) > DAILY_DRIVING_EXTENDED_MAX_MIN]
+        extended = [s for s in DRIVE if DAILY_DRIVING_MAX_MIN < _driving_min(s) <= DAILY_DRIVING_EXTENDED_MAX_MIN]
+        for p_idx, person in enumerate(PERSONNEL):
+            for d in range(NUM_DAYS):
+                for s in too_long:  # günde 10 saatten fazla sürüş hiç yazılmaz
+                    model.add(shifts[(p_idx, d, s)] == 0)
+            if extended:  # 9-10 saat arası sürüş haftada en fazla 2 kez
+                model.add(sum(shifts[(p_idx, d, s)] for d in range(NUM_DAYS) for s in extended) <= 2)
+            weekly = sum(shifts[(p_idx, d, s)] * _driving_min(s) for d in range(NUM_DAYS) for s in DRIVE)
+            prev = int(round(float(PREV_WEEK_DRIVING.get(person["id"], 0) or 0) * 60))
+            model.add(weekly <= min(WEEKLY_DRIVING_MAX_MIN, max(0, TWO_WEEK_DRIVING_MAX_MIN - prev)))
 
     # Kişi başı haftalık icap üst sınırı (adil dağılım adalet puanıyla, bu sınır tek kişiye yığılmasın diye)
     if ONC:
@@ -827,6 +855,22 @@ def diagnose_infeasibility() -> str | None:
                 f"(İş Kanunu m.46, haftada en az 1 gün izin) nedeniyle en fazla {len(all_ids) * (NUM_DAYS - 1)} "
                 f"vardiya karşılayabilir. Personel ekleyin ya da bazı günlerin ihtiyacını azaltın."
             )
+        # Sürüş süresi (AETR): 9-10 saatlik sürüş kişi başı haftada 2 kez, toplam sürüş kişi başı 56 saat
+        extended_need = sum(cnt for s_idx, dc in DEMAND_MATRIX.items()
+                            if DAILY_DRIVING_MAX_MIN < _driving_min(s_idx) <= DAILY_DRIVING_EXTENDED_MAX_MIN
+                            for cnt in dc.values())
+        if not problems and extended_need > len(all_ids) * 2:
+            problems.append(
+                f"Haftada {extended_need} uzun sürüşlü (9 saatten fazla direksiyon) vardiya isteniyor; sürüş kuralları "
+                f"(AETR) gereği bir şoför bunu haftada en fazla 2 kez yapabilir, {len(all_ids)} kişi en fazla "
+                f"{len(all_ids) * 2} tane karşılar."
+            )
+        drive_need = sum(cnt * _driving_min(s_idx) for s_idx, dc in DEMAND_MATRIX.items() for cnt in dc.values())
+        if not problems and drive_need > len(all_ids) * WEEKLY_DRIVING_MAX_MIN:
+            problems.append(
+                f"Haftalık toplam direksiyon ihtiyacı {drive_need // 60} saat; şoför başına haftalık 56 saat sınırıyla "
+                f"{len(all_ids)} kişi en fazla {len(all_ids) * 56} saat sürebilir."
+            )
 
     if DEPARTMENT_DEMAND_MATRIX:
         dept_personnel: dict = {}
@@ -1239,7 +1283,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS, FIXED_ASSIGNMENTS, FIXED_EXTRA_MINUTES, PREV_WEEK_DRIVING
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1276,6 +1320,8 @@ def api_mode(payload: dict):
                 "is_night":    bool(s.get("is_night", False)),
                 # İcap (evden çağrılabilir) nöbeti: çalışma süresine sayılmaz, normal vardiyayla aynı gün olabilir
                 "on_call":     bool(s.get("on_call", False)),
+                # Direksiyon süresi (saat): AETR / AB 561/2006 sürüş sınırları için
+                "driving_hours": max(0.0, float(s.get("driving_hours") or 0)),
                 # Zorunlu yetkinlik karması: [{"skill": "bakımcı", "count": 1}, ...]
                 "required_skills": [
                     {"skill": str(rs.get("skill", "")).strip(), "count": int(rs.get("count", 1))}
@@ -1338,6 +1384,8 @@ def api_mode(payload: dict):
             continue
         if 0 <= d < 7:
             CLOSED_DAYS.add(d)
+
+    PREV_WEEK_DRIVING = {str(k): v for k, v in (payload.get("prev_week_driving_hours") or {}).items()}
 
     # Korunan hücreler: [{personnel_id, day, shift_id, start_time, end_time}]
     FIXED_ASSIGNMENTS = {}

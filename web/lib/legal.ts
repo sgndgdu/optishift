@@ -6,6 +6,11 @@
 /** m.63: günlük çalışma süresi 11 saati aşamaz (mola çalışma süresine dahil değildir). */
 export const DAILY_MAX_NET_HOURS = 11;
 
+/** AETR / AB 561/2006 sürüş süreleri (Karayolu Taşıma Yönetmeliği AETR'yi uygular). */
+export const DAILY_DRIVING_MAX_HOURS = 9;
+export const DAILY_DRIVING_EXTENDED_HOURS = 10; // haftada en fazla 2 kez
+export const WEEKLY_DRIVING_MAX_HOURS = 56;
+
 /** m.46: yedi günlük dönemde en az 24 saat kesintisiz dinlenme (hafta tatili). */
 export const WEEKLY_REST_HOURS = 24;
 

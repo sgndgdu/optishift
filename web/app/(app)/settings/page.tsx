@@ -13,7 +13,7 @@ import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
 import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
-import { DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
+import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -1342,6 +1342,27 @@ export default function SettingsPage() {
                             ₺
                           </label>
                         </div>
+                      )}
+                      {!shift.on_call && (savedIndustry?.key === "logistics" || (shift.driving_hours ?? 0) > 0) && (
+                        <label className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5">
+                          <span className="font-semibold">Direksiyon süresi</span>
+                          <input type="number" min={0} max={12} step={0.5} value={shift.driving_hours ?? ""} placeholder="0"
+                            onChange={e => {
+                              const v = e.target.value === "" ? undefined : Math.max(0, Math.min(12, Number(e.target.value)));
+                              const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                                i === idx ? { ...s, driving_hours: v } : s
+                              );
+                              setLocationData({ ...locationData, shift_definitions: next });
+                            }}
+                            className="w-16 border border-slate-200 rounded-md px-1.5 py-0.5 bg-white text-slate-800" />
+                          <span>saat</span>
+                          <span className="text-slate-400 basis-full sm:basis-auto">Planlama AETR sürüş sınırlarını uygular: günde 9 saat (haftada 2 kez 10), haftada 56, iki haftada 90.</span>
+                        </label>
+                      )}
+                      {(shift.driving_hours ?? 0) > DAILY_DRIVING_EXTENDED_HOURS && (
+                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                          ⚠ Günlük direksiyon süresi 10 saati aşamaz (AETR). Bu vardiya kimseye yazılmaz.
+                        </p>
                       )}
                       {!shift.on_call && netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
                         <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">

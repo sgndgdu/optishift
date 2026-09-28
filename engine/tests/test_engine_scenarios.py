@@ -390,3 +390,47 @@ def test_on_call_occupies_weekly_rest_day():
     )
     result = run_engine(payload)
     assert "error" in result  # 5 gündüz + 2 icap günü = 7 dolu gün: yasal değil
+
+
+DRIVING_SHIFTS = [
+    {"id": "uzun", "name": "Uzun Hat", "start": "05:00", "end": "17:00", "base_points": 6, "driving_hours": 9.5},
+    {"id": "sehir", "name": "Şehir İçi", "start": "08:00", "end": "17:00", "base_points": 4, "driving_hours": 7},
+]
+
+
+def test_driving_limits_daily_extension_and_weekly():
+    """AETR: 9-10 saat sürüş haftada en fazla 2 kez; haftalık 56 saat."""
+    people = [make_person("P1", "Şoför", max_weekly_hours=66)]
+    payload = base_payload(
+        personnel=people,
+        availability={"P1": FULL_WEEK_AVAILABLE},
+        shifts=DRIVING_SHIFTS,
+        rules={"max_weekly_hours": 66, "min_rest_hours": 11},
+        demand_matrix={"uzun": {str(d): 1 for d in range(4)}},
+    )
+    result = run_engine(payload)
+    # 4 gün Uzun Hat (9,5 s) istendi: 2'den fazlası yasak → plan bulunamaz
+    assert "error" in result
+
+    payload["demand_matrix"] = {"uzun": {"0": 1, "1": 1}, "sehir": {str(d): 1 for d in range(2, 6)}}
+    result = run_engine(payload)
+    assert "error" not in result, result
+    driving = sum(9.5 if a["shiftId"] == 0 else 7 for a in result["assignments"])
+    assert driving <= 56
+
+
+def test_driving_two_week_limit_uses_previous_week():
+    """İki haftalık 90 saat: geçen hafta 50 saat süren şoför bu hafta en fazla 40 saat sürer."""
+    people = [make_person("P1", "Şoför", max_weekly_hours=66), make_person("P2", "Yedek", max_weekly_hours=66)]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=DRIVING_SHIFTS[1:],
+        rules={"max_weekly_hours": 66, "min_rest_hours": 11},
+        demand_matrix={"sehir": {str(d): 1 for d in range(6)}},
+        prev_week_driving_hours={"P1": 50},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    p1 = sum(7 for a in result["assignments"] if a["personnelId"] == "P1")
+    assert p1 <= 40

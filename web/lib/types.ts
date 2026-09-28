@@ -171,6 +171,7 @@ export interface ShiftDefinition {
   required_skills?: { skill: string; count: number }[]; // bu vardiyada bulunması ZORUNLU yetkinlikler (örn. gece ≥1 bakımcı) — motor hard kısıt uygular
   on_call?: boolean;    // icap nöbeti: bekleme çalışma sayılmaz, aynı gün normal vardiyayla birlikte olabilir
   on_call_pay?: number; // icap başına sabit ücret (TL), maliyet hesabına eklenir
+  driving_hours?: number; // vardiyadaki direksiyon süresi (saat): AETR günlük 9/10, haftalık 56, iki haftalık 90
 }
 
 // ─── Eski ZoneConfig yerine yeni Role interface'i yukarı eklendi ──────────────────────────────────────────────────────

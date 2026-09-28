@@ -55,7 +55,7 @@ export interface CopilotInput {
   availability: Record<string, DayState[]>;
 }
 
-export interface PersonShift { day: number; shiftId: string; shiftName: string; start: string; end: string; hours: number; night: boolean }
+export interface PersonShift { day: number; shiftId: string; shiftName: string; start: string; end: string; hours: number; night: boolean; /** Direksiyon süresi (saat), vardiya tanımından */ driving: number }
 
 export interface PersonWeek {
   id: string;
@@ -169,7 +169,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
         const end = a.end_time || def?.end || "17:00";
         const { startMin, endMin } = shiftSpan(start, end);
         return {
-          day: a.day, shiftId: a.shift_id, shiftName: def?.name ?? "Özel", start, end,
+          day: a.day, shiftId: a.shift_id, shiftName: def?.name ?? "Özel", start, end, driving: def?.driving_hours ?? 0,
           hours: (endMin - startMin) / 60, night: isNight(def, start, end),
         };
       })

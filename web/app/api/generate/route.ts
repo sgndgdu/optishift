@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
             base_points: Number(d.base_points ?? 5),
             is_night: !!d.is_night,
             on_call: !!d.on_call,
+            driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
             required_skills: Array.isArray(d.required_skills) ? d.required_skills : [],
           }));
         }
@@ -661,8 +662,28 @@ export async function POST(req: NextRequest) {
           f && typeof f.personnel_id === "string" && Number.isInteger(f.day) && f.day >= 0 && f.day <= 6)
       : [];
 
+    // Sürüş süresi (AETR iki haftalık 90 saat): geçen haftanın yayınlanmış direksiyon saati
+    const prevWeekDriving: Record<string, number> = {};
+    const drivingById = new Map(shiftsPayload.filter((s: any) => s.driving_hours > 0).map((s: any) => [String(s.id), Number(s.driving_hours)]));
+    if (drivingById.size > 0) {
+      try {
+        const pd = new Date(`${week_start}T00:00:00Z`);
+        pd.setUTCDate(pd.getUTCDate() - 7);
+        const rows = (await db.prepare(
+          `SELECT personnel_id, shift_id FROM shift_assignments
+           WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'
+             AND COALESCE(kind, 'regular') = 'regular'`
+        ).all(branchId, pd.toISOString().slice(0, 10))) as any[];
+        for (const r of rows) {
+          const h = drivingById.get(String(r.shift_id));
+          if (h) prevWeekDriving[r.personnel_id] = (prevWeekDriving[r.personnel_id] ?? 0) + h;
+        }
+      } catch (e) { console.error("[generate] geçen hafta sürüş sorgusu hatası:", e); }
+    }
+
     const enginePayload = {
       prevScores,
+      prev_week_driving_hours: prevWeekDriving,
       closed_days: closedDays,
       fixed_assignments: fixedAssignments,
       branchId,

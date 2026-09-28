@@ -28,8 +28,9 @@ export const logistics: IndustryProfile = {
       description: "Sabah erken çıkan araçlar, gün içinde teslimat.",
       departments: ["Sevkiyat", "Filo", "Depo"],
       shifts: [
-        { id: "s-erken", name: "Erken Çıkış", start: "05:30", end: "14:30", base_points: 5 },
-        { id: "s-gun",   name: "Gündüz",      start: "09:00", end: "18:00", base_points: 4 },
+        // driving_hours: direksiyon süresi; motor AETR sınırlarını uygular (günde 9, haftada 56, iki haftada 90 saat)
+        { id: "s-erken", name: "Erken Çıkış", start: "05:30", end: "14:30", base_points: 5, driving_hours: 7 },
+        { id: "s-gun",   name: "Gündüz",      start: "09:00", end: "18:00", base_points: 4, driving_hours: 6 },
       ],
     },
     {
@@ -120,7 +121,6 @@ export const logistics: IndustryProfile = {
     ],
   },
 
-  limitations: [
-    "Sürüş süresi (direksiyon başı) ayrıca izlenmez; vardiya süresi ve haftalık sınırlar korunur, sürüş süresi takografta kalır.",
-  ],
+  // Sürüş süresi artık vardiya tanımında (driving_hours); gerçekleşen sürüş yine takografta
+  limitations: [],
 };
