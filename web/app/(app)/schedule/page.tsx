@@ -12,13 +12,13 @@ import {
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
-import WeekAlerts, { type WeekAlert } from "@/components/schedule/WeekAlerts";
-import WeekCopilot from "@/components/schedule/WeekCopilot";
+import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
+import { buildInsights, buildWeekSnapshot, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, type Rules as FairnessRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
-import { getWeekStart } from "@/lib/date";
+import { addDays, getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { FEATURES } from "@/lib/features";
 import {
@@ -305,6 +305,73 @@ type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
 type AvailMap = Record<string, Record<number, AvailDay>>;
 
+/**
+ * Ekrandaki plandan (kaydedilmemiş hücreler dahil) haftanın durumu. Plan Asistanı ve yayın
+ * öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
+ */
+function scheduleSnapshot(a: {
+  cellMap: CellMap; shiftDefs: ShiftDefinition[];
+  demandMatrix: Record<string, Record<number, number>>;
+  deptDemandMatrix: Record<string, Record<string, Record<number, number>>>;
+  availMap: AvailMap; personnel: any[]; locRules: FairnessRules; clopeningMinRest: number;
+  availCollectionEnabled: boolean; prevWeekNightIds: Set<string>;
+  approvedLeaves: { personnel_id: string; start_date: string; end_date: string; type: string }[];
+  weekStart: string;
+}): WeekSnapshot {
+  const r = a.locRules as Record<string, unknown>;
+  const num = (k: string, d: number) => (typeof r[k] === "number" ? (r[k] as number) : d);
+  const hhmm = (m: number) => `${String(Math.floor((m % 1440) / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const assignments = Object.entries(a.cellMap).map(([key, c]) => {
+    const lastDash = key.lastIndexOf("-");
+    // Hücre vardiya tanımına başlangıç saatiyle bağlanır (±10 dk)
+    const def = a.shiftDefs.find(d => { const [h, m] = d.start.split(":").map(Number); return Math.abs(h * 60 + m - c.startMin) <= 10; });
+    return {
+      personnel_id: key.slice(0, lastDash), day: Number(key.slice(lastDash + 1)), shift_id: def?.id ?? "custom",
+      start_time: hhmm(c.startMin), end_time: hhmm(c.endMin), publication_status: "draft",
+    };
+  });
+  // Departman varsa talep departman tablolarının toplamıdır (bkz. CLAUDE.md §3.B)
+  const matrices = Object.keys(a.deptDemandMatrix).length > 0 ? Object.values(a.deptDemandMatrix) : [a.demandMatrix];
+  const demand: Record<string, Record<string, number>> = {};
+  for (const m of matrices) {
+    for (const [sid, row] of Object.entries(m ?? {})) {
+      for (const [day, n] of Object.entries(row ?? {})) {
+        demand[sid] ??= {};
+        demand[sid][day] = (demand[sid][day] ?? 0) + (Number(n) || 0);
+      }
+    }
+  }
+  const availability: Record<string, DayState[]> = {};
+  for (const [pid, days] of Object.entries(a.availMap)) {
+    availability[pid] = [0, 1, 2, 3, 4, 5, 6].map(d => (days[d]?.status ?? "available") as DayState);
+  }
+  return buildWeekSnapshot({
+    weekStart: a.weekStart,
+    shiftDefs: a.shiftDefs,
+    demand,
+    rules: {
+      maxWeeklyHours: num("max_weekly_hours", 45),
+      minRestHours: num("min_rest_hours", 11),
+      maxConsecutiveDays: num("max_consecutive_days", 6),
+      clopeningMinRestHours: a.clopeningMinRest,
+      balancingPeriodWeeks: num("balancing_period_weeks", 0),
+      nightLegalWarning: isModuleOn(a.locRules, "night_legal_warning_enabled"),
+      availabilityCollection: a.availCollectionEnabled,
+    },
+    personnel: a.personnel.map(p => ({
+      id: p.id, name: p.name,
+      roles: Array.isArray(p.roles) ? p.roles : (() => { try { return JSON.parse(p.roles || "[]"); } catch { return []; } })(),
+      score: Number(p.prev_score) || 0,
+      maxWeeklyHours: p.max_weekly_hours ?? null,
+      nightRestriction: p.night_restriction ?? null,
+      workedNightLastWeek: a.prevWeekNightIds.has(p.id),
+    })),
+    assignments,
+    leaves: a.approvedLeaves,
+    availability,
+  });
+}
+
 interface Popover {
   personnelId: string;
   day: number;
@@ -372,7 +439,8 @@ function SchedulePageInner() {
   const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
-  const [violationModal, setViolationModal]       = useState<{ violations: string[]; onConfirm: () => void } | null>(null);
+  const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void } | null>(null);
+  const [approvedLeaves, setApprovedLeaves]       = useState<{ personnel_id: string; start_date: string; end_date: string; type: string }[]>([]); // Plan Asistanı + yayın kontrolü: izinli gün ataması
   const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
   const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
   const [tplName, setTplName]                     = useState("");
@@ -627,6 +695,13 @@ function SchedulePageInner() {
           setForecastMatrix({});
         }
 
+        // Onaylı izinler: Plan Asistanı ve yayın kontrolü izinli güne atamayı yakalar
+        try {
+          const lr = await fetch(`/api/leave-requests?location_id=${activeLocationId}`);
+          const lData = await lr.json();
+          setApprovedLeaves(Array.isArray(lData) ? lData.filter((l: any) => l.status === "approved") : []);
+        } catch { setApprovedLeaves([]); }
+
         // Yorgunluk ve Kaza Risk Radarı (rules.fatigue_radar_enabled) — personel satırındaki risk ikonu için
         if (isModuleOn(parsedRules, "fatigue_radar_enabled")) {
           try {
@@ -645,9 +720,7 @@ function SchedulePageInner() {
         // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
         if (isModuleOn(parsedRules, "consecutive_night_weeks_enabled")) {
           try {
-            const prevD = new Date(weekStart + "T00:00:00");
-            prevD.setDate(prevD.getDate() - 7);
-            const prevWs = prevD.toISOString().split("T")[0];
+            const prevWs = addDays(weekStart, -7);
             const pr = await fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${prevWs}`);
             const prevRows = await pr.json();
             const ids = new Set<string>();
@@ -1203,9 +1276,9 @@ function SchedulePageInner() {
       return;
     }
     const prePublishCheckEnabled = (locRules as Record<string, unknown>).pre_publish_check !== false;
-    const violations = prePublishCheckEnabled ? checkViolations() : [];
-    if (violations.length > 0) {
-      setViolationModal({ violations, onConfirm: doPublish });
+    const problems = prePublishCheckEnabled ? findProblems(weekSnapshot, weekBudgets) : [];
+    if (problems.length > 0) {
+      setViolationModal({ problems, onConfirm: doPublish });
     } else {
       doPublish();
     }
@@ -1407,145 +1480,7 @@ function SchedulePageInner() {
   // Gece vardiyası sezgisi — motorla aynı: 22:00+ başlayan veya gece yarısını aşan
   const isNightCell = (c: CellData) => c.startMin >= 22 * 60 || c.endMin > 24 * 60;
 
-  const NIGHT_RESTRICTION_LABELS: Record<string, string> = {
-    pregnant: "gebe", nursing: "emziren", under18: "18 yaş altı", medical: "sağlık raporu",
-  };
-
-  // Kural ihlali kontrolü — yayınlamadan önce çalıştırılır
-  const checkViolations = (): string[] => {
-    const violations: string[] = [];
-
-    // Haftalık mesai bütçesi: tüm personelin eşik üstü saat toplamı sınırı aşıyor mu?
-    const otThreshold = typeof (locRules as Record<string, unknown>)?.overtime_threshold_hours === "number"
-      ? (locRules as Record<string, number>).overtime_threshold_hours : 45;
-    const otBudget = typeof (locRules as Record<string, unknown>)?.weekly_overtime_budget_hours === "number"
-      ? (locRules as Record<string, number>).weekly_overtime_budget_hours : 0;
-    if (otBudget > 0) {
-      let totalOT = 0;
-      for (const p of personnel) {
-        const hours = Object.entries(cellMap)
-          .filter(([k]) => k.startsWith(`${p.id}-`))
-          .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-        totalOT += Math.max(0, hours - otThreshold);
-      }
-      if (totalOT > otBudget) {
-        violations.push(`Haftalık mesai bütçesi aşılıyor: toplam ${Math.round(totalOT * 10) / 10}s fazla mesai (bütçe ${otBudget}s)`);
-      }
-    }
-
-    // Haftalık işçilik maliyeti bütçesi (₺)
-    if (laborBudgetExceeded) {
-      violations.push(`Haftalık işçilik maliyeti bütçeyi aşıyor: ₺${laborCost.total.toLocaleString("tr-TR")} (bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")})`);
-    }
-
-    // Lokasyon kurallarından limitler (hardcoded 45/11 değil — Ayarlar'daki değer geçerli)
-    const ruleMaxWeekly = typeof (locRules as Record<string, unknown>)?.max_weekly_hours === "number"
-      ? (locRules as Record<string, number>).max_weekly_hours : 45;
-    const ruleMinRest = typeof (locRules as Record<string, unknown>)?.min_rest_hours === "number"
-      ? (locRules as Record<string, number>).min_rest_hours : 11;
-    for (const p of personnel) {
-      // Haftalık saat limiti
-      const totalHours = Object.entries(cellMap)
-        .filter(([k]) => k.startsWith(`${p.id}-`))
-        .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-      const balancingWeeks = typeof (locRules as Record<string, unknown>)?.balancing_period_weeks === "number"
-        ? (locRules as Record<string, number>).balancing_period_weeks : 0;
-      const pMax = p.max_weekly_hours ?? ruleMaxWeekly;
-      // Denkleştirme açıkken tam zamanlı personel tek haftada yasal 66 saate kadar esneyebilir
-      const maxH = balancingWeeks >= 2 && pMax >= ruleMaxWeekly ? 66 : pMax;
-      if (totalHours > maxH) {
-        violations.push(balancingWeeks >= 2 && maxH === 66
-          ? `${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s, denkleştirmede bile tek hafta tavanı olan 66s aşıldı`
-          : `${p.name}: haftalık ${Math.round(totalHours * 10) / 10}s, limit ${maxH}s aşıldı`);
-      }
-      // 11 saatlik dinlenme kuralı + clopening tespiti (kapanış→açılış yorucu geçişi)
-      let clopeningCount = 0;
-      for (let d = 0; d < 6; d++) {
-        const cur  = cellMap[`${p.id}-${d}`];
-        const next = cellMap[`${p.id}-${d + 1}`];
-        if (!cur || !next) continue;
-        const adjEnd = cur.endMin;
-        const gap    = (next.startMin + 1440) - adjEnd;
-        if (gap < ruleMinRest * 60) {
-          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} arası dinlenme ${Math.round(gap / 60 * 10) / 10}s (min ${ruleMinRest}s)`);
-        } else if (gap < clopeningMinRest * 60) {
-          clopeningCount++;
-          violations.push(`${p.name}: ${DAYS[d]}→${DAYS[d + 1]} kapanış→açılış, dinlenme ${Math.round(gap / 60 * 10) / 10}s, ${clopeningMinRest}s önerilir`);
-        }
-      }
-      if (clopeningCount >= 2) {
-        violations.push(`${p.name}: bu hafta ${clopeningCount} kez kapanış→açılış, yorgunluk riski yüksek, dağıtmayı düşünün`);
-      }
-      // Uygunluk ihlalleri — "unavailable" gün atama
-      for (let d = 0; d < 7; d++) {
-        if (!cellMap[`${p.id}-${d}`]) continue;
-        if (availMap[p.id]?.[d]?.status === 'unavailable') {
-          violations.push(`${p.name}: ${DAYS[d]} günü "kesinlikle gelemem" olarak işaretli ama vardiya atandı`);
-        }
-      }
-      // Uygunluk bilgisi girilmemiş ama vardiya atanmış (uygunluk toplama kapalıysa beklenen durum, uyarma)
-      if (availCollectionEnabled && !availMap[p.id]) {
-        const hasShift = Object.keys(cellMap).some(k => k.startsWith(`${p.id}-`));
-        if (hasShift) {
-          violations.push(`${p.name}: uygunluk bilgisi girilmemiş, vardiya atanmış`);
-        }
-      }
-      // Gece koruması: gece kısıtlı personel + ardışık hafta gece yasağı
-      const nightDays: number[] = [];
-      for (let d = 0; d < 7; d++) {
-        const c = cellMap[`${p.id}-${d}`];
-        if (c && isNightCell(c)) nightDays.push(d);
-      }
-      if (nightDays.length > 0 && p.night_restriction) {
-        const label = NIGHT_RESTRICTION_LABELS[p.night_restriction] ?? p.night_restriction;
-        violations.push(`${p.name}: gece vardiyasına atanmış ama gece çalışma engeli var (${label}), İş K. m.73 gereği gece çalıştırılamaz`);
-      }
-      if (nightDays.length > 0 && prevWeekNightIds.has(p.id) && !p.night_restriction) {
-        violations.push(`${p.name}: geçen hafta gece çalıştı, bu hafta yine gece vardiyası var. Arka arkaya iki hafta gece yasağı (Postalar Yönetmeliği m.8)`);
-      }
-    }
-    // Zorunlu yetkinlik: her gün, her vardiya tanımı için atananlar arasında gerekli
-    // yetkinlik sayısı var mı? (hücreler saat eşleşmesiyle tanıma bağlanır, ±10 dk)
-    const defsWithReqs = shiftDefs.filter(d => (d.required_skills ?? []).length > 0);
-    if (defsWithReqs.length > 0) {
-      const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-      const parseRolesV = (p: any): string[] => {
-        if (Array.isArray(p.roles)) return p.roles;
-        try { return JSON.parse(p.roles || "[]"); } catch { return []; }
-      };
-      for (const def of defsWithReqs) {
-        const defStart = toMin(def.start);
-        for (let d = 0; d < 7; d++) {
-          const assigned = personnel.filter(p => {
-            const c = cellMap[`${p.id}-${d}`];
-            return c && Math.abs(c.startMin - defStart) <= 10;
-          });
-          if (assigned.length === 0) continue;
-          for (const req of def.required_skills ?? []) {
-            const skilledCount = assigned.filter(p => parseRolesV(p).includes(req.skill)).length;
-            if (skilledCount < req.count) {
-              violations.push(`${DAYS[d]} ${def.name}: en az ${req.count} "${req.skill}" gerekli, atananlar arasında ${skilledCount} kişi var`);
-            }
-          }
-        }
-      }
-    }
-    // Gece vardiyası yasal süre sınırı: 7,5 saati aşan gece vardiyaları (vardiya deseni başına
-    // tek uyarı; rules.night_legal_warning_enabled ile kapatılabilir)
-    if (isModuleOn(locRules, "night_legal_warning_enabled")) {
-      const longNightPatterns = new Set<string>();
-      for (const c of Object.values(cellMap)) {
-        if (isNightCell(c) && c.endMin - c.startMin > 7.5 * 60) {
-          const hours = Math.round(((c.endMin - c.startMin) / 60) * 10) / 10;
-          longNightPatterns.add(`${hours}`);
-        }
-      }
-      for (const hours of longNightPatterns) {
-        violations.push(`Gece vardiyası ${hours} saat sürüyor, yasal sınır 7,5 saattir (Postalar Yönetmeliği)`);
-      }
-    }
-    return violations;
-  };
+  // Kural kontrolleri lib/copilot/checks.ts'te (yayın penceresi ve Plan Asistanı ortak)
 
   const buildShiftsPayload = (pubStatus: "draft" | "published") =>
     Object.entries(cellMap).map(([key, val]) => {
@@ -1852,6 +1787,21 @@ function SchedulePageInner() {
   // Not: uygunluk girilmemesi otomatik oluşturmayı ENGELLEMEZ — motor eksik
   // uygunluğu "tamamen uygun" kabul eder (get_avail default). Bu sayaç sadece bilgilendirme amaçlıdır.
   const noAvailCount = personnel.filter(p => !availMap[p.id]).length;
+
+  // Haftanın durumu: ekrandaki (henüz kaydedilmemiş olanlar dahil) plandan. Plan Asistanı ve
+  // yayın öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
+  // Kişi × 7 gün: her render'da hesaplamak ucuz
+  const weekSnapshot = scheduleSnapshot({ cellMap, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
+    clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart });
+
+  const weekBudgets: WeekBudgets = {
+    labor: { total: laborCost.total, budget: weeklyLaborBudgetTry },
+    overtime: {
+      thresholdHours: typeof (locRules as Record<string, unknown>).overtime_threshold_hours === "number" ? (locRules as Record<string, number>).overtime_threshold_hours : 45,
+      budgetHours: typeof (locRules as Record<string, unknown>).weekly_overtime_budget_hours === "number" ? (locRules as Record<string, number>).weekly_overtime_budget_hours : 0,
+    },
+  };
+  const weekInsights = buildInsights(weekSnapshot, weekBudgets);
 
   // Kapasite matrisi ile mevcut personel sayısı çelişiyor mu? (herkes günde yalnızca
   // 1 vardiyaya girebildiği için bir günün toplam talebi o gün uygun personel sayısını
@@ -2280,12 +2230,6 @@ loading ? (
       title: `${excludedCompliance.length} kişi geçersiz belge nedeniyle plana alınmadı`,
       detail: <>{excludedCompliance.map(p => `${p.name} (${p.doc_type})`).join(", ")}</>,
     }] : []),
-    ...(availCollectionEnabled && noAvailCount > 0 && personnel.length > 0 ? [{
-      id: "availability", tone: "info" as const,
-      title: `${noAvailCount} kişi uygunluk girmedi`,
-      detail: "Otomatik planlamada tamamen uygun sayılırlar, plan engellenmez.",
-      action: { label: "Uygunluk İste", onClick: () => handleRequestAvailability() },
-    }] : []),
     ...(isPublishedWeek && !editUnlocked && editRequestStatus === "pending" ? [{
       id: "edit-pending", tone: "info" as const,
       title: "Düzenleme onayı patronda bekleniyor",
@@ -2483,10 +2427,13 @@ loading ? (
           </div>
 
           {/* ── Uyarılar: tek şerit ── */}
-          <WeekAlerts alerts={weekAlerts} />
-          {!loading && activeLocationId && weekStart && shiftDefs.length > 0 && personnel.length > 0 && (
-            <WeekCopilot locationId={activeLocationId} weekStart={weekStart} />
-          )}
+          {/* Haftanın tek uyarı kartı: işlem uyarıları + Plan Asistanı (lib/copilot) */}
+          <WeekCopilot
+            alerts={weekAlerts}
+            snapshot={!loading && shiftDefs.length > 0 && personnel.length > 0 ? weekSnapshot : null}
+            insights={weekInsights}
+            onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
+          />
           {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
             <QuickSetup
               locationId={activeLocationId}
@@ -2575,10 +2522,18 @@ loading ? (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-red-800 mb-1 flex items-center gap-2">
                   <AlertCircle size={16} className="text-red-500 shrink-0 sm:hidden" />
-                  Kural ihlalleri tespit edildi
+                  Yayınlamadan önce bakın
                 </p>
-                <ul className="text-xs text-red-700 space-y-0.5 list-disc list-inside">
-                  {violationModal.violations.map((v, i) => <li key={i}>{v}</li>)}
+                <ul className="space-y-2">
+                  {violationModal.problems.map(pr => (
+                    <li key={pr.id}>
+                      <p className={cn("text-xs font-bold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
+                      <ul className="text-xs text-red-700 space-y-0.5 list-disc list-inside">
+                        {pr.lines.slice(0, 5).map(l => <li key={l}>{l}</li>)}
+                        {pr.lines.length > 5 && <li className="list-none text-red-500">ve {pr.lines.length - 5} satır daha</li>}
+                      </ul>
+                    </li>
+                  ))}
                 </ul>
                 <p className="text-xs text-red-500 mt-2">Yayınlamadan önce düzeltmeniz önerilir.</p>
               </div>

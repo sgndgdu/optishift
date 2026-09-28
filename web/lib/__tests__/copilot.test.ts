@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerQuestion, buildInsights, buildWeekSnapshot, type CopilotInput } from "@/lib/copilot";
+import { answerQuestion, buildInsights, buildWeekSnapshot, findProblems, type CopilotInput } from "@/lib/copilot";
 
 // 2026-09-28 Pazartesi haftası
 const defs = [
@@ -16,7 +16,10 @@ const base = (): CopilotInput => ({
   weekStart: "2026-09-28",
   shiftDefs: defs,
   demand: {},
-  rules: { maxWeeklyHours: 45, minRestHours: 11, maxConsecutiveDays: 6 },
+  rules: {
+    maxWeeklyHours: 45, minRestHours: 11, maxConsecutiveDays: 6, clopeningMinRestHours: 13,
+    balancingPeriodWeeks: 0, nightLegalWarning: true, availabilityCollection: false,
+  },
   personnel: [
     { id: "ali", name: "Ali", roles: [], score: 100 },
     { id: "ayse", name: "Ayşe", roles: ["Bakım Teknisyeni"], score: 100 },
@@ -96,7 +99,7 @@ describe("içgörüler", () => {
     const input = base();
     input.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ali", d, "s-sabah"));
     const over = buildInsights(buildWeekSnapshot(input)).find(i => i.id === "over-hours")!;
-    expect(over.lines).toEqual(["Ali: 48 saat"]);
+    expect(over.lines).toEqual(["Ali: 48 saat, sınır 45 saat"]);
   });
 
   it("adalet: yüklü kişiye zor vardiya, az yüklüye yok", () => {
@@ -142,5 +145,67 @@ describe("hazır sorular", () => {
 
   it("bilinmeyen soru", () => {
     expect(answerQuestion(buildWeekSnapshot(base()), "yok")).toBeNull();
+  });
+});
+
+describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
+  const problems = (input: CopilotInput, budgets = {}) => findProblems(buildWeekSnapshot(input), budgets);
+
+  it("kişiye özel haftalık sınır ve denkleştirme", () => {
+    const input = base();
+    input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı
+    input.assignments = [0, 1, 2].map(d => a("ali", d, "s-sabah")); // 24 saat
+    expect(problems(input).find(i => i.id === "over-hours")!.lines).toEqual(["Ali: 24 saat, sınır 20 saat"]);
+
+    const full = base();
+    full.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ayse", d, "s-sabah")); // 48 saat
+    expect(problems(full).map(i => i.id)).toContain("over-hours");
+    full.rules.balancingPeriodWeeks = 4; // denkleştirmede tek hafta tavanı 66
+    expect(problems(full).map(i => i.id)).not.toContain("over-hours");
+  });
+
+  it("kapanıştan açılışa: yasal sınırın üstünde ama önerilenin altında", () => {
+    const input = base();
+    // Akşam 16-24 → ertesi gün 12:00: 12 saat dinlenme (11 üstü, 13 altı)
+    input.assignments = [a("ali", 0, "s-aksam"), { ...a("ali", 1, "s-sabah"), start_time: "12:00", end_time: "20:00" }];
+    const list = problems(input);
+    expect(list.map(i => i.id)).not.toContain("short-rest");
+    expect(list.find(i => i.id === "clopening")!.lines).toEqual(["Ali: Pzt→Sal 12 saat"]);
+  });
+
+  it("gece engeli, arka arkaya iki hafta gece ve 7,5 saati aşan gece", () => {
+    const input = base();
+    input.personnel[0].nightRestriction = "pregnant";
+    input.personnel[1].workedNightLastWeek = true;
+    input.assignments = [a("ali", 0, "s-gece"), a("ayse", 1, "s-gece")]; // gece 8 saat
+    const ids = problems(input).map(i => i.id);
+    expect(ids).toEqual(expect.arrayContaining(["night-restriction", "night-weeks", "long-night"]));
+    input.rules.nightLegalWarning = false;
+    expect(problems(input).map(i => i.id)).not.toContain("long-night");
+  });
+
+  it("üst üste 3 gece (Kaza Risk Radarı eşiği)", () => {
+    const input = base();
+    input.shiftDefs = input.shiftDefs.map(d => d.id === "s-gece" ? { ...d, end: "05:30", required_skills: [] } : d);
+    input.assignments = [0, 1, 2].map(d => a("ali", d, "s-gece"));
+    expect(problems(input).find(i => i.id === "night-streak")!.lines).toEqual(["Ali: üst üste 3 gece"]);
+  });
+
+  it("bütçeler", () => {
+    const input = base();
+    input.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ali", d, "s-sabah")); // 48 saat, 3 saat fazla mesai
+    const ids = problems(input, { labor: { total: 12000, budget: 10000 }, overtime: { thresholdHours: 45, budgetHours: 2 } }).map(i => i.id);
+    expect(ids).toEqual(expect.arrayContaining(["labor-budget", "overtime-budget"]));
+    expect(problems(input, { labor: { total: 12000, budget: 0 } }).map(i => i.id)).not.toContain("labor-budget");
+  });
+
+  it("uygunluk hatırlatması boş haftada da çıkar, sorun sayılmaz", () => {
+    const input = base();
+    input.rules.availabilityCollection = true;
+    input.availability = { ali: Array(7).fill("available") };
+    const list = buildInsights(buildWeekSnapshot(input));
+    expect(list.map(i => i.id)).toEqual(["no-availability", "empty"]);
+    expect(list[0]).toMatchObject({ title: "2 kişi uygunluk girmedi", action: "remind-availability" });
+    expect(findProblems(buildWeekSnapshot(input))).toEqual([]);
   });
 });

@@ -1,7 +1,8 @@
 /**
  * Plan Asistanı (ücretsiz, kurallı). Katmanlar:
  *   snapshot   haftanın durumu: tek doğruluk kaynağı
- *   insights   önceliklendirilmiş uyarılar
+ *   checks     kural kontrolleri: yayın öncesi pencere ve Asistan aynı listeyi kullanır
+ *   insights   sorunlar + bilgi maddeleri
  *   questions  hazır sorular; ileride dil modelinin araçları
  */
 
