@@ -241,3 +241,43 @@ def test_no_personnel_returns_friendly_error():
     result = run_engine(payload)
     assert "error" in result
     assert "personel bulunamadı" in result["error"]
+
+
+CAFE_SHIFTS = [
+    {"id": "acilis", "name": "Açılış", "start": "07:00", "end": "15:00", "base_points": 4},
+    {"id": "yogun", "name": "Yoğun Saat", "start": "11:00", "end": "19:00", "base_points": 2},
+    {"id": "kapanis", "name": "Kapanış", "start": "15:00", "end": "23:00", "base_points": 5},
+]
+
+
+def test_empty_demand_opens_every_shift():
+    """İhtiyaç tablosu boşken motor herkesi en düşük puanlı vardiyaya yazmaz:
+    açık her gün × her vardiyaya en az 1 kişi düşer (2026-09-28 denetimi, kafe)."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 5)]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=CAFE_SHIFTS,
+        closed_days=[6],
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+
+    for d in range(6):
+        for s in range(3):
+            staffed = [a for a in result["assignments"] if a["day"] == d and a["shiftId"] == s]
+            assert staffed, f"gün {d} vardiya {CAFE_SHIFTS[s]['name']} boş kaldı"
+
+
+def test_empty_demand_closed_day_stays_empty():
+    """Çalışma saatlerinde kapalı gün, talep tablosu boşken hiç kimseye yazılmaz."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 5)]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=CAFE_SHIFTS,
+        closed_days=[6],
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    assert not [a for a in result["assignments"] if a["day"] == 6]

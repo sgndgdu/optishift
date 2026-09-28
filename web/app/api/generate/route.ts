@@ -641,8 +641,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Kapalı günler (Ayarlar → Çalışma saatleri): ihtiyaç tablosu boşken motor bu günlere kimseyi yazmaz
+    const closedDays: number[] = [];
+    try {
+      const hours = locationRow?.operating_hours ? JSON.parse(locationRow.operating_hours) : null;
+      for (let d = 0; d < 7; d++) if (hours?.[d]?.isOpen === false) closedDays.push(d);
+    } catch { /* bozuk JSON: her gün açık say */ }
+
     const enginePayload = {
       prevScores,
+      closed_days: closedDays,
       branchId,
       orgId,
       week_start,

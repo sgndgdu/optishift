@@ -105,7 +105,23 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     }
   }
 
-  // ── Uyarı: yük, yorgunluk, tercih, adalet ────────────────────────────────
+  // ── Uyarı: kapsama, yük, yorgunluk, tercih, adalet ───────────────────────
+  // İhtiyaç tablosu boşken "eksik kişi" hesaplanamaz; hafta boyu hiç kimse yazılmamış vardiya yine de görünsün
+  if (!snap.hasDemand) {
+    const byShift = new Map<string, { name: string; total: number }>();
+    for (const c of snap.coverage) {
+      const row = byShift.get(c.shiftId) ?? { name: c.shiftName, total: 0 };
+      row.total += c.assigned;
+      byShift.set(c.shiftId, row);
+    }
+    const unused = [...byShift.values()].filter(r => r.total === 0);
+    add("shift-unused", "warning", `${unused.length} vardiyaya hafta boyunca kimse yazılmamış`, [
+      ...unused.map(r => `${r.name}: 7 günün hiçbirinde kimse yok`),
+      ...(unused.length ? ["Her vardiyaya kaç kişi gerektiğini ihtiyaç tablosuna girerseniz plan buna göre kurulur"] : []),
+    ]);
+  }
+
+
   const clopening = per(p => p.restGaps.filter(g => g.hours >= rules.minRestHours && g.hours < rules.clopeningMinRestHours),
     (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}${gs.length >= 2 ? ". Yorgunluk riski yüksek" : ""}`);
   add("clopening", "warning", `${clopening.length} kişide kapanıştan açılışa geçiş var (${rules.clopeningMinRestHours} saat dinlenme önerilir)`, clopening);

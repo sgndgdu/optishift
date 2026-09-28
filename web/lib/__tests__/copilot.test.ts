@@ -151,6 +151,17 @@ describe("hazır sorular", () => {
 describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
   const problems = (input: CopilotInput, budgets = {}) => findProblems(buildWeekSnapshot(input), budgets);
 
+  it("ihtiyaç tablosu boşken hafta boyu kimsenin yazılmadığı vardiya uyarılır", () => {
+    const input = base();
+    input.assignments = [0, 1, 2, 3, 4].flatMap(d => [a("ali", d, "s-sabah"), a("can", d, "s-aksam")]);
+    const hit = problems(input).find(i => i.id === "shift-unused")!;
+    expect(hit.title).toBe("1 vardiyaya hafta boyunca kimse yazılmamış");
+    expect(hit.lines[0]).toBe("Gece: 7 günün hiçbirinde kimse yok");
+
+    input.demand = { "s-sabah": { "0": 1 } }; // tablo doluysa eksikler "understaffed" ile sayılır
+    expect(problems(input).map(i => i.id)).not.toContain("shift-unused");
+  });
+
   it("kişiye özel haftalık sınır ve denkleştirme", () => {
     const input = base();
     input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı

@@ -37,6 +37,15 @@ DEMAND_MATRIX = {}
 # her (department, shift_idx, day) hücresi kendi personel alt kümesi içinde hard constraint olur.
 DEPARTMENT_DEMAND_MATRIX = {}
 
+# Şubenin kapalı günleri (0=Pzt … 6=Paz), çalışma saatlerinden gelir.
+# Sadece coverage-max modunda kullanılır: talep tablosu boşken kapalı güne kimse yazılmaz.
+CLOSED_DAYS: set = set()
+
+# Coverage-max modunda açık bir gün × vardiyanın boş kalma cezası.
+# Adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük: motor önce
+# her vardiyayı en az 1 kişiyle açar, sonra adaleti dengeler. Personel yetmezse plan yine çıkar.
+EMPTY_SHIFT_PENALTY = 5000
+
 # (kaldırıldı: PREFERRED_NOT_MULTIPLIER — additive model'de RULES["hard_shift_points"] kullanılıyor)
 
 # Her vardiyada en az 1 "primary" role_level personel olsun (soft constraint)
@@ -647,6 +656,22 @@ def build_model():
         for s in range(NUM_SHIFTS)
     ))
 
+    # ── Coverage-max: boş vardiya cezası + kapalı gün ────────────────────────
+    # Talep tablosu tamamen boşken eski davranış herkesi en düşük puanlı vardiyaya
+    # yazıyordu (adalet farkı en küçük orada), diğer vardiyalar hafta boyu boş kalıyordu.
+    empty_shift_penalties = []
+    if not DEMAND_MATRIX and not DEPARTMENT_DEMAND_MATRIX and num_p > 0:
+        for d in range(NUM_DAYS):
+            day_vars = [shifts[(p, d, s)] for p in range(num_p) for s in range(NUM_SHIFTS)]
+            if d in CLOSED_DAYS:
+                model.add(sum(day_vars) == 0)
+                continue
+            for s in range(NUM_SHIFTS):
+                empty = model.new_bool_var(f"empty_s{s}_d{d}")
+                # empty == 0 ise o gün o vardiyada en az 1 kişi olmalı; motor cezadan kaçmak için 0'a çeker
+                model.add(sum(shifts[(p, d, s)] for p in range(num_p)) >= 1).only_enforce_if(empty.negated())
+                empty_shift_penalties.append(empty)
+
     # ── Kıdemli personel soft constraint ─────────────────────────────────────
     # Her vardiya × gün için primary personel yoksa ceza uygula (planı kilitlemez)
     senior_violation_penalties = []
@@ -682,6 +707,7 @@ def build_model():
         + sum(min_hours_shortfalls) * 5
         + sum(clopening_penalties) * int(RULES.get("clopening_penalty_weight", 30))
         + ot_penalty_term
+        + sum(empty_shift_penalties) * EMPTY_SHIFT_PENALTY
     )
 
     return model, shifts, person_scores, fairness_gap
@@ -1133,7 +1159,7 @@ def main():
 def api_mode(payload: dict):
     """Next.js API route tarafından çağrılır. Dinamik JSON verisini kullanır."""
     import sys
-    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING
+    global PERSONNEL, AVAILABILITY, RULES, ZONE_DEMAND_PER_DAY, SHIFTS, NUM_SHIFTS, SHIFT_HOURS, DEMAND_MATRIX, DEPARTMENT_DEMAND_MATRIX, DEPARTMENT_NAMES, ENSURE_SENIOR_PER_SHIFT, MAX_CONSECUTIVE_DAYS, NO_NIGHT_TO_MORNING, CLOSED_DAYS
     global CREW_ROTATION, PERSONNEL_CREWS, CREW_SAME_SHIFT_HARD, OVERTIME_THRESHOLD_HOURS, MAX_YTD_OVERTIME_HOURS, OVERTIME_FAIR_DISTRIBUTION
     global NIGHT_RESTRICTED_IDS, PREV_WEEK_NIGHT_IDS, CONSECUTIVE_NIGHT_WEEKS_ENABLED
     global CONFLICT_PAIRS
@@ -1221,6 +1247,16 @@ def api_mode(payload: dict):
 
     # Kapasite matrisi: {shiftDefId → {day → exact_count}} — demand-based scheduling
     # shiftDefId'yi shift index'ine çevir (payload'daki shifts sırası == index)
+    # Kapalı günler: sadece 0-6 arası tamsayılar
+    CLOSED_DAYS = set()
+    for d in payload.get("closed_days") or []:
+        try:
+            d = int(d)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= d < 7:
+            CLOSED_DAYS.add(d)
+
     DEMAND_MATRIX = {}
     raw_demand = payload.get("demand_matrix")
     if raw_demand and isinstance(raw_demand, dict):
