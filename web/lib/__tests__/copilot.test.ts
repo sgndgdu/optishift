@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerQuestion, buildInsights, buildWeekSnapshot, explainAssignment, findProblems, type CopilotInput } from "@/lib/copilot";
+import { answerQuestion, buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type CopilotInput } from "@/lib/copilot";
 
 // 2026-09-28 Pazartesi haftası
 const defs = [
@@ -293,5 +293,26 @@ describe("neden bu kişi", () => {
     const rest = lines.find(l => l.text.startsWith("Önceki vardiyasından"))!;
     expect(rest.tone).toBe("warn");
     expect(rest.text).toBe("Önceki vardiyasından 2 saat sonra başlıyor");
+  });
+});
+
+
+describe("çapraz eğitim", () => {
+  it("zorunlu rol tek kişide ve her gece gerekiyorsa darboğaz, gece çalışan az yüklü kişi önerilir", () => {
+    const input = base();
+    input.personnel[0].score = 50; // Ali az yüklü
+    // Gece 7 gün açık (Ayşe tek Bakım Teknisyeni), Ali ve Can gecede çalışıyor
+    input.assignments = [0, 1, 2, 3, 4, 5, 6].map(d => a(d % 2 ? "ali" : "can", d, "s-gece"));
+    const hit = crossTrainingInsight(buildWeekSnapshot(input), defs)!;
+    expect(hit.title).toBe('"Bakım Teknisyeni" rolünde darboğaz var');
+    expect(hit.lines[0]).toContain("haftada 7 vardiyada gerekiyor, 1 kişide var; bu hafta 7 vardiyada eksik");
+    expect(hit.lines[0]).toContain("Eğitilirse fayda sağlar: Can, Ali"); // Can gecede daha çok çalışıyor
+  });
+
+  it("rolü yeterince kişi taşıyorsa öneri yok", () => {
+    const input = base();
+    input.personnel.forEach(p => { p.roles = ["Bakım Teknisyeni"]; });
+    input.assignments = [0, 1, 2].map(d => a("ayse", d, "s-gece"));
+    expect(crossTrainingInsight(buildWeekSnapshot(input), defs)).toBeNull();
   });
 });

@@ -13,7 +13,7 @@ import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
-import { buildInsights, buildWeekSnapshot, explainAssignment, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
+import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
@@ -2170,7 +2170,8 @@ function SchedulePageInner() {
       budgetHours: typeof (locRules as Record<string, unknown>).weekly_overtime_budget_hours === "number" ? (locRules as Record<string, number>).weekly_overtime_budget_hours : 0,
     },
   };
-  const weekInsights = buildInsights(weekSnapshot, weekBudgets);
+  const crossTraining = crossTrainingInsight(weekSnapshot, shiftDefs);
+  const weekInsights = crossTraining ? [...buildInsights(weekSnapshot, weekBudgets), crossTraining] : buildInsights(weekSnapshot, weekBudgets);
 
   // Kapasite matrisi ile mevcut personel sayısı çelişiyor mu? (herkes günde yalnızca
   // 1 vardiyaya girebildiği için bir günün toplam talebi o gün uygun personel sayısını
