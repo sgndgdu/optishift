@@ -96,6 +96,9 @@ export async function POST(req: NextRequest) {
       if (!asg || asg.p_org !== org_id) {
         return NextResponse.json({ error: "Vardiya ataması bulunamadı" }, { status: 404 });
       }
+      if (asg.kind === "on_call") {
+        return NextResponse.json({ error: "İcap nöbeti açık vardiyaya çevrilemez; icabı Vardiya Planı'ndan başka birine verin." }, { status: 400 });
+      }
       if (auth.role === "employee") {
         if (asg.personnel_id !== auth.personnel_id) {
           return NextResponse.json({ error: "Sadece kendi vardiyanızı pazar yerine bırakabilirsiniz" }, { status: 403 });

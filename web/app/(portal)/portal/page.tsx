@@ -38,6 +38,7 @@ export default function PortalDashboard() {
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
+  const [onCalls,       setOnCalls]       = useState<any[]>([]);
   const [notifs,        setNotifs]        = useState<any[]>([]);
   const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
   const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
@@ -77,14 +78,17 @@ export default function PortalDashboard() {
     const nws = getWeekStart(1);
     try {
       const [shiftData, notifData, availData, personnelData, fairnessData] = await Promise.all([
-        fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}`).then(r => r.json()),
+        fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}&include_on_call=1`).then(r => r.json()),
         fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
         fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
         fetch(`/api/fairness/me`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
       setFairness(fairnessData && !fairnessData.error ? fairnessData : null);
-      setShifts(Array.isArray(shiftData) ? shiftData : []);
+      // İcap nöbeti ayrı: giriş/çıkış ve görev listesi sadece normal vardiyada
+      const rows = Array.isArray(shiftData) ? shiftData : [];
+      setShifts(rows.filter((s: any) => s.kind !== "on_call"));
+      setOnCalls(rows.filter((s: any) => s.kind === "on_call"));
       setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
       // Ekip adını yükle
@@ -131,6 +135,7 @@ export default function PortalDashboard() {
   // today
   const todayIdx   = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const todayShift = shifts.find(s => s.day === todayIdx) ?? null;
+  const todayOnCall = onCalls.find(s => s.day === todayIdx) ?? null;
 
   // elapsed timer
   useEffect(() => {
@@ -327,6 +332,12 @@ export default function PortalDashboard() {
             )}
           </div>
 
+          {todayOnCall && !dataLoading && (
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-bold text-violet-50"
+              title="İcap: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+              Bugün icaptasın · {todayOnCall.start_time}–{todayOnCall.end_time}
+            </div>
+          )}
           {/* content */}
           {dataLoading ? (
             <div className="animate-pulse space-y-2 mb-5">

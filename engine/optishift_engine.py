@@ -47,7 +47,7 @@ CLOSED_DAYS: set = set()
 EMPTY_SHIFT_PENALTY = 5000
 
 # Müdürün elle yaptığı ve korunan (pinned) hücreler: yeniden oluşturmada dokunulmaz.
-# {(personnel_id, day): shift_idx | None} — None: tanımlı vardiyaya uymayan özel saat,
+# {(personnel_id, day, "regular"|"on_call"): shift_idx | None} — None: tanımlı vardiyaya uymayan özel saat,
 # kişi o gün başka vardiyaya yazılmaz; süresi FIXED_EXTRA_MINUTES ile haftalık sınırdan düşülür.
 FIXED_ASSIGNMENTS: dict = {}
 FIXED_EXTRA_MINUTES: dict = {}
@@ -148,6 +148,18 @@ def _shift_minutes(shift: dict) -> tuple:
     return start_min, end_min
 
 
+def _is_on_call(s_idx: int) -> bool:
+    return s_idx < len(SHIFTS) and bool(SHIFTS[s_idx].get("on_call"))
+
+
+def _regular_idxs() -> list:
+    return [s for s in range(NUM_SHIFTS) if not _is_on_call(s)]
+
+
+def _on_call_idxs() -> list:
+    return [s for s in range(NUM_SHIFTS) if _is_on_call(s)]
+
+
 def _is_night_shift(s_idx: int) -> bool:
     """Gece vardiyası tespiti: öncelik müdürün işaretlediği is_night bayrağı;
     bayrak yoksa saat sezgisi — 22:00 ve sonrası başlayan ya da gece yarısını
@@ -234,27 +246,56 @@ def build_model():
 
     # ── HARD CONSTRAINTS ─────────────────────────────────────────────────────
 
-    # Aynı gün en fazla 1 vardiya
+    # Aynı gün en fazla 1 normal vardiya ve en fazla 1 icap nöbeti
+    REG = _regular_idxs()
+    ONC = _on_call_idxs()
     for p in range(num_p):
         for d in range(NUM_DAYS):
-            model.add_at_most_one(shifts[(p, d, s)] for s in range(NUM_SHIFTS))
+            model.add_at_most_one(shifts[(p, d, s)] for s in REG)
+            if ONC:
+                model.add_at_most_one(shifts[(p, d, k)] for k in ONC)
+
+    # İcap, aynı kişinin normal vardiyasıyla saatçe çakışamaz (aynı gün ya da gece yarısını geçen komşu gün)
+    if ONC and REG:
+        def _span(idx, day):
+            a, b = _shift_minutes(SHIFTS[idx])
+            return day * 1440 + a, day * 1440 + b
+        for p in range(num_p):
+            for d in range(NUM_DAYS):
+                for d2 in (d - 1, d, d + 1):
+                    if not 0 <= d2 < NUM_DAYS:
+                        continue
+                    for s in REG:
+                        rs, re_ = _span(s, d)
+                        for k in ONC:
+                            ks, ke = _span(k, d2)
+                            if rs < ke and ks < re_:
+                                model.add(shifts[(p, d, s)] + shifts[(p, d2, k)] <= 1)
+
+    # Kişi başı haftalık icap üst sınırı (adil dağılım adalet puanıyla, bu sınır tek kişiye yığılmasın diye)
+    if ONC:
+        max_on_call = int(RULES.get("max_on_call_per_week", 3))
+        for p in range(num_p):
+            model.add(sum(shifts[(p, d, k)] for d in range(NUM_DAYS) for k in ONC) <= max_on_call)
 
     # Müsaitlik: "unavailable" günlerde kesinlikle çalışamaz (Kırmızı)
     for p_idx, person in enumerate(PERSONNEL):
         for d in range(NUM_DAYS):
             for s in range(NUM_SHIFTS):
-                if get_avail(person["id"], d, s) == "unavailable" and FIXED_ASSIGNMENTS.get((person["id"], d)) != s:
+                fixed_here = (FIXED_ASSIGNMENTS.get((person["id"], d, "regular")), FIXED_ASSIGNMENTS.get((person["id"], d, "on_call")))
+                if get_avail(person["id"], d, s) == "unavailable" and s not in fixed_here:
                     model.add(shifts[(p_idx, d, s)] == 0)
 
     # Korunan hücreler (müdürün elle düzelttikleri): aynen kalır, motor gerisini çözer
     for p_idx, person in enumerate(PERSONNEL):
         for d in range(NUM_DAYS):
-            key = (person["id"], d)
-            if key not in FIXED_ASSIGNMENTS:
-                continue
-            fixed_s = FIXED_ASSIGNMENTS[key]
-            for s in range(NUM_SHIFTS):
-                model.add(shifts[(p_idx, d, s)] == (1 if s == fixed_s else 0))
+            for kind, group in (("regular", _regular_idxs()), ("on_call", _on_call_idxs())):
+                key = (person["id"], d, kind)
+                if key not in FIXED_ASSIGNMENTS:
+                    continue
+                fixed_s = FIXED_ASSIGNMENTS[key]
+                for s in group:
+                    model.add(shifts[(p_idx, d, s)] == (1 if s == fixed_s else 0))
 
     # Minimum dinlenme: Genel geçiş matrisi (N vardiya destekli)
     # Her (s1, s2) çifti için: ertesi güne geçen dinlenme süresi < min_rest_hours ise yasak.
@@ -263,9 +304,9 @@ def build_model():
     # Gece geçişli vardiyalar için _shift_minutes zaten end_min > 1440 döndürür.
     min_rest_min = RULES["min_rest_hours"] * 60
     forbidden_transitions = []
-    for s1 in range(NUM_SHIFTS):
+    for s1 in REG:
         _, end1 = _shift_minutes(SHIFTS[s1])
-        for s2 in range(NUM_SHIFTS):
+        for s2 in REG:
             start2, _ = _shift_minutes(SHIFTS[s2])
             rest_gap = (start2 + 1440) - end1
             if rest_gap < min_rest_min:
@@ -282,18 +323,21 @@ def build_model():
         for p in range(num_p):
             for start_d in range(NUM_DAYS - MAX_CONSECUTIVE_DAYS):
                 model.add(
-                    sum(shifts[(p, d, s)] for d in range(start_d, start_d + window) for s in range(NUM_SHIFTS))
+                    sum(shifts[(p, d, s)] for d in range(start_d, start_d + window) for s in REG)
                     <= MAX_CONSECUTIVE_DAYS
                 )
 
     # Hafta tatili (İş K. m.46): haftada en az 1 gün boş, "Maks. Ardışık Çalışma" 7 olsa da.
     # Korunan özel saatli hücreler (motor dışı çalışma günü) bu 6 güne sayılır.
     for p_idx, person in enumerate(PERSONNEL):
-        custom_days = sum(1 for (pid, _d), s_idx in FIXED_ASSIGNMENTS.items() if pid == person["id"] and s_idx is None)
-        model.add(
-            sum(shifts[(p_idx, d, s)] for d in range(NUM_DAYS) for s in range(NUM_SHIFTS))
-            <= max(0, NUM_DAYS - 1 - custom_days)
-        )
+        custom_days = sum(1 for (pid, _d, kind), s_idx in FIXED_ASSIGNMENTS.items()
+                          if pid == person["id"] and kind == "regular" and s_idx is None)
+        busy_days = []
+        for d in range(NUM_DAYS):
+            busy = model.new_bool_var(f"busy_p{p_idx}_d{d}")
+            model.add_max_equality(busy, [shifts[(p_idx, d, s)] for s in range(NUM_SHIFTS)])
+            busy_days.append(busy)
+        model.add(sum(busy_days) <= max(0, NUM_DAYS - 1 - custom_days))
 
     # ── GECE KORUMASI (Postalar Yönetmeliği) ────────────────────────────────
     night_shift_idxs = [s for s in range(NUM_SHIFTS) if _is_night_shift(s)]
@@ -316,8 +360,8 @@ def build_model():
 
     # Gececi→Sabahçı yasak: gece vardiyası (≥23:00 bitiş) → ertesi sabah (≤12:00 başlangıç)
     if NO_NIGHT_TO_MORNING:
-        night_idxs = [s for s in range(NUM_SHIFTS) if _shift_minutes(SHIFTS[s])[1] >= 23 * 60]
-        morning_idxs = [s for s in range(NUM_SHIFTS) if _shift_minutes(SHIFTS[s])[0] <= 12 * 60]
+        night_idxs = [s for s in REG if _shift_minutes(SHIFTS[s])[1] >= 23 * 60]
+        morning_idxs = [s for s in REG if _shift_minutes(SHIFTS[s])[0] <= 12 * 60]
         for p in range(num_p):
             for d in range(NUM_DAYS - 1):
                 for ns in night_idxs:
@@ -344,7 +388,8 @@ def build_model():
     for s in range(NUM_SHIFTS):
         if s < len(SHIFTS):
             start_m, end_m = _shift_minutes(SHIFTS[s])
-            shift_durations_min.append(end_m - start_m)
+            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir
+            shift_durations_min.append(0 if _is_on_call(s) else end_m - start_m)
         else:
             shift_durations_min.append(SHIFT_HOURS * 60)
 
@@ -377,7 +422,7 @@ def build_model():
     # bir kısıt var, birbirlerinin yerine geçemezler.
     conflict_person_ids = {pid for pair in CONFLICT_PAIRS for pid in pair}
     # Korunan hücresi olan kişi de kimliğe bağlı sabit bir kısıt taşır, gruplanmaz
-    conflict_person_ids |= {pid for pid, _d in FIXED_ASSIGNMENTS}
+    conflict_person_ids |= {pid for pid, _d, _k in FIXED_ASSIGNMENTS}
 
     def _person_signature(person):
         pid = person["id"]
@@ -558,9 +603,9 @@ def build_model():
     clopening_transitions = []
     clopening_penalties = []
     if RULES.get("clopening_enabled", True):
-        for s1 in range(NUM_SHIFTS):
+        for s1 in _regular_idxs():
             _, end1 = _shift_minutes(SHIFTS[s1])
-            for s2 in range(NUM_SHIFTS):
+            for s2 in _regular_idxs():
                 start2, _ = _shift_minutes(SHIFTS[s2])
                 rest_gap = (start2 + 1440) - end1
                 if min_rest_min <= rest_gap < clopening_min:
@@ -680,7 +725,7 @@ def build_model():
         shifts[(p, d, s)]
         for p in range(num_p)
         for d in range(NUM_DAYS)
-        for s in range(NUM_SHIFTS)
+        for s in _regular_idxs()
     ))
 
     # ── Coverage-max: boş vardiya cezası + kapalı gün ────────────────────────
@@ -1229,6 +1274,8 @@ def api_mode(payload: dict):
                 "end":         s.get("end",   "16:00"),
                 "base_points": int(s.get("base_points", 5)),
                 "is_night":    bool(s.get("is_night", False)),
+                # İcap (evden çağrılabilir) nöbeti: çalışma süresine sayılmaz, normal vardiyayla aynı gün olabilir
+                "on_call":     bool(s.get("on_call", False)),
                 # Zorunlu yetkinlik karması: [{"skill": "bakımcı", "count": 1}, ...]
                 "required_skills": [
                     {"skill": str(rs.get("skill", "")).strip(), "count": int(rs.get("count", 1))}
@@ -1305,8 +1352,9 @@ def api_mode(payload: dict):
         if pid not in known_ids or not 0 <= day < NUM_DAYS:
             continue
         s_idx = shift_id_to_idx.get(str(fa.get("shift_id")))
-        FIXED_ASSIGNMENTS[(pid, day)] = s_idx
-        if s_idx is None and fa.get("start_time") and fa.get("end_time"):
+        kind = "on_call" if s_idx is not None and _is_on_call(s_idx) else "regular"
+        FIXED_ASSIGNMENTS[(pid, day, kind)] = s_idx
+        if kind == "regular" and s_idx is None and fa.get("start_time") and fa.get("end_time"):
             start_m, end_m = _shift_minutes({"start": fa["start_time"], "end": fa["end_time"]})
             FIXED_EXTRA_MINUTES[pid] = FIXED_EXTRA_MINUTES.get(pid, 0) + max(0, end_m - start_m)
 
@@ -1415,7 +1463,8 @@ def api_mode(payload: dict):
     for s in range(NUM_SHIFTS):
         if s < len(SHIFTS):
             start_m, end_m = _shift_minutes(SHIFTS[s])
-            shift_durations_min.append(end_m - start_m)
+            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir
+            shift_durations_min.append(0 if _is_on_call(s) else end_m - start_m)
         else:
             shift_durations_min.append(SHIFT_HOURS * 60)
 
@@ -1442,6 +1491,7 @@ def api_mode(payload: dict):
                         "start_time":  SHIFTS[s]["start"],
                         "end_time":    SHIFTS[s]["end"],
                         "points":      effective_points(person["id"], d, s),
+                        "kind":        "on_call" if _is_on_call(s) else "regular",
                     })
         # Mesai özeti: eşiği aşan personeli raporla
         threshold_min = int(OVERTIME_THRESHOLD_HOURS * 60)

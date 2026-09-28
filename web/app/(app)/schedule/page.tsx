@@ -80,6 +80,7 @@ function cellBurden(
 /** Bir hücrenin başlangıç/bitiş dakikalarını shift tanımlarıyla eşleştirir (±10 dk tolerans). */
 function matchShiftDef(startMin: number, endMin: number, defs: ShiftDefinition[]): ShiftDefinition | null {
   for (const d of defs) {
+    if (d.on_call) continue; // icap ayrı tutulur (onCallMap), normal hücre onunla eşleşmez
     const ds = hhmmToMin(d.start);
     let de = hhmmToMin(d.end);
     if (de <= ds) de += 1440;
@@ -303,7 +304,7 @@ type AvailMap = Record<string, Record<number, AvailDay>>;
  * öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
  */
 function scheduleSnapshot(a: {
-  cellMap: CellMap; shiftDefs: ShiftDefinition[];
+  cellMap: CellMap; onCallMap: Record<string, { defId: string }>; shiftDefs: ShiftDefinition[];
   demandMatrix: Record<string, Record<number, number>>;
   deptDemandMatrix: Record<string, Record<string, Record<number, number>>>;
   availMap: AvailMap; personnel: any[]; locRules: FairnessRules; clopeningMinRest: number;
@@ -317,12 +318,20 @@ function scheduleSnapshot(a: {
   const assignments = Object.entries(a.cellMap).map(([key, c]) => {
     const lastDash = key.lastIndexOf("-");
     // Hücre vardiya tanımına başlangıç saatiyle bağlanır (±10 dk)
-    const def = a.shiftDefs.find(d => { const [h, m] = d.start.split(":").map(Number); return Math.abs(h * 60 + m - c.startMin) <= 10; });
+    const def = a.shiftDefs.find(d => { if (d.on_call) return false; const [h, m] = d.start.split(":").map(Number); return Math.abs(h * 60 + m - c.startMin) <= 10; });
     return {
       personnel_id: key.slice(0, lastDash), day: Number(key.slice(lastDash + 1)), shift_id: def?.id ?? "custom",
       start_time: hhmm(c.startMin), end_time: hhmm(c.endMin), publication_status: "draft",
+      kind: "regular" as "regular" | "on_call",
     };
-  });
+  }).concat(Object.entries(a.onCallMap).flatMap(([key, v]) => {
+    const def = a.shiftDefs.find(d => d.id === v.defId);
+    const lastDash = key.lastIndexOf("-");
+    return def ? [{
+      personnel_id: key.slice(0, lastDash), day: Number(key.slice(lastDash + 1)), shift_id: def.id,
+      start_time: def.start, end_time: def.end, publication_status: "draft", kind: "on_call" as "regular" | "on_call",
+    }] : [];
+  }));
   // Departman varsa talep departman tablolarının toplamıdır (bkz. CLAUDE.md §3.B)
   const matrices = Object.keys(a.deptDemandMatrix).length > 0 ? Object.values(a.deptDemandMatrix) : [a.demandMatrix];
   const demand: Record<string, Record<string, number>> = {};
@@ -412,6 +421,13 @@ function SchedulePageInner() {
   const [toast, setToast]                         = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
   // Personel İhtiyacı önerisi (/api/demand-suggestion): sihirbaz açılınca alınır, uygulanana kadar kaydedilmez
   const [demandSuggestion, setDemandSuggestion]   = useState<{ matrix: Record<string, Record<number, number>>; source: "history" | "starter"; notes: string[]; history_weeks: number } | null>(null);
+  // İcap nöbetleri: normal hücreden ayrı (aynı gün ikisi birden olabilir). Anahtar `${personelId}-${gün}`
+  const [onCallMap, setOnCallMap]                 = useState<Record<string, { defId: string; pinned?: boolean; id?: number }>>({});
+  // İcapta çağrılma kayıtları (yayınlanmış hafta): assignment_id → kayıtlar
+  const [callouts, setCallouts]                   = useState<{ id: number; assignment_id: number; start_time: string; end_time: string; note: string | null }[]>([]);
+  const [calloutModal, setCalloutModal]           = useState<{ assignmentId: number; title: string } | null>(null);
+  const [calloutForm, setCalloutForm]             = useState({ start: "", end: "", note: "" });
+  const [calloutBusy, setCalloutBusy]             = useState(false);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -611,7 +627,7 @@ function SchedulePageInner() {
         const [pRes, aRes, sRes, locRes, deptRes, evRes, pubRes, shRes] = await Promise.all([
           fetch(`/api/personnel?location_id=${activeLocationId}`),
           fetch(`/api/availability/team?location_id=${activeLocationId}&week_start=${weekStart}`),
-          fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${weekStart}`),
+          fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${weekStart}&include_on_call=1`),
           fetch(`/api/locations?id=${activeLocationId}`),
           fetch(`/api/departments?location_id=${activeLocationId}`),
           fetch(`/api/events?location_id=${activeLocationId}&week_start=${weekStart}`),
@@ -800,10 +816,16 @@ function SchedulePageInner() {
         setAvailMap(newAvailMap);
 
         const newCellMap: CellMap = {};
+        const newOnCall: Record<string, { defId: string; pinned?: boolean; id?: number }> = {};
         const newForceMap: Record<string, { status: string; multiplier: number }> = {};
         if (Array.isArray(sData)) {
           let hasDraft = false;
           for (const s of sData) {
+            if (s.kind === "on_call") {
+              newOnCall[`${s.personnel_id}-${s.day}`] = { defId: s.shift_id, id: s.id, ...(s.pinned ? { pinned: true } : {}) };
+              if (s.publication_status === "draft") hasDraft = true;
+              continue;
+            }
             if (s.start_time && s.end_time) {
               const key = `${s.personnel_id}-${s.day}`;
               const startMin = hhmmToMin(s.start_time);
@@ -820,7 +842,14 @@ function SchedulePageInner() {
         }
         setForceAssignMap(newForceMap);
         setCellMap(newCellMap);
-        setDbShiftCount(Object.keys(newCellMap).length);
+        setOnCallMap(newOnCall);
+        if (Object.keys(newOnCall).length > 0) {
+          fetch(`/api/on-call-callouts?location_id=${activeLocationId}&week_start=${weekStart}`)
+            .then(r => (r.ok ? r.json() : []))
+            .then(d => { if (!stale) setCallouts(Array.isArray(d) ? d : []); })
+            .catch(() => {});
+        } else setCallouts([]);
+        setDbShiftCount(Object.keys(newCellMap).length + Object.keys(newOnCall).length);
         // Hafta yüklemesi kullanıcı düzenlemesi değildir — otomatik kayıt tetiklenmesin
         userEditRef.current = false;
         setDirty(false);
@@ -839,13 +868,33 @@ function SchedulePageInner() {
   }, [activeLocationId, weekOffset, reloadTick]);
 
   // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Haftayı Oluştur aynı yolu kullanır)
-  const saveDraftWeek = async (map: CellMap): Promise<boolean> => {
-    setSaveState("saving");
-    try {
-      const res = await fetch("/api/shifts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+  const onCallRows = (oc: Record<string, { defId: string; pinned?: boolean }>) =>
+    Object.entries(oc).flatMap(([key, v]) => {
+      const def = shiftDefs.find(d => d.id === v.defId);
+      if (!def) return [];
+      const lastDash = key.lastIndexOf("-");
+      return [{
+        personnel_id: key.slice(0, lastDash), day: parseInt(key.slice(lastDash + 1)),
+        shift_id: def.id, start_time: def.start, end_time: def.end, pinned: v.pinned === true, kind: "on_call" as const,
+      }];
+    });
+
+  // Kayıtlar sıraya alınır: sihirbazın beklenen kaydı ile 1,2 sn'lik otomatik kayıt aynı anda
+  // "sil + yeniden yaz" yapınca kopya taslak satırlar oluşuyordu (yayında kopyalar taslak kalıyordu)
+  // Kuyruktaki otomatik kayıt, veriyi kuyruğa girdiği anda değil çalıştığı anda en güncel halinden alır
+  // (yoksa uzun süren bir kayıt beklerken eski render'ın verisi en son yazılıp icapları siliyordu)
+  const saveChainRef = useRef<Promise<boolean>>(Promise.resolve(true));
+  const latestPlanRef = useRef<{ cellMap: CellMap; onCallMap: Record<string, { defId: string; pinned?: boolean }> }>({ cellMap: {}, onCallMap: {} });
+  useEffect(() => { latestPlanRef.current = { cellMap, onCallMap }; }, [cellMap, onCallMap]);
+  const saveDraftWeek = (map?: CellMap, oc?: Record<string, { defId: string; pinned?: boolean }>): Promise<boolean> => {
+    const run = saveChainRef.current.then(() =>
+      saveDraftWeekNow(map ?? latestPlanRef.current.cellMap, oc ?? latestPlanRef.current.onCallMap));
+    saveChainRef.current = run.catch(() => false);
+    return run;
+  };
+  const lastSavedBodyRef = useRef<string>("");
+  const saveDraftWeekNow = async (map: CellMap, oc: Record<string, { defId: string; pinned?: boolean }>): Promise<boolean> => {
+    const body = JSON.stringify({
           action: "sync_draft_week",
           location_id: activeLocationId,
           week_start: weekStart,
@@ -860,13 +909,22 @@ function SchedulePageInner() {
               end_time:     minToHHMM(val.endMin),
               pinned:       val.pinned === true,
             };
-          }),
-        }),
+          }).concat(onCallRows(oc) as never[]),
+        });
+    // Aynı içerik az önce kaydedildiyse tekrar yazma (sihirbaz kaydı + otomatik kayıt çakışması)
+    if (body === lastSavedBodyRef.current) { userEditRef.current = false; setSaveState("saved"); return true; }
+    setSaveState("saving");
+    try {
+      const res = await fetch("/api/shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body,
       });
       if (!res.ok) { setSaveState("idle"); return false; }
+      lastSavedBodyRef.current = body;
       userEditRef.current = false;
       setSaveState("saved");
-      const n = Object.keys(map).length;
+      const n = Object.keys(map).length + Object.keys(oc).length;
       setIsDraftWeek(n > 0);
       setDbShiftCount(n);
       return true;
@@ -908,10 +966,11 @@ function SchedulePageInner() {
     if (!userEditRef.current || !activeLocationId || !weekStart) return;
     const isPublishedWeek = dbShiftCount > 0 && !isDraftWeek;
     if (isPublishedWeek) return;
-    const t = setTimeout(() => { saveDraftWeek(cellMap); }, 1200);
+    // Süre dolduğunda hâlâ kaydedilmemiş düzenleme var mı (sihirbaz az önce kaydetmiş olabilir)
+    const t = setTimeout(() => { if (userEditRef.current) saveDraftWeek(); }, 1200);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cellMap, activeLocationId, weekStart]);
+  }, [cellMap, onCallMap, activeLocationId, weekStart]);
 
   // Hava durumu — Open-Meteo (ücretsiz, key yok)
   useEffect(() => {
@@ -1134,8 +1193,13 @@ function SchedulePageInner() {
       const otHours = Math.max(0, hours - otThreshold);
       total += baseHours * p.hourly_wage + otHours * p.hourly_wage * 1.5;
     }
+    // İcap: bekleme saati değil, icap başına sabit ücret (vardiya tanımında)
+    for (const v of Object.values(onCallMap)) {
+      const pay = shiftDefs.find(d => d.id === v.defId)?.on_call_pay;
+      if (typeof pay === "number" && pay > 0) total += pay;
+    }
     return { total: Math.round(total), missingWage };
-  }, [personnel, cellMap, locRules]);
+  }, [personnel, cellMap, onCallMap, shiftDefs, locRules]);
   const weeklyLaborBudgetTry = typeof (locRules as Record<string, unknown>)?.weekly_labor_budget_try === "number"
     ? (locRules as Record<string, number>).weekly_labor_budget_try : 0;
   const laborBudgetExceeded = weeklyLaborBudgetTry > 0 && laborCost.total > weeklyLaborBudgetTry;
@@ -1186,6 +1250,46 @@ function SchedulePageInner() {
     setPopover(null);
   };
 
+  const reloadCallouts = async () => {
+    const r = await fetch(`/api/on-call-callouts?location_id=${activeLocationId}&week_start=${weekStart}`);
+    const d = r.ok ? await r.json() : [];
+    setCallouts(Array.isArray(d) ? d : []);
+  };
+  const saveCallout = async () => {
+    if (!calloutModal) return;
+    setCalloutBusy(true);
+    try {
+      const r = await fetch("/api/on-call-callouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignment_id: calloutModal.assignmentId, start_time: calloutForm.start, end_time: calloutForm.end, note: calloutForm.note }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast(d.error ?? "Kaydedilemedi", "error"); return; }
+      showToast("Çağrı kaydedildi; çalışma süresine ve mesaiye sayılır.", "success");
+      setCalloutForm({ start: "", end: "", note: "" });
+      await reloadCallouts();
+    } finally { setCalloutBusy(false); }
+  };
+  const deleteCallout = async (id: number) => {
+    const r = await fetch(`/api/on-call-callouts?id=${id}`, { method: "DELETE" });
+    if (r.ok) await reloadCallouts(); else showToast("Silinemedi", "error");
+  };
+
+  // İcap seçimi normal vardiyadan bağımsız; elle seçilen icap korunur (pinned)
+  const handlePopoverSetOnCall = (defId: string | null) => {
+    if (!popover) return;
+    const key = `${popover.personnelId}-${popover.day}`;
+    userEditRef.current = true;
+    setDirty(true);
+    setOnCallMap(prev => {
+      const next = { ...prev };
+      if (defId) next[key] = { defId, pinned: true };
+      else delete next[key];
+      return next;
+    });
+  };
+
   const handlePopoverTogglePin = () => {
     if (!popover) return;
     const key = `${popover.personnelId}-${popover.day}`;
@@ -1210,7 +1314,8 @@ function SchedulePageInner() {
     setError(null);
     // Elle düzeltilen (korunan) hücreler motora sabit olarak gider, gerisi yeniden çözülür
     const pinned = keepPinned ? Object.entries(cellMap).filter(([, v]) => v.pinned) : [];
-    const fixed_assignments = pinned.map(([key, val]) => {
+    const pinnedOnCall = keepPinned ? Object.entries(onCallMap).filter(([, v]) => v.pinned) : [];
+    const fixed_assignments = [...pinned.map(([key, val]) => {
       const lastDash = key.lastIndexOf("-");
       return {
         personnel_id: key.slice(0, lastDash),
@@ -1219,7 +1324,7 @@ function SchedulePageInner() {
         start_time:   minToHHMM(val.startMin),
         end_time:     minToHHMM(val.endMin),
       };
-    });
+    }), ...onCallRows(Object.fromEntries(pinnedOnCall))];
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -1231,7 +1336,13 @@ function SchedulePageInner() {
       setRevokedSkills(data.revoked_skills ?? []);
       if (data.error) { setError(data.error); return; }
       const newCellMap: CellMap = {};
+      const newOnCall: Record<string, { defId: string; pinned?: boolean }> = {};
       for (const a of (data.assignments || [])) {
+        if (a.kind === "on_call") {
+          const def = shiftDefs[a.shiftId];
+          if (def) newOnCall[`${a.personnelId}-${a.day}`] = { defId: def.id };
+          continue;
+        }
         if (a.start_time && a.end_time) {
           const key      = `${a.personnelId}-${a.day}`;
           const startMin = hhmmToMin(a.start_time);
@@ -1242,14 +1353,16 @@ function SchedulePageInner() {
       }
       // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
       for (const [key, val] of pinned) newCellMap[key] = val;
+      for (const [key, val] of pinnedOnCall) newOnCall[key] = val;
       pushCellMap(newCellMap);
+      setOnCallMap(newOnCall);
       setDbShiftCount(0); // OR-Tools taslağı — henüz yayınlanmadı
       // Engine'in base_points tabanlı puanlarını sakla — publish sırasında prev_score güncellemesinde kullanılır
       setEngineScores(data.scores ?? {});
       setSeniorViolations(data.senior_violations ?? []);
       // Taslak hemen kaydedilir: sihirbaz "kaydedildi" dediğinde plan DB'de olmalı
       // (eskiden 1,2 sn'lik otomatik kayda kalıyordu, hemen çıkan kullanıcı planı kaybediyordu)
-      if (!(await saveDraftWeek(newCellMap))) {
+      if (!(await saveDraftWeek(newCellMap, newOnCall))) {
         setError("Plan oluşturuldu ama kaydedilemedi. Bağlantınızı kontrol edip bir hücreyi düzenleyin, otomatik kaydedilir.");
       }
     } catch (e) {
@@ -1559,7 +1672,7 @@ function SchedulePageInner() {
         end_time:           minToHHMM(val.endMin),
         publication_status: pubStatus,
       };
-    });
+    }).concat(onCallRows(onCallMap).map(r => ({ ...r, location_id: activeLocationId, week_start: weekStart, publication_status: pubStatus })) as never[]);
 
   // Taslağı personele inceleme için gönder — durum draft kalır, sadece bildirim gider
   const handleSendForReview = async () => {
@@ -1756,6 +1869,10 @@ function SchedulePageInner() {
     }
     void pId;
   }
+  for (const [key, v] of Object.entries(onCallMap)) {
+    const day = parseInt(key.slice(key.lastIndexOf("-") + 1));
+    (assignedCounts[v.defId] ??= {})[day] = (assignedCounts[v.defId][day] || 0) + 1;
+  }
 
   // Departman bazlı atanan kişi sayıları
   const deptAssignedCounts: Record<string, Record<string, Record<number, number>>> = {};
@@ -1854,7 +1971,7 @@ function SchedulePageInner() {
   // Haftanın durumu: ekrandaki (henüz kaydedilmemiş olanlar dahil) plandan. Plan Asistanı ve
   // yayın öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
   // Kişi × 7 gün: her render'da hesaplamak ucuz
-  const weekSnapshot = scheduleSnapshot({ cellMap, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
+  const weekSnapshot = scheduleSnapshot({ cellMap, onCallMap, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
     clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart });
 
   const weekBudgets: WeekBudgets = {
@@ -2813,10 +2930,30 @@ loading ? (
                           const forceData = cell ? forceAssignMap[cellKey] : null;
                           const matchedDef = cell ? matchShiftDef(cell.startMin, cell.endMin, shiftDefs) : null;
 
+                          const oc = onCallMap[cellKey];
+                          const ocDef = oc ? shiftDefs.find(d => d.id === oc.defId) : null;
                           const tdClass = cn(
                             "py-1 px-1 h-14 align-middle",
                             isWeekend && "bg-forest-50/20",
                           );
+                          const ocCallMin = oc?.id ? callouts.filter(c => c.assignment_id === oc.id)
+                            .reduce((t, c) => { const a = hhmmToMin(c.start_time); let b = hhmmToMin(c.end_time); if (b <= a) b += 1440; return t + b - a; }, 0) : 0;
+                          const readOnlyWeek = isPublishedWeek && !editUnlocked;
+                          const onCallChip = ocDef ? (
+                            <div
+                              onClick={readOnlyWeek
+                                ? (oc?.id ? () => { setCalloutForm({ start: "", end: "", note: "" }); setCalloutModal({ assignmentId: oc.id!, title: `${p.name} · ${DAYS[day]} · ${ocDef.name}` }); } : undefined)
+                                : (e: React.MouseEvent) => handleCellClick(e, p.id, day)}
+                              title={readOnlyWeek
+                                ? "İcap nöbeti: çağrıldıysa çalıştığı saati girmek için tıklayın"
+                                : `İcap nöbeti ${ocDef.start}–${ocDef.end}: evden, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
+                              className="mt-0.5 mx-auto w-full max-w-[84px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
+                            >
+                              {ocCallMin > 0
+                                ? `İcap · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} s çağrıldı`
+                                : `İcap · ${ocDef.name}`}
+                            </div>
+                          ) : null;
 
                           if (isPublishedWeek && !editUnlocked) {
                             const cellIsNight = cell ? isNightCell(cell) : false;
@@ -2832,11 +2969,12 @@ loading ? (
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                   </div>
-                                ) : (
+                                ) : !ocDef ? (
                                   <div className="flex items-center justify-center h-full">
                                     <span className="text-slate-200 text-xs">—</span>
                                   </div>
-                                )}
+                                ) : null}
+                                {onCallChip}
                               </td>
                             );
                           }
@@ -2913,6 +3051,7 @@ loading ? (
                                   <Plus size={13} />
                                 </button>
                               )}
+                              {onCallChip}
                             </DroppableCell>
                           );
                         })}
@@ -2974,6 +3113,42 @@ loading ? (
               onPublish={handlePublish}
               onClose={() => setWizardOpen(false)}
             />
+          )}
+
+          {/* ── İcap çağrısı (yayınlanmış hafta) ── */}
+          {calloutModal && (
+            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setCalloutModal(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="İcap çağrısı">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">İcap çağrısı</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{calloutModal.title}</p>
+                  <p className="text-[11px] text-slate-400 mt-1.5">Çağrılıp çalışılan saat çalışma süresine ve mesaiye sayılır; bekleme süresi sayılmaz.</p>
+                </div>
+                {callouts.filter(c => c.assignment_id === calloutModal.assignmentId).map(c => (
+                  <div key={c.id} className="flex items-center justify-between text-xs bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+                    <span className="font-semibold text-violet-800">{c.start_time}–{c.end_time}{c.note ? ` · ${c.note}` : ""}</span>
+                    <button onClick={() => deleteCallout(c.id)} className="text-slate-400 hover:text-red-500" aria-label="Çağrıyı sil"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-[11px] font-semibold text-slate-600">Başlangıç
+                    <input type="time" value={calloutForm.start} onChange={e => setCalloutForm(f => ({ ...f, start: e.target.value }))}
+                      className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
+                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600">Bitiş
+                    <input type="time" value={calloutForm.end} onChange={e => setCalloutForm(f => ({ ...f, end: e.target.value }))}
+                      className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
+                  </label>
+                </div>
+                <input value={calloutForm.note} onChange={e => setCalloutForm(f => ({ ...f, note: e.target.value }))} placeholder="Not (isteğe bağlı): acil hasta, arıza..."
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                <div className="flex gap-2">
+                  <button onClick={() => setCalloutModal(null)} className="flex-1 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">Kapat</button>
+                  <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end}
+                    className="flex-1 py-2 text-sm font-bold text-white bg-violet-600 rounded-xl hover:bg-violet-700 disabled:opacity-40">Çağrıyı Kaydet</button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── Düzenleme kilidi modalı ── */}
@@ -3190,11 +3365,11 @@ loading ? (
               <p className="text-[11px] text-amber-700">Şablon yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
             </div>
           )}
-          {shiftDefs.length > 0 && (
+          {shiftDefs.some(d => !d.on_call) && (
             <div className="mb-3">
               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1.5">Şablondan seç</p>
               <div className="flex flex-wrap gap-1.5">
-                {shiftDefs.map(def => {
+                {shiftDefs.filter(d => !d.on_call).map(def => {
                   const ds = hhmmToMin(def.start);
                   let de = hhmmToMin(def.end);
                   if (de <= ds) de += 1440;
@@ -3278,6 +3453,24 @@ loading ? (
                 ? <><PinOff size={13} /> Korumayı kaldır (yeniden oluşturmada değişebilir)</>
                 : <><Pin size={13} /> Koru (yeniden oluşturmada değişmesin)</>}
             </button>
+          )}
+          {shiftDefs.some(d => d.on_call) && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1.5">İcap nöbeti (evden, çağrılırsa gelir)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[null, ...shiftDefs.filter(d => d.on_call)].map(def => {
+                  const current = onCallMap[`${popover!.personnelId}-${popover!.day}`]?.defId ?? null;
+                  const active = (def?.id ?? null) === current;
+                  return (
+                    <button key={def?.id ?? "none"} onClick={() => handlePopoverSetOnCall(def?.id ?? null)}
+                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border transition-colors",
+                        active ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700")}>
+                      {def ? <>{def.name}<span className="ml-1 opacity-60 font-normal">{def.start}–{def.end}</span></> : "Yok"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           <div className="flex gap-2 mt-2">
             {hasExisting && (

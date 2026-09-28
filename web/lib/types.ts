@@ -169,6 +169,8 @@ export interface ShiftDefinition {
   is_night?: boolean;  // gece vardiyası — adalet motorunda "zor vardiya" sayılabilir (hard_shift_night)
   coverage?: Record<string, number>; // role_id -> required_count
   required_skills?: { skill: string; count: number }[]; // bu vardiyada bulunması ZORUNLU yetkinlikler (örn. gece ≥1 bakımcı) — motor hard kısıt uygular
+  on_call?: boolean;    // icap nöbeti: bekleme çalışma sayılmaz, aynı gün normal vardiyayla birlikte olabilir
+  on_call_pay?: number; // icap başına sabit ücret (TL), maliyet hesabına eklenir
 }
 
 // ─── Eski ZoneConfig yerine yeni Role interface'i yukarı eklendi ──────────────────────────────────────────────────────

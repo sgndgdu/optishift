@@ -51,7 +51,8 @@ export function buildIndustryDefaults(industryKey: string, variantKey?: string |
   const variant = getVariant(industry, variantKey);
 
   const shift_definitions = variant.shifts.map(s => ({ ...s }));
-  const win = operatingWindow(shift_definitions);
+  // İcap evden beklenir: işyerinin açık saatlerini genişletmez
+  const win = operatingWindow(shift_definitions.filter(s => !s.on_call));
   const operating_hours: IndustryDefaults["operating_hours"] = {};
   for (let d = 0; d < 7; d++) operating_hours[d] = { isOpen: true, ...win };
 

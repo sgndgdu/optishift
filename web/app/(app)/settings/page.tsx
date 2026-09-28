@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type ReactNode, type ComponentType } from "react";
 import {
-  Save, Plus, X, Send, UserCircle, Moon, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
+  Save, Plus, X, Send, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
   MessageSquare, Megaphone, Gavel, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Tablet, Timer, Wallet,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
@@ -309,6 +309,7 @@ export default function SettingsPage() {
   // Kural toggle'ları
   const [ensureSeniorPerShift, setEnsureSeniorPerShift]           = useState(false);
   const [maxConsecutiveDays, setMaxConsecutiveDays]               = useState(6);
+  const [maxOnCallPerWeek, setMaxOnCallPerWeek]                   = useState(3);
   const [noNightToMorning, setNoNightToMorning]                   = useState(false);
   const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
@@ -474,6 +475,7 @@ export default function SettingsPage() {
 
           setEnsureSeniorPerShift(!!loc.rules?.ensure_senior_per_shift);
           setMaxConsecutiveDays(loc.rules?.max_consecutive_days ?? 6);
+          setMaxOnCallPerWeek(loc.rules?.max_on_call_per_week ?? 3);
           setNoNightToMorning(!!loc.rules?.no_night_to_morning);
           setIncludeManagersInSchedule(!!loc.rules?.include_managers_in_schedule);
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
@@ -608,6 +610,7 @@ export default function SettingsPage() {
             zone_quotas: Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })),
             ensureSeniorPerShift: !!loc.rules?.ensure_senior_per_shift,
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
+            maxOnCallPerWeek: loc.rules?.max_on_call_per_week ?? 3,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
             includeManagersInSchedule: !!loc.rules?.include_managers_in_schedule,
             maxPreferredNotDays: typeof loc.rules?.max_preferred_not_days === "number" ? loc.rules.max_preferred_not_days : 1,
@@ -695,7 +698,7 @@ export default function SettingsPage() {
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
       zone_quotas: zoneQuotas,
-      ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
       hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -715,7 +718,7 @@ export default function SettingsPage() {
     setIsDirty(current !== savedSnapshot.current);
   }, [
     locationData, zoneQuotas,
-    ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
     hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -848,6 +851,7 @@ export default function SettingsPage() {
             ...baseRules,
             ensure_senior_per_shift:      ensureSeniorPerShift,
             max_consecutive_days:         maxConsecutiveDays,
+            max_on_call_per_week:         maxOnCallPerWeek,
             no_night_to_morning:          noNightToMorning,
             include_managers_in_schedule: includeManagersInSchedule,
             max_preferred_not_days:       maxPreferredNotDays,
@@ -930,7 +934,7 @@ export default function SettingsPage() {
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
         zone_quotas: zoneQuotas,
-        ensureSeniorPerShift, maxConsecutiveDays, noNightToMorning, includeManagersInSchedule,
+        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, includeManagersInSchedule,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
         hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -1279,6 +1283,24 @@ export default function SettingsPage() {
                           <Moon size={10} /> Gece
                         </button>
                         <button
+                          type="button"
+                          title="İcap nöbeti: evden çağrılabilir bekleme. Çalışma saatine sayılmaz, aynı gün normal vardiyayla birlikte verilebilir."
+                          onClick={() => {
+                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                              i === idx ? { ...s, on_call: !s.on_call } : s
+                            );
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
+                            shift.on_call
+                              ? "bg-violet-50 border-violet-300 text-violet-700"
+                              : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
+                          )}
+                        >
+                          <PhoneCall size={10} /> İcap
+                        </button>
+                        <button
                           onClick={() => {
                             const next = locationData.shift_definitions.filter((_: ShiftDefinition, i: number) => i !== idx);
                             setLocationData({ ...locationData, shift_definitions: next });
@@ -1303,7 +1325,25 @@ export default function SettingsPage() {
                           setLocationData({ ...locationData, shift_definitions: next });
                         }} />
                       </div>
-                      {netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
+                      {shift.on_call && (
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
+                          <span className="flex-1 min-w-[180px]">İcap: evden beklenir, çalışma saatine ve mesaiye sayılmaz. Çağrılınca çalışılan saat Vardiya Planı&apos;ndan girilir.</span>
+                          <label className="flex items-center gap-1 font-semibold">
+                            İcap ücreti
+                            <input type="number" min={0} step={50} value={shift.on_call_pay ?? ""} placeholder="0"
+                              onChange={e => {
+                                const v = e.target.value === "" ? undefined : Math.max(0, Number(e.target.value));
+                                const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                                  i === idx ? { ...s, on_call_pay: v } : s
+                                );
+                                setLocationData({ ...locationData, shift_definitions: next });
+                              }}
+                              className="w-20 border border-violet-200 rounded-md px-1.5 py-0.5 bg-white text-slate-800" />
+                            ₺
+                          </label>
+                        </div>
+                      )}
+                      {!shift.on_call && netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
                         <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Vardiya {shiftDurationHours(shift)} saat: yasal mola düşülse de günlük 11 saat sınırını aşıyor (İş Kanunu m.63). Saatleri kısaltın.
                         </p>
@@ -1642,6 +1682,13 @@ export default function SettingsPage() {
                     description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 seçilse de haftada en az 1 gün izin (24 saat kesintisiz hafta tatili, İş K. m.46) her zaman korunur."
                     right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                   />
+                  {(locationData?.shift_definitions ?? []).some((d: ShiftDefinition) => d.on_call) && (
+                    <RuleRow
+                      label="Haftalık İcap Sınırı"
+                      description="Bir kişiye haftada en fazla bu kadar icap nöbeti yazılır. İcaplar ayrıca Adalet Puanı'yla dengeli dağıtılır."
+                      right={<NumberInput value={maxOnCallPerWeek} onChange={setMaxOnCallPerWeek} min={0} max={7} suffix="icap" />}
+                    />
+                  )}
                   <RuleRow
                     label="Haftalık İşçilik Maliyeti Bütçesi"
                     description="Bu haftanın planlanan toplam işçilik maliyeti (saatlik ücreti girilmiş personelin saatleri × ücret, mesai × 1,5) bu sınırı aşarsa vardiya sayfasında canlı uyarı + yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."

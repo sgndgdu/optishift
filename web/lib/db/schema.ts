@@ -234,12 +234,29 @@ export const shiftAssignments = pgTable("shift_assignments", {
   handover_note: text("handover_note"), // vardiya devri notu — çıkışta yazılır, sonraki vardiya girişte görür
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
-  pinned: boolean("pinned").default(false), // müdür elle düzeltti: Haftayı Oluştur bu hücreye dokunmaz (taslakta)
+  pinned: boolean("pinned").default(false),
+  kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // müdür elle düzeltti: Haftayı Oluştur bu hücreye dokunmaz (taslakta)
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
   force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // artık düz bonus PUANI (çarpan değil) — rules.force_bonus_points snapshot
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
+});
+
+// İcap nöbetinde çağrılma: çalışılan saat çalışma süresine, mesaiye ve dinlenmeye sayılır
+export const onCallCallouts = pgTable("on_call_callouts", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  personnel_id: text("personnel_id").notNull(),
+  assignment_id: integer("assignment_id"), // shift_assignments.id (kind='on_call')
+  week_start: text("week_start").notNull(),
+  day: integer("day").notNull(), // 0-6, icabın başladığı gün
+  start_time: text("start_time").notNull(), // HH:MM, gece yarısını geçebilir
+  end_time: text("end_time").notNull(),
+  note: text("note"),
+  created_by: text("created_by"),
+  created_at: bigint("created_at", { mode: "number" }).$defaultFn(() => Math.floor(Date.now() / 1000)),
 });
 
 // ─── Shift Swap Requests ─────────────────────────────────────────────────────

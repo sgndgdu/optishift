@@ -57,7 +57,7 @@ export async function distributeTipPool(poolId: number, orgId: string): Promise<
     `SELECT personnel_id, week_start, day, start_time, end_time, check_in_at, check_out_at
      FROM shift_assignments
      WHERE location_id = ? AND publication_status = 'published'
-       AND week_start >= ? AND week_start <= ?`
+       AND week_start >= ? AND week_start <= ? AND COALESCE(kind, 'regular') = 'regular'`
   ).all(pool.location_id, weekFloor.toISOString().slice(0, 10), pool.period_end) as ShiftAssignmentRow[];
 
   const totals: Record<string, number> = {};

@@ -109,6 +109,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // İcap nöbeti takasa konu olmaz (çalışma vardiyası değil)
+    const onCallRow = await db.prepare(
+      `SELECT id FROM shift_assignments WHERE id IN (?, ?) AND kind = 'on_call' LIMIT 1`
+    ).get(requester_shift_id, target_shift_id);
+    if (onCallRow) {
+      return NextResponse.json({ error: "İcap nöbeti takas edilemez." }, { status: 400 });
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)

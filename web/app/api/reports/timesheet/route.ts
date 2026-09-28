@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
       JOIN personnel p ON p.id = sa.personnel_id
       WHERE sa.location_id = ? AND sa.publication_status = 'published'
         AND sa.week_start >= ? AND sa.week_start <= ?
+        AND COALESCE(sa.kind, 'regular') = 'regular'
       ORDER BY p.name, sa.week_start, sa.day
     `).all(
       location_id,

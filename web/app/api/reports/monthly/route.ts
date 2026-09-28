@@ -100,7 +100,8 @@ export async function GET(req: NextRequest) {
         sa.start_time,
         sa.end_time,
         sa.day,
-        sa.week_start
+        sa.week_start,
+        0 AS is_callout
       FROM shift_assignments sa
       JOIN personnel p ON sa.personnel_id = p.id
       WHERE sa.location_id = ?
@@ -108,8 +109,15 @@ export async function GET(req: NextRequest) {
         AND sa.week_start <= ?
         AND sa.publication_status = 'published'
         AND sa.status NOT IN ('absent', 'swapped')
-      ORDER BY p.name ASC, sa.week_start ASC, sa.day ASC
-    `).all(location_id, weekRangeStartStr, monthEnd) as any[];
+        AND COALESCE(sa.kind, 'regular') = 'regular'
+      UNION ALL
+      -- İcapta çağrılınca çalışılan saat: çalışma süresine ve mesaiye sayılır, vardiya sayısına sayılmaz
+      SELECT c.personnel_id, p.name, p.title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
+      FROM on_call_callouts c
+      JOIN personnel p ON c.personnel_id = p.id
+      WHERE c.location_id = ? AND c.week_start >= ? AND c.week_start <= ?
+      ORDER BY personnel_name ASC, week_start ASC, day ASC
+    `).all(location_id, weekRangeStartStr, monthEnd, location_id, weekRangeStartStr, monthEnd) as any[];
 
     // Aggregate per person
     const personMap = new Map<string, {
@@ -145,7 +153,7 @@ export async function GET(req: NextRequest) {
         if (endMin <= startMin) endMin += 1440; // overnight shift
         const shiftMinutes = endMin - startMin;
 
-        person.shift_count += 1;
+        if (!Number(row.is_callout)) person.shift_count += 1;
         person.total_minutes += shiftMinutes;
 
         // Track weekly hours for overtime calculation (weekly > 45h = overtime)

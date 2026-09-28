@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const mine = await db.prepare(`
       SELECT * FROM shift_assignments
       WHERE personnel_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
+        AND COALESCE(kind, 'regular') = 'regular'
       LIMIT 1
     `).get(auth.personnel_id, week_start, dayIdx) as any;
     if (!mine || !mine.start_time) return NextResponse.json({ notes: [], enabled: true });

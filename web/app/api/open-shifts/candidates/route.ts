@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     // O haftanın atamaları (gün çakışması, saat toplamı, dinlenme kontrolü)
     const asgs = await db.prepare(`
       SELECT personnel_id, day, start_time, end_time FROM shift_assignments
-      WHERE location_id = ? AND week_start = ?
+      WHERE location_id = ? AND week_start = ? AND COALESCE(kind, 'regular') = 'regular'
     `).all(os.location_id, week_start) as any[];
     const byPerson: Record<string, any[]> = {};
     for (const a of asgs) (byPerson[a.personnel_id] ??= []).push(a);

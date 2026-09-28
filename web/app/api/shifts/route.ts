@@ -95,6 +95,11 @@ export async function GET(req: NextRequest) {
     } else {
       rows = [];
     }
+    // İcap nöbeti satırları sadece isteyen ekranlara gider (Vardiya Planı, portal ana sayfa/takvim);
+    // eski ekranlar kişi-gün başına tek satır varsayıyor
+    if (searchParams.get("include_on_call") !== "1") {
+      rows = rows.filter((r: any) => r.kind !== "on_call");
+    }
     return NextResponse.json(rows);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -190,6 +195,8 @@ export async function POST(req: NextRequest) {
     await (async () => {
       for (const shift of shifts) {
         const { personnel_id, location_id, week_start, day, shift_id, start_time, end_time } = shift;
+        // İcap nöbeti ayrı satır: aynı gün normal vardiyayla birlikte olabilir, dinlenme kuralına girmez
+        const kind: "regular" | "on_call" = shift.kind === "on_call" ? "on_call" : "regular";
 
         if (!personnel_id || !location_id || !week_start || day === undefined) {
           errors.push("Eksik veri: personnel_id, location_id, week_start, day zorunlu");
@@ -200,7 +207,7 @@ export async function POST(req: NextRequest) {
         const finalShiftId = finalizeShiftId(shift_id, start_time, end_time, await getLocDefs(location_id));
 
         // 1. 11 SAAT DİNLENME KURALI KONTROLÜ (force=true ise uyar ama bloklamaz)
-        if (start_time && end_time) {
+        if (start_time && end_time && kind === "regular") {
           const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
           const newStart = toMin(start_time);
           const newEnd   = toMin(end_time);
@@ -210,7 +217,7 @@ export async function POST(req: NextRequest) {
             const prevShift = await db.prepare(`
               SELECT start_time, end_time FROM shift_assignments
               WHERE personnel_id = ? AND week_start = ? AND day = ?
-              AND status != 'swapped' AND status != 'absent'
+              AND status != 'swapped' AND status != 'absent' AND COALESCE(kind, 'regular') = 'regular'
             `).get(personnel_id, week_start, day - 1) as any;
             if (prevShift?.end_time) {
               const prevEnd = toMin(prevShift.end_time);
@@ -230,7 +237,7 @@ export async function POST(req: NextRequest) {
             const nextShift = await db.prepare(`
               SELECT start_time, end_time FROM shift_assignments
               WHERE personnel_id = ? AND week_start = ? AND day = ?
-              AND status != 'swapped' AND status != 'absent'
+              AND status != 'swapped' AND status != 'absent' AND COALESCE(kind, 'regular') = 'regular'
             `).get(personnel_id, week_start, day + 1) as any;
             if (nextShift?.start_time) {
               const nextStart = toMin(nextShift.start_time);
@@ -250,8 +257,8 @@ export async function POST(req: NextRequest) {
         const existing = await db.prepare(`
           SELECT * FROM shift_assignments
           WHERE personnel_id = ? AND week_start = ? AND day = ?
-          AND status != 'swapped' AND status != 'absent'
-        `).get(personnel_id, week_start, day) as any;
+          AND status != 'swapped' AND status != 'absent' AND COALESCE(kind, 'regular') = ?
+        `).get(personnel_id, week_start, day, kind) as any;
 
         const pubStatus = shift.publication_status ?? "published";
 
@@ -311,6 +318,14 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            if (pubStatus === "published") {
+              // Aynı kişi-gün-tür için kalmış taslak kopyalar (eşzamanlı kayıt artığı) yayından sonra silinir
+              await db.prepare(`
+                DELETE FROM shift_assignments
+                WHERE personnel_id = ? AND week_start = ? AND day = ? AND location_id = ? AND id != ?
+                  AND publication_status = 'draft' AND COALESCE(kind, 'regular') = ?
+              `).run(personnel_id, week_start, day, location_id, existing.id, kind);
+            }
             results.push({ id: existing.id, updated: true });
             // Force check: collect for post-transaction processing
             forceItems.push({ personnel_id, location_id, week_start, day, shift_id_db: existing.id, start_time: start_time || null, end_time: end_time || null, prevForceStatus: existing.force_acceptance_status ?? null });
@@ -320,13 +335,13 @@ export async function POST(req: NextRequest) {
 
         // Çakışma yoksa yeni kayıt oluştur
         const result = await db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)
-        `).run(personnel_id, location_id, week_start, day, finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, now);
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, kind, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?)
+        `).run(personnel_id, location_id, week_start, day, finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, kind, now);
 
         const newId = Number(result.lastInsertRowid);
         results.push({ id: newId, inserted: true });
-        await copyTaskTemplateIfEnabled(location_id, newId, finalShiftId);
+        if (kind === "regular") await copyTaskTemplateIfEnabled(location_id, newId, finalShiftId);
         // Force check: collect for post-transaction processing
         forceItems.push({ personnel_id, location_id, week_start, day, shift_id_db: newId, start_time: start_time || null, end_time: end_time || null, prevForceStatus: null });
       }
@@ -455,21 +470,37 @@ export async function PATCH(req: NextRequest) {
           DELETE FROM shift_assignments
           WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
         `).run(location_id, week_start);
-        const hasPublished = await db.prepare(`
-          SELECT 1 FROM shift_assignments
-          WHERE personnel_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
-        `);
-        const insert = await db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?)
-        `);
+        // Yayınlanmış satırı olan (bu ya da başka şubede) kişi-gün-tür için taslak kopya yazılmaz.
+        // Tek sorguda okunur (eskiden satır başına iki sorgu vardı, 30 satırlık hafta 10 sn sürüyordu).
+        const pids = [...new Set(shifts.map((x: any) => x?.personnel_id).filter(Boolean))] as string[];
+        const publishedRows = pids.length
+          ? await db.prepare(`
+              SELECT personnel_id, day, COALESCE(kind, 'regular') AS kind FROM shift_assignments
+              WHERE week_start = ? AND publication_status = 'published'
+                AND personnel_id IN (${pids.map(() => "?").join(",")})
+            `).all(week_start, ...pids) as any[]
+          : [];
+        const taken = new Set(publishedRows.map(r => `${r.personnel_id}|${r.day}|${r.kind}`));
+        const values: unknown[] = [];
+        const tuples: string[] = [];
         for (const s of shifts) {
           if (!s?.personnel_id || s.day === undefined || !s.start_time || !s.end_time) continue;
-          // Yayınlanmış satır varsa (bu veya başka şubede) draft kopya yazma
-          if (await hasPublished.get(s.personnel_id, week_start, s.day)) continue;
-          await insert.run(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs), s.start_time, s.end_time, s.pinned === true, now);
-          synced++;
+          const kind = s.kind === "on_call" ? "on_call" : "regular";
+          const key = `${s.personnel_id}|${s.day}|${kind}`;
+          if (taken.has(key)) continue; // yayınlanmış satır var ya da bu istekte zaten yazıldı
+          taken.add(key);
+          tuples.push("(?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?, ?)");
+          values.push(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs),
+            s.start_time, s.end_time, s.pinned === true, kind, now);
         }
+        // Tek toplu INSERT: silme ile yeniden yazma arasındaki pencere kısalır (okuyan ekran yarım plan görmez)
+        if (tuples.length) {
+          await db.prepare(`
+            INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, kind, created_at)
+            VALUES ${tuples.join(", ")}
+          `).run(...values);
+        }
+        synced = tuples.length;
       })();
       return NextResponse.json({ success: true, synced });
     }

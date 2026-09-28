@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
       `SELECT personnel_id, week_start, day, shift_id, start_time, end_time
        FROM shift_assignments
        WHERE location_id = ? AND week_start >= ? AND publication_status = 'published'
+         AND COALESCE(kind, 'regular') = 'regular'
        ORDER BY week_start ASC, day ASC`
     ).all(location_id, cutoffWeekStart) as any[];
 

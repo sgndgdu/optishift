@@ -19,6 +19,7 @@ export default function PortalCalendar() {
   const [tab, setTab] = useState<"mine" | "all">("mine");
   const [weekOffset, setWeekOffset] = useState(0);
   const [shifts, setShifts] = useState<any[]>([]);
+  const [onCalls, setOnCalls] = useState<any[]>([]);
   const [allShifts, setAllShifts] = useState<any[]>([]);
   const [personnelMap, setPersonnelMap] = useState<Record<string, string>>({});
   // Vardiya kimliği (s-sabah) yerine şubedeki adı (Sabah Postası) gösterilir
@@ -31,7 +32,7 @@ export default function PortalCalendar() {
     if (!user?.personnel_id) return;
     setLoading(true);
     Promise.all([
-      fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${weekStart}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${weekStart}&include_on_call=1`).then(r => r.json()).catch(() => []),
       user.location_id
         ? fetch(`/api/shifts?location_id=${user.location_id}&week_start=${weekStart}`).then(r => r.json()).catch(() => [])
         : Promise.resolve([]),
@@ -45,7 +46,10 @@ export default function PortalCalendar() {
       const defs = Array.isArray(locs) ? locs[0]?.shift_definitions : null;
       const parsed = typeof defs === "string" ? (() => { try { return JSON.parse(defs); } catch { return []; } })() : defs;
       if (Array.isArray(parsed)) setShiftNames(Object.fromEntries(parsed.map((d: any) => [d.id, d.name])));
-      setShifts(Array.isArray(mine) ? mine : []);
+      // İcap ayrı gösterilir; gün kartı ve değişim isteği normal vardiya üzerinden
+      const mineRows = Array.isArray(mine) ? mine : [];
+      setShifts(mineRows.filter((s: any) => s.kind !== "on_call"));
+      setOnCalls(mineRows.filter((s: any) => s.kind === "on_call"));
       setAllShifts(Array.isArray(all) ? all : []);
       const map: Record<string, string> = {};
       if (Array.isArray(ppl)) ppl.forEach((p: any) => { map[p.id] = p.name; });
@@ -118,13 +122,14 @@ export default function PortalCalendar() {
         </div>
       ) : tab === "mine" ? (
         <div className="relative pl-6 border-l-2 border-primary/20 space-y-8 py-4 ml-2">
-          {shifts.length === 0 ? (
+          {shifts.length === 0 && onCalls.length === 0 ? (
              <div className="text-center py-12 text-muted-foreground font-semibold text-sm">
                Bu hafta için atanmış bir vardiyanız yok.
              </div>
           ) : (
             [0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
               const shift = shifts.find((s: any) => s.day === dayIndex);
+              const onCall = onCalls.find((s: any) => s.day === dayIndex);
               const isOff = !shift;
 
               return (
@@ -159,6 +164,12 @@ export default function PortalCalendar() {
                             <div className="text-muted-foreground text-sm font-semibold italic flex items-center gap-2">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                               Bu gün için {words.shift} yok
+                            </div>
+                          )}
+                          {onCall && (
+                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-dashed border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700"
+                              title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+                              İcap · {shiftNames[onCall.shift_id] ?? "İcap nöbeti"} {onCall.start_time}–{onCall.end_time}
                             </div>
                           )}
                         </div>

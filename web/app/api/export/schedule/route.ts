@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       FROM shift_assignments sa
       LEFT JOIN personnel p ON sa.personnel_id = p.id
       WHERE sa.location_id = ? AND sa.week_start = ?
+        AND COALESCE(sa.kind, 'regular') = 'regular' -- icap nöbeti çalışma planı tablosuna girmez
       ORDER BY p.name ASC, sa.day ASC
     `).all(location_id, week_start);
 

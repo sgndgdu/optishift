@@ -54,7 +54,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   const { weekStart, dayIdx: day } = businessNow();
   const shift = await db.prepare(
     `SELECT * FROM shift_assignments
-     WHERE personnel_id = ? AND location_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'`
+     WHERE personnel_id = ? AND location_id = ? AND week_start = ? AND day = ? AND publication_status = 'published'
+       AND COALESCE(kind, 'regular') = 'regular'`
   ).get(person.id, locationId, weekStart, day) as any;
 
   if (!shift) {

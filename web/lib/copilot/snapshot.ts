@@ -46,6 +46,8 @@ export interface CopilotInput {
   assignments: {
     personnel_id: string; day: number; shift_id: string;
     start_time: string | null; end_time: string | null; publication_status: string | null;
+    /** İcap nöbeti kapsamaya sayılır, kişinin çalışma saatine/dinlenmesine sayılmaz */
+    kind?: "regular" | "on_call";
   }[];
   /** Onaylı izinler. */
   leaves: { personnel_id: string; start_date: string; end_date: string; type: string }[];
@@ -160,7 +162,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
 
   const people: PersonWeek[] = input.personnel.map(p => {
     const shifts: PersonShift[] = input.assignments
-      .filter(a => a.personnel_id === p.id)
+      .filter(a => a.personnel_id === p.id && a.kind !== "on_call")
       .map(a => {
         const def = defById.get(a.shift_id);
         const start = a.start_time || def?.start || "09:00";

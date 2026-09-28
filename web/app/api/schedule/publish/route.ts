@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     ).all(auth.org_id, `%"${location_id}"%`) as any[];
     const deptInfo = await db.prepare(`SELECT id, name FROM departments WHERE location_id = ?`).all(location_id) as any[];
     const pubAssignments = await db.prepare(
-      `SELECT personnel_id, day, start_time, end_time, shift_id, points
+      `SELECT personnel_id, day, start_time, end_time, shift_id, points, kind
        FROM shift_assignments WHERE location_id = ? AND week_start = ? AND publication_status = 'published'`
     ).all(location_id, week_start) as any[];
 

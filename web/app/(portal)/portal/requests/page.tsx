@@ -201,7 +201,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      const all = weeks.flat().filter((s: any) => Array.isArray(s) ? false : s?.id);
+      const all = weeks.flat().filter((s: any) => Array.isArray(s) ? false : s?.id && s.kind !== "on_call");
       setMyShifts(all);
     })();
   }, [activeTab, newType, user]);
@@ -215,7 +215,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      setMyShifts(weeks.flat().filter((s: any) => s?.id));
+      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call"));
     })();
   }, [activeTab, newType, user]);
 
@@ -241,7 +241,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      setTheirShifts(weeks.flat().filter((s: any) => s?.id));
+      setTheirShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call"));
     })();
   }, [swapStep, selMate, user]);
 

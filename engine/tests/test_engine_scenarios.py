@@ -329,3 +329,64 @@ def test_weekly_rest_day_even_without_consecutive_limit():
     for p in people:
         days = {a["day"] for a in result["assignments"] if a["personnelId"] == p["id"]}
         assert len(days) <= 6, (p["id"], sorted(days))
+
+
+HOSPITAL_SHIFTS = [
+    {"id": "gunduz", "name": "Gündüz", "start": "08:00", "end": "16:00", "base_points": 3},
+    {"id": "aksam", "name": "Akşam", "start": "16:00", "end": "24:00", "base_points": 4},
+    {"id": "icap", "name": "Gece İcabı", "start": "17:00", "end": "08:00", "base_points": 2, "on_call": True},
+]
+
+
+def test_on_call_same_day_as_day_shift_without_overlap():
+    """İcap: aynı gün gündüz vardiyasıyla birlikte olabilir, akşam vardiyasıyla (saat çakışması) olamaz;
+    her gece 1 icap talebi karşılanır, çıktıda kind=on_call."""
+    people = [make_person(f"P{i}", f"Kişi {i}") for i in range(1, 5)]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=HOSPITAL_SHIFTS,
+        demand_matrix={"gunduz": {str(d): 1 for d in range(6)}, "icap": {str(d): 1 for d in range(7)}},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    on_call = [a for a in result["assignments"] if a["shiftId"] == 2]
+    assert len(on_call) == 7 and all(a["kind"] == "on_call" for a in on_call)
+    regular = {(a["personnelId"], a["day"]): a["shiftId"] for a in result["assignments"] if a["kind"] == "regular"}
+    for a in on_call:
+        assert regular.get((a["personnelId"], a["day"])) != 1, "icap akşam vardiyasıyla çakıştı"
+        # Gece icabı ertesi sabah 08:00'de biter: ertesi gün gündüz (08:00) başlayabilir, çakışma yok
+
+
+def test_on_call_hours_not_counted_and_weekly_cap():
+    """İcap bekleme süresi haftalık saate sayılmaz (15 saatlik icap 45 saati doldurmaz);
+    kişi başı haftalık icap sınırı uygulanır."""
+    people = [make_person("P1", "Tek Kişi"), make_person("P2", "İkinci")]
+    payload = base_payload(
+        personnel=people,
+        availability={p["id"]: FULL_WEEK_AVAILABLE for p in people},
+        shifts=HOSPITAL_SHIFTS,
+        demand_matrix={"gunduz": {str(d): 1 for d in range(5)}, "icap": {str(d): 1 for d in range(4)}},
+        rules={"max_weekly_hours": 45, "min_rest_hours": 11, "max_on_call_per_week": 2},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    for p in people:
+        n = sum(1 for a in result["assignments"] if a["personnelId"] == p["id"] and a["kind"] == "on_call")
+        assert n <= 2
+    # 5 gündüz (40 s) + icaplar: icap sayılsaydı 45 saati aşardı
+    assert sum(1 for a in result["assignments"] if a["kind"] == "on_call") == 4
+
+
+def test_on_call_occupies_weekly_rest_day():
+    """Hafta tatili günü tamamen serbest: icap da o günü doldurur (7 gün icap+vardiya yok)."""
+    people = [make_person("P1", "Tek")]
+    payload = base_payload(
+        personnel=people,
+        availability={"P1": FULL_WEEK_AVAILABLE},
+        shifts=HOSPITAL_SHIFTS,
+        demand_matrix={"gunduz": {str(d): 1 for d in range(5)}, "icap": {"5": 1, "6": 1}},
+        rules={"max_weekly_hours": 45, "min_rest_hours": 11, "max_on_call_per_week": 3},
+    )
+    result = run_engine(payload)
+    assert "error" in result  # 5 gündüz + 2 icap günü = 7 dolu gün: yasal değil

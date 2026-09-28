@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
             end: String(d.end ?? "16:00"),
             base_points: Number(d.base_points ?? 5),
             is_night: !!d.is_night,
+            on_call: !!d.on_call,
             required_skills: Array.isArray(d.required_skills) ? d.required_skills : [],
           }));
         }
@@ -375,6 +376,7 @@ export async function POST(req: NextRequest) {
     let consecutiveNightWeeksEnabled = false;
     let balancingPeriodWeeks = 0;
     let ruleMaxWeeklyHours = 45;
+    let maxOnCallPerWeek = 3; // icap nöbeti: kişi başı haftalık üst sınır
     let ruleMinRestHours = 11;
     let weekendMultiplierEnabled = true;
     let nightMultiplierEnabled = true;
@@ -411,6 +413,8 @@ export async function POST(req: NextRequest) {
           balancingPeriodWeeks = Math.max(0, Math.min(8, Math.round(pr.balancing_period_weeks)));
         if (typeof pr?.max_weekly_hours === "number")
           ruleMaxWeeklyHours = pr.max_weekly_hours;
+        if (typeof pr?.max_on_call_per_week === "number")
+          maxOnCallPerWeek = Math.max(0, Math.min(7, Math.round(pr.max_on_call_per_week)));
         if (typeof pr?.min_rest_hours === "number")
           ruleMinRestHours = pr.min_rest_hours;
         if (typeof pr?.weekend_multiplier_enabled === "boolean")
@@ -547,7 +551,8 @@ export async function POST(req: NextRequest) {
         const rows = (await db
           .prepare(
             `SELECT personnel_id, start_time, end_time FROM shift_assignments
-             WHERE location_id = $1 AND week_start IN (${ph}) AND publication_status = 'published'`
+             WHERE location_id = $1 AND week_start IN (${ph}) AND publication_status = 'published'
+               AND COALESCE(kind, 'regular') = 'regular'`
           )
           .all(branchId, ...prevWeeks)) as any[];
         const workedMin: Record<string, number> = {};
@@ -602,7 +607,8 @@ export async function POST(req: NextRequest) {
           .prepare(
             `SELECT DISTINCT personnel_id, shift_id, start_time, end_time
              FROM shift_assignments
-             WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'`
+             WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'
+               AND COALESCE(kind, 'regular') = 'regular'`
           )
           .all(branchId, prev_week_start)) as any[];
         const nightDefIds = new Set(
@@ -694,6 +700,7 @@ export async function POST(req: NextRequest) {
         preferred_not_enabled: preferredNotEnabled,
         clopening_enabled: clopeningEnabled,
         clopening_penalty_weight: clopeningPenaltyWeight,
+        max_on_call_per_week: maxOnCallPerWeek,
         weekend_multiplier: weekendMultiplier,
         night_multiplier: nightMultiplier,
       },

@@ -43,6 +43,9 @@ export async function performCheckIn(
   if (params.restrictPersonnelId && existing.personnel_id !== params.restrictPersonnelId) {
     return { ok: false, status: 403, error: "Erişim reddedildi" };
   }
+  if (existing.kind === "on_call") {
+    return { ok: false, status: 400, error: "İcap nöbetinde giriş yapılmaz. Çağrılırsanız çalıştığınız saat müdürünüz tarafından çağrı kaydı olarak girilir." };
+  }
   if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
     return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, giriş yapılamaz" };
   }

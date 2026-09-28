@@ -17,9 +17,10 @@ import {
   locations,
   personnel,
   shiftAssignments,
+  onCallCallouts,
   overtimeRecords,
 } from "@/lib/db/schema";
-import { and, eq, gte, lte, inArray } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 
 function parseJSON<T>(raw: unknown, fallback: T): T {
   if (raw == null) return fallback;
@@ -292,12 +293,22 @@ export async function deriveOvertimeForWeek(
       eq(shiftAssignments.location_id, locationId),
       eq(shiftAssignments.week_start, weekStart),
       eq(shiftAssignments.publication_status, "published"),
+      // İcap bekleme süresi mesai değil; çağrılınca çalışılan saat on_call_callouts'tan eklenir
+      sql`COALESCE(${shiftAssignments.kind}, 'regular') = 'regular'`,
     ));
 
   const minutesByPid: Record<string, number> = {};
   for (const r of saRows) {
     if (!r.start_time || !r.end_time) continue;
     minutesByPid[r.personnel_id] = (minutesByPid[r.personnel_id] ?? 0) + shiftMinutes(r.start_time, r.end_time);
+  }
+  // İcapta çağrılınca çalışılan saat çalışma süresidir (bekleme değil)
+  const callouts = await db
+    .select({ personnel_id: onCallCallouts.personnel_id, start_time: onCallCallouts.start_time, end_time: onCallCallouts.end_time })
+    .from(onCallCallouts)
+    .where(and(eq(onCallCallouts.location_id, locationId), eq(onCallCallouts.week_start, weekStart)));
+  for (const c of callouts) {
+    minutesByPid[c.personnel_id] = (minutesByPid[c.personnel_id] ?? 0) + shiftMinutes(c.start_time, c.end_time);
   }
 
   const pids = Object.keys(minutesByPid);
