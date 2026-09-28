@@ -9,6 +9,7 @@ import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } fr
 import { cn } from "@/lib/utils";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
+import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
 import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
@@ -282,6 +283,8 @@ export default function SettingsPage() {
     return g ? { [g]: true } : {};
   });
   const toggleGroup = (id: string) => setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
+  // Çalışma saatleri tek satır özetle gelir; 7 günlük düzenleyici isteğe bağlı açılır
+  const [hoursOpen, setHoursOpen] = useState(false);
 
   // Departman yönetimi — anında DB'ye kaydedilir (/api/departments)
   const [newDeptName, setNewDeptName] = useState("");
@@ -1080,14 +1083,14 @@ export default function SettingsPage() {
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
-          className={`px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab.key === "account" ? "ml-auto" : ""} ${
+          className={`px-2.5 sm:px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab.key === "account" ? "ml-auto" : ""} ${
             activeTab === tab.key
               ? "border-forest-600 text-forest-700"
               : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
           }`}
         >
-          {tab.key === "features" && <Sparkles size={13} />}
-          {tab.key === "account" && <UserCircle size={13} />}
+          {tab.key === "features" && <Sparkles size={13} className="hidden sm:block" />}
+          {tab.key === "account" && <UserCircle size={13} className="hidden sm:block" />}
           <span className="sm:hidden">{tab.short}</span>
           <span className="hidden sm:inline">{tab.label}</span>
         </button>
@@ -1191,7 +1194,15 @@ export default function SettingsPage() {
               <div>
                 <SectionLabel>Çalışma Saatleri</SectionLabel>
                 <p className="text-xs text-slate-400 mb-3">Şubenin her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
-                <div className="space-y-1">
+                {/* Tek satır özet; 7 günlük düzenleyici "Düzenle" ile açılır */}
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                  <p className="text-sm font-semibold text-slate-700 min-w-0">{summarizeOperatingHours(locationData.operating_hours)}</p>
+                  <button type="button" onClick={() => setHoursOpen(o => !o)} aria-expanded={hoursOpen}
+                    className="text-xs font-bold text-forest-700 hover:text-forest-900 shrink-0">
+                    {hoursOpen ? "Kapat" : "Düzenle"}
+                  </button>
+                </div>
+                {hoursOpen && <div className="space-y-1 mt-2">
                   {DAYS.map((dayName, idx) => {
                     const dayData = (locationData.operating_hours ?? {})[idx] ?? { isOpen: true, open: "00:00", close: "23:59" };
                     return (
@@ -1226,7 +1237,7 @@ export default function SettingsPage() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
 
               <hr className="border-slate-100" />
