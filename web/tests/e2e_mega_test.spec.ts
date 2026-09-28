@@ -59,9 +59,13 @@ test("2) Rastgele şube — Otomatik Oluştur (OR-Tools) çöküyor mu", async (
   await page.locator("button:has(svg.lucide-chevron-right)").first().click();
 
   // Boş hafta → "Haftayı Oluştur" sihirbazı: Kaç kişi? → Kontrol → Oluştur
-  await page.getByRole("button", { name: /Haftayı Oluştur/ }).click();
+  // Deploy sonrası ilk açılışta sayfa hydrate olmadan gelen tıklama boşa gidebiliyor:
+  // pencere açılana kadar tıklamayı yeniden dene
   const wizard = page.getByRole("dialog", { name: "Haftayı Oluştur" });
-  await expect(wizard).toBeVisible({ timeout: 15_000 });
+  await expect(async () => {
+    await page.getByRole("button", { name: /Haftayı Oluştur/ }).click();
+    await expect(wizard).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
   await wizard.getByRole("button", { name: /İleri/ }).click();
   await expect(wizard.getByText("Oluşturmadan önce kontrol")).toBeVisible();
   await wizard.getByRole("button", { name: /İleri/ }).click();
