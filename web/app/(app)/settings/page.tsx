@@ -577,8 +577,8 @@ export default function SettingsPage() {
               const pData = await pRes.json();
               if (Array.isArray(pData)) {
                 setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
-                setCyclePersonnel(pData.filter((p: any) => p.status === "active")
-                  .map((p: any) => ({ id: p.id, name: p.name }))
+                setCyclePersonnel((pData as { id: string; name: string; status?: string }[]).filter(p => p.status === "active")
+                  .map(p => ({ id: p.id, name: p.name }))
                   .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")));
                 setPersonnelRoles((pData as { status?: string; roles?: unknown }[])
                   .filter(p => p.status === "active")
