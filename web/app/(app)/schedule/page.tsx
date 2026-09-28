@@ -444,6 +444,14 @@ function SchedulePageInner() {
   const [reliabilityNotes, setReliabilityNotes]   = useState<Record<string, string>>({});
   // Öğrenilen tercihler (lib/implicitPrefs): personelId → [{gün, vardiya, not}]
   const [learnedPrefs, setLearnedPrefs]           = useState<Record<string, { day: number; shiftId: string | null; note: string }[]>>({});
+  // "Ya şöyle olursa?" senaryosu: kaydetmeden motoru çöz, mevcut planla karşılaştır
+  const [scnOpen, setScnOpen]                     = useState(false);
+  const [scnAbsent, setScnAbsent]                 = useState<{ pid: string; days: number[] }>({ pid: "", days: [0, 1, 2, 3, 4, 5, 6] });
+  const [scnExtra, setScnExtra]                   = useState(0);
+  const [scnDemandPct, setScnDemandPct]           = useState(0);
+  const [scnBusy, setScnBusy]                     = useState(false);
+  type ScnSide = { error?: string; snap?: WeekSnapshot; problems?: Insight[]; extraShifts?: number; cost?: number };
+  const [scnResult, setScnResult]                 = useState<{ base: ScnSide; scn: ScnSide } | null>(null);
   const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
@@ -1367,6 +1375,66 @@ function SchedulePageInner() {
       setAbsence(null);
       setReloadTick(t => t + 1);
     } finally { setAbsenceBusy(false); }
+  };
+
+  // Motoru bir kez çöz (senaryolu ya da senaryosuz) ve mevcut planla aynı özet/kurallardan geçir (lib/copilot)
+  const solveScenario = async (sc: { absentPid: string; absentDays: number[]; extra: number; pct: number } | null) => {
+    const scenario = sc ? {
+      absent: sc.absentPid ? [{ personnel_id: sc.absentPid, days: sc.absentDays }] : [],
+      extra_staff: sc.extra, demand_change_pct: sc.pct,
+    } : { absent: [], extra_staff: 0, demand_change_pct: 0 };
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, scenario }),
+    });
+    const data = await res.json();
+    if (data.error) return { error: String(data.error) } as ScnSide;
+    const cells: CellMap = {};
+    const oc: Record<string, { defId: string }> = {};
+    for (const a of data.assignments || []) {
+      if (a.kind === "on_call") { const d = shiftDefs[a.shiftId]; if (d) oc[`${a.personnelId}-${a.day}`] = { defId: d.id }; continue; }
+      if (!a.start_time || !a.end_time) continue;
+      const st = hhmmToMin(a.start_time); const raw = hhmmToMin(a.end_time);
+      cells[`${a.personnelId}-${a.day}`] = { startMin: st, endMin: raw <= st ? raw + 1440 : raw, points: 0 };
+    }
+    const pct = sc?.pct ?? 0;
+    const scale = (m: Record<string, Record<number, number>>) => Object.fromEntries(Object.entries(m).map(([k, row]) =>
+      [k, Object.fromEntries(Object.entries(row).map(([d, n]) => [d, Math.max(0, Math.round(Number(n) * (1 + pct / 100)))]))]));
+    const extraPeople = Array.from({ length: sc?.extra ?? 0 }, (_, i) => ({ id: `SCN-${i + 1}`, name: `Yeni personel ${i + 1}`, status: "active", prev_score: 0 }));
+    const scnAvail: AvailMap = { ...availMap };
+    if (sc?.absentPid) {
+      scnAvail[sc.absentPid] = { ...(availMap[sc.absentPid] ?? {}) };
+      for (const d of sc.absentDays) scnAvail[sc.absentPid][d] = { status: "unavailable" };
+    }
+    const snap = scheduleSnapshot({
+      cellMap: cells, onCallMap: oc, shiftDefs,
+      demandMatrix: scale(demandMatrix), deptDemandMatrix: Object.fromEntries(Object.entries(deptDemandMatrix).map(([k, m]) => [k, scale(m)])),
+      availMap: scnAvail, personnel: [...personnel, ...extraPeople], locRules, clopeningMinRest, availCollectionEnabled,
+      prevWeekNightIds, approvedLeaves, weekStart,
+    });
+    let cost = 0;
+    for (const [k, c] of Object.entries(cells)) {
+      const pid = k.slice(0, k.lastIndexOf("-"));
+      const w = personnel.find((p: { id: string; hourly_wage?: number }) => p.id === pid)?.hourly_wage;
+      if (typeof w === "number" && w > 0) cost += ((c.endMin - c.startMin) / 60) * w;
+    }
+    return { snap, problems: findProblems(snap, {}), extraShifts: Object.keys(cells).filter(k => k.startsWith("SCN-")).length, cost: Math.round(cost) } as ScnSide;
+  };
+
+  const runScenario = async () => {
+    if (!activeLocationId) return;
+    setScnBusy(true);
+    setScnResult(null);
+    try {
+      // Adil karşılaştırma: aynı motorla senaryosuz ve senaryolu çözüm (mevcut yarım plan değil)
+      const [base, scn] = await Promise.all([
+        solveScenario(null),
+        solveScenario({ absentPid: scnAbsent.pid, absentDays: scnAbsent.days, extra: scnExtra, pct: scnDemandPct }),
+      ]);
+      setScnResult({ base, scn });
+    } catch { setScnResult({ base: { error: "Çözülemedi" }, scn: { error: "Senaryo çözülemedi." } }); }
+    finally { setScnBusy(false); }
   };
 
   const reloadCallouts = async () => {
@@ -2740,6 +2808,12 @@ loading ? (
                         <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
                       </button>
                     )}
+                    {personnel.length > 0 && shiftDefs.length > 0 && (
+                      <button onClick={() => { setActionsOpen(false); setScnResult(null); setScnOpen(true); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Sparkles size={13} className="text-sky-500" /> Ya şöyle olursa?
+                      </button>
+                    )}
                     <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
@@ -3292,6 +3366,95 @@ loading ? (
               onClose={() => setWizardOpen(false)}
             />
           )}
+
+          {/* ── Ya şöyle olursa? (senaryo, kaydedilmez) ── */}
+          {scnOpen && (() => {
+            const short = (snap: WeekSnapshot) => snap.coverage.reduce((t, c) => t + (c.demand != null && c.assigned < c.demand ? c.demand - c.assigned : 0), 0);
+            const crit = (x: ScnSide) => (x.problems ?? []).filter(p => p.severity === "critical").length;
+            const cmp = (a: number, b: number) => (b < a ? true : b > a ? false : null);
+            const Row = ({ label, a, b, better }: { label: string; a: string; b: string; better?: boolean | null }) => (
+              <tr className="border-t border-slate-100">
+                <td className="py-1.5 pr-3 text-slate-500">{label}</td>
+                <td className="py-1.5 pr-3 font-semibold text-slate-700">{a}</td>
+                <td className={cn("py-1.5 font-bold", better === true ? "text-emerald-700" : better === false ? "text-red-600" : "text-slate-800")}>{b}</td>
+              </tr>
+            );
+            return (
+              <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !scnBusy && setScnOpen(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Ya şöyle olursa">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Ya şöyle olursa?</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{weekLabel} · kaydedilmez, sadece dener</p>
+                  </div>
+                  <div className="space-y-3 text-xs text-slate-700">
+                    <div>
+                      <p className="font-semibold mb-1">Biri izne çıkarsa</p>
+                      <select value={scnAbsent.pid} onChange={e => setScnAbsent(a => ({ ...a, pid: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+                        <option value="">Kimse</option>
+                        {personnel.map((p: { id: string; name: string }) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      {scnAbsent.pid && (
+                        <div className="flex gap-1 mt-1.5">
+                          {DAYS.map((d, i) => {
+                            const on = scnAbsent.days.includes(i);
+                            return <button key={d} onClick={() => setScnAbsent(a => ({ ...a, days: on ? a.days.filter(x => x !== i) : [...a.days, i] }))}
+                              className={cn("flex-1 py-1 rounded-md font-bold border", on ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200")}>{d}</button>;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 font-semibold">Yeni personel
+                        <input type="number" min={0} max={10} value={scnExtra} onChange={e => setScnExtra(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+                          className="w-14 border border-slate-200 rounded-lg px-2 py-1 bg-white" /> kişi
+                      </label>
+                      <label className="flex items-center gap-2 font-semibold">İhtiyaç
+                        <select value={scnDemandPct} onChange={e => setScnDemandPct(Number(e.target.value))} className="border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                          {[-30, -20, -10, 0, 10, 20, 30, 50].map(v => <option key={v} value={v}>{v > 0 ? `+%${v}` : v < 0 ? `-%${-v}` : "aynı"}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                  <button onClick={runScenario} disabled={scnBusy || (!scnAbsent.pid && scnExtra === 0 && scnDemandPct === 0)}
+                    className="w-full py-2 text-sm font-bold text-white bg-sky-700 rounded-xl hover:bg-sky-800 disabled:opacity-40">
+                    {scnBusy ? "Çözülüyor…" : "Senaryoyu çöz"}
+                  </button>
+                  {scnResult && (scnResult.scn.error || scnResult.base.error) && (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                      {scnResult.scn.error ? `Bu senaryoda plan kurulamıyor: ${scnResult.scn.error}` : `Karşılaştırma planı kurulamadı: ${scnResult.base.error}`}
+                    </p>
+                  )}
+                  {scnResult?.base.snap && scnResult.scn.snap && (() => {
+                    const b = scnResult.base as Required<ScnSide>; const x = scnResult.scn as Required<ScnSide>;
+                    return (
+                      <div className="space-y-3">
+                        <table className="w-full text-xs">
+                          <thead><tr><th className="text-left text-slate-400 font-semibold pb-1"></th><th className="text-left text-slate-400 font-semibold pb-1">Senaryosuz</th><th className="text-left text-slate-400 font-semibold pb-1">Senaryo</th></tr></thead>
+                          <tbody>
+                            <Row label="Vardiya / saat" a={`${b.snap.totalShifts} / ${b.snap.totalHours} s`} b={`${x.snap.totalShifts} / ${x.snap.totalHours} s`} />
+                            <Row label="Eksik kişi (ihtiyaca göre)" a={String(short(b.snap))} b={String(short(x.snap))} better={cmp(short(b.snap), short(x.snap))} />
+                            <Row label="Acil sorun" a={String(crit(b))} b={String(crit(x))} better={cmp(crit(b), crit(x))} />
+                            <Row label="Maliyet (ücretli personel)" a={`₺${b.cost.toLocaleString("tr-TR")}`} b={`₺${x.cost.toLocaleString("tr-TR")}`} />
+                            {scnExtra > 0 && <Row label="Yeni personelin vardiyası" a="—" b={`${x.extraShifts} vardiya`} />}
+                          </tbody>
+                        </table>
+                        {x.problems.length > 0 ? (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Senaryoda dikkat</p>
+                            {x.problems.slice(0, 5).map(pr => (
+                              <p key={pr.id} className={cn("text-xs", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>• {pr.title}</p>
+                            ))}
+                          </div>
+                        ) : <p className="text-xs text-emerald-700">Senaryoda kural sorunu görünmüyor.</p>}
+                        <p className="text-[11px] text-slate-400">İki sütun da aynı motorla baştan kuruldu; mevcut planınız değişmedi. Uygulamak isterseniz ilgili değişikliği yapıp Haftayı Oluştur&apos;u çalıştırın.</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Gelemiyor: akıllı yedek ── */}
           {absence && (

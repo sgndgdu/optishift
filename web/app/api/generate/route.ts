@@ -713,6 +713,37 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) { console.error("[generate] örtük tercihler:", e); }
 
+    // "Ya şöyle olursa?" senaryosu: kaydetmeden dene. İzin (kişi + günler), yeni personel, ihtiyaç yüzdesi.
+    // Senaryoda mesai kaydı yazılmaz; sonuç sadece döner.
+    const scenario = body.scenario && typeof body.scenario === "object" ? body.scenario : null;
+    if (scenario) {
+      for (const a of Array.isArray(scenario.absent) ? scenario.absent : []) {
+        if (typeof a?.personnel_id !== "string" || !Array.isArray(a.days)) continue;
+        availabilityData[a.personnel_id] ??= {};
+        for (const d of a.days) if (Number.isInteger(d) && d >= 0 && d <= 6) availabilityData[a.personnel_id][d] = "unavailable";
+      }
+      const extra = Math.max(0, Math.min(20, Math.round(Number(scenario.extra_staff) || 0)));
+      if (extra > 0) {
+        const avgScore = personnelData.length ? personnelData.reduce((t: number, p: any) => t + (p.prev_score || 0), 0) / personnelData.length : 0;
+        for (let i = 1; i <= extra; i++) {
+          personnelData.push({
+            id: `SCN-${i}`, name: `Yeni personel ${i}`, skills: [], night_restriction: null, department_id: null,
+            prev_score: avgScore, cumulative_burden: avgScore, employment_type: "full_time",
+            max_weekly_hours: ruleMaxWeeklyHours, hourly_wage: 0, min_weekly_hours: 0, branch_ids: [branchId],
+            org_id: auth.org_id, role_level: "secondary", crew_id: null, ytd_overtime_hours: 0,
+          });
+        }
+      }
+      const pct = Math.max(-90, Math.min(300, Number(scenario.demand_change_pct) || 0));
+      if (pct !== 0) {
+        const scale = (m: any) => {
+          for (const row of Object.values(m ?? {}) as any[]) for (const k of Object.keys(row ?? {})) row[k] = Math.max(0, Math.round(Number(row[k]) * (1 + pct / 100)));
+        };
+        scale(demandMatrixPayload);
+        for (const m of Object.values(departmentDemandMatrixPayload ?? {})) scale(m);
+      }
+    }
+
     // Haftalık işçilik bütçesi (Ayarlar › Kurallar): motor aşan her ₺'yi esnek cezalandırır
     let laborBudgetTry = 0;
     try {
@@ -794,7 +825,7 @@ export async function POST(req: NextRequest) {
     // Motor fazla mesai özeti döndürdüyse overtime_records'a upsert et.
     // Hafta başına tek kayıt: re-generate çift kayıt/çift YTD saymaz; müdürün
     // karara bağladığı kayıtlar ezilmez. Nihai otorite yayın anındaki derive'dır.
-    if (overtimeTrackingEnabled && Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
+    if (!scenario && overtimeTrackingEnabled && Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
       for (const ot of data.overtime_summary) {
         try {
           await upsertPendingOvertime({
