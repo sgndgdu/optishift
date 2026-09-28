@@ -479,7 +479,7 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - **Erlang C (`7f04fb2`):** `lib/erlang.ts`; çağrı merkezi şubelerinde (rules.industry=callcenter) sihirbazda form, girdiler `rules.call_forecast`.
   - **Çalışma döngüsü (`b83deb2`):** `lib/workCycle.ts`, `rules.work_cycle = {pattern, anchor, offsets}`; motor `day_patterns` (O: vardiya yok, D/N: sadece gündüz/gece, çalışma günü boşsa 5000 ceza). Ayarlar › Ekipler ve Rotasyon kartı anında kaydeder. **Simetri kırma:** kişiye özel kısıtı olan (korunan hücre, desen, farklı geçmiş sürüş) herkes gruplamadan çıkarılmalı; yeni kişiye özel kısıt eklerken `_person_signature`/`conflict_person_ids`'i güncelle.
   - **Akıllı yedek (`ad737ef`):** `lib/openShiftCandidates.ts` (izin/rol/gerekçe), `GET /api/open-shifts/candidates?assignment_id=`, `POST /api/open-shifts` `notify: all|top|none`; yayınlanmış hücreye tıklayınca Gelemiyor penceresi.
-  - **Neden bu kişi (`2. tur son commit`):** `lib/copilot/explain.ts`, açılır pencerede katlanır bölüm.
+  - **Neden bu kişi (`2aa08a7`):** `lib/copilot/explain.ts`, açılır pencerede katlanır bölüm.
 
 ---
 
