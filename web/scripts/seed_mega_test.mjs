@@ -283,6 +283,7 @@ async function cleanup() {
     await sql`DELETE FROM tip_allocations WHERE personnel_id = ANY(${pids})`;
     await sql`DELETE FROM shift_assignments WHERE personnel_id = ANY(${pids})`;
     await sql`DELETE FROM shift_handovers WHERE author_personnel_id = ANY(${pids}) OR read_by_personnel_id = ANY(${pids})`;
+    await sql`DELETE FROM personnel_conflicts WHERE personnel_id_a = ANY(${pids}) OR personnel_id_b = ANY(${pids})`;
   }
   await sql`DELETE FROM shift_bids WHERE open_shift_id IN (SELECT id FROM open_shifts WHERE org_id = ${ORG})`;
   await sql`DELETE FROM open_shifts WHERE org_id = ${ORG}`;
