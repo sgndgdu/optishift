@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -440,7 +441,7 @@ export default function PersonnelPage() {
   const todayISO = new Date().toISOString().split("T")[0];
 
   const roleBadge = (p: MergedPerson) => {
-    if (p.role === "admin") return { label: "Admin", color: "bg-ember-50 text-ember-700 border-ember-100" };
+    if (p.role === "admin") return { label: "İşletme Sahibi", color: "bg-ember-50 text-ember-700 border-ember-100" };
     if (p.role === "supervisor") return { label: "Süpervizör", color: "bg-ember-50 text-ember-700 border-ember-100" };
     if (p.display_title) return { label: p.display_title, color: "bg-forest-50 text-forest-700 border-forest-100" };
     return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
@@ -659,7 +660,7 @@ export default function PersonnelPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
-                    <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
+                    <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                       {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
@@ -697,7 +698,8 @@ export default function PersonnelPage() {
                 </div>
               )}
               {/* Department */}
-              {useMultiSelect && selLocIds.length > 0 && (
+              {/* Departman sadece şubede tanımlıysa sorulur (onboarding bilinçli olarak departman açmaz) */}
+              {useMultiSelect && selLocIds.length > 0 && allSelectedDepts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Departman(lar) *</label>
@@ -834,7 +836,7 @@ export default function PersonnelPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
-                      <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
+                      <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>

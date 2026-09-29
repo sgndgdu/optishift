@@ -6,6 +6,7 @@ import { Check, X, Plus, Trash2, CalendarClock, Users, Grid3x3, Sparkles } from 
 import { SECTOR_PRESETS } from "@/lib/presets";
 import type { ShiftDefinition } from "@/lib/types";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
+import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 
 /**
  * Schedule sayfası yerinde kurulum: vardiya şablonu ve personel eksikken
@@ -166,35 +167,62 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
   const [rows, setRows] = useState([{ name: "", phone: "" }, { name: "", phone: "" }, { name: "", phone: "" }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Eklendikten sonra: giriş bağlantıları ve atlananlar (pencere bunları göstermeden kapanmaz)
+  const [done, setDone] = useState<{ results: InviteResult[]; skipped: { name: string; reason: string }[]; approvalPending: boolean } | null>(null);
 
   const update = (i: number, field: "name" | "phone", val: string) =>
     setRows(prev => prev.map((r, j) => (j === i ? { ...r, [field]: val } : r)));
 
+  // Tek istekte toplu ekleme (/api/personnel/bulk): yarıda kalıp sessizce kişi kaybetmez
   const save = async () => {
     const valid = rows.filter(r => r.name.trim());
     if (valid.length === 0) { setError("En az bir isim girin."); return; }
     setSaving(true);
     setError("");
-    let failed = 0;
-    for (const r of valid) {
-      const res = await fetch("/api/personnel", {
+    try {
+      const res = await fetch("/api/personnel/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id: locationId, name: r.name.trim(), phone: r.phone.trim() || null }),
-      }).catch(() => null);
-      if (!res || !res.ok) failed++;
+        body: JSON.stringify({
+          location_id: locationId,
+          rows: valid.map((r, i) => ({ line: i + 1, name: r.name.trim(), phone: r.phone.trim(), department: "", skills: [], email: "" })),
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(d.error || "Personel eklenemedi. Lütfen tekrar deneyin."); return; }
+      // Sayfa yenilemesi pencere kapanınca: şimdi yenilenirse bant yeniden kurulur ve bağlantılar kaybolur
+      setDone({ results: d.results ?? [], skipped: d.skipped ?? [], approvalPending: !!d.approvalPending });
+    } catch {
+      setError("Bağlantı hatası. Lütfen tekrar deneyin.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    if (failed === valid.length) {
-      setError("Personel eklenemedi. Lütfen tekrar deneyin.");
-      return;
-    }
-    window.dispatchEvent(new Event("optishift_location_changed"));
-    onClose();
   };
 
+  if (done) {
+    const finish = () => {
+      if (done.results.length > 0) window.dispatchEvent(new Event("optishift_location_changed"));
+      onClose();
+    };
+    return (
+      <ModalShell title={done.results.length > 0 ? `${done.results.length} kişi eklendi` : "Kimse eklenmedi"} subtitle="Personelin telefonundan giriş yapabilmesi için bağlantısını gönderin." onClose={finish}>
+        {done.approvalPending && done.results.length > 0 && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">Hesaplar işletme sahibinin onayına düştü; onaylanınca giriş yapabilirler.</p>
+        )}
+        {done.skipped.length > 0 && (
+          <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 space-y-0.5">
+            <p className="font-semibold">{done.skipped.length} kişi eklenmedi:</p>
+            {done.skipped.map((x, i) => <p key={i}>{x.name || "İsimsiz"}: {x.reason}</p>)}
+          </div>
+        )}
+        {done.results.length > 0 && <InviteLinkList results={done.results} />}
+        <button onClick={finish} className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90">Tamam</button>
+      </ModalShell>
+    );
+  }
+
   return (
-    <ModalShell title="Hızlı Personel Ekle" subtitle="Şimdilik sadece isim yeterli, detayları sonra Personel sayfasından tamamlayabilirsiniz." onClose={onClose}>
+    <ModalShell title="Hızlı Personel Ekle" subtitle="Şimdilik sadece isim yeterli, detayları sonra Ekip sayfasından tamamlayabilirsiniz." onClose={onClose}>
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -207,8 +235,8 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
             <input
               value={r.phone}
               onChange={e => update(i, "phone", e.target.value)}
-              placeholder="Telefon (isteğe bağlı)"
-              className="w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-forest-400"
+              placeholder="Telefon"
+              className="w-32 sm:w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-forest-400"
             />
           </div>
         ))}

@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart as libGetWeekStart } from "@/lib/date";
+import { getWeekStart as libGetWeekStart, formatDateTR, addDays, businessToday } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import {
   Inbox, ArrowLeftRight, FileEdit, CalendarOff,
@@ -30,6 +30,11 @@ function shiftLabel(row: any) {
   return `${dayName} ${dateStr}${time ? ` · ${time}` : ""}`;
 }
 
+// Takas/ilan sadece bugün ve sonrası için anlamlı (geçmiş vardiya takas edilmez)
+function isUpcoming(row: { week_start: string; day: number }): boolean {
+  return addDays(row.week_start, Number(row.day ?? 0)) >= businessToday();
+}
+
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   pending:           { label: "Bekliyor",              cls: "bg-amber-50 text-amber-700 border-amber-200" },
   peer_accepted:     { label: "Müdür Onayı Bekliyor",  cls: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -38,6 +43,8 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   manager_approved:  { label: "Onaylandı ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_rejected:  { label: "Reddedildi",             cls: "bg-red-50 text-red-600 border-red-200" },
   approved:          { label: "Onaylandı ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  open:              { label: "Üstlenen bekleniyor",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  claimed:           { label: "Devredildi ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   rejected:          { label: "Reddedildi",             cls: "bg-red-50 text-red-600 border-red-200" },
 };
 
@@ -70,6 +77,7 @@ export default function PortalRequests() {
   const [leaveReqs, setLeaveReqs]     = useState<any[]>([]);
   const [forceAssigns, setForceAssigns] = useState<any[]>([]);
   const [overtimeMe, setOvertimeMe]   = useState<any>(null);
+  const [myListings, setMyListings]   = useState<any[]>([]); // "Herkese Aç" ile açtığım devir ilanları
 
   // new-form state
   const [newType, setNewType]         = useState<"swap" | "edit" | "leave">("swap");
@@ -100,7 +108,7 @@ export default function PortalRequests() {
 
   const [loading, setLoading]         = useState(false);
   const [toast, setToast]             = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [cancelConfirm, setCancelConfirm] = useState<{ kind: "swap" | "edit" | "leave"; id: number } | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<{ kind: "swap" | "edit" | "leave" | "listing"; id: number } | null>(null);
   const [leaveRequestsEnabled, setLeaveRequestsEnabled] = useState(true); // rules.leave_requests_enabled
   const [openShiftsEnabled, setOpenShiftsEnabled] = useState(true); // rules.open_shifts_enabled
   const [swapRequestsEnabled, setSwapRequestsEnabled] = useState(true); // rules.swap_requests_enabled
@@ -167,7 +175,7 @@ export default function PortalRequests() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [ss, si, er, lr, fa, ot] = await Promise.all([
+    const [ss, si, er, lr, fa, ot, os] = await Promise.all([
       fetch(`/api/swap-requests?requester_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/swap-requests?target_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
       fetch(`/api/shift-edit-requests?personnel_id=${user.personnel_id}`).then(r => r.json()).catch(() => []),
@@ -180,7 +188,13 @@ export default function PortalRequests() {
       user.personnel_id
         ? fetch(`/api/overtime/me`).then(r => r.ok ? r.json() : null).catch(() => null)
         : Promise.resolve(null),
+      user.location_id
+        ? fetch(`/api/open-shifts?location_id=${user.location_id}`).then(r => r.json()).catch(() => [])
+        : Promise.resolve([]),
     ]);
+    setMyListings(Array.isArray(os)
+      ? os.filter((o: any) => o.released_by === user.personnel_id && o.source_assignment_id && o.status !== "cancelled")
+      : []);
     setSwapsSent(Array.isArray(ss) ? ss : []);
     setSwapsIn(Array.isArray(si) ? si : []);
     setEditReqs(Array.isArray(er) ? er : []);
@@ -201,7 +215,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      const all = weeks.flat().filter((s: any) => Array.isArray(s) ? false : s?.id && s.kind !== "on_call");
+      const all = weeks.flat().filter((s: any) => Array.isArray(s) ? false : s?.id && s.kind !== "on_call" && isUpcoming(s));
       setMyShifts(all);
     })();
   }, [activeTab, newType, user]);
@@ -215,7 +229,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call"));
+      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && isUpcoming(s)));
     })();
   }, [activeTab, newType, user]);
 
@@ -241,7 +255,7 @@ export default function PortalRequests() {
             .then(r => r.json()).catch(() => [])
         )
       );
-      setTheirShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call"));
+      setTheirShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && isUpcoming(s)));
     })();
   }, [swapStep, selMate, user]);
 
@@ -256,7 +270,7 @@ export default function PortalRequests() {
         body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
       });
       if (r.ok) {
-        showToast("Vardiyan pazar yerine bırakıldı, ekibe bildirim gitti!");
+        showToast("İlan açıldı. Biri üstlenene kadar vardiya sende kalır.");
         resetSwapWizard();
         await loadData();
       } else {
@@ -371,8 +385,19 @@ export default function PortalRequests() {
     }
   }
 
-  async function cancelRequest(kind: "swap" | "edit" | "leave", id: number) {
+  async function cancelRequest(kind: "swap" | "edit" | "leave" | "listing", id: number) {
     setCancelConfirm(null);
+    if (kind === "listing") {
+      const r = await fetch("/api/open-shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, withdraw: true }),
+      }).catch(() => null);
+      if (r?.ok) showToast("İlan geri çekildi, vardiya sende kalmaya devam ediyor.");
+      else showToast("İlan geri çekilemedi.", "error");
+      await loadData();
+      return;
+    }
     // Optimistik: anında listeden kaldır
     if (kind === "swap") setSwapsSent(prev => prev.map(s => s.id === id ? { ...s, status: "cancelled" } : s));
     else if (kind === "edit") setEditReqs(prev => prev.map(e => e.id === id ? { ...e, status: "cancelled" } : e));
@@ -472,6 +497,19 @@ export default function PortalRequests() {
       {/* ── SENT TAB ── */}
       {activeTab === "sent" && (
         <div className="space-y-4">
+          {myListings.length > 0 && (
+            <Section title="Açık İlanlarım" icon={<Megaphone size={14} />}>
+              {myListings.map((o: any) => (
+                <RequestCard key={o.id}
+                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşın"} üstlendi` : "Herkese açık ilan"}
+                  sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri üstlenene kadar vardiya sende" : ""}`}
+                  status={o.status}
+                  canCancel={o.status === "open"}
+                  onCancel={() => setCancelConfirm({ kind: "listing", id: o.id })}
+                />
+              ))}
+            </Section>
+          )}
           <Section title="Takas Talepleri" icon={<ArrowLeftRight size={14} />}>
             {swapsSent.length === 0
               ? <Empty text="Takas talebi yok" />
@@ -510,7 +548,7 @@ export default function PortalRequests() {
               : leaveReqs.map((l: any) => (
                 <RequestCard key={l.id}
                   title={l.type}
-                  sub={`${l.start_date} → ${l.end_date} (${l.days} gün)`}
+                  sub={l.start_date === l.end_date ? `${formatDateTR(l.start_date)} (1 gün)` : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
                   status={l.status}
                   note={l.note}
                   canCancel={l.status === "pending"}
@@ -886,10 +924,15 @@ export default function PortalRequests() {
                       Kalan yıllık iznin: {leaveBalance.remaining} gün
                     </p>
                     <p className="text-slate-500 mt-0.5">
-                      {leaveBalance.mode === "seniority"
-                        ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün${leaveBalance.entitledTotal === 0 ? ` · ilk iznin ${leaveBalance.nextAccrualDate} tarihinde doğacak` : ""}`
+                      {leaveBalance.firstEligibleDate
+                        ? `Yıllık izin hakkı 1 yıllık çalışmadan sonra doğar: ${formatDateTR(leaveBalance.firstEligibleDate, { weekday: false })}`
+                        : leaveBalance.mode === "seniority"
+                        ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün`
                         : `Yıllık hak ${leaveBalance.entitledTotal} gün · bu yıl kullanılan ${leaveBalance.usedDays} gün`}
                     </p>
+                    {leaveBalance.hireDateMissing && (
+                      <p className="text-amber-700 mt-0.5">İşe giriş tarihin sistemde yok; kesin hakkını müdürün netleştirir.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1111,7 +1154,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
   onCancel?: () => void;
   showSwapSteps?: boolean;
 }) {
-  const isFinal = ["cancelled", "manager_approved", "manager_rejected", "approved", "rejected", "peer_rejected"].includes(status);
+  const isFinal = ["cancelled", "manager_approved", "manager_rejected", "approved", "rejected", "peer_rejected", "claimed"].includes(status);
   return (
     <div className={`bg-white rounded-xl border p-4 space-y-2 ${isFinal ? "opacity-70 border-slate-100" : "border-slate-200"}`}>
       <div className="flex items-start justify-between gap-2">

@@ -40,6 +40,10 @@ export interface LeaveBalance {
   adjustmentDays: number;
   remaining: number;
   nextAccrualDate: string | null;      // bir sonraki hak ediş (yıldönümü) — sabit modda yılbaşı
+  /** İşe giriş tarihi yok: kıdem bilinmiyor, sabit hak varsayıldı (ekranda "tarih girilmemiş" denir) */
+  hireDateMissing: boolean;
+  /** 1 yıllık kıdem dolmadı (m.53): ilk hak ediş tarihi */
+  firstEligibleDate: string | null;
 }
 
 /** İş K. m.53 — kıdeme göre yıllık ücretli izin hakkı (gün) */
@@ -111,7 +115,31 @@ export function computeLeaveBalance(input: LeaveBalanceInput): LeaveBalance {
       adjustmentDays: adjustment,
       remaining: entitled + adjustment - used,
       nextAccrualDate: nextAnniv.toISOString().split("T")[0],
+      hireDateMissing: false,
+      firstEligibleDate: sYears < 1 ? nextAnniv.toISOString().split("T")[0] : null,
     };
+  }
+
+  // İş K. m.53: yıllık izin hakkı en az 1 yıllık hizmetten sonra doğar (elle düzeltme yine eklenir)
+  if (input.hireDate && sYears < 1) {
+    const hire = new Date(input.hireDate + "T00:00:00Z");
+    if (!Number.isNaN(hire.getTime())) {
+      const first = new Date(hire);
+      first.setUTCFullYear(hire.getUTCFullYear() + 1);
+      const firstStr = first.toISOString().split("T")[0];
+      const used = usedInRange();
+      return {
+        mode: "fixed",
+        seniorityYears: 0,
+        entitledTotal: 0,
+        usedDays: used,
+        adjustmentDays: adjustment,
+        remaining: adjustment - used,
+        nextAccrualDate: firstStr,
+        hireDateMissing: false,
+        firstEligibleDate: firstStr,
+      };
+    }
   }
 
   // Sabit mod: bu takvim yılının kullanımı, sabit yıllık hakka karşı
@@ -125,6 +153,8 @@ export function computeLeaveBalance(input: LeaveBalanceInput): LeaveBalance {
     adjustmentDays: adjustment,
     remaining: input.fixedAnnualDays + adjustment - used,
     nextAccrualDate: `${today.getUTCFullYear() + 1}-01-01`,
+    hireDateMissing: !input.hireDate,
+    firstEligibleDate: null,
   };
 }
 

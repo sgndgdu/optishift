@@ -75,8 +75,17 @@ export async function POST(req: NextRequest) {
     const results: any[] = [];
     const skipped: { line: number; name: string; reason: string }[] = [];
 
+    // Ücretsiz plan: işletmede en fazla 10 aktif personel (tekil eklemeyle aynı sınır)
+    const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
+    let room = Infinity;
+    if (!org?.plan || org.plan === "free") {
+      const cnt = ((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any).cnt;
+      room = Math.max(0, 10 - Number(cnt));
+    }
+
     for (const p of checked) {
       if (p.status === "skip") { skipped.push({ line: p.line, name: p.name, reason: p.notes[0] ?? "Atlandı" }); continue; }
+      if (results.length >= room) { skipped.push({ line: p.line, name: p.name, reason: "Ücretsiz planda en fazla 10 personel eklenebilir" }); continue; }
       if (p.email) {
         const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?").get(p.email);
         if (existingUser) { skipped.push({ line: p.line, name: p.name, reason: "E-posta başka bir hesapta kayıtlı" }); continue; }

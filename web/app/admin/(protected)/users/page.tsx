@@ -22,7 +22,7 @@ type GodUserRow = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin", supervisor: "Süpervizör", manager: "Müdür", employee: "Personel",
+  admin: "İşletme Sahibi", supervisor: "Süpervizör", manager: "Müdür", employee: "Personel",
 };
 
 function timeAgo(ts: number | null): string {

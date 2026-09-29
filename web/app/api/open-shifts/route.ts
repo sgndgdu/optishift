@@ -2,9 +2,8 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendPushToPersonnel } from "@/lib/notifications";
-import { claimOpenShift } from "@/lib/openShifts";
-import { rankCandidates } from "@/lib/openShiftCandidates";
+import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
+import { formatDateTR } from "@/lib/date";
 
 
 function getDb() {
@@ -67,6 +66,7 @@ export async function POST(req: NextRequest) {
     // lib/openShiftCandidates), "none" (müdür doğrudan atayacak)
     const notify: "all" | "top" | "none" = body.notify === "top" || body.notify === "none" ? body.notify : "all";
     let absentPersonnelId: string | null = null;
+    let sourceAssignmentId: number | null = null;
     const org_id = auth.org_id;
 
     // Personel sadece "pazar yerine bırak" modunu ve sadece KENDİ atamasını kullanabilir —
@@ -119,82 +119,55 @@ export async function POST(req: NextRequest) {
       start_time = asg.start_time;
       end_time = asg.end_time;
       note = note ?? (reason === "no_show"
-        ? `${asg.p_name} vardiyaya gelmedi, otomatik açığa çıkarıldı`
-        : `${asg.p_name} gelemiyor, vardiya açığa çıkarıldı`);
+        ? `${asg.p_name} vardiyaya gelmedi, vardiya ilana çevrildi`
+        : `${asg.p_name} gelemiyor, vardiya ilana çevrildi`);
 
       if (!(await openShiftsEnabledFor(location_id))) {
         return NextResponse.json({ error: "Bu şubede açık vardiya sistemi kapalı." }, { status: 422 });
       }
 
       absentPersonnelId = asg.personnel_id;
-      // Atamayı kaldır: vardiya artık kişinin takviminde değil, ilan havuzunda
-      await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);
-      if (reason === "no_show") {
-        await db.prepare(`UPDATE personnel SET no_show_count = COALESCE(no_show_count, 0) + 1 WHERE id = ?`).run(asg.personnel_id);
+      if (auth.role === "employee") {
+        // Personelin devir ilanı: vardiya biri üstlenene kadar onda kalır (claimOpenShift atamayı devreder).
+        // Aynı atama için ikinci açık ilan açılmaz.
+        const existing = await db.prepare(
+          `SELECT id FROM open_shifts WHERE source_assignment_id = ? AND status = 'open'`
+        ).get(convert_assignment_id) as any;
+        if (existing) {
+          return NextResponse.json({ error: "Bu vardiya zaten ilanda." }, { status: 409 });
+        }
+        sourceAssignmentId = Number(convert_assignment_id);
+        note = body.note ?? `${asg.p_name} bu vardiyayı devretmek istiyor`;
+      } else {
+        // Müdür kararı (Gelemiyor / gelmedi): atama hemen kalkar, vardiya ilan havuzuna düşer
+        await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);
+        if (reason === "no_show") {
+          await db.prepare(`UPDATE personnel SET no_show_count = COALESCE(no_show_count, 0) + 1 WHERE id = ?`).run(asg.personnel_id);
+        }
+        await db.prepare(`
+          INSERT INTO notifications (personnel_id, type, title, message, created_at)
+          VALUES (?, 'shift_change', ?, ?, ?)
+        `).run(
+          asg.personnel_id,
+          "Vardiyan ilana çevrildi",
+          reason === "no_show"
+            ? `${formatDateTR(date)} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan müdürünle iletişime geç.`
+            : `${formatDateTR(date)} ${start_time}–${end_time} vardiyan müdürün tarafından açık ilana dönüştürüldü, artık takviminde değil.`,
+          Math.floor(Date.now() / 1000)
+        );
       }
-      // Vardiyası düşen kişiye bildirim
-      await db.prepare(`
-        INSERT INTO notifications (personnel_id, type, title, message, created_at)
-        VALUES (?, 'shift_change', ?, ?, ?)
-      `).run(
-        asg.personnel_id,
-        "Vardiyan açığa çıkarıldı",
-        `${date} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan müdürünle iletişime geç.`,
-        Math.floor(Date.now() / 1000)
-      );
     }
 
     if (!location_id || !date || !start_time || !end_time) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
-    // hero_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil) —
-    // istemci belirtmezse lokasyonun ayarlı varsayılanı okunur.
-    const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(location_id) as any;
-    let defaultHeroPoints = 6;
-    try {
-      const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
-      if (typeof rules.hero_bonus_points === "number") defaultHeroPoints = rules.hero_bonus_points;
-    } catch { /* varsayılan kalır */ }
-    const heroPoints = typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : defaultHeroPoints;
-
-    const now = Math.floor(Date.now() / 1000);
-    const result = await db.prepare(`
-      INSERT INTO open_shifts (org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)
-    `).run(org_id, location_id, date, start_time, end_time, note ?? null, heroPoints, now);
-
-    // Bildirim: tüm ekip, en uygun 3 aday ya da kimse (vardiyası düşen kişi hariç)
-    let activePersonnel: { id: string; name?: string }[] = [];
-    if (notify === "all") {
-      activePersonnel = (await db.prepare(
-        `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
-      ).all(location_id) as any[]).filter(p => p.id !== absentPersonnelId);
-    } else if (notify === "top") {
-      const { candidates } = await rankCandidates(db, { location_id, date, start_time, end_time, excludePersonnelId: absentPersonnelId ?? undefined });
-      activePersonnel = candidates.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
-      if (activePersonnel.length === 0) activePersonnel = candidates.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
-    }
-    const insertNotif = await db.prepare(`
-      INSERT INTO notifications (personnel_id, type, title, message, created_at)
-      VALUES (?, 'open_shift', ?, ?, ?)
-    `);
-    for (const p of activePersonnel) {
-      insertNotif.run(
-        p.id,
-        notify === "top" ? `Senin için uygun bir vardiya · ${date}` : `Acil Açık Vardiya · ${date}`,
-        notify === "top"
-          ? `${start_time}–${end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; kabul edersen +${heroPoints} puan Kahraman Bonusu.`
-          : `${start_time}–${end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
-        now
-      );
-      await sendPushToPersonnel(p.id, org_id, {
-        title: `⚡ Acil Açık Vardiya · ${date}`,
-        body: `${start_time}–${end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
-        url: "/portal/notifications",
-      });
-    }
-    return NextResponse.json({ success: true, id: result.lastInsertRowid, notified: activePersonnel.map(p => p.name ?? p.id) });
+    const published = await publishOpenShift(db, {
+      org_id, location_id, date, start_time, end_time, note: note ?? null,
+      heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
+      releasedBy: absentPersonnelId, sourceAssignmentId, notify,
+    });
+    return NextResponse.json({ success: true, id: published.id, notified: published.notified });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -222,7 +195,23 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     }
 
+    if (body.withdraw) {
+      // Personel kendi devir ilanını geri çeker (vardiya zaten hâlâ onda)
+      if (auth.role !== "employee" || os.released_by !== auth.personnel_id || !os.source_assignment_id) {
+        return NextResponse.json({ error: "Bu ilanı geri çekemezsiniz" }, { status: 403 });
+      }
+      if (os.status !== "open") {
+        return NextResponse.json({ error: "İlan artık açık değil" }, { status: 409 });
+      }
+      await db.prepare(`UPDATE open_shifts SET status = 'cancelled' WHERE id = ? AND status = 'open'`).run(id);
+      return NextResponse.json({ success: true });
+    }
+
     if (claimed_by) {
+      // Personel sadece kendisi adına üstlenebilir; "müdür ataması" bayrağını da kullanamaz
+      if (auth.role === "employee" && (claimed_by !== auth.personnel_id || assigned_by_manager)) {
+        return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      }
       // Personelin doğrudan üstlenmesi — şubede teklif sistemi açıksa engellenir,
       // /api/shift-bids üzerinden teklif verilmesi gerekir. Müdür ataması (assigned_by_manager)
       // bundan etkilenmez, müdür pazar yerini her zaman geçebilir.

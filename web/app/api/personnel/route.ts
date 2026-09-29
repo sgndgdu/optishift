@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
+import { defaultWeeklyHours } from "@/lib/legal";
+import crypto from "crypto";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -71,25 +74,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function toUsername(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9]/g, ".")
-    .replace(/\.+/g, ".")
-    .replace(/^\.|\.$/g, "");
-}
-
-async function findAvailableUsername(db: any, base: string): Promise<string> {
-  let candidate = base;
-  let n = 1;
-  while (await db.prepare("SELECT id FROM users WHERE username = ?").get(candidate)) {
-    candidate = `${base}${n++}`;
-  }
-  return candidate;
-}
-
 // POST: Yeni personel ekle
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
@@ -146,24 +130,32 @@ export async function POST(req: NextRequest) {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const personnelId = `P-${Date.now()}`;
-    const userId = `U-${Date.now()}`;
-    const password = temp_password || Math.random().toString(36).slice(-8);
+    const personnelId = `P-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const userId = `U-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const password = temp_password || generateTempPassword();
     const passwordHash = await bcrypt.hash(password, 10);
     const employeeId = `EMP-${Math.floor(Math.random() * 90000) + 10000}`;
-    const username = await findAvailableUsername(db, toUsername(name) || `user${Date.now()}`);
+    const username = await generateUsername(db, name);
+    // Diğer hesap açma yollarıyla aynı: müdürün açtığı hesap onaya düşer, şifre geçicidir, davet bağlantısı üretilir
+    const approvalStatus = auth.role === "manager" ? "pending" : "active";
 
     await db.prepare(`
       INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 45, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
-    `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", now, now);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
+    `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", defaultWeeklyHours(employment_type), now, now);
 
     await db.prepare(`
-      INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, now);
+      INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, is_temp_password, approval_status, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)
+    `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, approvalStatus, auth.id, now);
 
-    return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password });
+    const inviteToken = crypto.randomBytes(32).toString("hex");
+    await db.prepare(`
+      INSERT INTO invite_tokens (id, token, user_id, org_id, location_id, role, invited_name, created_by, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(`IT-${Date.now()}-${Math.floor(Math.random() * 100000)}`, inviteToken, userId, auth.org_id, location_id, role ?? "employee", name, auth.id, now + 7 * 24 * 3600, now);
+
+    return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password, invite_token: inviteToken, approval_pending: approvalStatus === "pending" });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -268,7 +260,7 @@ export async function PATCH(req: NextRequest) {
 
     // Terfi/rol değişikliği bildirimi — eski rol farklıysa kişiye bildir
     if (user_access_level && user_access_level !== existing.user_access_level) {
-      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Süpervizör", admin: "Admin" };
+      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Süpervizör", admin: "İşletme Sahibi" };
       const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)

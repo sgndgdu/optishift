@@ -6,6 +6,9 @@
  * app/api/shift-bids/route.ts PATCH (teklif kabulü) aynı fonksiyonu çağırır.
  */
 import { rescoreWeek } from "@/lib/scoring";
+import { formatDateTR } from "@/lib/date";
+import { sendPushToPersonnel } from "@/lib/notifications";
+import { rankCandidates } from "@/lib/openShiftCandidates";
 
 export type ClaimOutcome = { ok: true } | { ok: false; status: number; error: string };
 
@@ -20,6 +23,25 @@ export async function claimOpenShift(
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
 
+  if (os.status !== "open") return { ok: false, status: 409, error: "Bu vardiya artık açık değil" };
+  // Vardiyası ilana düşen kişi kendi ilanını üstlenip kahraman bonusu alamaz (devir ilanını geri çekebilir)
+  if (os.released_by && os.released_by === claimedBy) {
+    return { ok: false, status: 409, error: "Kendi bıraktığın vardiyayı üstlenemezsin. İlanı geri çekebilirsin." };
+  }
+
+  const dt = new Date(os.date + "T00:00:00Z");
+  const dayIdx = (dt.getUTCDay() + 6) % 7; // 0 = Pazartesi
+  const monday = new Date(dt);
+  monday.setUTCDate(dt.getUTCDate() - dayIdx);
+  const week_start = monday.toISOString().split("T")[0];
+
+  // Aynı gün zaten normal vardiyası olan kişi ikinci vardiyayı alamaz (motor da günde tek vardiya yazar)
+  const sameDay = await db.prepare(`
+    SELECT id FROM shift_assignments
+    WHERE personnel_id = ? AND week_start = ? AND day = ? AND COALESCE(kind, 'regular') = 'regular'
+  `).get(claimedBy, week_start, dayIdx);
+  if (sameDay) return { ok: false, status: 409, error: "Bu kişinin o gün zaten vardiyası var" };
+
   // Teklif kabulünde vardiyanın kahraman bonusu, kabul edilen teklifin tutarına çekilir —
   // rescoreWeek bu kolonu okuyarak puanlar (lib/scoring.ts).
   if (typeof opts.overrideBonusPoints === "number") {
@@ -27,31 +49,42 @@ export async function claimOpenShift(
   }
 
   const now = Math.floor(Date.now() / 1000);
-  await db.prepare(`
+  // Durum koşullu güncelleme: iki kişi aynı anda basarsa yalnız biri kazanır
+  const won = await db.prepare(`
     UPDATE open_shifts
     SET claimed_by = ?, claimed_by_name = ?, claimed_at = ?, status = 'claimed'
     WHERE id = ? AND status = 'open'
-  `).run(claimedBy, claimedByName ?? null, now, openShiftId);
+    RETURNING id
+  `).all(claimedBy, claimedByName ?? null, now, openShiftId);
+  if (!won || (Array.isArray(won) && won.length === 0)) {
+    return { ok: false, status: 409, error: "Bu vardiyayı az önce başkası üstlendi" };
+  }
 
   // Kahraman bonusu: claimed_by = personnel_id
   await db.prepare(`UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?`).run(claimedBy);
 
-  // Kapılan vardiyayı kahramanın takvimine işle (yoksa vardiya hiçbir takvimde görünmez)
-  const dt = new Date(os.date + "T00:00:00Z");
-  const dayIdx = (dt.getUTCDay() + 6) % 7; // 0 = Pazartesi
-  const monday = new Date(dt);
-  monday.setUTCDate(dt.getUTCDate() - dayIdx);
-  const week_start = monday.toISOString().split("T")[0];
-  const dup = await db.prepare(`
-    SELECT id FROM shift_assignments
-    WHERE personnel_id = ? AND week_start = ? AND day = ? AND start_time = ?
-  `).get(claimedBy, week_start, dayIdx, os.start_time);
-  if (!dup) {
+  // Personelin devir ilanı: vardiya ilanı açanın takviminden çıkar, vardiya tanımı yeni atamaya geçer
+  let shiftId = "open-shift";
+  if (os.source_assignment_id && os.released_by) {
+    const src = await db.prepare(`SELECT shift_id FROM shift_assignments WHERE id = ?`).get(os.source_assignment_id) as any;
+    if (src?.shift_id) shiftId = String(src.shift_id);
+    await db.prepare(`DELETE FROM shift_assignments WHERE id = ? AND personnel_id = ?`).run(os.source_assignment_id, os.released_by);
     await db.prepare(`
-      INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, points, status, publication_status, created_at)
-      VALUES (?, ?, ?, ?, 'open-shift', ?, ?, 0, 'scheduled', 'published', ?)
-    `).run(claimedBy, os.location_id, week_start, dayIdx, os.start_time, os.end_time, now);
+      INSERT INTO notifications (personnel_id, type, title, message, created_at)
+      VALUES (?, 'shift_change', ?, ?, ?)
+    `).run(
+      os.released_by,
+      "Vardiyan devredildi",
+      `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyanı ${claimedByName ?? "bir ekip arkadaşın"} üstlendi, artık takviminde değil.`,
+      now,
+    );
   }
+
+  // Kapılan vardiyayı kahramanın takvimine işle (yoksa vardiya hiçbir takvimde görünmez)
+  await db.prepare(`
+    INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, points, status, publication_status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'scheduled', 'published', ?)
+  `).run(claimedBy, os.location_id, week_start, dayIdx, shiftId, os.start_time, os.end_time, now);
 
   // Kahraman bonusu (düz puan, hero_bonus_multiplier kolonunda tutulur) puan formülünde uygulanır —
   // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
@@ -65,10 +98,72 @@ export async function claimOpenShift(
     "hero_bonus",
     opts.assignedByManager ? "📋 Açık Vardiyaya Atandın" : "🦸 Kahraman Bonusu Kazandın!",
     opts.assignedByManager
-      ? `Müdürün seni ${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ekstra kahraman puanı kazanacaksın.`
-      : `${os.date} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
+      ? `Müdürün seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ekstra kahraman puanı kazanacaksın.`
+      : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
     now,
   );
 
   return { ok: true };
+}
+
+/**
+ * Açık vardiya ilanı oluşturur ve duyurur — TEK KAYNAK (müdür ilanı, Gelemiyor, personel devri, izin onayı).
+ * notify: "all" şubenin aktif personeli, "top" en uygun 3 aday, "none" kimse. releasedBy bildirim almaz.
+ */
+export async function publishOpenShift(
+  db: any,
+  o: {
+    org_id: string; location_id: string; date: string; start_time: string; end_time: string; note: string | null;
+    heroPoints?: number; releasedBy?: string | null; sourceAssignmentId?: number | null; notify?: "all" | "top" | "none";
+  },
+): Promise<{ id: number | null; notified: string[] }> {
+  const notify = o.notify ?? "all";
+  // hero_bonus_multiplier kolonu düz bonus PUANI tutar; belirtilmezse şubenin varsayılanı
+  let heroPoints = o.heroPoints;
+  if (typeof heroPoints !== "number") {
+    heroPoints = 6;
+    try {
+      const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(o.location_id) as any;
+      const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
+      if (typeof rules.hero_bonus_points === "number") heroPoints = rules.hero_bonus_points;
+    } catch { /* varsayılan kalır */ }
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const result = await db.prepare(`
+    INSERT INTO open_shifts (org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status, created_at, released_by, source_assignment_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+  `).run(o.org_id, o.location_id, o.date, o.start_time, o.end_time, o.note, heroPoints, now, o.releasedBy ?? null, o.sourceAssignmentId ?? null);
+
+  let targets: { id: string; name?: string }[] = [];
+  if (notify === "all") {
+    targets = (await db.prepare(
+      `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
+    ).all(o.location_id) as any[]).filter(p => p.id !== o.releasedBy);
+  } else if (notify === "top") {
+    const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });
+    targets = candidates.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+    if (targets.length === 0) targets = candidates.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+  }
+  const dateLabel = formatDateTR(o.date);
+  const insertNotif = await db.prepare(`
+    INSERT INTO notifications (personnel_id, type, title, message, created_at)
+    VALUES (?, 'open_shift', ?, ?, ?)
+  `);
+  for (const p of targets) {
+    await insertNotif.run(
+      p.id,
+      notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
+      notify === "top"
+        ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; kabul edersen +${heroPoints} puan Kahraman Bonusu.`
+        : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
+      now,
+    );
+    await sendPushToPersonnel(p.id, o.org_id, {
+      title: `Açık Vardiya · ${dateLabel}`,
+      body: `${o.start_time}–${o.end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
+      url: "/portal/open-shifts",
+    });
+  }
+  return { id: result.lastInsertRowid ?? null, notified: targets.map(p => p.name ?? p.id) };
 }

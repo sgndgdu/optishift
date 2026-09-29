@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { defaultWeeklyHours } from "@/lib/legal";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -33,7 +34,7 @@ const ROLE_DEFS = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin", supervisor: "Süpervizör", manager: "Müdür", employee: "Personel",
+  admin: "İşletme Sahibi", supervisor: "Süpervizör", manager: "Müdür", employee: "Personel",
 };
 
 export default function SupervisorPersonnelPage() {
@@ -438,7 +439,7 @@ function SupervisorPersonnelInner() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Çalışma Tipi</label>
-                      <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value }))}
+                      <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))}
                         className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-ember-500 appearance-none">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>

@@ -78,7 +78,7 @@ export default function SupervisorSidebar({ onClose }: { onClose?: () => void })
     router.push("/login");
   };
 
-  const roleLabel = user?.role === "admin" ? "Admin" : "Süpervizör";
+  const roleLabel = user?.role === "admin" ? "İşletme Sahibi" : "Süpervizör";
 
   return (
     <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">

@@ -88,7 +88,7 @@ demand_matrix: {
   - **Yeşil:** Müsait
   - **Sarı:** Tercih Etmiyorum (Gerekirse gelebilirim) — OR-Tools soft penalty olarak kullanır
   - **Kırmızı:** Kesinlikle Gelemem (Resmi İzin, Sınav, Okul vb.) — OR-Tools hard constraint (o güne kesinlikle atama yapılmaz)
-- Saat aralıklı müsaitlik: Sarı seçenekte "09:00–17:00 arası gelebilirim" gibi zaman aralığı da girilebilir; OR-Tools bu aralığı dışına çıkan shift atamasını soft penalty ile cezalandırır.
+- Saat aralıklı uygunluk (2026-09-29): gün varsayılanı "Tüm gün" (start/end NULL). Çalışan vardiya çipi ya da özel saat seçerse `/api/generate` günü `{status,start,end}` olarak gönderir; motor "Uygun" günde aralık dışına taşan vardiyayı KESİN yazmaz, "Esnek" günde ×300 cezalar (`outside_window`, `WINDOW_SOFT_PENALTY`); korunan hücre aşar. Plan Asistanı `outside-window` (acil) / `outside-window-flexible` (uyarı). Bitiş ertesi güne "26:00" biçiminde taşabilir.
 
 ### D. Kural Motoru (Rule Engine - Aç/Kapat Toggle)
 Müdürün vardiyayı oluşturmadan önce esnetebileceği veya katılaştırabileceği parametreler:
@@ -491,6 +491,16 @@ Gerçek tip tanımları `web/lib/types.ts`, DB şeması `web/lib/db/schema.ts`.
   - **En az değişiklik (`d2cd6ee`):** motor `current_assignments` (bırakma ×800, ekleme ×400); sihirbazda "Mevcut planı olabildiğince koru" (yayınlanmış haftada varsayılan), "N hücre değişti".
 
 ---
+
+- [x] **Uçtan Uca Test 2 Düzeltmeleri (2026-09-29):** Rapor https://claude.ai/artifact/WE2FJ4FX5HHSaBQLDWsTGk, 20 bulgunun hepsi.
+  - **Uygunluk saat aralığı motora gidiyor** (bkz. §3.C).
+  - **Devir ilanı:** `open_shifts.released_by` + `source_assignment_id` (ALTER TABLE ile eklendi). Personelin "Herkese Aç" ilanında atama biri üstlenene kadar onda kalır, üstlenilince silinip yeni kişiye (aynı `shift_id` ile) geçer; kendi ilanını üstlenemez/teklif veremez (kahraman bonusu istismarı kapandı), `PATCH {withdraw:true}` ile geri çeker, portal Talepler'de "Açık İlanlarım". Personel başkası adına üstlenemez. `claimOpenShift` durum koşullu `UPDATE … RETURNING` (yarış), aynı gün ikinci vardiya yok. İlan oluşturma + duyuru TEK KAYNAK `lib/openShifts.ts` `publishOpenShift`.
+  - **Takas:** personel aynı şubedeki arkadaşının YAYINLANMIŞ vardiyalarını (dar alanlarla) okuyabilir (`GET /api/shifts?personnel_id=`); takas POST vardiyaların iki tarafa ait ve yayınlanmış olduğunu doğrular; sadece bugün ve sonrası seçilir.
+  - **İzin onayı:** `GET /api/leave-requests/review?id=` izin günlerine düşen vardiyalar; onay kartında listelenir, onayda vardiyalar plandan SİLİNİR (`conflict_action: open` yayınlanmış ve geçmemişleri ilana çevirir), hafta yeniden puanlanır. Eski `status='absent'` işaretleme kaldırıldı (hiçbir ekran okumuyordu, güvenilirlik "gelmedi" sayıyordu). Uç nokta artık işletme/şube sahipliğini doğrular.
+  - **Boş ihtiyaç tablosu:** sihirbaz açılınca öneri kendiliğinden doldurulur (`demandAutoFilled`); boş kalırsa uyarı. `defaultWeeklyHours` (lib/legal): yarı zamanlı 30 s.
+  - **Geçmiş günler planlanmaz:** `/api/generate` bugünden önceki günlerde ihtiyacı siler, herkesi "Gelemem" sayar; istemci o günlerin mevcut hücrelerini sabit gönderip korur.
+  - **Hesap açma tek biçim:** tüm yollar `generateUsername` (`ayse.kaya`, çakışırsa `ayse.kaya2`), geçici şifre + davet bağlantısı. Hızlı Kurulum `/api/personnel/bulk` ile tek istekte ekler ve `InviteLinkList` ile bağlantıları gösterir (sayfa yenilemesi pencere kapanınca). Toplu eklemede ücretsiz plan 10 kişi sınırı.
+  - **Küçükler:** portal ana sayfası yayınlanmış gelecek haftada "uygunluk eksik" demez, "Sonraki" gelecek haftaya bakar; yayınlanmış haftada uygunluk kilitli; Ana Sayfa açık vardiya maddesi tarihli ve devir ilanlarını saymaz; Ana Sayfa canlı durum sadece yayınlanmış vardiyaları sayar; yıllık izin 1 yıl dolmadan 0 (`firstEligibleDate`), işe giriş tarihi yoksa `hireDateMissing` uyarısı; Adalet çubuğu sonraki yayınlanmış haftaları düşer; Onaylar bekleyen işin sekmesinde açılır; `formatDateTR` / `weekRangeTR`; rol etiketi "İşletme Sahibi"; yüzen "Plan Kilitli" rozeti kaldırıldı; Esc sihirbazı kapatır.
 
 ### Tier 1, 2 ve eski Tier 3 — TAMAMLANDI (2026-09-20 kod denetimiyle doğrulandı)
 

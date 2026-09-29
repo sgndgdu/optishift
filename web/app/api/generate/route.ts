@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { businessNow } from "@/lib/date";
+import { addDays, businessNow, businessToday } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
@@ -271,17 +271,18 @@ export async function POST(req: NextRequest) {
       return val;
     };
 
+    // Gün durumu + (varsa) personelin girdiği saat aralığı. Motor "Uygun" günde aralığı kesin,
+    // "Esnek" günde yumuşak uygular; aralık yoksa gün tümüyle uygun sayılır.
+    const withWindow = (status: any, start: any, end: any) => {
+      if (typeof status !== "string" || status === "unavailable") return status;
+      if (typeof start === "string" && typeof end === "string" && start && end) return { status, start, end };
+      return status;
+    };
     const availabilityData: Record<string, any> = {};
     for (const av of availabilityRows) {
-      availabilityData[av.personnel_id] = {
-        0: parseAvail(av.day_0),
-        1: parseAvail(av.day_1),
-        2: parseAvail(av.day_2),
-        3: parseAvail(av.day_3),
-        4: parseAvail(av.day_4),
-        5: parseAvail(av.day_5),
-        6: parseAvail(av.day_6),
-      };
+      const days: Record<number, any> = {};
+      for (let d = 0; d < 7; d++) days[d] = withWindow(parseAvail(av[`day_${d}`]), av[`day_${d}_start`], av[`day_${d}_end`]);
+      availabilityData[av.personnel_id] = days;
     }
 
     // Haftalık sabit izin günleri
@@ -750,6 +751,24 @@ export async function POST(req: NextRequest) {
       const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
       if (typeof lr?.weekly_labor_budget_try === "number" && lr.weekly_labor_budget_try > 0) laborBudgetTry = lr.weekly_labor_budget_try;
     } catch { /* bütçe yok */ }
+
+    // Geçmiş günler (bugünden önce) planlanmaz: kimse yazılmaz, ihtiyaç sayılmaz, kapalı gün sayılır.
+    // O günlerdeki mevcut vardiyalar istemciden sabit (fixed) gelir ve haftalık saate sayılır.
+    const today = businessToday();
+    const pastDays = [0, 1, 2, 3, 4, 5, 6].filter(d => addDays(week_start, d) < today);
+    if (pastDays.length === 7) {
+      return NextResponse.json({ error: "Bu haftanın tüm günleri geçti, plan sadece bugün ve sonrası için oluşturulur." }, { status: 400 });
+    }
+    if (pastDays.length > 0) {
+      const dropPast = (m: any) => { for (const row of Object.values(m ?? {}) as any[]) for (const d of pastDays) if (row) { delete row[d]; delete row[String(d)]; } };
+      dropPast(demandMatrixPayload);
+      for (const m of Object.values(departmentDemandMatrixPayload ?? {})) dropPast(m);
+      for (const p of personnelRows) {
+        availabilityData[p.id] ??= {};
+        for (const d of pastDays) availabilityData[p.id][d] = "unavailable";
+      }
+      for (const d of pastDays) if (!closedDays.includes(d)) closedDays.push(d);
+    }
 
     const enginePayload = {
       prevScores,

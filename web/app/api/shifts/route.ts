@@ -48,9 +48,21 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[] = [];
     if (personnel_id && week_start) {
-      // Personel sadece kendi vardiyasını görebilir; manager org'undaki herkesi görebilir
+      // Personel kendi vardiyasını görür; başka birininkini sadece aynı şubedeyse (takas teklifi için)
+      // ve sadece o şubedeki yayınlanmış vardiyalarını görür. Şube görünümü (location_id) zaten
+      // şubenin yayınlanmış planını personele açıyor, bu aynı kapsamın kişi bazlı hali.
+      let colleagueLocation: string | null = null;
       if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
-        return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+        const mate = auth.location_id ? await db.prepare(
+          `SELECT id FROM personnel WHERE id = ? AND org_id = ? AND primary_location_id = ?`
+        ).get(personnel_id, auth.org_id, auth.location_id) : null;
+        if (!mate) {
+          return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+        }
+        colleagueLocation = auth.location_id;
+      } else if (auth.role !== "employee") {
+        const own = await db.prepare(`SELECT id FROM personnel WHERE id = ? AND org_id = ?`).get(personnel_id, auth.org_id);
+        if (!own) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       rows = await db.prepare(`
         SELECT s.*, l.name as location_name
@@ -58,6 +70,15 @@ export async function GET(req: NextRequest) {
         LEFT JOIN locations l ON s.location_id = l.id
         WHERE s.personnel_id = ? AND s.week_start = ?
       `).all(personnel_id, week_start);
+      if (colleagueLocation) {
+        rows = rows
+          .filter((r: any) => r.location_id === colleagueLocation)
+          .map((r: any) => ({
+            id: r.id, personnel_id: r.personnel_id, location_id: r.location_id, location_name: r.location_name,
+            week_start: r.week_start, day: r.day, shift_id: r.shift_id, start_time: r.start_time, end_time: r.end_time,
+            kind: r.kind, publication_status: r.publication_status,
+          }));
+      }
       // Employee: only published shifts
       if (auth.role === "employee") {
         rows = rows.filter((r: any) => !r.publication_status || r.publication_status === "published");

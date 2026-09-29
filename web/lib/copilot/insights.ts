@@ -15,9 +15,10 @@ const ORDER = { critical: 0, warning: 1, info: 2 } as const;
 export function buildInsights(snap: WeekSnapshot, budgets: WeekBudgets = {}): Insight[] {
   const list: Insight[] = [...findProblems(snap, budgets)];
 
-  // Uygunluk: plan kurulmadan önce de gerekli olduğu için boş haftada da gösterilir
+  // Uygunluk: plan kurulmadan önce de gerekli olduğu için boş haftada da gösterilir;
+  // yayınlanmış haftada artık planı etkilemez, gösterilmez
   const noAvail = snap.people.filter(p => !p.hasAvailability);
-  if (snap.rules.availabilityCollection && noAvail.length > 0) {
+  if (snap.rules.availabilityCollection && noAvail.length > 0 && snap.status !== "published") {
     list.push({
       id: "no-availability", severity: "info", action: "remind-availability",
       title: `${noAvail.length} kişi uygunluk girmedi`,

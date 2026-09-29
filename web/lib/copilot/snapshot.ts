@@ -53,6 +53,8 @@ export interface CopilotInput {
   leaves: { personnel_id: string; start_date: string; end_date: string; type: string }[];
   /** Uygunluk: personel başına 7 gün. Kayıt yoksa tamamen uygun sayılır. */
   availability: Record<string, DayState[]>;
+  /** Personelin gün gün girdiği saat aralığı ("26:00" = ertesi gün 02:00); null = tüm gün. */
+  availabilityWindows?: Record<string, ({ start: string; end: string } | null)[]>;
 }
 
 export interface PersonShift { day: number; shiftId: string; shiftName: string; start: string; end: string; hours: number; night: boolean; /** Direksiyon süresi (saat), vardiya tanımından */ driving: number }
@@ -91,6 +93,9 @@ export interface PersonWeek {
   unavailableDays: number[];
   /** "Tercih etmem" dediği günde atama. */
   preferredNotDays: number[];
+  /** Girdiği saat aralığının dışına taşan vardiya: "Uygun" gün (kesin) ve "Esnek" gün (yumuşak) ayrı. */
+  outsideWindowDays: number[];
+  outsideWindowFlexibleDays: number[];
   /** Haftada izinli olduğu günler (atama olsun olmasın). */
   leaveDays: number[];
   /** Çalışmadığı, izinli ya da uygun değil olmadığı günler. */
@@ -201,6 +206,16 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
 
     const leave = leaveDaysOf(p.id);
     const avail = input.availability[p.id] ?? [];
+    const windows = input.availabilityWindows?.[p.id] ?? [];
+    // Motorla aynı kural: vardiya [başlangıç, bitiş] aralığın içinde kalmalı
+    const outsideOn = (status: DayState) => shifts
+      .filter(x => (avail[x.day] ?? "available") === status && windows[x.day] && !leave.has(x.day))
+      .filter(x => {
+        const w = windows[x.day]!;
+        const span = shiftSpan(x.start, x.end);
+        return span.startMin < toMin(w.start) || span.endMin > toMin(w.end);
+      })
+      .map(x => x.day).sort((a, b) => a - b);
     const daysWhere = (pred: (d: number) => boolean) => [...workDays].filter(pred).sort((a, b) => a - b);
 
     return {
@@ -224,8 +239,11 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
         return { start: x.day * 1440 + span.startMin, end: x.day * 1440 + span.endMin };
       }))),
       onLeaveDays: daysWhere(d => leave.has(d)),
-      unavailableDays: daysWhere(d => avail[d] === "unavailable"),
+      // Onaylı izin günü "izinli" olarak ayrıca raporlanır; aynı günü "Gelemem" diye ikinci kez sayma
+      unavailableDays: daysWhere(d => avail[d] === "unavailable" && !leave.has(d)),
       preferredNotDays: daysWhere(d => avail[d] === "preferred_not"),
+      outsideWindowDays: outsideOn("available"),
+      outsideWindowFlexibleDays: outsideOn("preferred_not"),
       leaveDays: [...leave].sort((a, b) => a - b),
       freeDays: [0, 1, 2, 3, 4, 5, 6].filter(d => !workDays.has(d) && !leave.has(d) && avail[d] !== "unavailable"),
     };

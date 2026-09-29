@@ -38,7 +38,9 @@ export type InboxInput = {
   pendingApprovals: number;
   pendingAccounts: number;
   availability: { enabled: boolean; missing: number };
-  openShifts: { enabled: boolean; count: number };
+  /** Dolmamış ilanlar (vardiyası hâlâ sahibinde olan devir ilanları hariç). soon: bugün/yarın olan var mı,
+   *  nearest: en yakının okunur etiketi ("6 Ekim Salı, 15:00"). */
+  openShifts: { enabled: boolean; count: number; soon?: boolean; nearest?: string | null };
   overtime: { enabled: boolean; nearLimit: number };
   fatigue: { enabled: boolean; critical: number; warning: number };
   handover: { enabled: boolean; unread: number };
@@ -136,7 +138,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
   if (input.openShifts.enabled && input.openShifts.count > 0) {
     items.push({
       id: "open-shifts",
-      severity: "today",
+      severity: input.openShifts.soon === false ? "week" : "today",
       title: `${input.openShifts.count} açık vardiya henüz dolmadı`,
       action: { label: "Aday Bul", href: "/open-shifts" },
     });
@@ -222,6 +224,14 @@ export function buildInbox(input: InboxInput): InboxItem[] {
           ? it
           : { ...it, ...localizeCopy(input.nudges, it.id, counts[it.id] ?? 0, { title: it.title, detail: it.detail }) })
     : items;
+
+  // Açık vardiyanın tarihi sektör metninin önüne yazılır (hangi gün boş, müdür bilsin)
+  if (input.openShifts.nearest) {
+    for (const it of localized) {
+      if (it.id !== "open-shifts") continue;
+      it.detail = `En yakını ${input.openShifts.nearest}.${it.detail ? ` ${it.detail}` : ""}`;
+    }
+  }
 
   // Önce aciliyet, aynı aciliyette sektör önceliği; eşitse ekleme sırası (sort kararlıdır)
   return localized.sort((a, b) =>

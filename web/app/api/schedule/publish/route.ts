@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { weekRangeTR } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         `).run(
           d.personnelId,
           "Fazla Mesai Onayın Gerekiyor ⏰",
-          `${week_start} haftasında ${d.overtimeHours} saat fazla mesain planlandı. Talepler sayfasından onayla ve telafi türünü seç (zamlı ücret / serbest zaman).`,
+          `${weekRangeTR(week_start)} haftasında ${d.overtimeHours} saat fazla mesain planlandı. Talepler sayfasından onayla ve telafi türünü seç (zamlı ücret / serbest zaman).`,
           Math.floor(Date.now() / 1000),
         );
       }
@@ -74,14 +75,14 @@ export async function POST(req: NextRequest) {
       `).run(
         p.id,
         "Vardiya Programı Yayınlandı 📅",
-        `${week_start} haftası için vardiya programı hazır. Takvimini kontrol et!`,
+        `${weekRangeTR(week_start)} haftasının vardiya programı hazır. Takvimini kontrol et!`,
         Math.floor(Date.now() / 1000),
       );
-      if (p.phone)  await sendSMS(p.phone, `Merhaba ${p.name}, ${week_start} haftası vardiya programın yayınlandı.`);
-      if (p.email)  await sendEmail(p.email, "Yeni Vardiya Programı Yayınlandı", `Merhaba ${p.name},\n\n${week_start} haftası için vardiya programın sisteme yüklendi.`);
+      if (p.phone)  await sendSMS(p.phone, `Merhaba ${p.name}, ${weekRangeTR(week_start)} vardiya programın yayınlandı.`);
+      if (p.email)  await sendEmail(p.email, "Yeni Vardiya Programı Yayınlandı", `Merhaba ${p.name},\n\n${weekRangeTR(week_start)} vardiya programın sisteme yüklendi.`);
       await sendPushToPersonnel(p.id, auth.org_id, {
         title: "Vardiya Programın Yayınlandı 📅",
-        body: `${week_start} haftası programın hazır. Kontrol et!`,
+        body: `${weekRangeTR(week_start)} vardiya programın hazır. Kontrol et!`,
         url: "/portal/calendar",
       });
       sentCount++;

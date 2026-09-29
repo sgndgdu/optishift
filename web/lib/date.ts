@@ -35,6 +35,26 @@ export function dayIndexOf(dateStr: string): number {
   return (new Date(Date.UTC(y, mo - 1, d)).getUTCDay() + 6) % 7;
 }
 
+const TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const TR_DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+
+// YYYY-MM-DD → "6 Ekim Salı" (bildirim ve talep metinleri için; ham ISO tarih kullanıcıya gösterilmez)
+export function formatDateTR(dateStr: string, opts: { weekday?: boolean } = {}): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  if (!y || !mo || !d) return dateStr;
+  const base = `${d} ${TR_MONTHS[mo - 1]}`;
+  return opts.weekday === false ? base : `${base} ${TR_DAYS[dayIndexOf(dateStr)]}`;
+}
+
+// Hafta başı → "5-11 Ekim" / "28 Eylül - 4 Ekim"
+export function weekRangeTR(weekStart: string): string {
+  const end = addDays(weekStart, 6);
+  const [, m1, d1] = weekStart.split("-").map(Number);
+  const [, m2, d2] = end.split("-").map(Number);
+  if (!m1 || !m2) return weekStart;
+  return m1 === m2 ? `${d1}-${d2} ${TR_MONTHS[m2 - 1]}` : `${d1} ${TR_MONTHS[m1 - 1]} - ${d2} ${TR_MONTHS[m2 - 1]}`;
+}
+
 // YYYY-MM-DD'nin içinde bulunduğu haftanın Pazartesi'si
 export function weekStartOf(dateStr: string): string {
   return addDays(dateStr, -dayIndexOf(dateStr));

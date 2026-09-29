@@ -383,7 +383,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 "text-[10px] font-medium tracking-wide uppercase",
                 user?.role === "admin" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "manager" ? "Yönetici" : user?.role === "admin" ? "Admin" : "Personel"}
+                {user?.role === "manager" ? "Müdür" : user?.role === "admin" ? "İşletme Sahibi" : "Personel"}
               </p>
             </div>
           </div>

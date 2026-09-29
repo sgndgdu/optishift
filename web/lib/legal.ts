@@ -11,6 +11,11 @@ export const DAILY_DRIVING_MAX_HOURS = 9;
 export const DAILY_DRIVING_EXTENDED_HOURS = 10; // haftada en fazla 2 kez
 export const WEEKLY_DRIVING_MAX_HOURS = 56;
 
+/** m.63 haftalık 45 saat; m.13 kısmi süreli çalışma tam sürenin üçte ikisine kadar (45 × 2/3 = 30). */
+export function defaultWeeklyHours(employmentType: string | null | undefined): number {
+  return employmentType === "part_time" ? 30 : 45;
+}
+
 /** m.46: yedi günlük dönemde en az 24 saat kesintisiz dinlenme (hafta tatili). */
 export const WEEKLY_REST_HOURS = 24;
 

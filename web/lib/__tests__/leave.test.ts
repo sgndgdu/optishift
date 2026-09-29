@@ -91,3 +91,21 @@ describe("isAnnualLeaveType", () => {
     expect(isAnnualLeaveType(null)).toBe(false);
   });
 });
+
+describe("ilk yıl ve eksik işe giriş tarihi", () => {
+  it("1 yıl dolmadan yıllık izin hakkı yok (m.53), ilk hak ediş tarihi döner", () => {
+    const b = computeLeaveBalance({
+      hireDate: "2026-06-01", autoEntitlement: false, fixedAnnualDays: 14, adjustmentDays: 0,
+      weeklyOffDay: null, approvedAnnualLeaves: [], today: new Date("2026-09-29T00:00:00Z"),
+    });
+    expect(b).toMatchObject({ entitledTotal: 0, remaining: 0, firstEligibleDate: "2027-06-01", hireDateMissing: false });
+  });
+
+  it("işe giriş tarihi yoksa sabit hak varsayılır ama işaretlenir", () => {
+    const b = computeLeaveBalance({
+      hireDate: null, autoEntitlement: false, fixedAnnualDays: 14, adjustmentDays: 0,
+      weeklyOffDay: null, approvedAnnualLeaves: [], today: new Date("2026-09-29T00:00:00Z"),
+    });
+    expect(b).toMatchObject({ remaining: 14, hireDateMissing: true });
+  });
+});

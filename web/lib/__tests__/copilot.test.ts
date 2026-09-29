@@ -52,6 +52,23 @@ describe("haftanın durumu", () => {
     expect(can.freeDays).toEqual([0, 5, 6]);
   });
 
+  it("girilen saat aralığının dışı: Uygun gün kesin, Esnek gün uyarı; izin günü tekrar sayılmaz", () => {
+    const input = base();
+    const eve = { start: "16:00", end: "24:00" };
+    input.availability = { can: ["available", "available", "preferred_not", "unavailable", "available", "available", "available"] };
+    input.availabilityWindows = { can: [eve, eve, eve, null, null, null, null] };
+    input.leaves = [{ personnel_id: "can", start_date: "2026-10-01", end_date: "2026-10-01", type: "annual" }];
+    // Pzt sabah (dışı), Sal akşam (içi), Çar sabah (esnek dışı), Per sabah (izin + gelemem)
+    input.assignments = [a("can", 0, "s-sabah"), a("can", 1, "s-aksam"), a("can", 2, "s-sabah"), a("can", 3, "s-sabah")];
+    const snap = buildWeekSnapshot(input);
+    const can = snap.people.find(p => p.id === "can")!;
+    expect(can).toMatchObject({ outsideWindowDays: [0], outsideWindowFlexibleDays: [2], onLeaveDays: [3], unavailableDays: [] });
+    const ids = findProblems(snap).map(i => i.id);
+    expect(ids).toContain("outside-window");
+    expect(ids).toContain("outside-window-flexible");
+    expect(ids).not.toContain("unavailable");
+  });
+
   it("durum: boş, taslak, yayınlandı", () => {
     const input = base();
     expect(buildWeekSnapshot(input).status).toBe("empty");

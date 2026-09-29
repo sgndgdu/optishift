@@ -14,7 +14,9 @@ interface ShiftDef { id: string; name: string; start: string; end: string; base_
 
 const DAYS      = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const SHORT     = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-const DEFAULT_DAY: DayData = { status: "available", start: "08:00", end: "22:00" };
+// start/end boş = tüm gün uygun (motor aralık uygulamaz). Aralık sadece çalışan seçerse kaydedilir.
+const DEFAULT_DAY: DayData = { status: "available", start: "", end: "" };
+const CUSTOM_DEFAULT = { start: "08:00", end: "22:00" };
 
 const S = {
   available:    { label: "Uygunum", short: "Uygun",  icon: <Check size={13}/>,       bg: "bg-emerald-500", text: "text-white", light: "bg-emerald-50", ltext: "text-emerald-700", border: "border-emerald-400", fill: "bg-emerald-400", dot: "bg-emerald-400", thumb: "" },
@@ -233,6 +235,7 @@ export default function PortalAvailability() {
   const [days,        setDays]        = useState<DayData[]>(Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY })));
   const [weekOffset,  setWeekOffset]  = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [weekPublished, setWeekPublished] = useState(false); // plan yayınlandıysa uygunluk artık planı etkilemez
   const [loading,     setLoading]     = useState(false);
   const [fetchLoading,setFetchLoading]= useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -247,11 +250,15 @@ export default function PortalAvailability() {
     if (!user?.personnel_id) return;
     setFetchLoading(true);
     try {
+      const pub = user.location_id
+        ? await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${ws}`).then(x => x.json()).catch(() => [])
+        : [];
+      setWeekPublished(Array.isArray(pub) && pub.some((x: any) => x.kind !== "on_call"));
       const r = await fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${ws}`);
       const d = await r.json();
       if (typeof d.max_preferred_not_days === "number") setMaxYellow(d.max_preferred_not_days);
       if (d.exists && d.days) {
-        setDays(d.days.map((x: any) => ({ status: x.status || "available", start: x.start || "08:00", end: x.end || "22:00" })));
+        setDays(d.days.map((x: any) => ({ status: x.status || "available", start: x.start || "", end: x.end || "" })));
         setIsSubmitted(true);
       } else {
         setDays(Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY })));
@@ -333,8 +340,8 @@ export default function PortalAvailability() {
           week_start: ws,
           days: days.map(d => ({
             status: d.status,
-            start: d.status !== "unavailable" ? d.start : null,
-            end:   d.status !== "unavailable" ? d.end   : null,
+            start: d.status !== "unavailable" && d.start ? d.start : null,
+            end:   d.status !== "unavailable" && d.end   ? d.end   : null,
           })),
         }),
       });
@@ -419,8 +426,23 @@ export default function PortalAvailability() {
         ))}
       </div>
 
+      {/* ── Plan yayınlandı: uygunluk artık planı değiştirmez ─────────────────── */}
+      {weekPublished && !fetchLoading && (
+        <div className="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3">
+          <CalendarCheck size={18} className="text-sky-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-sky-800">Bu haftanın planı yayınlandı</p>
+            <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da takas isteyebilirsin.</p>
+          </div>
+          <Link href="/portal/requests"
+            className="text-xs font-bold text-sky-700 bg-white border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-50 transition-colors shrink-0">
+            Talepler
+          </Link>
+        </div>
+      )}
+
       {/* ── Gönderildi uyarısı ──────────────────────────────────────────────── */}
-      {isSubmitted && !fetchLoading && (
+      {isSubmitted && !weekPublished && !fetchLoading && (
         <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
           <Check size={18} className="text-emerald-600 shrink-0" />
           <div className="flex-1">
@@ -440,7 +462,7 @@ export default function PortalAvailability() {
           {[1,2,3,4,5].map(i => <div key={i} className="h-40 bg-slate-100 rounded-2xl animate-pulse" />)}
         </div>
       ) : (
-        <div className={`space-y-3 ${isSubmitted ? "opacity-60 pointer-events-none" : ""}`}>
+        <div className={`space-y-3 ${isSubmitted || weekPublished ? "opacity-60 pointer-events-none" : ""}`}>
           {yellowWarn && (
             <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-300 rounded-2xl text-xs font-semibold text-amber-800">
               <AlertCircle size={14} className="shrink-0 text-amber-500" />
@@ -485,39 +507,48 @@ export default function PortalAvailability() {
                     </div>
                   </div>
 
-                  {/* Vardiya seçici — shift def'ler varsa göster */}
-                  {shiftDefs.length > 0 && d.status !== "unavailable" && (
+                  {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat */}
+                  {d.status !== "unavailable" && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                      {shiftDefs.map(def => {
-                        const active = d.shiftId === def.id;
+                      {(() => {
+                        const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+                          active ? `${cfg.bg} ${cfg.text} border-transparent shadow-sm` : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`;
                         return (
-                          <button key={def.id} onClick={() => setShift(i, def)}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
-                              active
-                                ? `${cfg.bg} ${cfg.text} border-transparent shadow-sm`
-                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                            }`}>
-                            <span>{def.name}</span>
-                            <span className={active ? "opacity-80" : "opacity-50"}>{def.start}–{def.end}</span>
-                          </button>
+                          <>
+                            <button onClick={() => setTime(i, "", "")} className={chip(!d.start)}>Tüm gün</button>
+                            {shiftDefs.map(def => {
+                              const active = d.shiftId === def.id;
+                              return (
+                                <button key={def.id} onClick={() => setShift(i, def)} className={chip(active)}>
+                                  <span>{def.name}</span>
+                                  <span className={active ? "opacity-80" : "opacity-50"}>{def.start}–{def.end}</span>
+                                </button>
+                              );
+                            })}
+                            <button onClick={() => { if (!d.start || d.shiftId) setTime(i, d.start || CUSTOM_DEFAULT.start, d.end || CUSTOM_DEFAULT.end); }}
+                              className={chip(!!d.start && !d.shiftId)}>
+                              Özel saat
+                            </button>
+                          </>
                         );
-                      })}
-                      {d.shiftId && (
-                        <button onClick={() => setDays(prev => prev.map((x, j) => j === i ? { ...x, shiftId: null } : x))}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold border bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100">
-                          Özel saat
-                        </button>
-                      )}
+                      })()}
                     </div>
+                  )}
+                  {d.status !== "unavailable" && d.start && (
+                    <p className="text-[11px] text-slate-500 mb-1">
+                      {d.status === "available"
+                        ? "Bu saatlerin dışına vardiya yazılmaz."
+                        : "Mümkünse bu saatlerin dışına vardiya yazılmaz."}
+                    </p>
                   )}
 
                   {/* Slider veya gelemem notu */}
-                  {d.status !== "unavailable" ? (
+                  {d.status !== "unavailable" ? (d.start ? (
                     <RangeSlider
                       start={d.start} end={d.end} status={d.status}
                       onChange={(s, e) => setTime(i, s, e)}
                     />
-                  ) : (
+                  ) : null) : (
                     <div className="flex items-center gap-2 bg-rose-50 rounded-xl px-3 py-2.5">
                       <X size={13} className="text-rose-400 shrink-0" />
                       <span className="text-xs font-semibold text-rose-500">Bu gün çalışmak mümkün değil.</span>
@@ -531,7 +562,7 @@ export default function PortalAvailability() {
       )}
 
       {/* ── Gönder butonu — inline, nav bar clearance layout'un pb-24'ünden geliyor ── */}
-      {!isSubmitted ? (
+      {weekPublished ? null : !isSubmitted ? (
         <button onClick={() => setShowConfirm(true)} disabled={loading || fetchLoading}
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50">
           {loading
@@ -583,6 +614,7 @@ export default function PortalAvailability() {
                     <span className={`text-xs font-semibold tabular-nums ${cfg.ltext}`}>
                       {d.status === "unavailable"
                         ? "Gelemiyorum"
+                        : !d.start ? "Tüm gün"
                         : `${displayTime(toMin(d.start))} – ${displayTime(toMin(d.end))}${toMin(d.end) > 1440 ? " +1" : ""}`}
                     </span>
                   </div>

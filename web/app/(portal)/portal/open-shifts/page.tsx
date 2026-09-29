@@ -73,6 +73,20 @@ export default function PortalOpenShiftsPage() {
     } finally { setBusyId(null); }
   }
 
+  async function handleWithdraw(shift: any) {
+    setBusyId(shift.id);
+    try {
+      const r = await fetch("/api/open-shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: shift.id, withdraw: true }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) { showToast("İlan geri çekildi, vardiya sende kalmaya devam ediyor."); await load(); }
+      else { showToast(data.error || "İlan geri çekilemedi"); }
+    } finally { setBusyId(null); }
+  }
+
   async function handleBid(shift: any) {
     const draft = drafts[shift.id];
     const amount = Number(draft?.amount);
@@ -117,6 +131,28 @@ export default function PortalOpenShiftsPage() {
         {shifts.map(s => {
           const myBid = myBids[s.id];
           const draft = drafts[s.id] ?? { amount: "", note: "" };
+          // Kendi devir ilanım: üstlenemem/teklif veremem, sadece geri çekebilirim
+          if (s.released_by && s.released_by === user?.personnel_id) {
+            return (
+              <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Senin ilanın</span>
+                <div>
+                  <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
+                  <p className="text-xs text-slate-500 mt-1">Biri üstlenene kadar bu vardiya sende kalır.</p>
+                </div>
+                {s.source_assignment_id && (
+                  <button
+                    disabled={busyId === s.id}
+                    onClick={() => handleWithdraw(s)}
+                    className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  >
+                    {busyId === s.id ? "Geri çekiliyor…" : "İlanı Geri Çek"}
+                  </button>
+                )}
+              </div>
+            );
+          }
           return (
             <div key={s.id} className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
               <div className="flex items-center gap-2">

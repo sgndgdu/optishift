@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
@@ -10,6 +10,7 @@ import {
   CheckCircle2, XCircle, Clock, History, Timer
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { formatDateTR } from "@/lib/date";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -59,6 +60,7 @@ export default function ManagerRequestsPage() {
   const [edits, setEdits]     = useState<any[]>([]);
   const [leaves, setLeaves]   = useState<any[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<Record<string, any>>({}); // personnel_id → kalan yıllık izin
+  const [leaveConflicts, setLeaveConflicts] = useState<Record<number, any[]>>({}); // izin id → o günlere düşen vardiyalar
   const [overtimes, setOvertimes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"swap" | "edit" | "leave" | "overtime">("swap");
   const [showHistory, setShowHistory] = useState(false);
@@ -72,6 +74,7 @@ export default function ManagerRequestsPage() {
   const [editRequestsEnabled, setEditRequestsEnabled] = useState(true); // rules.edit_requests_enabled
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
+  const tabChosen = useRef(false); // ilk yüklemede bekleyen işi olan ilk sekme açılır
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -89,6 +92,17 @@ export default function ManagerRequestsPage() {
       setEdits(Array.isArray(ed) ? ed : []);
       setLeaves(Array.isArray(lv) ? lv : []);
       setOvertimes(Array.isArray(ot) ? ot : []);
+      if (!tabChosen.current) {
+        tabChosen.current = true;
+        const counts: ["swap" | "edit" | "leave" | "overtime", number][] = [
+          ["swap", Array.isArray(sw) ? sw.filter((x: any) => x.status === "peer_accepted").length : 0],
+          ["edit", Array.isArray(ed) ? ed.filter((x: any) => x.status === "pending").length : 0],
+          ["leave", Array.isArray(lv) ? lv.filter((x: any) => x.status === "pending").length : 0],
+          ["overtime", Array.isArray(ot) ? ot.filter((x: any) => x.status === "pending").length : 0],
+        ];
+        const first = counts.find(([, n]) => n > 0);
+        if (first) setActiveTab(first[0]);
+      }
       try {
         const loc = Array.isArray(locs) ? locs[0] : locs;
         const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
@@ -160,14 +174,31 @@ export default function ManagerRequestsPage() {
     });
   }, [leaves]);
 
-  async function reviewLeave(id: number, status: "approved" | "rejected", note?: string) {
+  // Bekleyen izinlerin günlerine düşen vardiyalar: onaydan önce müdür görsün
+  useEffect(() => {
+    const pendingIds = leaves.filter((l: any) => l.status === "pending").map((l: any) => l.id as number);
+    if (pendingIds.length === 0) return;
+    Promise.all(pendingIds.map(id =>
+      fetch(`/api/leave-requests/review?id=${id}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    )).then(results => {
+      const map: Record<number, any[]> = {};
+      results.forEach((r, i) => { map[pendingIds[i]] = Array.isArray(r?.conflicts) ? r.conflicts : []; });
+      setLeaveConflicts(map);
+    });
+  }, [leaves]);
+
+  async function reviewLeave(id: number, status: "approved" | "rejected", note?: string, conflictAction?: "open" | "remove") {
     const r = await fetch(`/api/leave-requests/review?id=${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, reviewed_by: user?.personnel_id }),
+      body: JSON.stringify({ status, reviewed_by: user?.personnel_id, conflict_action: conflictAction }),
     });
     if (r.ok) {
-      showToast(status === "approved" ? "İzin onaylandı." : "İzin reddedildi.");
+      const d = await r.json().catch(() => ({}));
+      showToast(status === "rejected" ? "İzin reddedildi."
+        : d.opened > 0 ? `İzin onaylandı, ${d.opened} vardiya ilana çevrildi.`
+        : d.removed > 0 ? `İzin onaylandı, ${d.removed} vardiya plandan çıkarıldı.`
+        : "İzin onaylandı.");
     } else {
       showToast("İşlem sırasında hata oluştu.");
     }
@@ -391,11 +422,25 @@ export default function ManagerRequestsPage() {
                       <StatusBadge status={l.status} />
                     </div>
                     <p className="text-xs text-slate-600 font-semibold">{l.type}</p>
-                    <p className="text-xs text-slate-500">{l.start_date} → {l.end_date} ({l.days} gün)</p>
+                    <p className="text-xs text-slate-500">
+                      {l.start_date === l.end_date
+                        ? `${formatDateTR(l.start_date)} (1 gün)`
+                        : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
+                    </p>
                     {pending && leaveBalances[l.personnel_id] && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
                       <p className={`text-[11px] font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
                         Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
                         {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
+                      </p>
+                    )}
+                    {pending && leaveBalances[l.personnel_id]?.hireDateMissing && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                      <p className="text-[11px] text-amber-700 mt-0.5">
+                        İşe giriş tarihi girilmemiş, bakiye tahmini. <Link href="/personnel" className="underline font-semibold">Ekip&apos;ten ekleyin</Link>
+                      </p>
+                    )}
+                    {pending && leaveBalances[l.personnel_id]?.firstEligibleDate && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                      <p className="text-[11px] text-amber-700 mt-0.5">
+                        1 yıllık kıdemi dolmadı; yıllık izin hakkı {formatDateTR(leaveBalances[l.personnel_id].firstEligibleDate, { weekday: false })} tarihinde doğar.
                       </p>
                     )}
                     {l.note && <p className="text-xs text-slate-400 mt-1 italic">"{l.note}"</p>}
@@ -404,20 +449,47 @@ export default function ManagerRequestsPage() {
                     <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(l.created_at)}</span>
                   )}
                 </div>
+                {pending && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-1">
+                    <p className="text-xs font-bold text-amber-800">Bu tarihlerde {leaveConflicts[l.id].length} vardiyası var, onaylanınca plandan çıkar:</p>
+                    {leaveConflicts[l.id].map((c: any) => (
+                      <p key={c.id} className="text-xs text-amber-800">
+                        {formatDateTR(c.date)} · {c.shift_name ?? "Vardiya"} {c.start_time}–{c.end_time}{c.published ? "" : " (taslak)"}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 {pending && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setRejectModal({ type: "leave", id: l.id })}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={15} /> Reddet
                     </button>
-                    <button
-                      onClick={() => reviewLeave(l.id, "approved")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
-                    >
-                      <CheckCircle2 size={15} /> Onayla
-                    </button>
+                    {(leaveConflicts[l.id] ?? []).some((c: any) => c.published) ? (
+                      <>
+                        <button
+                          onClick={() => reviewLeave(l.id, "approved", undefined, "remove")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-sm font-bold hover:bg-primary/5 transition-colors"
+                        >
+                          Onayla, sadece çıkar
+                        </button>
+                        <button
+                          onClick={() => reviewLeave(l.id, "approved", undefined, "open")}
+                          className="flex-[1.3] flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                        >
+                          <CheckCircle2 size={15} /> Onayla, ilana çevir
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => reviewLeave(l.id, "approved", undefined, "remove")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                      >
+                        <CheckCircle2 size={15} /> Onayla
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

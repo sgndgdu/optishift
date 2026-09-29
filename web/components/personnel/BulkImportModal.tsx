@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import InviteLinkList from "@/components/personnel/InviteLinkList";
 import { checkRows, parseDelimited, rowsFromTable, unknownDepartments, type ImportRow } from "@/lib/personnelImport";
 
 interface Result { name: string; username: string; temp_password: string; invite_token: string }
@@ -29,7 +30,6 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ results: Result[]; skipped: { line: number; name: string; reason: string }[]; createdDepartments: string[]; approvalPending: boolean } | null>(null);
-  const [copied, setCopied] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -130,28 +130,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                 <ul className="mt-1 space-y-0.5">{done.skipped.map(s => <li key={`${s.line}-${s.name}`}>Satır {s.line}{s.name ? ` · ${s.name}` : ""}: {s.reason}</li>)}</ul>
               </details>
             )}
-            {done.results.length > 0 && (
-              <>
-                <p className="text-xs text-slate-500">Her kişiye giriş bağlantısını gönderin; ilk girişte şifresini kendisi belirler.</p>
-                <div className="space-y-2">
-                  {done.results.map((r, i) => (
-                    <div key={r.invite_token} className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="flex-1 min-w-0"><div className="font-bold text-slate-800 truncate">{r.name}</div><div className="text-xs text-slate-500">{r.username}</div></div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/setup?token=${r.invite_token}`);
-                          setCopied(i);
-                          setTimeout(() => setCopied(prev => (prev === i ? null : prev)), 2000);
-                        }}
-                        className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-colors", copied === i ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100")}
-                      >
-                        {copied === i ? "Kopyalandı" : "Giriş bağlantısını kopyala"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            {done.results.length > 0 && <InviteLinkList results={done.results} />}
             <button onClick={close} className="w-full mt-2 bg-forest-600 text-white font-bold py-3 rounded-xl hover:bg-forest-700">Kapat</button>
           </div>
         ) : !rows ? (

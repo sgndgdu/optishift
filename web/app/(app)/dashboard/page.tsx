@@ -4,6 +4,7 @@
 // Ana Sayfa: tablo ve KPI kartı yerine "Günün Özeti ve Bekleyen İşler".
 // Maddeleri lib/inbox.ts üretir; bu sayfa sadece veriyi toplar ve çizer.
 
+import { addDays, businessToday, formatDateTR } from "@/lib/date";
 import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
@@ -42,12 +43,15 @@ const SEVERITY_STYLE = {
   week:     { dot: "bg-slate-300", icon: "bg-slate-100 text-slate-500", label: "Bu hafta", labelCls: "text-slate-400" },
 } as const;
 
+const isPublishedRow = (s: any) => (!s.publication_status || s.publication_status === "published") && s.kind !== "on_call";
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
   const [openShiftCount, setOpenShiftCount] = useState(0);
+  const [openShiftNearest, setOpenShiftNearest] = useState<{ date: string; start: string } | null>(null);
   const [availMissing, setAvailMissing] = useState(0);
   const [nextWeek, setNextWeek] = useState<NextWeekState>("published");
   const [pendingApprovals, setPendingApprovals] = useState(0);
@@ -107,8 +111,15 @@ export default function DashboardPage() {
 
       const next = list(nextShiftsData);
       setPersonnel(list(personnelData));
-      setTodayShifts(list(shiftsData).filter((s: any) => s.day === todayIdx));
-      setOpenShiftCount(list(openShiftsData).filter((s: any) => s.status === "open").length);
+      // Canlı durum ve geç kalma sadece yayınlanmış vardiyalar için (taslağı personel görmedi)
+      setTodayShifts(list(shiftsData).filter((s: any) => s.day === todayIdx && isPublishedRow(s)));
+      // Devir ilanında vardiya hâlâ sahibinde (boşluk yok); geçmiş tarihli ilanlar da sayılmaz
+      const today = businessToday();
+      const gaps = list(openShiftsData)
+        .filter((s: any) => s.status === "open" && !s.source_assignment_id && s.date >= today)
+        .sort((a: any, b: any) => `${a.date} ${a.start_time}`.localeCompare(`${b.date} ${b.start_time}`));
+      setOpenShiftCount(gaps.length);
+      setOpenShiftNearest(gaps[0] ? { date: gaps[0].date, start: gaps[0].start_time } : null);
       setAvailMissing(Array.isArray(availData?.personnel) ? availData.personnel.filter((p: any) => !p.submitted).length : 0);
       setNextWeek(
         next.length === 0 ? "none"
@@ -176,7 +187,7 @@ export default function DashboardPage() {
       try {
         const res = await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${getTodayWeekStart()}`);
         const data = await res.json();
-        if (Array.isArray(data)) setTodayShifts(data.filter((s: any) => s.day === todayIdx));
+        if (Array.isArray(data)) setTodayShifts(data.filter((s: any) => s.day === todayIdx && isPublishedRow(s)));
       } catch {}
     }, 60_000);
     return () => clearInterval(refreshShifts);
@@ -255,7 +266,11 @@ export default function DashboardPage() {
     pendingApprovals,
     pendingAccounts,
     availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },
-    openShifts:   { enabled: openShiftsEnabled, count: openShiftCount },
+    openShifts:   {
+      enabled: openShiftsEnabled, count: openShiftCount,
+      soon: openShiftNearest ? openShiftNearest.date <= addDays(businessToday(), 1) : undefined,
+      nearest: openShiftNearest ? `${formatDateTR(openShiftNearest.date)}, ${openShiftNearest.start}` : null,
+    },
     overtime:     { enabled: isModuleOn(rules, "overtime_tracking_enabled"),
                     nearLimit: personnel.filter((p: any) => (p.ytd_overtime_hours ?? 0) >= maxYtdOvertime * 0.8).length },
     fatigue:      { enabled: isModuleOn(rules, "fatigue_radar_enabled"),

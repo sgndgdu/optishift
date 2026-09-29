@@ -7,7 +7,7 @@
  * sıraya koyar ve sorunları oluşturmadan ÖNCE gösterir.
  */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AlertCircle, AlertTriangle, Bell, CalendarClock, Check, ClipboardCheck, Info, Sparkles, Users, X } from "lucide-react";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 }
 
 export default function GenerateWizard({
-  weekLabel, demandTable, demandEmpty, capacityWarnings, personnelCount,
+  weekLabel, demandTable, demandEmpty, demandAutoFilled, pastDayCount = 0, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
   existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, changedCount, generating, error, generatedCount, seniorViolationCount, excludedCount,
   onGenerate, onPublish, onClose,
@@ -43,6 +43,10 @@ export default function GenerateWizard({
   weekLabel: string;
   demandTable: ReactNode;
   demandEmpty: boolean;
+  /** Tablo boştu, öneri kendiliğinden dolduruldu */
+  demandAutoFilled?: boolean;
+  /** Haftanın bugünden önceki gün sayısı: bu günler planlanmaz, mevcut vardiyaları korunur */
+  pastDayCount?: number;
   capacityWarnings: string[];
   personnelCount: number;
   availabilityEnabled: boolean;
@@ -74,6 +78,13 @@ export default function GenerateWizard({
   const [initialCells] = useState(existingCellCount);
   const [initialPinned] = useState(pinnedCount);
 
+  // Esc ile kapanır (oluşturma sürerken kapanmaz)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !generating) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [generating, onClose]);
+
   const run = async () => {
     await onGenerate();
     setRan(true);
@@ -97,8 +108,11 @@ export default function GenerateWizard({
               title="Kaç kişi gerekli?"
               sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Tablo haftadan haftaya aynı kalır; öneriyi tek tıkla uygulayıp sadece değişeni düzeltebilirsiniz.">
               <div className="rounded-2xl border border-slate-200 overflow-hidden">{demandTable}</div>
+              {demandAutoFilled && !demandEmpty && (
+                <p className="text-xs text-forest-700 font-medium">Tablo boştu, öneriyle dolduruldu. Sayıları işletmenize göre değiştirebilirsiniz.</p>
+              )}
               {demandEmpty && (
-                <p className="text-xs text-slate-500">Tabloyu boş bırakırsanız ekip, uygunluğa göre mümkün olduğunca adil dağıtılır.</p>
+                <p className="text-xs text-amber-700 font-medium">Tablo boş kalırsa ekip, haftalık çalışma sınırına kadar vardiyaya yazılır (herkes 5-6 gün). Kaç kişi gerektiğini girmeniz önerilir.</p>
               )}
             </WizardStep>
           )}
@@ -109,6 +123,9 @@ export default function GenerateWizard({
               sub="Sorun varsa şimdi görün, sonradan değil.">
               <div className="space-y-2.5">
                 <CheckRow tone="ok">{personnelCount} personel planlanacak.</CheckRow>
+                {pastDayCount > 0 && pastDayCount < 7 && (
+                  <CheckRow tone="info">Haftanın {pastDayCount} günü geçti. Sadece bugün ve sonrası planlanır; geçmiş günlerdeki vardiyalar olduğu gibi kalır.</CheckRow>
+                )}
 
                 {capacityWarnings.length > 0 ? (
                   <CheckRow tone="danger">
@@ -121,7 +138,7 @@ export default function GenerateWizard({
                 ) : !demandEmpty ? (
                   <CheckRow tone="ok">Personel ihtiyacı mevcut ekiple karşılanabilir görünüyor.</CheckRow>
                 ) : (
-                  <CheckRow tone="info">Personel ihtiyacı girilmedi, ekip mümkün olduğunca adil dağıtılacak.</CheckRow>
+                  <CheckRow tone="warn">Personel ihtiyacı girilmedi: herkes haftalık çalışma sınırına kadar vardiyaya yazılacak.</CheckRow>
                 )}
 
                 {availabilityEnabled && (noAvailCount > 0 ? (

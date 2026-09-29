@@ -322,6 +322,10 @@ export const openShifts = pgTable("open_shifts", {
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
+  // İlanı açan / vardiyası ilana düşen personel: kendi ilanını üstlenip kahraman bonusu alamaz
+  released_by: text("released_by"),
+  // Personelin "Herkese Aç" ilanında atama biri üstlenene kadar onda kalır; üstlenilince bu atama silinir
+  source_assignment_id: integer("source_assignment_id"),
 });
 
 // ─── Push Subscriptions (Web Push VAPID) ─────────────────────────────────────

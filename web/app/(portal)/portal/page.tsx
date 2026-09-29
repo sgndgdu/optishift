@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart, addWeeks, timeAgo } from "@/lib/date";
+import { getWeekStart, addWeeks, timeAgo, addDays, formatDateTR } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
@@ -50,6 +50,9 @@ export default function PortalDashboard() {
   const [taskToggleBusy, setTaskToggleBusy] = useState<number | null>(null);
   const [weeklyTipAmount, setWeeklyTipAmount] = useState<number | null>(null); // rules.tip_pooling_enabled — bu hafta kazanılan prim
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
+  // Gelecek hafta: şubenin planı yayınlandı mı, ve benim ilk vardiyam (bu hafta başka vardiya yoksa kartta gösterilir)
+  const [nextWeekPublished, setNextWeekPublished] = useState(false);
+  const [nextWeekFirst, setNextWeekFirst] = useState<any | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
   const [crewName,      setCrewName]      = useState<string | null>(null);
   const [checkInLoading,setCheckInLoading]= useState(false);
@@ -84,6 +87,13 @@ export default function PortalDashboard() {
         fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
         fetch(`/api/fairness/me`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
+      // Gelecek haftanın yayınlanmış planı (personel sadece yayınlanmışı görür)
+      const nextLoc = user.location_id
+        ? await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${nws}`).then(r => r.json()).catch(() => [])
+        : [];
+      const nextRows = Array.isArray(nextLoc) ? nextLoc.filter((s: any) => s.kind !== "on_call") : [];
+      setNextWeekPublished(nextRows.length > 0);
+      setNextWeekFirst(nextRows.filter((s: any) => s.personnel_id === user.personnel_id).sort((a: any, b: any) => a.day - b.day)[0] ?? null);
       setFairness(fairnessData && !fairnessData.error ? fairnessData : null);
       // İcap nöbeti ayrı: giriş/çıkış ve görev listesi sadece normal vardiyada
       const rows = Array.isArray(shiftData) ? shiftData : [];
@@ -116,7 +126,7 @@ export default function PortalDashboard() {
         } catch { setWeeklyTipAmount(null); }
       }
     } catch {} finally { setDataLoading(false); }
-  }, [user?.personnel_id]);
+  }, [user?.personnel_id, user?.location_id]);
   useEffect(() => { loadData(); }, [loadData]);
 
   // Önceki vardiyanın devir notları — bugün vardiyam varsa göster
@@ -375,6 +385,10 @@ export default function PortalDashboard() {
                 <p className="text-forest-200/70 text-sm">
                   Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
                 </p>
+              ) : nextWeekFirst ? (
+                <p className="text-forest-200/70 text-sm">
+                  Sonraki: <span className="font-bold text-forest-100">{formatDateTR(addDays(nextWeekFirst.week_start, Number(nextWeekFirst.day)))}, {nextWeekFirst.start_time}</span>
+                </p>
               ) : (
                 <p className="text-forest-200/60 text-sm">Bu hafta başka {words.shift} yok.</p>
               )}
@@ -405,7 +419,7 @@ export default function PortalDashboard() {
               </button>
             )}
             {/* Uygunluk kapalıysa yok; eksikse aşağıdaki uyarı zaten aynı yere götürüyor */}
-            {(!todayShift || isCompleted) && availEnabled === true && nextWeekAvail !== false && (
+            {(!todayShift || isCompleted) && availEnabled === true && nextWeekAvail !== false && !nextWeekPublished && (
               <button onClick={() => router.push("/portal/availability")}
                 className="flex-[2] bg-white text-primary text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97]">
                 <Zap size={14} /> Uygunluk Gir
@@ -630,7 +644,7 @@ export default function PortalDashboard() {
       )}
 
       {/* ── Uygunluk hatırlatıcı ────────────────────────────────────────── */}
-      {availEnabled === true && nextWeekAvail === false && (
+      {availEnabled === true && nextWeekAvail === false && !nextWeekPublished && (
         <div className="flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5">
           <div className="w-9 h-9 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
             <AlertCircle size={18} className="text-ember-600" />

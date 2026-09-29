@@ -109,6 +109,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Vardiyalar gerçekten iki tarafa ait, yayınlanmış ve aynı işletmede olmalı
+    const pair = await db.prepare(`
+      SELECT sa.id, sa.personnel_id, sa.publication_status, p.org_id
+      FROM shift_assignments sa JOIN personnel p ON p.id = sa.personnel_id
+      WHERE sa.id IN (?, ?)
+    `).all(requester_shift_id, target_shift_id) as any[];
+    const mine = pair.find(r => String(r.id) === String(requester_shift_id));
+    const theirs = pair.find(r => String(r.id) === String(target_shift_id));
+    if (!mine || !theirs || mine.personnel_id !== requester_id || theirs.personnel_id !== target_id
+        || mine.org_id !== auth.org_id || theirs.org_id !== auth.org_id) {
+      return NextResponse.json({ error: "Takas edilecek vardiyalar bulunamadı." }, { status: 400 });
+    }
+    if (mine.publication_status === "draft" || theirs.publication_status === "draft") {
+      return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar takas edilebilir." }, { status: 400 });
+    }
+
     // İcap nöbeti takasa konu olmaz (çalışma vardiyası değil)
     const onCallRow = await db.prepare(
       `SELECT id FROM shift_assignments WHERE id IN (?, ?) AND kind = 'on_call' LIMIT 1`

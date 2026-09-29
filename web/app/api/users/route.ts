@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { defaultWeeklyHours } from "@/lib/legal";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
         name.trim(), employeeId, phone?.trim() ?? "", email?.trim()?.toLowerCase() ?? null,
         title?.trim() ?? "Personel",
         employment_type ?? "full_time",
-        max_weekly_hours ? Number(max_weekly_hours) : 45,
+        max_weekly_hours ? Number(max_weekly_hours) : defaultWeeklyHours(employment_type),
         now, now
       );
     }

@@ -62,6 +62,9 @@ export async function POST(req: NextRequest) {
     const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(open_shift_id, auth.org_id) as any;
     if (!os) return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     if (os.status !== "open") return NextResponse.json({ error: "Bu vardiya artık açık değil" }, { status: 409 });
+    if (os.released_by && os.released_by === auth.personnel_id) {
+      return NextResponse.json({ error: "Kendi bıraktığın vardiyaya teklif veremezsin" }, { status: 409 });
+    }
     if (!(await shiftBiddingEnabledForLocation(db, os.location_id))) {
       return NextResponse.json({ error: "Bu şubede teklif sistemi kapalı" }, { status: 422 });
     }

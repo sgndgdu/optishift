@@ -538,3 +538,45 @@ def test_minimize_changes_keeps_existing_plan():
     kept = before & after
     # P1 dışındaki herkesin mevcut vardiyası korunur
     assert kept == {b for b in before if b[0] != "P1"}, (before - after, after - before)
+
+
+def test_availability_window_hard_on_available_day():
+    """'Uygun' günde girilen saat aralığı kesin: aralığa sığmayan vardiya yazılmaz
+    (P1 sadece 16:00-24:00 uygun → hiç Sabah almaz), aralığa sığan yazılabilir."""
+    evening_only = {str(d): {"status": "available", "start": "16:00", "end": "24:00"} for d in range(7)}
+    payload = base_payload(
+        personnel=[make_person("P1", "Ayşe"), make_person("P2", "Burak"), make_person("P3", "Cem")],
+        availability={"P1": evening_only, "P2": FULL_WEEK_AVAILABLE, "P3": FULL_WEEK_AVAILABLE},
+        demand_matrix={"morning": {str(d): 1 for d in range(5)}, "evening": {str(d): 1 for d in range(5)}},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    p1 = [a for a in result["assignments"] if a["personnelId"] == "P1"]
+    assert p1, "P1 akşam vardiyalarına yazılabilmeliydi"
+    assert all(a["shiftId"] == 1 for a in p1), f"P1 aralık dışına yazıldı: {p1}"
+
+
+def test_availability_window_soft_on_flexible_day():
+    """'Esnek' günde aralık yumuşak: başka kimse yoksa aralık dışına da yazılır."""
+    flexible = {str(d): {"status": "preferred_not", "start": "16:00", "end": "24:00"} for d in range(7)}
+    payload = base_payload(
+        personnel=[make_person("P1", "Ayşe")],
+        availability={"P1": flexible},
+        demand_matrix={"morning": {"0": 1}},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    assert any(a["personnelId"] == "P1" and a["day"] == 0 and a["shiftId"] == 0 for a in result["assignments"])
+
+
+def test_availability_window_infeasible_is_explained():
+    """Talep, aralığı uyan kişi sayısını aşarsa teşhis saat aralığını söyler."""
+    evening_only = {str(d): {"status": "available", "start": "16:00", "end": "24:00"} for d in range(7)}
+    payload = base_payload(
+        personnel=[make_person("P1", "Ayşe"), make_person("P2", "Burak")],
+        availability={"P1": evening_only, "P2": evening_only},
+        demand_matrix={"morning": {"0": 1}},
+    )
+    result = run_engine(payload)
+    assert "error" in result
+    assert "saat aralığı" in result["error"] or "saatlere uygun" in result["error"], result["error"]

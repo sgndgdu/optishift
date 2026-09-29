@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
-import { addDays, getWeekStart } from "@/lib/date";
+import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
 import { FEATURES } from "@/lib/features";
@@ -347,8 +347,13 @@ function scheduleSnapshot(a: {
     }
   }
   const availability: Record<string, DayState[]> = {};
+  const availabilityWindows: Record<string, ({ start: string; end: string } | null)[]> = {};
   for (const [pid, days] of Object.entries(a.availMap)) {
     availability[pid] = [0, 1, 2, 3, 4, 5, 6].map(d => (days[d]?.status ?? "available") as DayState);
+    availabilityWindows[pid] = [0, 1, 2, 3, 4, 5, 6].map(d => {
+      const x = days[d];
+      return x?.start && x?.end ? { start: x.start, end: x.end } : null;
+    });
   }
   return buildWeekSnapshot({
     weekStart: a.weekStart,
@@ -374,6 +379,7 @@ function scheduleSnapshot(a: {
     assignments,
     leaves: a.approvedLeaves,
     availability,
+    availabilityWindows,
   });
 }
 
@@ -805,8 +811,11 @@ function SchedulePageInner() {
           if (shData && typeof shData === "object" && !Array.isArray(shData)) {
             for (const [pid, entries] of Object.entries(shData)) {
               if (!Array.isArray(entries)) continue;
-              const thisWeek = entries.find((e: any) => e.week_start === weekStart);
-              if (thisWeek) swb[pid] = thisWeek.burden_score ?? 0;
+              // Bu hafta ve SONRAKİ yayınlanmış haftalar: prev_score onları da içerir; bu haftaya
+              // bakarken ileri tarihli haftaların yükü sayılmaz (taslak hafta 2 kat görünmesin)
+              swb[pid] = entries
+                .filter((e: any) => typeof e.week_start === "string" && e.week_start >= weekStart)
+                .reduce((sum: number, e: any) => sum + (Number(e.burden_score) || 0), 0);
             }
           }
           setScoredWeekBurden(swb);
@@ -992,6 +1001,11 @@ function SchedulePageInner() {
 
   // Sihirbazı aç: yayınlanmış haftada "mevcut planı koru" varsayılan açık
   const openWizard = () => {
+    if (personnel.length === 0) {
+      showToast("Önce personel ekleyin: Hızlı Kurulum'daki 'Personel ekle' adımından başlayabilirsiniz.", "info");
+      return;
+    }
+    setDemandAutoFilled(false);
     setMinimizeChanges(dbShiftCount > 0 && !isDraftWeek);
     setChangedCount(null);
     setWizardOpen(true);
@@ -1036,7 +1050,7 @@ function SchedulePageInner() {
     } catch { showToast("Kaydedilemedi.", "error"); }
   };
 
-  const applyDemandSuggestion = async () => {
+  const applyDemandSuggestion = async (auto = false) => {
     if (!demandSuggestion || !activeLocationId) return;
     setDemandMatrix(demandSuggestion.matrix);
     try {
@@ -1045,9 +1059,22 @@ function SchedulePageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ demand_matrix: demandSuggestion.matrix }),
       });
-      showToast("Öneri tabloya uygulandı, istediğiniz hücreyi değiştirebilirsiniz.", "success");
+      if (!auto) showToast("Öneri tabloya uygulandı, istediğiniz hücreyi değiştirebilirsiniz.", "success");
     } catch { showToast("Öneri kaydedilemedi.", "error"); }
   };
+
+  // Tablo tamamen boşsa öneri kendiliğinden doldurulur: boş tabloyla motor herkesi haftalık
+  // sınırına kadar yazar (gizli işçilik maliyeti). Sahip sayıları görüp düzeltebilir.
+  const [demandAutoFilled, setDemandAutoFilled] = useState(false);
+  useEffect(() => {
+    if (!wizardOpen || !demandSuggestion || departments.length > 0 || demandAutoFilled) return;
+    const empty = Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v));
+    const hasAny = Object.values(demandSuggestion.matrix).some(row => Object.values(row ?? {}).some(v => v > 0));
+    if (!empty || !hasAny) return;
+    setDemandAutoFilled(true);
+    applyDemandSuggestion(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardOpen, demandSuggestion, departments.length]);
 
   // ── Otomatik taslak kaydı (OPTI-024) ──────────────────────────────────────
   // Kullanıcı düzenlemesinden 1.2 sn sonra haftanın draft satırları DB ile
@@ -1255,8 +1282,8 @@ function SchedulePageInner() {
   }, [weekStart]);
 
   // Computed per-person scores (live, based on cellMap)
-  // Çift sayım düzeltmesi: hafta yayınlandıysa bu haftanın yükü prev_score'un
-  // içindedir (decay^0 = 1) — canlı hücre puanını eklemeden önce düşülür.
+  // Çift sayım düzeltmesi: prev_score bu haftanın ve sonraki yayınlanmış haftaların yükünü
+  // içerir; canlı hücre puanını eklemeden önce düşülür (puan = bu haftaya kadar birikim + bu hafta).
   const personScores = personnel.map(p => {
     const weekPoints = Object.entries(cellMap)
       .filter(([k]) => k.startsWith(`${p.id}-`))
@@ -1509,9 +1536,13 @@ function SchedulePageInner() {
   const runGenerate = async () => {
     setGenerating(true);
     setError(null);
-    // Elle düzeltilen (korunan) hücreler motora sabit olarak gider, gerisi yeniden çözülür
-    const pinned = keepPinned ? Object.entries(cellMap).filter(([, v]) => v.pinned) : [];
-    const pinnedOnCall = keepPinned ? Object.entries(onCallMap).filter(([, v]) => v.pinned) : [];
+    // Elle düzeltilen (korunan) hücreler ve geçmiş günlerin vardiyaları motora sabit olarak gider,
+    // gerisi yeniden çözülür (motor bugünden önceki günlere yeni vardiya yazmaz)
+    const today = businessToday();
+    const isPastKey = (key: string) => addDays(weekStart, parseInt(key.slice(key.lastIndexOf("-") + 1))) < today;
+    const keep = (key: string, v: { pinned?: boolean }) => (keepPinned && !!v.pinned) || isPastKey(key);
+    const pinned = Object.entries(cellMap).filter(([k, v]) => keep(k, v));
+    const pinnedOnCall = Object.entries(onCallMap).filter(([k, v]) => keep(k, v));
     const fixed_assignments = [...pinned.map(([key, val]) => {
       const lastDash = key.lastIndexOf("-");
       return {
@@ -1524,7 +1555,7 @@ function SchedulePageInner() {
     }), ...onCallRows(Object.fromEntries(pinnedOnCall))];
     // Mevcut plan (korunanlar hariç, onlar zaten sabit): motor gereksiz yer değiştirmeyi cezalandırır
     const current_assignments = minimizeChanges
-      ? Object.entries(cellMap).filter(([, v]) => !(keepPinned && v.pinned)).flatMap(([key, val]) => {
+      ? Object.entries(cellMap).filter(([k, v]) => !keep(k, v)).flatMap(([key, val]) => {
           const def = matchShiftDef(val.startMin, val.endMin, shiftDefs);
           if (!def) return [];
           const lastDash = key.lastIndexOf("-");
@@ -2483,7 +2514,7 @@ loading ? (
                         </p>
                         {demandSuggestion.notes.map(n => <p key={n} className="text-[11px] text-slate-500 mt-0.5">{n}</p>)}
                       </div>
-                      <button onClick={applyDemandSuggestion}
+                      <button onClick={() => applyDemandSuggestion()}
                         className={cn("shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors",
                           demandEmpty ? "bg-forest-600 text-white hover:bg-forest-700" : "text-forest-700 border border-forest-200 hover:bg-forest-50")}>
                         {demandEmpty ? "Tabloya uygula" : "Öneriyle değiştir"}
@@ -3346,18 +3377,6 @@ loading ? (
               </table>
             </div>
 
-            {/* Kilitli floating badge */}
-            {isPublishedWeek && !editUnlocked && (
-              <div className="hidden md:block absolute bottom-4 right-4 z-10 cursor-pointer" onClick={() => setUnlockModal(true)}>
-                <div className="bg-white border border-slate-200 shadow-lg rounded-xl px-4 py-2.5 flex items-center gap-2.5 hover:shadow-xl transition-shadow">
-                  <div className="text-lg">🔒</div>
-                  <div>
-                    <p className="font-bold text-slate-800 text-xs leading-tight">Plan Kilitli</p>
-                    <p className="text-[10px] text-slate-400 leading-tight">Düzenlemek için tıkla</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* ── Plan hazırlanıyor katmanı (sihirbaz dışı çağrılar için) ── */}
@@ -3379,6 +3398,8 @@ loading ? (
               weekLabel={weekLabel}
               demandTable={demandTableEl}
               demandEmpty={demandEmpty}
+              demandAutoFilled={demandAutoFilled}
+              pastDayCount={[0, 1, 2, 3, 4, 5, 6].filter(d => addDays(weekStart, d) < businessToday()).length}
               capacityWarnings={capacityWarnings}
               personnelCount={personnel.length}
               availabilityEnabled={availCollectionEnabled}

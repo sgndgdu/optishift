@@ -269,6 +269,45 @@ def get_avail(person_id, d, _s=None):
         return day_avail.get("status", "available")
     return day_avail if day_avail is not None else "available"
 
+def _hhmm_to_min(v):
+    if not isinstance(v, str) or ":" not in v:
+        return None
+    try:
+        h, m = v.split(":")
+        return int(h) * 60 + int(m)
+    except ValueError:
+        return None
+
+
+def get_window(person_id, d):
+    """Personelin gün d için girdiği saat aralığı (dakika). Bitiş ertesi güne taşabilir ("26:00" = 1560).
+    Aralık yoksa ya da geçersizse None: tüm gün uygun."""
+    avail_map = AVAILABILITY.get(person_id, {})
+    day_avail = avail_map.get(str(d)) if avail_map.get(str(d)) is not None else avail_map.get(d)
+    if not isinstance(day_avail, dict):
+        return None
+    ws, we = _hhmm_to_min(day_avail.get("start")), _hhmm_to_min(day_avail.get("end"))
+    if ws is None or we is None or we <= ws:
+        return None
+    return ws, we
+
+
+def outside_window(person_id, d, s) -> bool:
+    """Normal vardiya s, kişinin o gün girdiği saat aralığının dışına taşıyor mu? (icap nöbeti hariç)"""
+    if s >= len(SHIFTS) or SHIFTS[s].get("on_call"):
+        return False
+    win = get_window(person_id, d)
+    if not win:
+        return False
+    a, b = _shift_minutes(SHIFTS[s])
+    return a < win[0] or b > win[1]
+
+
+# Esnek (sarı) günde saat aralığı dışına yazma cezası: sarı gün cezasından (10) çok daha güçlü,
+# boş vardiya cezasından (5000) küçük; ihtiyaç başka türlü karşılanamıyorsa yazılabilir
+WINDOW_SOFT_PENALTY = 300
+
+
 def build_model():
     model = cp_model.CpModel()
     num_p = len(PERSONNEL)
@@ -357,12 +396,17 @@ def build_model():
         for p in range(num_p):
             model.add(sum(shifts[(p, d, k)] for d in range(NUM_DAYS) for k in ONC) <= max_on_call)
 
-    # Müsaitlik: "unavailable" günlerde kesinlikle çalışamaz (Kırmızı)
+    # Müsaitlik: "unavailable" günlerde kesinlikle çalışamaz (Kırmızı).
+    # "Uygun" günde kişi saat aralığı girdiyse aralık dışına taşan vardiya da yazılmaz (kesin);
+    # korunan hücre (müdür iradesi) ikisini de aşar.
     for p_idx, person in enumerate(PERSONNEL):
         for d in range(NUM_DAYS):
             for s in range(NUM_SHIFTS):
                 fixed_here = (FIXED_ASSIGNMENTS.get((person["id"], d, "regular")), FIXED_ASSIGNMENTS.get((person["id"], d, "on_call")))
-                if get_avail(person["id"], d, s) == "unavailable" and s not in fixed_here:
+                if s in fixed_here:
+                    continue
+                status = get_avail(person["id"], d, s)
+                if status == "unavailable" or (status == "available" and outside_window(person["id"], d, s)):
                     model.add(shifts[(p_idx, d, s)] == 0)
 
     # Korunan hücreler (müdürün elle düzelttikleri): aynen kalır, motor gerisini çözer
@@ -522,6 +566,7 @@ def build_model():
             float(person.get("cumulative_burden", person.get("prev_score", 0)) or 0),
             float(person.get("ytd_overtime_hours", 0) or 0),
             tuple(get_avail(pid, d) for d in range(NUM_DAYS)),
+            tuple(get_window(pid, d) for d in range(NUM_DAYS)),
             float(PREV_WEEK_DRIVING.get(pid, 0) or 0),  # iki haftalık sürüş sınırı kişiye özel
         )
 
@@ -679,6 +724,15 @@ def build_model():
             for s in range(NUM_SHIFTS)
             if get_avail(person["id"], d, s) == "preferred_not"
         ]
+
+    # Esnek (sarı) günde girilen saat aralığının dışı: mümkünse yazılmaz
+    window_penalties = [
+        shifts[(p_idx, d, s)]
+        for p_idx, person in enumerate(PERSONNEL)
+        for d in range(NUM_DAYS)
+        for s in range(NUM_SHIFTS)
+        if get_avail(person["id"], d, s) == "preferred_not" and outside_window(person["id"], d, s)
+    ]
 
     # En az değişiklik (mevcut plana sadakat)
     change_terms = []
@@ -908,6 +962,7 @@ def build_model():
         fairness_gap * 100
         - total_assignments
         + sum(preferred_not_penalties) * 10
+        + sum(window_penalties) * WINDOW_SOFT_PENALTY
         + sum(senior_violation_penalties) * 50
         + sum(min_hours_shortfalls) * 5
         + sum(clopening_penalties) * int(RULES.get("clopening_penalty_weight", 30))
@@ -956,6 +1011,21 @@ def diagnose_infeasibility() -> str | None:
                     f"{DAYS[d]}: {total} kişi isteniyor ama sadece {len(pool)} personel müsait "
                     f"(toplam {len(all_ids)} personel var; her personel günde en fazla 1 vardiyaya yazılabilir)."
                 )
+        # Saat aralığı: "Uygun" günde aralığı vardiyayı kapsamayan kişi o vardiyaya yazılamaz
+        if not problems:
+            for s_idx, day_counts in DEMAND_MATRIX.items():
+                if s_idx >= len(SHIFTS):
+                    continue
+                for d, cnt in day_counts.items():
+                    if cnt <= 0:
+                        continue
+                    pool = [pid for pid in available_pool(d, all_ids)
+                            if not (get_avail(pid, d) == "available" and outside_window(pid, d, s_idx))]
+                    if cnt > len(pool):
+                        problems.append(
+                            f"{DAYS[d]} {SHIFTS[s_idx].get('name', '')}: {cnt} kişi isteniyor ama bu saatlere uygun "
+                            f"yalnızca {len(pool)} personel var (diğerleri uygunluk formunda başka saat aralığı girdi)."
+                        )
         # Hafta tatili (m.46): kişi haftada en fazla 6 gün
         week_total = sum(day_totals.values())
         if not problems and week_total > len(all_ids) * (NUM_DAYS - 1):

@@ -16,23 +16,23 @@ export function generateTempPassword(): string {
   return chars.join("");
 }
 
-// Ad soyaddan kullanıcı adı üretir: "ahmet kaya" → "ahmet.k.1234"
-export async function generateUsername(db: any, name: string): Promise<string> {
-  const parts = name.trim().toLowerCase()
+// Ad soyaddan okunur kullanıcı adı: "Ayşe Kaya" → "ayse.kaya"; doluysa "ayse.kaya2", "ayse.kaya3"…
+// Tüm hesap açma yolları (tekil, toplu, Hızlı Kurulum, kayıt linki) bunu kullanır.
+export function usernameBase(name: string): string {
+  return name.trim().toLocaleLowerCase("tr-TR")
     .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
     .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .split(/\s+/).filter(Boolean);
-  const first = (parts[0] ?? "user").replace(/[^a-z0-9]/g, "");
-  const lastInitial = parts[1] ? parts[1][0].replace(/[^a-z]/g, "") : "";
-  const base = lastInitial ? `${first}.${lastInitial}` : first;
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .slice(0, 40);
+}
 
-  let attempt = 0;
-  while (attempt < 20) {
-    const suffix = String(Math.floor(1000 + Math.random() * 9000));
-    const candidate = `${base}.${suffix}`;
+export async function generateUsername(db: any, name: string): Promise<string> {
+  const base = usernameBase(name) || "personel";
+  for (let n = 1; n < 200; n++) {
+    const candidate = n === 1 ? base : `${base}${n}`;
     const existing = await db.prepare("SELECT id FROM users WHERE username = ?").get(candidate);
     if (!existing) return candidate;
-    attempt++;
   }
   return `${base}.${Date.now()}`;
 }
