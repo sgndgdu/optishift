@@ -2,9 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X, CalendarCheck } from "lucide-react";
+import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X, CalendarCheck, Copy } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -13,7 +12,6 @@ interface DayData { status: Status; start: string; end: string; shiftId?: string
 interface ShiftDef { id: string; name: string; start: string; end: string; base_points?: number; }
 
 const DAYS      = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-const SHORT     = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 // start/end boş = tüm gün uygun (motor aralık uygulamaz). Aralık sadece çalışan seçerse kaydedilir.
 const DEFAULT_DAY: DayData = { status: "available", start: "", end: "" };
 const CUSTOM_DEFAULT = { start: "08:00", end: "22:00" };
@@ -238,11 +236,13 @@ export default function PortalAvailability() {
   const [weekPublished, setWeekPublished] = useState(false); // plan yayınlandıysa uygunluk artık planı etkilemez
   const [loading,     setLoading]     = useState(false);
   const [fetchLoading,setFetchLoading]= useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [shiftDefs,   setShiftDefs]   = useState<ShiftDef[]>([]);
   const [maxYellow,   setMaxYellow]   = useState(1);
   const [collectionEnabled, setCollectionEnabled] = useState(true); // uygunluk toplama kapalıysa giriş UI'ı gösterilmez
   const [yellowWarn,  setYellowWarn]  = useState<string | null>(null);
+  // Saat seçenekleri varsayılan kapalı: sadece "Saat sınırı ekle" denen ya da saati olan günde açılır
+  const [expanded,    setExpanded]    = useState<Set<number>>(new Set());
+  const [copyMsg,     setCopyMsg]     = useState<string | null>(null);
 
   const ws = weekStart(weekOffset);
 
@@ -328,8 +328,25 @@ export default function PortalAvailability() {
       ? { ...d, start: def.start, end: shiftEndToAvailEnd(def.start, def.end), shiftId: def.id }
       : d));
 
+  // Geçen haftanın uygunluğunu bu haftaya kopyala (gönderilmeden önce düzenlenebilir)
+  const copyLastWeek = async () => {
+    if (!user?.personnel_id) return;
+    try {
+      const r = await fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${weekStart(weekOffset - 1)}`);
+      const d = await r.json();
+      if (d?.exists && Array.isArray(d.days)) {
+        setDays(d.days.map((x: any) => ({ status: x.status || "available", start: x.start || "", end: x.end || "" })));
+        setCopyMsg("Geçen haftanın uygunluğu kopyalandı. Kontrol edip gönder.");
+      } else {
+        setCopyMsg("Geçen hafta için girilmiş uygunluk yok.");
+      }
+    } catch {
+      setCopyMsg("Kopyalanamadı, tekrar dene.");
+    }
+    setTimeout(() => setCopyMsg(null), 4000);
+  };
+
   const confirmSave = async () => {
-    setShowConfirm(false);
     setLoading(true);
     try {
       await fetch("/api/availability", {
@@ -415,17 +432,6 @@ export default function PortalAvailability() {
         </div>
       </div>
 
-      {/* ── Haftalık durum şeridi ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-7 gap-1.5">
-        {days.map((d, i) => (
-          <div key={i} className={`flex flex-col items-center gap-1 py-2 rounded-xl ${S[d.status].light}`}>
-            <span className="text-[9px] font-bold text-slate-500">{SHORT[i]}</span>
-            <span className="text-[8px] font-semibold text-slate-400 leading-tight">{weekDates[i]}</span>
-            <div className={`w-2 h-2 rounded-full ${S[d.status].dot}`} />
-          </div>
-        ))}
-      </div>
-
       {/* ── Plan yayınlandı: uygunluk artık planı değiştirmez ─────────────────── */}
       {weekPublished && !fetchLoading && (
         <div className="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3">
@@ -469,10 +475,19 @@ export default function PortalAvailability() {
               {yellowWarn}
             </div>
           )}
-          <div className="flex items-center justify-between px-1 text-[11px] text-slate-400 font-medium">
-            <span>Esnek (sarı) gün hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span></span>
-            <span>Sarı günde çalışırsan ekstra puan kazanırsın</span>
+          <p className="text-xs text-slate-500 px-1">
+            Varsayılan olarak her gün uygunsun. Sadece gelemeyeceğin ya da tercih etmediğin günleri değiştir.
+          </p>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <button onClick={copyLastWeek}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">
+              <Copy size={13} /> Geçen haftanın aynısı
+            </button>
+            <span className="text-[11px] text-slate-400 font-medium text-right">
+              Esnek hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span>
+            </span>
           </div>
+          {copyMsg && <p className="text-xs font-semibold text-forest-700 px-1">{copyMsg}</p>}
           {DAYS.map((name, i) => {
             const d = days[i];
             const cfg = S[d.status];
@@ -481,9 +496,9 @@ export default function PortalAvailability() {
                 {/* Renkli üst şerit */}
                 <div className={`h-1 w-full ${cfg.fill}`} />
 
-                <div className="px-4 pt-3 pb-4">
+                <div className="px-4 py-3">
                   {/* Başlık satırı */}
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className={`flex items-center gap-2 ${d.status !== "unavailable" && (expanded.has(i) || d.start) ? "mb-4" : ""}`}>
                     <div className="shrink-0 min-w-[90px]">
                       <span className="font-black text-slate-800 text-[15px] block leading-tight">{name}</span>
                       <span className="text-[11px] font-semibold text-slate-400">{weekDates[i]}</span>
@@ -507,8 +522,14 @@ export default function PortalAvailability() {
                     </div>
                   </div>
 
-                  {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat */}
-                  {d.status !== "unavailable" && (
+                  {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat. İstenirse açılır. */}
+                  {d.status !== "unavailable" && !expanded.has(i) && !d.start && (
+                    <button onClick={() => setExpanded(prev => new Set(prev).add(i))}
+                      className="mt-2 text-[11px] font-bold text-slate-400 hover:text-primary">
+                      + Saat sınırı ekle
+                    </button>
+                  )}
+                  {d.status !== "unavailable" && (expanded.has(i) || !!d.start) && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {(() => {
                         const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
@@ -542,17 +563,12 @@ export default function PortalAvailability() {
                     </p>
                   )}
 
-                  {/* Slider veya gelemem notu */}
-                  {d.status !== "unavailable" ? (d.start ? (
+                  {/* Saat aralığı (özel saat ya da vardiya seçildiyse) */}
+                  {d.status !== "unavailable" && d.start && (
                     <RangeSlider
                       start={d.start} end={d.end} status={d.status}
                       onChange={(s, e) => setTime(i, s, e)}
                     />
-                  ) : null) : (
-                    <div className="flex items-center gap-2 bg-rose-50 rounded-xl px-3 py-2.5">
-                      <X size={13} className="text-rose-400 shrink-0" />
-                      <span className="text-xs font-semibold text-rose-500">Bu gün çalışmak mümkün değil.</span>
-                    </div>
                   )}
                 </div>
               </div>
@@ -563,7 +579,7 @@ export default function PortalAvailability() {
 
       {/* ── Gönder butonu — inline, nav bar clearance layout'un pb-24'ünden geliyor ── */}
       {weekPublished ? null : !isSubmitted ? (
-        <button onClick={() => setShowConfirm(true)} disabled={loading || fetchLoading}
+        <button onClick={confirmSave} disabled={loading || fetchLoading}
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50">
           {loading
             ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -578,66 +594,6 @@ export default function PortalAvailability() {
         </button>
       )}
 
-      {/* ── Onay modal (document.body portalı) ─────────────────────────────── */}
-      {showConfirm && createPortal(
-        <div className="fixed inset-0 z-[9999] flex flex-col justify-end"
-          onClick={e => { if (e.target === e.currentTarget) setShowConfirm(false); }}>
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowConfirm(false)} />
-
-          {/* Sheet */}
-          <div className="relative bg-white rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[85vh] flex flex-col">
-            {/* Pull handle */}
-            <div className="flex justify-center pt-3 pb-0 shrink-0">
-              <div className="w-10 h-1 bg-slate-200 rounded-full" />
-            </div>
-
-            {/* Başlık */}
-            <div className="px-5 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="text-lg font-black text-slate-900">Uygunluğu Onayla</h2>
-              <p className="text-sm text-slate-400 mt-0.5">{weekLabel(ws)}</p>
-            </div>
-
-            {/* Gün özeti */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-              {days.map((d, i) => {
-                const cfg = S[d.status];
-                return (
-                  <div key={i} className={`flex items-center gap-3 px-3.5 py-3 rounded-xl ${cfg.light}`}>
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${cfg.bg} ${cfg.text} shrink-0`}>
-                      {cfg.icon}
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-sm font-bold text-slate-800 block leading-tight">{DAYS[i]}</span>
-                      <span className="text-[11px] font-medium text-slate-400">{weekDates[i]}</span>
-                    </div>
-                    <span className={`text-xs font-semibold tabular-nums ${cfg.ltext}`}>
-                      {d.status === "unavailable"
-                        ? "Gelemiyorum"
-                        : !d.start ? "Tüm gün"
-                        : `${displayTime(toMin(d.start))} – ${displayTime(toMin(d.end))}${toMin(d.end) > 1440 ? " +1" : ""}`}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Aksiyon butonları */}
-            <div className="px-5 py-4 flex gap-3 border-t border-slate-100 shrink-0">
-              <button onClick={() => setShowConfirm(false)}
-                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl active:bg-slate-200 transition-colors text-sm">
-                Vazgeç
-              </button>
-              <button onClick={confirmSave}
-                className="flex-[2] bg-emerald-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 active:bg-emerald-600 transition-colors text-sm">
-                <Check size={17} /> Gönder
-              </button>
-            </div>
-            <div style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 }

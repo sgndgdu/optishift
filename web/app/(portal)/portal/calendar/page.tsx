@@ -3,13 +3,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, RefreshCcw, Users, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCcw, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart } from "@/lib/date";
-import { DAY_NAMES as DAYS } from "@/lib/constants";
+import { addDays, businessToday, getWeekStart, weekRangeTR } from "@/lib/date";
+import { DAY_NAMES as DAYS, DAY_SHORT } from "@/lib/constants";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
 export default function PortalCalendar() {
@@ -71,7 +70,6 @@ export default function PortalCalendar() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tab === "mine" ? words.MyShifts : "Şube Programı"}</h1>
-          <p className="text-sm text-slate-500 mt-1">{getWeekLabel()}</p>
         </div>
       </div>
 
@@ -87,7 +85,7 @@ export default function PortalCalendar() {
             <ChevronLeft size={20} strokeWidth={2.5} />
           </Button>
           <span className="text-sm font-bold text-slate-800 bg-slate-50/80 px-4 py-2 rounded-xl border border-border/40 shadow-sm">
-            {getWeekLabel()} · {getWeekStart(weekOffset)}
+            {getWeekLabel()} · {weekRangeTR(weekStart)}
           </span>
           <Button
             variant="ghost"
@@ -105,7 +103,7 @@ export default function PortalCalendar() {
           onClick={() => setTab("mine")}
           className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${tab === "mine" ? "bg-white text-primary shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
         >
-          Benim {words.MyShifts}
+          Benim
         </button>
         <button
           onClick={() => setTab("all")}
@@ -121,78 +119,65 @@ export default function PortalCalendar() {
           <div className="h-28 bg-slate-100 rounded-2xl w-full"></div>
         </div>
       ) : tab === "mine" ? (
-        <div className="relative pl-6 border-l-2 border-primary/20 space-y-8 py-4 ml-2">
-          {shifts.length === 0 && onCalls.length === 0 ? (
-             <div className="text-center py-12 text-muted-foreground font-semibold text-sm">
-               Bu hafta için atanmış bir vardiyanız yok.
-             </div>
-          ) : (
-            [0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
-              const shift = shifts.find((s: any) => s.day === dayIndex);
-              const onCall = onCalls.find((s: any) => s.day === dayIndex);
-              const isOff = !shift;
-
-              return (
-                <div key={dayIndex} className="relative group">
-                  {/* Timeline Noktası */}
-                  <div className={`absolute -left-[35px] top-5 w-4 h-4 rounded-full border-[3px] border-slate-50 shadow-sm transition-transform duration-300 group-hover:scale-125 ${isOff ? "bg-slate-300" : "bg-primary"}`}></div>
-
-                  <Card className={`rounded-[1.5rem] border-0 transition-all duration-300 ${isOff ? "bg-slate-50/50" : "stripe-card"}`}>
-                    <CardContent className="p-5">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <div className={`font-black text-sm mb-3 tracking-tight ${isOff ? "text-slate-400" : "text-slate-800"}`}>
-                            {DAYS[dayIndex]}
-                          </div>
-
-                          {!isOff ? (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2 mb-3">
-                                <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/15 font-bold px-3 py-1 flex items-center gap-1.5 border-primary/20">
-                                  <Clock size={12} strokeWidth={3} /> {shift.start_time || "09:00"} - {shift.end_time || "17:00"}
-                                </Badge>
-                                <Badge className="font-bold px-3 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">
-                                  {shift.shift_id === "custom" ? "Özel" : shiftNames[shift.shift_id] ?? words.Shift}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-border/40 inline-flex">
-                                <MapPin size={14} className="text-primary"/>
-                                {shift.location_name || "Bilinmeyen Şube"}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-muted-foreground text-sm font-semibold italic flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                              Bu gün için {words.shift} yok
-                            </div>
-                          )}
-                          {onCall && (
-                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-dashed border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700"
-                              title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
-                              İcap · {shiftNames[onCall.shift_id] ?? "İcap nöbeti"} {onCall.start_time}–{onCall.end_time}
-                            </div>
-                          )}
-                        </div>
-
-                        {!isOff && (
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-slate-400 hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-colors shrink-0 bg-white border-border/40 shadow-sm rounded-xl h-10 w-10"
-                            title="Vardiya Değişimi İste"
-                            onClick={() => router.push('/portal/requests')}
-                          >
-                            <RefreshCcw size={16} strokeWidth={2.5} />
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              );
-            })
-          )}
-        </div>
+        // Sadece vardiyası olan günler; boş günler tek satırda. Geçmiş günler soluk, bugün vurgulu.
+        (() => {
+          const today = businessToday();
+          const workDays = [0, 1, 2, 3, 4, 5, 6].filter(d => shifts.some((x: any) => x.day === d) || onCalls.some((x: any) => x.day === d));
+          const offDays = [0, 1, 2, 3, 4, 5, 6].filter(d => !workDays.includes(d));
+          if (workDays.length === 0) {
+            return <div className="text-center py-12 text-muted-foreground font-semibold text-sm">Bu hafta için atanmış bir {words.shift} yok.</div>;
+          }
+          return (
+            <div className="space-y-2.5">
+              {workDays.map(d => {
+                const shift = shifts.find((x: any) => x.day === d);
+                const onCall = onCalls.find((x: any) => x.day === d);
+                const date = addDays(weekStart, d);
+                const isToday = date === today;
+                const isPast = date < today;
+                return (
+                  <div key={d} className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${isToday ? "border-primary/40 bg-primary/5" : "border-slate-100 bg-white"} ${isPast ? "opacity-50" : ""}`}>
+                    <div className={`w-12 shrink-0 text-center rounded-xl py-1.5 ${isToday ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>
+                      <p className="text-[10px] font-bold uppercase">{DAY_SHORT[d]}</p>
+                      <p className="text-sm font-black leading-none mt-0.5">{Number(date.slice(8))}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {shift && (
+                        <>
+                          <p className="text-base font-black text-slate-900 tabular-nums">{shift.start_time}–{shift.end_time}</p>
+                          <p className="text-xs font-semibold text-slate-500 truncate">
+                            {shift.shift_id === "custom" ? "Özel" : shiftNames[shift.shift_id] ?? words.Shift}
+                            {isToday && <span className="text-primary font-bold"> · Bugün</span>}
+                          </p>
+                        </>
+                      )}
+                      {onCall && (
+                        <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700"
+                          title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+                          İcap · {onCall.start_time}–{onCall.end_time}
+                        </p>
+                      )}
+                    </div>
+                    {shift && !isPast && (
+                      <button
+                        className="shrink-0 w-10 h-10 rounded-xl border border-slate-200 text-slate-400 hover:text-primary hover:border-primary/30 flex items-center justify-center"
+                        title="Değişiklik iste" aria-label="Değişiklik iste"
+                        onClick={() => router.push("/portal/requests")}
+                      >
+                        <RefreshCcw size={16} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {offDays.length > 0 && (
+                <p className="text-xs font-semibold text-slate-400 px-1 pt-1">
+                  Boş günler: {offDays.map(d => DAY_SHORT[d]).join(", ")}
+                </p>
+              )}
+            </div>
+          );
+        })()
       ) : (
         /* ── Tüm Şube görünümü ── */
         <div className="space-y-4">
