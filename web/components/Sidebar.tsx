@@ -91,9 +91,19 @@ const NAV = [
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
 
+// "Tüm Şubeler" kapsamı (patron / bölge müdürü): işletme geneli sayfalar (/supervisor/*).
+// Şube seçicinin en üstündeki "Tüm Şubeler" bu kapsama geçer; bir şube seçmek şube kapsamına döner.
+const NAV_ALL = [
+  { href: "/supervisor",           label: "Genel Bakış",       icon: LayoutDashboard, group: "main", exact: true },
+  { href: "/supervisor/personnel", label: "Tüm Personel",      icon: Users,           group: "main" },
+  { href: "/supervisor/reports",   label: "Raporlar",          icon: BarChart2,       group: "main" },
+  { href: "/supervisor/chat",      label: "Mesajlaşma",        icon: MessageSquare,   group: "main" },
+  { href: "/supervisor/settings",  label: "İşletme Ayarları",  icon: Settings,        group: "footer" },
+] as const;
+
 const MORE_OPEN_KEY = "optishift_nav_more_open";
 
-export default function Sidebar({ onClose }: { onClose?: () => void }) {
+export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () => void; scope?: "branch" | "all" }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -116,7 +126,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     let initialLoc = "";
 
     try {
-      const stored = localStorage.getItem("optishift_manager_user");
+      // "Tüm Şubeler" kapsamında oturum amir kaydında (şubeye bağlı değil); yoksa şube kaydı
+      const stored = (scope === "all" ? localStorage.getItem("optishift_supervisor_user") : null)
+        ?? localStorage.getItem("optishift_manager_user");
       parsedUser = stored ? JSON.parse(stored) : null;
     } catch {}
 
@@ -176,7 +188,26 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const isOwner = user?.role === "admin" || user?.role === "supervisor";
+  const goAllBranches = () => {
+    if (!localStorage.getItem("optishift_supervisor_user") && user) {
+      localStorage.setItem("optishift_supervisor_user", JSON.stringify({ ...user, location_id: null }));
+    }
+    setIsDropdownOpen(false);
+    onClose?.();
+    router.push("/supervisor");
+  };
+
   const handleLocationChange = (locId: string) => {
+    // Tüm Şubeler kapsamından bir şube seçildi: o şubenin paneline geç
+    if (scope === "all") {
+      localStorage.setItem("optishift_manager_user", JSON.stringify({ ...user, location_id: locId }));
+      localStorage.setItem("optishift_selected_location", locId);
+      setIsDropdownOpen(false);
+      onClose?.();
+      router.push("/dashboard");
+      return;
+    }
     setSelectedLocationId(locId);
     const updated = { ...user, location_id: locId };
     localStorage.setItem("optishift_manager_user", JSON.stringify(updated));
@@ -198,17 +229,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const rules = parseRules(activeLocation?.rules);
 
 
-  const items = NAV
+  const items = scope === "all" ? [...NAV_ALL] : NAV
     .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
     .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
     .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
   const badgeOf = (href: string) =>
     href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
-    href === "/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
+    href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
     href === "/requests"  ? { n: pendingApprovals, tone: "bg-amber-500" } :
     { n: 0, tone: "" };
-  const renderItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
-    const active = pathname.startsWith(href);
+  const renderItem = ({ href, label, icon: Icon, exact }: { href: string; label: string; icon: any; exact?: boolean }) => {
+    const active = exact ? pathname === href : pathname.startsWith(href);
     const badge  = badgeOf(href);
     return (
       <Link
@@ -245,11 +276,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
       {/* Brand */}
       <div className="flex items-center gap-3 px-3 mb-8">
-        <Link href="/dashboard" className="flex items-center gap-3 flex-1 group">
+        <Link href={scope === "all" ? "/supervisor" : "/dashboard"} className="flex items-center gap-3 flex-1 group">
           <Logo size="md" className="shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Yönetim Paneli</p>
+            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">{scope === "all" ? "İşletme Geneli" : "Yönetim Paneli"}</p>
           </div>
         </Link>
         {onClose && (
@@ -264,7 +295,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Aktif Şube</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{scope === "all" ? "Görünüm" : "Aktif Şube"}</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -272,7 +303,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           >
             <div className="flex flex-col items-start truncate">
               <span className="text-sm font-semibold text-slate-800 truncate">
-                {activeLocation?.name ?? "Yükleniyor..."}
+                {scope === "all" ? "Tüm Şubeler" : activeLocation?.name ?? "Yükleniyor..."}
               </span>
               {(orgName || user?.org_name) && (
                 <span className="text-xs text-slate-500 truncate">
@@ -280,21 +311,33 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 </span>
               )}
             </div>
-            {locations.length > 1 && (
+            {(locations.length > 1 || isOwner) && (
               <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-200", isDropdownOpen && "rotate-180")} />
             )}
           </button>
 
-          {isDropdownOpen && locations.length > 1 && (
+          {isDropdownOpen && (locations.length > 1 || isOwner) && (
             <>
               <div 
                 className="fixed inset-0 z-40" 
                 onClick={() => setIsDropdownOpen(false)} 
               />
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="max-h-[200px] overflow-y-auto p-1.5 space-y-0.5">
+                <div className="max-h-[240px] overflow-y-auto p-1.5 space-y-0.5">
+                  {isOwner && (
+                    <button
+                      onClick={goAllBranches}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-left transition-colors border-b border-slate-100",
+                        scope === "all" ? "bg-primary/5 text-primary font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
+                      )}
+                    >
+                      <span className="flex items-center gap-2"><Building2 size={15} /> {locations.length > 1 ? "Tüm Şubeler" : "Genel Bakış ve Şube Ekle"}</span>
+                      {scope === "all" && <Check size={16} className="text-primary shrink-0" />}
+                    </button>
+                  )}
                   {locations.map(loc => {
-                    const isSelected = loc.id === selectedLocationId;
+                    const isSelected = scope === "branch" && loc.id === selectedLocationId;
                     return (
                       <button
                         key={loc.id}
@@ -340,25 +383,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       {/* Ayarlar: kaydırma alanının dışında, grup açıkken de hep görünür */}
       {footer.length > 0 && <div className="px-1 pt-3 mt-2 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
 
-      {/* Yardım (+ sahip için amir paneline geçiş: şube ekleme, şubeler arası özet) */}
+      {/* Yardım */}
       <div className="px-1 pt-2">
-        {(user?.role === "admin" || user?.role === "supervisor") && (
-          <button
-            onClick={() => {
-              if (!localStorage.getItem("optishift_supervisor_user")) {
-                localStorage.setItem("optishift_supervisor_user", JSON.stringify({ ...user, location_id: null }));
-              }
-              onClose?.();
-              router.push("/supervisor");
-            }}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-          >
-            <Building2 size={18} className="text-slate-400" />
-            {locations.length > 1 ? "Tüm Şubeler" : "Şube Ekle ve Genel Bakış"}
-          </button>
-        )}
         <a
-          href="/kilavuz?role=manager"
+          href={`/kilavuz?role=${scope === "all" ? "supervisor" : "manager"}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"

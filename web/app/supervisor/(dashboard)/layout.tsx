@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Menu } from "lucide-react";
-import SupervisorSidebar from "@/components/SupervisorSidebar";
+import Sidebar from "@/components/Sidebar";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
 
@@ -26,7 +26,7 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
-        <SupervisorSidebar onClose={() => setSidebarOpen(false)} />
+        <Sidebar scope="all" onClose={() => setSidebarOpen(false)} />
       </div>
 
       {/* Main Content */}
@@ -40,7 +40,7 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <Logo size="sm" tone="ember" className="w-6 h-6" />
+            <Logo size="sm" className="w-6 h-6" />
             <span className="font-bold text-slate-800 text-sm">OptiShift</span>
           </div>
         </div>

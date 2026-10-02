@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, Plus, Search, Edit2, Trash2, X, Check, Copy,
   Phone, Mail, Link, Upload, CheckCircle, AlertCircle, Loader2, RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
@@ -68,6 +69,8 @@ export default function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [showSignupCard, setShowSignupCard] = useState(false);
   const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
   // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü her zaman, müdür şube ayarına göre
   const can = (perm: ManagerPermission) =>
@@ -461,20 +464,40 @@ export default function PersonnelPage() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">Ekip</h1>
           <p className="text-slate-500 text-sm mt-0.5">{persons.length} kişi</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors shadow-sm">
-            <Upload size={16} /> <span className="hidden sm:inline">Excel ile İçe Aktar</span>
+        {/* Kişi eklemenin üç yolu tek düğmede */}
+        <div className="relative">
+          <button onClick={() => setAddMenuOpen(o => !o)} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-sm font-bold px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-forest-100">
+            <Plus size={16} /> Personel Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
-          <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-sm font-bold px-3 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-forest-100">
-            <Plus size={16} /> <span className="hidden sm:inline">Yeni Hesap Ekle</span><span className="sm:hidden">Ekle</span>
-          </button>
+          {addMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setAddMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-1.5">
+                {[
+                  { icon: Plus, title: "Tek kişi ekle", sub: "İsim ve telefonla hesap açılır", on: () => { resetAddForm(); setShowAddModal(true); } },
+                  { icon: Upload, title: "Excel'den toplu ekle", sub: "Şablonu doldurup tüm ekibi bir kerede", on: () => setShowBulkModal(true) },
+                  { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Personel kendi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
+                ].map(o => (
+                  <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
+                    className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50">
+                    <o.icon size={16} className="text-forest-600 mt-0.5 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-bold text-slate-800">{o.title}</span>
+                      <span className="block text-xs text-slate-500">{o.sub}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Kayıt Linki */}
+      {/* Kayıt Linki: açık bir bağlantı varsa ya da menüden seçildiyse */}
       {authUser?.location_id && (() => {
         const myLoc = locations.find(l => l.id === authUser.location_id);
         const token = myLoc?.self_signup_token;
+        if (!token && !showSignupCard) return null;
         const url = token ? `${window.location.origin}/self-signup/${token}` : "";
         return (
           <div className="bg-white rounded-2xl border border-slate-200 p-4">

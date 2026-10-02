@@ -40,7 +40,7 @@ const TABS: { key: TabKey; label: string; short: string }[] = [
 // Gelişmiş Seçenekler altındaki bir başlığa işaret ediyorsa o başlık açık gelir.
 const LEGACY_TABS: Record<string, { tab: TabKey; group?: string }> = {
   shifts:   { tab: "basic" },
-  requests: { tab: "basic" },
+  requests: { tab: "advanced", group: "requests" },
   rules:    { tab: "advanced", group: "planning" },
   fairness: { tab: "advanced", group: "fairness" },
   zones:    { tab: "advanced", group: "zones" },
@@ -1533,26 +1533,17 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <SectionLabel>Müdür Yetkileri</SectionLabel>
-                <SectionCard title="Bu şubenin müdürü neleri değiştirebilir?">
-                  {MANAGER_PERMISSION_LIST.map(p => (
-                    <RuleRow
-                      key={p.key}
-                      label={p.label}
-                      description={<>{p.description}{viewerRole !== null && !isOwnerRole(viewerRole) && <LockNote />}</>}
-                      right={
-                        <fieldset disabled={viewerRole === null || !isOwnerRole(viewerRole)} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
-                          <Toggle on={mgrPerms[p.key]} onToggle={() => setMgrPerms(m => ({ ...m, [p.key]: !m[p.key] }))} />
-                        </fieldset>
-                      }
-                    />
-                  ))}
-                </SectionCard>
-              </div>
+            </div>
+          )}
 
+          {/* ─── GELİŞMİŞ SEÇENEKLER ─── */}
+          {activeTab === "advanced" && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500">
+                Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Bir başlığa tıklayarak açabilirsiniz.
+              </p>
+              <SettingsGroup id="autopilot" title="Otomatik Pilot" description="Gelecek haftanın planını her hafta taslak olarak hazırlama" open={!!openGroups["autopilot"]} onToggle={toggleGroup}>
               <div className="space-y-4">
-                <SectionLabel>Haftalık Plan</SectionLabel>
                 <SectionCard title="Otomatik Pilot">
                   <RuleRow
                     label="Planı her hafta otomatik hazırla"
@@ -1579,9 +1570,9 @@ export default function SettingsPage() {
                   />
                 </SectionCard>
               </div>
-
+              </SettingsGroup>
+              <SettingsGroup id="requests" title="Personel Talepleri" description="Uygunluk, hatırlatma, takas ve izin kuralları" open={!!openGroups["requests"]} onToggle={toggleGroup}>
               <div className="space-y-4">
-                <SectionLabel>Personel Talepleri</SectionLabel>
                 <SectionCard title="Uygunluk">
                   <RuleRow
                     label="Uygunluk Toplama"
@@ -1704,7 +1695,26 @@ export default function SettingsPage() {
                   />
                 </SectionCard>
               </div>
-
+              </SettingsGroup>
+              <SettingsGroup id="permissions" title="Müdür Yetkileri" description="Şube müdürünün değiştirebileceği alanlar" open={!!openGroups["permissions"]} onToggle={toggleGroup}>
+              <div className="space-y-4">
+                <SectionCard title="Bu şubenin müdürü neleri değiştirebilir?">
+                  {MANAGER_PERMISSION_LIST.map(p => (
+                    <RuleRow
+                      key={p.key}
+                      label={p.label}
+                      description={<>{p.description}{viewerRole !== null && !isOwnerRole(viewerRole) && <LockNote />}</>}
+                      right={
+                        <fieldset disabled={viewerRole === null || !isOwnerRole(viewerRole)} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                          <Toggle on={mgrPerms[p.key]} onToggle={() => setMgrPerms(m => ({ ...m, [p.key]: !m[p.key] }))} />
+                        </fieldset>
+                      }
+                    />
+                  ))}
+                </SectionCard>
+              </div>
+              </SettingsGroup>
+              <SettingsGroup id="location" title="Konum ve Hava Durumu" description="Plan ekranında günlük hava durumu" open={!!openGroups["location"]} onToggle={toggleGroup}>
               <SectionCard title="Konum & Hava Durumu">
                 <RuleRow
                   wide
@@ -1770,15 +1780,7 @@ export default function SettingsPage() {
                   }
                 />
               </SectionCard>
-            </div>
-          )}
-
-          {/* ─── GELİŞMİŞ SEÇENEKLER ─── */}
-          {activeTab === "advanced" && (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-500">
-                Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Bir başlığa tıklayarak açabilirsiniz.
-              </p>
+              </SettingsGroup>
               <SettingsGroup id="planning" title="Planlama Kuralları" description="Çalışma ve dinlenme sınırları, gece kuralları, bütçe" open={!!openGroups["planning"]} onToggle={toggleGroup}>
                 <SectionCard title="Planlama Kuralları">
                   <RuleRow
