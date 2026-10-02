@@ -10,10 +10,17 @@ import { Send, Sparkles, X } from "lucide-react";
 
 type Turn = { role: "user" | "assistant"; text: string };
 
-// Yapay zekâ cevabındaki basit Markdown: **kalın**, "- " / "* " madde, boş satır (ham işaret görünmesin)
+// Yapay zekâ cevabındaki basit Markdown: **kalın**, *italik*, "- " / "* " madde, # başlık (ham işaret görünmesin)
 function Rich({ text }: { text: string }) {
+  // Önce **kalın**, kalan parçalarda *italik*; eşleşmeyen tek yıldızlar silinir
+  const plain = (t: string, k: string) => t.split(/(\*[^*\s][^*]*\*)/g).map((p, j) =>
+    p.length > 2 && p.startsWith("*") && p.endsWith("*")
+      ? <em key={`${k}-${j}`} className="text-slate-500">{p.slice(1, -1)}</em>
+      : <span key={`${k}-${j}`}>{p.replace(/\*/g, "")}</span>);
   const inline = (line: string) => line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : <span key={i}>{part}</span>);
+    part.startsWith("**") && part.endsWith("**") && part.length > 4
+      ? <strong key={i}>{part.slice(2, -2)}</strong>
+      : plain(part, String(i)));
   return (
     <div className="space-y-1">
       {text.split("\n").map((raw, i) => {
