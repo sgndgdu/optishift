@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
 import MobileTabBar from "@/components/MobileTabBar";
+import AssistantPanel from "@/components/AssistantPanel";
 
 export default function SupervisorLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,6 +53,7 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
           </div>
         </div>
         <MobileTabBar scope="all" />
+        <AssistantPanel scope="all" />
       </main>
     </div>
   );

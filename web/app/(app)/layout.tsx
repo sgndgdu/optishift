@@ -7,6 +7,7 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
 import MobileTabBar from "@/components/MobileTabBar";
+import AssistantPanel from "@/components/AssistantPanel";
 import OwnerBranchBanner from "@/components/OwnerBranchBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -56,6 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <MobileTabBar />
+        <AssistantPanel />
       </main>
     </div>
   );

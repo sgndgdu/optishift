@@ -1,0 +1,193 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Asistan için işletme özeti (lib/ai/chat bağlamı). Kullanıcının kapsamında, okunur düz metin.
+ * Şube kapsamı: tek şubenin tam ayrıntısı (personel, bu/gelecek hafta planı, uygunluk, izinler,
+ * bekleyen onaylar, mesai, açık vardiyalar, belgeler, bugünün durumu).
+ * Tüm Şubeler kapsamı (patron / bölge müdürü): şube başına kısa özet.
+ * Kişisel ücret sadece ücret izni olana (lib/ruleLocks "budget") gider.
+ */
+import type { AuthUser } from "@/lib/auth";
+import { addDays, businessNow } from "@/lib/date";
+import { DAY_SHORT } from "@/lib/constants";
+import { summarizeOperatingHours } from "@/lib/operatingHours";
+import { industryFromRules } from "@/lib/templates";
+import { hasManagerPermission } from "@/lib/ruleLocks";
+import { managerOutsideBranch } from "@/lib/access";
+
+const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
+const day = (d: number) => DAY_SHORT[d] ?? String(d);
+const short = (iso: string) => { const [, m, dd] = iso.split("-"); return `${Number(dd)}.${Number(m)}`; };
+const ROLE: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Bölge Müdürü", manager: "Müdür", employee: "Personel" };
+const DETAIL_BRANCH_LIMIT = 8;
+const EMP: Record<string, string> = { full_time: "tam zamanlı", part_time: "yarı zamanlı" };
+
+async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]> {
+  const out: string[] = [];
+  const rules = J(loc.rules, {});
+  const { weekStart, dayIdx, date: today } = businessNow();
+  const nextWeek = addDays(weekStart, 7);
+  const wageOk = hasManagerPermission(auth.role, rules, "budget");
+  const defs: any[] = J(loc.shift_definitions, []);
+  const defName = new Map(defs.map(d => [String(d.id), d.name]));
+
+  out.push(`## Şube: ${loc.name}`);
+  const ind = industryFromRules(rules);
+  if (ind) out.push(`İşletme türü: ${ind.label}`);
+  out.push(`Çalışma saatleri: ${summarizeOperatingHours(J(loc.operating_hours, null))}`);
+  if (defs.length) out.push(`Vardiyalar: ${defs.map(d => `${d.name} ${d.start}-${d.end}${d.on_call ? " (icap)" : ""}`).join(", ")}`);
+  out.push(`Kurallar: haftalık en fazla ${rules.max_weekly_hours ?? 45} saat, iki vardiya arası en az ${rules.min_rest_hours ?? 11} saat dinlenme, en fazla ${rules.max_consecutive_days ?? 6} gün üst üste`);
+  const ap = rules.autopilot ?? {};
+  out.push(`Otomatik pilot: ${ap.enabled === false ? "kapalı" : `açık (${["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"][Number.isInteger(ap.day) ? ap.day : 3]} sabahı)`}`);
+
+  // Personel
+  const people = await db.prepare(`
+    SELECT p.*, u.username, u.role AS user_role FROM personnel p LEFT JOIN users u ON u.personnel_id = p.id
+    WHERE p.org_id = ? AND (p.primary_location_id = ? OR p.assigned_location_ids LIKE ?) ORDER BY p.name
+  `).all(auth.org_id, loc.id, `%"${loc.id}"%`) as any[];
+  const active = people.filter(p => p.status !== "inactive");
+  const nameOf = new Map(people.map(p => [p.id, p.name]));
+  out.push(`### Personel (${active.length} aktif${people.length > active.length ? `, ${people.length - active.length} pasif` : ""})`);
+  for (const p of active) {
+    const bits = [p.title || "Personel", EMP[p.employment_type] ?? p.employment_type, `haftalık sınır ${p.max_weekly_hours ?? 45} s`];
+    const roles = J(p.roles, []);
+    if (roles.length) bits.push(`roller: ${roles.join(", ")}`);
+    if (p.weekly_off_day !== null && p.weekly_off_day !== undefined) bits.push(`sabit izin günü ${day(Number(p.weekly_off_day))}`);
+    if (p.hire_date) bits.push(`işe giriş ${p.hire_date}`);
+    if (p.night_restriction) bits.push("gece çalıştırılamaz");
+    if (Number(p.ytd_overtime_hours) > 0) bits.push(`bu yıl fazla mesai ${Math.round(Number(p.ytd_overtime_hours))} s`);
+    if (p.prev_score !== null && p.prev_score !== undefined) bits.push(`adalet puanı ${Math.round(Number(p.prev_score))}`);
+    if (wageOk && p.hourly_wage) bits.push(`saatlik ücret ₺${p.hourly_wage}`);
+    bits.push(p.username ? "giriş hesabı var" : "giriş hesabı yok");
+    out.push(`- ${p.name}: ${bits.join(", ")}`);
+  }
+
+  // Plan: bu hafta ve gelecek hafta
+  for (const [label, ws] of [["Bu hafta", weekStart], ["Gelecek hafta", nextWeek]] as const) {
+    const rows = await db.prepare(`
+      SELECT personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at
+      FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
+    `).all(loc.id, ws) as any[];
+    const status = rows.length === 0 ? "plan yok" : rows.some(r => r.publication_status === "published") ? "yayınlandı" : "taslak (personel görmüyor)";
+    out.push(`### ${label} planı (${short(ws)}-${short(addDays(ws, 6))}, ${status})`);
+    const byPerson = new Map<string, string[]>();
+    const hours = new Map<string, number>();
+    for (const r of rows) {
+      const tag = `${day(r.day)} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""}`;
+      byPerson.set(r.personnel_id, [...(byPerson.get(r.personnel_id) ?? []), tag]);
+      if (r.kind !== "on_call" && r.start_time && r.end_time) {
+        const [a, b] = [r.start_time, r.end_time].map((t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
+        hours.set(r.personnel_id, (hours.get(r.personnel_id) ?? 0) + ((b <= a ? b + 1440 : b) - a) / 60);
+      }
+    }
+    for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);
+    const idle = active.filter(p => !byPerson.has(p.id)).map(p => p.name);
+    if (rows.length && idle.length) out.push(`- Vardiyası olmayanlar: ${idle.join(", ")}`);
+    // İhtiyaç karşılaştırması (düz tablo)
+    const demand = J(loc.demand_matrix, {});
+    const gaps: string[] = [];
+    for (const d of defs) for (let g = 0; g < 7; g++) {
+      const need = Number(demand?.[d.id]?.[g] ?? demand?.[d.id]?.[String(g)] ?? 0);
+      if (!need) continue;
+      const got = rows.filter(r => r.day === g && String(r.shift_id) === String(d.id) && r.kind !== "on_call").length;
+      if (got < need) gaps.push(`${day(g)} ${d.name} ${got}/${need}`);
+    }
+    if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken): ${gaps.join(", ")}`);
+    if (ws === weekStart) {
+      const todays = rows.filter(r => r.day === dayIdx && r.publication_status === "published" && r.kind !== "on_call");
+      if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}${r.check_in_at ? " (geldi)" : ""}`).join(", ")}`);
+    }
+  }
+
+  // Gelecek haftanın uygunluğu
+  const avail = await db.prepare(`SELECT * FROM availability WHERE week_start = ? AND personnel_id IN (SELECT id FROM personnel WHERE org_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?))`)
+    .all(nextWeek, auth.org_id, loc.id, `%"${loc.id}"%`) as any[];
+  const submitted = new Set(avail.map(a => a.personnel_id));
+  const missing = active.filter(p => !submitted.has(p.id)).map(p => p.name);
+  out.push(`### Gelecek hafta uygunluk: ${submitted.size} kişi girdi${missing.length ? `, girmeyenler: ${missing.join(", ")}` : ""}`);
+  for (const a of avail) {
+    const no = [0, 1, 2, 3, 4, 5, 6].filter(d => a[`day_${d}`] === "unavailable").map(day);
+    const flex = [0, 1, 2, 3, 4, 5, 6].filter(d => a[`day_${d}`] === "preferred_not").map(day);
+    if (no.length || flex.length) out.push(`- ${nameOf.get(a.personnel_id) ?? a.personnel_id}: ${no.length ? `gelemez ${no.join(",")}` : ""}${no.length && flex.length ? "; " : ""}${flex.length ? `tercih etmiyor ${flex.join(",")}` : ""}`);
+  }
+
+  // İzinler (bekleyen + önümüzdeki 30 gün onaylı)
+  const leaves = await db.prepare(`
+    SELECT lr.* FROM leave_requests lr JOIN personnel p ON p.id = lr.personnel_id
+    WHERE p.org_id = ? AND p.primary_location_id = ? AND (lr.status = 'pending' OR (lr.status = 'approved' AND lr.end_date >= ? AND lr.start_date <= ?))
+    ORDER BY lr.start_date
+  `).all(auth.org_id, loc.id, today, addDays(today, 30)) as any[];
+  if (leaves.length) {
+    out.push("### İzinler");
+    for (const l of leaves) out.push(`- ${nameOf.get(l.personnel_id) ?? l.personnel_id}: ${l.type} ${l.start_date}→${l.end_date} (${l.days} gün, ${l.status === "pending" ? "onay bekliyor" : "onaylı"})`);
+  }
+
+  // Bekleyen onaylar
+  const swaps = await db.prepare(`
+    SELECT sr.* FROM shift_swap_requests sr JOIN shift_assignments sa ON sa.id = sr.requester_shift_id
+    WHERE sr.org_id = ? AND sa.location_id = ? AND sr.status IN ('pending','peer_accepted')
+  `).all(auth.org_id, loc.id) as any[];
+  const edits = await db.prepare(`
+    SELECT er.* FROM shift_edit_requests er JOIN shift_assignments sa ON sa.id = er.shift_id
+    WHERE er.org_id = ? AND sa.location_id = ? AND er.status = 'pending'
+  `).all(auth.org_id, loc.id) as any[];
+  const ots = await db.prepare(`SELECT * FROM overtime_records WHERE org_id = ? AND location_id = ? AND status = 'pending' ORDER BY week_start`).all(auth.org_id, loc.id) as any[];
+  if (swaps.length || edits.length || ots.length) {
+    out.push("### Bekleyen talepler");
+    for (const s of swaps) out.push(`- Takas: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "müdür onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
+    for (const e of edits) out.push(`- Saat düzeltme: ${e.personnel_name ?? nameOf.get(e.personnel_id)}: ${e.reason}`);
+    for (const o of ots) out.push(`- Fazla mesai: ${o.personnel_name ?? nameOf.get(o.personnel_id)} ${short(o.week_start)} haftası ${o.overtime_hours} s`);
+  }
+
+  const open = await db.prepare(`SELECT * FROM open_shifts WHERE org_id = ? AND location_id = ? AND status = 'open' AND date >= ? ORDER BY date`).all(auth.org_id, loc.id, today) as any[];
+  if (open.length) out.push(`### Açık vardiyalar: ${open.map(o => `${o.date} ${o.start_time}-${o.end_time}`).join(", ")}`);
+
+  const docs = await db.prepare(`
+    SELECT d.* FROM personnel_documents d JOIN personnel p ON p.id = d.personnel_id
+    WHERE d.org_id = ? AND p.primary_location_id = ? AND d.expiry_date IS NOT NULL AND d.expiry_date <= ?
+  `).all(auth.org_id, loc.id, addDays(today, 30)).catch(() => []) as any[];
+  if (docs.length) out.push(`### Belgeler (süresi dolmuş ya da 30 gün içinde dolacak): ${docs.map(d => `${nameOf.get(d.personnel_id) ?? d.personnel_id} ${d.doc_type} ${d.expiry_date}`).join(", ")}`);
+
+  return out;
+}
+
+async function branchSummary(db: any, auth: AuthUser, loc: any): Promise<string> {
+  const { weekStart } = businessNow();
+  const [cnt, thisW, nextW, pendLeave] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) AS n FROM personnel WHERE org_id = ? AND status != 'inactive' AND (primary_location_id = ? OR assigned_location_ids LIKE ?)`).get(auth.org_id, loc.id, `%"${loc.id}"%`),
+    db.prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN publication_status='published' THEN 1 ELSE 0 END) AS pub FROM shift_assignments WHERE location_id = ? AND week_start = ?`).get(loc.id, weekStart),
+    db.prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN publication_status='published' THEN 1 ELSE 0 END) AS pub FROM shift_assignments WHERE location_id = ? AND week_start = ?`).get(loc.id, addDays(weekStart, 7)),
+    db.prepare(`SELECT COUNT(*) AS n FROM leave_requests lr JOIN personnel p ON p.id = lr.personnel_id WHERE p.org_id = ? AND p.primary_location_id = ? AND lr.status = 'pending'`).get(auth.org_id, loc.id),
+  ]) as any[];
+  const st = (w: any) => (!Number(w?.n) ? "plan yok" : Number(w?.pub) ? `yayınlandı (${w.n} vardiya)` : `taslak (${w.n} vardiya)`);
+  return `- ${loc.name}: ${cnt?.n ?? 0} personel; bu hafta ${st(thisW)}; gelecek hafta ${st(nextW)}; bekleyen izin ${pendLeave?.n ?? 0}`;
+}
+
+/** Asistan bağlamı. locationId verilirse o şubenin ayrıntısı, verilmezse kapsamdaki şubelerin özeti. */
+export async function buildBusinessContext(db: any, auth: AuthUser, locationId: string | null): Promise<string> {
+  const org = await db.prepare("SELECT name FROM organizations WHERE id = ?").get(auth.org_id) as any;
+  const { date, dayIdx } = businessNow();
+  const lines = [
+    `İşletme: ${org?.name ?? ""}`,
+    `Soran: ${auth.name} (${ROLE[auth.role] ?? auth.role})`,
+    `Bugün: ${date} ${["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"][dayIdx]}`,
+  ];
+  if (locationId) {
+    const loc = await db.prepare("SELECT * FROM locations WHERE id = ? AND org_id = ?").get(locationId, auth.org_id) as any;
+    if (loc) lines.push(...await branchDetail(db, auth, loc));
+    return lines.join("\n");
+  }
+  const locs = (await db.prepare("SELECT * FROM locations WHERE org_id = ? ORDER BY name").all(auth.org_id) as any[])
+    .filter(l => !managerOutsideBranch(auth, l.id));
+  lines.push(`## Şubeler (${locs.length})`);
+  for (const l of locs) lines.push(await branchSummary(db, auth, l));
+  // Az şubede her şubenin ayrıntısı da (karşılaştırmalı sorular için); çok şubede bağlam fazla büyümesin
+  if (locs.length <= DETAIL_BRANCH_LIMIT) {
+    for (const l of locs) lines.push("", ...await branchDetail(db, auth, l));
+  }
+  const mgrs = await db.prepare(`SELECT name, role, location_id FROM users WHERE org_id = ? AND role IN ('manager','supervisor') AND COALESCE(approval_status,'active')='active'`).all(auth.org_id) as any[];
+  const locName = new Map(locs.map(l => [l.id, l.name]));
+  const visible = mgrs.filter(m => m.role === "supervisor" || locName.has(m.location_id));
+  if (visible.length) lines.push(`## Yöneticiler: ${visible.map(m => `${m.name} (${m.role === "supervisor" ? "Bölge Müdürü" : `Müdür, ${locName.get(m.location_id)}`})`).join(", ")}`);
+  if (locs.length > DETAIL_BRANCH_LIMIT) lines.push("Not: Tek bir şubenin ayrıntısı için o şubeye girip asistana sorun.");
+  return lines.join("\n");
+}

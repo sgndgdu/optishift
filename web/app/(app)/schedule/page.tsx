@@ -2999,7 +2999,6 @@ loading ? (
             alerts={weekAlerts}
             snapshot={!loading && shiftDefs.length > 0 && personnel.length > 0 ? weekSnapshot : null}
             insights={weekInsights}
-            locationId={activeLocationId}
             onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
           />
           {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (

@@ -13,7 +13,6 @@ import { useState, type ReactNode } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Info, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTIONS, answerQuestion, type Answer, type Insight, type WeekSnapshot } from "@/lib/copilot";
-import CopilotChat from "@/components/schedule/CopilotChat";
 
 export type WeekAlertTone = "danger" | "warning" | "info" | "success";
 
@@ -65,10 +64,8 @@ function AlertRow({ alert }: { alert: WeekAlert }) {
   );
 }
 
-export default function WeekCopilot({ alerts, snapshot, insights, onAction, locationId }: {
+export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
   alerts: WeekAlert[];
-  /** Yapay zekâ sohbeti için şube (yoksa sohbet kutusu yok). */
-  locationId?: string;
   /** null: vardiya tanımı ya da personel yok, Asistan gösterilmez. */
   snapshot: WeekSnapshot | null;
   insights: Insight[];
@@ -134,8 +131,6 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction, loca
                   );
                 })}
               </ul>
-
-              {locationId && <CopilotChat key={`${locationId}|${snapshot.weekStart}`} locationId={locationId} snapshot={snapshot} />}
 
               {snapshot.status !== "empty" && (
                 <div className="space-y-2.5">
