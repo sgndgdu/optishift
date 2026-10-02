@@ -797,13 +797,13 @@ export default function PortalRequests() {
               <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
                 Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
               </p>
-              <button
+              {myShifts.length > 0 && <button
                 disabled={!selMyShift || loading}
                 onClick={submitMarketplace}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-40"
               >
                 <Megaphone size={15} /> {loading ? "Gönderiliyor…" : "Ekibe duyur"}
-              </button>
+              </button>}
             </div>
           )}
 

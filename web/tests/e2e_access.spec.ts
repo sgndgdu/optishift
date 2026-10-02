@@ -98,3 +98,19 @@ test("izin kapalıyken müdür kilitli ayarı, ücreti değiştiremez ve silemez
   expect((await readRules(request)).max_weekly_hours).toBe(44);
   await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: cur } });
 });
+
+test("personel arkadaşlarının ücretini göremez, başka şubenin grubunu okuyamaz, başka işletmeye yazamaz", async ({ request }) => {
+  await login(request, "mega.calisan.kafe");
+  const ppl = await (await request.get("/api/personnel?location_id=loc-mega-kafe")).json() as Record<string, unknown>[];
+  const others = ppl.filter(p => !("weekly_off_day" in p));
+  expect(others.length).toBeGreaterThan(0);
+  expect(others.every(p => !("hourly_wage" in p) && !("phone" in p))).toBe(true);
+  expect((await request.get("/api/messages?group_id=loc-loc-mega-otel")).status()).toBe(403);
+  expect((await request.get("/api/messages?group_id=loc-loc-mega-kafe")).status()).toBe(200);
+  const contacts = await (await request.get("/api/messages/contacts")).json() as { people: { role: string }[] };
+  expect(contacts.people.some(p => p.role === "manager" || p.role === "admin")).toBe(true);
+  await login(request, "egemetal.personel");
+  const egeUser = (await (await request.get("/api/messages/contacts")).json() as { people: { id: string }[] }).people[0]?.id;
+  await login(request, "mega.calisan.kafe");
+  if (egeUser) expect((await request.post("/api/messages", { data: { to_user_id: egeUser, content: "x" } })).status()).toBe(403);
+});

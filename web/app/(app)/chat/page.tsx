@@ -118,32 +118,15 @@ export default function ManagerChatPage() {
     const u = userRef.current;
     if (!u) return;
     const list: Contact[] = [];
-
+    // Gruplar ve kişiler kullanıcının kapsamına göre: /api/messages/contacts
     try {
-      const locs = await fetch(`/api/locations?org_id=${u.org_id}`).then(r => r.json());
-      if (Array.isArray(locs)) {
-        for (const loc of locs) {
-          list.push({
-            id: `group-${loc.id}`, name: loc.name, role: "location",
-            type: "group", groupId: `loc-${loc.id}`, label: "Şube Grubu",
-          });
-        }
+      const d = await fetch("/api/messages/contacts").then(r => r.json());
+      for (const g of d?.groups ?? []) {
+        list.push({ id: `group-${g.id.slice(4)}`, name: g.name, role: "location", type: "group", groupId: g.id, label: "Şube Grubu" });
       }
-    } catch {}
-
-    try {
-      const ppl = await fetch(`/api/personnel?org_id=${u.org_id}`).then(r => r.json());
-      if (Array.isArray(ppl)) {
-        for (const p of ppl) {
-          if (!p.user_id || p.user_id === u.id) continue;
-          const isSupervisor = p.user_access_level === "admin" || p.user_access_level === "supervisor";
-          list.push({
-            id: p.user_id, name: p.name,
-            role: isSupervisor ? "supervisor" : "employee",
-            type: "individual",
-            label: isSupervisor ? "Süpervizör" : (p.title || "Personel"),
-          });
-        }
+      for (const p of d?.people ?? []) {
+        const isSupervisor = p.role === "admin" || p.role === "supervisor";
+        list.push({ id: p.id, name: p.name, role: isSupervisor ? "supervisor" : "employee", type: "individual", label: p.label });
       }
     } catch {}
 

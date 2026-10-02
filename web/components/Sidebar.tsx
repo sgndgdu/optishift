@@ -87,7 +87,7 @@ const NAV = [
   { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
   { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
-  { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing" },
+  { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing", adminOnly: true },
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
 
@@ -232,7 +232,8 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   const items = scope === "all" ? [...NAV_ALL] : NAV
     .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
     .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
-    .filter(item => !("adminOnly" in item && (item as any).adminOnly) || (user?.role === "admin" || user?.role === "supervisor"));
+    // adminOnly: sadece işletme sahibi (ör. Faturalandırma)
+    .filter(item => !("adminOnly" in item && (item as any).adminOnly) || user?.role === "admin");
   const badgeOf = (href: string) =>
     href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
     href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
@@ -305,7 +306,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
               <span className="text-sm font-semibold text-slate-800 truncate">
                 {scope === "all" ? "Tüm Şubeler" : activeLocation?.name ?? "Yükleniyor..."}
               </span>
-              {(orgName || user?.org_name) && (
+              {(orgName || user?.org_name) && (scope === "all" || (orgName || user?.org_name) !== activeLocation?.name) && (
                 <span className="text-xs text-slate-500 truncate">
                   {orgName || user?.org_name}
                 </span>

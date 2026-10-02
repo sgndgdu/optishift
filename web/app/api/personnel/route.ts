@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const department_id = searchParams.get("department_id");
   const location_id = searchParams.get("location_id");
+  const id = searchParams.get("id");
 
   const db = getDB();
   try {
@@ -32,7 +33,13 @@ export async function GET(req: NextRequest) {
       LEFT JOIN users u ON u.personnel_id = p.id
     `;
     let rows;
-    if (department_id) {
+    if (id) {
+      // Tek kişi: personel sadece kendini, yönetici işletmesindeki kişiyi
+      if (auth.role === "employee" && auth.personnel_id !== id) {
+        return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+      }
+      rows = await db.prepare(`${baseSelect} WHERE p.id = ? AND p.org_id = ?`).all(id, auth.org_id);
+    } else if (department_id) {
       // Departmanın bu org'a ait olduğunu doğrula
       const dept = await db.prepare(`
         SELECT d.id FROM departments d
@@ -69,6 +76,13 @@ export async function GET(req: NextRequest) {
         preferred_roles: JSON.parse(p.preferred_roles || "[]"),
       };
     });
+    // Personel arkadaşlarının sadece adını ve unvanını görür (ücret, telefon, not, puan gibi alanlar yöneticiler için)
+    if (auth.role === "employee") {
+      return NextResponse.json(parsed.map((p: any) => p.id === auth.personnel_id ? p : {
+        id: p.id, name: p.name, title: p.title ?? null, user_id: p.user_id ?? null,
+        user_access_level: p.user_access_level, department_id: p.department_id ?? null, status: p.status,
+      }));
+    }
     return NextResponse.json(parsed);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

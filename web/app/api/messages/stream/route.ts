@@ -1,6 +1,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canAccessChatGroup } from "@/lib/access";
 
 
 export async function GET(req: NextRequest) {
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
 
   if (!group_id && !to_user_id) {
     return new NextResponse("group_id or to_user_id required", { status: 400 });
+  }
+  if (group_id && !(await canAccessChatGroup(getDB(), auth, group_id))) {
+    return new NextResponse("forbidden", { status: 403 });
   }
 
   // since_id: Last-Event-ID header takes priority (browser auto-sends on reconnect)

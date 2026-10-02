@@ -134,37 +134,15 @@ export default function SupervisorChatPage() {
     if (!u) return;
     setLoadingContacts(true);
     const list: Contact[] = [];
-
+    // Gruplar ve kişiler kullanıcının kapsamına göre: /api/messages/contacts (patron/bölge müdürü: yöneticiler)
     try {
-      const locs = await fetch(`/api/locations?org_id=${u.org_id}`).then(r => r.json());
-      if (Array.isArray(locs)) {
-        for (const loc of locs) {
-          list.push({
-            id: `group-${loc.id}`, name: loc.name, type: "group",
-            groupId: `loc-${loc.id}`, subtitle: "Şube Grubu",
-          });
-        }
+      const d = await fetch("/api/messages/contacts").then(r => r.json());
+      for (const g of d?.groups ?? []) {
+        list.push({ id: `group-${g.id.slice(4)}`, name: g.name, type: "group", groupId: g.id, subtitle: "Şube Grubu" });
       }
-    } catch {}
-
-    try {
-      const [pplData, locsData] = await Promise.all([
-        fetch(`/api/personnel?org_id=${u.org_id}`).then(r => r.json()),
-        fetch(`/api/locations?org_id=${u.org_id}`).then(r => r.json()),
-      ]);
-      const locMap: Record<string, string> = {};
-      if (Array.isArray(locsData)) for (const l of locsData) locMap[l.id] = l.name;
-
-      if (Array.isArray(pplData)) {
-        for (const p of pplData) {
-          if (!p.user_id || p.user_id === u.id) continue;
-          if (p.user_access_level !== "manager" && p.user_access_level !== "admin") continue;
-          const locName = locMap[p.location_id] ?? "";
-          list.push({
-            id: p.user_id, name: p.name, type: "individual",
-            subtitle: locName ? `Müdür · ${locName}` : "Müdür",
-          });
-        }
+      for (const p of d?.people ?? []) {
+        if (p.role === "employee") continue;
+        list.push({ id: p.id, name: p.name, type: "individual", subtitle: p.location ? `${p.label} · ${p.location}` : p.label });
       }
     } catch {}
 

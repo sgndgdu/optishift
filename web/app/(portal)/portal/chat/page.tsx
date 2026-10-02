@@ -82,29 +82,15 @@ export default function EmployeeChatPage() {
     const u = userRef.current;
     if (!u) return;
     const list: Contact[] = [];
-    const locId = u.location_id;
-
-    if (locId) {
-      list.push({
-        id: `group-${locId}`, name: "Ekip Sohbeti", role: "group", type: "group",
-        groupId: `loc-${locId}`, label: "Tüm Ekip",
-      });
-    }
-
+    // Kişiler kullanıcı hesaplarından (personel kaydı olmayan müdür de çıkar): /api/messages/contacts
     try {
-      const url = locId ? `/api/personnel?location_id=${locId}` : `/api/personnel?org_id=${u.org_id}`;
-      const ppl = await fetch(url).then(r => r.json());
-      if (Array.isArray(ppl)) {
-        for (const p of ppl) {
-          if (!p.user_id || p.user_id === u.id) continue;
-          const isManager = p.user_access_level === "manager" || p.user_access_level === "admin" || p.user_access_level === "supervisor";
-          list.push({
-            id: p.user_id, name: p.name,
-            role: isManager ? "manager" : "employee",
-            type: "individual",
-            label: isManager ? "Müdür" : (p.title || "Personel"),
-          });
-        }
+      const d = await fetch("/api/messages/contacts").then(r => r.json());
+      for (const g of d?.groups ?? []) {
+        list.push({ id: `group-${g.id.slice(4)}`, name: "Ekip Sohbeti", role: "group", type: "group", groupId: g.id, label: g.name });
+      }
+      for (const p of d?.people ?? []) {
+        const isManager = p.role !== "employee";
+        list.push({ id: p.id, name: p.name, role: isManager ? "manager" : "employee", type: "individual", label: p.label });
       }
     } catch {}
 
@@ -288,7 +274,7 @@ export default function EmployeeChatPage() {
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-100 shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-black text-slate-700">Sohbet</h2>
+              <h2 className="text-sm font-black text-slate-700">Mesajlar</h2>
               {totalUnread > 0 && (
                 <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
               )}

@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canAccessChatGroup } from "@/lib/access";
 
 
 // GET: Konuşma geçmişini getir
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     let rows: any[];
+    // Grup: sadece kapsamdaki şubenin grubu (lib/access)
+    if (group_id && !(await canAccessChatGroup(db, auth, group_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (group_id) {
       rows = await db.prepare(`
         SELECT m.*, u.name as from_name, u.role as from_role
@@ -80,6 +83,9 @@ export async function POST(req: NextRequest) {
     if (!to_user_id && !group_id) {
       return NextResponse.json({ error: "to_user_id veya group_id zorunlu" }, { status: 400 });
     }
+    // Alıcı aynı işletmede, grup kapsamda olmalı
+    if (group_id && !(await canAccessChatGroup(db, auth, group_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    if (to_user_id && !(await db.prepare("SELECT 1 FROM users WHERE id = ? AND org_id = ?").get(to_user_id, org_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
