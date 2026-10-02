@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
-import { AvailabilityEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
+import { AvailabilityEnabledContext, OpenShiftsEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
 
 function useChatUnread() {
@@ -44,12 +44,14 @@ function useNotifUnread() {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// Alt menü (telefon) sadece günlük işler: Ana Sayfa, Vardiyalarım, Talepler, Mesajlar.
+// Uygunluk ve açık vardiyalar Ana Sayfa'daki kısayollardan ve masaüstü menüsünden açılır.
 const NAV = [
-  { href: "/portal",              label: "Özet",        icon: Home,          exact: true },
-  { href: "/portal/calendar",     label: "Vardiyalar",  icon: Calendar },
-  { href: "/portal/availability", label: "Uygunluk",   icon: Clock },
-  { href: "/portal/requests",     label: "Talepler",    icon: Inbox },
-  { href: "/portal/chat",         label: "Sohbet",      icon: MessageSquare },
+  { href: "/portal",              label: "Ana Sayfa",   icon: Home,          exact: true, primary: true },
+  { href: "/portal/calendar",     label: "Vardiyalarım", icon: Calendar,     primary: true },
+  { href: "/portal/requests",     label: "Talepler",    icon: Inbox,         primary: true },
+  { href: "/portal/chat",         label: "Mesajlar",    icon: MessageSquare, primary: true },
+  { href: "/portal/availability", label: "Uygunluğum",  icon: Clock },
   { href: "/portal/open-shifts",  label: "Açık Vardiyalar", icon: Megaphone },
   { href: "/portal/notifications", label: "Bildirimler", icon: BellRing },
   { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },
@@ -103,9 +105,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     .filter(i => availCollectionEnabled || i.href !== "/portal/availability")
     .filter(i => chatEnabled || i.href !== "/portal/chat")
     .filter(i => openShiftsEnabled || i.href !== "/portal/open-shifts")
-    .map(i => i.href === "/portal/calendar" ? { ...i, label: words.Shifts }
+    .map(i => i.href === "/portal/calendar" ? { ...i, label: words.MyShifts }
       : i.href === "/portal/open-shifts" ? { ...i, label: words.OpenShifts } : i);
-  const bottomNav = nav.slice(0, 5);
+  const bottomNav = nav.filter(i => i.primary);
 
   if (!mounted) return null;
 
@@ -130,14 +132,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </Link>
 
         <nav className="flex-1 space-y-1 px-1 overflow-y-auto">
-          {nav.map(({ href, label, icon: Icon, exact }) => {
+          {nav.map(({ href, label, icon: Icon, exact, primary }, idx) => {
             const isActive = exact ? pathname === href : pathname.startsWith(href);
+            const firstSecondary = !primary && nav[idx - 1]?.primary;
             const badge =
               href === "/portal/chat" ? chatUnread :
               href === "/portal/notifications" ? notifUnread : 0;
             return (
+              <div key={href}>
+              {firstSecondary && <div className="my-3 mx-3 border-t border-slate-100" />}
               <Link
-                key={href}
                 href={href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
@@ -160,6 +164,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                   <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
                 )}
               </Link>
+              </div>
             );
           })}
         </nav>
@@ -207,15 +212,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">
-            <a href="/kilavuz?role=employee" target="_blank" rel="noopener noreferrer" aria-label="Yardım" title="Yardım" className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-              <HelpCircle size={20} />
-            </a>
-            {/* Alt menüde zaten varsa üstte tekrar gösterilmez */}
-            {openShiftsEnabled && !bottomNav.some(i => i.href === "/portal/open-shifts") && (
-              <Link href="/portal/open-shifts" aria-label={words.OpenShifts} title={words.OpenShifts} className={cn("p-2 rounded-xl transition-colors", pathname.startsWith("/portal/open-shifts") ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
-                <Megaphone size={20} />
-              </Link>
-            )}
             <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (
@@ -231,7 +227,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         <div className="flex-1 overflow-auto">
           <div className="pb-20 md:pb-0">
             <ShiftWordsContext.Provider value={words}>
-              <AvailabilityEnabledContext.Provider value={availKnown ? availCollectionEnabled : null}>{children}</AvailabilityEnabledContext.Provider>
+              <AvailabilityEnabledContext.Provider value={availKnown ? availCollectionEnabled : null}>
+                <OpenShiftsEnabledContext.Provider value={openShiftsEnabled}>{children}</OpenShiftsEnabledContext.Provider>
+              </AvailabilityEnabledContext.Provider>
             </ShiftWordsContext.Provider>
           </div>
         </div>

@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Clock, Calendar as CalIcon, TrendingUp, Check,
+  Clock, Calendar as CalIcon, Check, Megaphone,
   MapPin, AlertCircle, Timer, ChevronRight,
   Zap, ClipboardList, PlayCircle, StopCircle, Wallet,
 } from "lucide-react";
@@ -14,7 +14,7 @@ import { getWeekStart, addWeeks, timeAgo, addDays, formatDateTR } from "@/lib/da
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
-import { useAvailabilityEnabled, useShiftWords } from "@/hooks/useShiftWords";
+import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -35,6 +35,7 @@ export default function PortalDashboard() {
   const words = useShiftWords();
   // Şubede uygunluk toplama kapalıysa uygunluk kısayolu ve "eksik" uyarısı gösterilmez
   const availEnabled = useAvailabilityEnabled();
+  const openShiftsEnabled = useOpenShiftsEnabled();
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
@@ -59,8 +60,6 @@ export default function PortalDashboard() {
   const [checkInError,  setCheckInError]  = useState("");
   const [elapsed,       setElapsed]       = useState("");
   const [now,           setNow]           = useState(new Date());
-  const [fairness,      setFairness]      = useState<any>(null); // /api/fairness/me — kendi puanı + etiket + döküm
-  const [fairnessOpen,  setFairnessOpen]  = useState(false);
   const [emergencyOpen,    setEmergencyOpen]    = useState(false);
   const [emergencyMsg,     setEmergencyMsg]     = useState("");
   const [emergencySending, setEmergencySending] = useState(false);
@@ -80,12 +79,11 @@ export default function PortalDashboard() {
     const ws  = getWeekStart(0);
     const nws = getWeekStart(1);
     try {
-      const [shiftData, notifData, availData, personnelData, fairnessData] = await Promise.all([
+      const [shiftData, notifData, availData, personnelData] = await Promise.all([
         fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}&include_on_call=1`).then(r => r.json()),
         fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
         fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
-        fetch(`/api/fairness/me`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
       // Gelecek haftanın yayınlanmış planı (personel sadece yayınlanmışı görür)
       const nextLoc = user.location_id
@@ -94,7 +92,6 @@ export default function PortalDashboard() {
       const nextRows = Array.isArray(nextLoc) ? nextLoc.filter((s: any) => s.kind !== "on_call") : [];
       setNextWeekPublished(nextRows.length > 0);
       setNextWeekFirst(nextRows.filter((s: any) => s.personnel_id === user.personnel_id).sort((a: any, b: any) => a.day - b.day)[0] ?? null);
-      setFairness(fairnessData && !fairnessData.error ? fairnessData : null);
       // İcap nöbeti ayrı: giriş/çıkış ve görev listesi sadece normal vardiyada
       const rows = Array.isArray(shiftData) ? shiftData : [];
       setShifts(rows.filter((s: any) => s.kind !== "on_call"));
@@ -402,10 +399,6 @@ export default function PortalDashboard() {
           )}
           {/* buttons */}
           <div className="flex gap-2.5">
-            <button onClick={() => router.push("/portal/calendar")}
-              className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-bold py-3 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 active:scale-[0.97]">
-              <CalIcon size={14} /> {words.Shifts}
-            </button>
             {todayShift && !todayShift.check_in_at && !isCompleted && (
               <button onClick={() => handleCheckIn(todayShift.id)} disabled={checkInLoading}
                 className="flex-[2] bg-emerald-400 hover:bg-emerald-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
@@ -588,13 +581,25 @@ export default function PortalDashboard() {
         </div>
       </div>
 
-      {/* ── Acil Durum Bildirimi ─────────────────────────────────────────── */}
-      <div className="flex justify-center">
+      {/* ── Kısayollar: alt menüden çıkarılan sayfalar + acil durum ──────── */}
+      <div className="flex flex-wrap gap-2">
+        {availEnabled === true && (
+          <Link href="/portal/availability"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            <Clock size={13} /> Uygunluğum
+          </Link>
+        )}
+        {openShiftsEnabled && (
+          <Link href="/portal/open-shifts"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            <Megaphone size={13} /> {words.OpenShifts}
+          </Link>
+        )}
         <button
           onClick={() => setEmergencyOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
         >
-          <AlertCircle size={13} /> Acil durum bildir
+          <AlertCircle size={13} /> Acil durum
         </button>
       </div>
 
@@ -691,109 +696,6 @@ export default function PortalDashboard() {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* ── Stats ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => fairness && setFairnessOpen(o => !o)}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-left hover:shadow-md transition-shadow"
-        >
-          <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-3">
-            <TrendingUp size={18} />
-          </div>
-          {/* Ham puan tek başına anlam taşımaz: asıl mesaj ekibe göre konum */}
-          <p className="text-xs text-slate-400 font-semibold">Adalet Puanı</p>
-          <p className={`text-sm font-black leading-snug mt-0.5 ${
-            fairness?.label?.level === "high" ? "text-amber-700"
-            : fairness?.label?.level === "low" ? "text-emerald-700" : "text-slate-900"}`}>
-            {fairness?.label?.text ?? "Hesaplanıyor"}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1 tabular-nums">
-            {Math.round(((fairness?.score ?? user?.prev_score) ?? 0) * 10) / 10} puan · Ayrıntı için dokun
-          </p>
-        </button>
-        <Link href="/portal/calendar" className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 block hover:shadow-md transition-shadow">
-          <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">
-            <Clock size={18} />
-          </div>
-          {dataLoading ? (
-            <div className="h-7 bg-slate-100 rounded animate-pulse w-16 mb-1" />
-          ) : (
-            <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">
-              {totalHours > 0 ? totalHours.toFixed(0) : "—"}
-              {totalHours > 0 && <span className="text-sm text-slate-400 font-semibold ml-1">sa</span>}
-            </p>
-          )}
-          <p className="text-xs text-slate-400 font-semibold mt-0.5">Bu Hafta</p>
-        </Link>
-      </div>
-
-      {/* ── Adalet puanı dökümü (karta tıklayınca açılır) ────────────────── */}
-      {fairnessOpen && fairness && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-slate-900 text-sm">Puanın nasıl oluştu?</h3>
-            <span className="text-[10px] text-slate-400 font-medium">Son 8 hafta</span>
-          </div>
-
-          {fairness.history.length > 0 ? (
-            <>
-              {/* Haftalık yük mini grafiği */}
-              <div className="flex items-end gap-1.5 h-16">
-                {fairness.history.map((h: any) => {
-                  const max = Math.max(...fairness.history.map((x: any) => x.burden_score), 1);
-                  return (
-                    <div key={h.week_start} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-forest-100 rounded-md relative overflow-hidden" style={{ height: "100%" }}>
-                        <div className="absolute bottom-0 w-full bg-forest-400 rounded-md" style={{ height: `${(h.burden_score / max) * 100}%` }} />
-                      </div>
-                      <span className="text-[8px] text-slate-400 font-semibold">
-                        {new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "numeric" })}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Son haftanın kırılımı */}
-              {(() => {
-                const last = fairness.history[fairness.history.length - 1];
-                return (
-                  <div className="text-xs text-slate-500 space-y-1">
-                    <p className="font-bold text-slate-700">Son hafta ({new Date(last.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}): {Math.round(last.burden_score * 10) / 10} yük puanı · {Math.round(last.total_hours * 10) / 10} saat</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {last.weekend_shifts > 0 && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.weekend_shifts} hafta sonu</span>}
-                      {last.night_shifts > 0 && <span className="bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.night_shifts} gece</span>}
-                      {(last.pref_not_shifts ?? 0) > 0 && <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.pref_not_shifts} sarı gün (telafili)</span>}
-                      {last.clopening_count > 0 && <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">{last.clopening_count} kapanış→açılış</span>}
-                      {fairness.hero_count > 0 && <span className="bg-ember-50 text-ember-700 px-2 py-0.5 rounded-full font-semibold text-[10px]">🦸 {fairness.hero_count} kahramanlık</span>}
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
-          ) : (
-            <p className="text-xs text-slate-400">Henüz yayınlanmış bir haftan yok. İlk vardiya haftan yayınlanınca puanın burada oluşmaya başlar.</p>
-          )}
-
-          {/* Telafi / bonus olayları */}
-          {fairness.adjustments.length > 0 && (
-            <div className="border-t border-slate-100 pt-3 space-y-1.5">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Telafi Puanları</p>
-              {fairness.adjustments.slice(0, 5).map((a: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Son dakika değişiklik telafisi" : "Elle düzeltme")}</span>
-                  <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <p className="text-[10px] text-slate-300 leading-relaxed">
-            Zor, uzun, hafta sonu ve gece vardiyaları{fairness.history.some((h: any) => "pref_not_shifts" in h) ? ", ve tercih etmediğin günlerde çalışmak," : ""} daha çok puan getirir. Puanın yükseldiyse sonraki haftalarda sıra daha hafif vardiyalara sende olur.
-          </p>
         </div>
       )}
 

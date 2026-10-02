@@ -13,3 +13,8 @@ export const useShiftWords = () => useContext(ShiftWordsContext);
 export const AvailabilityEnabledContext = createContext<boolean | null>(null);
 
 export const useAvailabilityEnabled = () => useContext(AvailabilityEnabledContext);
+
+// Personel portalı: şubede açık vardiya ilanları açık mı (rules.open_shifts_enabled).
+export const OpenShiftsEnabledContext = createContext<boolean>(true);
+
+export const useOpenShiftsEnabled = () => useContext(OpenShiftsEnabledContext);

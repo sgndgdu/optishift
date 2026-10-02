@@ -9,7 +9,7 @@ import { DAY_SHORT } from "@/lib/constants";
 import {
   Inbox, ArrowLeftRight, FileEdit, CalendarOff,
   CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2,
-  AlertCircle, ShieldAlert, Star, Megaphone
+  AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -17,6 +17,13 @@ const LEAVE_TYPES = [
   "Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor",
   "Doğum İzni", "Süt İzni", "Evlilik İzni", "Ücretsiz İzin",
 ];
+// Eski/İngilizce kayıtlar (lib/types LeaveType) ekranda Türkçe görünsün
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  annual: "Yıllık İzin", sick: "Hastalık / Rapor", excuse: "Mazeret İzni",
+};
+const leaveTypeLabel = (t: string | null | undefined) => (t && LEAVE_TYPE_LABELS[t]) || t || "İzin";
+
+type NewType = "leave" | "giveaway" | "swap" | "edit";
 
 function shiftLabel(row: any) {
   if (!row) return "—";
@@ -80,7 +87,8 @@ export default function PortalRequests() {
   const [myListings, setMyListings]   = useState<any[]>([]); // "Herkese Aç" ile açtığım devir ilanları
 
   // new-form state
-  const [newType, setNewType]         = useState<"swap" | "edit" | "leave">("swap");
+  // null = tür seçim listesi görünür
+  const [newType, setNewType]         = useState<NewType | null>(null);
 
   // swap wizard
   const [swapStep, setSwapStep]       = useState(0);
@@ -136,13 +144,12 @@ export default function PortalRequests() {
           setOpenShiftsEnabled(rules?.open_shifts_enabled !== false);
           setSwapRequestsEnabled(swapOn);
           setEditRequestsEnabled(editOn);
-          // Varsayılan seçili tip (swap) kapalıysa, açık olan ilk seçeneğe kay
+          // Seçili tür sonradan kapandıysa listeye dön
           setNewType(prev => {
-            const stillValid = (prev === "swap" && swapOn) || (prev === "edit" && editOn) || (prev === "leave" && leaveOn);
-            if (stillValid) return prev;
-            if (swapOn) return "swap";
-            if (editOn) return "edit";
-            if (leaveOn) return "leave";
+            if (prev === "swap" && !swapOn) return null;
+            if (prev === "edit" && !editOn) return null;
+            if (prev === "leave" && !leaveOn) return null;
+            if (prev === "giveaway" && rules?.open_shifts_enabled === false) return null;
             return prev;
           });
         } catch { /* geçersiz JSON → atla */ }
@@ -207,7 +214,7 @@ export default function PortalRequests() {
 
   // ── load my shifts for wizard ──────────────────────────────────────────
   useEffect(() => {
-    if (activeTab !== "new" || newType !== "swap" || !user) return;
+    if (activeTab !== "new" || (newType !== "swap" && newType !== "giveaway") || !user) return;
     (async () => {
       const weeks = await Promise.all(
         [0, 1, 2].map(w =>
@@ -270,8 +277,8 @@ export default function PortalRequests() {
         body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
       });
       if (r.ok) {
-        showToast("İlan açıldı. Biri üstlenene kadar vardiya sende kalır.");
-        resetSwapWizard();
+        showToast("Ekibe duyuruldu. Biri üstlenene kadar vardiya sende kalır.");
+        resetSwapWizard(); setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
@@ -300,7 +307,7 @@ export default function PortalRequests() {
       if (r.ok) {
         showToast("Takas teklifi gönderildi!");
         resetSwapWizard();
-        setActiveTab("sent");
+        setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
@@ -326,7 +333,7 @@ export default function PortalRequests() {
       if (r.ok) {
         showToast("Düzenleme talebi gönderildi!");
         setEditShift(null); setEditReason("");
-        setActiveTab("sent");
+        setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
@@ -360,7 +367,7 @@ export default function PortalRequests() {
       if (r.ok) {
         showToast("İzin talebi gönderildi!");
         setLeaveStart(""); setLeaveEnd(""); setLeaveNote("");
-        setActiveTab("sent");
+        setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
@@ -470,33 +477,61 @@ export default function PortalRequests() {
   return (
     <div className="p-5 space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Talepler</h1>
-        <p className="text-sm text-slate-500 mt-1">İzin, takas ve düzenleme talepleri</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Talepler</h1>
+          <p className="text-sm text-slate-500 mt-1">İzin, değişiklik ve gelemediğin günler</p>
+        </div>
+        {activeTab !== "new" && (
+          <button
+            onClick={() => { setActiveTab("new"); setNewType(null); resetSwapWizard(); }}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-sm hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={16} /> Yeni talep
+          </button>
+        )}
       </div>
 
-      {/* Tab bar */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-        {([
-          { id: "sent",     label: "Gönderdiğim" },
-          { id: "incoming", label: `Gelen${incomingPendingCount > 0 ? ` (${incomingPendingCount})` : ""}` },
-          { id: "new",      label: "Yeni Talep" },
-        ] as const).map(t => (
-          <button
-            key={t.id}
-            onClick={() => { setActiveTab(t.id); resetSwapWizard(); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              activeTab === t.id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {activeTab === "new" ? (
+        <button
+          onClick={() => { if (newType) { setNewType(null); resetSwapWizard(); } else setActiveTab("sent"); }}
+          className="inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-800"
+        >
+          <ChevronLeft size={16} /> {newType ? "Talep türleri" : "Taleplerim"}
+        </button>
+      ) : (
+        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+          {([
+            { id: "sent",     label: "Taleplerim" },
+            { id: "incoming", label: `Sana Gelen${incomingPendingCount > 0 ? ` (${incomingPendingCount})` : ""}` },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              onClick={() => { setActiveTab(t.id); resetSwapWizard(); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                activeTab === t.id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── SENT TAB ── */}
       {activeTab === "sent" && (
         <div className="space-y-4">
+          {incomingPendingCount > 0 && (
+            <button onClick={() => setActiveTab("incoming")}
+              className="w-full flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5 text-left hover:bg-ember-100 transition-colors">
+              <AlertCircle size={18} className="text-ember-600 shrink-0" />
+              <span className="flex-1 text-sm font-bold text-ember-800">Sana gelen {incomingPendingCount} talep cevabını bekliyor</span>
+              <ChevronRight size={16} className="text-ember-600" />
+            </button>
+          )}
+          {myListings.length === 0 && swapsSent.length === 0 && editReqs.length === 0 && leaveReqs.length === 0 && (
+            <Empty text="Henüz bir talebin yok. İzin istemek ya da gelemeyeceğin bir günü bildirmek için “Yeni talep”e dokun." />
+          )}
           {myListings.length > 0 && (
             <Section title="Açık İlanlarım" icon={<Megaphone size={14} />}>
               {myListings.map((o: any) => (
@@ -510,10 +545,9 @@ export default function PortalRequests() {
               ))}
             </Section>
           )}
+          {swapsSent.length > 0 && (
           <Section title="Takas Talepleri" icon={<ArrowLeftRight size={14} />}>
-            {swapsSent.length === 0
-              ? <Empty text="Takas talebi yok" />
-              : swapsSent.map(s => (
+            {swapsSent.map(s => (
                 <RequestCard key={s.id}
                   title={`${s.target_name ?? "—"} ile takas`}
                   sub={`Benim: ${shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })} → Onların: ${shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}`}
@@ -525,11 +559,11 @@ export default function PortalRequests() {
                 />
               ))}
           </Section>
+          )}
 
-          <Section title="Düzenleme Talepleri" icon={<FileEdit size={14} />}>
-            {editReqs.length === 0
-              ? <Empty text="Düzenleme talebi yok" />
-              : editReqs.map(e => (
+          {editReqs.length > 0 && (
+          <Section title="Saat Düzeltme Talepleri" icon={<FileEdit size={14} />}>
+            {editReqs.map(e => (
                 <RequestCard key={e.id}
                   title="Vardiya düzenleme"
                   sub={shiftLabel({ week_start: e.week_start, day: e.day, start_time: e.start_time, end_time: e.end_time })}
@@ -541,13 +575,13 @@ export default function PortalRequests() {
                 />
               ))}
           </Section>
+          )}
 
+          {leaveReqs.length > 0 && (
           <Section title="İzin Talepleri" icon={<CalendarOff size={14} />}>
-            {leaveReqs.length === 0
-              ? <Empty text="İzin talebi yok" />
-              : leaveReqs.map((l: any) => (
+            {leaveReqs.map((l: any) => (
                 <RequestCard key={l.id}
-                  title={l.type}
+                  title={leaveTypeLabel(l.type)}
                   sub={l.start_date === l.end_date ? `${formatDateTR(l.start_date)} (1 gün)` : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
                   status={l.status}
                   note={l.note}
@@ -556,6 +590,7 @@ export default function PortalRequests() {
                 />
               ))}
           </Section>
+          )}
         </div>
       )}
 
@@ -718,35 +753,59 @@ export default function PortalRequests() {
       {/* ── NEW REQUEST TAB ── */}
       {activeTab === "new" && (
         <div className="space-y-4">
-          {/* Type picker */}
-          {(() => {
-            const typeOptions = [
-              ...(swapRequestsEnabled ? [{ id: "swap", label: "Vardiya Takası", icon: ArrowLeftRight }] as const : []),
-              ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", icon: FileEdit }] as const : []),
-              ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", icon: CalendarOff }] as const : []),
-            ] as const;
+          {/* Tür seçimi: ne istediğini kendi cümlesiyle seçer */}
+          {newType === null && (() => {
+            const typeOptions: { id: NewType; label: string; hint: string; icon: typeof CalendarOff }[] = [
+              ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
+              ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", icon: UserX }] : []),
+              ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına takas teklif et", icon: ArrowLeftRight }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Müdürden düzeltme iste", icon: FileEdit }] : []),
+            ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
             }
             return (
-          <div className={`grid gap-2 ${typeOptions.length === 3 ? "grid-cols-3" : typeOptions.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {typeOptions.map(t => (
-              <button
-                key={t.id}
-                onClick={() => { setNewType(t.id); resetSwapWizard(); }}
-                className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all ${
-                  newType === t.id
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-              >
-                <t.icon size={20} />
-                <span className="text-[11px] font-bold">{t.label}</span>
-              </button>
-            ))}
-          </div>
+              <div className="space-y-2">
+                {typeOptions.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setNewType(t.id); resetSwapWizard(); }}
+                    className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl border border-slate-200 bg-white text-left hover:border-primary/40 hover:bg-primary/5 transition-all"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <t.icon size={19} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-800">{t.label}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{t.hint}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 shrink-0" />
+                  </button>
+                ))}
+              </div>
             );
           })()}
+
+          {/* ── GELEMİYORUM: vardiyayı ekibe duyur (açık vardiya ilanı) ── */}
+          {openShiftsEnabled && newType === "giveaway" && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2">
+              <p className="text-xs font-bold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
+              {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan yayınlanmış vardiyan yok.</p>}
+              {myShifts.map(s => (
+                <ShiftOption key={s.id} shift={s} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
+              ))}
+              <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+                Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
+              </p>
+              <button
+                disabled={!selMyShift || loading}
+                onClick={submitMarketplace}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                <Megaphone size={15} /> {loading ? "Gönderiliyor…" : "Ekibe duyur"}
+              </button>
+            </div>
+          )}
 
           {/* ── SWAP WIZARD ── */}
           {swapRequestsEnabled && newType === "swap" && (
@@ -774,25 +833,7 @@ export default function PortalRequests() {
 
                 {swapStep === 1 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Takas teklifini kime göndermek istiyorsun?</p>
-                    {openShiftsEnabled && (
-                      <>
-                        <button
-                          disabled={loading}
-                          onClick={submitMarketplace}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-ember-300 bg-ember-50 hover:bg-ember-100 text-left transition-all disabled:opacity-50"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-ember-100 flex items-center justify-center shrink-0">
-                            <Megaphone size={15} className="text-ember-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-ember-700">Herkese Aç (Pazar Yeri)</p>
-                            <p className="text-[10px] text-ember-600/80">Belirli birini seçme, vardiyan tüm ekibe açık ilan olarak düşer, isteyen üstlenir.</p>
-                          </div>
-                        </button>
-                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider text-center py-1">veya belirli birine teklif et</p>
-                      </>
-                    )}
+                    <p className="text-xs font-bold text-slate-500 mb-3">Kiminle değiştirmek istiyorsun?</p>
                     {teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Ekip arkadaşı bulunamadı.</p>}
                     {teammates.map(p => (
                       <button

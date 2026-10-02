@@ -38,7 +38,6 @@ import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 
 const DAYS = DAY_SHORT;
-const PERSONNEL_COL_PX = 176; // sticky personel kolonu genişliği (w-44) — gün göstergesi hesabında kullanılır
 
 function getWeekLabel(offset: number): { label: string; dates: string[] } {
   const now = new Date();
@@ -482,6 +481,17 @@ function SchedulePageInner() {
   const [editRequestReviewer, setEditRequestReviewer] = useState<string | null>(null);
   const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
+  const [advancedOpen, setAdvancedOpen]           = useState(false); // İşlemler › Gelişmiş
+  // İsim altındaki Adalet Puanı çubuğu varsayılan gizli (Adalet panelinden açılır, tarayıcıda hatırlanır)
+  const [showScores, setShowScores] = useState(() => {
+    try { return localStorage.getItem("optishift_show_scores") === "1"; } catch { return false; }
+  });
+  const toggleScores = () => setShowScores(v => {
+    try { localStorage.setItem("optishift_show_scores", v ? "0" : "1"); } catch {}
+    return !v;
+  });
+  // Telefonda tablo tek gün gösterir; varsayılan bugün
+  const [mobileDay, setMobileDay] = useState(() => (new Date().getDay() + 6) % 7);
   const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
@@ -539,40 +549,6 @@ function SchedulePageInner() {
   // Otomatik kayıt: sadece kullanıcı eylemiyle değişen cellMap kaydedilir (hafta yüklemesi değil)
   const userEditRef = useRef(false);
 
-  // Mobil grid yatay kaydırma göstergesi — "3/7 gün" göstergesi için scroll pozisyonundan türetilir.
-  // Sticky personel kolonunun GERÇEK render genişliği içeriğe göre değişir (isim/puan/buton genişliği,
-  // w-44 sadece bir ipucudur) — snap noktaları bu gerçek genişlik referans alınmadan hesaplanırsa
-  // gün sütunları sticky kolonun arkasına kayıp görünmez olur, bu yüzden ölçülüp scroll-padding'e yazılır.
-  const gridScrollRef = useRef<HTMLDivElement | null>(null);
-  const personnelColRef = useRef<HTMLTableCellElement | null>(null);
-  const [stickyColWidth, setStickyColWidth] = useState(PERSONNEL_COL_PX);
-  const [visibleDayIndex, setVisibleDayIndex] = useState(0);
-
-  useEffect(() => {
-    const th = personnelColRef.current;
-    const scrollEl = gridScrollRef.current;
-    if (!th || !scrollEl) return;
-    const applyWidth = () => {
-      const w = th.getBoundingClientRect().width;
-      if (w > 0) {
-        setStickyColWidth(w);
-        scrollEl.style.scrollPaddingLeft = `${w}px`;
-      }
-    };
-    applyWidth();
-    const ro = new ResizeObserver(applyWidth);
-    ro.observe(th);
-    return () => ro.disconnect();
-  }, [personnel.length]);
-
-  const handleGridScroll = useCallback(() => {
-    const el = gridScrollRef.current;
-    if (!el) return;
-    const dayColWidth = (el.scrollWidth - stickyColWidth) / 7;
-    if (dayColWidth <= 0) return;
-    const idx = Math.round((el.scrollLeft) / dayColWidth);
-    setVisibleDayIndex(Math.min(6, Math.max(0, idx)));
-  }, [stickyColWidth]);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "info") => {
     setToast({ msg, type });
@@ -2778,7 +2754,7 @@ loading ? (
           {/* ── Sayfa başlığı ── */}
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900">Vardiya Planı</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Hücreye tıklayarak vardiya ekle/düzenle, değişiklikler otomatik kaydedilir</p>
+            <p className="text-slate-400 text-xs mt-0.5">Bir kutuya tıklayarak vardiya ekleyin, değişiklikler otomatik kaydedilir</p>
           </div>
 
           {/* ── Üst bant ── */}
@@ -2828,7 +2804,7 @@ loading ? (
                   laborBudgetExceeded ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
                 )}
               >
-                ₺{laborCost.total.toLocaleString("tr-TR")}
+                <span className="font-semibold opacity-70">Maliyet</span> ₺{laborCost.total.toLocaleString("tr-TR")}
                 {laborBudgetExceeded && " ⚠️"}
               </span>
             )}
@@ -2836,7 +2812,7 @@ loading ? (
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {/* Personel filtresi */}
               {personnel.length > 5 && (
-                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm">
+                <div className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm">
                   <Search size={13} className="text-slate-400 shrink-0" />
                   <input
                     type="text" value={personnelFilter} onChange={e => setPersonnelFilter(e.target.value)}
@@ -2850,9 +2826,9 @@ loading ? (
               {/* Adalet dağılımı toggle */}
               <button
                 onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı" aria-label="Adalet Dağılımı"
-                className={cn("p-2 rounded-xl border transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50")}
+                className={cn("px-3 py-2 rounded-xl border text-xs md:text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50")}
               >
-                <BarChart2 size={15} />
+                <BarChart2 size={15} /> Adalet
               </button>
 
               {/* ⋯ İşlemler menüsü */}
@@ -2864,22 +2840,16 @@ loading ? (
                   <MoreHorizontal size={15} /> İşlemler
                 </button>
                 {actionsOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
+                  <div className="absolute right-0 top-full mt-1.5 w-64 max-h-[70vh] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
                     {cellCount > 0 && !(isPublishedWeek && !editUnlocked) && (
                       <button onClick={() => { setActionsOpen(false); openWizard(); }} disabled={generating}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                         <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
                       </button>
                     )}
-                    {personnel.length > 0 && shiftDefs.length > 0 && (
-                      <button onClick={() => { setActionsOpen(false); setScnResult(null); setScnOpen(true); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <Sparkles size={13} className="text-sky-500" /> Ya şöyle olursa?
-                      </button>
-                    )}
-                    <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
+                    <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
                     </button>
                     {availCollectionEnabled && (
                       <button onClick={() => { setActionsOpen(false); handleRequestAvailability(); }}
@@ -2887,29 +2857,10 @@ loading ? (
                         <Bell size={13} className="text-amber-500" /> Uygunluk İste
                       </button>
                     )}
-                    <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
-                    </button>
-                    <button onClick={() => { setActionsOpen(false); handleSendForReview(); }} disabled={sendReviewLoading || !isDraftWeek}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
-                    </button>
-                    <div className="my-1 border-t border-slate-100" />
-                    {FEATURES.aiSummary && (
-                      <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
-                      </button>
-                    )}
                     <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <Download size={13} className="text-slate-400" /> Excel İndir
                     </a>
-                    <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
-                    </button>
                     <div className="my-1 border-t border-slate-100" />
                     <button onClick={undo} disabled={!canUndo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300">Ctrl+Z</span>
@@ -2918,14 +2869,47 @@ loading ? (
                       <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
                     </button>
                     <div className="my-1 border-t border-slate-100" />
-                    <button onClick={() => { setActionsOpen(false); setPubsModalOpen(true); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <History size={13} className="text-slate-400" /> Yayın Geçmişi
+                    {/* Seyrek kullanılanlar: varsayılan kapalı */}
+                    <button onClick={() => setAdvancedOpen(o => !o)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 transition-colors">
+                      <ChevronDown size={13} className={cn("text-slate-400 transition-transform", !advancedOpen && "-rotate-90")} /> Gelişmiş
                     </button>
-                    <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
-                    </Link>
+                    {advancedOpen && (
+                      <div className="pl-3">
+                      {personnel.length > 0 && shiftDefs.length > 0 && (
+                        <button onClick={() => { setActionsOpen(false); setScnResult(null); setScnOpen(true); }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                          <Sparkles size={13} className="text-sky-500" /> Ya şöyle olursa?
+                        </button>
+                      )}
+                      <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
+                      </button>
+                      <button onClick={() => { setActionsOpen(false); handleSendForReview(); }} disabled={sendReviewLoading || !isDraftWeek}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
+                      </button>
+                      {FEATURES.aiSummary && (
+                        <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
+                        </button>
+                      )}
+                      <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
+                      </button>
+                      <button onClick={() => { setActionsOpen(false); setPubsModalOpen(true); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <History size={13} className="text-slate-400" /> Yayın Geçmişi
+                      </button>
+                      <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
+                      </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3076,28 +3060,35 @@ loading ? (
                 <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             )}
-            {/* Ekip boşken kaydırılacak satır yok: ipucu ve gün yakalama kapalı (yakalama tabloyu yana itiyordu) */}
+            {/* Telefonda tablo tek gün gösterir: gün seçici (kırmızı nokta = eksik personel) */}
             {personnel.length > 0 && (
-            <div className="sm:hidden flex items-center justify-between px-3 py-1.5 bg-slate-50/80 border-b border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400">Diğer günleri görmek için kaydırın →</span>
-              <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 rounded-full px-2 py-0.5 shrink-0">{visibleDayIndex + 1}/7</span>
-            </div>
+              <div className="sm:hidden grid grid-cols-7 gap-1 p-2 bg-slate-50/80 border-b border-slate-100">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const need = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
+                  const got = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
+                  return (
+                    <button key={i} onClick={() => setMobileDay(i)}
+                      className={cn("relative flex flex-col items-center py-1.5 rounded-lg text-[10px] font-bold transition-colors",
+                        mobileDay === i ? "bg-forest-700 text-white" : "bg-white text-slate-600 border border-slate-200")}>
+                      {DAYS[i]}
+                      <span className={cn("text-[9px] font-semibold", mobileDay === i ? "text-forest-100" : "text-slate-400")}>{dates[i]?.split(" ")[0]}</span>
+                      {need > 0 && got < need && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-            {personnel.length > 0 && <div className="sm:hidden pointer-events-none absolute right-0 top-8 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent z-20" />}
-            <div
-              ref={gridScrollRef}
-              onScroll={handleGridScroll}
-              className={cn("overflow-x-auto relative", personnel.length > 0 && "[scroll-snap-type:x_mandatory] sm:[scroll-snap-type:none]")}
-            >
-              <table className="w-full min-w-[700px] border-collapse">
+            <div className="overflow-x-auto relative">
+              <table className="w-full sm:min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
-                    <th ref={personnelColRef} className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
+                    <th className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         Personel {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
-                      {/* İsim altındaki çubuk ve sayı ne anlatıyor */}
-                      <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Çubuk: Adalet Puanı</span>
+                      {/* Gün başlığındaki sayı ve (açıksa) isim altındaki çubuk ne anlatıyor */}
+                      <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Gün altı: atanan / gereken kişi</span>
+                      {showScores && <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal">Çubuk: Adalet Puanı</span>}
                     </th>
                     {Array.from({ length: 7 }, (_, i) => {
                       const isWeekend = i === 5 || i === 6;
@@ -3108,7 +3099,7 @@ loading ? (
                       const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       return (
-                        <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top [scroll-snap-align:start]", isWeekend ? "bg-forest-50/50" : "")}>
+                        <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top", isWeekend ? "bg-forest-50/50" : "", mobileDay !== i && "hidden sm:table-cell")}>
                           <div className={cn("text-[11px] font-black uppercase tracking-wider", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
                           <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
                           {holiday && (
@@ -3136,7 +3127,7 @@ loading ? (
                               totalAssigned < totalNeeded ? "bg-red-50 text-red-600 border-red-100" :
                               totalAssigned === totalNeeded ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
                               "bg-sky-50 text-sky-600 border-sky-100"
-                            )}>{totalAssigned}/{totalNeeded}</div>
+                            )} title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</div>
                           )}
                         </th>
                       );
@@ -3212,12 +3203,12 @@ loading ? (
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1.5 mt-0.5">
+                              {showScores && <div className="flex items-center gap-1.5 mt-0.5">
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
                                   <div className={cn("h-full rounded-full", fairnessBarColor(score, avgScore))} style={{ width: scoreBarWidth }} />
                                 </div>
                                 <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: son haftalarda aldığı yük (yüksek = daha yüklü)">{Math.round(score * 10) / 10}</span>
-                              </div>
+                              </div>}
                             </div>
                             <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button onClick={() => fillPersonRow(p.id)} title="Tüm uygun günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
@@ -3246,6 +3237,7 @@ loading ? (
                           const tdClass = cn(
                             "py-1 px-1 h-14 align-middle",
                             isWeekend && "bg-forest-50/20",
+                            mobileDay !== day && "hidden sm:table-cell",
                           );
                           const ocCallMin = oc?.id ? callouts.filter(c => c.assignment_id === oc.id)
                             .reduce((t, c) => { const a = hhmmToMin(c.start_time); let b = hhmmToMin(c.end_time); if (b <= a) b += 1440; return t + b - a; }, 0) : 0;
@@ -3746,6 +3738,10 @@ loading ? (
           </div>
           <button onClick={() => setFairnessOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
         </div>
+        <label className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-100 text-xs font-semibold text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={showScores} onChange={toggleScores} className="accent-forest-600" />
+          Puanı tabloda isimlerin altında göster
+        </label>
         <div className="flex-1 overflow-y-auto p-4">
           {personScores.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-6">Personel yok</p>
