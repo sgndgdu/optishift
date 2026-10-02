@@ -276,7 +276,7 @@ export default function OnboardingWizard() {
                     {singleLocationId ? (
                       <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
                     ) : (
-                      <>Genel bakışta her şubenin kartındaki <strong>Planı Yönet</strong> ile o şubeye geçip personel ekleyebilirsiniz.</>
+                      <>Genel bakışta her şubenin kartındaki <strong>Şubeye gir</strong> ile o şubeye geçip personel ekleyebilirsiniz.</>
                     )}
                   </p>
                 </div>

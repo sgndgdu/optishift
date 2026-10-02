@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { signToken, setCookie } from "@/lib/auth";
+import { signToken, setCookie, parseManagedLocations } from "@/lib/auth";
 import { exchangeGoogleCode, verifyGoogleState, signPendingGoogleProfile } from "@/lib/googleAuth";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { getDB } from "@/lib/db/client";
@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
     location_id: user.location_id ?? null,
     personnel_id: user.personnel_id ?? null,
     name: user.name,
+    managed_location_ids: parseManagedLocations(user.managed_location_ids),
   });
 
   const res = NextResponse.redirect(appUrl("/auth/google/complete"));

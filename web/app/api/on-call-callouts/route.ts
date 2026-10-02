@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { getDB } from "@/lib/db/client";
 import { deriveOvertimeForWeek } from "@/lib/overtime";
 
@@ -14,7 +15,7 @@ async function canManage(db: any, auth: any, locationId: string): Promise<boolea
   if (auth.role === "employee") return false;
   const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(locationId, auth.org_id);
   if (!loc) return false;
-  return !(auth.role === "manager" && auth.location_id && auth.location_id !== locationId);
+  return !managerOutsideBranch(auth, locationId);
 }
 
 export async function GET(req: NextRequest) {

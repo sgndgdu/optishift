@@ -7,6 +7,7 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
 import MobileTabBar from "@/components/MobileTabBar";
+import OwnerBranchBanner from "@/components/OwnerBranchBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -48,6 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
+        <OwnerBranchBanner />
         <div className="flex-1 overflow-auto">
           <div className="mx-auto max-w-7xl p-4 md:p-8 lg:p-10 pb-24 lg:pb-10">
             {children}

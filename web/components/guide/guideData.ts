@@ -250,8 +250,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
   },
   {
     key: "supervisor",
-    label: "Süpervizör / Patron",
-    shortLabel: "Süpervizör",
+    label: "İşletme Sahibi / Bölge Müdürü",
+    shortLabel: "İşletme Sahibi",
     description: "Birden fazla şubeyi üst düzeyden takip eden kullanıcılar için.",
     sections: [
       {

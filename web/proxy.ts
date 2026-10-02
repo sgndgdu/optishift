@@ -47,6 +47,7 @@ const SPOOFABLE_AUTH_HEADERS = [
   "x-auth-location-id",
   "x-auth-personnel-id",
   "x-auth-name",
+  "x-auth-managed-locations",
 ];
 
 // İstemcinin bu header'ları doğrudan göndermesini engeller — route handler'lar bu
@@ -117,6 +118,7 @@ export async function proxy(req: NextRequest) {
   if (user.location_id) headers.set("x-auth-location-id", user.location_id);
   if (user.personnel_id) headers.set("x-auth-personnel-id", user.personnel_id);
   if (user.name) headers.set("x-auth-name", encodeURIComponent(user.name));
+  if (user.managed_location_ids?.length) headers.set("x-auth-managed-locations", JSON.stringify(user.managed_location_ids));
 
   return NextResponse.next({ request: { headers } });
 }

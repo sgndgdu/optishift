@@ -6,7 +6,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
-import { hasLocationPermission } from "@/lib/access";
+import { hasLocationPermission, managerOutsideBranch } from "@/lib/access";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -76,14 +76,18 @@ export async function GET(req: NextRequest) {
         preferred_roles: JSON.parse(p.preferred_roles || "[]"),
       };
     });
+    // Bölge müdürü işletme geneli listede sadece atandığı şubelerin personelini görür
+    const scoped = auth.role === "supervisor" && auth.managed_location_ids?.length
+      ? parsed.filter((p: any) => auth.managed_location_ids!.some(l => p.primary_location_id === l || p.assigned_location_ids.includes(l)))
+      : parsed;
     // Personel arkadaşlarının sadece adını ve unvanını görür (ücret, telefon, not, puan gibi alanlar yöneticiler için)
     if (auth.role === "employee") {
-      return NextResponse.json(parsed.map((p: any) => p.id === auth.personnel_id ? p : {
+      return NextResponse.json(scoped.map((p: any) => p.id === auth.personnel_id ? p : {
         id: p.id, name: p.name, title: p.title ?? null, user_id: p.user_id ?? null,
         user_access_level: p.user_access_level, department_id: p.department_id ?? null, status: p.status,
       }));
     }
-    return NextResponse.json(parsed);
+    return NextResponse.json(scoped);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -115,7 +119,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Manager sadece kendi şubesine personel ekleyebilir
-    if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
+    if (managerOutsideBranch(auth, location_id)) {
       return NextResponse.json({ error: "Sadece kendi şubenize personel ekleyebilirsiniz" }, { status: 403 });
     }
 
@@ -198,7 +202,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Manager sadece kendi şubesindeki personeli düzenleyebilir
-    if (auth.role === "manager" && auth.location_id && existing.primary_location_id !== auth.location_id) {
+    if (managerOutsideBranch(auth, existing.primary_location_id)) {
       return NextResponse.json({ error: "Sadece kendi şubenizin personelini düzenleyebilirsiniz" }, { status: 403 });
     }
 

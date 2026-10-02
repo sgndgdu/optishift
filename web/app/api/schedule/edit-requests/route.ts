@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, parseManagedLocations } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         WHERE org_id = ? AND status = 'pending'
         ORDER BY created_at DESC
       `).all(auth.org_id) as any[];
-      return NextResponse.json(rows);
+      return NextResponse.json(rows.filter(r => !managerOutsideBranch(auth, r.location_id)));
     }
 
     // Müdür: belirli hafta için son talep
@@ -92,10 +92,15 @@ export async function POST(req: NextRequest) {
     // Org'un supervisor/admin kullanıcılarını bul ve bildirim göster (personnel_id varsa)
     // Supervisor'lar için in-app bildirim → bu endpoint olmadığından dashboard polling yeterli
     // Ek olarak: org admini için notifications tablosuna personnel_id varsa ekle
-    const supervisors = await db.prepare(`
-      SELECT u.id, u.name, u.personnel_id FROM users u
+    // Patron + bu şubeden sorumlu bölge müdürleri (ataması olmayan bölge müdürü tüm şubelerden sorumlu)
+    const supervisors = (await db.prepare(`
+      SELECT u.id, u.name, u.personnel_id, u.role, u.managed_location_ids FROM users u
       WHERE u.org_id = ? AND u.role IN ('supervisor', 'admin')
-    `).all(auth.org_id) as any[];
+    `).all(auth.org_id) as any[]).filter(u => {
+      if (u.role !== "supervisor") return true;
+      const ids = parseManagedLocations(u.managed_location_ids);
+      return !ids || ids.includes(location_id);
+    });
 
     const locRow = await db.prepare(`SELECT name FROM locations WHERE id = ?`).get(location_id) as any;
     const locName = locRow?.name ?? location_id;

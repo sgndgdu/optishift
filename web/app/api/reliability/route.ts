@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { getDB } from "@/lib/db/client";
 import { loadReliability } from "@/lib/reliabilityData";
 
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   const location_id = new URL(req.url).searchParams.get("location_id");
   if (!location_id) return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
-  if (auth.role === "manager" && auth.location_id && auth.location_id !== location_id) {
+  if (managerOutsideBranch(auth, location_id)) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
   const db = getDB();

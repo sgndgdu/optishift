@@ -114,3 +114,26 @@ test("personel arkadaşlarının ücretini göremez, başka şubenin grubunu oku
   await login(request, "mega.calisan.kafe");
   if (egeUser) expect((await request.post("/api/messages", { data: { to_user_id: egeUser, content: "x" } })).status()).toBe(403);
 });
+
+test("bölge müdürü sadece atandığı şubeleri görür ve yönetir", async ({ request }) => {
+  await login(request, "mega.admin");
+  const created = await (await request.post("/api/users", { data: { name: "Test Bölge", role: "supervisor", managed_location_ids: ["loc-mega-kafe"] } })).json();
+  expect(created.user?.username).toBeTruthy();
+  try {
+    // Patron dışında kimse bölge müdürü ekleyemez
+    await login(request, "mega.supervisor");
+    expect((await request.post("/api/users", { data: { name: "X", role: "supervisor", managed_location_ids: ["loc-mega-kafe"] } })).status()).toBe(403);
+    // Davet bağlantısıyla bölge müdürü olarak oturum aç
+    const inv = await request.get(`/api/invite?token=${created.inviteToken}`);
+    expect(inv.ok()).toBeTruthy();
+    const locs = await (await request.get("/api/locations")).json() as { id: string }[];
+    expect(locs.map(l => l.id)).toEqual(["loc-mega-kafe"]);
+    expect((await request.get("/api/shifts?location_id=loc-mega-otel&week_start=2026-09-28")).status()).not.toBe(200);
+    expect((await request.patch("/api/locations?id=loc-mega-otel", { data: { name: "HACK" } })).status()).toBe(403);
+    expect((await request.get("/api/events?location_id=loc-mega-otel")).status()).toBe(403);
+    expect((await request.get("/api/events?location_id=loc-mega-kafe")).status()).toBe(200);
+  } finally {
+    await login(request, "mega.admin");
+    await request.delete(`/api/users?id=${created.user.id}`);
+  }
+});

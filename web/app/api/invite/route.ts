@@ -2,7 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { requireAuth, signToken, setCookie } from "@/lib/auth";
+import { requireAuth, signToken, setCookie, parseManagedLocations } from "@/lib/auth";
 
 
 function generateToken(): string {
@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       location_id: user.location_id ?? null,
       personnel_id: user.personnel_id ?? null,
       name: user.name,
+      managed_location_ids: parseManagedLocations(user.managed_location_ids),
     });
     const res = NextResponse.json({
       success: true,

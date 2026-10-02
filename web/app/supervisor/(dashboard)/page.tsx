@@ -308,12 +308,12 @@ export default function SupervisorDashboard() {
                   {/* Aksiyonlar */}
                   <div className="flex gap-2 pt-1">
                     {user?.role === "admin" || user?.role === "supervisor" ? (
-                      // Patron ve bölge müdürü şubenin müdür paneline geçer: planı ve kilitli ayarları yönetir
+                      // Patron ve bölge müdürü şubeye girer: müdür gibi plan yapar, onaylar, ayarları yönetir
                       <button
-                        onClick={e => { e.stopPropagation(); openBranchPanel(user, loc.id); router.push("/schedule"); }}
+                        onClick={e => { e.stopPropagation(); openBranchPanel(user, loc.id); router.push("/dashboard"); }}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-white bg-forest-600 hover:bg-forest-700 rounded-xl transition-colors">
                         <CalendarClock size={13} />
-                        Planı Yönet
+                        Şubeye gir
                       </button>
                     ) : (
                       <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"

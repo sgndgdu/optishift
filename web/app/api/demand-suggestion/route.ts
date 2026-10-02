@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { getDB } from "@/lib/db/client";
 import { computeForecastWithWeeks } from "@/lib/forecast";
 import { suggestDemand } from "@/lib/demandSuggestion";
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (!location_id || !week_start || !/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
     return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
   }
-  if (auth.role === "manager" && auth.location_id && auth.location_id !== location_id) {
+  if (managerOutsideBranch(auth, location_id)) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 

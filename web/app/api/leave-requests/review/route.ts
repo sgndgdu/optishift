@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
 import { resolveShiftDef } from "@/lib/fairness";
 import { rescoreWeek } from "@/lib/scoring";
@@ -27,7 +28,7 @@ async function loadRequest(db: any, auth: any, id: string) {
     WHERE lr.id = ?
   `).get(Number(id)) as any;
   if (!row || row.p_org !== auth.org_id) return null;
-  if (auth.role === "manager" && auth.location_id && row.p_loc !== auth.location_id) return null;
+  if (managerOutsideBranch(auth, row.p_loc)) return null;
   return row;
 }
 

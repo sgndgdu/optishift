@@ -27,7 +27,7 @@ export async function hasLocationPermission(db: any, auth: AuthUser, locationId:
 export async function canManageLocation(db: any, auth: AuthUser, locationId: string | null | undefined): Promise<boolean> {
   if (!locationId) return false;
   if (auth.role !== "admin" && auth.role !== "supervisor" && auth.role !== "manager") return false;
-  if (auth.role === "manager" && auth.location_id !== locationId) return false;
+  if (managerOutsideBranch(auth, locationId)) return false;
   const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(locationId, auth.org_id);
   return !!loc;
 }
@@ -59,9 +59,15 @@ export async function canEditPublishedWeek(db: any, auth: AuthUser, locationId: 
   return !!approved;
 }
 
-/** Müdür kendi şubesi dışındaki bir şubeye mi erişiyor? (patron/bölge müdürü işletme içinde serbest) */
+/**
+ * Kullanıcı kapsamı dışındaki bir şubeye mi erişiyor? Müdür: kendi şubesi dışı.
+ * Bölge müdürü: atandığı şubeler dışı (atama yoksa tüm şubeler). Patron: işletme içinde serbest.
+ */
 export function managerOutsideBranch(auth: AuthUser, locationId: string | null | undefined): boolean {
-  return auth.role === "manager" && !!locationId && auth.location_id !== locationId;
+  if (!locationId) return false;
+  if (auth.role === "manager") return auth.location_id !== locationId;
+  if (auth.role === "supervisor") return !!auth.managed_location_ids?.length && !auth.managed_location_ids.includes(locationId);
+  return false;
 }
 
 /**
@@ -74,24 +80,20 @@ export async function canActOnPersonnel(db: any, auth: AuthUser, personnelId: st
   const p = await db.prepare("SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?")
     .get(personnelId, auth.org_id) as { primary_location_id: string; assigned_location_ids: string | null } | undefined;
   if (!p) return false;
-  if (auth.role !== "manager") return true;
-  // Birden çok şubeye atanmış personel: müdürün şubesi atandığı şubelerden biriyse yeter
-  return p.primary_location_id === auth.location_id || (p.assigned_location_ids ?? "").includes(`"${auth.location_id}"`);
+  const scope = auth.role === "manager" ? (auth.location_id ? [auth.location_id] : [])
+    : auth.role === "supervisor" && auth.managed_location_ids?.length ? auth.managed_location_ids : null;
+  if (scope === null) return true;
+  // Birden çok şubeye atanmış personel: kapsamdaki şubelerden birine atanmışsa yeter
+  return scope.some(l => p.primary_location_id === l || (p.assigned_location_ids ?? "").includes(`"${l}"`));
 }
 
 /**
  * Kullanıcının görebildiği şubeler: null = işletmenin tüm şubeleri (patron).
  * Müdür ve personel: kendi şubesi. Bölge müdürü: atandığı şubeler (users.managed_location_ids; boşsa tümü).
  */
-export async function scopedLocationIds(db: any, auth: AuthUser): Promise<string[] | null> {
+export async function scopedLocationIds(_db: any, auth: AuthUser): Promise<string[] | null> {
   if (auth.role === "admin") return null;
-  if (auth.role === "supervisor") {
-    const row = await db.prepare("SELECT managed_location_ids FROM users WHERE id = ?").get(auth.id).catch(() => null) as { managed_location_ids?: string | null } | null;
-    try {
-      const ids = row?.managed_location_ids ? JSON.parse(row.managed_location_ids) : null;
-      return Array.isArray(ids) && ids.length > 0 ? ids : null;
-    } catch { return null; }
-  }
+  if (auth.role === "supervisor") return auth.managed_location_ids?.length ? auth.managed_location_ids : null;
   return auth.location_id ? [auth.location_id] : [];
 }
 

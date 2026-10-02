@@ -2,7 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { canManageLocation } from "@/lib/access";
+import { canManageLocation, managerOutsideBranch } from "@/lib/access";
 import { applyRuleLocks, isOwnerRole } from "@/lib/ruleLocks";
 
 
@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
     } else {
       rows = await db.prepare("SELECT * FROM locations WHERE org_id = ?").all(auth.org_id);
     }
+    // Bölge müdürü sadece atandığı şubeleri görür; personel sadece kendi şubesini
+    rows = (rows as { id: string }[]).filter(l =>
+      auth.role === "employee" ? l.id === auth.location_id : !managerOutsideBranch(auth, l.id));
     return NextResponse.json(rows);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

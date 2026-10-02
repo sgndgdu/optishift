@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { generateUsername } from "@/lib/accountCreation";
 
 // Kalıcı, tekrar kullanılabilir personel kendi-kendine-kayıt linki (Shiftio'dan
@@ -95,7 +96,7 @@ export async function PATCH(req: NextRequest) {
     if (!loc || loc.org_id !== auth.org_id) {
       return NextResponse.json({ error: "Şube bulunamadı" }, { status: 404 });
     }
-    if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
+    if (managerOutsideBranch(auth, location_id)) {
       return NextResponse.json({ error: "Sadece kendi şubeniz için link yönetebilirsiniz" }, { status: 403 });
     }
 

@@ -449,7 +449,7 @@ export default function PersonnelPage() {
 
   const roleBadge = (p: MergedPerson) => {
     if (p.role === "admin") return { label: "İşletme Sahibi", color: "bg-ember-50 text-ember-700 border-ember-100" };
-    if (p.role === "supervisor") return { label: "Süpervizör", color: "bg-ember-50 text-ember-700 border-ember-100" };
+    if (p.role === "supervisor") return { label: "Bölge Müdürü", color: "bg-ember-50 text-ember-700 border-ember-100" };
     if (p.display_title) return { label: p.display_title, color: "bg-forest-50 text-forest-700 border-forest-100" };
     return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
   };

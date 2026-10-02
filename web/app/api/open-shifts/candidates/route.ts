@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { rankCandidates, type SlotInput } from "@/lib/openShiftCandidates";
 
 // GET ?id=<open_shift_id> | ?assignment_id=<boşalacak atama> — uygun aday listesi (müdür).
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
         JOIN locations l ON l.id = sa.location_id WHERE sa.id = ?
       `).get(assignmentId) as any;
       if (!asg || asg.l_org !== auth.org_id) return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
-      if (auth.role === "manager" && auth.location_id && auth.location_id !== asg.location_id) {
+      if (managerOutsideBranch(auth, asg.location_id)) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       const dt = new Date(asg.week_start + "T00:00:00Z");

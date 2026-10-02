@@ -30,6 +30,16 @@ export interface AuthUser {
   location_id: string | null;
   personnel_id: string | null;
   name: string;
+  /** Bölge müdürü: sorumlu olduğu şubeler (users.managed_location_ids). Boş/yok = tüm şubeler. */
+  managed_location_ids?: string[] | null;
+}
+
+/** users.managed_location_ids (JSON metin) → dizi; boş/bozuk ise null (= tüm şubeler). */
+export function parseManagedLocations(raw: unknown): string[] | null {
+  try {
+    const v = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(v) && v.length > 0 ? v.map(String) : null;
+  } catch { return null; }
 }
 
 export async function signToken(user: AuthUser): Promise<string> {
@@ -60,6 +70,7 @@ export function getAuthUser(req: NextRequest): AuthUser | null {
     location_id: req.headers.get("x-auth-location-id") ?? null,
     personnel_id: req.headers.get("x-auth-personnel-id") ?? null,
     name: decodeURIComponent(req.headers.get("x-auth-name") ?? ""),
+    managed_location_ids: parseManagedLocations(req.headers.get("x-auth-managed-locations")),
   };
 }
 

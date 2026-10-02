@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import { MAX_IMPORT_ROWS, checkRows, unknownDepartments, type ImportRow } from "@/lib/personnelImport";
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Manager sadece kendi şubesine toplu ekleyebilir
-    if (auth.role === "manager" && auth.location_id && location_id !== auth.location_id) {
+    if (managerOutsideBranch(auth, location_id)) {
       return NextResponse.json({ error: "Sadece kendi şubenize toplu ekleme yapabilirsiniz" }, { status: 403 });
     }
 

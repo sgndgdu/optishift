@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
-import { signToken } from "@/lib/auth";
+import { signToken, parseManagedLocations } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
@@ -23,6 +23,7 @@ export async function POST(
       location_id: user.location_id ?? null,
       personnel_id: user.personnel_id ?? null,
       name: user.name,
+      managed_location_ids: parseManagedLocations(user.managed_location_ids),
     });
 
     // Audit log

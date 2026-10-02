@@ -3,13 +3,14 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 async function loadOwnedPersonnel(db: ReturnType<typeof getDB>, auth: any, id: string) {
   const existing = await db.prepare(
     "SELECT id, primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?"
   ).get(id, auth.org_id) as any;
   if (!existing) return null;
-  if (auth.role === "manager" && auth.location_id && existing.primary_location_id !== auth.location_id) return null;
+  if (managerOutsideBranch(auth, existing.primary_location_id)) return null;
   return existing;
 }
 

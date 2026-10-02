@@ -10,7 +10,7 @@ import { type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { checkHandoverGate } from "@/lib/handover";
 import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
-import { canEditPublishedWeek, canManageLocation, canManageLocations } from "@/lib/access";
+import { canActOnPersonnel, canEditPublishedWeek, canManageLocation, canManageLocations, managerOutsideBranch } from "@/lib/access";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
         }
         colleagueLocation = auth.location_id;
       } else if (auth.role !== "employee") {
-        const own = await db.prepare(`SELECT id FROM personnel WHERE id = ? AND org_id = ?`).get(personnel_id, auth.org_id);
-        if (!own) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+        // Yönetici: kişi işletmede ve kapsamındaki şubede olmalı (lib/access)
+        if (!(await canActOnPersonnel(db, auth, personnel_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       rows = await db.prepare(`
         SELECT s.*, l.name as location_name
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         rows = rows.filter((r: any) => !r.publication_status || r.publication_status === "published");
       }
     } else if (personnel_id) {
-      if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+      if (!(await canActOnPersonnel(db, auth, personnel_id))) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       rows = await db.prepare(`
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     } else if (location_id && week_start) {
       // Lokasyonun bu org'a ait olduğunu doğrula
       const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
-      if (!loc) {
+      if (!loc || managerOutsideBranch(auth, location_id)) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       rows = await db.prepare(`

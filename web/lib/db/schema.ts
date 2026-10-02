@@ -79,6 +79,8 @@ export const users = pgTable("users", {
   // Hesap yönetim alanları
   is_temp_password: boolean("is_temp_password").default(false),
   approval_status: text("approval_status").default("active"), // active | pending | rejected
+  // Bölge müdürü (supervisor) için sorumlu olduğu şubeler, JSON dizi. Boş/null = işletmenin tüm şubeleri.
+  managed_location_ids: text("managed_location_ids"),
   created_by: text("created_by"), // oluşturan kullanıcının user_id'si
   approved_by: text("approved_by"),
   approved_at: bigint("approved_at", { mode: "number" }),
