@@ -10,6 +10,25 @@ import { Send, Sparkles, X } from "lucide-react";
 
 type Turn = { role: "user" | "assistant"; text: string };
 
+// Yapay zekâ cevabındaki basit Markdown: **kalın**, "- " / "* " madde, boş satır (ham işaret görünmesin)
+function Rich({ text }: { text: string }) {
+  const inline = (line: string) => line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : <span key={i}>{part}</span>);
+  return (
+    <div className="space-y-1">
+      {text.split("\n").map((raw, i) => {
+        const line = raw.trimEnd();
+        if (!line.trim()) return <div key={i} className="h-1" />;
+        const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+        if (bullet) return <div key={i} className="flex gap-1.5 pl-1"><span className="text-slate-400">•</span><span>{inline(bullet[1])}</span></div>;
+        const heading = line.match(/^#{1,4}\s+(.*)$/);
+        if (heading) return <p key={i} className="font-bold">{inline(heading[1])}</p>;
+        return <p key={i}>{inline(line)}</p>;
+      })}
+    </div>
+  );
+}
+
 const EXAMPLES_BRANCH = ["Bu hafta kim izinli?", "Gelecek hafta planı hazır mı?", "En çok kim çalışıyor?", "Bekleyen onaylar neler?"];
 const EXAMPLES_ALL = ["Hangi şubenin planı eksik?", "Şubeleri karşılaştır", "Bekleyen izinler hangi şubede?"];
 
@@ -118,8 +137,8 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
               <div key={i} className={t.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div className={t.role === "user"
                   ? "max-w-[85%] rounded-2xl rounded-br-md bg-forest-700 text-white px-3.5 py-2 text-sm"
-                  : "max-w-[90%] rounded-2xl rounded-bl-md bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-sm text-slate-800 whitespace-pre-wrap"}>
-                  {t.text}
+                  : "max-w-[90%] rounded-2xl rounded-bl-md bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-sm text-slate-800"}>
+                  {t.role === "assistant" ? <Rich text={t.text} /> : t.text}
                 </div>
               </div>
             ))}

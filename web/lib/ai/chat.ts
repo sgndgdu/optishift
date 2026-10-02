@@ -3,7 +3,7 @@
  * Sağlayıcı ortam değişkenleriyle seçilir, kod değişmez:
  *  - varsayılan: GEMINI_API_KEY varsa Google Gemini (ücretsiz katman)
  *  - AI_PROVIDER=anthropic + ANTHROPIC_API_KEY: Claude (kurumsal müşteriler)
- * Model: GEMINI_MODEL (varsayılan "gemini-flash-latest", çalışmazsa "gemini-2.5-flash"),
+ * Model: GEMINI_MODEL (varsayılan "gemini-3.8-flash", bulunamazsa "gemini-flash-latest"; Interactions API),
  *        ANTHROPIC_MODEL (varsayılan "claude-opus-5").
  * Anahtar yoksa sohbet kapalıdır (aiChatProvider() null), ekran kutuyu göstermez.
  */
@@ -24,29 +24,39 @@ export function aiChatProvider(): AiProvider | null {
 const FAIL = "Asistan şu an cevap veremiyor, biraz sonra tekrar deneyin.";
 
 async function geminiChat(system: string, turns: ChatTurn[]): Promise<ChatResult> {
+  // Interactions API (yeni hesaplarda generateContent ile yeni modeller 404 veriyor).
+  // Geçmiş "step" biçiminde gönderilir, sunucuda saklanmaz (store: false).
   const key = process.env.GEMINI_API_KEY!;
-  const models = [process.env.GEMINI_MODEL, "gemini-flash-latest", "gemini-2.5-flash"].filter(Boolean) as string[];
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: turns.map(t => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.text }] })),
-    generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
-  });
+  const models = [process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter(Boolean) as string[];
   for (const model of [...new Set(models)]) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body,
-      signal: AbortSignal.timeout(30_000),
+      body: JSON.stringify({
+        model,
+        store: false,
+        system_instruction: system,
+        generation_config: { thinking_level: "low", max_output_tokens: 4096 },
+        input: turns.map(t => ({
+          type: t.role === "assistant" ? "model_output" : "user_input",
+          content: [{ type: "text", text: t.text }],
+        })),
+      }),
+      signal: AbortSignal.timeout(45_000),
     }).catch(() => null);
     if (!res) return { ok: false, error: FAIL };
-    if (res.status === 404) continue; // model adı bu hesapta yok: sıradakini dene
+    // Model bu hesapta yok (404) ya da ücretsiz katmanda geçici yoğunluk (503/500): sıradaki modeli dene
+    if (res.status === 404 || res.status === 503 || res.status === 500) continue;
     if (res.status === 429) return { ok: false, error: "Ücretsiz kullanım sınırına ulaşıldı, birkaç dakika sonra tekrar deneyin." };
     if (!res.ok) {
       console.error("[ai/gemini]", res.status, (await res.text().catch(() => "")).slice(0, 300));
       return { ok: false, error: FAIL };
     }
-    const data = await res.json().catch(() => null) as { candidates?: { content?: { parts?: { text?: string }[] } }[] } | null;
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text ?? "").join("").trim();
+    const data = await res.json().catch(() => null) as { steps?: { type?: string; content?: { type?: string; text?: string }[] }[] } | null;
+    const text = (data?.steps ?? [])
+      .filter(st => st.type === "model_output")
+      .flatMap(st => (st.content ?? []).map(c => (c.type === "text" ? c.text ?? "" : "")))
+      .join("").trim();
     return text ? { ok: true, text } : { ok: false, error: FAIL };
   }
   return { ok: false, error: FAIL };

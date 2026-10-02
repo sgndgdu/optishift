@@ -26,18 +26,17 @@ describe("aiChatProvider", () => {
     const r = await aiChat("s", [{ role: "user", text: "x" }]);
     expect(r.ok).toBe(false);
   });
-  it("Gemini: 404 modelde sıradakini dener, cevabı birleştirir", async () => {
+  it("Gemini: 404 modelde sıradakini dener, model_output metnini birleştirir", async () => {
     env({ GEMINI_API_KEY: "g" });
     const calls: string[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      calls.push(url);
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      calls.push(JSON.parse(String(init.body)).model);
       if (calls.length === 1) return new Response("", { status: 404 });
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Mer" }, { text: "haba" }] } }] }), { status: 200 });
+      return new Response(JSON.stringify({ steps: [{ type: "thought" }, { type: "model_output", content: [{ type: "text", text: "Mer" }, { type: "text", text: "haba" }] }] }), { status: 200 });
     }));
     const r = await aiChat("s", [{ role: "user", text: "x" }]);
     expect(r).toEqual({ ok: true, text: "Merhaba" });
-    expect(calls[0]).toContain("gemini-flash-latest");
-    expect(calls[1]).toContain("gemini-2.5-flash");
+    expect(calls).toEqual(["gemini-3.8-flash", "gemini-flash-latest"]);
     vi.unstubAllGlobals();
   });
 });
