@@ -292,9 +292,9 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
-    // Personelin bu org'a ait olduğunu doğrula
-    const existing = await db.prepare("SELECT id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id);
-    if (!existing) {
+    // Personelin bu org'a ait olduğunu doğrula; müdür sadece kendi şubesindekini
+    const existing = await db.prepare("SELECT id, primary_location_id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
+    if (!existing || (auth.role === "manager" && existing.primary_location_id !== auth.location_id)) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 

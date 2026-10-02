@@ -35,12 +35,21 @@ export async function GET(req: NextRequest) {
 
 // POST: Yeni bildirim(ler) oluştur
 export async function POST(req: NextRequest) {
+  // Sadece yöneticiler, sadece kendi işletmesinin personeline bildirim yazar
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+  if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   try {
     const body = await req.json();
     const items = Array.isArray(body) ? body : [body];
+    const ids = [...new Set(items.map((i: { personnel_id?: string }) => i?.personnel_id).filter(Boolean))] as string[];
+    const ownRows = ids.length
+      ? await getDB().prepare(`SELECT id FROM personnel WHERE org_id = ? AND id IN (${ids.map(() => "?").join(",")})`).all(auth.org_id, ...ids) as { id: string }[]
+      : [];
+    const own = new Set(ownRows.map(r => r.id));
     for (const item of items) {
       const { personnel_id, type, title, message, link } = item;
-      if (!personnel_id || !type || !title || !message) continue;
+      if (!personnel_id || !type || !title || !message || !own.has(personnel_id)) continue;
       await db.insert(notifications).values({
         personnel_id,
         type,

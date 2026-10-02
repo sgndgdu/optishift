@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canManageLocation } from "@/lib/access";
 
 
 export async function GET(req: NextRequest) {
@@ -75,9 +76,8 @@ export async function PATCH(req: NextRequest) {
 
   const db = getDB();
   try {
-    // Lokasyonun bu org'a ait olduğunu doğrula
-    const existing = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(id, auth.org_id);
-    if (!existing) {
+    // Personel şube ayarı değiştiremez; müdür sadece kendi şubesini, patron/supervisor işletmenin tüm şubelerini
+    if (!(await canManageLocation(db, auth, id))) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
     const body = await req.json();

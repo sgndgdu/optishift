@@ -10,6 +10,7 @@ import { type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { checkHandoverGate } from "@/lib/handover";
 import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
+import { canEditPublishedWeek, canManageLocation, canManageLocations } from "@/lib/access";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
@@ -196,6 +197,26 @@ export async function POST(req: NextRequest) {
 
     // ── Toplu ön okuma (eskiden satır başına ~7 sorgu vardı; 25 satırlık yayın 26 sn sürüyordu) ──
     const valid = shifts.filter((x: any) => x?.personnel_id && x?.location_id && x?.week_start && x?.day !== undefined);
+
+    // Yetki: her şube isteği yapanın işletmesinde ve yönetebildiği şube olmalı; kişiler işletmenin personeli olmalı.
+    // Yayınlanmış haftayı müdür ancak patron onayıyla değiştirir (lib/access).
+    if (!(await canManageLocations(db, auth, valid.map((x: any) => String(x.location_id))))) {
+      return NextResponse.json({ error: "Bu şubede işlem yetkiniz yok" }, { status: 403 });
+    }
+    const vPids = [...new Set(valid.map((x: any) => String(x.personnel_id)))] as string[];
+    if (vPids.length) {
+      const own = await db.prepare(`SELECT COUNT(*) AS n FROM personnel WHERE org_id = ? AND id IN (${vPids.map(() => "?").join(",")})`)
+        .get(auth.org_id, ...vPids) as any;
+      if (Number(own?.n ?? 0) !== vPids.length) {
+        return NextResponse.json({ error: "Personel bu işletmeye ait değil" }, { status: 403 });
+      }
+    }
+    for (const lw of new Set(valid.map((x: any) => `${x.location_id}|${x.week_start}`))) {
+      const [l, w] = (lw as string).split("|");
+      if (!(await canEditPublishedWeek(db, auth, l, w))) {
+        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için patron onayı gerekiyor" }, { status: 403 });
+      }
+    }
     const pidList = [...new Set(valid.map((x: any) => String(x.personnel_id)))] as string[];
     const weekList = [...new Set(valid.map((x: any) => String(x.week_start)))] as string[];
     const inList = (n: number) => Array.from({ length: n }, () => "?").join(",");
@@ -468,9 +489,11 @@ export async function PATCH(req: NextRequest) {
       if (!location_id || !week_start) {
         return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
       }
-      const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
-      if (!loc) {
+      if (!(await canManageLocation(db, auth, location_id))) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+      }
+      if (!(await canEditPublishedWeek(db, auth, location_id, week_start))) {
+        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için patron onayı gerekiyor" }, { status: 403 });
       }
       const info = await db.prepare(`
         UPDATE shift_assignments SET publication_status = 'published',
@@ -492,8 +515,7 @@ export async function PATCH(req: NextRequest) {
       if (!location_id || !week_start || !Array.isArray(shifts)) {
         return NextResponse.json({ error: "location_id, week_start ve shifts zorunlu" }, { status: 400 });
       }
-      const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
-      if (!loc) {
+      if (!(await canManageLocation(db, auth, location_id))) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       const synced = await syncDraftWeek(db, location_id, week_start, shifts);

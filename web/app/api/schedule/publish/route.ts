@@ -3,6 +3,7 @@ import { weekRangeTR } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canManageLocation } from "@/lib/access";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
 import { deriveOvertimeForWeek } from "@/lib/overtime";
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
 
     const loc = await db.prepare("SELECT id, shift_definitions, rules FROM locations WHERE id = ? AND org_id = ?")
       .get(location_id, auth.org_id) as any;
-    if (!loc) {
+    // Müdür sadece kendi şubesini yayınlar (yayınlanmış hafta kilidi vardiya kaydında, POST /api/shifts)
+    if (!loc || !(await canManageLocation(db, auth, location_id))) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 

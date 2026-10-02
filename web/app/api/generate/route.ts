@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { businessNow } from "@/lib/date";
 import { generatePlan } from "@/lib/generatePlan";
+import { canManageLocation } from "@/lib/access";
+import { getDB } from "@/lib/db/client";
 
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
@@ -26,6 +28,9 @@ export async function POST(req: NextRequest) {
     return businessNow().weekStart;
   })();
 
+  if (!(await canManageLocation(getDB(), auth, branchId))) {
+    return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+  }
   const r = await generatePlan(auth.org_id, branchId, week_start, body);
   return NextResponse.json(r.body, { status: r.status });
 }

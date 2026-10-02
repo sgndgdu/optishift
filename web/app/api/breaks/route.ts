@@ -51,6 +51,10 @@ export async function POST(req: NextRequest) {
     if (!location_id || !personnel_id) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
+    // Personel sadece kendi molasını başlatır
+    if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+      return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+    }
 
     // Açık mola varsa reddet
     const active = await db.prepare(`
@@ -89,6 +93,9 @@ export async function PATCH(req: NextRequest) {
       `SELECT * FROM break_sessions WHERE id = ? AND org_id = ?`
     ).get(id, auth.org_id) as any;
 
+    if (session && auth.role === "employee" && auth.personnel_id !== session.personnel_id) {
+      return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+    }
     if (!session || session.end_at) {
       return NextResponse.json({ error: "Oturum bulunamadı veya zaten bitti" }, { status: 400 });
     }
