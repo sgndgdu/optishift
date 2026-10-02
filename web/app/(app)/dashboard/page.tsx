@@ -474,6 +474,16 @@ export default function DashboardPage() {
                           {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
                         </div>
                       </div>
+                      {/* Telefonla "gelemiyorum" haberi: yerine kim geçsin penceresini doğrudan aç */}
+                      {!isCheckedIn && !isCheckedOut && !(late && openShiftsEnabled && !autoOpenOnLate) && (
+                        <button
+                          onClick={() => router.push(`/schedule?week=this&gelemiyor=${s.id}&p=${encodeURIComponent(s.personnel_id)}&t=${encodeURIComponent(`${p?.name ?? ""} · ${s.start_time}–${s.end_time}`)}`)}
+                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                          title="Yerine kim geçebilir? Uygun yedekler önerilir"
+                        >
+                          Gelemiyor
+                        </button>
+                      )}
                       {!isCheckedIn && !isCheckedOut && late && openShiftsEnabled && !autoOpenOnLate && (
                         <button
                           onClick={() => convertToOpenShift(s, false)}

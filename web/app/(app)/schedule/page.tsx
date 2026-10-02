@@ -1381,6 +1381,21 @@ function SchedulePageInner() {
       .then(d => setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []))
       .catch(() => setAbsenceCands([]));
   };
+
+  // Ana Sayfa'dan "Gelemiyor" (?gelemiyor=<atama>&p=<kişi>&t=<başlık>): pencere doğrudan açılır, bir kez
+  const absenceFromUrl = useRef(false);
+  useEffect(() => {
+    if (absenceFromUrl.current) return;
+    const id = Number(searchParams.get("gelemiyor"));
+    if (!id) return;
+    // Effect içinde senkron setState yerine bir sonraki tur (React Compiler kuralı)
+    const t = setTimeout(() => {
+      absenceFromUrl.current = true;
+      openAbsence(id, searchParams.get("p") ?? "", searchParams.get("t") ?? "");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [searchParams]);
+
   const resolveAbsence = async (mode: "assign" | "top" | "all", pick?: { personnel_id: string; name: string }) => {
     if (!absence) return;
     setAbsenceBusy(true);

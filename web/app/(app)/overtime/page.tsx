@@ -350,7 +350,7 @@ export default function OvertimePage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg z-[100] animate-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg z-[100] animate-in slide-in-from-bottom-4 duration-200">
           {toast}
         </div>
       )}

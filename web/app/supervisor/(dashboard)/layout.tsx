@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
+import MobileTabBar from "@/components/MobileTabBar";
 
 export default function SupervisorLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,10 +47,11 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
         </div>
 
         <div className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-7xl p-4 md:p-8 lg:p-10">
+          <div className="mx-auto max-w-7xl p-4 md:p-8 lg:p-10 pb-24 lg:pb-10">
             {children}
           </div>
         </div>
+        <MobileTabBar scope="all" />
       </main>
     </div>
   );

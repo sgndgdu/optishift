@@ -2671,7 +2671,7 @@ export default function SettingsPage() {
 
       {/* Kayıt geri bildirimi */}
       {toast && (
-        <div className="sticky bottom-20 z-30 flex justify-center pointer-events-none">
+        <div className="sticky bottom-40 lg:bottom-20 z-30 flex justify-center pointer-events-none">
           <div className={`rounded-xl shadow-lg px-5 py-2.5 text-sm font-medium text-white ${toast.type === "ok" ? "bg-emerald-600" : "bg-red-600"}`}>
             {toast.text}
           </div>
@@ -2680,7 +2680,7 @@ export default function SettingsPage() {
 
       {/* Yapışkan kayıt barı — hangi sekmede olunursa olunsun tüm değişiklikler birlikte kaydedilir */}
       {isDirty && (
-        <div className="sticky bottom-4 z-30">
+        <div className="sticky bottom-24 lg:bottom-4 z-30">
           <div className="flex items-center justify-between gap-4 bg-slate-900 text-white rounded-2xl shadow-xl px-5 py-3">
             <span className="text-sm font-medium">Kaydedilmemiş değişiklikler var</span>
             <div className="flex items-center gap-2">
