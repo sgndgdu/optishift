@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { canEditLockedSettings, LOCK_NOTE } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -860,8 +861,12 @@ export default function PersonnelPage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Saatlik Ücret (₺, brüt)</label>
-                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
-                    <p className="text-[10px] text-slate-400 mt-1">Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez.</p>
+                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!canEditLockedSettings(authUser?.role)} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white disabled:opacity-60 disabled:cursor-not-allowed" />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {canEditLockedSettings(authUser?.role)
+                        ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
+                        : `🔒 ${LOCK_NOTE}`}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Gece Çalışma Engeli</label>

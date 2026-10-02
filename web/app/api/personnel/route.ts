@@ -6,6 +6,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
+import { canEditLockedSettings } from "@/lib/ruleLocks";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -190,7 +191,11 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
-    const { name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, hourly_wage, night_restriction } = body;
+    const { name, phone, title, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
+    // Ücret ve personeli pasife alma sadece patron/bölge müdürü (lib/ruleLocks); müdürün gönderdiği değer yok sayılır
+    const lockedOk = canEditLockedSettings(auth.role);
+    const hourly_wage = lockedOk ? body.hourly_wage : undefined;
+    const status = !lockedOk && body.status === "inactive" ? undefined : body.status;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -282,8 +287,9 @@ export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  if (auth.role === "employee") {
-    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+  // Personeli pasife almak (silmek) sadece patron/bölge müdürü (lib/ruleLocks)
+  if (!canEditLockedSettings(auth.role)) {
+    return NextResponse.json({ error: "Personeli sadece işletme sahibi veya bölge müdürü silebilir" }, { status: 403 });
   }
 
   const db = getDB();

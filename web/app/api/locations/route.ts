@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { canManageLocation } from "@/lib/access";
+import { applyRuleLocks, canEditLockedSettings } from "@/lib/ruleLocks";
 
 
 export async function GET(req: NextRequest) {
@@ -101,8 +102,16 @@ export async function PATCH(req: NextRequest) {
       values.push(typeof body.zone_quotas === "string" ? body.zone_quotas : JSON.stringify(body.zone_quotas));
     }
     if (body.rules !== undefined) {
+      let rules = typeof body.rules === "string" ? JSON.parse(body.rules) : body.rules;
+      // Müdür kilitli alanları (bütçe, çalışma kuralları, ek özellikler) değiştiremez: mevcut değer korunur
+      if (!canEditLockedSettings(auth.role)) {
+        const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(id) as { rules?: string } | undefined;
+        let current: Record<string, unknown> = {};
+        try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }
+        rules = applyRuleLocks(current, rules ?? {});
+      }
       updates.push("rules = ?");
-      values.push(typeof body.rules === "string" ? body.rules : JSON.stringify(body.rules));
+      values.push(JSON.stringify(rules));
     }
     if (body.demand_matrix !== undefined) {
       updates.push("demand_matrix = ?");

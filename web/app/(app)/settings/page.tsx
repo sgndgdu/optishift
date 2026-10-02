@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode, type ComponentType } from "react";
+import { useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
   Save, Plus, X, Send, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
   MessageSquare, Megaphone, Gavel, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Tablet, Timer, Wallet,
@@ -8,6 +8,7 @@ import {
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
+import { canEditLockedSettings, LOCK_NOTE } from "@/lib/ruleLocks";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
@@ -105,15 +106,36 @@ function NumberInput({
   );
 }
 
-function RuleRow({ label, description, right, wide = false }: { label: string; description: ReactNode; right: ReactNode; wide?: boolean }) {
+// true: bu kullanıcı (müdür) kilitli alanları değiştiremez (lib/ruleLocks). Sunucu da ayrıca korur.
+const SettingsLockCtx = createContext(false);
+
+function LockNote() {
+  return <p className="text-[11px] font-semibold text-amber-700 mt-1">🔒 {LOCK_NOTE}</p>;
+}
+
+/** Kilitli bölüm: müdür görür, değiştiremez. */
+function LockArea({ children }: { children: ReactNode }) {
+  const locked = useContext(SettingsLockCtx);
+  if (!locked) return <>{children}</>;
   return (
-    <div className={cn("flex items-start justify-between gap-4 py-4", wide && "flex-col sm:flex-row gap-3")}>
-      <div className="min-w-0">
+    <div className="space-y-3">
+      <LockNote />
+      <fieldset disabled className="min-w-0 border-0 p-0 m-0 opacity-60 space-y-4">{children}</fieldset>
+    </div>
+  );
+}
+
+function RuleRow({ label, description, right, wide = false, lock = false }: { label: string; description: ReactNode; right: ReactNode; wide?: boolean; lock?: boolean }) {
+  const locked = useContext(SettingsLockCtx) && lock;
+  return (
+    <fieldset disabled={locked} className={cn("min-w-0 border-0 p-0 m-0 flex items-start justify-between gap-4 py-4", wide && "flex-col sm:flex-row gap-3")}>
+      <div className={cn("min-w-0", locked && "opacity-60")}>
         <p className="text-sm font-semibold text-slate-800">{label}</p>
         <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
+        {locked && <LockNote />}
       </div>
-      <div className={cn("shrink-0 mt-0.5", wide && "w-full sm:w-auto")}>{right}</div>
-    </div>
+      <div className={cn("shrink-0 mt-0.5", wide && "w-full sm:w-auto", locked && "opacity-60")}>{right}</div>
+    </fieldset>
   );
 }
 
@@ -161,6 +183,7 @@ function SettingsGroup({ id, title, description, open, onToggle, children }: {
 function FeatureCard({ icon: Icon, title, description, on, onToggle, children }: {
   icon: ComponentType<{ size?: number }>; title: string; description: string; on: boolean; onToggle: () => void; children?: ReactNode;
 }) {
+  const locked = useContext(SettingsLockCtx);
   return (
     <div className={cn(
       "rounded-2xl border p-4 transition-colors",
@@ -175,7 +198,9 @@ function FeatureCard({ icon: Icon, title, description, on, onToggle, children }:
           <p className="text-sm font-bold text-slate-800">{title}</p>
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
         </div>
-        <Toggle on={on} onToggle={onToggle} />
+        <fieldset disabled={locked} className={cn("min-w-0 border-0 p-0 m-0", locked && "opacity-50")} title={locked ? LOCK_NOTE : undefined}>
+          <Toggle on={on} onToggle={onToggle} />
+        </fieldset>
       </div>
       {on && children && <div className="mt-4 pt-4 border-t border-forest-100">{children}</div>}
     </div>
@@ -281,6 +306,7 @@ function RequiredSkillsEditor({
 }
 
 export default function SettingsPage() {
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
   // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
   const [activeTab, setActiveTab] = useState<TabKey>(() => tabFromUrl().tab);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -449,6 +475,7 @@ export default function SettingsPage() {
       let u = null;
       if (userRaw) u = JSON.parse(userRaw);
       if (!u || !u.org_id) return;
+      setViewerRole(u.role ?? null);
 
       try {
         const res = await fetch(`/api/locations?org_id=${u.org_id}`);
@@ -1181,6 +1208,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <SettingsLockCtx.Provider value={viewerRole !== null && !canEditLockedSettings(viewerRole)}>
     <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-slate-800">Şube Ayarları</h1>
@@ -1731,7 +1759,7 @@ export default function SettingsPage() {
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
                   <RuleRow
-                    label="Gececi→Sabahçı Yasağı"
+                    lock label="Gececi→Sabahçı Yasağı"
                     description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
                     right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
                   />
@@ -1741,12 +1769,12 @@ export default function SettingsPage() {
                     right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
                   />
                   <RuleRow
-                    label="Arka Arkaya İki Hafta Gece Yasağı"
+                    lock label="Arka Arkaya İki Hafta Gece Yasağı"
                     description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
                     right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
                   />
                   <RuleRow
-                    label="Gece 7,5 Saat Uyarısı"
+                    lock label="Gece 7,5 Saat Uyarısı"
                     description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
@@ -1761,53 +1789,53 @@ export default function SettingsPage() {
                     right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
                   />
                   <RuleRow
-                    label="Kapanış→Açılış Tespiti"
+                    lock label="Kapanış→Açılış Tespiti"
                     description="Geç çıkıp ertesi sabah erken gelme (kapanış→açılış) tespit edilir: plan oluştururken bu geçişten kaçınılır ve yayınlamadan önce uyarı olarak gösterilir."
                     right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
                   />
                   {clopeningEnabled && (
                     <>
                       <RuleRow
-                        label="Kapanış→Açılış Eşiği"
+                        lock label="Kapanış→Açılış Eşiği"
                         description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal alt sınır olan 11 saatten fazla olmalı)."
                         right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
                       />
                       <RuleRow
-                        label="Kaçınma Hassasiyeti"
+                        lock label="Kaçınma Hassasiyeti"
                         description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
                         right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
                       />
                     </>
                   )}
                   <RuleRow
-                    label="Haftalık En Fazla Çalışma"
+                    lock label="Haftalık En Fazla Çalışma"
                     description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                   />
                   <RuleRow
-                    label="En Az Dinlenme Süresi"
+                    lock label="En Az Dinlenme Süresi"
                     description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
                     right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                   />
                   <RuleRow
-                    label="Denkleştirme Dönemi"
+                    lock label="Denkleştirme Dönemi"
                     description="0 = kapalı (haftalık limit katı uygulanır). 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir: dönem ortalaması haftalık limiti aşamaz, tek hafta en fazla 66 saat olabilir (İş K. m.63)."
                     right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
                   />
                   <RuleRow
-                    label="Maks. Ardışık Çalışma"
+                    lock label="Maks. Ardışık Çalışma"
                     description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 seçilse de haftada en az 1 gün izin (24 saat kesintisiz hafta tatili, İş K. m.46) her zaman korunur."
                     right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                   />
                   {(locationData?.shift_definitions ?? []).some((d: ShiftDefinition) => d.on_call) && (
                     <RuleRow
-                      label="Haftalık İcap Sınırı"
+                      lock label="Haftalık İcap Sınırı"
                       description="Bir kişiye haftada en fazla bu kadar icap nöbeti yazılır. İcaplar ayrıca Adalet Puanı'yla dengeli dağıtılır."
                       right={<NumberInput value={maxOnCallPerWeek} onChange={setMaxOnCallPerWeek} min={0} max={7} suffix="icap" />}
                     />
                   )}
                   <RuleRow
-                    label="Haftalık İşçilik Maliyeti Bütçesi"
+                    lock label="Haftalık İşçilik Maliyeti Bütçesi"
                     description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                   />
@@ -1910,6 +1938,7 @@ export default function SettingsPage() {
                 </SectionCard>
               </SettingsGroup>
               <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor vardiyaların puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
+                <LockArea>
 
                 {/* Açıklama banner */}
                 <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
@@ -1984,6 +2013,7 @@ export default function SettingsPage() {
                     right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
                   />
                 </SectionCard>
+                </LockArea>
               </SettingsGroup>
               <SettingsGroup id="zones" title="Departmanlar ve Alanlar" description="Kasa, mutfak, hat gibi bölümler ve günlük alan kotaları" open={!!openGroups["zones"]} onToggle={toggleGroup}>
 
@@ -2396,6 +2426,7 @@ export default function SettingsPage() {
               <p className="text-sm text-slate-500">
                 İhtiyacınız olan özelliği açın. Kapalı bir özelliğin menüsü, düğmesi ve sütunu hiçbir ekranda görünmez; açtığınızda ayarları bu kartın içinde çıkar.
               </p>
+              {!canEditLockedSettings(viewerRole) && <LockNote />}
 
               <FeatureGroup title="Ekip ve İletişim">
                 <FeatureCard icon={MessageSquare} title="Mesajlaşma"
@@ -2570,22 +2601,22 @@ export default function SettingsPage() {
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)}>
   <div className="divide-y divide-slate-100">
                   <RuleRow
-                    label="Haftalık Mesai Eşiği"
+                    lock label="Haftalık Mesai Eşiği"
                     description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık En Fazla Çalışma'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
                     right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
                   />
                   <RuleRow
-                    label="Yıllık Fazla Mesai Sınırı"
+                    lock label="Yıllık Fazla Mesai Sınırı"
                     description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
                     right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
                   />
                   <RuleRow
-                    label="Adil Mesai Dağılımı"
+                    lock label="Adil Mesai Dağılımı"
                     description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
                     right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
                   />
                   <RuleRow
-                    label="Haftalık Mesai Bütçesi"
+                    lock label="Haftalık Mesai Bütçesi"
                     description="Tüm personelin haftalık toplam fazla mesai saati bu sınırı aşarsa yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
                     right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
                   />
@@ -2641,5 +2672,6 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+    </SettingsLockCtx.Provider>
   );
 }

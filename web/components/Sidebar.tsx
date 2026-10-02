@@ -144,8 +144,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       localStorage.setItem("optishift_selected_location", initialLoc);
     }
 
-    // Manager sadece kendi şubesini görür — admin tüm şubelere erişir
-    if (parsedUser?.role === "admin" && parsedUser?.org_id) {
+    // Manager sadece kendi şubesini görür — patron ve bölge müdürü tüm şubelere erişir
+    if ((parsedUser?.role === "admin" || parsedUser?.role === "supervisor") && parsedUser?.org_id) {
       fetch(`/api/locations`)
         .then(r => r.json())
         .then(data => {
@@ -342,7 +342,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Yardım (+ sahip için amir paneline geçiş: şube ekleme, şubeler arası özet) */}
       <div className="px-1 pt-2">
-        {user?.role === "admin" && (
+        {(user?.role === "admin" || user?.role === "supervisor") && (
           <button
             onClick={() => {
               if (!localStorage.getItem("optishift_supervisor_user")) {
@@ -381,9 +381,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
               <p className={cn(
                 "text-[10px] font-medium tracking-wide uppercase",
-                user?.role === "admin" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
+                user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "manager" ? "Müdür" : user?.role === "admin" ? "İşletme Sahibi" : "Personel"}
+                {user?.role === "manager" ? "Müdür" : user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : "Personel"}
               </p>
             </div>
           </div>
