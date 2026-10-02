@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { addDays, businessToday, weekStartOf } from "@/lib/date";
 import { computeFatigueRisk, type FatigueDayEntry } from "@/lib/fatigue";
 
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id, rules, shift_definitions FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id) as any;
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     let rules: any = {};

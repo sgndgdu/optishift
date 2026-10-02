@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
 import { formatDateTR } from "@/lib/date";
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const status = searchParams.get("status");
   const org_id = auth.org_id; // token'dan al
 
@@ -191,6 +193,7 @@ export async function PATCH(req: NextRequest) {
 
     // Verify open shift belongs to this org
     const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as any;
+    if (os && managerOutsideBranch(auth, os.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!os) {
       return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     }
@@ -256,7 +259,8 @@ export async function DELETE(req: NextRequest) {
   const db = getDB();
   try {
     // Verify ownership before deleting
-    const existing = await db.prepare(`SELECT id FROM open_shifts WHERE id = ? AND org_id = ?`).get(id, auth.org_id);
+    const existing = await db.prepare(`SELECT id, location_id FROM open_shifts WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { location_id: string } | undefined;
+    if (existing && managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!existing) {
       return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { leaveRequests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch, canActOnPersonnel } from "@/lib/access";
 
 // GET: Personelin izin taleplerini listele (veya location'daki tüm personelin)
 export async function GET(req: NextRequest) {
@@ -14,13 +15,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const personnel_id = searchParams.get("personnel_id");
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
-  // Employee yalnızca kendi taleplerini görebilir
-  if (auth.role === "employee" && personnel_id && auth.personnel_id !== personnel_id) {
+  // Employee yalnızca kendi taleplerini görebilir (şube listesi yöneticiler içindir)
+  if (auth.role === "employee" && (location_id || (personnel_id && auth.personnel_id !== personnel_id))) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 
   if (personnel_id) {
+    // Kişi isteği yapanın işletmesinde olmalı
+    const own = await getDB().prepare("SELECT 1 FROM personnel WHERE id = ? AND org_id = ?").get(personnel_id, auth.org_id);
+    if (!own) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     const rows = await db
       .select()
       .from(leaveRequests)
@@ -35,9 +40,9 @@ export async function GET(req: NextRequest) {
       const rows = await rawDb.prepare(`
         SELECT lr.*, p.name as personnel_name FROM leave_requests lr
         JOIN personnel p ON p.id = lr.personnel_id
-        WHERE p.primary_location_id = ?
+        WHERE p.primary_location_id = ? AND p.org_id = ?
         ORDER BY lr.created_at DESC
-      `).all(location_id);
+      `).all(location_id, auth.org_id);
       return NextResponse.json(rows);
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 500 });
@@ -167,6 +172,8 @@ export async function PATCH(req: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: "Talep bulunamadı" }, { status: 404 });
     }
+    // Talep isteği yapanın işletmesinde (müdürse kendi şubesinde) olmalı
+    if (!(await canActOnPersonnel(getDB(), auth, existing.personnel_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     if (auth.role === "employee" && auth.personnel_id !== existing.personnel_id) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });

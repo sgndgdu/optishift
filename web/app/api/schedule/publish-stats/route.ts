@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 // Ortalama bu kadar yayınlanmış hafta birikmeden gösterilmez (aşağıda avg)
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }

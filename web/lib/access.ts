@@ -1,5 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AuthUser } from "@/lib/auth";
+import { hasManagerPermission, isOwnerRole, type ManagerPermission } from "@/lib/ruleLocks";
+
+/** Şubenin kuralları (locations.rules, JSON). Bulunamazsa {}. */
+export async function locationRules(db: any, locationId: string | null | undefined): Promise<Record<string, unknown>> {
+  if (!locationId) return {};
+  try {
+    const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(locationId) as { rules?: string } | undefined;
+    return row?.rules ? JSON.parse(row.rules) : {};
+  } catch { return {}; }
+}
+
+/** Bu kullanıcı bu şubede bu müdür iznine sahip mi (lib/ruleLocks; patron/bölge müdürü her zaman). */
+export async function hasLocationPermission(db: any, auth: AuthUser, locationId: string | null | undefined, perm: ManagerPermission): Promise<boolean> {
+  if (isOwnerRole(auth.role)) return true;
+  return hasManagerPermission(auth.role, await locationRules(db, locationId), perm);
+}
 
 /**
  * Şube yönetim yetkisi: TEK KAYNAK.
@@ -25,13 +41,13 @@ export async function canManageLocations(db: any, auth: AuthUser, locationIds: I
 }
 
 /**
- * Yayınlanmış bir haftayı müdür ancak patron/supervisor onayıyla değiştirebilir
+ * Yayınlanmış bir haftayı müdür, "publish_edit" izni yoksa ancak patron/supervisor onayıyla değiştirebilir
  * (schedule_edit_requests, status = 'approved', son 12 saatte onaylanmış; yayınlanınca 'completed' olur).
  * Patron ve supervisor onaysız değiştirir.
  * Hafta henüz yayınlanmadıysa serbest.
  */
 export async function canEditPublishedWeek(db: any, auth: AuthUser, locationId: string, weekStart: string): Promise<boolean> {
-  if (auth.role === "admin" || auth.role === "supervisor") return true;
+  if (await hasLocationPermission(db, auth, locationId, "publish_edit")) return true;
   const published = await db.prepare(
     `SELECT 1 FROM shift_assignments WHERE location_id = ? AND week_start = ? AND publication_status = 'published' LIMIT 1`
   ).get(locationId, weekStart);
@@ -41,4 +57,24 @@ export async function canEditPublishedWeek(db: any, auth: AuthUser, locationId: 
        AND COALESCE(reviewed_at, created_at) > ? LIMIT 1`
   ).get(auth.org_id, locationId, weekStart, Math.floor(Date.now() / 1000) - 12 * 3600);
   return !!approved;
+}
+
+/** Müdür kendi şubesi dışındaki bir şubeye mi erişiyor? (patron/bölge müdürü işletme içinde serbest) */
+export function managerOutsideBranch(auth: AuthUser, locationId: string | null | undefined): boolean {
+  return auth.role === "manager" && !!locationId && auth.location_id !== locationId;
+}
+
+/**
+ * Bir personelin kaydına dokunma yetkisi: personel sadece kendisi; yönetici kişi kendi işletmesindeyse,
+ * müdür ayrıca kişi kendi şubesinde (ana ya da atandığı şube) ise.
+ */
+export async function canActOnPersonnel(db: any, auth: AuthUser, personnelId: string | null | undefined): Promise<boolean> {
+  if (!personnelId) return false;
+  if (auth.role === "employee") return auth.personnel_id === personnelId;
+  const p = await db.prepare("SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?")
+    .get(personnelId, auth.org_id) as { primary_location_id: string; assigned_location_ids: string | null } | undefined;
+  if (!p) return false;
+  if (auth.role !== "manager") return true;
+  // Birden çok şubeye atanmış personel: müdürün şubesi atandığı şubelerden biriyse yeter
+  return p.primary_location_id === auth.location_id || (p.assigned_location_ids ?? "").includes(`"${auth.location_id}"`);
 }

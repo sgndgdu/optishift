@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch, canActOnPersonnel } from "@/lib/access";
 import { addDays, businessToday } from "@/lib/date";
 
 export async function GET(req: NextRequest) {
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
   // ?location_id=&attention=1 → şubedeki süresi dolmuş ya da 30 gün içinde dolacak belgeler
   // (Ana Sayfa "Bekleyen İşler" sertifika maddesi). Sadece okuma, işletmeyle sınırlı.
   const attentionLoc = searchParams.get("attention") === "1" ? searchParams.get("location_id") : null;
+  if (managerOutsideBranch(auth, attentionLoc)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (attentionLoc) {
     if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
     const today = businessToday();
@@ -67,8 +69,7 @@ export async function POST(req: NextRequest) {
 
   const db = getDB();
   try {
-    const person = await db.prepare(`SELECT id FROM personnel WHERE id = ? AND org_id = ?`).get(personnel_id, auth.org_id);
-    if (!person) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    if (!(await canActOnPersonnel(db, auth, personnel_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const result = await db.prepare(
       `INSERT INTO personnel_documents (org_id, personnel_id, doc_type, expiry_date, note, created_at)
@@ -92,8 +93,9 @@ export async function DELETE(req: NextRequest) {
 
   const db = getDB();
   try {
-    const existing = await db.prepare(`SELECT id FROM personnel_documents WHERE id = ? AND org_id = ?`).get(id, auth.org_id);
+    const existing = await db.prepare(`SELECT id, personnel_id FROM personnel_documents WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { personnel_id: string } | undefined;
     if (!existing) return NextResponse.json({ error: "Kayıt bulunamadı" }, { status: 404 });
+    if (!(await canActOnPersonnel(db, auth, existing.personnel_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     await db.prepare(`DELETE FROM personnel_documents WHERE id = ?`).run(id);
     return NextResponse.json({ success: true });

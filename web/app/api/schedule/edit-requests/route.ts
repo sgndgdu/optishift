@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 // GET /api/schedule/edit-requests?location_id=X&week_start=Y  → müdür: aktif talep durumu
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const week_start  = searchParams.get("week_start");
   const org_id_param = searchParams.get("org_id");
 
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { location_id, week_start } = body;
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
   if (!location_id || !week_start) {
     return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });

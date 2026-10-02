@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { swapReducer, toSwapEvent, SwapStatus } from "@/lib/swapReducer";
 import { sendPushToPersonnel } from "@/lib/notifications";
 
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
   const requester_id = searchParams.get("requester_id");
   const target_id    = searchParams.get("target_id");
   const location_id  = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const status       = searchParams.get("status");
   const org_id       = auth.org_id;
 
@@ -195,6 +197,7 @@ export async function PATCH(req: NextRequest) {
       `SELECT location_id FROM shift_assignments WHERE id = ?`
     ).get(existing.requester_shift_id) as any;
     const location_id = requesterShift?.location_id ?? "";
+    if (managerStatuses.includes(status) && managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     // Reducer: (mevcutDurum, olay, bağlam) → yeniDurum + yan etkiler
     const result = swapReducer(

@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { resolveNextShiftDefId } from "@/lib/handover";
 
 async function handoverLogEnabled(db: ReturnType<typeof getDB>, locationId: string): Promise<boolean> {
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     let where = "h.location_id = $1 AND h.org_id = $2";

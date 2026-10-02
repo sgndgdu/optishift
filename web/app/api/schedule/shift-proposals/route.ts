@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { shift_proposals, notifications, shiftAssignments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 function hhmmToMin(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -92,7 +93,8 @@ export async function PATCH(req: NextRequest) {
     .where(eq(shift_proposals.id, Number(id)));
 
   const proposal = rows[0];
-  if (!proposal) return NextResponse.json({ error: "Teklif bulunamadı" }, { status: 404 });
+  if (!proposal || proposal.org_id !== auth.org_id) return NextResponse.json({ error: "Teklif bulunamadı" }, { status: 404 });
+  if (managerOutsideBranch(auth, proposal.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (proposal.status !== "pending") return NextResponse.json({ error: "Teklif zaten yanıtlandı" }, { status: 409 });
 
   // Employee yalnızca kendi teklifini yanıtlayabilir

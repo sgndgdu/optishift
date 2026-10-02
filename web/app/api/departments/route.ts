@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { departments, locations, users, personnel } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 // Departmanın bağlı olduğu lokasyonun bu org'a ait olduğunu doğrular
 async function locationBelongsToOrg(location_id: string, org_id: string) {
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (!location_id) return NextResponse.json({ error: "location_id gerekli" }, { status: 400 });
   if (!(await locationBelongsToOrg(location_id, auth.org_id)))
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
@@ -68,6 +70,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { location_id, name } = body;
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (!location_id || !name?.trim())
     return NextResponse.json({ error: "location_id ve name gerekli" }, { status: 400 });
   if (!(await locationBelongsToOrg(location_id, auth.org_id)))
@@ -87,8 +90,9 @@ export async function PATCH(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
-  if (!(await getDeptInOrg(id, auth.org_id)))
-    return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
+  const dept = await getDeptInOrg(id, auth.org_id);
+  if (!dept) return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
+  if (managerOutsideBranch(auth, dept.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
   const body = await req.json();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,8 +116,9 @@ export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
-  if (!(await getDeptInOrg(id, auth.org_id)))
-    return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
+  const dept = await getDeptInOrg(id, auth.org_id);
+  if (!dept) return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
+  if (managerOutsideBranch(auth, dept.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
   // Silinen departmana bağlı personel/kullanıcı departmansız kalır (kayıt silinmez)
   await db.update(personnel).set({ department_id: null }).where(eq(personnel.department_id, id));

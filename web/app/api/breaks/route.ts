@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { businessToday } from "@/lib/date";
 
 
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const org_id      = auth.org_id;
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const date        = searchParams.get("date") ?? businessToday();
 
   if (!location_id) {
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const { location_id, personnel_id, personnel_name, date } = await req.json();
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     const org_id = auth.org_id;
 
     if (!location_id || !personnel_id) {

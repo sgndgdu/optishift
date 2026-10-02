@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 // GET /api/reports/timesheet?location_id=X&month=YYYY-MM
 // Giriş bazlı puantaj: kişi-gün satırları CSV olarak iner (bordro/muhasebe aktarımı).
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
   try {
     // Lokasyon org doğrulaması
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     // Ayın gün aralığını kapsayan haftalar: ay başından 6 gün öncesi pazartesi'lerinden itibaren

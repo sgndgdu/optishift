@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { availability, locations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import { canActOnPersonnel } from "@/lib/access";
+import { getDB } from "@/lib/db/client";
 
 /** Lokasyon kuralından haftalık sarı gün hakkını okur (varsayılan 1). */
 async function getMaxPreferredNotDays(locationId: string | null): Promise<number> {
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Employee can only read their own availability
-  if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+  if (!(await canActOnPersonnel(getDB(), auth, personnel_id))) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Eksik alan" }, { status: 400 });
     }
 
-    if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+    if (!(await canActOnPersonnel(getDB(), auth, personnel_id))) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
@@ -149,7 +151,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
   }
 
-  if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+  if (!(await canActOnPersonnel(getDB(), auth, personnel_id))) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 

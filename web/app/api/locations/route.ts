@@ -3,7 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { canManageLocation } from "@/lib/access";
-import { applyRuleLocks, canEditLockedSettings } from "@/lib/ruleLocks";
+import { applyRuleLocks, isOwnerRole } from "@/lib/ruleLocks";
 
 
 export async function GET(req: NextRequest) {
@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest) {
     if (body.rules !== undefined) {
       let rules = typeof body.rules === "string" ? JSON.parse(body.rules) : body.rules;
       // Müdür kilitli alanları (bütçe, çalışma kuralları, ek özellikler) değiştiremez: mevcut değer korunur
-      if (!canEditLockedSettings(auth.role)) {
+      if (!isOwnerRole(auth.role)) {
         const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(id) as { rules?: string } | undefined;
         let current: Record<string, unknown> = {};
         try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }

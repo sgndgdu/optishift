@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { getDB } from "@/lib/db/client";
 import { industryFromRules } from "@/lib/templates";
 import { IMPORT_COLUMNS } from "@/lib/personnelImport";
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   if (location_id) {
     const db = getDB();
     const loc = await db.prepare(`SELECT id, rules FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id) as any;
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (loc) {
       departments = ((await db.prepare(`SELECT name FROM departments WHERE location_id = ? ORDER BY name`).all(location_id)) as any[]).map(d => d.name);
       roles = (industryFromRules(loc.rules)?.roles ?? []).map(r => r.label);

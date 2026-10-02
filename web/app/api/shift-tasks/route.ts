@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -10,6 +11,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const shift_assignment_id = searchParams.get("shift_assignment_id");
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const week_start = searchParams.get("week_start");
 
   const db = getDB();
@@ -59,12 +61,13 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const task = await db.prepare(
-      `SELECT st.id, st.org_id, sa.personnel_id
+      `SELECT st.id, st.org_id, sa.personnel_id, sa.location_id
        FROM shift_tasks st
        JOIN shift_assignments sa ON sa.id = st.shift_assignment_id
        WHERE st.id = ?`
     ).get(id) as any;
     if (!task || task.org_id !== auth.org_id) return NextResponse.json({ error: "Görev bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, task.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (auth.role === "employee" && task.personnel_id !== auth.personnel_id) {
       return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
     }

@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 // GET /api/schedule/publications?location_id=X[&week_start=YYYY-MM-DD]
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const week_start  = searchParams.get("week_start");
 
   if (!location_id) return NextResponse.json({ error: "location_id gerekli" }, { status: 400 });

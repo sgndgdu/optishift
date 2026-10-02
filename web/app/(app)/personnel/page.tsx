@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { canEditLockedSettings, LOCK_NOTE } from "@/lib/ruleLocks";
+import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -69,6 +69,9 @@ export default function PersonnelPage() {
   const [search, setSearch] = useState("");
 
   const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
+  // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü her zaman, müdür şube ayarına göre
+  const can = (perm: ManagerPermission) =>
+    hasManagerPermission(authUser?.role, locations.find(l => l.id === authUser?.location_id)?.rules ?? {}, perm);
   const [selfSignupLoading, setSelfSignupLoading] = useState(false);
   const [selfSignupCopied, setSelfSignupCopied] = useState(false);
   const [deptCache, setDeptCache] = useState<Record<string, { id: string; name: string }[]>>({});
@@ -605,7 +608,7 @@ export default function PersonnelPage() {
                     {p.userId && <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
                       {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}
                     </button>}
-                    {p.userId && (authUser?.role === "admin" || authUser?.role === "supervisor") && (
+                    {p.userId && (authUser?.role === "admin" || authUser?.role === "supervisor" || (p.role === "employee" && can("personnel_delete"))) && (
                       <button onClick={() => handleDelete(p)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hesabı Sil"><Trash2 size={15} /></button>
                     )}
                   </div>
@@ -861,9 +864,9 @@ export default function PersonnelPage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">Saatlik Ücret (₺, brüt)</label>
-                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!canEditLockedSettings(authUser?.role)} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white disabled:opacity-60 disabled:cursor-not-allowed" />
+                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!can("budget")} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white disabled:opacity-60 disabled:cursor-not-allowed" />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      {canEditLockedSettings(authUser?.role)
+                      {can("budget")
                         ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
                         : `🔒 ${LOCK_NOTE}`}
                     </p>

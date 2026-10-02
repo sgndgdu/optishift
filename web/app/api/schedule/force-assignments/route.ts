@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { rescoreWeek } from "@/lib/scoring";
 
 
@@ -72,14 +73,15 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const shiftRow = await db.prepare(`
-      SELECT sa.*, p.name as personnel_name, p.hero_count, p.prev_score, l.name as location_name
+      SELECT sa.*, p.name as personnel_name, p.hero_count, p.prev_score, p.org_id AS p_org, l.name as location_name
       FROM shift_assignments sa
       JOIN personnel p ON p.id = sa.personnel_id
       LEFT JOIN locations l ON sa.location_id = l.id
       WHERE sa.id = ?
     `).get(shift_id) as any;
 
-    if (!shiftRow) {
+    // Vardiya isteği yapanın işletmesinde (müdürse kendi şubesinde) olmalı
+    if (!shiftRow || shiftRow.p_org !== auth.org_id || managerOutsideBranch(auth, shiftRow.location_id)) {
       return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     }
 

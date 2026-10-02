@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const rows = await db.prepare(
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const existing = await db.prepare(
@@ -75,9 +78,10 @@ export async function DELETE(req: NextRequest) {
   const db = getDB();
   try {
     const existing = await db.prepare(
-      `SELECT lsd.id FROM location_sales_data lsd WHERE lsd.id = ? AND lsd.org_id = ?`
-    ).get(id, auth.org_id);
+      `SELECT lsd.id, lsd.location_id FROM location_sales_data lsd WHERE lsd.id = ? AND lsd.org_id = ?`
+    ).get(id, auth.org_id) as { location_id: string } | undefined;
     if (!existing) return NextResponse.json({ error: "Kayıt bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     await db.prepare(`DELETE FROM location_sales_data WHERE id = ?`).run(id);
     return NextResponse.json({ success: true });

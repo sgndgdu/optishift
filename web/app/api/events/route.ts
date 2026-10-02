@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 export async function GET(req: NextRequest) {
@@ -9,7 +10,9 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const location_id = searchParams.get("location_id");
+  // Müdür sadece kendi şubesinin etkinliklerini görür
+  const location_id = auth.role === "manager" ? auth.location_id : searchParams.get("location_id");
+  if (managerOutsideBranch(auth, searchParams.get("location_id"))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const week_start  = searchParams.get("week_start");
 
   const db = getDB();
@@ -59,6 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Org izolasyonu — lokasyonun bu org'a ait olduğunu doğrula
     const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
@@ -86,6 +90,8 @@ export async function DELETE(req: NextRequest) {
 
   const db = getDB();
   try {
+    const ev = await db.prepare("SELECT location_id FROM location_events WHERE id = ? AND org_id = ?").get(id, auth.org_id) as { location_id: string } | undefined;
+    if (ev && managerOutsideBranch(auth, ev.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     await db.prepare("DELETE FROM location_events WHERE id = ? AND org_id = ?").run(id, auth.org_id);
     return NextResponse.json({ success: true });
   } catch (err: any) {

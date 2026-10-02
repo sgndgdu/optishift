@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 // GET:
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const personnel_id = searchParams.get("personnel_id");
   const location_id  = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const org_id       = auth.org_id;
 
   const db = getDB();
@@ -116,6 +118,10 @@ export async function PATCH(req: NextRequest) {
 
     if (!existing) {
       return NextResponse.json({ error: "Talep bulunamadı" }, { status: 404 });
+    }
+    if (auth.role === "manager") {
+      const sa = await db.prepare(`SELECT location_id FROM shift_assignments WHERE id = ?`).get(existing.shift_id) as { location_id: string } | undefined;
+      if (managerOutsideBranch(auth, sa?.location_id ?? null)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
     // Personel sadece kendi pending talebini iptal edebilir

@@ -1,6 +1,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 
 // POST /api/schedule/send-for-review
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     // Lokasyon bu org'a ait mi?
     const loc = await db.prepare("SELECT id, name FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id) as { id: string; name: string } | undefined;
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }

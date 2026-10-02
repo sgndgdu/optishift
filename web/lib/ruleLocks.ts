@@ -1,11 +1,22 @@
 /**
- * Müdür için kilitli şube ayarları: TEK KAYNAK.
- * Bu alanları sadece işletme sahibi (admin) ve bölge müdürü (supervisor) değiştirir;
- * müdür görür ama değiştiremez. Sunucu (PATCH /api/locations) müdürün gönderdiği
- * değerleri yok sayar, Ayarlar ekranı alanları kilitli gösterir.
- * Ayrıca: personel saatlik ücreti (/api/personnel) ve personeli pasife alma da müdüre kapalı.
+ * Müdür izinleri: TEK KAYNAK.
+ * Patron (admin) ve bölge müdürü (supervisor) her şube için müdürün hangi alanları
+ * değiştirebileceğini seçer: locations.rules.manager_permissions. Varsayılan: hepsine izin.
+ * İzin kapalıysa müdür alanı görür ama değiştiremez; sunucu (PATCH /api/locations,
+ * /api/personnel, lib/access) müdürün gönderdiği değeri yok sayar / reddeder.
+ * manager_permissions'ın kendisini müdür hiçbir zaman değiştiremez.
  */
 export type LockCategory = "budget" | "rules" | "features";
+export type ManagerPermission = LockCategory | "personnel_delete" | "publish_edit";
+export type ManagerPermissions = Record<ManagerPermission, boolean>;
+
+export const MANAGER_PERMISSION_LIST: { key: ManagerPermission; label: string; description: string }[] = [
+  { key: "budget", label: "Ücret ve bütçe", description: "Personelin saatlik ücreti, haftalık işçilik ve fazla mesai bütçesi." },
+  { key: "rules", label: "Çalışma kuralları", description: "Haftalık saat sınırı, dinlenme, ardışık gün, fazla mesai sınırları, Adalet Puanı ağırlıkları." },
+  { key: "features", label: "Ek özellikler", description: "Mesajlaşma, açık vardiya, bahşiş, ortak tablet gibi modülleri açıp kapatma." },
+  { key: "personnel_delete", label: "Personel silme", description: "Personeli pasife alma ve hesabını silme." },
+  { key: "publish_edit", label: "Yayınlanmış planı onaysız değiştirme", description: "Kapalıysa yayınlanmış haftayı düzenlemek için patron veya bölge müdürü onayı gerekir." },
+];
 
 export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
   // Ücret ve bütçe
@@ -28,24 +39,45 @@ export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
   ],
 };
 
-export const ALL_LOCKED_RULE_KEYS: readonly string[] = Object.values(LOCKED_RULE_KEYS).flat();
+export const PERMISSIONS_RULE_KEY = "manager_permissions";
 
-/** Bu rol kilitli alanları değiştirebilir mi? */
-export function canEditLockedSettings(role: string | null | undefined): boolean {
+/** Şube kurallarından müdür izinleri (eksik anahtar = izinli). */
+export function managerPermissions(rules: unknown): ManagerPermissions {
+  const raw = (rules && typeof rules === "object" ? (rules as Record<string, unknown>)[PERMISSIONS_RULE_KEY] : null) as Record<string, unknown> | null;
+  const out = {} as ManagerPermissions;
+  for (const p of MANAGER_PERMISSION_LIST) out[p.key] = raw?.[p.key] !== false;
+  return out;
+}
+
+/** Patron ve bölge müdürü her şeyi yapar ve izinleri belirler. */
+export function isOwnerRole(role: string | null | undefined): boolean {
   return role === "admin" || role === "supervisor";
+}
+
+/** Bu kullanıcı bu şubede bu izne sahip mi? */
+export function hasManagerPermission(role: string | null | undefined, rules: unknown, perm: ManagerPermission): boolean {
+  if (isOwnerRole(role)) return true;
+  if (role !== "manager") return false;
+  return managerPermissions(rules)[perm];
 }
 
 export const LOCK_NOTE = "Bu ayarı işletme sahibi veya bölge müdürü değiştirir.";
 
 /**
- * Müdürün gönderdiği kurallarda kilitli alanları mevcut değerlerle değiştirir:
- * mevcutta varsa eski değer, yoksa anahtar hiç yazılmaz (varsayılan geçerli kalır).
+ * Müdürün gönderdiği kurallarda izni olmayan alanları ve izin ayarının kendisini
+ * mevcut değerlerle değiştirir: mevcutta varsa eski değer, yoksa anahtar yazılmaz.
  */
 export function applyRuleLocks(current: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
+  const perms = managerPermissions(current);
   const out: Record<string, unknown> = { ...incoming };
-  for (const k of ALL_LOCKED_RULE_KEYS) {
+  const keep = (k: string) => {
     if (Object.prototype.hasOwnProperty.call(current, k)) out[k] = current[k];
     else delete out[k];
+  };
+  keep(PERMISSIONS_RULE_KEY);
+  for (const cat of Object.keys(LOCKED_RULE_KEYS) as LockCategory[]) {
+    if (perms[cat]) continue;
+    for (const k of LOCKED_RULE_KEYS[cat]) keep(k);
   }
   return out;
 }

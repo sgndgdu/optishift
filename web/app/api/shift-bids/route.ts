@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift } from "@/lib/openShifts";
 
 async function shiftBiddingEnabledForLocation(db: ReturnType<typeof getDB>, locationId: string): Promise<boolean> {
@@ -105,13 +106,14 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const bid = await db.prepare(
-      `SELECT sb.*, os.org_id, os.status as open_shift_status, p.name as personnel_name
+      `SELECT sb.*, os.org_id, os.location_id AS os_location_id, os.status as open_shift_status, p.name as personnel_name
        FROM shift_bids sb
        JOIN open_shifts os ON os.id = sb.open_shift_id
        LEFT JOIN personnel p ON p.id = sb.personnel_id
        WHERE sb.id = ?`
     ).get(id) as any;
     if (!bid || bid.org_id !== auth.org_id) return NextResponse.json({ error: "Teklif bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, bid.os_location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (bid.status !== "pending") return NextResponse.json({ error: "Bu teklif zaten karara bağlanmış" }, { status: 409 });
 
     const now = Math.floor(Date.now() / 1000);

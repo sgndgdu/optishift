@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 
 // GET: Mesai kayıtlarını listele
@@ -10,7 +11,9 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const location_id = searchParams.get("location_id");
+  // Müdür sadece kendi şubesinin mesai kayıtlarını görür
+  if (managerOutsideBranch(auth, searchParams.get("location_id"))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+  const location_id = auth.role === "manager" ? auth.location_id : searchParams.get("location_id");
   const week_start  = searchParams.get("week_start");
   const status      = searchParams.get("status");
 
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const p = await db.prepare(`SELECT name FROM personnel WHERE id = ? AND org_id = ?`).get(personnel_id, auth.org_id) as { name: string } | undefined;
@@ -98,8 +102,9 @@ export async function PATCH(req: NextRequest) {
   try {
     const record = await db.prepare(
       `SELECT * FROM overtime_records WHERE id = ? AND org_id = ?`
-    ).get(id, auth.org_id) as { personnel_id: string; overtime_hours: number; status: string; compensation_type?: string; comp_time_used_at?: number } | undefined;
+    ).get(id, auth.org_id) as { personnel_id: string; location_id: string; overtime_hours: number; status: string; compensation_type?: string; comp_time_used_at?: number } | undefined;
     if (!record) return NextResponse.json({ error: "Kayıt bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, record.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     // Serbest zaman kullandırma işareti (onaylı + time_off kayıtlar için)
     if (action === "comp_time_used" || action === "comp_time_unused") {

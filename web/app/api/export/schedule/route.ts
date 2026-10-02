@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { computeWeekBreakdowns } from "@/lib/scoring";
 
 const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     // Verify location belongs to auth org
     const locCheck = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!locCheck) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }

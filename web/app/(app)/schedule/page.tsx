@@ -36,6 +36,7 @@ import {
 import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { hasManagerPermission } from "@/lib/ruleLocks";
 
 const DAYS = DAY_SHORT;
 
@@ -482,9 +483,9 @@ function SchedulePageInner() {
   const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [advancedOpen, setAdvancedOpen]           = useState(false); // İşlemler › Gelişmiş
-  // Patron ve bölge müdürü yayınlanmış haftayı onaysız düzenler (sunucu: lib/access canEditPublishedWeek)
-  const [canSelfUnlock] = useState(() => {
-    try { const r = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").role; return r === "admin" || r === "supervisor"; } catch { return false; }
+  // Yayınlanmış haftayı onaysız açma: patron/bölge müdürü her zaman, müdür "publish_edit" izniyle (sunucu: lib/access canEditPublishedWeek)
+  const [viewerRole] = useState<string | null>(() => {
+    try { return JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").role ?? null; } catch { return null; }
   });
   // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
   const [autopilotDraftWeek, setAutopilotDraftWeek] = useState<string | null>(null);
@@ -2936,7 +2937,7 @@ loading ? (
 
               {/* Birincil aksiyon: boş hafta → Haftayı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
               {isPublishedWeek && !editUnlocked ? (
-                <button onClick={() => (canSelfUnlock ? setEditUnlocked(true) : setUnlockModal(true))}
+                <button onClick={() => (hasManagerPermission(viewerRole, locRules, "publish_edit") ? setEditUnlocked(true) : setUnlockModal(true))}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
                   🔒 Düzenle
                 </button>

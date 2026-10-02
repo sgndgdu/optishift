@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
   if (!location_id) return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
   const db = getDB();
   try {
@@ -42,6 +44,7 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const id = randomUUID();
@@ -67,8 +70,9 @@ export async function PATCH(req: NextRequest) {
 
   const db = getDB();
   try {
-    const existing = await db.prepare(`SELECT id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id);
+    const existing = await db.prepare(`SELECT id, location_id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { location_id: string } | undefined;
     if (!existing) return NextResponse.json({ error: "Ekip bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const updates: string[] = [];
     const params: unknown[] = [];
@@ -97,8 +101,9 @@ export async function DELETE(req: NextRequest) {
 
   const db = getDB();
   try {
-    const existing = await db.prepare(`SELECT id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id);
+    const existing = await db.prepare(`SELECT id, location_id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { location_id: string } | undefined;
     if (!existing) return NextResponse.json({ error: "Ekip bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     await db.prepare(`UPDATE personnel SET crew_id = NULL WHERE crew_id = ?`).run(id);
     await db.prepare(`DELETE FROM crews WHERE id = ?`).run(id);

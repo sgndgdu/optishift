@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { distributeTipPool } from "@/lib/tips";
 
 async function tipPoolingEnabled(db: ReturnType<typeof getDB>, locationId: string): Promise<boolean> {
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
     if (id) {
       const pool = await db.prepare(`SELECT * FROM tip_pools WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as any;
       if (!pool) return NextResponse.json({ error: "Havuz bulunamadı" }, { status: 404 });
+      if (managerOutsideBranch(auth, pool.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       const allocations = await db.prepare(
         `SELECT ta.*, p.name as personnel_name
          FROM tip_allocations ta
@@ -58,6 +60,7 @@ export async function GET(req: NextRequest) {
 
     if (!location_id) return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const pools = await db.prepare(
@@ -90,6 +93,7 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!(await tipPoolingEnabled(db, location_id))) return NextResponse.json({ error: "Bahşiş havuzu bu şubede kapalı" }, { status: 403 });
 
@@ -117,6 +121,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const pool = await db.prepare(`SELECT location_id FROM tip_pools WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as any;
     if (!pool) return NextResponse.json({ error: "Havuz bulunamadı" }, { status: 404 });
+    if (managerOutsideBranch(auth, pool.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!(await tipPoolingEnabled(db, pool.location_id))) return NextResponse.json({ error: "Bahşiş havuzu bu şubede kapalı" }, { status: 403 });
 
     const result = await distributeTipPool(id, auth.org_id);

@@ -6,7 +6,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
-import { canEditLockedSettings } from "@/lib/ruleLocks";
+import { hasLocationPermission } from "@/lib/access";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -192,10 +192,11 @@ export async function PATCH(req: NextRequest) {
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
     const { name, phone, title, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
-    // Ücret ve personeli pasife alma sadece patron/bölge müdürü (lib/ruleLocks); müdürün gönderdiği değer yok sayılır
-    const lockedOk = canEditLockedSettings(auth.role);
-    const hourly_wage = lockedOk ? body.hourly_wage : undefined;
-    const status = !lockedOk && body.status === "inactive" ? undefined : body.status;
+    // Ücret ve pasife alma müdür izinlerine bağlı (lib/ruleLocks); izin yoksa müdürün gönderdiği değer yok sayılır
+    const wageOk = await hasLocationPermission(db, auth, existing.primary_location_id, "budget");
+    const deleteOk = await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete");
+    const hourly_wage = wageOk ? body.hourly_wage : undefined;
+    const status = !deleteOk && body.status === "inactive" ? undefined : body.status;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -287,9 +288,8 @@ export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  // Personeli pasife almak (silmek) sadece patron/bölge müdürü (lib/ruleLocks)
-  if (!canEditLockedSettings(auth.role)) {
-    return NextResponse.json({ error: "Personeli sadece işletme sahibi veya bölge müdürü silebilir" }, { status: 403 });
+  if (auth.role === "employee") {
+    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
   const db = getDB();
@@ -302,6 +302,10 @@ export async function DELETE(req: NextRequest) {
     const existing = await db.prepare("SELECT id, primary_location_id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
     if (!existing || (auth.role === "manager" && existing.primary_location_id !== auth.location_id)) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    }
+    // Pasife alma (silme) müdür iznine bağlı (lib/ruleLocks)
+    if (!(await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete"))) {
+      return NextResponse.json({ error: "Personel silme izniniz yok. İşletme sahibi veya bölge müdürü açabilir." }, { status: 403 });
     }
 
     const now = Math.floor(Date.now() / 1000);

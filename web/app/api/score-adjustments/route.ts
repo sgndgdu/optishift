@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { db } from "@/lib/db";
 import { locations, scoreAdjustments } from "@/lib/db/schema";
 import { and, eq, desc } from "drizzle-orm";
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (!location_id) {
     return NextResponse.json({ error: "location_id zorunlu" }, { status: 400 });
   }

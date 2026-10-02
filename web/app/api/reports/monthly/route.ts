@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 
 function monthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number);
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
     // Verify location belongs to this org
     const loc = await db.prepare("SELECT id, name, rules FROM locations WHERE id = ? AND org_id = ?")
       .get(location_id, auth.org_id) as { id: string; name: string; rules?: unknown } | undefined;
+    if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }

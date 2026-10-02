@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
+import { hasLocationPermission } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 
 // GET /api/users — org kullanıcılarını listele (admin/supervisor)
@@ -250,7 +251,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
-  if (auth.role !== "admin" && auth.role !== "supervisor") {
+  if (auth.role !== "admin" && auth.role !== "supervisor" && auth.role !== "manager") {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
@@ -260,9 +261,16 @@ export async function DELETE(req: NextRequest) {
 
   const db = getDB();
   try {
-    const target = await db.prepare("SELECT id FROM users WHERE id = ? AND org_id = ?").get(id, auth.org_id);
+    const target = await db.prepare("SELECT id, role, location_id FROM users WHERE id = ? AND org_id = ?").get(id, auth.org_id) as { id: string; role: string; location_id: string | null } | undefined;
     if (!target) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+    }
+    // Müdür: sadece kendi şubesindeki personel hesabı, "personnel_delete" izniyle (lib/ruleLocks)
+    if (auth.role === "manager") {
+      if (target.role !== "employee" || target.location_id !== auth.location_id
+          || !(await hasLocationPermission(db, auth, auth.location_id, "personnel_delete"))) {
+        return NextResponse.json({ error: "Bu hesabı silme izniniz yok" }, { status: 403 });
+      }
     }
     await db.prepare("DELETE FROM users WHERE id = ?").run(id);
     return NextResponse.json({ success: true });

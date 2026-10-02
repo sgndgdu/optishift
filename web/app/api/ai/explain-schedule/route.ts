@@ -12,6 +12,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "@/lib/auth";
+import { managerOutsideBranch } from "@/lib/access";
 import { FEATURES } from "@/lib/features";
 
 
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
     const loc = await db.prepare(
       `SELECT name, shift_definitions FROM locations WHERE id = ? AND org_id = ?`
     ).get(location_id, auth.org_id) as any;
+      if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     if (!loc) {
       return NextResponse.json({ error: "Lokasyon bulunamadı" }, { status: 404 });
