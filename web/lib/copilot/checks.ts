@@ -107,11 +107,13 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("night-weeks", "critical", `${nightWeeks.length} kişi arka arkaya ikinci hafta gece çalışıyor`,
     nightWeeks.map(p => `${p.name}: geçen hafta da gece çalıştı (Postalar Yönetmeliği m.8)`));
 
-  const skillGaps = snap.coverage.filter(c => c.missingSkills.length > 0);
+  // Geçmiş günler değiştirilemez: kapsama uyarıları sadece bugün ve sonrası için
+  const upcoming = snap.coverage.filter(c => !c.past);
+  const skillGaps = upcoming.filter(c => c.missingSkills.length > 0);
   add("skill-gap", "critical", `${skillGaps.length} vardiyada zorunlu rol eksik`,
     skillGaps.map(c => `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.missingSkills.map(m => `${m.need} ${m.skill} gerekli, ${m.have} var`).join("; ")}`));
 
-  const short = snap.coverage.filter(c => c.demand !== null && c.assigned < c.demand);
+  const short = upcoming.filter(c => c.demand !== null && c.assigned < c.demand);
   add("understaffed", "critical",
     `${short.length} vardiyada toplam ${short.reduce((s, c) => s + (c.demand! - c.assigned), 0)} kişi eksik`,
     short.map(c => `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}`));
@@ -138,14 +140,14 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   // İhtiyaç tablosu boşken "eksik kişi" hesaplanamaz; hafta boyu hiç kimse yazılmamış vardiya yine de görünsün
   if (!snap.hasDemand) {
     const byShift = new Map<string, { name: string; total: number }>();
-    for (const c of snap.coverage) {
+    for (const c of upcoming) {
       const row = byShift.get(c.shiftId) ?? { name: c.shiftName, total: 0 };
       row.total += c.assigned;
       byShift.set(c.shiftId, row);
     }
     const unused = [...byShift.values()].filter(r => r.total === 0);
     add("shift-unused", "warning", `${unused.length} vardiyaya hafta boyunca kimse yazılmamış`, [
-      ...unused.map(r => `${r.name}: 7 günün hiçbirinde kimse yok`),
+      ...unused.map(r => `${r.name}: ${upcoming.length < snap.coverage.length ? "kalan günlerin" : "7 günün"} hiçbirinde kimse yok`),
       ...(unused.length ? ["Her vardiyaya kaç kişi gerektiğini ihtiyaç tablosuna girerseniz plan buna göre kurulur"] : []),
     ]);
   }

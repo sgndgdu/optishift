@@ -19,6 +19,8 @@ export type DayState = "available" | "partial" | "preferred_not" | "unavailable"
 
 export interface CopilotInput {
   weekStart: string;
+  /** Bugün (YYYY-MM-DD, iş saat dilimi). Verilirse geçmiş günler kapsama uyarılarına girmez. */
+  today?: string;
   shiftDefs: ShiftDefinition[];
   /** {shiftDefId: {"0".."6": kişi}}; departman tabloları toplanmış olarak gelir. Boşsa ihtiyaç bilinmiyor. */
   demand: Record<string, Record<string, number>>;
@@ -110,6 +112,8 @@ export interface ShiftCoverage {
   /** null: bu vardiya/gün için ihtiyaç girilmemiş. */
   demand: number | null;
   missingSkills: { skill: string; need: number; have: number }[];
+  /** Gün geçti: eksik kişi / rol uyarısı verilmez (artık değiştirilemez). */
+  past?: boolean;
 }
 
 export interface WeekSnapshot {
@@ -266,6 +270,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
       coverage.push({
         day: d, shiftId: def.id, shiftName: def.name, assigned: here.length,
         demand: hasDemand ? (demandVal ?? 0) : null, missingSkills,
+        past: !!input.today && dates[d] < input.today,
       });
     }
   }

@@ -58,6 +58,17 @@ export default function OnboardingWizard() {
     if (mounted && !user) router.push("/login");
   }, [mounted, user, router]);
 
+  // Tek şubeli işletme için ad yazdırma: ilk şube işletmenin adıyla dolu gelir, isteyen değiştirir
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/organizations")
+      .then(r => (r.ok ? r.json() : null))
+      .then(org => {
+        if (typeof org?.name === "string" && org.name.trim()) setBranches(b => (b.length === 1 && !b[0].trim() ? [org.name.trim()] : b));
+      })
+      .catch(() => {});
+  }, [user]);
+
   // İşletme türü / çalışma düzeni değişince vardiya önerisi güncellenir
   const pickIndustry = (ind: string, v: string) => {
     setIndustry(ind);
@@ -261,7 +272,7 @@ export default function OnboardingWizard() {
                 <div>
                   <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
-                    <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.
+                    <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}
                     {singleLocationId ? (
                       <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
                     ) : (

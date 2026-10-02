@@ -179,7 +179,8 @@ test("5) Kaza Risk Radarı — dashboard kartı ve schedule risk ikonu", async (
   await expect(page.getByText(/Üst üste \d+ gece vardiyası/).first()).toBeVisible();
   console.log("[INFO] Dashboard risk kartı görünür ve fixture kişisini listeliyor.");
 
-  await page.goto("/schedule");
+  // Risk bu haftanın yayınlanmış vardiyalarına göre: Perşembe sonrası varsayılan gelecek hafta olduğu için açıkça bu hafta
+  await page.goto("/schedule?week=this");
   await expect(page.getByText(FATIGUE_TEST_PERSON_NAME).first()).toBeVisible({ timeout: 15_000 });
 
   // Risk ikonu title attribute'unda "Risk:" ile başlıyor (bkz. schedule/page.tsx)

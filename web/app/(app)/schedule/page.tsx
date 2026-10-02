@@ -357,6 +357,7 @@ function scheduleSnapshot(a: {
   }
   return buildWeekSnapshot({
     weekStart: a.weekStart,
+    today: businessToday(),
     shiftDefs: a.shiftDefs,
     demand,
     rules: {
@@ -405,7 +406,13 @@ function SchedulePageInner() {
   const searchParams = useSearchParams();
   const [mounted, setMounted]                      = useState(false);
   // ?week=next → gelecek hafta açılır (Ana Sayfa "Planı Oluştur" bağlantısı)
-  const [weekOffset, setWeekOffset]               = useState(() => searchParams.get("week") === "next" ? 1 : 0);
+  // ?week=next ya da Perşembe ve sonrası: bu haftanın çoğu geçti, planlanacak olan gelecek hafta
+  const [weekOffset, setWeekOffset]               = useState(() => {
+    const w = searchParams.get("week");
+    if (w === "next") return 1;
+    if (w === "this") return 0;
+    return (new Date().getDay() + 6) % 7 >= 3 ? 1 : 0;
+  });
   const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);
   const weekLabel = useMemo(() => mounted ? getWeekLabel(weekOffset).label : "", [weekOffset, mounted]);
   // dates, weekStart'tan türetilir — ayrı state tutmak senkron sorununa yol açıyor
@@ -498,7 +505,7 @@ function SchedulePageInner() {
     return !v;
   });
   // Telefonda tablo tek gün gösterir; varsayılan bugün
-  const [mobileDay, setMobileDay] = useState(() => (new Date().getDay() + 6) % 7);
+  const [mobileDay, setMobileDay] = useState(() => (weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0));
   const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
@@ -2616,7 +2623,8 @@ loading ? (
                                   />
                                   {overLimit ? (
                                     <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
-                                  ) : val > 0 ? (
+                                  ) : val > 0 && cellCount > 0 ? (
+                                    // Atanan/gereken sadece plan varken anlamlı (boş haftada her kutu kırmızı "0/1" oluyordu)
                                     <span className={cn(
                                       "text-[10px] font-bold leading-tight",
                                       coverState === "under" && "text-red-500",
@@ -3108,7 +3116,7 @@ loading ? (
                         mobileDay === i ? "bg-forest-700 text-white" : "bg-white text-slate-600 border border-slate-200")}>
                       {DAYS[i]}
                       <span className={cn("text-[9px] font-semibold", mobileDay === i ? "text-forest-100" : "text-slate-400")}>{dates[i]?.split(" ")[0]}</span>
-                      {need > 0 && got < need && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />}
+                      {need > 0 && got < need && isoDates[i] >= businessToday() && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />}
                     </button>
                   );
                 })}

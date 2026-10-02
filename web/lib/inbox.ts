@@ -134,7 +134,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "tasks",
       severity: "today",
       title: `Bugünkü görevlerin ${tasks.done}/${tasks.total} kadarı tamamlandı`,
-      action: { label: "Gör", href: "/schedule" },
+      action: { label: "Gör", href: "/schedule?week=this" },
     });
   }
 

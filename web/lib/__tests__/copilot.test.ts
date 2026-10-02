@@ -102,6 +102,17 @@ describe("içgörüler", () => {
     expect(ids(input)).not.toContain("skill-gap");
   });
 
+  it("geçmiş günlerin eksikleri uyarılmaz (bugün verilmişse)", () => {
+    const input = base();
+    input.demand = { "s-sabah": { "0": 2, "3": 2 } };
+    input.assignments = [a("ali", 0, "s-sabah"), a("ali", 3, "s-sabah")];
+    expect(buildInsights(buildWeekSnapshot(input)).find(i => i.id === "understaffed")!.lines)
+      .toEqual(["Pazartesi Sabah: 1/2", "Perşembe Sabah: 1/2"]);
+    input.today = "2026-10-01"; // Perşembe: Pazartesi geçti
+    expect(buildInsights(buildWeekSnapshot(input)).find(i => i.id === "understaffed")!.lines)
+      .toEqual(["Perşembe Sabah: 1/2"]);
+  });
+
   it("personel ihtiyacına göre eksik ve fazla", () => {
     const input = base();
     input.demand = { "s-sabah": { "0": 2, "1": 1 } };
