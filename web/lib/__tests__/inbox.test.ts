@@ -94,3 +94,19 @@ describe("greeting", () => {
     expect(greeting(new Date(2026, 8, 23, 21))).toBe("İyi akşamlar");
   });
 });
+
+describe("otomatik pilot maddesi", () => {
+  it("taslağı otomatik pilot hazırladıysa İncele ve Yayınla", () => {
+    const it0 = buildInbox({ ...base, nextWeek: "draft", autopilot: { drafted: true, upcoming: false, dayName: "Perşembe" } })[0];
+    expect(it0.title).toBe("Gelecek haftanın planı otomatik hazırlandı");
+    expect(it0.action.label).toBe("İncele ve Yayınla");
+  });
+  it("henüz gün gelmediyse acil değil, ne zaman hazırlanacağını söyler", () => {
+    const it0 = buildInbox({ ...base, nextWeek: "none", now: SAT, autopilot: { drafted: false, upcoming: true, dayName: "Perşembe" } })[0];
+    expect(it0.severity).toBe("week");
+    expect(it0.title).toContain("Perşembe sabahı otomatik hazırlanacak");
+  });
+  it("otomatik pilot yoksa eski metin", () => {
+    expect(buildInbox({ ...base, nextWeek: "none" })[0].title).toBe("Gelecek haftanın planı henüz hazır değil");
+  });
+});

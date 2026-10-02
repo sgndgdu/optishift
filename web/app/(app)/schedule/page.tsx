@@ -482,6 +482,8 @@ function SchedulePageInner() {
   const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [advancedOpen, setAdvancedOpen]           = useState(false); // İşlemler › Gelişmiş
+  // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
+  const [autopilotDraftWeek, setAutopilotDraftWeek] = useState<string | null>(null);
   // İsim altındaki Adalet Puanı çubuğu varsayılan gizli (Adalet panelinden açılır, tarayıcıda hatırlanır)
   const [showScores, setShowScores] = useState(() => {
     try { return localStorage.getItem("optishift_show_scores") === "1"; } catch { return false; }
@@ -945,6 +947,20 @@ function SchedulePageInner() {
       return false;
     }
   };
+
+  // Otomatik pilot durumu: şube değişince bir kez
+  useEffect(() => {
+    if (!activeLocationId) return;
+    let stale = false;
+    fetch(`/api/autopilot?location_id=${activeLocationId}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (stale || !d) return;
+        setAutopilotDraftWeek(d.enabled ? d.last_draft_week ?? null : null);
+      })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [activeLocationId]);
 
   // Güvenilirlik: şube değişince bir kez
   useEffect(() => {
@@ -2933,6 +2949,21 @@ loading ? (
               )}
             </div>
           </div>
+
+          {/* ── Otomatik pilotun hazırladığı taslak: müdüre kalan iş kontrol + Yayınla ── */}
+          {!loading && autopilotDraftWeek === weekStart && !isPublishedWeek && cellCount > 0 && (
+            <div className="bg-forest-50 border border-forest-200 rounded-xl px-4 py-3 flex items-start gap-3">
+              <Sparkles size={16} className="text-forest-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0 text-sm">
+                <p className="font-bold text-forest-800">
+                  Bu plan otomatik hazırlandı
+                </p>
+                <p className="text-forest-700/80 text-xs mt-0.5">
+                  Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Personel yayınlanınca görür.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Uyarılar: tek şerit ── */}
           {/* Haftanın tek uyarı kartı: işlem uyarıları + Plan Asistanı (lib/copilot) */}

@@ -6,34 +6,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
-import { resolveShiftDef, type ShiftDef } from "@/lib/fairness";
+import { type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { checkHandoverGate } from "@/lib/handover";
+import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
 // client'ta tanımlar geç yüklendiyse (race) veri yine de doğru yazılır.
-async function loadLocDefs(db: any, locId: string): Promise<ShiftDef[]> {
-  try {
-    const row = await db.prepare("SELECT shift_definitions FROM locations WHERE id = ?").get(locId) as any;
-    const defs = typeof row?.shift_definitions === "string" ? JSON.parse(row.shift_definitions) : row?.shift_definitions;
-    return Array.isArray(defs) ? defs : [];
-  } catch { return []; }
-}
-
-// Verilen shift_id geçerliyse korur; "custom"/boş ise saate göre çözer; çözemezse "custom".
-function finalizeShiftId(
-  shiftId: string | null | undefined,
-  startTime: string | null | undefined,
-  endTime: string | null | undefined,
-  defs: ShiftDef[],
-): string {
-  const resolved = resolveShiftDef(shiftId === "custom" ? null : shiftId, startTime, endTime, defs);
-  if (resolved) return resolved.id;
-  return shiftId && shiftId !== "custom" ? shiftId : "custom";
-}
-
-
 // GET: Personelin vardiyalarını getir
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -516,46 +496,7 @@ export async function PATCH(req: NextRequest) {
       if (!loc) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      const locDefs = await loadLocDefs(db, location_id);
-      const now = Math.floor(Date.now() / 1000);
-      let synced = 0;
-      await (async () => {
-        await db.prepare(`
-          DELETE FROM shift_assignments
-          WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
-        `).run(location_id, week_start);
-        // Yayınlanmış satırı olan (bu ya da başka şubede) kişi-gün-tür için taslak kopya yazılmaz.
-        // Tek sorguda okunur (eskiden satır başına iki sorgu vardı, 30 satırlık hafta 10 sn sürüyordu).
-        const pids = [...new Set(shifts.map((x: any) => x?.personnel_id).filter(Boolean))] as string[];
-        const publishedRows = pids.length
-          ? await db.prepare(`
-              SELECT personnel_id, day, COALESCE(kind, 'regular') AS kind FROM shift_assignments
-              WHERE week_start = ? AND publication_status = 'published'
-                AND personnel_id IN (${pids.map(() => "?").join(",")})
-            `).all(week_start, ...pids) as any[]
-          : [];
-        const taken = new Set(publishedRows.map(r => `${r.personnel_id}|${r.day}|${r.kind}`));
-        const values: unknown[] = [];
-        const tuples: string[] = [];
-        for (const s of shifts) {
-          if (!s?.personnel_id || s.day === undefined || !s.start_time || !s.end_time) continue;
-          const kind = s.kind === "on_call" ? "on_call" : "regular";
-          const key = `${s.personnel_id}|${s.day}|${kind}`;
-          if (taken.has(key)) continue; // yayınlanmış satır var ya da bu istekte zaten yazıldı
-          taken.add(key);
-          tuples.push("(?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?, ?)");
-          values.push(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs),
-            s.start_time, s.end_time, s.pinned === true, kind, now);
-        }
-        // Tek toplu INSERT: silme ile yeniden yazma arasındaki pencere kısalır (okuyan ekran yarım plan görmez)
-        if (tuples.length) {
-          await db.prepare(`
-            INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, kind, created_at)
-            VALUES ${tuples.join(", ")}
-          `).run(...values);
-        }
-        synced = tuples.length;
-      })();
+      const synced = await syncDraftWeek(db, location_id, week_start, shifts);
       return NextResponse.json({ success: true, synced });
     }
 

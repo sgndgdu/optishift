@@ -1,0 +1,866 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { addDays, businessToday } from "@/lib/date";
+import { getDB } from "@/lib/db/client";
+import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { logPlatformEvent } from "@/lib/platform-logger";
+import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
+import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
+import { weekStates } from "@/lib/workCycle";
+import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
+
+// Railway'de çalışan FastAPI engine servisinin URL'i
+const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
+const ENGINE_TIMEOUT_MS = 55_000;
+
+async function callEngine(payload: unknown): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ENGINE_TIMEOUT_MS);
+
+  try {
+    const engineSecret = process.env.ENGINE_SHARED_SECRET;
+    const res = await fetch(`${ENGINE_URL}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(engineSecret ? { "x-engine-secret": engineSecret } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      // FastAPI hataları {"detail": "..."} şeklinde gelir — kullanıcıya ham JSON göstermek yerine mesajı ayıkla
+      let message = text || `Engine HTTP ${res.status}`;
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed?.detail === "string") message = parsed.detail;
+      } catch {
+        /* JSON değilse ham metni kullan */
+      }
+      throw new Error(message);
+    }
+    return await res.json();
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new Error(
+        "Planlama beklenenden uzun sürdü. Sistem uyanıyor olabilir ya da personel sayısı ve kurallar çok yüklü, lütfen birkaç saniye sonra tekrar deneyin."
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type GenerateResult = { status: number; body: any };
+
+/**
+ * Motor girdisini DB'den kurar, motoru çağırır, sonucu döner. TEK KAYNAK:
+ * /api/generate (müdür) ve otomatik pilot (lib/autopilot, cron) aynı yolu kullanır.
+ * `body`: fixed_assignments, current_assignments, scenario (isteğe bağlı).
+ */
+export async function generatePlan(orgIdIn: string, branchId: string, week_start: string, body: any): Promise<GenerateResult> {
+  try {
+    const db = getDB();
+
+    // Location'ı DB'den çek ve org'a ait olduğunu doğrula
+    const locationRow = (await db
+      .prepare(`SELECT * FROM locations WHERE id = $1 AND org_id = $2`)
+      .get(branchId, orgIdIn)) as any;
+    if (!locationRow) {
+      return { status: 403, body: { error: "Erişim reddedildi" } };
+    }
+    const orgId: string = orgIdIn;
+
+    // Shift tanımlarını parse et; yoksa 2-vardiyalı varsayılan modeli kullan
+    const defaultShifts = [
+      { name: "Sabah", start: "08:00", end: "16:00", base_points: 3 },
+      { name: "Akşam", start: "16:00", end: "00:00", base_points: 5 },
+    ];
+    let shiftsPayload = defaultShifts;
+    if (locationRow?.shift_definitions) {
+      try {
+        const defs = JSON.parse(locationRow.shift_definitions);
+        if (Array.isArray(defs) && defs.length > 0) {
+          shiftsPayload = defs.map((d: any) => ({
+            id: String(d.id ?? d.name ?? ""),
+            name: String(d.name ?? "Vardiya"),
+            start: String(d.start ?? "08:00"),
+            end: String(d.end ?? "16:00"),
+            base_points: Number(d.base_points ?? 5),
+            is_night: !!d.is_night,
+            on_call: !!d.on_call,
+            driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
+            required_skills: Array.isArray(d.required_skills) ? d.required_skills : [],
+          }));
+        }
+      } catch {
+        /* parse hatası → varsayılan shifts kullan */
+      }
+    }
+
+    // Ekipleri çek (fabrika modülü)
+    let crewRows: any[] = [];
+    try {
+      crewRows = (await db
+        .prepare(
+          `SELECT * FROM crews WHERE location_id = $1 AND org_id = $2`
+        )
+        .all(branchId, orgIdIn)) as any[];
+    } catch {
+      /* crews tablosu yoksa atla */
+    }
+    void crewRows; // kullanılmayabilir, ileride eklenebilir
+
+    // Departmanları çek (departman bazlı kapasite matrisi için).
+    // /api/departments (frontend'in kullandığı, kanıtlanmış çalışan yol) ile aynı
+    // Drizzle sorgusu kullanılıyor — buradaki raw SQL uyumluluk katmanı üzerinden
+    // sessizce yutulan bir hata departmanlı lokasyonlarda departmentRows'un boş
+    // dönmesine ve locations.demand_matrix'in (hayalet talep) tekrar motora
+    // gönderilmesine yol açıyordu.
+    let departmentRows: any[] = [];
+    try {
+      departmentRows = await drizzleDb
+        .select()
+        .from(departmentsTable)
+        .where(eq(departmentsTable.location_id, branchId));
+    } catch (err) {
+      console.error("[/api/generate] departments sorgusu başarısız:", err);
+    }
+
+    // Rotasyon şablonunu parse et
+    let rotationTemplate: any = null;
+    if (locationRow?.rotation_template) {
+      try {
+        rotationTemplate = JSON.parse(locationRow.rotation_template);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Aktif personeli çek
+    let personnelRows = (await db
+      .prepare(
+        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active'`
+      )
+      .all(`%"${branchId}"%`)) as any[];
+
+    // Müdür/admin varsayılan olarak otomatik planlamaya dahil edilmez
+    let includeManagersInSchedule = false;
+    if (locationRow?.rules) {
+      try {
+        includeManagersInSchedule = !!JSON.parse(locationRow.rules)
+          ?.include_managers_in_schedule;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!includeManagersInSchedule) {
+      personnelRows = personnelRows.filter(
+        (p: any) =>
+          !["manager", "admin", "supervisor"].includes(p.user_access_level)
+      );
+    }
+
+    // Uygunluk verilerini çek
+    const personnelIds = personnelRows.map((p: any) => p.id);
+    let availabilityRows: any[] = [];
+    if (personnelIds.length > 0) {
+      const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+      availabilityRows = (await db
+        .prepare(
+          `SELECT * FROM availability WHERE personnel_id IN (${placeholders}) AND week_start = $${personnelIds.length + 1}`
+        )
+        .all(...personnelIds, week_start)) as any[];
+    }
+
+    // Onaylı izin taleplerini çek
+    let approvedLeaveRows: any[] = [];
+    if (personnelIds.length > 0) {
+      try {
+        const weekEndDate = new Date(week_start + "T00:00:00Z");
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const week_end = weekEndDate.toISOString().split("T")[0];
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        approvedLeaveRows = (await db
+          .prepare(
+            `SELECT personnel_id, start_date, end_date
+             FROM leave_requests
+             WHERE personnel_id IN (${placeholders})
+               AND status = 'approved'
+               AND start_date <= $${personnelIds.length + 1}
+               AND end_date >= $${personnelIds.length + 2}`
+          )
+          .all(...personnelIds, week_end, week_start)) as any[];
+      } catch {
+        /* leave_requests tablosu yoksa atla */
+      }
+    }
+
+    // prevScores
+    const prevScores: Record<string, number> = {};
+    for (const p of personnelRows) {
+      prevScores[p.id] = p.prev_score ?? 0;
+    }
+
+    // YTD mesai önbelleğini tazele (yıl devrilmesi dahil) — motor YTD hard cap'i
+    // taze değerle kursun diye bayat personnel cache'ine güvenilmez
+    let ytdFresh: Record<string, number> = {};
+    try {
+      ytdFresh = await recomputeYtdOvertime(orgIdIn, personnelRows.map((p: any) => p.id));
+    } catch (e) {
+      console.error("[generate] YTD mesai recompute hatası:", e);
+    }
+
+    // Personel verisini formatla
+    let personnelData = personnelRows.map((p: any) => {
+      let role_level = "secondary";
+      try {
+        const rls = JSON.parse(p.role_levels || "{}");
+        if (Object.values(rls).includes("primary")) role_level = "primary";
+      } catch {
+        /* ignore */
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        skills: JSON.parse(p.roles || "[]"),
+        night_restriction: p.night_restriction ?? null,
+        department_id: p.department_id ?? null,
+        prev_score: prevScores[p.id] ?? 0,
+        cumulative_burden: prevScores[p.id] ?? 0,
+        employment_type: p.employment_type || "full_time",
+        max_weekly_hours: p.max_weekly_hours ?? 45,
+        hourly_wage: typeof p.hourly_wage === "number" && p.hourly_wage > 0 ? p.hourly_wage : 0,
+        min_weekly_hours: p.min_weekly_hours ?? 0,
+        branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
+        org_id: p.org_id,
+        role_level,
+        crew_id: p.crew_id ?? null,
+        ytd_overtime_hours: ytdFresh[p.id] ?? p.ytd_overtime_hours ?? 0,
+      };
+    });
+
+    const parseAvail = (val: any) => {
+      if (!val) return "available";
+      if (typeof val === "string" && val.startsWith("{")) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return "available";
+        }
+      }
+      return val;
+    };
+
+    // Gün durumu + (varsa) personelin girdiği saat aralığı. Motor "Uygun" günde aralığı kesin,
+    // "Esnek" günde yumuşak uygular; aralık yoksa gün tümüyle uygun sayılır.
+    const withWindow = (status: any, start: any, end: any) => {
+      if (typeof status !== "string" || status === "unavailable") return status;
+      if (typeof start === "string" && typeof end === "string" && start && end) return { status, start, end };
+      return status;
+    };
+    const availabilityData: Record<string, any> = {};
+    for (const av of availabilityRows) {
+      const days: Record<number, any> = {};
+      for (let d = 0; d < 7; d++) days[d] = withWindow(parseAvail(av[`day_${d}`]), av[`day_${d}_start`], av[`day_${d}_end`]);
+      availabilityData[av.personnel_id] = days;
+    }
+
+    // Haftalık sabit izin günleri
+    for (const p of personnelRows) {
+      if (p.weekly_off_day !== null && p.weekly_off_day !== undefined) {
+        const d = Number(p.weekly_off_day);
+        if (d >= 0 && d <= 6) {
+          if (!availabilityData[p.id]) availabilityData[p.id] = {};
+          availabilityData[p.id][d] = "unavailable";
+        }
+      }
+    }
+
+    // Onaylı izin günleri
+    const wsDate = new Date(week_start + "T00:00:00Z");
+    for (const leave of approvedLeaveRows) {
+      const pid = leave.personnel_id;
+      const leaveStart = new Date(leave.start_date + "T00:00:00Z");
+      const leaveEnd = new Date(leave.end_date + "T00:00:00Z");
+      if (!availabilityData[pid]) availabilityData[pid] = {};
+      for (let d = 0; d < 7; d++) {
+        const dayDate = new Date(wsDate);
+        dayDate.setDate(wsDate.getDate() + d);
+        if (dayDate >= leaveStart && dayDate <= leaveEnd) {
+          availabilityData[pid][d] = "unavailable";
+        }
+      }
+    }
+
+    // Bölge kotaları
+    let zoneQuotasPayload: Record<string, number> = {};
+    if (locationRow?.zone_quotas) {
+      try {
+        const parsed = JSON.parse(locationRow.zone_quotas);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          zoneQuotasPayload = parsed;
+        }
+      } catch {
+        /* parse hatası */
+      }
+    }
+
+    // Kapasite matrisi (departmansız lokasyonlar / eski format).
+    // Lokasyonda departman satırları varsa bu alan motora GÖNDERİLMEZ — talep artık
+    // departments.demand_matrix üzerinden yönetiliyor (bkz. CLAUDE.md §3.B). Aksi halde
+    // departmanlar eklenmeden önce girilmiş eski/artık veri, kullanıcının schedule
+    // sayfasında hiç görmediği "hayalet" bir exact_coverage kısıtı olarak motora gidip
+    // gereksiz INFEASIBLE sonuçlarına yol açıyordu.
+    // hasDepartments: departmentRows sorgusu (geçici bir sebeple) boş dönerse bile,
+    // personelin department_id'si varsa yine de departmanlı say — flat matrisi
+    // yanlışlıkla tekrar göndermeyi engelleyen ikinci bir güvenlik katmanı.
+    const hasDepartments =
+      departmentRows.length > 0 || personnelData.some((p) => !!p.department_id);
+    let demandMatrixPayload: Record<string, Record<string, number>> = {};
+    if (locationRow?.demand_matrix && !hasDepartments) {
+      try {
+        const parsed = JSON.parse(locationRow.demand_matrix);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          demandMatrixPayload = parsed;
+        }
+      } catch {
+        /* parse hatası */
+      }
+    }
+
+    // Departman bazlı kapasite matrisi — schedule sayfası departmanlı lokasyonlarda
+    // talebi buraya (departments.demand_matrix) kaydediyor, motora burada aktarılır.
+    const departmentDemandMatrixPayload: Record<string, Record<string, Record<string, number>>> = {};
+    const departmentNamesPayload: Record<string, string> = {};
+    for (const dept of departmentRows) {
+      departmentNamesPayload[dept.id] = dept.name ?? dept.id;
+      if (!dept?.demand_matrix) continue;
+      try {
+        const parsed = JSON.parse(dept.demand_matrix);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+          departmentDemandMatrixPayload[dept.id] = parsed;
+        }
+      } catch {
+        /* parse hatası */
+      }
+    }
+
+    // Kural toggle'ları
+    let ensureSeniorPerShift = false;
+    let maxConsecutiveDays = 6;
+    let noNightToMorning = false;
+    let preferredNotMultiplier = 1.5;
+    let clopeningMinRestHours = 13;
+    let overtimeThresholdHours = 45.0;
+    let maxYtdOvertimeHours = 270.0;
+    let overtimeFairDistribution = true;
+    let overtimeTrackingEnabled = true;
+    let personnelConflictsEnabled = true;
+    let complianceTrackingEnabled = false; // varsayılan kapalı — ileri seviye modül
+    let crewSameShiftHard = false;
+    let consecutiveNightWeeksEnabled = false;
+    let balancingPeriodWeeks = 0;
+    let ruleMaxWeeklyHours = 45;
+    let maxOnCallPerWeek = 3; // icap nöbeti: kişi başı haftalık üst sınır
+    let ruleMinRestHours = 11;
+    let weekendMultiplierEnabled = true;
+    let nightMultiplierEnabled = true;
+    let preferredNotEnabled = true;
+    let clopeningEnabled = true;
+    let clopeningPenaltyWeight = 30;
+    let weekendMultiplier = 1.2;
+    let nightMultiplier = 1.3;
+    if (locationRow?.rules) {
+      try {
+        const pr = JSON.parse(locationRow.rules);
+        ensureSeniorPerShift = !!pr?.ensure_senior_per_shift;
+        if (typeof pr?.max_consecutive_days === "number")
+          maxConsecutiveDays = pr.max_consecutive_days;
+        noNightToMorning = !!pr?.no_night_to_morning;
+        if (typeof pr?.preferred_not_multiplier === "number")
+          preferredNotMultiplier = pr.preferred_not_multiplier;
+        if (typeof pr?.clopening_min_rest_hours === "number")
+          clopeningMinRestHours = pr.clopening_min_rest_hours;
+        if (typeof pr?.overtime_threshold_hours === "number")
+          overtimeThresholdHours = pr.overtime_threshold_hours;
+        if (typeof pr?.max_ytd_overtime_hours === "number")
+          maxYtdOvertimeHours = pr.max_ytd_overtime_hours;
+        if (typeof pr?.overtime_fair_distribution === "boolean")
+          overtimeFairDistribution = pr.overtime_fair_distribution;
+        if (pr?.overtime_tracking_enabled === false) overtimeTrackingEnabled = false;
+        if (pr?.personnel_conflicts_enabled === false) personnelConflictsEnabled = false;
+        if (pr?.compliance_tracking_enabled === true) complianceTrackingEnabled = true;
+        if (typeof pr?.crew_same_shift_hard === "boolean")
+          crewSameShiftHard = pr.crew_same_shift_hard;
+        if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
+          consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;
+        if (typeof pr?.balancing_period_weeks === "number")
+          balancingPeriodWeeks = Math.max(0, Math.min(8, Math.round(pr.balancing_period_weeks)));
+        if (typeof pr?.max_weekly_hours === "number")
+          ruleMaxWeeklyHours = pr.max_weekly_hours;
+        if (typeof pr?.max_on_call_per_week === "number")
+          maxOnCallPerWeek = Math.max(0, Math.min(7, Math.round(pr.max_on_call_per_week)));
+        if (typeof pr?.min_rest_hours === "number")
+          ruleMinRestHours = pr.min_rest_hours;
+        if (typeof pr?.weekend_multiplier_enabled === "boolean")
+          weekendMultiplierEnabled = pr.weekend_multiplier_enabled;
+        if (typeof pr?.night_multiplier_enabled === "boolean")
+          nightMultiplierEnabled = pr.night_multiplier_enabled;
+        if (typeof pr?.preferred_not_enabled === "boolean")
+          preferredNotEnabled = pr.preferred_not_enabled;
+        if (typeof pr?.clopening_enabled === "boolean")
+          clopeningEnabled = pr.clopening_enabled;
+        if (typeof pr?.clopening_penalty_weight === "number")
+          clopeningPenaltyWeight = pr.clopening_penalty_weight;
+        if (typeof pr?.weekend_multiplier === "number")
+          weekendMultiplier = pr.weekend_multiplier;
+        if (typeof pr?.night_multiplier === "number")
+          nightMultiplier = pr.night_multiplier;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Belge/Sertifika Uyumluluğu: süresi dolmuş zorunlu belgesi olan personel bu
+    // haftaki plana hiç dahil edilmez. Motor bu kuralı bilmez — filtreleme burada,
+    // personnelData motora gönderilmeden önce yapılır (bkz. lib/db/schema.ts personnelDocuments).
+    let excludedCompliance: { id: string; name: string; doc_type: string; expiry_date: string }[] = [];
+    // Sertifika Kalkanı (lib/templates/skills.ts): şubenin sektörü seçiliyse belge→rol
+    // bağıyla çalışır; geçersiz belge ilgili rolü kişinin yetkinliklerinden düşürür, motor
+    // vardiyanın zorunlu yetkinliğini karşılarken o kişiyi saymaz (kesin kural).
+    const revokedSkills: { id: string; name: string; skill: string; document: string; reason: "expired" | "missing" }[] = [];
+    const branchIndustry = industryFromRules(locationRow?.rules);
+    if (complianceTrackingEnabled && branchIndustry && personnelIds.length > 0) {
+      try {
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        const docRows = (await db
+          .prepare(`SELECT personnel_id, doc_type, expiry_date FROM personnel_documents WHERE personnel_id IN (${placeholders})`)
+          .all(...personnelIds)) as any[];
+        const docsByPerson = new Map<string, PersonDocument[]>();
+        for (const row of docRows) {
+          const list = docsByPerson.get(row.personnel_id) ?? [];
+          list.push({ doc_type: row.doc_type, expiry_date: row.expiry_date });
+          docsByPerson.set(row.personnel_id, list);
+        }
+        // Belge planlanan haftanın SONUNA kadar geçerli olmalı: hafta ortasında biten
+        // kimlik kartıyla hafta sonu vardiyası yazılmasın
+        const weekEnd = new Date(new Date(week_start + "T00:00:00Z").getTime() + 6 * 86400_000).toISOString().slice(0, 10);
+        const blocked = new Set<string>();
+        for (const p of personnelData) {
+          const res = applyCertificationShield(branchIndustry, p.skills ?? [], docsByPerson.get(p.id) ?? [], weekEnd);
+          if (res.blockedBy) {
+            blocked.add(p.id);
+            excludedCompliance.push({
+              id: p.id, name: p.name,
+              doc_type: res.blockedBy.reason === "missing" ? `${res.blockedBy.document} (girilmemiş)` : res.blockedBy.document,
+              expiry_date: res.blockedBy.expiry ?? "",
+            });
+            continue;
+          }
+          for (const r of res.revoked) revokedSkills.push({ id: p.id, name: p.name, ...r });
+          p.skills = res.skills;
+        }
+        personnelData = personnelData.filter((p) => !blocked.has(p.id));
+      } catch (e) {
+        console.error("[generate] sertifika kalkanı hatası:", e);
+      }
+    } else if (complianceTrackingEnabled && personnelIds.length > 0) {
+      try {
+        const placeholders = personnelIds.map((_: any, i: number) => `$${i + 1}`).join(",");
+        const expiredRows = (await db
+          .prepare(
+            `SELECT personnel_id, doc_type, expiry_date FROM personnel_documents
+             WHERE personnel_id IN (${placeholders}) AND expiry_date < $${personnelIds.length + 1}
+             ORDER BY expiry_date ASC`
+          )
+          .all(...personnelIds, week_start)) as any[];
+        const expiredByPerson = new Map<string, { doc_type: string; expiry_date: string }>();
+        for (const row of expiredRows) {
+          if (!expiredByPerson.has(row.personnel_id)) {
+            expiredByPerson.set(row.personnel_id, { doc_type: row.doc_type, expiry_date: row.expiry_date });
+          }
+        }
+        if (expiredByPerson.size > 0) {
+          excludedCompliance = personnelData
+            .filter((p) => expiredByPerson.has(p.id))
+            .map((p) => ({ id: p.id, name: p.name, ...expiredByPerson.get(p.id)! }));
+          personnelData = personnelData.filter((p) => !expiredByPerson.has(p.id));
+        }
+      } catch (e) {
+        console.error("[generate] uyumluluk filtreleme hatası:", e);
+      }
+    }
+
+    // Rotasyon şablonu
+    const crewRotation: Record<string, string> = {};
+    if (rotationTemplate?.enabled && rotationTemplate?.pattern && week_start) {
+      const refDate = new Date(
+        rotationTemplate.reference_week + "T00:00:00Z"
+      );
+      const curDate = new Date(week_start + "T00:00:00Z");
+      const weeksElapsed = Math.floor(
+        (curDate.getTime() - refDate.getTime()) / (7 * 24 * 3600 * 1000)
+      );
+      const cycleWeeks = rotationTemplate.cycle_weeks || 1;
+      const weekOffset = ((weeksElapsed % cycleWeeks) + cycleWeeks) % cycleWeeks;
+      for (const [crewId, shiftPattern] of Object.entries(
+        rotationTemplate.pattern as Record<string, string[]>
+      )) {
+        if (Array.isArray(shiftPattern) && shiftPattern[weekOffset] != null) {
+          crewRotation[crewId] = shiftPattern[weekOffset];
+        }
+      }
+    }
+
+    // Personel→ekip haritası
+    const personnelCrews: Record<string, string> = {};
+    for (const p of personnelData) {
+      if ((p as any).crew_id)
+        personnelCrews[(p as any).id] = (p as any).crew_id;
+    }
+
+    // Denkleştirme dönemi (İş K. m.63): son N-1 haftanın yayınlanmış saatlerine göre
+    // her personelin bu haftaki kalan hakkı hesaplanır. N ardışık haftanın ortalaması
+    // max_weekly_hours'u aşamaz; tek hafta tavanı yasal 66 saattir. Kişi bazlı hak,
+    // motora max_weekly_hours override'ı olarak gönderilir.
+    const BALANCING_SINGLE_WEEK_CAP = 66;
+    if (balancingPeriodWeeks >= 2) {
+      try {
+        const prevWeeks: string[] = [];
+        for (let w = 1; w < balancingPeriodWeeks; w++) {
+          const d = new Date(week_start + "T00:00:00Z");
+          d.setUTCDate(d.getUTCDate() - 7 * w);
+          prevWeeks.push(d.toISOString().split("T")[0]);
+        }
+        const ph = prevWeeks.map((_, i) => `$${i + 2}`).join(",");
+        const rows = (await db
+          .prepare(
+            `SELECT personnel_id, start_time, end_time FROM shift_assignments
+             WHERE location_id = $1 AND week_start IN (${ph}) AND publication_status = 'published'
+               AND COALESCE(kind, 'regular') = 'regular'`
+          )
+          .all(branchId, ...prevWeeks)) as any[];
+        const workedMin: Record<string, number> = {};
+        for (const r of rows) {
+          if (!r.start_time || !r.end_time) continue;
+          const [sh, sm] = String(r.start_time).split(":").map(Number);
+          const [eh, em] = String(r.end_time).split(":").map(Number);
+          if ([sh, sm, eh, em].some(Number.isNaN)) continue;
+          let dur = (eh * 60 + em) - (sh * 60 + sm);
+          if (dur <= 0) dur += 1440;
+          workedMin[r.personnel_id] = (workedMin[r.personnel_id] ?? 0) + dur;
+        }
+        for (const p of personnelData as any[]) {
+          const pMax = p.max_weekly_hours ?? ruleMaxWeeklyHours;
+          // Part-time sözleşme limiti (kuraldan düşükse) denkleştirmede de korunur;
+          // full-time kişi tek haftada yasal 66'ya kadar esneyebilir.
+          const weekCap = pMax < ruleMaxWeeklyHours ? pMax : BALANCING_SINGLE_WEEK_CAP;
+          const allowance = ruleMaxWeeklyHours * balancingPeriodWeeks - (workedMin[p.id] ?? 0) / 60;
+          p.max_weekly_hours = Math.max(0, Math.floor(Math.min(weekCap, allowance)));
+        }
+      } catch (e) {
+        console.error("[generate] denkleştirme hesabı hatası:", e);
+      }
+    }
+
+    // Gece koruması: gece kısıtlı personel (gebe/emziren/18 yaş altı/sağlık)
+    const nightRestrictedIds = personnelData
+      .filter((p: any) => !!p.night_restriction)
+      .map((p: any) => p.id);
+
+    // Sosyal kurallar: birlikte çalışamaz çiftleri (rules.personnel_conflicts_enabled kapalıysa motora hiç gönderilmez)
+    let conflictPairs: [string, string][] = [];
+    if (personnelConflictsEnabled) {
+      try {
+        const conflictRows = (await db
+          .prepare(`SELECT personnel_id_a, personnel_id_b FROM personnel_conflicts WHERE location_id = ? AND org_id = ?`)
+          .all(branchId, orgId)) as any[];
+        conflictPairs = conflictRows.map(r => [r.personnel_id_a, r.personnel_id_b]);
+      } catch (e) {
+        console.error("[generate] personnel_conflicts sorgusu hatası:", e);
+      }
+    }
+
+    // Arka arkaya iki hafta gece yasağı için geçen haftanın gece çalışanları
+    let prevWeekNightIds: string[] = [];
+    if (consecutiveNightWeeksEnabled) {
+      try {
+        const prevDate = new Date(week_start + "T00:00:00Z");
+        prevDate.setUTCDate(prevDate.getUTCDate() - 7);
+        const prev_week_start = prevDate.toISOString().split("T")[0];
+        const prevRows = (await db
+          .prepare(
+            `SELECT DISTINCT personnel_id, shift_id, start_time, end_time
+             FROM shift_assignments
+             WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'
+               AND COALESCE(kind, 'regular') = 'regular'`
+          )
+          .all(branchId, prev_week_start)) as any[];
+        const nightDefIds = new Set(
+          shiftsPayload.filter((s: any) => s.is_night).map((s: any) => String(s.id))
+        );
+        // Motorla aynı sezgi: 22:00+ başlayan veya gece yarısını aşan vardiya gece sayılır
+        const isNightTime = (start?: string | null, end?: string | null) => {
+          if (!start || !end) return false;
+          const [sh, sm] = start.split(":").map(Number);
+          const [eh, em] = end.split(":").map(Number);
+          if ([sh, sm, eh, em].some(Number.isNaN)) return false;
+          const startMin = sh * 60 + sm;
+          let endMin = eh * 60 + em;
+          if (endMin <= startMin) endMin += 1440;
+          return startMin >= 22 * 60 || endMin > 24 * 60;
+        };
+        const ids = new Set<string>();
+        for (const r of prevRows) {
+          if (nightDefIds.has(String(r.shift_id)) || isNightTime(r.start_time, r.end_time)) {
+            ids.add(r.personnel_id);
+          }
+        }
+        prevWeekNightIds = [...ids];
+      } catch (e) {
+        console.error("[generate] önceki hafta gece çalışanları sorgusu hatası:", e);
+      }
+    }
+
+    // Uyumluluk filtresi TÜM personeli listeden düşürdüyse motoru hiç çağırma —
+    // genel "aktif personel bulunamadı" hatası yerine kimin neden dışlandığını
+    // gösteren açıklayıcı bir yanıt dön.
+    if (personnelData.length === 0 && excludedCompliance.length > 0) {
+      return { status: 200, body: {
+        error: "Bu haftaki tüm personelin zorunlu belgesi süresi dolmuş olduğu için plan oluşturulamadı.",
+        excluded_compliance: excludedCompliance,
+      } };
+    }
+
+    // Kapalı günler (Ayarlar → Çalışma saatleri): ihtiyaç tablosu boşken motor bu günlere kimseyi yazmaz
+    const closedDays: number[] = [];
+    try {
+      const hours = locationRow?.operating_hours ? JSON.parse(locationRow.operating_hours) : null;
+      for (let d = 0; d < 7; d++) if (hours?.[d]?.isOpen === false) closedDays.push(d);
+    } catch { /* bozuk JSON: her gün açık say */ }
+
+    // Müdürün elle düzeltip koruduğu hücreler (Vardiya Planı): motor bunlara dokunmaz.
+    // Kişi ve gün doğrulaması motorda (bilinmeyen personel_id yok sayılır).
+    const fixedAssignments = Array.isArray(body.fixed_assignments)
+      ? body.fixed_assignments.slice(0, 2000).filter((f: any) =>
+          f && typeof f.personnel_id === "string" && Number.isInteger(f.day) && f.day >= 0 && f.day <= 6)
+      : [];
+
+    // Sürüş süresi (AETR iki haftalık 90 saat): geçen haftanın yayınlanmış direksiyon saati
+    const prevWeekDriving: Record<string, number> = {};
+    const drivingById = new Map(shiftsPayload.filter((s: any) => s.driving_hours > 0).map((s: any) => [String(s.id), Number(s.driving_hours)]));
+    if (drivingById.size > 0) {
+      try {
+        const pd = new Date(`${week_start}T00:00:00Z`);
+        pd.setUTCDate(pd.getUTCDate() - 7);
+        const rows = (await db.prepare(
+          `SELECT personnel_id, shift_id FROM shift_assignments
+           WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'
+             AND COALESCE(kind, 'regular') = 'regular'`
+        ).all(branchId, pd.toISOString().slice(0, 10))) as any[];
+        for (const r of rows) {
+          const h = drivingById.get(String(r.shift_id));
+          if (h) prevWeekDriving[r.personnel_id] = (prevWeekDriving[r.personnel_id] ?? 0) + h;
+        }
+      } catch (e) { console.error("[generate] geçen hafta sürüş sorgusu hatası:", e); }
+    }
+
+    // Çalışma döngüsü (rules.work_cycle, lib/workCycle): kişi başı bu haftanın W/D/N/O günleri
+    const dayPatterns: Record<string, string[]> = {};
+    try {
+      const wc = locationRow?.rules ? JSON.parse(locationRow.rules)?.work_cycle : null;
+      if (wc) {
+        for (const p of personnelData as any[]) {
+          const st = weekStates(wc, String(p.id), week_start);
+          if (st) dayPatterns[String(p.id)] = st;
+        }
+      }
+    } catch (e) { console.error("[generate] çalışma döngüsü:", e); }
+
+    // Örtük tercihler (lib/implicitPrefs): uygunluk ve takas geçmişinden, açık tercihten zayıf esnek ceza.
+    // rules.implicit_preferences_enabled === false ise kapalı.
+    const implicitAvoid: Record<string, [number, number, number][]> = {};
+    try {
+      const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
+      if (lr?.implicit_preferences_enabled !== false) {
+        const learned = await loadImplicitPrefs(db, (personnelData as any[]).map(p => String(p.id)), week_start);
+        const idxById = new Map(shiftsPayload.map((sd: any, i: number) => [String(sd.id), i]));
+        for (const [pid, items] of Object.entries(learned)) {
+          implicitAvoid[pid] = items.flatMap(it => {
+            const idx = it.shiftId === null ? -1 : idxById.get(it.shiftId);
+            return idx === undefined ? [] : [[it.day, idx, it.count] as [number, number, number]];
+          });
+        }
+      }
+    } catch (e) { console.error("[generate] örtük tercihler:", e); }
+
+    // "Ya şöyle olursa?" senaryosu: kaydetmeden dene. İzin (kişi + günler), yeni personel, ihtiyaç yüzdesi.
+    // Senaryoda mesai kaydı yazılmaz; sonuç sadece döner.
+    const scenario = body.scenario && typeof body.scenario === "object" ? body.scenario : null;
+    if (scenario) {
+      for (const a of Array.isArray(scenario.absent) ? scenario.absent : []) {
+        if (typeof a?.personnel_id !== "string" || !Array.isArray(a.days)) continue;
+        availabilityData[a.personnel_id] ??= {};
+        for (const d of a.days) if (Number.isInteger(d) && d >= 0 && d <= 6) availabilityData[a.personnel_id][d] = "unavailable";
+      }
+      const extra = Math.max(0, Math.min(20, Math.round(Number(scenario.extra_staff) || 0)));
+      if (extra > 0) {
+        const avgScore = personnelData.length ? personnelData.reduce((t: number, p: any) => t + (p.prev_score || 0), 0) / personnelData.length : 0;
+        for (let i = 1; i <= extra; i++) {
+          personnelData.push({
+            id: `SCN-${i}`, name: `Yeni personel ${i}`, skills: [], night_restriction: null, department_id: null,
+            prev_score: avgScore, cumulative_burden: avgScore, employment_type: "full_time",
+            max_weekly_hours: ruleMaxWeeklyHours, hourly_wage: 0, min_weekly_hours: 0, branch_ids: [branchId],
+            org_id: orgIdIn, role_level: "secondary", crew_id: null, ytd_overtime_hours: 0,
+          });
+        }
+      }
+      const pct = Math.max(-90, Math.min(300, Number(scenario.demand_change_pct) || 0));
+      if (pct !== 0) {
+        const scale = (m: any) => {
+          for (const row of Object.values(m ?? {}) as any[]) for (const k of Object.keys(row ?? {})) row[k] = Math.max(0, Math.round(Number(row[k]) * (1 + pct / 100)));
+        };
+        scale(demandMatrixPayload);
+        for (const m of Object.values(departmentDemandMatrixPayload ?? {})) scale(m);
+      }
+    }
+
+    // Haftalık işçilik bütçesi (Ayarlar › Kurallar): motor aşan her ₺'yi esnek cezalandırır
+    let laborBudgetTry = 0;
+    try {
+      const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
+      if (typeof lr?.weekly_labor_budget_try === "number" && lr.weekly_labor_budget_try > 0) laborBudgetTry = lr.weekly_labor_budget_try;
+    } catch { /* bütçe yok */ }
+
+    // Geçmiş günler (bugünden önce) planlanmaz: kimse yazılmaz, ihtiyaç sayılmaz, kapalı gün sayılır.
+    // O günlerdeki mevcut vardiyalar istemciden sabit (fixed) gelir ve haftalık saate sayılır.
+    const today = businessToday();
+    const pastDays = [0, 1, 2, 3, 4, 5, 6].filter(d => addDays(week_start, d) < today);
+    if (pastDays.length === 7) {
+      return { status: 400, body: { error: "Bu haftanın tüm günleri geçti, plan sadece bugün ve sonrası için oluşturulur." } };
+    }
+    if (pastDays.length > 0) {
+      const dropPast = (m: any) => { for (const row of Object.values(m ?? {}) as any[]) for (const d of pastDays) if (row) { delete row[d]; delete row[String(d)]; } };
+      dropPast(demandMatrixPayload);
+      for (const m of Object.values(departmentDemandMatrixPayload ?? {})) dropPast(m);
+      for (const p of personnelRows) {
+        availabilityData[p.id] ??= {};
+        for (const d of pastDays) availabilityData[p.id][d] = "unavailable";
+      }
+      for (const d of pastDays) if (!closedDays.includes(d)) closedDays.push(d);
+    }
+
+    const enginePayload = {
+      prevScores,
+      labor_budget_try: laborBudgetTry,
+      implicit_avoid: implicitAvoid,
+      day_patterns: dayPatterns,
+      prev_week_driving_hours: prevWeekDriving,
+      closed_days: closedDays,
+      fixed_assignments: fixedAssignments,
+      // En az değişiklik: mevcut plan (istemci gönderirse); motor yer değiştirmeyi cezalandırır
+      current_assignments: Array.isArray(body.current_assignments)
+        ? body.current_assignments.slice(0, 5000).filter((c: any) => c && typeof c.personnel_id === "string" && Number.isInteger(c.day))
+        : [],
+      branchId,
+      orgId,
+      week_start,
+      personnel: personnelData,
+      availability: availabilityData,
+      shifts: shiftsPayload,
+      zone_quotas: zoneQuotasPayload,
+      demand_matrix: demandMatrixPayload,
+      department_demand_matrix: departmentDemandMatrixPayload,
+      department_names: departmentNamesPayload,
+      ensure_senior_per_shift: ensureSeniorPerShift,
+      max_consecutive_days: maxConsecutiveDays,
+      no_night_to_morning: noNightToMorning,
+      preferred_not_multiplier: preferredNotMultiplier,
+      crew_rotation: crewRotation,
+      personnel_crews: personnelCrews,
+      crew_same_shift_hard: crewSameShiftHard,
+      night_restricted_ids: nightRestrictedIds,
+      conflict_pairs: conflictPairs,
+      prev_week_night_ids: prevWeekNightIds,
+      consecutive_night_weeks_enabled: consecutiveNightWeeksEnabled,
+      rules: {
+        // Denkleştirme açıkken hafta tavanı yasal 66'ya çıkar — kişi bazlı hak
+        // yukarıda max_weekly_hours override'ı olarak zaten daraltıldı
+        max_weekly_hours: balancingPeriodWeeks >= 2 ? 66 : ruleMaxWeeklyHours,
+        min_rest_hours: ruleMinRestHours,
+        clopening_min_rest_hours: clopeningMinRestHours,
+        overtime_threshold_hours: overtimeThresholdHours,
+        max_ytd_overtime_hours: maxYtdOvertimeHours,
+        overtime_fair_distribution: overtimeFairDistribution,
+        weekend_multiplier_enabled: weekendMultiplierEnabled,
+        night_multiplier_enabled: nightMultiplierEnabled,
+        preferred_not_enabled: preferredNotEnabled,
+        clopening_enabled: clopeningEnabled,
+        clopening_penalty_weight: clopeningPenaltyWeight,
+        max_on_call_per_week: maxOnCallPerWeek,
+        weekend_multiplier: weekendMultiplier,
+        night_multiplier: nightMultiplier,
+      },
+    };
+
+    // FastAPI engine'e HTTP isteği gönder
+    const orToolsStart = Date.now();
+    const data = await callEngine(enginePayload);
+    const orToolsLatency = Date.now() - orToolsStart;
+
+    // OR-Tools çağrısını logla (fire-and-forget)
+    const orgRow = (await db.prepare(`SELECT name FROM organizations WHERE id = $1`).get(orgIdIn)) as any;
+    logPlatformEvent("or_tools_call", orgIdIn, orgRow?.name ?? null, {
+      location_id: branchId,
+      week_start,
+      personnel_count: personnelData.length,
+      latency_ms: orToolsLatency,
+    });
+
+    // Python motorundan dönen veriyi UI için eşle
+    if (data.personnel) {
+      data.personnel = data.personnel.map((p: any) => ({
+        ...p,
+        roles: p.skills || [],
+      }));
+    }
+
+    // Motor fazla mesai özeti döndürdüyse overtime_records'a upsert et.
+    // Hafta başına tek kayıt: re-generate çift kayıt/çift YTD saymaz; müdürün
+    // karara bağladığı kayıtlar ezilmez. Nihai otorite yayın anındaki derive'dır.
+    if (!scenario && overtimeTrackingEnabled && Array.isArray(data.overtime_summary) && data.overtime_summary.length > 0) {
+      for (const ot of data.overtime_summary) {
+        try {
+          await upsertPendingOvertime({
+            orgId: orgIdIn,
+            locationId: branchId,
+            personnelId: ot.personnelId,
+            personnelName: ot.name ?? null,
+            weekStart: week_start,
+            scheduledHours: ot.scheduled_hours ?? 0,
+            overtimeHours: ot.overtime_hours ?? 0,
+            note: "OR-Tools taslağından otomatik hesaplandı",
+          });
+        } catch (e) {
+          console.error("[generate] overtime upsert hatası:", e);
+        }
+      }
+    }
+
+    if (excludedCompliance.length > 0) {
+      data.excluded_compliance = excludedCompliance;
+    }
+    if (revokedSkills.length > 0) {
+      data.revoked_skills = revokedSkills;
+    }
+
+    return { status: 200, body: data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { status: 500, body: { error: message } };
+  }
+}
+

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
@@ -299,6 +300,9 @@ export default function SettingsPage() {
   // Bildirim state
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDay, setReminderDay] = useState("0");
+  // Otomatik pilot (lib/autopilotRules): varsayılan açık, Perşembe
+  const [autopilotEnabled, setAutopilotEnabled] = useState(true);
+  const [autopilotDay, setAutopilotDay] = useState(String(AUTOPILOT_DEFAULT_DAY));
   const [reminderTime, setReminderTime] = useState("18:00");
   const [reminding, setReminding] = useState(false);
   const [remindResult, setRemindResult] = useState<string | null>(null);
@@ -504,6 +508,9 @@ export default function SettingsPage() {
           setClopeningEnabled(loc.rules?.clopening_enabled !== false);
           setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
           setAvailabilityCollectionEnabled(loc.rules?.availability_collection_enabled !== false);
+          const ap = autopilotSettings(loc.rules);
+          setAutopilotEnabled(ap.enabled);
+          setAutopilotDay(String(ap.day));
           const ar = loc.rules?.availability_reminder;
           if (ar) {
             setReminderEnabled(!!ar.enabled);
@@ -645,6 +652,8 @@ export default function SettingsPage() {
             reminderEnabled: !!loc.rules?.availability_reminder?.enabled,
             reminderDay: String(loc.rules?.availability_reminder?.day ?? 0),
             reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
+            autopilotEnabled: autopilotSettings(loc.rules).enabled,
+            autopilotDay: String(autopilotSettings(loc.rules).day),
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
             chatEnabled: loc.rules?.chat_enabled !== false,
@@ -719,7 +728,7 @@ export default function SettingsPage() {
       hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
-      reminderEnabled, reminderDay, reminderTime,
+      reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
@@ -739,7 +748,7 @@ export default function SettingsPage() {
     hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
-    reminderEnabled, reminderDay, reminderTime,
+    reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
@@ -890,6 +899,12 @@ export default function SettingsPage() {
               time: reminderTime,
               last_sent_week: (baseRules.availability_reminder as { last_sent_week?: string } | undefined)?.last_sent_week,
             },
+            // Çalışma kayıtları (last_run_week, last_draft_week) sunucudaki taze kopyadan korunur
+            autopilot: {
+              ...((baseRules.autopilot as Record<string, unknown> | undefined) ?? {}),
+              enabled: autopilotEnabled,
+              day: parseInt(autopilotDay),
+            },
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
             chat_enabled:                       chatEnabled,
@@ -956,7 +971,7 @@ export default function SettingsPage() {
         hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
-        reminderEnabled, reminderDay, reminderTime,
+        reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
@@ -1478,6 +1493,35 @@ export default function SettingsPage() {
                     <span className="font-medium text-sm">Yeni Vardiya Ekle</span>
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <SectionLabel>Haftalık Plan</SectionLabel>
+                <SectionCard title="Otomatik Pilot">
+                  <RuleRow
+                    label="Planı her hafta otomatik hazırla"
+                    description={
+                      <span>
+                        Gelecek haftanın planı seçtiğiniz gün sabah taslak olarak hazırlanır, size sadece kontrol edip yayınlamak kalır.
+                        Personel taslağı görmez. Siz o haftaya zaten başladıysanız dokunulmaz.
+                        {autopilotEnabled && (
+                          <span className="flex flex-wrap items-center gap-2 mt-2">
+                            <span>Her</span>
+                            <select
+                              value={autopilotDay}
+                              onChange={e => setAutopilotDay(e.target.value)}
+                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-forest-400 bg-white"
+                            >
+                              {AUTOPILOT_DAY_NAMES.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
+                            </select>
+                            <span>sabahı</span>
+                          </span>
+                        )}
+                      </span>
+                    }
+                    right={<Toggle on={autopilotEnabled} onToggle={() => setAutopilotEnabled(v => !v)} />}
+                  />
+                </SectionCard>
               </div>
 
               <div className="space-y-4">

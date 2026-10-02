@@ -17,6 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
+import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
 import { industryFromRules } from "@/lib/templates";
 import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [rules, setRules] = useState<Record<string, unknown>>({});
+  const [autopilot, setAutopilot] = useState<{ enabled: boolean; day: number; upcoming: boolean; last_draft_week: string | null } | null>(null);
   const [todayTasks, setTodayTasks] = useState<any[]>([]);
   const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -93,7 +95,7 @@ export default function DashboardPage() {
       const weekStart = getTodayWeekStart();
       const canApproveAccounts = u.role === "admin" || u.role === "supervisor";
       const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, publishStatsData, locData,
-             leaves, swaps, edits, overtimes, accounts] = await Promise.all([
+             leaves, swaps, edits, overtimes, accounts, autopilotData] = await Promise.all([
         json(`/api/personnel?location_id=${loc}`),
         json(`/api/shifts?location_id=${loc}&week_start=${weekStart}`),
         json(`/api/open-shifts?location_id=${loc}`),
@@ -107,7 +109,9 @@ export default function DashboardPage() {
         json(`/api/shift-edit-requests?org_id=${u.org_id}&location_id=${loc}`),
         json(`/api/overtime?location_id=${loc}&status=pending`),
         canApproveAccounts ? json(`/api/users?approval_status=pending`) : Promise.resolve([]),
+        json(`/api/autopilot?location_id=${loc}`),
       ]);
+      setAutopilot(autopilotData && !autopilotData.error ? autopilotData : null);
 
       const next = list(nextShiftsData);
       setPersonnel(list(personnelData));
@@ -283,6 +287,11 @@ export default function DashboardPage() {
     // Şubenin sektörü seçiliyse maddeler sektörün diliyle ve önceliğiyle gelir
     nudges: industryFromRules(rules)?.nudges ?? null,
     industrySelected: industryFromRules(rules) !== null,
+    autopilot: autopilot?.enabled ? {
+      drafted: autopilot.last_draft_week === getNextWeekStart(),
+      upcoming: autopilot.upcoming,
+      dayName: AUTOPILOT_DAY_NAMES[autopilot.day],
+    } : undefined,
   });
 
   const activeCount = personnel.filter(p => p.status === "active").length;

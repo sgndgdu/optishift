@@ -51,6 +51,9 @@ export type InboxInput = {
   nudges?: IndustryNudges | null;
   /** false: şubede işletme türü seçilmemiş (belge kalkanı, sektör dili ve önerilen kurallar çalışmıyor). */
   industrySelected?: boolean;
+  /** Otomatik pilot (lib/autopilotRules): drafted = gelecek haftanın taslağını otomatik pilot hazırladı;
+   *  upcoming = henüz hazırlamadı ama bu hafta hazırlayacak (gün gelmedi, ihtiyaç tablosu dolu). */
+  autopilot?: { drafted: boolean; upcoming: boolean; dayName: string };
 };
 
 const ORDER: Record<InboxSeverity, number> = { critical: 0, today: 1, week: 2 };
@@ -146,13 +149,30 @@ export function buildInbox(input: InboxInput): InboxItem[] {
 
   if (input.nextWeek !== "published") {
     const urgent = isLateInWeek(input.now);
+    const ap = input.autopilot;
     items.push(input.nextWeek === "none"
-      ? {
+      ? (ap?.upcoming
+        ? {
+            id: "next-week",
+            severity: "week",
+            title: `Gelecek haftanın planı ${ap.dayName} sabahı otomatik hazırlanacak`,
+            detail: "Size sadece kontrol edip yayınlamak kalır. İsterseniz şimdi de oluşturabilirsiniz.",
+            action: { label: "Şimdi Oluştur", href: "/schedule?week=next" },
+          }
+        : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı henüz hazır değil",
           detail: "Personel plan yapabilsin diye erken yayınlayın.",
           action: { label: "Planı Oluştur", href: "/schedule?week=next" },
+        })
+      : ap?.drafted
+      ? {
+          id: "next-week",
+          severity: urgent ? "critical" : "today",
+          title: "Gelecek haftanın planı otomatik hazırlandı",
+          detail: "Kontrol edin, uygunsa yayınlayın. Personel yayınlanınca görür.",
+          action: { label: "İncele ve Yayınla", href: "/schedule?week=next" },
         }
       : {
           id: "next-week",
@@ -220,7 +240,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
   const localized = input.nudges
     ? items.map(it =>
         // Sektör kalıbı "plan hazır değil" durumunu anlatır; taslak durumunun kendi metni korunur
-        it.id === "next-week" && input.nextWeek === "draft"
+        it.id === "next-week" && (input.nextWeek === "draft" || input.autopilot?.upcoming)
           ? it
           : { ...it, ...localizeCopy(input.nudges, it.id, counts[it.id] ?? 0, { title: it.title, detail: it.detail }) })
     : items;
