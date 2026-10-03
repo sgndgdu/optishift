@@ -706,12 +706,7 @@ export default function PortalDashboard() {
               {[1, 2].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
             </div>
           ) : notifs.length === 0 ? (
-            <div className="py-8 flex flex-col items-center text-center">
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-2">
-                <Check size={18} />
-              </div>
-              <p className="text-sm font-semibold text-slate-500">Yeni bildirim yok</p>
-            </div>
+            <p className="px-4 py-5 text-center text-sm text-slate-500">Yeni bildirim yok.</p>
           ) : (
             <div className="divide-y divide-slate-50">
               {notifs.map(n => (

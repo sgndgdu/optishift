@@ -751,24 +751,23 @@ export default function PortalRequests() {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
             }
             return (
-              <div className="space-y-2">
+              <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
                 {typeOptions.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => { setNewType(t.id); resetSwapWizard(); }}
-                    className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl border border-slate-200 bg-white text-left hover:border-primary/40 hover:bg-primary/5 transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <t.icon size={19} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800">{t.label}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{t.hint}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-300 shrink-0" />
-                  </button>
+                  <li key={t.id}>
+                    <button
+                      onClick={() => { setNewType(t.id); resetSwapWizard(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 min-h-[60px] text-left hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                    >
+                      <t.icon size={18} className="text-primary shrink-0" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold text-slate-900">{t.label}</span>
+                        <span className="block text-xs text-slate-500 mt-0.5">{t.hint}</span>
+                      </span>
+                      <ChevronRight size={16} className="text-slate-300 shrink-0" />
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             );
           })()}
 

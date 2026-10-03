@@ -487,19 +487,18 @@ export default function PortalAvailability() {
             </span>
           </div>
           {copyMsg && <p className="text-xs font-semibold text-forest-700 px-1">{copyMsg}</p>}
+          {/* 7 gün tek liste (DESIGN.md §2): gün başına ayrı kart yok */}
+          <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
           {DAYS.map((name, i) => {
             const d = days[i];
             const cfg = S[d.status];
             return (
-              <div key={i} className={`bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm`}>
-                {/* Renkli üst şerit */}
-                <div className={`h-1 w-full ${cfg.fill}`} />
-
+              <li key={i}>
                 <div className="px-4 py-3">
                   {/* Başlık satırı */}
                   <div className={`flex items-center gap-2 ${d.status !== "unavailable" && (expanded.has(i) || d.start) ? "mb-4" : ""}`}>
                     <div className="shrink-0 min-w-[90px]">
-                      <span className="font-bold text-slate-800 text-[15px] block leading-tight">{name}</span>
+                      <span className="font-semibold text-slate-900 text-sm block leading-tight">{name}</span>
                       <span className="text-xs font-semibold text-slate-400">{weekDates[i]}</span>
                     </div>
                     <div className="flex gap-1.5 flex-1">
@@ -570,23 +569,24 @@ export default function PortalAvailability() {
                     />
                   )}
                 </div>
-              </div>
+              </li>
             );
           })}
+          </ul>
         </div>
       )}
 
       {/* ── Gönder butonu — inline, nav bar clearance layout'un pb-24'ünden geliyor ── */}
       {weekPublished ? null : !isSubmitted ? (
         <button onClick={confirmSave} disabled={loading || fetchLoading}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50">
+          className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50">
           {loading
             ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
             : <><Save size={17} /> Uygunluğu Gönder</>}
         </button>
       ) : (
         <button onClick={revoke} disabled={loading}
-          className="w-full bg-white border-2 border-slate-200 text-slate-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+          className="w-full bg-white border border-slate-200 text-slate-700 font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
           {loading
             ? <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
             : <><Edit2 size={17} /> Düzenlemek İçin Geri Al</>}

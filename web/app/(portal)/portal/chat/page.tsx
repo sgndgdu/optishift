@@ -277,7 +277,7 @@ export default function EmployeeChatPage() {
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-100 shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-slate-700">Mesajlar</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Kişiler ve kanallar</h2>
               {totalUnread > 0 && (
                 <CountBadge count={totalUnread} />
               )}
@@ -292,36 +292,12 @@ export default function EmployeeChatPage() {
             </div>
           </div>
 
-          {/* Mobile horizontal avatars strip */}
-          <div className="flex md:hidden gap-2 p-3 overflow-x-auto shrink-0 border-b border-slate-50">
-            {contacts.map(c => {
-              const isSelected = selected?.id === c.id;
-              return (
-                <button key={c.id} onClick={() => handleSelect(c)}
-                  className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl shrink-0 transition-colors relative ${isSelected ? "bg-primary/10" : "hover:bg-slate-50"}`}>
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold relative ${
-                    c.type === "group" ? "bg-emerald-100 text-emerald-700" :
-                    c.role === "manager" ? "bg-ember-100 text-ember-700" : "bg-forest-100 text-forest-700"
-                  }`}>
-                    {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
-                    {(c.unread ?? 0) > 0 && (
-                      <CountBadge size="sm" className="absolute -top-1 -right-1">{c.unread}</CountBadge>
-                    )}
-                  </div>
-                  <span className={`text-xs font-semibold truncate max-w-[52px] ${isSelected ? "text-primary" : "text-slate-500"}`}>
-                    {c.name.split(" ")[0]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Desktop directory list */}
-          <div className="hidden md:flex flex-col flex-1 overflow-y-auto">
+          {/* Kişi listesi: telefonda da tam liste (adlar kesilmez), seçince sohbet açılır */}
+          <div className="flex flex-col flex-1 overflow-y-auto">
             {contacts.length === 0 ? (
               <p className="text-xs text-slate-400 p-4">Kişi bulunamadı.</p>
             ) : filtered.length === 0 ? (
-              <p className="text-xs text-slate-400 p-4">"{search}" için sonuç yok.</p>
+              <p className="text-xs text-slate-400 p-4">&ldquo;{search}&rdquo; için sonuç yok.</p>
             ) : (
               <>
                 {groupContacts.length > 0 && (
@@ -394,13 +370,6 @@ export default function EmployeeChatPage() {
             )}
           </div>
 
-          {/* Mobile: empty directory state */}
-          {!selected && (
-            <div className="flex md:hidden flex-1 flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
-              <p className="text-xs font-medium">Kime yazmak istiyorsunuz?</p>
-              <p className="text-xs text-slate-400">Yukarıdan bir kişi seçin.</p>
-            </div>
-          )}
         </div>
 
         {/* ── Chat area ────────────────────────────────────────────────── */}
@@ -515,9 +484,8 @@ export default function EmployeeChatPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
-              <p className="text-xs font-semibold">Kime yazmak istiyorsunuz?</p>
-              <p className="text-xs text-slate-400">Soldan bir kişi veya kanal seçin.</p>
+            <div className="flex-1 flex items-center justify-center p-8 text-center">
+              <p className="text-sm text-slate-500">Soldan bir kişi ya da kanal seçin.</p>
             </div>
           )}
         </div>
