@@ -37,8 +37,9 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  if (auth.role !== "admin" && auth.role !== "supervisor") {
-    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+  // Şube açmak sadece işletme sahibinin işi (bölge müdürü yalnız atandığı şubeleri yönetir)
+  if (auth.role !== "admin") {
+    return NextResponse.json({ error: "Şube açmak için işletme sahibi olmalısınız." }, { status: 403 });
   }
 
   const db = getDB();
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       const locCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM locations WHERE org_id = ?").get(auth.org_id)) as any).cnt;
       if (locCount >= 1) {
         return NextResponse.json(
-          { error: "Free plan limiti: 1 şube. Daha fazla şube için Pro'ya geçin.", upgrade: true },
+          { error: "Ücretsiz planda 1 şube açılabilir. Daha fazla şube için Pro plana geçin.", upgrade: true },
           { status: 402 }
         );
       }

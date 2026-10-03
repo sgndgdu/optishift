@@ -32,6 +32,9 @@ export default function OnboardingWizard() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
   const [singleLocationId, setSingleLocationId] = useState<string | null>(null);
+  const [readyCount, setReadyCount] = useState(0);
+  // Ücretsiz plan tek şube: sihirbaz ikinci şubeyi baştan kabul etmez (sonda hata vermek yerine)
+  const [freePlan, setFreePlan] = useState(false);
 
   // Adım 0 — Sektör + şubeler
   // İşletme türü + çalışma düzeni (lib/templates): vardiyalar, kurallar ve özellikler buna göre gelir
@@ -65,6 +68,7 @@ export default function OnboardingWizard() {
       .then(r => (r.ok ? r.json() : null))
       .then(org => {
         if (typeof org?.name === "string" && org.name.trim()) setBranches(b => (b.length === 1 && !b[0].trim() ? [org.name.trim()] : b));
+        setFreePlan(!org?.plan || org.plan === "free");
       })
       .catch(() => {});
   }, [user]);
@@ -94,7 +98,7 @@ export default function OnboardingWizard() {
 
       // Mevcut şubeleri çek — aynı isme sahip olanları yeniden oluşturma (idempotent)
       const existingRes = await fetch("/api/locations");
-      const existingLocs: Array<{ id: string; name: string }> = existingRes.ok
+      const existingLocs: Array<{ id: string; name: string; shift_definitions?: unknown; rules?: unknown; operating_hours?: unknown; task_templates?: unknown }> = existingRes.ok
         ? await existingRes.json()
         : [];
       const existingByName = new Map(
@@ -103,9 +107,8 @@ export default function OnboardingWizard() {
           : []
       );
 
-      // 1. Şubeleri oluştur. Aynı isimli şube zaten varsa DOKUNULMAZ:
-      // locations PATCH rules'u merge değil replace eder — kurulu bir şubenin
-      // tüm ayarlarını 3 anahtarlı wizard objesiyle ezmek veri kaybıdır.
+      // 1. Şubeleri oluştur. Aynı isimli şube zaten varsa yeniden açılmaz. Önceki denemede
+      // açılıp ayarlanamamış (vardiyasız) şube aşağıda kurulur; kurulu şubeye dokunulmaz.
       const newLocationIds: string[] = [];
       for (const name of validBranches) {
         if (existingByName.has(name.toLowerCase())) continue;
@@ -114,34 +117,47 @@ export default function OnboardingWizard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ org_id: user.org_id, name }),
         });
-        const data = await res.json();
-        if (!data.id) throw new Error(data.error ?? ("Şube oluşturulamadı: " + name));
+        const data = await res.json().catch(() => ({}));
+        if (!data.id) throw new Error(data.error ?? ("Şube açılamadı: " + name));
         newLocationIds.push(data.id);
       }
+
+      // Önceki denemeden kalan, vardiyası tanımlanmamış şubeler (aynı adla girilenler)
+      const parse = (v: unknown) => { if (typeof v !== "string") return v; try { return JSON.parse(v); } catch { return null; } };
+      const isEmpty = (v: unknown) => { const x = parse(v); return !x || (Array.isArray(x) ? x.length === 0 : typeof x === "object" && Object.keys(x as object).length === 0); };
+      const unconfigured = (Array.isArray(existingLocs) ? existingLocs : [])
+        .filter(l => validBranches.some(n => n.toLowerCase() === l.name.toLowerCase()) && isEmpty(l.shift_definitions));
 
       // 2. Sadece YENİ şubelere vardiyalar + akıllı varsayılanlar (sektör kuralları,
       // özellikler, görev listeleri, çalışma saatleri). Departman kurulumda oluşturulmaz —
       // KOBİ akışını basit tutar (personel ihtiyacı tablosu düz kalır).
       const defaults = buildIndustryDefaults(industry, variant)!;
 
-      await Promise.all(
-        newLocationIds.map(id =>
+      const targets = [
+        ...newLocationIds.map(id => ({ id, prev: null as null | (typeof existingLocs)[number] })),
+        ...unconfigured.map(l => ({ id: l.id, prev: l })),
+      ];
+      const results = await Promise.all(
+        targets.map(({ id, prev }) =>
           fetch(`/api/locations?id=${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               shift_definitions: shifts.filter(s => s.name.trim()),
-              operating_hours: defaults.operating_hours,
-              rules: defaults.rules,
-              task_templates: defaults.task_templates,
+              // Yarım kalmış şubede elle girilmiş değerler korunur (PATCH rules'u değiştirir, birleştirmez)
+              operating_hours: prev && !isEmpty(prev.operating_hours) ? parse(prev.operating_hours) : defaults.operating_hours,
+              rules: { ...defaults.rules, ...((prev ? parse(prev.rules) : null) as object ?? {}) },
+              task_templates: prev && !isEmpty(prev.task_templates) ? parse(prev.task_templates) : defaults.task_templates,
             }),
-          })
+          }).then(r => r.ok)
         )
       );
+      if (results.some(ok => !ok)) throw new Error("Şube ayarları kaydedilemedi, lütfen tekrar deneyin.");
 
       // İşletmenin tek şubesi varsa sahip doğrudan o şubenin müdür paneline geçer
       const allIds = [...existingByName.values(), ...newLocationIds];
       setSingleLocationId(allIds.length === 1 ? allIds[0] : null);
+      setReadyCount(targets.length);
       setStep(2);
     } catch (e: any) {
       setError(e.message ?? "Beklenmedik bir hata oluştu.");
@@ -155,6 +171,10 @@ export default function OnboardingWizard() {
     setError("");
     if (step === 0 && !branches.some(b => b.trim())) {
       setError("En az bir şube adı girin.");
+      return;
+    }
+    if (step === 0 && freePlan && branches.filter(b => b.trim()).length > 1) {
+      setError("Ücretsiz planda 1 şube açılabilir. Diğer şubeleri Pro plana geçince eklersiniz.");
       return;
     }
     if (step === 1) await saveAll();
@@ -200,7 +220,10 @@ export default function OnboardingWizard() {
                       </button>
                     </div>
                   ))}
-                  {branches.length < 30 && (
+                  {freePlan && (
+                    <p className="text-xs text-slate-500">Ücretsiz planda 1 şube açılabilir. Daha fazla şube için sonradan Pro plana geçebilirsiniz.</p>
+                  )}
+                  {branches.length < 30 && !(freePlan && branches.length >= 1) && (
                     <button onClick={addBranch}
                       className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors">
                       <Plus size={15} /> Şube Ekle
@@ -272,7 +295,9 @@ export default function OnboardingWizard() {
                 <div>
                   <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
-                    <strong>{branches.filter(b => b.trim()).length} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}
+                    {readyCount > 0
+                      ? <><strong>{readyCount} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}</>
+                      : <>Şubeleriniz zaten kurulu.{" "}</>}
                     {singleLocationId ? (
                       <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
                     ) : (

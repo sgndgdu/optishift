@@ -133,12 +133,15 @@ export default function SupervisorDashboard() {
             Hoş geldiniz, <strong>{user?.name}</strong>. Tüm şubelerinizin özeti aşağıda.
           </p>
         </div>
-        <Link href="/supervisor/settings?new=1" className="shrink-0">
-          <Button variant="outline" className="gap-2 w-full sm:w-auto">
-            <Plus size={16} />
-            Şube Ekle
-          </Button>
-        </Link>
+        {/* Şube açmak sadece işletme sahibinin işi */}
+        {user?.role === "admin" && (
+          <Link href="/supervisor/settings?new=1" className="shrink-0">
+            <Button variant="outline" className="gap-2 w-full sm:w-auto">
+              <Plus size={16} />
+              Şube Ekle
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Özet sayılar */}
@@ -250,14 +253,17 @@ export default function SupervisorDashboard() {
               </div>
               <p className="font-bold text-slate-600 mb-1">Henüz şube eklenmedi</p>
               <p className="text-sm text-slate-400 mb-5">
-                İlk kurulumu tamamladıysanız şubeleriniz burada görünecek.<br />
-                Yoksa Ayarlar sayfasından ekleyebilirsiniz.
+                {user?.role === "admin"
+                  ? <>İlk kurulumu tamamladıysanız şubeleriniz burada görünecek.<br />Yoksa buradan ekleyebilirsiniz.</>
+                  : "Size henüz şube atanmadı. İşletme sahibinden şube atamasını isteyin."}
               </p>
-              <Link href="/supervisor/settings?new=1">
-                <Button className="gap-2">
-                  <Plus size={15} /> Şube Ekle
-                </Button>
-              </Link>
+              {user?.role === "admin" && (
+                <Link href="/supervisor/settings?new=1">
+                  <Button className="gap-2">
+                    <Plus size={15} /> Şube Ekle
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
         ) : (

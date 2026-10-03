@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       const personnelCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any).cnt;
       if (personnelCount >= 10) {
         return NextResponse.json(
-          { error: "Free plan limiti: 10 personel. Daha fazlası için Pro'ya geçin.", upgrade: true },
+          { error: "Ücretsiz planda en fazla 10 personel eklenebilir. Daha fazlası için Pro plana geçin.", upgrade: true },
           { status: 402 }
         );
       }

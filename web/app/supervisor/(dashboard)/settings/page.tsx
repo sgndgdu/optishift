@@ -47,7 +47,7 @@ export default function SupervisorSettingsPage() {
       const parsed = stored ? JSON.parse(stored) : null;
       if (parsed) setUser(parsed);
       // Genel Bakış'taki "Şube Ekle" → ?new=1 (istemci geçişinde adres effect'te günceldir)
-      if (new URLSearchParams(window.location.search).get("new") === "1") setShowAddBranch(true);
+      if (parsed?.role === "admin" && new URLSearchParams(window.location.search).get("new") === "1") setShowAddBranch(true);
       setMounted(true);
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,7 +162,7 @@ export default function SupervisorSettingsPage() {
               <CardTitle className="text-base font-bold">Şubeler</CardTitle>
               <Badge variant="secondary">{locations.length}</Badge>
             </div>
-            {(user.role === "admin" || user.role === "supervisor") && (
+            {user.role === "admin" && (
               <Button
                 variant="outline"
                 size="sm"
