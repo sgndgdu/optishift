@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     const fields = Object.keys(updates).map(k => `${k} = ?`).join(", ");
     const vals = [...Object.values(updates), auth.id];
     await db.prepare(`UPDATE users SET ${fields} WHERE id = ?`).run(...vals);
+    // Şifre belirlendi: kişinin davet bağlantıları artık oturum açmaz (lib: GET /api/invite)
+    await db.prepare("UPDATE invite_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL").run(Math.floor(Date.now() / 1000), auth.id);
 
     // Personnel kaydı varsa isim/telefon güncelle
     if (user.personnel_id) {

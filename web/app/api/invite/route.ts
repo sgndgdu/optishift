@@ -3,7 +3,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { requireAuth, signToken, setCookie, parseManagedLocations } from "@/lib/auth";
-import { parseAccess } from "@/lib/userAccess";
+import { isBranchManager, parseAccess } from "@/lib/userAccess";
+import { inDepartmentScope, managerOutsideBranch } from "@/lib/access";
 
 
 function generateToken(): string {
@@ -25,9 +26,6 @@ export async function GET(req: NextRequest) {
     if (inv.expires_at < now) {
       return NextResponse.json({ error: "Bu davet linkinin süresi dolmuş (7 gün)" }, { status: 410 });
     }
-    if (inv.used_at) {
-      return NextResponse.json({ error: "Bu davet linki daha önce kullanılmış" }, { status: 410 });
-    }
     if (!inv.user_id) {
       return NextResponse.json({ error: "Bağlı kullanıcı bulunamadı" }, { status: 404 });
     }
@@ -40,8 +38,12 @@ export async function GET(req: NextRequest) {
     if (user.approval_status === "disabled" || user.approval_status === "rejected") {
       return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
     }
-
-    await db.prepare("UPDATE invite_tokens SET used_at = ? WHERE token = ?").run(now, token);
+    // Bağlantı, kişi şifresini belirleyene kadar (7 gün içinde) tekrar açılabilir: açıp kapatınca ölmez.
+    // Şifre belirlenince (POST /api/auth/setup) o ana kadarki davetler kapanır (used_at). Yöneticinin sonradan
+    // ürettiği yeni bağlantı ise şifre yenileme gibi çalışır.
+    if (inv.used_at && !user.is_temp_password) {
+      return NextResponse.json({ error: "Bu hesap zaten kurulmuş. Kullanıcı adınız ve şifrenizle giriş yapın." }, { status: 410 });
+    }
 
     const sessionToken = await signToken({
       id: user.id, org_id: user.org_id, role: user.role,
@@ -89,6 +91,21 @@ export async function POST(req: NextRequest) {
     const user = await db.prepare("SELECT * FROM users WHERE id = ? AND org_id = ?").get(user_id, auth.org_id) as any;
     if (!user) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+    }
+    // Giriş bağlantısı hesaba şifresiz girer: sadece kişinin üstündeki yönetici, kendi kapsamındaki kişi için üretir.
+    // Patron herkes için (kendisi hariç); şube müdürü kendi şubesinin çalışanları ve şefleri; şef kendi departmanı.
+    const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
+    const targetIsChef = user.role === "manager" && !!parseAccess(user.permissions)?.department_id;
+    const branchMgrForChef = isBranchManager(auth) && targetIsChef && user.location_id === auth.location_id;
+    const allowed = user.id !== auth.id && (
+      auth.role === "admin" ||
+      branchMgrForChef ||
+      ((RANK[user.role] ?? 0) < (RANK[auth.role] ?? 0)
+        && !managerOutsideBranch(auth, user.location_id)
+        && (await inDepartmentScope(db, auth, user.personnel_id)))
+    );
+    if (!allowed) {
+      return NextResponse.json({ error: "Bu kişi için giriş bağlantısı oluşturamazsınız" }, { status: 403 });
     }
 
     const token = generateToken();
