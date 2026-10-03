@@ -4,13 +4,13 @@ import { FEATURES } from "@/lib/features";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
-  Save, Plus, X, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
+  Save, Plus, X, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown,
   MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer, Wallet,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
-import { isOwnerRole, LOCK_NOTE, MANAGER_PERMISSION_LIST, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
+import { isOwnerRole, LOCK_NOTE, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
 import { departmentScope, isViewOnly, parseAccess } from "@/lib/userAccess";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
@@ -345,6 +345,7 @@ function RequiredSkillsEditor({
 export default function SettingsPage() {
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü düzenler, müdür sadece görür
+  // Müdür yetkileri burada sadece OKUNUR (kilitli alanlar); değiştirme yeri Ekip › Yönetim › Müdür yetkileri
   const [mgrPerms, setMgrPerms] = useState<ManagerPermissions>(() => managerPermissions({}));
   const isCatLocked = (cat: LockCategory) => viewerRole !== null && !isOwnerRole(viewerRole) && !mgrPerms[cat];
   // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
@@ -988,7 +989,6 @@ export default function SettingsPage() {
               day: parseInt(autopilotDay),
             },
             // Müdür bu alanı gönderse de sunucu yok sayar (applyRuleLocks)
-            manager_permissions:                mgrPerms,
             edit_requests_enabled:              editRequestsEnabled,
             checkin_required:                   checkinRequired,
             chat_enabled:                       chatEnabled,
@@ -1538,7 +1538,11 @@ export default function SettingsPage() {
                       {/* Zorunlu yetkinlik karması — "gece vardiyasında en az 1 bakımcı" gibi */}
                       <RequiredSkillsEditor
                         skills={shift.required_skills ?? []}
+                        // Roller TEK liste: Ekip'teki Roller (sektör rolleri + departmanlar + kişilerde işaretli olanlar)
                         knownSkills={[...new Set([
+                          ...(savedIndustry?.roles.map(r => r.label) ?? []),
+                          ...departments.map(d => d.name),
+                          ...personnelRoles.flat(),
                           ...zoneQuotas.map(z => z.zone),
                           ...(locationData.shift_definitions ?? []).flatMap((sd: ShiftDefinition) => (sd.required_skills ?? []).map(rs => rs.skill)),
                         ])].filter(Boolean)}
@@ -1696,24 +1700,6 @@ export default function SettingsPage() {
                     }
                     right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
                   />
-                </SectionCard>
-              </div>
-              </SettingsGroup>
-              <SettingsGroup id="permissions" title="Müdür Yetkileri" description="Şube müdürünün değiştirebileceği alanlar" open={!!openGroups["permissions"]} onToggle={toggleGroup}>
-              <div className="space-y-4">
-                <SectionCard title="Bu şubenin müdürü neleri değiştirebilir?">
-                  {MANAGER_PERMISSION_LIST.map(p => (
-                    <RuleRow
-                      key={p.key}
-                      label={p.label}
-                      description={<>{p.description}{viewerRole !== null && !isOwnerRole(viewerRole) && <LockNote />}</>}
-                      right={
-                        <fieldset disabled={viewerRole === null || !isOwnerRole(viewerRole)} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
-                          <Toggle on={mgrPerms[p.key]} onToggle={() => setMgrPerms(m => ({ ...m, [p.key]: !m[p.key] }))} />
-                        </fieldset>
-                      }
-                    />
-                  ))}
                 </SectionCard>
               </div>
               </SettingsGroup>
@@ -2072,7 +2058,7 @@ export default function SettingsPage() {
                 </SectionCard>
                 </LockArea>
               </SettingsGroup>
-              <SettingsGroup id="zones" title="Departmanlar ve Alanlar" description="Kasa, mutfak, hat gibi bölümler ve günlük alan kotaları" open={!!openGroups["zones"]} onToggle={toggleGroup}>
+              <SettingsGroup id="zones" title="Departmanlar ve Rol Kotaları" description="Kasa, mutfak, hat gibi bölümler ve günlük rol kotaları" open={!!openGroups["zones"]} onToggle={toggleGroup}>
 
                 {/* 1. Departmanlar — anında DB'ye kaydedilir */}
                 <div>
@@ -2155,24 +2141,30 @@ export default function SettingsPage() {
 
                 <hr className="border-slate-100" />
 
-                {/* 2. Günlük Alan Kotaları — lokasyon ayarı, Kaydet butonu ile */}
+                {/* 2. Günlük rol kotaları: kota adı Ekip'teki Roller listesinden seçilir (eski serbest "alan" adı kimseyle eşleşmeyebiliyordu) */}
                 <div>
                   <div className="mb-3">
-                    <SectionLabel>Günlük Alan Kotaları</SectionLabel>
+                    <SectionLabel>Günlük Rol Kotaları</SectionLabel>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Departmanlardan bağımsız, serbest tanımlı fiziksel alanlardır (Teras, Depo…). Personelin yetenek
-                      etiketleriyle eşleşir; &ldquo;bu alanda günde en az N kişi&rdquo; koşulu her planda garanti edilir.
+                      &ldquo;Her gün en az N kasiyer&rdquo; gibi koşullar. Rol, Ekip sayfasında kişinin Roller listesinde işaretlenir; her planda garanti edilir.
                     </p>
                   </div>
                   <div className="space-y-2">
                     {zoneQuotas.map((entry, idx) => (
                       <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                        <input
+                        <select
                           value={entry.zone}
                           onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
-                          placeholder="Bölge adı (Örn: Kasa)"
-                          className="flex-1 text-sm bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-forest-500 py-0.5 text-slate-800 font-medium"
-                        />
+                          className="flex-1 min-w-0 text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 font-medium outline-none focus:border-forest-500"
+                        >
+                          <option value="">Rol seçin</option>
+                          {[...new Set([
+                            ...(savedIndustry?.roles.map(r => r.label) ?? []),
+                            ...departments.map(d => d.name),
+                            ...personnelRoles.flat(),
+                            ...(entry.zone ? [entry.zone] : []),
+                          ])].filter(Boolean).map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
                         <span className="text-xs text-slate-400 shrink-0">min</span>
                         <input
                           type="number" min={0} max={99}
@@ -2195,17 +2187,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </SettingsGroup>
-              <SettingsGroup id="crews" title="Ekipler ve Rotasyon" description="A/B/C ekipleri ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
+              <SettingsGroup id="crews" title="Vardiya Grupları ve Rotasyon" description="A/B/C grupları ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
                 <p className="text-sm text-slate-500">
-                  Ekipler, personeli vardiya gruplarına ayırmanızı sağlar. Fabrika ortamında A/B/C ekibi gibi rotasyonlu gruplar oluşturun.
+                  Vardiya grupları, birlikte çalışan kişileri bir arada tutar. Fabrikadaki A/B/C postaları gibi dönüşümlü gruplar kurun.
                 </p>
 
                 {/* Ekip Ekle */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-slate-400">Yeni Ekip</p>
+                  <p className="text-xs font-bold text-slate-400">Yeni Grup</p>
                   <div className="flex flex-wrap items-end gap-3">
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1">Ekip Adı</label>
+                      <label className="block text-xs text-slate-500 mb-1">Grup Adı</label>
                       <input
                         value={newCrewName}
                         onChange={e => setNewCrewName(e.target.value)}
@@ -2255,7 +2247,7 @@ export default function SettingsPage() {
                 {crewsLoading ? (
                   <p className="text-sm text-slate-400">Yükleniyor…</p>
                 ) : crews.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-8">Henüz ekip oluşturulmamış.</p>
+                  <p className="text-sm text-slate-400 text-center py-8">Henüz grup oluşturulmamış.</p>
                 ) : (
                   <div className="space-y-2">
                     {crews.map(crew => (
@@ -2299,10 +2291,10 @@ export default function SettingsPage() {
                     ))}
                   </div>
                 )}
-  <SectionCard title="Ekip Kuralı">
+  <SectionCard title="Grup Kuralı">
     <RuleRow
-                    label="Ekip Vardiyası · Kesin Kural"
-                    description="Açıksa aynı ekip üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa ekip ayrılabilir."
+                    label="Grup Aynı Vardiyada · Kesin Kural"
+                    description="Açıksa aynı grubun üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa grup ayrılabilir."
                     right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
                   />
   </SectionCard>
@@ -2367,7 +2359,7 @@ export default function SettingsPage() {
                 <SectionCard title="Rotasyon Ayarları">
                   <RuleRow
                     label="Rotasyonu Etkinleştir"
-                    description="Açıkken her ekip, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
+                    description="Açıkken her grup, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
                     right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
                   />
                   {rotationEnabled && (
@@ -2401,7 +2393,7 @@ export default function SettingsPage() {
                       />
                       <RuleRow
                         label="Başlangıç Haftası"
-                        description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi ekip 0. pozisyonda sayılır."
+                        description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi grup 0. pozisyonda sayılır."
                         right={
                           <input
                             type="date"
@@ -2418,13 +2410,13 @@ export default function SettingsPage() {
                 {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                     <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                      <h3 className="text-xs font-bold text-slate-400">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
+                      <h3 className="text-xs font-bold text-slate-400">Grup · Vardiya Ataması (Hafta Bazında)</h3>
                     </div>
                     <div className="p-5 overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr>
-                            <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Ekip</th>
+                            <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Grup</th>
                             {Array.from({ length: cycleWeeks }, (_, i) => (
                               <th key={i} className="text-center text-xs text-slate-400 font-medium pb-3 px-2 min-w-[120px]">Hafta {i + 1}</th>
                             ))}

@@ -3,7 +3,7 @@
 
 import { isSenior } from "@/lib/seniority";
 import { businessToday } from "@/lib/date";
-import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
+import { hasManagerPermission, isOwnerRole, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,7 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { ManagerAccessEditor, ManagerAddSheet, accessSummary, canEditManager, type Mgr } from "@/components/personnel/ManagersCard";
+import { BranchPermissionsSheet, ManagerAccessEditor, ManagerAddSheet, accessSummary, canEditManager, type Mgr } from "@/components/personnel/ManagersCard";
 import { isBranchManager, parseAccess } from "@/lib/userAccess";
 
 const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
@@ -75,6 +75,7 @@ const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartes
 export default function PersonnelPage() {
   const router = useRouter();
   const [authUser, setAuthUser] = useState<any>(null);
+  const [permsOpen, setPermsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [persons, setPersons] = useState<MergedPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -362,6 +363,20 @@ export default function PersonnelPage() {
     if (p.personnelId) fetchPersonnelDocs(p.personnelId);
     setNewKioskPin(""); setKioskPinError("");
   };
+  // Tüm Personel'den gelen bağlantılar: ?add=1 ekleme penceresini, ?edit=<personel> kişinin düzenlemesini açar
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (deepLinkDone.current || loading || persons.length === 0 && !new URLSearchParams(window.location.search).get("add")) return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("add") === "1") { deepLinkDone.current = true; resetAddForm(); setShowAddModal(true); return; }
+    const editId = q.get("edit");
+    if (editId) {
+      const target = persons.find(p => p.personnelId === editId);
+      if (target) { deepLinkDone.current = true; openEdit(target); }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persons, loading]);
+
 
   const fetchPersonnelDocs = async (personnelId: string) => {
     setDocsLoading(true);
@@ -653,7 +668,11 @@ export default function PersonnelPage() {
             };
             return (
               <>
-                {managers.length > 0 && <ListSection title="Yönetim" count={managers.length} />}
+                {managers.length > 0 && <ListSection title="Yönetim" count={managers.length} action={
+                  isOwnerRole(authUser?.role) && authUser?.location_id ? (
+                    <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Müdür yetkileri</button>
+                  ) : undefined
+                } />}
                 {managers.map(row)}
                 {managers.length > 0 && staff.length > 0 && <ListSection title="Çalışanlar" count={staff.length} />}
                 {staff.map(row)}
@@ -703,7 +722,7 @@ export default function PersonnelPage() {
             {p.email && <DetailRow label="E-posta">{p.email}</DetailRow>}
             {p.personnelId && p.role === "employee" && <DetailRow label="Adalet Puanı">{p.prev_score}</DetailRow>}
             {p.hero_count > 0 && <DetailRow label="Açık vardiya üstlenme">{p.hero_count} kez</DetailRow>}
-            {crew && <DetailRow label="Ekip">{crew.name}</DetailRow>}
+            {crew && <DetailRow label="Vardiya grubu">{crew.name}</DetailRow>}
             {(p.ytd_overtime_hours ?? 0) > 0 && <DetailRow label="Bu yıl fazla mesai">{p.ytd_overtime_hours} saat</DetailRow>}
             {(() => {
               const u = userOf(p);
@@ -943,52 +962,42 @@ export default function PersonnelPage() {
                   </p>
                   {crewList.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Ekip Ataması</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Vardiya Grubu</label>
                       <select
                         value={editForm.crew_id ?? ""}
                         onChange={e => setEditForm(f => ({ ...f, crew_id: e.target.value || null }))}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
                       >
-                        <option value="">— Ekip Yok —</option>
+                        <option value="">Grup yok</option>
                         {crewList.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
                   )}
-                  {branchIndustry && (
+                  {/* Roller TEK listede: sektör rolleri + çalışabildiği departmanlar (eski ayrı "Bölge / Zon Ataması";
+                      ikisi de personnel.roles'a yazılır, motor ve alan kotaları buradan okur) */}
+                  {(branchIndustry || editDepts.length > 0) && (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1 block">Rol ve Yetkinlikler</label>
-                      <p className="text-xs text-slate-400 mb-2">Otomatik planlama, bir vardiyada &quot;en az 1 Bakım Teknisyeni&quot; gibi zorunluluğu bu listeye bakarak karşılar.</p>
+                      <label className="text-xs font-bold text-slate-600 mb-1 block">Roller</label>
+                      <p className="text-xs text-slate-400 mb-2">Otomatik planlama &quot;her vardiyada en az 1 aşçı&quot; gibi zorunlulukları ve departman kotalarını bu listeye bakarak karşılar.</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {branchIndustry.roles.map(role => {
+                        {[
+                          ...(branchIndustry?.roles.map(r => ({ key: r.id, label: r.label, hint: "" })) ?? []),
+                          ...editDepts.filter(d => !roleLabels.has(d.name)).map(d => ({ key: `dept-${d.id}`, label: d.name, hint: " (departman)" })),
+                        ].map(role => {
                           const selected = editForm.roles.includes(role.label);
                           return (
-                            <button key={role.id} type="button"
+                            <button key={role.key} type="button"
                               onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
                               className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                              {selected && <Check size={10} className="inline mr-1" />}{role.label}
+                              {selected && <Check size={10} className="inline mr-1" />}{role.label}{role.hint && <span className="font-normal opacity-70">{role.hint}</span>}
                             </button>
                           );
                         })}
                         {editForm.roles.filter(r => !roleLabels.has(r) && !editDepts.some(d => d.name === r)).map(r => (
                           <span key={r} className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200">{r}</span>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                  {editDepts.length > 0 && (
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 mb-2 block">Bölge / Zon Ataması</label>
-                      <div className="flex flex-wrap gap-2">
-                        {editDepts.map(dept => {
-                          const selected = editForm.roles.includes(dept.name);
-                          return (
-                            <button key={dept.id} type="button" onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== dept.name) : [...f.roles, dept.name] }))} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                              {selected && <Check size={10} className="inline mr-1" />}{dept.name}
-                            </button>
-                          );
-                        })}
                       </div>
                     </div>
                   )}
@@ -1084,6 +1093,10 @@ export default function PersonnelPage() {
 
       {toast && (
         <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
+      )}
+      {permsOpen && authUser?.location_id && (
+        <BranchPermissionsSheet open onClose={() => setPermsOpen(false)}
+          locations={locations.filter(l => l.id === authUser.location_id).map(l => ({ id: l.id, name: l.name }))} />
       )}
     </Page>
   );

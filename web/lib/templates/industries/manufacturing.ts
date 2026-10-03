@@ -124,7 +124,7 @@ export const manufacturing: IndustryProfile = {
     },
     firstSteps: [
       "Personelin rollerini (Hat Operatörü, Bakım Teknisyeni...) ve İSG belgelerini girin.",
-      "Ekipler ve Rotasyon'dan A/B/C ekiplerini kurun; postalar haftalık döner.",
+      "Vardiya Grupları ve Rotasyon'dan A/B/C gruplarını kurun; postalar haftalık döner.",
       "Personel sayfasından ortak tablet PIN'lerini atayın, girişler hattaki tabletten yapılsın.",
     ],
   },

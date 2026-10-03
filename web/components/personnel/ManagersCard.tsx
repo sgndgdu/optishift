@@ -15,6 +15,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListSection } from "@/components/ui/List";
 import { Sheet, sheetDangerClass, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import { ACCESS_MODE_LABELS, parseAccess, type AccessMode } from "@/lib/userAccess";
+import { MANAGER_PERMISSION_LIST, PERMISSIONS_RULE_KEY, isOwnerRole, managerPermissions, type ManagerPermissions } from "@/lib/ruleLocks";
 
 type Loc = { id: string; name: string };
 type Dept = { id: string; name: string };
@@ -341,6 +342,7 @@ export default function ManagersCard({ locations, viewerRole, branchManager = fa
   const [deptNames, setDeptNames] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [permsOpen, setPermsOpen] = useState(false);
   const load = useCallback(() => {
     fetch("/api/users").then(r => r.json())
       .then(d => setMgrs((Array.isArray(d) ? d : []).filter((u: Mgr) => u.role === "manager" || u.role === "supervisor")))
@@ -360,9 +362,14 @@ export default function ManagersCard({ locations, viewerRole, branchManager = fa
     <>
       <List>
         <ListSection title="Yöneticiler" count={mgrs.length} action={
-          <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-forest-700 hover:underline">
-            <Plus size={13} /> {branchManager ? "Şef ata" : "Yönetici ekle"}
-          </button>
+          <span className="inline-flex items-center gap-3">
+            {isOwnerRole(viewerRole) && (
+              <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Müdür yetkileri</button>
+            )}
+            <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-forest-700 hover:underline">
+              <Plus size={13} /> {branchManager ? "Şef ata" : "Yönetici ekle"}
+            </button>
+          </span>
         } />
         {mgrs.length === 0 && <li className="px-4 py-3 text-sm text-slate-500">Henüz yönetici yok. Her şey size gelir.</li>}
         {mgrs.map(m => {
@@ -380,11 +387,88 @@ export default function ManagersCard({ locations, viewerRole, branchManager = fa
         })}
       </List>
       <ManagerAddSheet open={adding} onClose={() => setAdding(false)} locations={locations} viewerRole={viewerRole} branchManager={branchManager} onDone={load} />
+      {isOwnerRole(viewerRole) && <BranchPermissionsSheet open={permsOpen} onClose={() => setPermsOpen(false)} locations={locations} />}
       {open && (
         <Sheet open onClose={() => setOpenId(null)} title={open.name} description={open.display_title || "Yönetici"}>
           <ManagerAccessEditor key={open.id} m={open} locations={locations} viewerRole={viewerRole} branchManager={branchManager} onDone={() => { setOpenId(null); load(); }} />
         </Sheet>
       )}
     </>
+  );
+}
+
+/**
+ * Şube müdürünün değiştirebileceği alanlar (rules.manager_permissions, lib/ruleLocks).
+ * TEK yer burası: Ekip › Yönetim ve Tüm Personel › Yöneticiler'den açılır, sadece patron/bölge müdürü
+ * değiştirir (sunucu applyRuleLocks ile ayrıca korur). Eskiden Ayarlar › Müdür Yetkileri'ndeydi.
+ */
+export function BranchPermissionsSheet({ open, onClose, locations }: { open: boolean; onClose: () => void; locations: Loc[] }) {
+  const [locId, setLocId] = useState(locations[0]?.id ?? "");
+  const [perms, setPerms] = useState<ManagerPermissions | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!open || !locId) return;
+    let stale = false;
+    setPerms(null); setError("");
+    fetch(`/api/locations?id=${locId}`).then(r => r.json()).then(rows => {
+      if (stale) return;
+      const raw = Array.isArray(rows) ? rows[0]?.rules : null;
+      setPerms(managerPermissions(typeof raw === "string" ? JSON.parse(raw) : raw));
+    }).catch(() => { if (!stale) setError("Yüklenemedi."); });
+    return () => { stale = true; };
+  }, [open, locId]);
+
+  const save = async () => {
+    if (!perms) return;
+    setSaving(true); setError("");
+    try {
+      // rules REPLACE edilir: taze kuralların üzerine sadece izinler yazılır
+      const rows = await fetch(`/api/locations?id=${locId}`).then(r => r.json());
+      const raw = Array.isArray(rows) ? rows[0]?.rules : null;
+      const fresh = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
+      const r = await fetch(`/api/locations?id=${locId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules: { ...fresh, [PERMISSIONS_RULE_KEY]: perms } }),
+      });
+      if (!r.ok) throw new Error();
+      onClose();
+    } catch { setError("Kaydedilemedi."); }
+    setSaving(false);
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Müdür yetkileri" description="Şube müdürü bunları değiştirebilir mi?"
+      footer={<>
+        <button onClick={onClose} className={sheetSecondaryClass}>Vazgeç</button>
+        <button onClick={save} disabled={saving || !perms} className={sheetPrimaryClass}>{saving ? "Kaydediliyor…" : "Kaydet"}</button>
+      </>}>
+      <div className="space-y-3">
+        {locations.length > 1 && (
+          <select value={locId} onChange={e => setLocId(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400">
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        )}
+        {!perms ? <p className="text-sm text-slate-500">{error || "Yükleniyor…"}</p> : (
+          <List>
+            {MANAGER_PERMISSION_LIST.map(p => (
+              <li key={p.key}>
+                <label className="flex items-start gap-3 px-4 py-3 cursor-pointer">
+                  <input type="checkbox" checked={perms[p.key]} onChange={() => setPerms(cur => cur && ({ ...cur, [p.key]: !cur[p.key] }))}
+                    className="mt-0.5 w-4 h-4 rounded accent-forest-600 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">{p.label}</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{p.description}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </List>
+        )}
+        {error && perms && <p className="text-sm text-red-600">{error}</p>}
+        <p className="text-xs text-slate-500">Kapalı alanları müdür görür ama değiştiremez. Planı yayınlama yetkisi her yöneticinin kendi ayrıntısında (Ne yapabilir?).</p>
+      </div>
+    </Sheet>
   );
 }

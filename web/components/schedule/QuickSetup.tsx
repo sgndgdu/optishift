@@ -1,19 +1,15 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState } from "react";
-import { Check, X, Plus, Trash2, CalendarClock, Users, Grid3x3, Sparkles } from "lucide-react";
-import { SECTOR_PRESETS } from "@/lib/presets";
-import { getVariant, industryFromRules } from "@/lib/templates/registry";
-import type { ShiftDefinition } from "@/lib/types";
+import { useState } from "react";
+import { Check, X, Plus, CalendarClock, Users, Grid3x3, Sparkles } from "lucide-react";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 
 /**
- * Schedule sayfası yerinde kurulum: vardiya şablonu ve personel eksikken
- * kullanıcıyı Ayarlar'a göndermek yerine 3 adımlı bir bantla burada tamamlatır.
- * Kayıt sonrası `optishift_location_changed` event'i sayfanın mevcut yeniden
- * yükleme yolunu tetikler.
+ * Vardiya Planı'nda kurulum bandı: eksik adımları sırayla gösterir.
+ * Vardiya tanımlarının TEK yeri Ayarlar > Temel'dir; bu bant oraya götürür (ayrı bir
+ * vardiya düzenleyicisi yok). Personel ekleme yerinde yapılır; kayıt sonrası
+ * `optishift_location_changed` sayfayı yeniden yükler.
  */
 
 interface QuickSetupProps {
@@ -26,10 +22,10 @@ interface QuickSetupProps {
 }
 
 export default function QuickSetup({ locationId, shiftDefsCount, personnelCount, demandFilled, onOpenDemand }: QuickSetupProps) {
-  const [modal, setModal] = useState<"shifts" | "personnel" | "import" | null>(null);
+  const [modal, setModal] = useState<"personnel" | "import" | null>(null);
 
   const steps = [
-    { key: "shifts",    label: "Vardiyaları tanımla",  done: shiftDefsCount > 0,  icon: CalendarClock, action: () => setModal("shifts") },
+    { key: "shifts",    label: "Vardiyaları tanımla",  done: shiftDefsCount > 0,  icon: CalendarClock, action: () => { window.location.href = "/settings?tab=basic"; } },
     { key: "personnel", label: "Personel ekle",         done: personnelCount > 0,  icon: Users,          action: () => setModal("personnel") },
     { key: "demand",    label: "Kaç kişi gerektiğini gir", done: demandFilled,        icon: Grid3x3,        action: onOpenDemand },
   ];
@@ -63,126 +59,11 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
         </div>
       </div>
 
-      {modal === "shifts" && <ShiftDefModal locationId={locationId} onClose={() => setModal(null)} />}
       {modal === "personnel" && <QuickPersonnelModal locationId={locationId} onClose={() => setModal(null)} onImport={() => setModal("import")} />}
       {modal === "import" && <BulkImportModal locationId={locationId} onClose={() => setModal(null)} />}
     </>
   );
 }
-
-// ─── Yerinde vardiya tanımlama ────────────────────────────────────────────────
-
-export function ShiftDefModal({ locationId, onClose }: { locationId: string; onClose: () => void }) {
-  const [defs, setDefs] = useState<ShiftDefinition[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  // Şubenin işletme türü seçiliyse (kurulum/Ayarlar) aynı alt türün vardiyaları gelir: kayıt sihirbazı
-  // ile burada iki farklı şablon önerilmesin (lib/templates tek kaynak)
-  const [choices, setChoices] = useState<{ key: string; label: string; shiftDefs: ShiftDefinition[] }[]>(SECTOR_PRESETS);
-  useEffect(() => {
-    let stale = false;
-    fetch(`/api/locations?id=${locationId}`).then(r => (r.ok ? r.json() : [])).then(rows => {
-      if (stale) return;
-      const rules = Array.isArray(rows) ? rows[0]?.rules : null;
-      const industry = industryFromRules(rules);
-      if (!industry) return;
-      let variantKey: string | undefined;
-      try { const r = typeof rules === "string" ? JSON.parse(rules) : rules; variantKey = typeof r?.industry_variant === "string" ? r.industry_variant : undefined; } catch { /* yok */ }
-      const current = getVariant(industry, variantKey);
-      setChoices([current, ...industry.variants.filter(v => v.key !== current.key)]
-        .map(v => ({ key: `${industry.key}:${v.key}`, label: v.label, shiftDefs: v.shifts })));
-      setDefs(prev => (prev.length === 0 ? current.shifts.map(d => ({ ...d })) : prev));
-    }).catch(() => {});
-    return () => { stale = true; };
-  }, [locationId]);
-
-  const applyPreset = (key: string) => {
-    const p = choices.find(s => s.key === key);
-    if (p) setDefs(p.shiftDefs.map(d => ({ ...d })));
-  };
-
-  const updateDef = (i: number, patch: Partial<ShiftDefinition>) =>
-    setDefs(prev => prev.map((d, j) => (j === i ? { ...d, ...patch } : d)));
-
-  const addDef = () =>
-    setDefs(prev => [...prev, { id: `s${Date.now()}`, name: "Yeni Vardiya", start: "09:00", end: "17:00", base_points: 3 }]);
-
-  const save = async () => {
-    const valid = defs.filter(d => d.name.trim() && d.start && d.end);
-    if (valid.length === 0) { setError("En az bir vardiya tanımlayın."); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/locations?id=${locationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shift_definitions: valid }),
-      });
-      if (!res.ok) throw new Error();
-      window.dispatchEvent(new Event("optishift_location_changed"));
-      onClose();
-    } catch {
-      setError("Kaydedilemedi. Lütfen tekrar deneyin.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <ModalShell title="Vardiyaları Tanımla" subtitle="Hazır bir şablonla başlayın, saatleri işletmenize göre düzenleyin." onClose={onClose}>
-      <div className="flex flex-wrap gap-2">
-        {choices.map(p => (
-          <button
-            key={p.key}
-            onClick={() => applyPreset(p.key)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-forest-300 hover:text-forest-700 hover:bg-forest-50 transition-colors"
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        {defs.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-4">Yukarıdan sektörünüzü seçin veya elle vardiya ekleyin.</p>
-        )}
-        {defs.map((d, i) => (
-          <div key={d.id} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
-            <input
-              value={d.name}
-              onChange={e => updateDef(i, { name: e.target.value })}
-              className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-medium focus:outline-none focus:border-forest-400"
-            />
-            <input type="time" value={d.start} onChange={e => updateDef(i, { start: e.target.value })}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-forest-400" />
-            <span className="text-slate-300 text-xs">→</span>
-            <input type="time" value={d.end} onChange={e => updateDef(i, { end: e.target.value })}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-[100px] focus:outline-none focus:border-forest-400" />
-            <button onClick={() => setDefs(prev => prev.filter((_, j) => j !== i))} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors shrink-0">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-        <button onClick={addDef} className="flex items-center gap-1.5 text-xs font-bold text-forest-600 hover:text-forest-800 py-1">
-          <Plus size={13} /> Vardiya ekle
-        </button>
-      </div>
-
-      {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
-
-      <div className="flex gap-2 pt-1">
-        <button onClick={onClose} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">Vazgeç</button>
-        <button onClick={save} disabled={saving || defs.length === 0}
-          className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50">
-          {saving ? "Kaydediliyor…" : "Kaydet ve Devam Et"}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-// ─── Yerinde hızlı personel ekleme ────────────────────────────────────────────
 
 function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: string; onClose: () => void; onImport: () => void }) {
   const [rows, setRows] = useState([{ name: "", phone: "" }, { name: "", phone: "" }, { name: "", phone: "" }]);

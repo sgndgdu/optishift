@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const existing = await db.prepare(`SELECT id, location_id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { location_id: string } | undefined;
-    if (!existing) return NextResponse.json({ error: "Ekip bulunamadı" }, { status: 404 });
+    if (!existing) return NextResponse.json({ error: "Vardiya grubu bulunamadı" }, { status: 404 });
     if (managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     const updates: string[] = [];
@@ -102,7 +102,7 @@ export async function DELETE(req: NextRequest) {
   const db = getDB();
   try {
     const existing = await db.prepare(`SELECT id, location_id FROM crews WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as { location_id: string } | undefined;
-    if (!existing) return NextResponse.json({ error: "Ekip bulunamadı" }, { status: 404 });
+    if (!existing) return NextResponse.json({ error: "Vardiya grubu bulunamadı" }, { status: 404 });
     if (managerOutsideBranch(auth, existing.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
     await db.prepare(`UPDATE personnel SET crew_id = NULL WHERE crew_id = ?`).run(id);
