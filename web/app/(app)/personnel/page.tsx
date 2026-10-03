@@ -637,7 +637,9 @@ export default function PersonnelPage() {
                     {p.userId && <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
                       {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}
                     </button>}
-                    {p.userId && (authUser?.role === "admin" || authUser?.role === "supervisor" || (p.role === "employee" && can("personnel_delete"))) && (
+                    {/* Kendi hesabı ve patron hesabı buradan silinmez (sunucu da engeller) */}
+                    {p.userId && p.userId !== authUser?.id && p.role !== "admin"
+                      && (authUser?.role === "admin" || (authUser?.role === "supervisor" && p.role !== "supervisor") || (p.role === "employee" && can("personnel_delete"))) && (
                       <button onClick={() => handleDelete(p)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hesabı Sil"><Trash2 size={15} /></button>
                     )}
                   </div>

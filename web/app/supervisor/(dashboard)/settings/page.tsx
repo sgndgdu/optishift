@@ -139,10 +139,6 @@ export default function SupervisorSettingsPage() {
                 </span>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Org ID</p>
-                <p className="text-sm font-mono text-slate-500">{org?.id ?? "—"}</p>
-              </div>
-              <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Şube Sayısı</p>
                 <p className="font-bold text-slate-800">{locations.length}</p>
               </div>
@@ -195,7 +191,6 @@ export default function SupervisorSettingsPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">{loc.name}</p>
-                      <p className="text-xs text-slate-500 font-mono">{loc.id}</p>
                     </div>
                   </div>
                   <Badge variant="success" className="text-[10px]">Aktif</Badge>
@@ -231,7 +226,8 @@ export default function SupervisorSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ERP Entegrasyonu */}
+      {/* ERP Entegrasyonu: işletme geneli, sadece patron */}
+      {user.role === "admin" && (
       <Card className="stripe-card border-0 shadow-none">
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
           <div className="flex items-center gap-2.5">
@@ -285,6 +281,7 @@ export default function SupervisorSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

@@ -58,6 +58,8 @@ function SupervisorPersonnelInner() {
 
   // Onay bekleyen hesaplar (manager'ın oluşturduğu, henüz aktif olmayan)
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  // Şube müdürleri: personel kaydı olmadığı için personel listesinde görünmezler (Test 3 Ö1)
+  const [managers, setManagers] = useState<any[]>([]);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
   // Add modal
@@ -111,9 +113,11 @@ function SupervisorPersonnelInner() {
 
   const fetchPendingUsers = async () => {
     try {
-      const res = await fetch("/api/users?approval_status=pending");
+      const res = await fetch("/api/users");
       const data = await res.json();
-      setPendingUsers(Array.isArray(data) ? data : []);
+      const list: any[] = Array.isArray(data) ? data : [];
+      setPendingUsers(list.filter(u => u.approval_status === "pending"));
+      setManagers(list.filter(u => u.role === "manager" && u.approval_status !== "pending" && u.approval_status !== "rejected"));
     } catch {}
   };
 
@@ -216,6 +220,7 @@ function SupervisorPersonnelInner() {
       setShowAddModal(false);
       resetAddForm();
       fetchPersonnel(selectedLocId);
+      fetchPendingUsers();
     } catch { setAddError("Sunucu hatası"); }
     setAddLoading(false);
   };
@@ -291,6 +296,39 @@ function SupervisorPersonnelInner() {
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
       </div>
+
+      {/* Şube Müdürleri */}
+      {managers.length > 0 && (
+        <Card className="stripe-card border-0 shadow-none">
+          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-forest-100 rounded-xl text-forest-700"><Shield size={18} /></div>
+              <CardTitle className="text-base font-bold">Şube Müdürleri</CardTitle>
+              <Badge variant="secondary">{managers.filter(m => !selectedLocId || m.location_id === selectedLocId).length}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-slate-50">
+              {managers.filter(m => !selectedLocId || m.location_id === selectedLocId).map(m => (
+                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
+                  <div className="w-10 h-10 rounded-full bg-forest-100 flex items-center justify-center text-forest-700 font-bold text-sm shrink-0">{m.name.charAt(0)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-slate-900 truncate">{m.name}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {m.display_title || "Müdür"} · {locations.find((l: { id: string; name: string }) => l.id === m.location_id)?.name ?? "Şube atanmamış"} · {m.username}
+                    </p>
+                  </div>
+                  {m.is_temp_password && <span className="text-[10px] font-extrabold px-2 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 shrink-0">Henüz giriş yapmadı</span>}
+                  <Button size="sm" variant="outline" disabled={inviteLinkLoading === m.id}
+                    onClick={() => handleGenerateInvite({ id: m.id, user_id: m.id, name: m.name })}>
+                    Davet bağlantısı
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Onay Bekleyen Hesaplar */}
       {pendingUsers.length > 0 && (

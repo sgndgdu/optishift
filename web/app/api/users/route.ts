@@ -305,6 +305,12 @@ export async function DELETE(req: NextRequest) {
     if (!target) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
     }
+    // Bölge müdürü: patronu ya da başka bölge müdürünü silemez, sadece kapsamındaki şubelerin hesaplarını
+    if (auth.role === "supervisor") {
+      if (target.role === "admin" || target.role === "supervisor" || managerOutsideBranch(auth, target.location_id)) {
+        return NextResponse.json({ error: "Bu hesabı silme izniniz yok" }, { status: 403 });
+      }
+    }
     // Müdür: sadece kendi şubesindeki personel hesabı, "personnel_delete" izniyle (lib/ruleLocks)
     if (auth.role === "manager") {
       if (target.role !== "employee" || target.location_id !== auth.location_id

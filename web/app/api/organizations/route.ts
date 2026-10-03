@@ -26,12 +26,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH /api/organizations — ERP bağlantısı / alan eşleştirme (admin + supervisor)
+// PATCH /api/organizations — ERP bağlantısı / alan eşleştirme. İşletme geneli ayar: sadece patron
+// (bölge müdürü yalnız atandığı şubeleri yönetir; Test 3 Ö8)
 export async function PATCH(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
-  if (auth.role !== "admin" && auth.role !== "supervisor") {
-    return NextResponse.json({ error: "ERP bağlantısını yalnızca yönetici veya süpervizör değiştirebilir" }, { status: 403 });
+  if (auth.role !== "admin") {
+    return NextResponse.json({ error: "İşletme geneli ayarları yalnızca işletme sahibi değiştirebilir." }, { status: 403 });
   }
 
   const db = getDB();
