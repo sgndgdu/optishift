@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AuthUser } from "@/lib/auth";
 import { hasManagerPermission, isOwnerRole, type ManagerPermission } from "@/lib/ruleLocks";
+import { departmentScope } from "@/lib/userAccess";
 
 /** Şubenin kuralları (locations.rules, JSON). Bulunamazsa {}. */
 export async function locationRules(db: any, locationId: string | null | undefined): Promise<Record<string, unknown>> {
@@ -106,4 +107,26 @@ export async function canAccessChatGroup(db: any, auth: AuthUser, groupId: strin
   if (!exists) return false;
   const scope = await scopedLocationIds(db, auth);
   return scope === null || scope.includes(loc);
+}
+
+/**
+ * Departman şefinin (lib/userAccess departmentScope) şubedeki ekibi: departmanı bu olan, şubeye bağlı personel.
+ * Şef değilse null (= kısıt yok).
+ */
+export async function departmentPersonnelIds(db: any, auth: AuthUser, locationId: string): Promise<string[] | null> {
+  const dept = departmentScope(auth);
+  if (!dept) return null;
+  const rows = await db.prepare(
+    `SELECT id FROM personnel WHERE org_id = ? AND department_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?)`
+  ).all(auth.org_id, dept, locationId, `%"${locationId}"%`) as { id: string }[];
+  return rows.map(r => r.id);
+}
+
+/** Departman şefi bu kişiye dokunabilir mi (kişi şefin departmanında mı)? Şef değilse true. */
+export async function inDepartmentScope(db: any, auth: AuthUser, personnelId: string | null | undefined): Promise<boolean> {
+  const dept = departmentScope(auth);
+  if (!dept) return true;
+  if (!personnelId) return false;
+  const row = await db.prepare("SELECT department_id FROM personnel WHERE id = ? AND org_id = ?").get(personnelId, auth.org_id) as { department_id?: string } | undefined;
+  return row?.department_id === dept;
 }

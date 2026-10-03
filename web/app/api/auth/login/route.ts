@@ -5,6 +5,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { signToken, setCookie, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { getDB } from "@/lib/db/client";
 import { checkRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
       org_id: user.org_id,
       location_id: user.location_id ?? null,
       department_id: user.department_id ?? null,
+      access: parseAccess(user.permissions),
       name: user.name,
       is_temp_password: !!(user.is_temp_password),
     };
@@ -97,6 +99,7 @@ export async function POST(req: NextRequest) {
       personnel_id: user.personnel_id ?? null,
       name: user.name,
       managed_location_ids: parseManagedLocations(user.managed_location_ids),
+      access: parseAccess(user.permissions),
     });
 
     resetRateLimit(ipKey);

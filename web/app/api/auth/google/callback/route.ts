@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { signToken, setCookie, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 import { exchangeGoogleCode, verifyGoogleState, signPendingGoogleProfile } from "@/lib/googleAuth";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { getDB } from "@/lib/db/client";
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
     personnel_id: user.personnel_id ?? null,
     name: user.name,
     managed_location_ids: parseManagedLocations(user.managed_location_ids),
+    access: parseAccess(user.permissions),
   });
 
   const res = NextResponse.redirect(appUrl("/auth/google/complete"));

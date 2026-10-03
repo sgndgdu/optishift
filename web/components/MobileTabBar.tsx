@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, CalendarClock, Users, ClipboardList, BarChart2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSyncExternalStore } from "react";
+import { departmentScope, parseAccess } from "@/lib/userAccess";
 
 // Telefonda yönetim paneli alt menüsü (personel portalındaki gibi): en sık 4 sayfa tek dokunuşla.
 // Geri kalan her şey ☰ menüde.
@@ -20,9 +22,20 @@ const ALL = [
   { href: "/supervisor/chat",      label: "Mesajlar",    icon: MessageSquare },
 ];
 
+const noopSubscribe = () => () => {};
+function readIsChef(): boolean {
+  try {
+    const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
+    return !!departmentScope({ role: u.role ?? null, access: parseAccess(u.access) });
+  } catch { return false; }
+}
+
 export default function MobileTabBar({ scope = "branch" }: { scope?: "branch" | "all" }) {
   const pathname = usePathname();
-  const items = scope === "all" ? ALL : BRANCH;
+  // Departman şefi (lib/userAccess) onay vermez: Onaylar sekmesi gizli
+  // Sunucuda false, tarayıcıda oturumdan okunur (hidrasyon uyumsuzluğu olmasın diye useSyncExternalStore)
+  const isChef = useSyncExternalStore(noopSubscribe, readIsChef, () => false);
+  const items = scope === "all" ? ALL : BRANCH.filter(i => !isChef || i.href !== "/requests");
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/70 px-3 py-2 z-40">
       <ul className="flex items-center justify-around">

@@ -37,6 +37,7 @@ import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { hasManagerPermission } from "@/lib/ruleLocks";
+import { canPublishPlan, departmentScope, isViewOnly, parseAccess, type UserAccess } from "@/lib/userAccess";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -505,6 +506,16 @@ function SchedulePageInner() {
   const [viewerRole] = useState<string | null>(() => {
     try { return JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").role ?? null; } catch { return null; }
   });
+  // Kişi bazında yetki (lib/userAccess): sadece görür / planı hazırlar (yayınlayamaz) / hazırlar ve yayınlar
+  const [viewerAccess] = useState<{ role: string | null; access: UserAccess | null }>(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
+      return { role: u.role ?? null, access: parseAccess(u.access) };
+    } catch { return { role: null, access: null }; }
+  });
+  const viewOnly = isViewOnly(viewerAccess);
+  const chefDept = departmentScope(viewerAccess);
+  const canPublish = canPublishPlan(viewerAccess);
   // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
   const [autopilotDraftWeek, setAutopilotDraftWeek] = useState<string | null>(null);
   // İsim altındaki Adalet Puanı çubuğu varsayılan gizli (Adalet panelinden açılır, tarayıcıda hatırlanır)
@@ -675,11 +686,13 @@ function SchedulePageInner() {
         const deptData = await deptRes.json();
         if (stale) return;
         const deptArr = Array.isArray(deptData) ? deptData : [];
-        setDepartments(deptArr);
+        // Departman şefi sadece kendi departmanının ihtiyaç satırını görür (lib/userAccess)
+        const visibleDepts = chefDept ? deptArr.filter((d: any) => d.id === chefDept) : deptArr;
+        setDepartments(visibleDepts);
 
         // Per-departman kapasite matrislerini yükle
         const deptDemands: Record<string, Record<string, Record<number, number>>> = {};
-        for (const dept of deptArr) {
+        for (const dept of visibleDepts) {
           if (dept.demand_matrix) {
             try {
               const raw = typeof dept.demand_matrix === "string" ? JSON.parse(dept.demand_matrix) : dept.demand_matrix;
@@ -858,7 +871,10 @@ function SchedulePageInner() {
         const newForceMap: Record<string, { status: string; multiplier: number }> = {};
         if (Array.isArray(sData)) {
           let hasDraft = false;
+          // Departman şefi sadece kendi ekibinin vardiyalarını görür (sayaçlar da ona göre)
+          const teamIds = chefDept && Array.isArray(pData) ? new Set<string>(pData.map((p: any) => p.id)) : null;
           for (const s of sData) {
+            if (teamIds && !teamIds.has(s.personnel_id)) continue;
             if (s.kind === "on_call") {
               newOnCall[`${s.personnel_id}-${s.day}`] = { defId: s.shift_id, id: s.id, ...(s.pinned ? { pinned: true } : {}) };
               if (s.publication_status === "draft") hasDraft = true;
@@ -906,7 +922,7 @@ function SchedulePageInner() {
       if (!stale) setLoading(false);
     })();
     return () => { stale = true; };
-  }, [activeLocationId, weekOffset, reloadTick]);
+  }, [activeLocationId, weekOffset, reloadTick, chefDept]);
 
   // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Haftayı Oluştur aynı yolu kullanır)
   const onCallRows = (oc: Record<string, { defId: string; pinned?: boolean }>) =>
@@ -932,6 +948,31 @@ function SchedulePageInner() {
       saveDraftWeekNow(map ?? latestPlanRef.current.cellMap, oc ?? latestPlanRef.current.onCallMap));
     saveChainRef.current = run.catch(() => false);
     return run;
+  };
+  // Departman planı onayı (/api/plan-submissions): şef "Onaya Gönder", yönetici departmanların durumunu görür
+  type DeptPlanStatus = { department_id: string; department_name: string; chef_name: string | null; submitted: boolean; submitted_by_name: string | null };
+  const [deptStatus, setDeptStatus] = useState<DeptPlanStatus[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const loadDeptStatus = useCallback(() => {
+    if (!activeLocationId || !weekStart) return;
+    fetch(`/api/plan-submissions?location_id=${activeLocationId}&week_start=${weekStart}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setDeptStatus(Array.isArray(d?.departments) ? d.departments : []))
+      .catch(() => {});
+  }, [activeLocationId, weekStart]);
+  useEffect(() => { if (departments.length > 0) loadDeptStatus(); }, [loadDeptStatus, departments.length]);
+  const myDeptStatus = chefDept ? deptStatus.find(d => d.department_id === chefDept) : undefined;
+  const submitForApproval = async () => {
+    setSubmitting(true);
+    try {
+      await saveDraftWeek();
+      const r = await fetch("/api/plan-submissions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: activeLocationId, week_start: weekStart }),
+      });
+      if (r.ok) { showToast("Plan yöneticinize onaya gönderildi.", "success"); loadDeptStatus(); }
+      else showToast((await r.json().catch(() => ({}))).error ?? "Gönderilemedi", "error");
+    } finally { setSubmitting(false); }
   };
   const lastSavedBodyRef = useRef<string>("");
   const saveDraftWeekNow = async (map: CellMap, oc: Record<string, { defId: string; pinned?: boolean }>): Promise<boolean> => {
@@ -965,6 +1006,8 @@ function SchedulePageInner() {
       lastSavedBodyRef.current = body;
       userEditRef.current = false;
       setSaveState("saved");
+      // Şefin değişikliği sunucuda önceki onay kaydını düşürür; ekranda da yansısın
+      if (chefDept) setDeptStatus(prev => prev.map(d => (d.department_id === chefDept ? { ...d, submitted: false } : d)));
       const n = Object.keys(map).length + Object.keys(oc).length;
       setIsDraftWeek(n > 0);
       setDbShiftCount(n);
@@ -2368,7 +2411,8 @@ function SchedulePageInner() {
       try { return JSON.parse(p.roles || "[]"); } catch { return []; }
     };
     for (const def of shiftDefs) {
-      const reqs = def.required_skills ?? [];
+      // Departman şefi şube geneli yetkinlik kuralından sorumlu değil (lib/generatePlan de uygulamaz)
+      const reqs = chefDept ? [] : def.required_skills ?? [];
       if (reqs.length === 0) continue;
       const activeMatrix = hasDeptDemand
         ? Object.values(deptDemandMatrix).reduce((acc, m) => {
@@ -2671,7 +2715,7 @@ loading ? (
                             <span className="text-sm font-semibold text-slate-700">{def.name}</span>
                             <span className="text-[10px] text-slate-400 ml-2">{def.start}–{def.end}</span>
                             <span className="text-[10px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
-                            {canFillRow(demandMatrix[def.id]) && !(isPublishedWeek && !editUnlocked) && (
+                            {canFillRow(demandMatrix[def.id]) && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
                               <button type="button" onClick={() => fillDemandRow(def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
                                 className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
                             )}
@@ -2691,7 +2735,7 @@ loading ? (
                                     type="number" min={0} max={maxAvailDisplay}
                                     value={val === 0 ? "" : val}
                                     placeholder="—"
-                                    disabled={isPublishedWeek && !editUnlocked}
+                                    disabled={(isPublishedWeek && !editUnlocked) || viewOnly}
                                     onChange={e => {
                                       const n = Math.max(0, parseInt(e.target.value) || 0);
                                       setDemandMatrix(prev => ({ ...prev, [def.id]: { ...(prev[def.id] ?? {}), [day]: n } }));
@@ -2743,7 +2787,7 @@ loading ? (
                                 <td className="py-2.5 pl-8 pr-4">
                                   <span className="text-[12px] font-semibold text-slate-600">{def.name}</span>
                                   <span className="text-[10px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
-                                  {canFillRow(deptRow) && !(isPublishedWeek && !editUnlocked) && (
+                                  {canFillRow(deptRow) && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
                                     <button type="button" onClick={() => fillDeptDemandRow(dept.id, def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
                                       className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
                                   )}
@@ -2763,7 +2807,7 @@ loading ? (
                                           type="number" min={0} max={maxAvailDisplay}
                                           value={val === 0 ? "" : val}
                                           placeholder="—"
-                                          disabled={isPublishedWeek && !editUnlocked}
+                                          disabled={(isPublishedWeek && !editUnlocked) || viewOnly}
                                           onChange={e => {
                                             const n = Math.max(0, parseInt(e.target.value) || 0);
                                             setDeptDemandMatrix(prev => ({
@@ -3036,7 +3080,11 @@ loading ? (
               </div>
 
               {/* Birincil aksiyon: boş hafta → Haftayı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
-              {isPublishedWeek && !editUnlocked ? (
+              {viewOnly ? (
+                <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Sadece görüntüleme</span>
+              ) : !canPublish && isPublishedWeek ? (
+                <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Yayınlandı</span>
+              ) : isPublishedWeek && !editUnlocked ? (
                 <button onClick={() => (hasManagerPermission(viewerRole, locRules, "publish_edit") ? setEditUnlocked(true) : setUnlockModal(true))}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
                   🔒 Düzenle
@@ -3046,6 +3094,19 @@ loading ? (
                   className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-forest-700 rounded-xl hover:bg-forest-800 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                   <Sparkles size={14} /> Haftayı Oluştur
                 </button>
+              ) : !canPublish ? (
+                chefDept && cellCount > 0 ? (
+                  myDeptStatus?.submitted ? (
+                    <span className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl">✓ Onaya gönderildi</span>
+                  ) : (
+                    <button onClick={submitForApproval} disabled={submitting}
+                      className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                      <Send size={14} /> {submitting ? "Gönderiliyor…" : "Onaya Gönder"}
+                    </button>
+                  )
+                ) : (
+                  <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl" title="Planı yayınlama yetkiniz yok">Yayını yöneticiniz yapar</span>
+                )
               ) : (
                 <button onClick={handlePublish} disabled={publishLoading}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
@@ -3054,6 +3115,21 @@ loading ? (
               )}
             </div>
           </div>
+
+          {/* ── Departman planları: şeflerin onaya gönderdiği bölümler (yönetici görür) ── */}
+          {!loading && !chefDept && !isPublishedWeek && deptStatus.some(d => d.chef_name) && (
+            <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-bold text-slate-700">Departman planları:</span>
+              {deptStatus.filter(d => d.chef_name).map(d => (
+                <StatusPill key={d.department_id} tone={d.submitted ? "positive" : "attention"}>
+                  {d.department_name} {d.submitted ? "hazır ✓" : `bekleniyor (${d.chef_name})`}
+                </StatusPill>
+              ))}
+              {deptStatus.filter(d => d.chef_name).every(d => d.submitted) && (
+                <span className="text-xs font-semibold text-emerald-700">Hepsi hazır. Kontrol edip yayınlayabilirsiniz.</span>
+              )}
+            </div>
+          )}
 
           {/* ── Otomatik pilotun hazırladığı taslak: müdüre kalan iş kontrol + Yayınla ── */}
           {!loading && autopilotDraftWeek === weekStart && !isPublishedWeek && cellCount > 0 && (
@@ -3064,7 +3140,9 @@ loading ? (
                   Bu plan otomatik hazırlandı
                 </p>
                 <p className="text-forest-700/80 text-xs mt-0.5">
-                  Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Personel yayınlanınca görür.
+                  {canPublish
+                    ? <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Personel yayınlanınca görür.</>
+                    : <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Onaya Gönder&apos;e basın. Yöneticiniz kontrol edip yayınlar.</>}
                 </p>
               </div>
             </div>
@@ -3410,13 +3488,13 @@ loading ? (
                             );
                           }) : null;
 
-                          if (isPublishedWeek && !editUnlocked) {
+                          if ((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek)) {
                             const cellIsNight = cell ? isNightCell(cell) : false;
                             return (
                               <td key={day} className={tdClass}>
                                 {cell ? (
                                   <div
-                                    onClick={cell.id ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
+                                    onClick={cell.id && !viewOnly && canPublish ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
                                     title={cell.id ? "Gelemiyorsa tıklayın: uygun yedek önerilir" : undefined}
                                     className={cn(
                                     "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border",
@@ -3564,7 +3642,7 @@ loading ? (
               seniorViolationCount={seniorViolations.length}
               excludedCount={excludedCompliance.length}
               onGenerate={runGenerate}
-              onPublish={handlePublish}
+              onPublish={canPublish ? handlePublish : undefined}
               onClose={() => setWizardOpen(false)}
             />
           )}

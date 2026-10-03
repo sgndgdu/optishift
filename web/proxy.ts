@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
 import { verifyGodToken } from "./lib/god-auth";
+import { CHEF_BLOCKED_ERROR, isChefBlocked, isViewOnly, VIEW_ONLY_ERROR } from "./lib/userAccess";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
 const PUBLIC_API_PATHS = [
@@ -48,11 +49,17 @@ const SPOOFABLE_AUTH_HEADERS = [
   "x-auth-personnel-id",
   "x-auth-name",
   "x-auth-managed-locations",
+  "x-auth-access",
 ];
 
 // İstemcinin bu header'ları doğrudan göndermesini engeller — route handler'lar bu
 // header'lara güvenerek yetki kararı aldığı için, doğrulanmamış bir istekte asla
 // istemciden gelen değerlerle geçmemeli.
+// "Sadece görür" yetkili hesabın yine de yapabileceği yazma işlemleri: kendi hesabı, mesajlaşma,
+// bildirimler ve soru soran asistan (kayıt değiştirmez).
+const VIEW_ONLY_WRITE_PATHS = ["/api/auth/", "/api/messages", "/api/chat", "/api/notifications", "/api/push", "/api/copilot/chat",
+  "/api/schedule/publications"]; // arşivden plan okuma (POST ile)
+
 function stripSpoofableHeaders(req: NextRequest): Headers {
   const headers = new Headers(req.headers);
   for (const h of SPOOFABLE_AUTH_HEADERS) headers.delete(h);
@@ -119,6 +126,16 @@ export async function proxy(req: NextRequest) {
   if (user.personnel_id) headers.set("x-auth-personnel-id", user.personnel_id);
   if (user.name) headers.set("x-auth-name", encodeURIComponent(user.name));
   if (user.managed_location_ids?.length) headers.set("x-auth-managed-locations", JSON.stringify(user.managed_location_ids));
+  if (user.access) headers.set("x-auth-access", JSON.stringify(user.access));
+
+  // Kişi bazında yetki (lib/userAccess): "sadece görür" hesabın yazma isteklerini tek yerde kes
+  if (isViewOnly(user) && !["GET", "HEAD", "OPTIONS"].includes(req.method)
+      && !VIEW_ONLY_WRITE_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.json({ error: VIEW_ONLY_ERROR }, { status: 403 });
+  }
+  if (isChefBlocked(user, req.method, pathname)) {
+    return NextResponse.json({ error: CHEF_BLOCKED_ERROR }, { status: 403 });
+  }
 
   return NextResponse.next({ request: { headers } });
 }

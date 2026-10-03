@@ -92,7 +92,9 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             is_night: !!d.is_night,
             on_call: !!d.on_call,
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
-            required_skills: Array.isArray(d.required_skills) ? d.required_skills : [],
+            // Departman şefinin planında şube geneli "en az N yetkinlikli" kuralı uygulanmaz: yetkinlikli kişi
+            // çoğu zaman başka departmandadır; kuralı şube yöneticisi yayın kontrolünde görür.
+            required_skills: !body?.only_department_id && Array.isArray(d.required_skills) ? d.required_skills : [],
           }));
         }
       } catch {
@@ -322,10 +324,17 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // Departmanlı şubede departmanı seçilmemiş kişi hiçbir departmanın ihtiyacına sayılmaz;
     // motora gidince ihtiyaç tablosunun dışında her gün fazladan yazılıyordu.
     // Kullanıcı kararı (2026-10-03): otomatik plana alınmaz, ekranda uyarılır.
-    const excludedNoDepartment = departmentRows.length > 0
+    // Departman şefi (lib/userAccess): sadece kendi departmanının ekibi ve ihtiyacı planlanır;
+    // diğer departmanlara dokunulmaz (değer route'ta oturumdan gelir, istemciden değil).
+    const onlyDept: string | null = typeof body?.only_department_id === "string" && body.only_department_id ? body.only_department_id : null;
+    const excludedNoDepartment = departmentRows.length > 0 && !onlyDept
       ? personnelData.filter((p) => !p.department_id).map((p) => ({ id: p.id, name: p.name }))
       : [];
-    if (excludedNoDepartment.length > 0) personnelData = personnelData.filter((p) => !!p.department_id);
+    if (departmentRows.length > 0) personnelData = personnelData.filter((p) => !!p.department_id);
+    if (onlyDept) {
+      personnelData = personnelData.filter((p) => p.department_id === onlyDept);
+      departmentRows = departmentRows.filter((d: any) => d.id === onlyDept);
+    }
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
     if (locationRow?.demand_matrix && !hasDepartments) {
       try {

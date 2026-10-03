@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { businessNow } from "@/lib/date";
 import { generatePlan } from "@/lib/generatePlan";
 import { canManageLocation } from "@/lib/access";
+import { departmentScope } from "@/lib/userAccess";
 import { getDB } from "@/lib/db/client";
 
 export async function POST(req: NextRequest) {
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   if (!(await canManageLocation(getDB(), auth, branchId))) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
-  const r = await generatePlan(auth.org_id, branchId, week_start, body);
+  // Departman şefi sadece kendi departmanını planlar (istemcinin gönderdiği değer yok sayılır)
+  const r = await generatePlan(auth.org_id, branchId, week_start, { ...body, only_department_id: departmentScope(auth) ?? undefined });
   return NextResponse.json(r.body, { status: r.status });
 }

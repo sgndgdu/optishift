@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { requireAuth, signToken, setCookie, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 
 
 function generateToken(): string {
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
       personnel_id: user.personnel_id ?? null,
       name: user.name,
       managed_location_ids: parseManagedLocations(user.managed_location_ids),
+      access: parseAccess(user.permissions),
     });
     const res = NextResponse.json({
       success: true,
@@ -52,6 +54,7 @@ export async function GET(req: NextRequest) {
         role: user.role, org_id: user.org_id,
         location_id: user.location_id ?? null,
         department_id: user.department_id ?? null,
+        access: parseAccess(user.permissions),
         is_temp_password: !!user.is_temp_password,
         // Kayıtlı telefon kurulum ekranında dolu gelsin (kişinin kendi numarası; token sahibine gösterilir)
         phone: user.phone || (user.personnel_id

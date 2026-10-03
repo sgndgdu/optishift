@@ -3,6 +3,7 @@ import { weekRangeTR } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canPublishPlan } from "@/lib/userAccess";
 import { canManageLocation } from "@/lib/access";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
@@ -14,8 +15,8 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  if (auth.role === "employee") {
-    return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+  if (auth.role === "employee" || !canPublishPlan(auth)) {
+    return NextResponse.json({ error: "Planı yayınlama yetkiniz yok" }, { status: 403 });
   }
 
   const db = getDB();
@@ -134,6 +135,8 @@ export async function POST(req: NextRequest) {
       `INSERT INTO schedule_publications (org_id, location_id, week_start, revision, published_by, published_by_name, published_at, snapshot)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(auth.org_id, location_id, week_start, revision, auth.id, auth.name ?? "Yönetici", Math.floor(Date.now() / 1000), snapshot);
+    // Yayınlanan haftanın departman onay kayıtları tamamlandı
+    await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ?").run(location_id, week_start);
     return NextResponse.json({ success: true, message: `${sentCount} personele bildirim gönderildi.`, revision });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

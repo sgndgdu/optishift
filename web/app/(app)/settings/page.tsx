@@ -9,6 +9,7 @@ import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } fr
 import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import { isOwnerRole, LOCK_NOTE, MANAGER_PERMISSION_LIST, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
+import { departmentScope, isViewOnly, parseAccess } from "@/lib/userAccess";
 import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
@@ -317,7 +318,15 @@ export default function SettingsPage() {
   const [mgrPerms, setMgrPerms] = useState<ManagerPermissions>(() => managerPermissions({}));
   const isCatLocked = (cat: LockCategory) => viewerRole !== null && !isOwnerRole(viewerRole) && !mgrPerms[cat];
   // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
-  const [activeTab, setActiveTab] = useState<TabKey>(() => tabFromUrl().tab);
+  // Departman şefi ve "sadece görür" yönetici (lib/userAccess) şube ayarlarını değiştiremez: sadece Hesabım
+  const [accountOnly] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
+      const viewer = { role: u.role ?? null, access: parseAccess(u.access) };
+      return isViewOnly(viewer) || !!departmentScope(viewer);
+    } catch { return false; }
+  });
+  const [activeTab, setActiveTab] = useState<TabKey>(() => (accountOnly ? "account" : tabFromUrl().tab));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const g = tabFromUrl().group;
     return g ? { [g]: true } : {};
@@ -1194,7 +1203,7 @@ export default function SettingsPage() {
 
   const TabBar = () => (
     <div className="flex items-center border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
-      {TABS.map(tab => (
+      {TABS.filter(tab => !accountOnly || tab.key === "account").map(tab => (
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}

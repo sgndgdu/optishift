@@ -36,13 +36,29 @@ export function finalizeShiftId(
  * TEK KAYNAK: Vardiya Planı otomatik kaydı (PATCH /api/shifts sync_draft_week) ve otomatik pilot.
  * Erişim kontrolü çağıranın işidir. Yazılan satır sayısını döner.
  */
-export async function syncDraftWeek(db: any, location_id: string, week_start: string, shifts: DraftShiftRow[]): Promise<number> {
+export async function syncDraftWeek(
+  db: any, location_id: string, week_start: string, shifts: DraftShiftRow[],
+  /** Departman şefi: sadece bu kişilerin taslağı silinip yazılır, diğer departmanlara dokunulmaz. */
+  onlyPersonnelIds?: string[] | null,
+): Promise<number> {
   const locDefs = await loadLocDefs(db, location_id);
   const now = Math.floor(Date.now() / 1000);
-  await db.prepare(`
-    DELETE FROM shift_assignments
-    WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
-  `).run(location_id, week_start);
+  if (onlyPersonnelIds) {
+    const allowed = new Set(onlyPersonnelIds);
+    shifts = shifts.filter(x => allowed.has(String(x?.personnel_id)));
+    if (onlyPersonnelIds.length) {
+      await db.prepare(`
+        DELETE FROM shift_assignments
+        WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
+          AND personnel_id IN (${onlyPersonnelIds.map(() => "?").join(",")})
+      `).run(location_id, week_start, ...onlyPersonnelIds);
+    }
+  } else {
+    await db.prepare(`
+      DELETE FROM shift_assignments
+      WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
+    `).run(location_id, week_start);
+  }
   // Yayınlanmış satırı olan (bu ya da başka şubede) kişi-gün-tür için taslak kopya yazılmaz.
   // Tek sorguda okunur (eskiden satır başına iki sorgu vardı, 30 satırlık hafta 10 sn sürüyordu).
   const pids = [...new Set(shifts.map((x: any) => x?.personnel_id).filter(Boolean))] as string[];

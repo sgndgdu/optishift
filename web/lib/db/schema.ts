@@ -81,6 +81,8 @@ export const users = pgTable("users", {
   approval_status: text("approval_status").default("active"), // active | pending | rejected
   // Bölge müdürü (supervisor) için sorumlu olduğu şubeler, JSON dizi. Boş/null = işletmenin tüm şubeleri.
   managed_location_ids: text("managed_location_ids"),
+  // Yöneticinin ne yapabileceği (lib/userAccess): {"mode":"view"|"prepare"|"publish","department_id"?}. Boş = tam yetki.
+  permissions: text("permissions"),
   created_by: text("created_by"), // oluşturan kullanıcının user_id'si
   approved_by: text("approved_by"),
   approved_at: bigint("approved_at", { mode: "number" }),
@@ -842,3 +844,17 @@ export const shiftHandovers = pgTable("shift_handovers", {
 }, (t) => [
   index("idx_shift_handovers_pending").on(t.location_id, t.target_shift_def_id, t.read_by_personnel_id),
 ]);
+
+// ─── Plan Onayı ───────────────────────────────────────────────────────────────
+// Departman şefi kendi departmanının haftalık planını hazırlayıp müdüre "onaya gönderir";
+// müdür tüm departmanlar hazır olunca yayınlar. Yayın ya da şefin yeni değişikliği kaydı siler.
+export const planSubmissions = pgTable("plan_submissions", {
+  id: text("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  department_id: text("department_id").notNull(),
+  week_start: text("week_start").notNull(),
+  submitted_by: text("submitted_by"),
+  submitted_by_name: text("submitted_by_name"),
+  submitted_at: bigint("submitted_at", { mode: "number" }),
+});

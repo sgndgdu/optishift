@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
 import { signToken, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 
 export async function POST(
   req: NextRequest,
@@ -24,6 +25,7 @@ export async function POST(
       personnel_id: user.personnel_id ?? null,
       name: user.name,
       managed_location_ids: parseManagedLocations(user.managed_location_ids),
+      access: parseAccess(user.permissions),
     });
 
     // Audit log
@@ -56,6 +58,7 @@ export async function POST(
       org_id: user.org_id,
       location_id: user.location_id ?? null,
       department_id: user.department_id ?? null,
+      access: parseAccess(user.permissions),
       name: user.name,
       is_temp_password: !!user.is_temp_password,
     };

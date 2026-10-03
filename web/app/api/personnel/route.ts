@@ -6,7 +6,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
-import { hasLocationPermission, managerOutsideBranch } from "@/lib/access";
+import { departmentScope } from "@/lib/userAccess";
+import { hasLocationPermission, managerOutsideBranch, inDepartmentScope } from "@/lib/access";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -80,14 +81,17 @@ export async function GET(req: NextRequest) {
     const scoped = auth.role === "supervisor" && auth.managed_location_ids?.length
       ? parsed.filter((p: any) => auth.managed_location_ids!.some(l => p.primary_location_id === l || p.assigned_location_ids.includes(l)))
       : parsed;
+    // Departman şefi (lib/userAccess) sadece kendi departmanının ekibini görür
+    const chefDept = auth.role !== "employee" ? departmentScope(auth) : null;
+    const visible = chefDept ? scoped.filter((p: any) => p.department_id === chefDept) : scoped;
     // Personel arkadaşlarının sadece adını ve unvanını görür (ücret, telefon, not, puan gibi alanlar yöneticiler için)
     if (auth.role === "employee") {
-      return NextResponse.json(scoped.map((p: any) => p.id === auth.personnel_id ? p : {
+      return NextResponse.json(visible.map((p: any) => p.id === auth.personnel_id ? p : {
         id: p.id, name: p.name, title: p.title ?? null, user_id: p.user_id ?? null,
         user_access_level: p.user_access_level, department_id: p.department_id ?? null, status: p.status,
       }));
     }
-    return NextResponse.json(scoped);
+    return NextResponse.json(visible);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -167,6 +171,12 @@ export async function POST(req: NextRequest) {
       INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, is_temp_password, approval_status, created_by, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)
     `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, approvalStatus, auth.id, now);
+    // Departman şefinin eklediği kişi şefin departmanına girer
+    const chefDept = departmentScope(auth);
+    if (chefDept) {
+      await db.prepare("UPDATE personnel SET department_id = ?, assigned_department_ids = ? WHERE id = ?").run(chefDept, JSON.stringify([chefDept]), personnelId);
+      await db.prepare("UPDATE users SET department_id = ? WHERE id = ?").run(chefDept, userId);
+    }
 
     const inviteToken = crypto.randomBytes(32).toString("hex");
     await db.prepare(`
@@ -205,8 +215,15 @@ export async function PATCH(req: NextRequest) {
     if (managerOutsideBranch(auth, existing.primary_location_id)) {
       return NextResponse.json({ error: "Sadece kendi şubenizin personelini düzenleyebilirsiniz" }, { status: 403 });
     }
+    // Departman şefi sadece kendi departmanındakini düzenler ve başka departmana taşıyamaz
+    if (!(await inDepartmentScope(db, auth, id))) {
+      return NextResponse.json({ error: "Sadece kendi departmanınızın personelini düzenleyebilirsiniz" }, { status: 403 });
+    }
 
     const body = await req.json();
+    if (departmentScope(auth) && body.department_id !== undefined && body.department_id !== departmentScope(auth)) {
+      return NextResponse.json({ error: "Personeli başka departmana sadece şube yöneticisi taşıyabilir" }, { status: 403 });
+    }
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
     const { name, phone, title, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
@@ -331,6 +348,9 @@ export async function DELETE(req: NextRequest) {
     const existing = await db.prepare("SELECT id, primary_location_id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
     if (!existing || (auth.role === "manager" && existing.primary_location_id !== auth.location_id)) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    }
+    if (!(await inDepartmentScope(db, auth, id))) {
+      return NextResponse.json({ error: "Sadece kendi departmanınızın personelini silebilirsiniz" }, { status: 403 });
     }
     // Pasife alma (silme) müdür iznine bağlı (lib/ruleLocks)
     if (!(await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete"))) {

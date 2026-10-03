@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth, signToken, setCookie, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 
 
 // POST /api/auth/setup — ilk girişte şifre belirleme + bilgi doldurma
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
       org_id: updatedUser.org_id,
       location_id: updatedUser.location_id ?? null,
       department_id: updatedUser.department_id ?? null,
+      access: parseAccess(updatedUser.permissions),
       name: updatedUser.name,
       is_temp_password: false,
     };
@@ -67,6 +69,7 @@ export async function POST(req: NextRequest) {
       personnel_id: updatedUser.personnel_id ?? null,
       name: updatedUser.name,
       managed_location_ids: parseManagedLocations(updatedUser.managed_location_ids),
+      access: parseAccess(updatedUser.permissions),
     });
 
     const res = NextResponse.json({ success: true, user: userData });

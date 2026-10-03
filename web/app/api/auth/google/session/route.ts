@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 
 // GET /api/auth/google/session
 // Google callback zaten oturum cookie'sini set etti; bu endpoint /api/auth/login
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
     org_id: user.org_id,
     location_id: user.location_id ?? null,
     department_id: user.department_id ?? null,
+    access: parseAccess(user.permissions),
     name: user.name,
     is_temp_password: !!user.is_temp_password,
   });

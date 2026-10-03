@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
+import { parseAccess, type UserAccess } from "@/lib/userAccess";
 
 // Lazy: build sırasında (Next.js "collecting page data" adımı route dosyalarını
 // import eder) JWT_SECRET henüz mevcut olmayabilir — secret sadece gerçekten
@@ -32,6 +33,8 @@ export interface AuthUser {
   name: string;
   /** Bölge müdürü: sorumlu olduğu şubeler (users.managed_location_ids). Boş/yok = tüm şubeler. */
   managed_location_ids?: string[] | null;
+  /** Kişi bazında yetki (lib/userAccess; users.permissions). Yok = tam yetki. */
+  access?: UserAccess | null;
 }
 
 /** users.managed_location_ids (JSON metin) → dizi; boş/bozuk ise null (= tüm şubeler). */
@@ -71,6 +74,7 @@ export function getAuthUser(req: NextRequest): AuthUser | null {
     personnel_id: req.headers.get("x-auth-personnel-id") ?? null,
     name: decodeURIComponent(req.headers.get("x-auth-name") ?? ""),
     managed_location_ids: parseManagedLocations(req.headers.get("x-auth-managed-locations")),
+    access: parseAccess(req.headers.get("x-auth-access")),
   };
 }
 

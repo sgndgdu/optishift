@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
+import { departmentScope } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import { MAX_IMPORT_ROWS, checkRows, unknownDepartments, type ImportRow } from "@/lib/personnelImport";
@@ -84,7 +85,10 @@ export async function POST(req: NextRequest) {
       room = Math.max(0, 10 - Number(cnt));
     }
 
+    // Departman şefinin eklediği herkes şefin departmanına girer
+    const chefDept = departmentScope(auth);
     for (const p of checked) {
+      if (chefDept) p.departmentId = chefDept;
       if (p.status === "skip") { skipped.push({ line: p.line, name: p.name, reason: p.notes[0] ?? "Atlandı" }); continue; }
       if (results.length >= room) { skipped.push({ line: p.line, name: p.name, reason: "Ücretsiz planda en fazla 10 personel eklenebilir" }); continue; }
       if (p.email) {

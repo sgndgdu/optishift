@@ -68,7 +68,8 @@ export default function GenerateWizard({
   seniorViolationCount: number;
   excludedCount: number;
   onGenerate: () => Promise<void>;
-  onPublish: () => void;
+  /** Yayınlama yetkisi yoksa (lib/userAccess "Planı hazırlar") boş geçilir; düğme gizlenir. */
+  onPublish?: () => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
@@ -216,7 +217,9 @@ export default function GenerateWizard({
                   )}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <button onClick={onClose} className="sm:flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Taslak Olarak Bırak, Gözden Geçir</button>
-                    <button onClick={() => { onClose(); onPublish(); }} className="sm:flex-1 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Şimdi Yayınla</button>
+                    {onPublish && (
+                      <button onClick={() => { onClose(); onPublish(); }} className="sm:flex-1 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Şimdi Yayınla</button>
+                    )}
                   </div>
                 </div>
               )}

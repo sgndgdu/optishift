@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { departments, locations, users, personnel } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
+import { departmentScope } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 
 // Departmanın bağlı olduğu lokasyonun bu org'a ait olduğunu doğrular
@@ -93,8 +94,12 @@ export async function PATCH(req: NextRequest) {
   const dept = await getDeptInOrg(id, auth.org_id);
   if (!dept) return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
   if (managerOutsideBranch(auth, dept.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+  // Departman şefi sadece kendi departmanının ihtiyaç tablosunu değiştirir (adını değil)
+  const chefDept = departmentScope(auth);
+  if (chefDept && chefDept !== id) return NextResponse.json({ error: "Sadece kendi departmanınızı düzenleyebilirsiniz" }, { status: 403 });
 
   const body = await req.json();
+  if (chefDept) delete body.name;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData: Record<string, any> = {};
   if (body.name?.trim()) updateData.name = body.name.trim();

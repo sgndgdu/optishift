@@ -4,13 +4,14 @@ import { db as drizzleDb } from "@/lib/db";
 import { scoreAdjustments } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { canPublishPlan } from "@/lib/userAccess";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
 import { type ShiftDef } from "@/lib/fairness";
 import { performCheckIn, performCheckOut } from "@/lib/checkin";
 import { checkHandoverGate } from "@/lib/handover";
 import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
-import { canActOnPersonnel, canEditPublishedWeek, canManageLocation, canManageLocations, managerOutsideBranch } from "@/lib/access";
+import { canActOnPersonnel, canEditPublishedWeek, canManageLocation, canManageLocations, managerOutsideBranch, departmentPersonnelIds } from "@/lib/access";
 
 // Lokasyonun shift_definitions listesini yükler (cache'li kullanım için).
 // shift_id "custom"/boş gelen atamaları sunucuda saate göre gerçek tanıma bağlarız —
@@ -202,6 +203,17 @@ export async function POST(req: NextRequest) {
     // Yayınlanmış haftayı müdür ancak patron onayıyla değiştirir (lib/access).
     if (!(await canManageLocations(db, auth, valid.map((x: any) => String(x.location_id))))) {
       return NextResponse.json({ error: "Bu şubede işlem yetkiniz yok" }, { status: 403 });
+    }
+    // Departman şefi sadece kendi ekibine vardiya yazar
+    for (const l of new Set(valid.map((x: any) => String(x.location_id)))) {
+      const scopeIds = await departmentPersonnelIds(db, auth, l as string);
+      if (scopeIds && valid.some((x: any) => String(x.location_id) === l && !scopeIds.includes(String(x.personnel_id)))) {
+        return NextResponse.json({ error: "Sadece kendi departmanınızın planını düzenleyebilirsiniz" }, { status: 403 });
+      }
+    }
+    // "Planı hazırlar" yetkisi (lib/userAccess): taslak yazar, yayınlayamaz ve yayınlanmış satıra dokunamaz
+    if (!canPublishPlan(auth) && valid.some((x: any) => (x.publication_status ?? "published") === "published")) {
+      return NextResponse.json({ error: "Planı yayınlama yetkiniz yok. Hazırladığınız planı yöneticinize onaya gönderin." }, { status: 403 });
     }
     const vPids = [...new Set(valid.map((x: any) => String(x.personnel_id)))] as string[];
     if (vPids.length) {
@@ -482,7 +494,7 @@ export async function PATCH(req: NextRequest) {
 
     // ── Bulk publish: draft → published ─────────────────────────────
     if (action === "publish_week") {
-      if (auth.role === "employee") {
+      if (auth.role === "employee" || !canPublishPlan(auth)) {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
       }
       const { location_id, week_start } = body;
@@ -518,7 +530,14 @@ export async function PATCH(req: NextRequest) {
       if (!(await canManageLocation(db, auth, location_id))) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      const synced = await syncDraftWeek(db, location_id, week_start, shifts);
+      // Departman şefi sadece kendi ekibinin taslağını yazar (lib/access)
+      const scopeIds = await departmentPersonnelIds(db, auth, location_id);
+      const synced = await syncDraftWeek(db, location_id, week_start, shifts, scopeIds);
+      // Şef planı değiştirdiyse önceki "onaya gönderildi" kaydı düşer (yeniden göndermeli)
+      if (scopeIds) {
+        await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ? AND department_id = ?")
+          .run(location_id, week_start, auth.access?.department_id ?? "");
+      }
       return NextResponse.json({ success: true, synced });
     }
 

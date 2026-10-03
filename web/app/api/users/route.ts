@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
 import { hasLocationPermission, managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
+import { normalizeAccess, parseAccess, departmentScope } from "@/lib/userAccess";
 
 // GET /api/users — org kullanıcılarını listele (admin/supervisor)
 export async function GET(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("approval_status"); // "pending" | null=tümü
 
-    let query = "SELECT id, name, username, email, phone, role, display_title, location_id, department_id, personnel_id, is_temp_password, approval_status, created_by, approved_by, approved_at, created_at, managed_location_ids FROM users WHERE org_id = ?";
+    let query = "SELECT id, name, username, email, phone, role, display_title, location_id, department_id, personnel_id, is_temp_password, approval_status, created_by, approved_by, approved_at, created_at, managed_location_ids, permissions FROM users WHERE org_id = ?";
     const params: any[] = [auth.org_id];
 
     if (status) {
@@ -73,6 +74,9 @@ export async function POST(req: NextRequest) {
       if (!existing) return NextResponse.json({ error: "Personel bulunamadı" }, { status: 404 });
       const taken = await db.prepare(`SELECT id FROM users WHERE personnel_id = ?`).get(existing.id);
       if (taken) return NextResponse.json({ error: "Bu kişinin zaten bir hesabı var" }, { status: 409 });
+      if (departmentScope(auth) && existing.department_id !== departmentScope(auth)) {
+        return NextResponse.json({ error: "Sadece kendi departmanınızdaki kişiye hesap açabilirsiniz" }, { status: 403 });
+      }
       name = name?.trim() ? name : existing.name;
     }
 
@@ -107,7 +111,10 @@ export async function POST(req: NextRequest) {
       : Array.isArray(location_ids) && location_ids.length
       ? location_ids
       : (location_id ? [location_id] : []);
-    const effDeptIds: string[] = existing
+    const chefDept = departmentScope(auth);
+    const effDeptIds: string[] = chefDept && !existing
+      ? [chefDept]
+      : existing
       ? [existing.department_id].filter(Boolean)
       : Array.isArray(department_ids) && department_ids.length
       ? department_ids
@@ -141,6 +148,14 @@ export async function POST(req: NextRequest) {
     // Bölge yöneticisi sadece sorumlu olduğu şubelere hesap açar
     if (auth.role === "supervisor" && !isSupervisor && (!primaryLocId || managerOutsideBranch(auth, primaryLocId))) {
       return NextResponse.json({ error: "Sadece sorumlu olduğunuz şubelere hesap oluşturabilirsiniz" }, { status: 403 });
+    }
+
+    // Yöneticinin ne yapabileceği (lib/userAccess); departman şefinin departmanı şubeye ait olmalı
+    const permissions = isEmployee ? null : normalizeAccess(body.access);
+    const accessDept = parseAccess(permissions)?.department_id;
+    if (accessDept) {
+      const dept = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(accessDept, primaryLocId);
+      if (!dept) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
     }
 
     const tempPassword = generateTempPassword();
@@ -191,6 +206,9 @@ export async function POST(req: NextRequest) {
 
     if (isSupervisor) {
       await db.prepare("UPDATE users SET managed_location_ids = ? WHERE id = ?").run(JSON.stringify(managedIds), userId);
+    }
+    if (permissions) {
+      await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(permissions, userId);
     }
 
     // Departman müdürü ise departments tablosunu güncelle
@@ -279,9 +297,34 @@ export async function PATCH(req: NextRequest) {
       if (!want.length || ok.length !== want.length) return NextResponse.json({ error: "En az bir geçerli şube seçin" }, { status: 400 });
       if (want.length === 1) {
         await db.prepare("UPDATE users SET role = 'manager', location_id = ?, managed_location_ids = NULL WHERE id = ?").run(want[0], id);
+        // Şube değiştiyse eski şubenin departman kapsamı geçersiz olur
+        const cur = parseAccess(target.permissions);
+        if (cur?.department_id && want[0] !== target.location_id) {
+          await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ mode: cur.mode }), id);
+        }
       } else {
         await db.prepare("UPDATE users SET role = 'supervisor', location_id = NULL, department_id = NULL, managed_location_ids = ? WHERE id = ?").run(JSON.stringify(want), id);
+        // Departman şefliği tek şubeye bağlıdır; birden çok şubeye çıkan yönetici departman kapsamını kaybeder
+        const cur = parseAccess(target.permissions);
+        if (cur?.department_id) await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ mode: cur.mode }), id);
       }
+    }
+
+    // Yöneticinin ne yapabileceği: patron herkes için, bölge yöneticisi kapsamındaki şube yöneticileri için
+    // (yukarıdaki rütbe/kapsam kontrolü). Bir sonraki girişte geçerli olur.
+    if (body.access !== undefined) {
+      if (target.role !== "manager" && target.role !== "supervisor") {
+        return NextResponse.json({ error: "Yetki sadece yöneticilere verilir" }, { status: 400 });
+      }
+      const permissions = normalizeAccess(body.access);
+      const dept = parseAccess(permissions)?.department_id;
+      if (dept) {
+        const ok = target.role === "manager" && target.location_id
+          ? await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(dept, target.location_id)
+          : null;
+        if (!ok) return NextResponse.json({ error: "Departman yöneticinin şubesinde bulunamadı" }, { status: 400 });
+      }
+      await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(permissions, id);
     }
 
     if (body.approval_status !== undefined) {

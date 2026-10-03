@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { getDB } from "@/lib/db/client";
 import { setCookie, signToken, parseManagedLocations } from "@/lib/auth";
+import { parseAccess } from "@/lib/userAccess";
 import { WEBAUTHN_CHALLENGE_COOKIE, getOrigin, getRpID, verifyWebauthnChallenge } from "@/lib/webauthn";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       org_id: user.org_id,
       location_id: user.location_id ?? null,
       department_id: user.department_id ?? null,
+      access: parseAccess(user.permissions),
       name: user.name,
       is_temp_password: !!user.is_temp_password,
     };
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       personnel_id: user.personnel_id ?? null,
       name: user.name,
       managed_location_ids: parseManagedLocations(user.managed_location_ids),
+      access: parseAccess(user.permissions),
     });
 
     const res = NextResponse.json(userData);

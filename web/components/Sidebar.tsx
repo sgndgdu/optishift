@@ -67,6 +67,7 @@ import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
+import { departmentScope, parseAccess } from "@/lib/userAccess";
 import { CountBadge } from "@/components/ui/StatusPill";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
@@ -91,6 +92,8 @@ const NAV = [
   { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing", adminOnly: true },
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
+
+const CHEF_HIDDEN = new Set<string>(["/requests", "/open-shifts", "/overtime", "/tip-pools", "/handovers"]);
 
 // "Tüm Şubeler" kapsamı (patron / bölge müdürü): işletme geneli sayfalar (/supervisor/*).
 // Şube seçicinin en üstündeki "Tüm Şubeler" bu kapsama geçer; bir şube seçmek şube kapsamına döner.
@@ -245,7 +248,9 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
     .filter(item => !("feature" in item) || FEATURES[(item as any).feature as FeatureKey])
     .filter(item => !("module" in item) || isModuleOn(rules, item.module as ModuleKey))
     // adminOnly: sadece işletme sahibi (ör. Faturalandırma)
-    .filter(item => !("adminOnly" in item && (item as any).adminOnly) || user?.role === "admin");
+    .filter(item => !("adminOnly" in item && (item as any).adminOnly) || user?.role === "admin")
+    // Departman şefi (lib/userAccess): onaylar ve şube geneli işler şube yöneticisinde
+    .filter(item => !departmentScope({ role: user?.role, access: parseAccess(user?.access) }) || !CHEF_HIDDEN.has(item.href));
   const badgeOf = (href: string) =>
     href === "/chat"      ? { n: chatUnread,       tone: "danger" as const } :
     href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "attention" as const } :
