@@ -194,9 +194,9 @@ export const ROLE_GUIDES: RoleGuide[] = [
           "İşletmeniz uygunluk topluyorsa, haftalık takviminizi üç renkle işaretlersiniz:",
         ],
         steps: [
-          "Yeşil: uygunum.",
-          "Sarı: tercih etmem ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
-          "Kırmızı: kesinlikle gelemem (resmi izin, sınav vb.). Kırmızı işaretlediğiniz güne asla vardiya yazılmaz.",
+          "Uygun (yeşil): gelirim.",
+          "Esnek (sarı): mümkünse çalışmam ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
+          "Gelemem (kırmızı): kesinlikle gelemem (resmi izin, sınav vb.). Bu güne asla vardiya yazılmaz.",
         ],
       },
       {

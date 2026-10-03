@@ -38,6 +38,8 @@ export const GLOSSARY: GlossaryEntry[] = [
   { avoid: "Headcount",         use: "Personel İhtiyacı", why: "İngilizce" },
   { avoid: "Uçuş Öncesi",       use: "Hazırlık Kontrolü", why: "Plaza Türkçesi" },
   { avoid: "Lokasyon",          use: "Şube", why: "Ürün genelinde tek terim" },
+  { avoid: "sarı gün",          use: "esnek gün", why: "Personel portalda 'Esnek' görüyor; renk adı terim değil" },
+  { avoid: "Alan Kota",         use: "Rol Kotaları", why: "Kota Ekip'teki Roller listesinden seçilir" },
   { avoid: "Organizasyon",      use: "İşletme", why: "Plaza Türkçesi" },
   { avoid: "Maksimum",          use: "en fazla / sınır", why: "Standart Türkçe karşılık" },
   { avoid: "Minimum",           use: "en az", why: "Standart Türkçe karşılık" },

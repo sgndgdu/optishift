@@ -246,7 +246,7 @@ export default function PersonnelPage() {
   const resetAddForm = () => {
     setAddForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
     // Şube panelindeyiz: form o şube seçili açılır
-    const here = authUser?.location_id ?? "";
+    const here = authUser?.location_id || (locations.length === 1 ? locations[0].id : "");
     setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setAddError("");
   };
 
@@ -756,23 +756,11 @@ export default function PersonnelPage() {
             <button onClick={handleAdd} disabled={addLoading} className={sheetPrimaryClass}>{addLoading ? "Ekleniyor…" : "Ekle"}</button>
           </>}>
             <div className="space-y-4">
-              {/* Basic info */}
+              {/* Sadece gerekenler; gerisi "Diğer bilgiler"de ve sonradan kişinin ayrıntısında */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Ad Soyad *</label>
                   <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                </div>
-                {isEmployee && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
-                    <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">E-posta</label>
-                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Telefon</label>
@@ -780,21 +768,32 @@ export default function PersonnelPage() {
                 </div>
               </div>
               {isEmployee && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Çalışma Tipi</label>
-                    <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
-                      {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
+                <details className="rounded-xl border border-slate-200 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-600">Diğer bilgiler (isteğe bağlı)</summary>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
+                      <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">E-posta</label>
+                      <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Çalışma Tipi</label>
+                      <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
+                        {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en fazla saat</label>
+                      <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Max Haftalık Saat</label>
-                    <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                  </div>
-                </div>
+                </details>
               )}
-              {/* Branch */}
-              {useMultiSelect ? (
+              {/* Şube: tek şubede sorulmaz (form bu şubeyle açılır) */}
+              {locations.length <= 1 ? null : useMultiSelect ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-600">Şube(ler) *</label>
@@ -885,6 +884,9 @@ export default function PersonnelPage() {
               )}
               {editingPerson.personnelId && (
                 <>
+                  <details className="rounded-xl border border-slate-200 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">Çalışma düzeni ve ücret</summary>
+                  <div className="space-y-4 mt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Çalışma Tipi</label>
@@ -893,13 +895,13 @@ export default function PersonnelPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Max Haftalık Saat</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en fazla saat</label>
                       <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Min Haftalık Saat</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en az saat</label>
                       <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                     <div>
@@ -934,6 +936,11 @@ export default function PersonnelPage() {
                     </select>
                     <p className="text-xs text-slate-400 mt-1">Bir engel seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
+                  </div>
+                  </details>
+                  <details className="rounded-xl border border-slate-200 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">İşe giriş, kıdem ve izin</summary>
+                  <div className="space-y-4 mt-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">İşe Giriş Tarihi</label>
@@ -960,6 +967,8 @@ export default function PersonnelPage() {
                       : "Yıllık izin hakkı buradaki sabit günden hesaplanır."}
                     {" "}Düzeltme geçmiş dönem devri gibi elle eklemeler içindir.
                   </p>
+                  </div>
+                  </details>
                   {crewList.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Vardiya Grubu</label>

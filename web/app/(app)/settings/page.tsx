@@ -51,6 +51,7 @@ const LEGACY_TABS: Record<string, { tab: TabKey; group?: string }> = {
   fairness: { tab: "advanced", group: "fairness" },
   zones:    { tab: "advanced", group: "zones" },
   crews:    { tab: "advanced", group: "crews" },
+  location: { tab: "basic" },
 };
 
 function tabFromUrl(): { tab: TabKey; group?: string } {
@@ -1379,6 +1380,73 @@ export default function SettingsPage() {
                 </div>}
               </div>
 
+              {/* Şube konumu: plan ekranında hava durumu ve konum doğrulamalı giriş bunu kullanır */}
+              <div className="-my-4">
+                <RuleRow
+                  wide
+                  label="Şube Konumu"
+                  description="Vardiya Planı'nda günlük hava durumu ve konum doğrulamalı vardiya girişi bunu kullanır."
+                  right={
+                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
+                      {/* Mevcut konum göstergesi */}
+                      {weatherStatus === "found" && weatherLabel && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">
+                          <span>📍 <span className="font-semibold">{weatherLabel}</span></span>
+                          <button
+                            onClick={() => { setLocationLat(""); setLocationLon(""); setWeatherLabel(""); setWeatherStatus("idle"); }}
+                            className="text-emerald-400 hover:text-red-400 transition-colors ml-1"
+                            title="Konumu sıfırla"
+                          >×</button>
+                        </div>
+                      )}
+                      {weatherStatus === "searching" && (
+                        <span className="text-xs text-slate-400 animate-pulse">Aranıyor...</span>
+                      )}
+                      {weatherStatus === "error" && (
+                        <span className="text-xs text-red-500">Bulunamadı, tekrar deneyin.</span>
+                      )}
+                      {/* Şehir / ilçe ara */}
+                      {weatherStatus !== "found" && (
+                        <div className="flex items-center gap-1.5 w-full">
+                          <input
+                            type="text"
+                            value={locationCityInput}
+                            onChange={e => setLocationCityInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && locationCityInput.trim()) {
+                                geocodeCity(locationCityInput.trim()).then(geo => {
+                                  if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                                });
+                              }
+                            }}
+                            placeholder="İstanbul, Kadıköy..."
+                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!locationCityInput.trim()) return;
+                              geocodeCity(locationCityInput.trim()).then(geo => {
+                                if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                              });
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors shrink-0"
+                          >
+                            Ara
+                          </button>
+                        </div>
+                      )}
+                      {/* Cihaz konumu */}
+                      <button
+                        onClick={useDeviceLocation}
+                        className="flex items-center gap-1.5 text-xs text-forest-600 border border-forest-200 bg-forest-50 rounded-lg px-2.5 py-1.5 hover:bg-forest-100 transition-colors w-full justify-center font-medium"
+                      >
+                        📍 Cihaz konumumu kullan
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+
               <hr className="border-slate-100" />
 
               {/* 2. Vardiya Tanımları */}
@@ -1621,8 +1689,8 @@ export default function SettingsPage() {
                   />
                   {availabilityCollectionEnabled && (
                     <RuleRow
-                      label="Haftalık Sarı Gün Hakkı"
-                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">tercih etmiyorum</span> (sarı) olarak işaretleyebilir. Sarı güne atamanın puan karşılığı Adalet Puanı sekmesindedir.</>}
+                      label="Haftalık Esnek Gün Hakkı"
+                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">Esnek</span> (mümkünse çalışmam, gerekirse gelirim) olarak işaretleyebilir. Esnek güne atamanın puan karşılığı Adalet Puanı bölümündedir.</>}
                       right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
                     />
                   )}
@@ -1703,74 +1771,7 @@ export default function SettingsPage() {
                 </SectionCard>
               </div>
               </SettingsGroup>
-              <SettingsGroup id="location" title="Konum ve Hava Durumu" description="Plan ekranında günlük hava durumu" open={!!openGroups["location"]} onToggle={toggleGroup}>
-              <SectionCard title="Konum & Hava Durumu">
-                <RuleRow
-                  wide
-                  label="Şube Konumu"
-                  description="Ayarlandıktan sonra vardiya takviminde o haftanın günlük hava durumu ikonları görünür."
-                  right={
-                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
-                      {/* Mevcut konum göstergesi */}
-                      {weatherStatus === "found" && weatherLabel && (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">
-                          <span>📍 <span className="font-semibold">{weatherLabel}</span></span>
-                          <button
-                            onClick={() => { setLocationLat(""); setLocationLon(""); setWeatherLabel(""); setWeatherStatus("idle"); }}
-                            className="text-emerald-400 hover:text-red-400 transition-colors ml-1"
-                            title="Konumu sıfırla"
-                          >×</button>
-                        </div>
-                      )}
-                      {weatherStatus === "searching" && (
-                        <span className="text-xs text-slate-400 animate-pulse">Aranıyor...</span>
-                      )}
-                      {weatherStatus === "error" && (
-                        <span className="text-xs text-red-500">Bulunamadı, tekrar deneyin.</span>
-                      )}
-                      {/* Şehir / ilçe ara */}
-                      {weatherStatus !== "found" && (
-                        <div className="flex items-center gap-1.5 w-full">
-                          <input
-                            type="text"
-                            value={locationCityInput}
-                            onChange={e => setLocationCityInput(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && locationCityInput.trim()) {
-                                geocodeCity(locationCityInput.trim()).then(geo => {
-                                  if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
-                                });
-                              }
-                            }}
-                            placeholder="İstanbul, Kadıköy..."
-                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
-                          />
-                          <button
-                            onClick={() => {
-                              if (!locationCityInput.trim()) return;
-                              geocodeCity(locationCityInput.trim()).then(geo => {
-                                if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
-                              });
-                            }}
-                            className="px-2.5 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors shrink-0"
-                          >
-                            Ara
-                          </button>
-                        </div>
-                      )}
-                      {/* Cihaz konumu */}
-                      <button
-                        onClick={useDeviceLocation}
-                        className="flex items-center gap-1.5 text-xs text-forest-600 border border-forest-200 bg-forest-50 rounded-lg px-2.5 py-1.5 hover:bg-forest-100 transition-colors w-full justify-center font-medium"
-                      >
-                        📍 Cihaz konumumu kullan
-                      </button>
-                    </div>
-                  }
-                />
-              </SectionCard>
-              </SettingsGroup>
-              <SettingsGroup id="planning" title="Planlama Kuralları" description="Çalışma ve dinlenme sınırları, gece kuralları, bütçe" open={!!openGroups["planning"]} onToggle={toggleGroup}>
+              <SettingsGroup id="planning" title="Planlama Kuralları" description="Çalışma ve dinlenme sınırları, gece kuralları, bütçe, yayın" open={!!openGroups["planning"]} onToggle={toggleGroup}>
                 <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
@@ -1832,7 +1833,7 @@ export default function SettingsPage() {
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>
-                <SectionCard title="Plan Oluşturma">
+                <SectionCard title="Plan Oluşturma ve Yayın">
                   <RuleRow
                     label="Kıdemli Personel Kuralı"
                     description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
@@ -1852,6 +1853,16 @@ export default function SettingsPage() {
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
                     description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
+                  />
+                  <RuleRow
+                    label="Yayın Öncesi İhlal Kontrolü"
+                    description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
+                    right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Erken Yayın Göstergesi"
+                    description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
+                    right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
                   />
                 </SectionCard>
               </SettingsGroup>
@@ -1973,20 +1984,6 @@ export default function SettingsPage() {
                 </SectionCard>
                 )}
               </SettingsGroup>
-              <SettingsGroup id="publish" title="Yayın" description="Yayın öncesi kontrol ve erken yayın göstergesi" open={!!openGroups["publish"]} onToggle={toggleGroup}>
-                <SectionCard title="Yayın Akışı">
-                  <RuleRow
-                    label="Yayın Öncesi İhlal Kontrolü"
-                    description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
-                    right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Erken Yayın Göstergesi"
-                    description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
-                    right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
-                  />
-                </SectionCard>
-              </SettingsGroup>
               <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor gün puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
                 <LockArea cat="rules">
 
@@ -2009,14 +2006,14 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Hangi günler?"
-                    description="İstenmeyen gün: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
+                    description="Esnek gün: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
                     right={
                       <div className="flex items-center gap-4">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
                         </label>
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> İstenmeyen gün
+                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Esnek gün
                         </label>
                       </div>
                     }

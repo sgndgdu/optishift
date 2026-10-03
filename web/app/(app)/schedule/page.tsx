@@ -2080,7 +2080,7 @@ function SchedulePageInner() {
     if (dayAvail?.status === 'unavailable') {
       popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle uygun değil (kırmızı)' });
     } else if (dayAvail?.status === 'preferred_not') {
-      popoverWarnings.push({ type: 'warn', msg: 'Bu günü tercih etmiyor (sarı)' });
+      popoverWarnings.push({ type: 'warn', msg: 'Bu gün esnek: mümkünse çalışmak istemiyor' });
     } else if (!pAvail && availCollectionEnabled) {
       popoverWarnings.push({ type: 'warn', msg: 'Uygunluk bilgisi girilmemiş' });
     }
@@ -3601,7 +3601,7 @@ loading ? (
                     <span className="flex items-center gap-1">
                       {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} h.sonu</span>}
                       {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
-                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} sarı gün ataması (telafili)`}>{prfn}!</span>}
+                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} esnek gün ataması (puanla telafi edilir)`}>{prfn}!</span>}
                       <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5">{Math.round(s.score * 10) / 10}</span>
                     </span>
                   </div>
@@ -3616,7 +3616,7 @@ loading ? (
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
           <p>Puan = birikimli puan + bu haftanın canlı puanı (saat × zorluk + zor vardiya/bonus puanları).</p>
-          <p>Zor vardiya (hafta sonu/gece/sarı gün) +{locRules.hard_shift_points ?? 4} puan. Kesin puan yayında hesaplanır.</p>
+          <p>Zor gün (hafta sonu / esnek gün) +{locRules.hard_shift_points ?? 4} puan. Kesin puan yayında hesaplanır.</p>
         </div>
       </div>
 
@@ -3711,7 +3711,7 @@ loading ? (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {isWknd && <StatusPill tone="attention">Hf. sonu</StatusPill>}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
-                {isPrfN && <StatusPill tone="attention">Sarı gün</StatusPill>}
+                {isPrfN && <StatusPill tone="attention">Esnek gün</StatusPill>}
                 <span className="text-[10px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
               </div>
             );
