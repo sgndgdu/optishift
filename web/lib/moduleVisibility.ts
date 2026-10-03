@@ -31,7 +31,6 @@ export const MODULE_DEFAULTS = {
   task_management_enabled:         false,
   tip_pooling_enabled:             false,
   kiosk_mode_enabled:              false,
-  shift_bidding_enabled:           false,
   forecasting_enabled:             false,
   handover_log_enabled:            false,
   fatigue_radar_enabled:           false,

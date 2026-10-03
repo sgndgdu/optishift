@@ -94,6 +94,7 @@ export const hospitality: IndustryProfile = {
   },
 
   modules: {
+    fatigue_radar_enabled: false,
     tip_pooling_enabled: true,
     open_shifts_enabled: true,
     swap_requests_enabled: true,

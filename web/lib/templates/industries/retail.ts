@@ -78,6 +78,7 @@ export const retail: IndustryProfile = {
   },
 
   modules: {
+    fatigue_radar_enabled: false,
     open_shifts_enabled: true,
     swap_requests_enabled: true,
     availability_collection_enabled: true,

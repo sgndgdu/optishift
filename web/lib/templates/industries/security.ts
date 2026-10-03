@@ -82,6 +82,7 @@ export const security: IndustryProfile = {
   },
 
   modules: {
+    forecasting_enabled: false,
     compliance_tracking_enabled: true,
     handover_log_enabled: true,
     fatigue_radar_enabled: true,

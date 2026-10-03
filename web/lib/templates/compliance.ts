@@ -86,7 +86,6 @@ export function enabledHighlights(industry: IndustryProfile): string[] {
     fatigue_radar_enabled: "Kaza Risk Radarı",
     compliance_tracking_enabled: "Belge ve Sertifika Takibi",
     kiosk_mode_enabled: "Ortak Tablet",
-    shift_bidding_enabled: "Vardiya Teklif Pazarı",
     forecasting_enabled: "Yoğunluk Tahmini",
   };
   return Object.entries(industry.modules)

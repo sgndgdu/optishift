@@ -92,6 +92,7 @@ export const manufacturing: IndustryProfile = {
   },
 
   modules: {
+    forecasting_enabled: false,
     handover_log_enabled: true,
     fatigue_radar_enabled: true,
     compliance_tracking_enabled: true,
@@ -99,7 +100,6 @@ export const manufacturing: IndustryProfile = {
     kiosk_mode_enabled: true,
     task_management_enabled: true,
     tip_pooling_enabled: false,
-    shift_bidding_enabled: false,
   },
 
   taskTemplates: {

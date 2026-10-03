@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { Star, Gavel, Clock } from "lucide-react";
+import { Star } from "lucide-react";
 import { usePortalAuth } from "@/hooks/useAuth";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
@@ -18,9 +18,6 @@ export default function PortalOpenShiftsPage() {
   const { user, mounted } = usePortalAuth();
   const [shifts, setShifts]     = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [biddingEnabled, setBiddingEnabled] = useState(false);
-  const [myBids, setMyBids]     = useState<Record<number, any>>({}); // open_shift_id -> bekleyen teklifim
-  const [drafts, setDrafts]     = useState<Record<number, { amount: string; note: string }>>({});
   const [busyId, setBusyId]     = useState<number | null>(null);
   const [toast, setToast]       = useState("");
 
@@ -30,30 +27,8 @@ export default function PortalOpenShiftsPage() {
     if (!user?.location_id) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [shiftsData, locData] = await Promise.all([
-        fetch(`/api/open-shifts?location_id=${user.location_id}&status=open`).then(r => r.json()),
-        fetch(`/api/locations?id=${user.location_id}`).then(r => r.json()),
-      ]);
-      const list = Array.isArray(shiftsData) ? shiftsData : [];
-      setShifts(list);
-
-      const loc = Array.isArray(locData) ? locData[0] : null;
-      let rules: any = {};
-      try { rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : (loc?.rules ?? {}); } catch { /* boş kalır */ }
-      const enabled = rules.shift_bidding_enabled === true;
-      setBiddingEnabled(enabled);
-
-      if (enabled && list.length > 0) {
-        const results = await Promise.all(
-          list.map((s: any) => fetch(`/api/shift-bids?open_shift_id=${s.id}`).then(r => r.json()).catch(() => []))
-        );
-        const map: Record<number, any> = {};
-        list.forEach((s: any, i: number) => {
-          const mine = Array.isArray(results[i]) ? results[i].find((b: any) => b.status === "pending") : null;
-          if (mine) map[s.id] = mine;
-        });
-        setMyBids(map);
-      }
+      const shiftsData = await fetch(`/api/open-shifts?location_id=${user.location_id}&status=open`).then(r => r.json());
+      setShifts(Array.isArray(shiftsData) ? shiftsData : []);
     } finally {
       setLoading(false);
     }
@@ -90,28 +65,11 @@ export default function PortalOpenShiftsPage() {
     } finally { setBusyId(null); }
   }
 
-  async function handleBid(shift: any) {
-    const draft = drafts[shift.id];
-    const amount = Number(draft?.amount);
-    if (!amount || amount <= 0) { showToast("Geçerli bir puan girin"); return; }
-    setBusyId(shift.id);
-    try {
-      const r = await fetch("/api/shift-bids", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ open_shift_id: shift.id, requested_bonus_points: amount, note: draft?.note?.trim() || undefined }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok) { showToast("Teklifin gönderildi!"); await load(); }
-      else { showToast(data.error || "Teklif gönderilemedi"); }
-    } finally { setBusyId(null); }
-  }
-
   if (!mounted) return <div className="p-4 md:p-8" />;
 
   return (
     <Page>
-      <PageHeader title={words.OpenShifts} description={biddingEnabled ? "Teklif ver, müdür seçsin." : "Üstlen, kahraman bonusu kazan."} />
+      <PageHeader title={words.OpenShifts} description="Üstlen, kahraman bonusu kazan." />
 
       {loading && <p className="text-sm text-slate-400 text-center py-8">Yükleniyor…</p>}
 
@@ -123,9 +81,7 @@ export default function PortalOpenShiftsPage() {
 
       <div className="space-y-3">
         {shifts.map(s => {
-          const myBid = myBids[s.id];
-          const draft = drafts[s.id] ?? { amount: "", note: "" };
-          // Kendi devir ilanım: üstlenemem/teklif veremem, sadece geri çekebilirim
+          // Kendi devir ilanım: üstlenemem, sadece geri çekebilirim
           if (s.released_by && s.released_by === user?.personnel_id) {
             return (
               <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
@@ -155,9 +111,6 @@ export default function PortalOpenShiftsPage() {
                     <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
                   </StatusPill>
                 )}
-                {biddingEnabled && s.bid_count > 0 && (
-                  <StatusPill tone="info">{s.bid_count} teklif</StatusPill>
-                )}
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
@@ -165,49 +118,14 @@ export default function PortalOpenShiftsPage() {
                 {s.note && <p className="text-xs text-slate-400 mt-1 italic">&quot;{s.note}&quot;</p>}
               </div>
 
-              {!biddingEnabled && (
-                <button
-                  disabled={busyId === s.id}
-                  onClick={() => handleClaim(s)}
-                  className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {busyId === s.id ? "Üstleniliyor…" : "Üstlen"}
-                </button>
-              )}
+              <button
+                disabled={busyId === s.id}
+                onClick={() => handleClaim(s)}
+                className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {busyId === s.id ? "Üstleniliyor…" : "Üstlen"}
+              </button>
 
-              {biddingEnabled && myBid && (
-                <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl px-3 py-2 text-xs">
-                  <Clock size={13} className="text-sky-600 shrink-0" />
-                  <span className="text-sky-700 font-semibold">Teklifin: +{myBid.requested_bonus_points} puan, yanıt bekleniyor</span>
-                </div>
-              )}
-
-              {biddingEnabled && !myBid && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="number" min="0" step="0.5"
-                      value={draft.amount}
-                      onChange={e => setDrafts(prev => ({ ...prev, [s.id]: { ...draft, amount: e.target.value } }))}
-                      placeholder="İstediğin puan"
-                      className="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-sky-400"
-                    />
-                    <input
-                      value={draft.note}
-                      onChange={e => setDrafts(prev => ({ ...prev, [s.id]: { ...draft, note: e.target.value } }))}
-                      placeholder="Not (isteğe bağlı)"
-                      className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-sky-400"
-                    />
-                  </div>
-                  <button
-                    disabled={busyId === s.id}
-                    onClick={() => handleBid(s)}
-                    className="w-full py-2.5 bg-sky-600 text-white rounded-xl text-sm font-bold hover:bg-sky-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                  >
-                    <Gavel size={14} /> {busyId === s.id ? "Gönderiliyor…" : "Teklif Ver"}
-                  </button>
-                </div>
-              )}
             </div>
           );
         })}

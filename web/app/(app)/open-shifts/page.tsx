@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { Plus } from "lucide-react";
-import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
@@ -45,9 +44,6 @@ export default function OpenShiftsPage() {
   const [bonus, setBonus]           = useState(6);
   const [defaultBonus, setDefaultBonus] = useState(6); // Ayarlar → Adalet Puanı'ndaki varsayılan bonus puanı
   const [saving, setSaving]         = useState(false);
-  const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // rules.shift_bidding_enabled
-  const [bids, setBids] = useState<Record<number, { loading: boolean; list: any[] }>>({});
-  const [bidActingId, setBidActingId] = useState<number | null>(null);
 
   // Dashboard hızlı akışı: ?new=1 ile gelindiyse form açık başlasın
   useEffect(() => {
@@ -95,43 +91,9 @@ export default function OpenShiftsPage() {
           setDefaultBonus(rules.hero_bonus_points);
           setBonus(rules.hero_bonus_points);
         }
-        setShiftBiddingEnabled(isModuleOn(rules, "shift_bidding_enabled"));
       } catch { /* varsayılan 6 kalır */ }
     })();
   }, [user]);
-
-  async function loadBids(id: number) {
-    setBids(prev => ({ ...prev, [id]: { loading: true, list: [] } }));
-    try {
-      const r = await fetch(`/api/shift-bids?open_shift_id=${id}`);
-      const data = await r.json();
-      setBids(prev => ({ ...prev, [id]: { loading: false, list: Array.isArray(data) ? data : [] } }));
-    } catch {
-      setBids(prev => ({ ...prev, [id]: { loading: false, list: [] } }));
-    }
-  }
-
-  async function handleBidAction(bidId: number, action: "accept" | "reject", shiftId: number) {
-    setBidActingId(bidId);
-    try {
-      const r = await fetch("/api/shift-bids", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: bidId, action }),
-      });
-      if (r.ok) {
-        showToast(action === "accept" ? "Teklif kabul edildi, vardiya atandı." : "Teklif reddedildi.");
-        await load();
-        if (action === "accept") setBids(prev => ({ ...prev, [shiftId]: { loading: false, list: [] } }));
-        else await loadBids(shiftId);
-      } else {
-        const err = await r.json().catch(() => ({}));
-        showToast(err.error || "İşlem başarısız");
-      }
-    } finally { setBidActingId(null); }
-  }
-
-  useEffect(() => { load(); }, [load]);
 
   async function handleCreate() {
     if (!date || !startTime || !endTime || !user) return;
@@ -219,7 +181,6 @@ export default function OpenShiftsPage() {
     setConfirmDelete(false);
     if (s.status === "open") {
       if (!candidates[s.id]) loadCandidates(s.id);
-      if (shiftBiddingEnabled && !bids[s.id]) loadBids(s.id);
     }
   }
 
@@ -232,12 +193,11 @@ export default function OpenShiftsPage() {
       subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} üstlendi`
         : s.note || (s.hero_bonus_multiplier > 0 ? `+${s.hero_bonus_multiplier} kahraman puanı` : "Bonus yok")}
       trailing={s.status === "open"
-        ? (shiftBiddingEnabled && s.bid_count > 0 ? <StatusPill tone="info">{s.bid_count} teklif</StatusPill> : <StatusBadge status={s.status} />)
+        ? <StatusBadge status={s.status} />
         : <StatusBadge status={s.status} />}
     />
   );
 
-  const pendingBids = selected && bids[selected.id] ? bids[selected.id].list.filter((b: any) => b.status === "pending") : [];
 
   return (
     <Page width="narrow">
@@ -280,33 +240,6 @@ export default function OpenShiftsPage() {
                 <DetailRow label="Üstlenen"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
               )}
             </div>
-
-            {selected.status === "open" && shiftBiddingEnabled && (
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-900">Teklifler</h3>
-                {bids[selected.id]?.loading ? <p className="text-xs text-slate-500">Yükleniyor…</p>
-                  : pendingBids.length === 0 ? <p className="text-xs text-slate-500">Bekleyen teklif yok.</p>
-                  : (
-                    <List>
-                      {pendingBids.map((b: any) => (
-                        <li key={b.id} className="flex items-center gap-3 px-3 py-2.5">
-                          <Avatar name={b.personnel_name ?? "?"} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{b.personnel_name}</p>
-                            <p className="text-xs text-slate-500 truncate">+{b.requested_bonus_points} puan istiyor{b.note ? ` · ${b.note}` : ""}</p>
-                          </div>
-                          <button disabled={bidActingId === b.id} onClick={() => handleBidAction(b.id, "reject", selected.id)}
-                            className="shrink-0 px-2.5 min-h-[36px] rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Reddet</button>
-                          <button disabled={bidActingId === b.id} onClick={() => handleBidAction(b.id, "accept", selected.id)}
-                            className="shrink-0 px-2.5 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
-                            {bidActingId === b.id ? "…" : "Kabul et"}
-                          </button>
-                        </li>
-                      ))}
-                    </List>
-                  )}
-              </section>
-            )}
 
             {selected.status === "open" && (
               <section className="space-y-2">

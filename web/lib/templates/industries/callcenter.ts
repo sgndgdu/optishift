@@ -68,10 +68,10 @@ export const callcenter: IndustryProfile = {
   },
 
   modules: {
+    fatigue_radar_enabled: false,
     forecasting_enabled: true,
     availability_collection_enabled: true,
     swap_requests_enabled: true,
-    shift_bidding_enabled: true,
     open_shifts_enabled: true,
     compliance_tracking_enabled: true,
     tip_pooling_enabled: false,

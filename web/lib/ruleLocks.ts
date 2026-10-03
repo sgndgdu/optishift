@@ -33,7 +33,7 @@ export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
   ],
   // Ek özellikleri açma/kapama
   features: [
-    "chat_enabled", "open_shifts_enabled", "shift_bidding_enabled", "handover_log_enabled",
+    "chat_enabled", "open_shifts_enabled", "handover_notes_enabled", "handover_log_enabled",
     "personnel_conflicts_enabled", "fatigue_radar_enabled", "compliance_tracking_enabled", "forecasting_enabled",
     "task_management_enabled", "kiosk_mode_enabled", "overtime_tracking_enabled", "tip_pooling_enabled",
   ],

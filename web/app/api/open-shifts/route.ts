@@ -30,17 +30,16 @@ export async function GET(req: NextRequest) {
 
   const db = getDB();
   try {
-    const bidCountExpr = `(SELECT COUNT(*) FROM shift_bids sb WHERE sb.open_shift_id = open_shifts.id AND sb.status = 'pending') AS bid_count`;
     let rows: any[];
     if (status) {
       rows = await db.prepare(`
-        SELECT open_shifts.*, ${bidCountExpr} FROM open_shifts
+        SELECT open_shifts.* FROM open_shifts
         WHERE org_id = ? AND location_id = ? AND status = ?
         ORDER BY date ASC, start_time ASC
       `).all(org_id, location_id, status);
     } else {
       rows = await db.prepare(`
-        SELECT open_shifts.*, ${bidCountExpr} FROM open_shifts
+        SELECT open_shifts.* FROM open_shifts
         WHERE org_id = ? AND location_id = ?
         ORDER BY date ASC, start_time ASC
       `).all(org_id, location_id);
@@ -222,20 +221,6 @@ export async function PATCH(req: NextRequest) {
       if (auth.role === "employee" && (claimed_by !== auth.personnel_id || assigned_by_manager)) {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
       }
-      // Personelin doğrudan üstlenmesi — şubede teklif sistemi açıksa engellenir,
-      // /api/shift-bids üzerinden teklif verilmesi gerekir. Müdür ataması (assigned_by_manager)
-      // bundan etkilenmez, müdür pazar yerini her zaman geçebilir.
-      if (!assigned_by_manager) {
-        let rules: any = {};
-        try {
-          const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(os.location_id) as any;
-          rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
-        } catch { /* varsayılan kalır */ }
-        if (rules.shift_bidding_enabled === true) {
-          return NextResponse.json({ error: "Bu şubede açık vardiyalar teklif ile paylaşılıyor, doğrudan üstlenemezsiniz." }, { status: 422 });
-        }
-      }
-
       const outcome = await claimOpenShift(db, auth.org_id, id, claimed_by, claimed_by_name ?? null, { assignedByManager: !!assigned_by_manager, force: force === true });
       if (!outcome.ok) return NextResponse.json({ error: outcome.error, violations: outcome.violations, can_force: outcome.can_force }, { status: outcome.status });
     } else if (status) {

@@ -227,7 +227,6 @@ export interface ScheduleRules {
   task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
   tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
   kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle giriş/çıkış yapabilir (oturumsuz)
-  shift_bidding_enabled?: boolean; // açıkken: açık vardiyalara doğrudan kabul yerine teklif verilir, müdür teklifler arasından seçer
   forecasting_enabled?: boolean; // açıkken: kapasite matrisi hücrelerinde geçmiş haftalardan türetilen tahmin gösterilir
   handover_log_enabled?: boolean; // açıkken: zorunlu okuma/onaylı Devir-Teslim Defteri (shift_handovers) devrede — eski handover_notes_enabled broadcast'i bu şubede otomatik gizlenir
   fatigue_radar_enabled?: boolean; // açıkken: dashboard'da Kaza Risk Radarı kartı + schedule sayfasında risk ikonu (üst üste gece/clopening/yüksek mesai — bkz. lib/fatigue.ts)

@@ -3,7 +3,7 @@
  * Açık vardiya üstlenme (claim) — TEK KAYNAK.
  *
  * app/api/open-shifts/route.ts PATCH (normal "Kabul Et" / müdür ataması) ve
- * app/api/shift-bids/route.ts PATCH (teklif kabulü) aynı fonksiyonu çağırır.
+ * (Teklif Pazarı 2026-10-03 kaldırıldı; shift_bids tablosu eski kayıtlar için duruyor.)
  */
 import { rescoreWeek } from "@/lib/scoring";
 import { formatDateTR } from "@/lib/date";

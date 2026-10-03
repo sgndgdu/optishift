@@ -94,13 +94,13 @@ export const healthcare: IndustryProfile = {
   },
 
   modules: {
+    forecasting_enabled: false,
     handover_log_enabled: true,
     compliance_tracking_enabled: true,
     fatigue_radar_enabled: true,
     open_shifts_enabled: true,
     overtime_tracking_enabled: true,
     tip_pooling_enabled: false,
-    shift_bidding_enabled: false,
   },
 
   taskTemplates: {

@@ -1,10 +1,11 @@
 "use client";
 
+import { FEATURES } from "@/lib/features";
 import { SALES_EMAIL } from "@/lib/plans";
-import { useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
+import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
   Save, Plus, X, Send, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
-  MessageSquare, Megaphone, Gavel, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Tablet, Timer, Wallet,
+  MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer, Wallet,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -427,7 +428,6 @@ export default function SettingsPage() {
   const [tipPoolingEnabled, setTipPoolingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
-  const [shiftBiddingEnabled, setShiftBiddingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [forecastingEnabled, setForecastingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [handoverLogEnabled, setHandoverLogEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [fatigueRadarEnabled, setFatigueRadarEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
@@ -609,7 +609,6 @@ export default function SettingsPage() {
           setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
           setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
           setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
-          setShiftBiddingEnabled(loc.rules?.shift_bidding_enabled === true);
           setForecastingEnabled(loc.rules?.forecasting_enabled === true);
           setHandoverLogEnabled(loc.rules?.handover_log_enabled === true);
           setFatigueRadarEnabled(loc.rules?.fatigue_radar_enabled === true);
@@ -747,7 +746,6 @@ export default function SettingsPage() {
             taskManagementEnabled: loc.rules?.task_management_enabled === true,
             tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
             kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
-            shiftBiddingEnabled: loc.rules?.shift_bidding_enabled === true,
             forecastingEnabled: loc.rules?.forecasting_enabled === true,
             handoverLogEnabled: loc.rules?.handover_log_enabled === true,
             fatigueRadarEnabled: loc.rules?.fatigue_radar_enabled === true,
@@ -812,7 +810,7 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks, prePublishCheckEnabled,
       publishLeadKpiEnabled,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -832,7 +830,7 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks, prePublishCheckEnabled,
     publishLeadKpiEnabled,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1008,7 +1006,6 @@ export default function SettingsPage() {
             task_management_enabled:            taskManagementEnabled,
             tip_pooling_enabled:                tipPoolingEnabled,
             kiosk_mode_enabled:                 kioskModeEnabled,
-            shift_bidding_enabled:              shiftBiddingEnabled,
             forecasting_enabled:                forecastingEnabled,
             handover_log_enabled:               handoverLogEnabled,
             fatigue_radar_enabled:              fatigueRadarEnabled,
@@ -1065,7 +1062,7 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, shiftBiddingEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks, prePublishCheckEnabled,
         publishLeadKpiEnabled,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1854,11 +1851,6 @@ export default function SettingsPage() {
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                   <RuleRow
-                    label="Vardiya Devri Notu"
-                    description="Personel çıkış yaparken sonraki vardiyaya not bırakabilir; not, sonraki vardiyanın personeline ana sayfada gösterilir. Kapalıysa çıkışta not sorulmaz."
-                    right={<Toggle on={handoverNotesEnabled} onToggle={() => setHandoverNotesEnabled(v => !v)} />}
-                  />
-                  <RuleRow
                     label="Müdürü Planlamaya Dahil Et"
                     description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
                     right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
@@ -1916,13 +1908,65 @@ export default function SettingsPage() {
                   />
                 </SectionCard>
               </SettingsGroup>
-              <SettingsGroup id="live" title="Vardiya Girişi ve Canlı Durum" description="Giriş zorunluluğu, geç kalma, GPS, mola, QR kod" open={!!openGroups["live"]} onToggle={toggleGroup}>
-                <SectionCard title="Canlı Durum">
+              <SettingsGroup id="live" title="Vardiya Girişi" description="Giriş yöntemi (telefon, konum, ortak tablet), geç kalma" open={!!openGroups["live"]} onToggle={toggleGroup}>
+                {/* Girişle ilgili her şey TEK yerde: yöntem seçimi kiosk_mode_enabled ve gps_checkin_required'ı birlikte yazar */}
+                <SectionCard title="Vardiya Girişi">
                   <RuleRow
                     label="Vardiya Girişi Zorunluluğu"
-                    description="Personel portaldaki vardiya kartından giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
+                    description="Personel giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
                     right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
                   />
+                  <div className="py-4 space-y-2">
+                    <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
+                    {([
+                      { id: "phone", label: "Personel kendi telefonundan", desc: "Portaldaki vardiya kartından ya da şubeye asılan QR kodu okutarak." },
+                      { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "Şubeye belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
+                      { id: "kiosk", label: "Şubedeki ortak tabletten, PIN ile", desc: "Personel oturum açmaz, 4 haneli PIN'le girer ve çıkar." },
+                    ] as const).map(opt => {
+                      const current = kioskModeEnabled ? "kiosk" : gpsCheckinRequired ? "gps" : "phone";
+                      const on = current === opt.id;
+                      // Ortak tablet "Ek özellikler" iznine bağlı; konum seçimi değil
+                      const featuresLocked = isCatLocked("features") && (opt.id === "kiosk" || current === "kiosk");
+                      return (
+                        <label key={opt.id} className={cn("flex items-start gap-2.5 rounded-xl border px-3 py-2.5 cursor-pointer", on ? "border-forest-300 bg-forest-50/60" : "border-slate-200", featuresLocked && "opacity-50 cursor-not-allowed")}>
+                          <input type="radio" name="checkin-method" checked={on} disabled={featuresLocked}
+                            onChange={() => { setKioskModeEnabled(opt.id === "kiosk"); setGpsCheckinRequired(opt.id === "gps"); }}
+                            className="mt-0.5 accent-forest-600" />
+                          <span>
+                            <span className="block text-sm font-semibold text-slate-800">{opt.label}</span>
+                            <span className="block text-xs text-slate-500">{opt.desc}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {gpsCheckinRequired && !kioskModeEnabled && (
+                      <p className="flex items-center gap-2 text-xs text-slate-600">
+                        <span>İzin verilen mesafe:</span>
+                        <input
+                          type="number" min={20} max={2000} value={checkinRadiusM}
+                          onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
+                          className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
+                        />
+                        <span>metre</span>
+                      </p>
+                    )}
+                    {kioskModeEnabled && (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
+                            setKioskLinkCopied(true);
+                            setTimeout(() => setKioskLinkCopied(false), 2000);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
+                        >
+                          {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
+                        </button>
+                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. PIN'ler Ekip sayfasında kişinin ayrıntısında.</p>
+                      </div>
+                    )}
+                  </div>
                   <RuleRow
                     label="Geç Kalan → Otomatik Açık Vardiya"
                     description={
@@ -1943,26 +1987,7 @@ export default function SettingsPage() {
                     }
                     right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
                   />
-                  <RuleRow
-                    label="GPS Doğrulamalı Vardiya Girişi"
-                    description={
-                      <span>
-                        Personel giriş yaparken konumu şubeye olan mesafeyle karşılaştırılır. Açıkken yarıçap dışındaki giriş reddedilir; kapalıyken mesafe sadece bilgi olarak kaydedilir, engellemez.
-                        {gpsCheckinRequired && (
-                          <span className="flex items-center gap-2 mt-2">
-                            <span>Yarıçap:</span>
-                            <input
-                              type="number" min={20} max={2000} value={checkinRadiusM}
-                              onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
-                              className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                            />
-                            <span>metre</span>
-                          </span>
-                        )}
-                      </span>
-                    }
-                    right={<Toggle on={gpsCheckinRequired} onToggle={() => setGpsCheckinRequired(v => !v)} />}
-                  />
+                  {FEATURES.breaks && (<>
                   <RuleRow
                     label="Eş Zamanlı Mola Limiti"
                     description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
@@ -1973,9 +1998,11 @@ export default function SettingsPage() {
                     description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
                     right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
                   />
+                  </>)}
                 </SectionCard>
 
-                <SectionCard title="QR ile Vardiya Girişi">
+                {!kioskModeEnabled && (
+                <SectionCard title="Giriş için QR kod">
                   <p className="text-xs text-slate-500 mb-4">
                     Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
                   </p>
@@ -1997,6 +2024,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </SectionCard>
+                )}
               </SettingsGroup>
               <SettingsGroup id="publish" title="Yayın" description="Yayın öncesi kontrol ve erken yayın göstergesi" open={!!openGroups["publish"]} onToggle={toggleGroup}>
                 <SectionCard title="Yayın Akışı">
@@ -2498,28 +2526,54 @@ export default function SettingsPage() {
 
           {/* ─── EK ÖZELLİKLER ─── */}
           {activeTab === "features" && (
-            <div className="space-y-6">
-              <p className="text-sm text-slate-500">
-                İhtiyacınız olan özelliği açın. Kapalı bir özelliğin menüsü, düğmesi ve sütunu hiçbir ekranda görünmez; açtığınızda ayarları bu kartın içinde çıkar.
-              </p>
-              {isCatLocked("features") && <LockNote />}
-
-              <FeatureGroup title="Ekip ve İletişim">
+            (() => {
+              // İşletme türü bir özelliği "kullanılmaz" diye işaretlemişse (profil modules[key] === false)
+              // ve özellik kapalıysa kart alttaki katlanır bölüme iner; kaybolmaz, isteyen açar.
+              const fitsIndustry = (key: string, on: boolean) => on || !savedIndustry || (savedIndustry.modules as Record<string, boolean | undefined>)[key] !== false;
+              const fits = {
+                  chat: fitsIndustry("chat_enabled", chatEnabled),
+                  openShifts: fitsIndustry("open_shifts_enabled", openShiftsEnabled),
+                  handover: fitsIndustry("handover_log_enabled", (handoverNotesEnabled || handoverLogEnabled)),
+                  conflicts: fitsIndustry("personnel_conflicts_enabled", personnelConflictsEnabled),
+                  fatigue: fitsIndustry("fatigue_radar_enabled", fatigueRadarEnabled),
+                  compliance: fitsIndustry("compliance_tracking_enabled", complianceTrackingEnabled),
+                  forecast: fitsIndustry("forecasting_enabled", forecastingEnabled),
+                  tasks: fitsIndustry("task_management_enabled", taskManagementEnabled),
+                  overtime: fitsIndustry("overtime_tracking_enabled", overtimeTrackingEnabled),
+                  tips: fitsIndustry("tip_pooling_enabled", tipPoolingEnabled),
+              };
+              const card = {
+                  chat: (
                 <FeatureCard icon={MessageSquare} title="Mesajlaşma"
                   description="Müdür ve personel arasında şube içi sohbet."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
+                  ),
+                  openShifts: (
                 <FeatureCard icon={Megaphone} title="Açık Vardiyalar"
                   description="Boşalan vardiyayı ilan edin, ekipten biri üstlensin. Geç kalanların vardiyası da buraya düşebilir."
                   on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />
-                <FeatureCard icon={Gavel} title="Vardiya Teklif Pazarı"
-                  description="Personel açık vardiyayı doğrudan almak yerine istediği ek puanı teklif eder, siz seçersiniz."
-                  on={shiftBiddingEnabled} onToggle={() => setShiftBiddingEnabled(v => !v)} />
-                <FeatureCard icon={BookOpen} title="Devir-Teslim Defteri"
-                  description="Çıkışta sonraki vardiyaya not bırakılır; ilk gelen notu okumadan vardiyaya giremez."
-                  on={handoverLogEnabled} onToggle={() => setHandoverLogEnabled(v => !v)} />
-              </FeatureGroup>
-
-              <FeatureGroup title="Planlama ve Güvenlik">
+                  ),
+                  // Devir-teslim TEK özellik: eski "Vardiya Devri Notu" (handover_notes_enabled) ile onaylı defter (handover_log_enabled) birleşti
+                  handover: (
+                <FeatureCard icon={BookOpen} title="Devir-Teslim Notu"
+                  description="Personel çıkışta sonraki vardiyaya not bırakır, not sonraki vardiyanın personeline gösterilir."
+                  on={handoverNotesEnabled || handoverLogEnabled}
+                  onToggle={() => {
+                    if (handoverNotesEnabled || handoverLogEnabled) { setHandoverNotesEnabled(false); setHandoverLogEnabled(false); }
+                    else setHandoverNotesEnabled(true);
+                  }}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={handoverLogEnabled}
+                      onChange={e => { setHandoverLogEnabled(e.target.checked); if (!e.target.checked) setHandoverNotesEnabled(true); }}
+                      className="mt-0.5 w-4 h-4 rounded accent-forest-600" />
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-800">Notu okumadan vardiyaya giriş yapılamasın</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">Okundu bilgisi kaydedilir, notlar Devir-Teslim Kayıtları sayfasında saklanır. Hastane, fabrika, güvenlik gibi işlerde önerilir.</span>
+                    </span>
+                  </label>
+                </FeatureCard>
+                  ),
+                  conflicts: (
                 <FeatureCard icon={UserX} title="Birlikte Çalışamaz"
                   description="Seçtiğiniz iki kişi hiçbir gün aynı vardiyaya yazılmaz."
                   on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)}>
@@ -2584,12 +2638,18 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </FeatureCard>
+                  ),
+                  fatigue: (
                 <FeatureCard icon={AlertTriangle} title="Kaza Risk Radarı"
                   description="Üst üste gece, kapanıştan açılışa ya da yüksek mesai yapanları Ana Sayfa'da ve planda uyarır."
                   on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />
+                  ),
+                  compliance: (
                 <FeatureCard icon={FileCheck} title="Belge ve Sertifika Takibi"
                   description="Süresi dolmuş zorunlu belgesi olan kişi otomatik plana alınmaz."
                   on={complianceTrackingEnabled} onToggle={() => setComplianceTrackingEnabled(v => !v)} />
+                  ),
+                  forecast: (
                 <FeatureCard icon={TrendingUp} title="Satış ve Yoğunluk Tahmini"
                   description="Personel İhtiyacı tablosunda geçmiş haftalara dayalı öneri gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
                   on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)}>
@@ -2620,9 +2680,8 @@ export default function SettingsPage() {
                       )}
                     </div>
                 </FeatureCard>
-              </FeatureGroup>
-
-              <FeatureGroup title="Vardiya İçi İşler">
+                  ),
+                  tasks: (
                 <FeatureCard icon={ListChecks} title="Görev ve Kontrol Listeleri"
                   description="Her vardiyaya otomatik görev listesi eklenir, personel portalında işaretlenir."
                   on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)}>
@@ -2651,27 +2710,8 @@ export default function SettingsPage() {
                       ))}
                     </div>
                 </FeatureCard>
-                <FeatureCard icon={Tablet} title="Ortak Tablet"
-                  description="Personel oturum açmadan, ortak bir tablette 4 haneli PIN ile vardiyaya girer ve çıkar."
-                  on={kioskModeEnabled} onToggle={() => setKioskModeEnabled(v => !v)}>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
-                          setKioskLinkCopied(true);
-                          setTimeout(() => setKioskLinkCopied(false), 2000);
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
-                      >
-                        {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
-                      </button>
-                      <p className="text-xs text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
-                    </div>
-                </FeatureCard>
-              </FeatureGroup>
-
-              <FeatureGroup title="Maaş ve Mesai">
+                  ),
+                  overtime: (
                 <FeatureCard icon={Timer} title="Fazla Mesai Takibi"
                   description="Yayınlanan planlardan fazla mesai kaydı çıkarılır, onay akışına girer ve yıllık sınır izlenir."
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)}>
@@ -2698,11 +2738,44 @@ export default function SettingsPage() {
                   />
   </div>
                 </FeatureCard>
+                  ),
+                  tips: (
                 <FeatureCard icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
                   description="Dönemlik bahşiş tutarını gerçek çalışılan süreye göre ekibe paylaştırır."
                   on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />
-              </FeatureGroup>
-            </div>
+                  ),
+              };
+              type CardId = keyof typeof fits;
+              const GROUPS: { title: string; ids: CardId[] }[] = [
+                { title: "Ekip ve İletişim", ids: ["chat", "openShifts", "handover", "tasks"] },
+                { title: "Planlama ve Güvenlik", ids: ["conflicts", "fatigue", "compliance", "forecast"] },
+                { title: "Maaş ve Mesai", ids: ["overtime", "tips"] },
+              ];
+              const others = GROUPS.flatMap(g => g.ids).filter(id => !fits[id]);
+              return (
+                <div className="space-y-6">
+                  <p className="text-sm text-slate-500">
+                    İhtiyacınız olan özelliği açın. Kapalı bir özelliğin menüsü, düğmesi ve sütunu hiçbir ekranda görünmez; açtığınızda ayarları bu kartın içinde çıkar.
+                  </p>
+                  {isCatLocked("features") && <LockNote />}
+                  {GROUPS.filter(g => g.ids.some(id => fits[id])).map(g => (
+                    <FeatureGroup key={g.title} title={g.title}>
+                      {g.ids.filter(id => fits[id]).map(id => <Fragment key={id}>{card[id]}</Fragment>)}
+                    </FeatureGroup>
+                  ))}
+                  {others.length > 0 && (
+                    <details className="group">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-500 hover:text-slate-800">
+                        {savedIndustry!.label} işletmelerinde genelde kullanılmayanlar ({others.length})
+                      </summary>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        {others.map(id => <Fragment key={id}>{card[id]}</Fragment>)}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            })()
           )}
 
           {/* ─── HESABIM ─── */}

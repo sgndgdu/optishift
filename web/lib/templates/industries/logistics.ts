@@ -88,6 +88,7 @@ export const logistics: IndustryProfile = {
   },
 
   modules: {
+    forecasting_enabled: false,
     handover_log_enabled: true,
     overtime_tracking_enabled: true,
     compliance_tracking_enabled: true,
