@@ -11,6 +11,7 @@ import {
   CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2,
   AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX
 } from "lucide-react";
+import { violationText } from "@/lib/ruleViolations";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const LEAVE_TYPES = [
@@ -311,7 +312,7 @@ export default function PortalRequests() {
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
-        showToast(err.error || "Takas teklifi gönderilemedi.", "error");
+        showToast(violationText(err, "Takas teklifi gönderilemedi."), "error");
       }
     } finally { setLoading(false); }
   }
@@ -387,7 +388,8 @@ export default function PortalRequests() {
     if (r.ok) {
       showToast(status === "peer_accepted" ? "Takas teklifi kabul edildi!" : "Takas teklifi reddedildi.");
     } else {
-      showToast("İşlem sırasında hata oluştu.", "error");
+      const err = await r.json().catch(() => ({}));
+      showToast(violationText(err, "İşlem sırasında hata oluştu."), "error");
       await loadData(); // hata varsa geri al
     }
   }

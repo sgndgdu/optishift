@@ -5,6 +5,29 @@ import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { swapReducer, toSwapEvent, SwapStatus } from "@/lib/swapReducer";
 import { sendPushToPersonnel } from "@/lib/notifications";
+import { checkPersonChange } from "@/lib/assignmentCheck";
+
+/**
+ * Takas sonrası iki tarafın takvimi kurallara uyuyor mu (lib/assignmentCheck).
+ * Dönen satırlar kişi adıyla; boşsa sorun yok.
+ */
+async function swapProblems(db: any, requesterShiftId: number, targetShiftId: number, names: { requester?: string | null; target?: string | null }): Promise<string[]> {
+  const rows = await db.prepare(
+    `SELECT id, personnel_id, location_id, week_start, day, start_time, end_time FROM shift_assignments WHERE id IN (?, ?)`
+  ).all(requesterShiftId, targetShiftId) as any[];
+  const r = rows.find(x => String(x.id) === String(requesterShiftId));
+  const t = rows.find(x => String(x.id) === String(targetShiftId));
+  if (!r || !t || !r.start_time || !t.start_time) return [];
+  const timed = (x: any) => ({ week_start: String(x.week_start), day: Number(x.day), start_time: String(x.start_time), end_time: String(x.end_time) });
+  const [forR, forT] = await Promise.all([
+    checkPersonChange(db, r.personnel_id, r.location_id, { removeIds: [Number(r.id)], add: [timed(t)] }),
+    checkPersonChange(db, t.personnel_id, t.location_id, { removeIds: [Number(t.id)], add: [timed(r)] }),
+  ]);
+  return [
+    ...forR.map(x => `${names.requester ?? "Talep eden"}: ${x}`),
+    ...forT.map(x => `${names.target ?? "Takas arkadaşı"}: ${x}`),
+  ];
+}
 
 
 // GET:
@@ -41,6 +64,13 @@ export async function GET(req: NextRequest) {
         WHERE sr.org_id = ? AND sr.status = ? AND (rs.location_id = ? OR ts.location_id = ?)
         ORDER BY sr.created_at DESC
       `).all(org_id, status, location_id, location_id);
+      // Müdür onay kartı: onaylanırsa oluşacak kural sorunları (lib/assignmentCheck)
+      if (status === "peer_accepted") {
+        for (const r of rows) {
+          r.violations = await swapProblems(db, r.requester_shift_id, r.target_shift_id,
+            { requester: r.requester_name, target: r.target_name }).catch(() => []);
+        }
+      }
     } else if (requester_id) {
       // Employee can only read their own requests
       if (auth.role === "employee" && auth.personnel_id !== requester_id) {
@@ -135,6 +165,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "İcap nöbeti takas edilemez." }, { status: 400 });
     }
 
+    // Takas sonrası iki tarafın planı kurallara uymalı (aynı gün iki vardiya, dinlenme, haftalık sınır)
+    const problems = await swapProblems(db, requester_shift_id, target_shift_id, { requester: requester_name, target: target_name });
+    if (problems.length > 0) {
+      return NextResponse.json({ error: "Bu takas çalışma kurallarına uymuyor.", violations: problems }, { status: 409 });
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const result = await db.prepare(`
       INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)
@@ -166,7 +202,7 @@ export async function PATCH(req: NextRequest) {
 
   const db = getDB();
   try {
-    const { id, status } = await req.json();
+    const { id, status, force } = await req.json();
 
     if (!id || !status) {
       return NextResponse.json({ error: "id ve status zorunlu" }, { status: 400 });
@@ -216,6 +252,23 @@ export async function PATCH(req: NextRequest) {
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.httpStatus });
+    }
+
+    // Kabul ve onayda plan o arada değişmiş olabilir: kuralları yeniden kontrol et.
+    // Personel ihlali geçemez; müdür sorunları görüp açıkça onaylarsa (force) takas yapılır.
+    if (result.newStatus === "peer_accepted" || result.newStatus === "manager_approved") {
+      const problems = await swapProblems(db, existing.requester_shift_id, existing.target_shift_id,
+        { requester: existing.requester_name, target: existing.target_name });
+      const managerForce = result.newStatus === "manager_approved" && force === true;
+      if (problems.length > 0 && !managerForce) {
+        return NextResponse.json({
+          error: result.newStatus === "manager_approved"
+            ? "Bu takas çalışma kurallarına uymuyor. Yine de onaylamak için sorunları görüp onaylayın."
+            : "Bu takası kabul edersen çalışma kurallarına uymayan bir plan oluşur.",
+          violations: problems,
+          can_force: result.newStatus === "manager_approved",
+        }, { status: 409 });
+      }
     }
 
     // Durum güncelle

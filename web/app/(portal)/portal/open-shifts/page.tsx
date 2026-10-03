@@ -6,6 +6,7 @@ import { Megaphone, Star, Gavel, Clock } from "lucide-react";
 import { usePortalAuth } from "@/hooks/useAuth";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
+import { violationText } from "@/lib/ruleViolations";
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
@@ -69,7 +70,7 @@ export default function PortalOpenShiftsPage() {
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok) { showToast("Vardiyayı üstlendin, kahraman bonusu kazandın!"); await load(); }
-      else { showToast(data.error || "Üstlenilemedi"); }
+      else { showToast(violationText(data, "Üstlenilemedi")); }
     } finally { setBusyId(null); }
   }
 

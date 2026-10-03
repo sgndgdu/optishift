@@ -134,7 +134,7 @@ export async function PATCH(req: NextRequest) {
     const outcome = await claimOpenShift(db, auth.org_id, bid.open_shift_id, bid.personnel_id, bid.personnel_name ?? null, {
       overrideBonusPoints: bid.requested_bonus_points,
     });
-    if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+    if (!outcome.ok) return NextResponse.json({ error: outcome.error, violations: outcome.violations }, { status: outcome.status });
 
     await db.prepare(`UPDATE shift_bids SET status = 'accepted' WHERE id = ?`).run(id);
 

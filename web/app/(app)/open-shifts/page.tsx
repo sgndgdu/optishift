@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks, Gavel } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -165,15 +166,22 @@ export default function OpenShiftsPage() {
   async function handleAssign(shift: any, cand: any) {
     setAssigning(shift.id);
     try {
-      const r = await fetch("/api/open-shifts", {
+      const send = (force: boolean) => fetch("/api/open-shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: shift.id, claimed_by: cand.personnel_id, claimed_by_name: cand.name, assigned_by_manager: true }),
+        body: JSON.stringify({ id: shift.id, claimed_by: cand.personnel_id, claimed_by_name: cand.name, assigned_by_manager: true, force }),
       });
+      let r = await send(false);
+      let d: ViolationResponse = await r.json().catch(() => ({}));
+      if (r.status === 409 && d.can_force && d.violations?.length) {
+        if (!confirmDespiteViolations(d.violations, `${cand.name} yine de atansın mı?`)) return;
+        r = await send(true);
+        d = await r.json().catch(() => ({}));
+      }
       if (r.ok) {
         showToast(`${cand.name} vardiyaya atandı ve bilgilendirildi.`);
         await load();
-      }
+      } else showToast(violationText(d, "Atanamadı."));
     } finally { setAssigning(null); }
   }
 

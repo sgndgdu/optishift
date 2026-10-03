@@ -185,7 +185,7 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   try {
     const body = await req.json();
-    const { id, claimed_by, claimed_by_name, status, assigned_by_manager } = body;
+    const { id, claimed_by, claimed_by_name, status, assigned_by_manager, force } = body;
 
     if (!id) {
       return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
@@ -229,8 +229,8 @@ export async function PATCH(req: NextRequest) {
         }
       }
 
-      const outcome = await claimOpenShift(db, auth.org_id, id, claimed_by, claimed_by_name ?? null, { assignedByManager: !!assigned_by_manager });
-      if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+      const outcome = await claimOpenShift(db, auth.org_id, id, claimed_by, claimed_by_name ?? null, { assignedByManager: !!assigned_by_manager, force: force === true });
+      if (!outcome.ok) return NextResponse.json({ error: outcome.error, violations: outcome.violations, can_force: outcome.can_force }, { status: outcome.status });
     } else if (status) {
       if (auth.role === "employee") {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });

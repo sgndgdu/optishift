@@ -37,6 +37,7 @@ import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { hasManagerPermission } from "@/lib/ruleLocks";
+import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 
 const DAYS = DAY_SHORT;
 
@@ -1432,12 +1433,18 @@ function SchedulePageInner() {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { showToast(d.error ?? "İşlem yapılamadı", "error"); return; }
       if (mode === "assign" && pick) {
-        const r2 = await fetch("/api/open-shifts", {
+        const send = (force: boolean) => fetch("/api/open-shifts", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: d.id, claimed_by: pick.personnel_id, claimed_by_name: pick.name, assigned_by_manager: true }),
+          body: JSON.stringify({ id: d.id, claimed_by: pick.personnel_id, claimed_by_name: pick.name, assigned_by_manager: true, force }),
         });
-        if (!r2.ok) { showToast("Açık vardiya oluştu ama atanamadı; Açık Vardiyalar'dan atayın.", "error"); }
+        let r2 = await send(false);
+        let d2: ViolationResponse = await r2.json().catch(() => ({}));
+        if (r2.status === 409 && d2.can_force && d2.violations?.length && confirmDespiteViolations(d2.violations, `${pick.name} yine de atansın mı?`)) {
+          r2 = await send(true);
+          d2 = await r2.json().catch(() => ({}));
+        }
+        if (!r2.ok) { showToast(`Açık vardiya oluştu ama atanamadı (${violationText(d2, "hata")}). Açık Vardiyalar'dan atayın.`, "error"); }
         else showToast(`${pick.name} vardiyaya atandı ve bilgilendirildi.`, "success");
       } else if (mode === "top") {
         const names: string[] = Array.isArray(d.notified) ? d.notified : [];

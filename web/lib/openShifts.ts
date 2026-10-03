@@ -9,8 +9,11 @@ import { rescoreWeek } from "@/lib/scoring";
 import { formatDateTR } from "@/lib/date";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
+import { checkPersonChange } from "@/lib/assignmentCheck";
 
-export type ClaimOutcome = { ok: true } | { ok: false; status: number; error: string };
+export type ClaimOutcome =
+  | { ok: true }
+  | { ok: false; status: number; error: string; violations?: string[]; can_force?: boolean };
 
 export async function claimOpenShift(
   db: any,
@@ -18,7 +21,7 @@ export async function claimOpenShift(
   openShiftId: number,
   claimedBy: string,
   claimedByName: string | null,
-  opts: { overrideBonusPoints?: number; assignedByManager?: boolean } = {},
+  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean } = {},
 ): Promise<ClaimOutcome> {
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
@@ -41,6 +44,20 @@ export async function claimOpenShift(
     WHERE personnel_id = ? AND week_start = ? AND day = ? AND COALESCE(kind, 'regular') = 'regular'
   `).get(claimedBy, week_start, dayIdx);
   if (sameDay) return { ok: false, status: 409, error: "Bu kişinin o gün zaten vardiyası var" };
+
+  // Dinlenme ve haftalık sınır (lib/assignmentCheck). Personel ihlali geçemez;
+  // müdür ataması sorunları görüp açıkça onaylarsa (force) yapılır.
+  const problems = await checkPersonChange(db, claimedBy, os.location_id, {
+    add: [{ week_start, day: dayIdx, start_time: os.start_time, end_time: os.end_time }],
+  });
+  if (problems.length > 0 && !(opts.assignedByManager && opts.force)) {
+    return {
+      ok: false, status: 409, violations: problems, can_force: !!opts.assignedByManager,
+      error: opts.assignedByManager
+        ? "Bu atama çalışma kurallarına uymuyor. Yine de atamak için sorunları görüp onaylayın."
+        : "Bu vardiyayı alırsan çalışma kurallarına uymayan bir plan oluşur.",
+    };
+  }
 
   // Teklif kabulünde vardiyanın kahraman bonusu, kabul edilen teklifin tutarına çekilir —
   // rescoreWeek bu kolonu okuyarak puanlar (lib/scoring.ts).
