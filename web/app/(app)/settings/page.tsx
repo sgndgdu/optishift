@@ -21,6 +21,7 @@ import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { Tabs } from "@/components/ui/Tabs";
 import { StatusPill } from "@/components/ui/StatusPill";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -133,33 +134,63 @@ function LockArea({ cat, children }: { cat: LockCategory; children: ReactNode })
 function RuleRow({ label, description, right, wide = false, lock }: { label: string; description: ReactNode; right: ReactNode; wide?: boolean; lock?: LockCategory }) {
   const isLocked = useContext(SettingsLockCtx);
   const locked = !!lock && isLocked(lock);
+  // Telefonda dar etiket sütunu olmasın: etiket + denetim üst satırda, açıklama tam genişlikte altta
+  if (wide) {
+    // Geniş denetim (konum, saat listesi): telefonda alt alta, masaüstünde yan yana
+    return (
+      <fieldset disabled={locked} className="min-w-0 border-0 p-0 m-0 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className={cn("text-sm font-semibold text-slate-900", locked && "opacity-60")}>{label}</p>
+          <RuleDescription description={description} locked={locked} />
+        </div>
+        <div className={cn("w-full sm:w-auto shrink-0", locked && "opacity-60")}>{right}</div>
+      </fieldset>
+    );
+  }
   return (
-    <fieldset disabled={locked} className={cn("min-w-0 border-0 p-0 m-0 flex items-start justify-between gap-4 py-4", wide && "flex-col sm:flex-row gap-3")}>
-      <div className={cn("min-w-0", locked && "opacity-60")}>
-        <p className="text-sm font-semibold text-slate-800">{label}</p>
-        <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
-        {locked && <LockNote />}
+    <fieldset disabled={locked} className="min-w-0 border-0 p-0 m-0 py-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className={cn("min-w-0 text-sm font-semibold text-slate-900", locked && "opacity-60")}>{label}</p>
+        <div className={cn("shrink-0", locked && "opacity-60")}>{right}</div>
       </div>
-      <div className={cn("shrink-0 mt-0.5", wide && "w-full sm:w-auto", locked && "opacity-60")}>{right}</div>
+      <RuleDescription description={description} locked={locked} />
     </fieldset>
+  );
+}
+
+function RuleDescription({ description, locked }: { description: ReactNode; locked: boolean }) {
+  return (
+    <div>
+      <p className={cn("text-xs text-slate-500 mt-1 leading-relaxed", locked && "opacity-60")}>{description}</p>
+      {locked && <LockNote />}
+    </div>
   );
 }
 
 // Statik kart kabuğu — .stripe-card ile aynı taban (rounded-2xl + ince gölge),
 // hover büyümesi yok çünkü tıklanabilir/link değil (bkz. Design Kararları #1)
+const GroupTitleCtx = createContext<string | null>(null);
+
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+  // Grubun içinde grup başlığıyla aynı başlık tekrar yazılmaz
+  const groupTitle = useContext(GroupTitleCtx);
+  if (groupTitle === title) return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-4 divide-y divide-slate-100">{children}</div>
+    </div>
+  );
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(20,69,61,0.12)] overflow-hidden">
-      <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-        <h3 className="text-xs font-bold text-slate-400">{title}</h3>
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-4 pt-3">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       </div>
-      <div className="px-5 divide-y divide-slate-100">{children}</div>
+      <div className="px-4 divide-y divide-slate-100">{children}</div>
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
-  return <h3 className="text-xs font-bold text-slate-400 mb-3">{children}</h3>;
+  return <h3 className="text-sm font-semibold text-slate-900 mb-2">{children}</h3>;
 }
 
 // Gelişmiş Seçenekler: kapalı gelen başlıklar (aşamalı gösterim)
@@ -167,20 +198,20 @@ function SettingsGroup({ id, title, description, open, onToggle, children }: {
   id: string; title: string; description: string; open: boolean; onToggle: (id: string) => void; children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 overflow-hidden">
+    <div id={`group-${id}`}>
       <button
         type="button"
         onClick={() => onToggle(id)}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left bg-white hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 min-h-[56px] text-left bg-white hover:bg-slate-50 transition-colors"
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-800">{title}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+          <p className="text-sm font-semibold text-slate-900">{title}</p>
+          <p className="text-xs text-slate-500 mt-0.5 truncate">{description}</p>
         </div>
         <ChevronDown size={16} className={cn("text-slate-400 transition-transform shrink-0", open && "rotate-180")} />
       </button>
-      {open && <div className="px-4 md:px-5 pb-5 pt-1 space-y-4 bg-slate-50/40 border-t border-slate-100">{children}</div>}
+      {open && <GroupTitleCtx.Provider value={title}><div className="px-3 sm:px-4 py-4 space-y-4 bg-slate-50 border-t border-slate-100">{children}</div></GroupTitleCtx.Provider>}
     </div>
   );
 }
@@ -192,23 +223,20 @@ function FeatureCard({ icon: Icon, title, description, on, onToggle, children }:
   const locked = useContext(SettingsLockCtx)("features");
   return (
     <div className={cn(
-      "rounded-2xl border p-4 transition-colors",
-      on ? "border-forest-200 bg-forest-50/40" : "border-slate-200 bg-white",
+      "rounded-2xl border border-slate-200 bg-white p-4",
       on && children ? "md:col-span-2" : "",
     )}>
       <div className="flex items-start gap-3">
-        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", on ? "bg-forest-100 text-forest-700" : "bg-slate-100 text-slate-500")}>
-          <Icon size={17} />
-        </div>
+        <span className={cn("mt-0.5 shrink-0", on ? "text-primary" : "text-slate-400")}><Icon size={16} /></span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-800">{title}</p>
+          <p className="text-sm font-semibold text-slate-900">{title}</p>
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
         </div>
         <fieldset disabled={locked} className={cn("min-w-0 border-0 p-0 m-0", locked && "opacity-50")} title={locked ? LOCK_NOTE : undefined}>
           <Toggle on={on} onToggle={onToggle} />
         </fieldset>
       </div>
-      {on && children && <div className="mt-4 pt-4 border-t border-forest-100">{children}</div>}
+      {on && children && <div className="mt-4 pt-4 border-t border-slate-100">{children}</div>}
     </div>
   );
 }
@@ -319,18 +347,24 @@ export default function SettingsPage() {
   const isCatLocked = (cat: LockCategory) => viewerRole !== null && !isOwnerRole(viewerRole) && !mgrPerms[cat];
   // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
   // Departman şefi ve "sadece görür" yönetici (lib/userAccess) şube ayarlarını değiştiremez: sadece Hesabım
-  const [accountOnly] = useState(() => {
+  // localStorage ve adres sadece tarayıcıda var: ilk çizimden sonra okunur (sunucu çizimiyle uyuşmazlık olmasın)
+  const [accountOnly, setAccountOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("basic");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    let only = false;
     try {
       const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
       const viewer = { role: u.role ?? null, access: parseAccess(u.access) };
-      return isViewOnly(viewer) || !!departmentScope(viewer);
-    } catch { return false; }
-  });
-  const [activeTab, setActiveTab] = useState<TabKey>(() => (accountOnly ? "account" : tabFromUrl().tab));
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const g = tabFromUrl().group;
-    return g ? { [g]: true } : {};
-  });
+      only = isViewOnly(viewer) || !!departmentScope(viewer);
+    } catch { /* varsayılan: tam ayarlar */ }
+    const fromUrl = tabFromUrl();
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setAccountOnly(only);
+    setActiveTab(only ? "account" : fromUrl.tab);
+    if (fromUrl.group) setOpenGroups({ [fromUrl.group]: true });
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
   const toggleGroup = (id: string) => setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
   // Çalışma saatleri tek satır özetle gelir; 7 günlük düzenleyici isteğe bağlı açılır
   const [hoursOpen, setHoursOpen] = useState(false);
@@ -1202,24 +1236,8 @@ export default function SettingsPage() {
   };
 
   const TabBar = () => (
-    <div className="flex items-center border-b border-slate-200 px-2 bg-slate-50/50 overflow-x-auto">
-      {TABS.filter(tab => !accountOnly || tab.key === "account").map(tab => (
-        <button
-          key={tab.key}
-          onClick={() => setActiveTab(tab.key)}
-          className={`px-2.5 sm:px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab.key === "account" ? "ml-auto" : ""} ${
-            activeTab === tab.key
-              ? "border-forest-600 text-forest-700"
-              : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-          }`}
-        >
-          {tab.key === "features" && <Sparkles size={13} className="hidden sm:block" />}
-          {tab.key === "account" && <UserCircle size={13} className="hidden sm:block" />}
-          <span className="sm:hidden">{tab.short}</span>
-          <span className="hidden sm:inline">{tab.label}</span>
-        </button>
-      ))}
-    </div>
+    <Tabs fill value={activeTab} onChange={setActiveTab}
+      items={TABS.filter(tab => !accountOnly || tab.key === "account").map(tab => ({ id: tab.key, label: tab.short }))} />
   );
 
   if (!locationData) {
@@ -1227,10 +1245,8 @@ export default function SettingsPage() {
       return (
         <Page width="narrow">
           <PageHeader title="Şube Ayarları" />
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <TabBar />
-            <div className="p-6"><AccountTab storageKey="optishift_manager_user" allowNameEdit={true} /></div>
-          </div>
+          <TabBar />
+          <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
         </Page>
       );
     }
@@ -1242,10 +1258,10 @@ export default function SettingsPage() {
     <Page width="narrow">
       <PageHeader title="Şube Ayarları" description={locationData.name} />
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <TabBar />
+      <TabBar />
 
-        <div className="p-5 md:p-6">
+      {/* Temel: tek kart; Gelişmiş/Özellikler/Hesabım kendi kart ve listelerini çizer (kart içinde kart yok) */}
+      <div className={activeTab === "basic" ? "bg-white rounded-2xl border border-slate-200 p-4 sm:p-5" : ""}>
 
           {/* ─── TEMEL AYARLAR ─── */}
           {activeTab === "basic" && (
@@ -1370,7 +1386,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-400 mb-3">Her vardiya bloğunun adını, saatlerini ve zorluk ağırlığını tanımlayın.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(locationData.shift_definitions ?? []).map((shift: ShiftDefinition, idx: number) => (
-                    <div key={shift.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                    <div key={shift.id} className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-white space-y-3">
                       {/* Ad + Gece badge + Sil */}
                       <div className="flex items-center gap-2">
                         <input
@@ -1380,7 +1396,7 @@ export default function SettingsPage() {
                             next[idx] = { ...next[idx], name: e.target.value };
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
-                          className="flex-1 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-forest-500 outline-none px-1 py-0.5 text-sm"
+                          className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-forest-500 outline-none px-1 py-0.5 text-sm"
                         />
                         <button
                           type="button"
@@ -1391,7 +1407,7 @@ export default function SettingsPage() {
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
                           className={cn(
-                            "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
+                            "shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
                             shift.is_night
                               ? "bg-forest-50 border-forest-300 text-forest-700"
                               : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
@@ -1409,7 +1425,7 @@ export default function SettingsPage() {
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
                           className={cn(
-                            "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
+                            "shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
                             shift.on_call
                               ? "bg-violet-50 border-violet-300 text-violet-700"
                               : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
@@ -1422,7 +1438,8 @@ export default function SettingsPage() {
                             const next = locationData.shift_definitions.filter((_: ShiftDefinition, i: number) => i !== idx);
                             setLocationData({ ...locationData, shift_definitions: next });
                           }}
-                          className="text-slate-300 hover:text-red-400 p-1 transition-colors"
+                          aria-label="Vardiyayı sil" title="Vardiyayı sil"
+                          className="shrink-0 text-slate-400 hover:text-red-500 p-1.5 -mr-1.5 transition-colors"
                         >
                           <X size={15} />
                         </button>
@@ -1542,10 +1559,10 @@ export default function SettingsPage() {
                       ];
                       setLocationData({ ...locationData, shift_definitions: next });
                     }}
-                    className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors min-h-[180px]"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 min-h-[40px] w-fit rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                   >
-                    <Plus size={22} className="mb-2" />
-                    <span className="font-medium text-sm">Yeni Vardiya Ekle</span>
+                    <Plus size={15} />
+                    <span>Vardiya ekle</span>
                   </button>
                 </div>
               </div>
@@ -1556,9 +1573,10 @@ export default function SettingsPage() {
           {/* ─── GELİŞMİŞ SEÇENEKLER ─── */}
           {activeTab === "advanced" && (
             <div className="space-y-3">
-              <p className="text-sm text-slate-500">
-                Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Bir başlığa tıklayarak açabilirsiniz.
+              <p className="text-xs text-slate-500">
+                Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Açmak için başlığa dokunun.
               </p>
+              <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
               <SettingsGroup id="autopilot" title="Otomatik Pilot" description="Gelecek haftanın planını her hafta taslak olarak hazırlama" open={!!openGroups["autopilot"]} onToggle={toggleGroup}>
               <div className="space-y-4">
                 <SectionCard title="Otomatik Pilot">
@@ -2464,6 +2482,7 @@ export default function SettingsPage() {
                   </div>
                 )}
               </SettingsGroup>
+              </div>
             </div>
           )}
 
@@ -2678,12 +2697,9 @@ export default function SettingsPage() {
 
           {/* ─── HESABIM ─── */}
           {activeTab === "account" && (
-            <div className="max-w-2xl">
-              <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
-            </div>
+            <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
           )}
 
-        </div>
       </div>
 
       {/* Kayıt geri bildirimi */}

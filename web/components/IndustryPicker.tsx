@@ -31,7 +31,27 @@ export default function IndustryPicker({ industry, variant, onChange, compact = 
   const selected = getIndustry(industry);
   return (
     <div className="space-y-3">
-      <div className={cn("grid gap-2", compact ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-2")} role="radiogroup" aria-label="İşletme türü">
+      {compact ? (
+        // Dar alan: tek çerçeveli radyo listesi (DESIGN.md §2), seçili satırda onay işareti
+        <ul className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden" role="radiogroup" aria-label="İşletme türü">
+          {INDUSTRIES.map(ind => {
+            const active = ind.key === industry;
+            return (
+              <li key={ind.key}>
+                <button type="button" role="radio" aria-checked={active}
+                  onClick={() => onChange(ind.key, ind.variants[0].key)}
+                  className={cn("w-full flex items-center gap-3 px-3 min-h-[44px] text-left transition-colors",
+                    active ? "bg-primary/5" : "bg-white hover:bg-slate-50")}>
+                  <span className={active ? "text-primary" : "text-slate-400"}><IndustryIcon name={ind.icon} size={16} /></span>
+                  <span className={cn("flex-1 text-sm", active ? "font-semibold text-primary" : "text-slate-800")}>{ind.label}</span>
+                  {active && <Check size={16} className="text-primary shrink-0" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+      <div className="grid gap-2 grid-cols-1 sm:grid-cols-2" role="radiogroup" aria-label="İşletme türü">
         {INDUSTRIES.map(ind => {
           const active = ind.key === industry;
           return (
@@ -47,12 +67,13 @@ export default function IndustryPicker({ industry, variant, onChange, compact = 
               </span>
               <span className="min-w-0">
                 <span className={cn("block text-sm font-bold", active ? "text-primary" : "text-slate-800")}>{ind.label}</span>
-                {!compact && <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{ind.description}</span>}
+                <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{ind.description}</span>
               </span>
             </button>
           );
         })}
       </div>
+      )}
 
       {selected && selected.variants.length > 1 && (
         <div>

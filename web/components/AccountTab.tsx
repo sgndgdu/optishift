@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Lock, Save, Check, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Save, Check, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 type StorageKey = "optishift_portal_user" | "optishift_manager_user" | "optishift_supervisor_user";
 
@@ -110,21 +110,18 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Profil Bilgileri */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 bg-slate-50/70 border-b border-slate-100">
-          <div className="p-2 bg-forest-100 rounded-xl text-forest-600">
-            <User size={16} />
-          </div>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-4 sm:px-5 pt-4">
           <div>
-            <p className="text-sm font-bold text-slate-800">Profil Bilgileri</p>
+            <h2 className="text-base font-bold text-slate-900">Profil</h2>
             <p className="text-xs text-slate-500">
               {allowNameEdit ? "Ad, e-posta ve kullanıcı adınızı güncelleyin" : "E-posta adresinizi güncelleyin"}
             </p>
           </div>
         </div>
-        <form onSubmit={handleProfileSave} className="p-5 space-y-4">
+        <form onSubmit={handleProfileSave} className="p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {allowNameEdit ? (
               <>
@@ -218,17 +215,14 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
       </div>
 
       {/* Şifre Değiştir */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 bg-slate-50/70 border-b border-slate-100">
-          <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
-            <Lock size={16} />
-          </div>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-4 sm:px-5 pt-4">
           <div>
-            <p className="text-sm font-bold text-slate-800">Şifre Değiştir</p>
+            <h2 className="text-base font-bold text-slate-900">Şifre değiştir</h2>
             <p className="text-xs text-slate-500">En az 6 karakter, güvenli bir şifre kullanın</p>
           </div>
         </div>
-        <form onSubmit={handlePasswordSave} className="p-5 space-y-4">
+        <form onSubmit={handlePasswordSave} className="p-4 sm:p-5 space-y-4">
           <div>
             <label className="field-label">Mevcut Şifre</label>
             <div className="relative">
@@ -318,7 +312,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
             <button
               type="submit"
               disabled={pwSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               {pwSaving ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
