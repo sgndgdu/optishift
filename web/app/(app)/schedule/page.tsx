@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense }
 import { useSearchParams } from "next/navigation";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
-  Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
+  Download, Zap, Send, X, Plus, BookOpen, Sparkles, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
   History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive, Pin, PinOff, Lock,
 } from "lucide-react";
@@ -530,7 +530,6 @@ function SchedulePageInner() {
   });
   // Telefonda tablo tek gün gösterir; varsayılan bugün
   const [mobileDay, setMobileDay] = useState(() => (weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0));
-  const [sendReviewLoading, setSendReviewLoading] = useState(false);
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void } | null>(null);
@@ -2052,30 +2051,7 @@ function SchedulePageInner() {
     }).concat(onCallRows(onCallMap).map(r => ({ ...r, location_id: activeLocationId, week_start: weekStart, publication_status: pubStatus })) as never[]);
 
   // Taslağı personele inceleme için gönder — durum draft kalır, sadece bildirim gider
-  const handleSendForReview = async () => {
-    if (!isDraftWeek) {
-      showToast("Henüz taslak yok, plana vardiya ekleyin, otomatik kaydedilir.", "error");
-      return;
-    }
-    setSendReviewLoading(true);
-    try {
-      const res = await fetch("/api/schedule/send-for-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id: activeLocationId, week_start: weekStart }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error ?? "Gönderme sırasında hata oluştu.", "error");
-        return;
-      }
-      showToast(`${data.notified} personele taslak planı bildirildi. 48 saat itiraz penceresi açıldı.`, "success");
-    } catch {
-      showToast("Bildirim gönderilemedi.", "error");
-    } finally {
-      setSendReviewLoading(false);
-    }
-  };
+
 
   // Geçen haftanın planını bu haftaya kopyala
   const handleCopyPrevWeek = () => {
@@ -3014,6 +2990,10 @@ loading ? (
                         <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
                       </button>
                     )}
+                    <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
+                    </button>
                     <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
@@ -3049,14 +3029,6 @@ loading ? (
                           <Sparkles size={13} className="text-sky-500" /> Ya şöyle olursa?
                         </button>
                       )}
-                      <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
-                      </button>
-                      <button onClick={() => { setActionsOpen(false); handleSendForReview(); }} disabled={sendReviewLoading || !isDraftWeek}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Eye size={13} className="text-sky-500" /> {sendReviewLoading ? "Gönderiliyor…" : "Personele Gönder (İnceleme)"}
-                      </button>
                       {FEATURES.aiSummary && (
                         <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">

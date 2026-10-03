@@ -9,8 +9,8 @@ const PRICE_IDS: Record<string, string> = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE ?? "",
 };
 
-// Billing sayfası "demo mod" uyarısını buna göre gösterir — Stripe anahtarı
-// yoksa checkout gerçek ödeme almadan doğrudan plan değiştirir.
+// Faturalandırma sayfası buna göre "online ödeme henüz açık değil" der. Ödeme sağlayıcısı
+// tanımlı değilken paket ASLA kendiliğinden değişmez (önceki "demo mod" herkese bedava Pro veriyordu).
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -56,11 +56,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ checkout_url: session.url });
     }
 
-    // ── Demo / no-Stripe fallback ──────────────────────────────────────────
-    await db.prepare(
-      `UPDATE organizations SET plan = ?, subscription_status = 'active' WHERE id = ?`
-    ).run(plan, org_id);
-    return NextResponse.json({ success: true, demo: true, message: `${plan} planına geçildi (demo mod).` });
+    return NextResponse.json(
+      { error: "Online ödeme henüz açık değil. Paket yükseltmek için bize e-postayla yazın." },
+      { status: 503 },
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

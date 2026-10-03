@@ -10,6 +10,7 @@
  *   POST /api/users (role=manager) → isteğe bağlı müdür hesabı + davet bağlantısı
  */
 
+import { limitMessage } from "@/lib/plans";
 import { useState } from "react";
 import { Building2, CalendarClock, Check, Copy, MapPin, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
@@ -272,7 +273,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   title="Şube ve işletme türü" sub="İşletme türünü seçin; vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
                   {planLimited && (
                     <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
-                      Ücretsiz planda tek şube açılabilir. Yeni şube için planınızı yükseltmeniz gerekecek.
+                      {limitMessage("locations")}
                     </p>
                   )}
                   <div>

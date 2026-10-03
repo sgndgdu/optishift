@@ -1,10 +1,13 @@
 "use client";
 
+import { PLANS, SALES_EMAIL } from "@/lib/plans";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
+
+const [FREE, PRO, ENT] = PLANS;
 
 export default function PricingPage() {
   return (
@@ -38,11 +41,11 @@ export default function PricingPage() {
             {/* Free Plan */}
             <div className="stripe-card p-8 sm:p-10 flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
               <div className="mb-8">
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Ücretsiz</h3>
-                <p className="text-slate-500 font-medium h-12">Tek şubeli kafeler ve butik restoranlar için, süresiz.</p>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">{FREE.name}</h3>
+                <p className="text-slate-500 font-medium h-12">{FREE.desc}</p>
               </div>
               <div className="mb-8 flex items-baseline gap-2">
-                <span className="text-5xl font-black text-slate-900">₺0</span>
+                <span className="text-5xl font-black text-slate-900">{FREE.price}</span>
                 <span className="text-slate-500 font-bold">/ ay</span>
               </div>
               <Link href="/register" className="w-full mb-8">
@@ -52,22 +55,12 @@ export default function PricingPage() {
               </Link>
               <div className="space-y-4 flex-1">
                 <p className="text-xs font-bold text-slate-400 mb-4">Neler Dahil?</p>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">1 Şube</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">10 Personele kadar</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">Akıllı Otomatik Planlama</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-medium">Mobil Portal (Personel)</span>
-                </div>
+                {FREE.features.map(f => (
+                  <div key={f} className="flex items-center gap-3">
+                    <CheckCircle2 size={20} className="text-primary" />
+                    <span className="text-slate-700 font-medium">{f}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -81,11 +74,11 @@ export default function PricingPage() {
                 ÖNERİLEN
               </div>
               <div className="mb-8 relative z-10">
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Profesyonel</h3>
-                <p className="text-slate-600 font-medium h-12">Büyüyen işletmeler ve zincir mağazalar için.</p>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">{PRO.name}</h3>
+                <p className="text-slate-600 font-medium h-12">{PRO.desc}</p>
               </div>
               <div className="mb-8 flex items-baseline gap-2 relative z-10">
-                <span className="text-5xl font-black text-slate-900">₺1.299</span>
+                <span className="text-5xl font-black text-slate-900">{PRO.price}</span>
                 <span className="text-slate-500 font-bold">/ ay</span>
               </div>
               <Link href="/register" className="w-full mb-8 relative z-10">
@@ -95,26 +88,12 @@ export default function PricingPage() {
               </Link>
               <div className="space-y-4 flex-1 relative z-10">
                 <p className="text-xs font-bold text-primary mb-4">Neler Dahil?</p>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-900 font-bold">Sınırsız Şube</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-900 font-bold">Sınırsız Personel</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">Gelişmiş Adalet Puanı</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">Anlık Bildirimler (Mobil & E-Posta)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary" />
-                  <span className="text-slate-700 font-semibold">Puantaj & Bordro Raporları (CSV)</span>
-                </div>
+                {PRO.features.map(f => (
+                  <div key={f} className="flex items-center gap-3">
+                    <CheckCircle2 size={20} className="text-primary" />
+                    <span className="text-slate-700 font-semibold">{f}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -122,36 +101,26 @@ export default function PricingPage() {
             <div className="stripe-card p-8 sm:p-10 flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-700">
               <div className="mb-8">
                 <h3 className="text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
-                  <Building2 size={24} className="text-ember-500"/> Kurumsal
+                  <Building2 size={24} className="text-ember-500"/> {ENT.name}
                 </h3>
-                <p className="text-slate-500 font-medium h-12">Büyük zincirler ve özel SLA/on-premise ihtiyacı olan markalar için.</p>
+                <p className="text-slate-500 font-medium h-12">{ENT.desc}</p>
               </div>
               <div className="mb-8">
-                <span className="text-4xl font-black text-slate-900">Özel Fiyat</span>
+                <span className="text-4xl font-black text-slate-900">{ENT.price}</span>
               </div>
-              <a href="mailto:sgndgdu@gmail.com?subject=Kurumsal%20Plan%20Teklif%20Talebi" className="w-full mb-8 block">
+              <a href={`mailto:${SALES_EMAIL}?subject=Kurumsal%20Paket%20Teklif%20Talebi`} className="w-full mb-8 block">
                 <Button className="w-full h-14 bg-slate-900 text-white hover:bg-slate-800 rounded-[1rem] font-bold text-lg transition-all flex items-center gap-2 shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:-translate-y-0.5">
                   Teklif Al <ArrowRight size={18} />
                 </Button>
               </a>
               <div className="space-y-4 flex-1">
-                <p className="text-xs font-bold text-slate-400 mb-4">HER ŞEYE EK OLARAK</p>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-ember-500" />
-                  <span className="text-slate-700 font-medium">Özel SLA & Uptime Garantisi</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-ember-500" />
-                  <span className="text-slate-700 font-medium">Çoklu Departman & Ekip Yönetimi</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-ember-500" />
-                  <span className="text-slate-700 font-medium">Yasal Uyumluluk Motoru (Fazla Mesai, Gece Vardiyası)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-ember-500" />
-                  <span className="text-slate-700 font-medium">7/24 Özel Destek Uzmanı</span>
-                </div>
+                <p className="text-xs font-bold text-slate-400 mb-4">Neler Dahil?</p>
+                {ENT.features.map(f => (
+                  <div key={f} className="flex items-center gap-3">
+                    <CheckCircle2 size={20} className="text-ember-500" />
+                    <span className="text-slate-700 font-medium">{f}</span>
+                  </div>
+                ))}
               </div>
             </div>
 

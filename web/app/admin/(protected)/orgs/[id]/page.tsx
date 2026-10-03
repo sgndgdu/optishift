@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { PLANS, getPlan } from "@/lib/plans";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, MapPin, Activity, Settings, Loader2 } from "lucide-react";
@@ -110,7 +111,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
         </button>
         <div>
           <h1 className="text-xl font-bold text-white">{org.name}</h1>
-          <p className="text-xs text-slate-500 capitalize">{org.plan ?? "free"} plan</p>
+          <p className="text-xs text-slate-500">{getPlan(org.plan).name} paket</p>
         </div>
         {org.suspended_at && (
           <span className="ml-2 bg-red-500/15 text-red-400 border border-red-500/20 text-xs font-semibold px-3 py-1 rounded-full">
@@ -151,9 +152,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   onChange={(e) => setPlan(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50"
                 >
-                  <option value="free">Free</option>
-                  <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
+                  {PLANS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div className="flex-1 min-w-[160px]">

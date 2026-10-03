@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { getPlan, limitMessage } from "@/lib/plans";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Store, CalendarClock, ArrowRight, Plus, Trash2, CheckCircle2 } from "lucide-react";
@@ -66,7 +67,7 @@ export default function OnboardingWizard() {
       .then(r => (r.ok ? r.json() : null))
       .then(org => {
         if (typeof org?.name === "string" && org.name.trim()) setBranches(b => (b.length === 1 && !b[0].trim() ? [org.name.trim()] : b));
-        setFreePlan(!org?.plan || org.plan === "free");
+        setFreePlan(getPlan(org?.plan).maxLocations === 1);
       })
       .catch(() => {});
   }, [user]);
@@ -172,7 +173,7 @@ export default function OnboardingWizard() {
       return;
     }
     if (step === 0 && freePlan && branches.filter(b => b.trim()).length > 1) {
-      setError("Ücretsiz planda 1 şube açılabilir. Diğer şubeleri Pro plana geçince eklersiniz.");
+      setError(limitMessage("locations"));
       return;
     }
     if (step === 1) await saveAll();
@@ -220,7 +221,7 @@ export default function OnboardingWizard() {
                     </div>
                   ))}
                   {freePlan && (
-                    <p className="text-xs text-slate-500">Ücretsiz planda 1 şube açılabilir. Daha fazla şube için sonradan Pro plana geçebilirsiniz.</p>
+                    <p className="text-xs text-slate-500">{limitMessage("locations")}</p>
                   )}
                   {branches.length < 30 && !(freePlan && branches.length >= 1) && (
                     <button onClick={addBranch}

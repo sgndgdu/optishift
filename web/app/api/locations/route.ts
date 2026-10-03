@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getPlan, limitMessage } from "@/lib/plans";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -50,13 +51,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name zorunlu" }, { status: 400 });
     }
 
-    // Plan limit kontrolü: free plan en fazla 1 lokasyon
+    // Paket sınırı (lib/plans): şube sayısı
     const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
-    if (!org || org.plan === "free" || !org.plan) {
+    const maxLocations = getPlan(org?.plan).maxLocations;
+    if (maxLocations !== null) {
       const locCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM locations WHERE org_id = ?").get(auth.org_id)) as any).cnt;
-      if (locCount >= 1) {
+      if (locCount >= maxLocations) {
         return NextResponse.json(
-          { error: "Ücretsiz planda 1 şube açılabilir. Daha fazla şube için Pro plana geçin.", upgrade: true },
+          { error: limitMessage("locations"), upgrade: true },
           { status: 402 }
         );
       }

@@ -117,7 +117,7 @@ Müdürün vardiyayı oluşturmadan önce esnetebileceği veya katılaştırabil
 Vardiya oluşturma tek adımlı "Yayınla" değildir. Üç aşama desteklenir:
 
 1. **Taslak (draft):** Müdür çalışırken veya OR-Tools çıktısı gelince — `shift_assignments.status = 'draft'`
-2. **İnceleme (review) — opsiyonel:** "Personele Gönder" butonu ile personele 48 saatlik itiraz penceresi açılır. Personel `/portal/requests` üzerinden `shift_edit_request` veya `shift_swap_request` oluşturabilir. Müdür onay ekranından batch inceler.
+2. **İnceleme adımı KALDIRILDI (2026-10-03):** "Personele Gönder (İnceleme)" personele itiraz bildirimi gönderiyordu ama personel taslağı göremiyordu (portal sadece `published`). Taslak sadece yönetimde görünür; personel yayından sonra görür.
 3. **Yayınlandı (published):** Final onay. `status = 'published'`. Tüm personele bildirim gider.
 
 `shift_assignments.status` alanı: `'draft' | 'published'`

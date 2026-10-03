@@ -352,7 +352,7 @@ export default function RegisterPage() {
                     </div>
                     {promoCheck.status === "valid" && (
                       <p className="text-xs font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
-                        <Check size={12} /> Kod geçerli, {promoCheck.freeMonths} ay ücretsiz Profesyonel plan!
+                        <Check size={12} /> Kod geçerli, {promoCheck.freeMonths} ay ücretsiz Pro paket!
                       </p>
                     )}
                     {promoCheck.status === "invalid" && (

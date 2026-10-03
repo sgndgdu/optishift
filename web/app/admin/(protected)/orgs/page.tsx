@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { PLANS } from "@/lib/plans";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, Building2, ChevronRight } from "lucide-react";
@@ -39,7 +40,7 @@ function PlanBadge({ plan }: { plan: string }) {
     pro: "bg-blue-500/15 text-blue-300 border-blue-500/20",
     free: "bg-slate-500/10 text-slate-400 border-slate-500/15",
   };
-  const labels: Record<string, string> = { enterprise: "Enterprise", pro: "Pro", free: "Free" };
+  const labels: Record<string, string> = Object.fromEntries(PLANS.map(p => [p.id, p.name]));
   const cls = map[plan] ?? map.free;
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>

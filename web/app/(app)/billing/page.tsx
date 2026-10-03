@@ -9,42 +9,15 @@ import { FEATURES } from "@/lib/features";
 import FeatureDisabled from "@/components/FeatureDisabled";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { PLANS, SALES_EMAIL, getPlan, type PlanId } from "@/lib/plans";
 
-const PLANS = [
-  {
-    id: "free",
-    name: "Başlangıç",
-    price: "₺0",
-    period: "/ay",
-    desc: "Küçük işletmeler için.",
-    color: "border-slate-200",
-    features: ["1 Şube", "10 Personele kadar", "Otomatik Vardiya Planlama", "E-posta Desteği"],
-    cta: "Mevcut Plan",
-    dark: false,
-  },
-  {
-    id: "pro",
-    name: "Profesyonel",
-    price: "₺1.299",
-    period: "/ay",
-    desc: "Büyüyen zincirler için sınırsız erişim.",
-    color: "border-primary",
-    features: ["Sınırsız Şube", "Sınırsız Personel", "Gelişmiş Adalet Puanı", "Puantaj & Bordro Raporları (CSV)", "Anlık Bildirimler (Web Push)", "Öncelikli Destek"],
-    cta: "Pro'ya Geç",
-    dark: true,
-  },
-  {
-    id: "enterprise",
-    name: "Kurumsal",
-    price: "Teklif Al",
-    period: "",
-    desc: "750+ şubeli zincirler için özel SLA.",
-    color: "border-slate-300",
-    features: ["Tüm Pro özellikleri", "Özel SLA & Uptime Garantisi", "Özel Kurulum Desteği", "On-Premise Seçeneği"],
-    cta: "İletişime Geç",
-    dark: false,
-  },
-];
+// Ad, fiyat ve sınırlar lib/plans'tan (tek kaynak); burada sadece görünüm
+const PLAN_STYLE: Record<PlanId, { color: string; dark: boolean; cta: string }> = {
+  free:       { color: "border-slate-200", dark: false, cta: "Mevcut Plan" },
+  pro:        { color: "border-primary",   dark: true,  cta: "Pro'ya Geç" },
+  enterprise: { color: "border-slate-300", dark: false, cta: "İletişime Geç" },
+};
+const PLAN_CARDS = PLANS.map(p => ({ ...p, ...PLAN_STYLE[p.id] }));
 
 function BillingContent() {
   const searchParams = useSearchParams();
@@ -92,11 +65,15 @@ function BillingContent() {
 
   const handleCheckout = async (planId: string) => {
     if (planId === "enterprise") {
-      window.open("mailto:sales@optishift.io?subject=Kurumsal%20Plan%20Talebi", "_blank");
+      window.open(`mailto:${SALES_EMAIL}?subject=Kurumsal%20Paket%20Talebi`, "_blank");
       return;
     }
     if (planId === "free") return;
     if (planId === currentPlan) return;
+    if (!stripeConfigured) {
+      window.open(`mailto:${SALES_EMAIL}?subject=Pro%20Paket%20Talebi`, "_blank");
+      return;
+    }
 
     setCheckoutLoading(planId);
     try {
@@ -109,9 +86,6 @@ function BillingContent() {
 
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
-      } else if (data.success) {
-        showToast(data.message ?? "Plan güncellendi (demo mod).");
-        await loadOrg();
       } else {
         showToast(data.error ?? "Hata oluştu.");
       }
@@ -136,21 +110,21 @@ function BillingContent() {
         <div>
           <p className="text-xs font-bold text-slate-400">Mevcut Plan</p>
           <p className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-            {PLANS.find(p => p.id === currentPlan)?.name ?? currentPlan}
+            {getPlan(currentPlan).name}
             {currentPlan === "pro" && <StatusPill tone="positive">Aktif</StatusPill>}
           </p>
         </div>
         {!isStripeConfigured && (
           <div className="ml-auto flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-bold text-amber-700">
             <AlertCircle size={13} />
-            Demo mod, STRIPE_SECRET_KEY yapılandırılmamış
+            Online ödeme yakında. Paket yükseltmek için bize e-postayla yazın.
           </div>
         )}
       </div>
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        {PLANS.map(plan => {
+        {PLAN_CARDS.map(plan => {
           const isCurrent = currentPlan === plan.id;
           return (
             <div
@@ -205,7 +179,7 @@ function BillingContent() {
                   ) : isCurrent ? (
                     "Mevcut Planınız"
                   ) : plan.id === "pro" ? (
-                    <><CreditCard size={15} /> {plan.cta}</>
+                    <><CreditCard size={15} /> {stripeConfigured ? plan.cta : "E-postayla İste"}</>
                   ) : plan.id === "enterprise" ? (
                     <><Sparkles size={15} /> {plan.cta}</>
                   ) : plan.cta}
@@ -214,27 +188,6 @@ function BillingContent() {
             </div>
           );
         })}
-      </div>
-
-      {/* Plan limits info */}
-      <div className="bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-200">
-        <h3 className="text-sm font-bold text-slate-800 mb-3">Plan Sınırları</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 text-center">
-          {[
-            { label: "Şube Limiti",    free: "1",        pro: "Sınırsız" },
-            { label: "Personel",       free: "10",       pro: "Sınırsız" },
-            { label: "Puantaj CSV",    free: "✓",        pro: "✓" },
-            { label: "Excel'e Aktarma",   free: "✓",        pro: "✓" },
-          ].map(row => (
-            <div key={row.label} className="bg-white rounded-xl p-3 border border-slate-100">
-              <p className="text-xs font-bold text-slate-400 mb-2">{row.label}</p>
-              <div className="flex justify-around text-xs font-bold">
-                <div><p className="text-slate-400 mb-0.5">Free</p><p className="text-slate-700">{row.free}</p></div>
-                <div><p className="text-primary mb-0.5">Pro</p><p className="text-primary">{row.pro}</p></div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Toast */}

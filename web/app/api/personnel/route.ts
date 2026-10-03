@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getPlan, limitMessage } from "@/lib/plans";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import { defaultWeeklyHours } from "@/lib/legal";
 import crypto from "crypto";
@@ -133,13 +134,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
-    // Plan limit kontrolü: free plan en fazla 10 aktif personel
+    // Paket sınırı (lib/plans): aktif personel sayısı
     const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
-    if (!org || org.plan === "free" || !org.plan) {
+    const maxPersonnel = getPlan(org?.plan).maxPersonnel;
+    if (maxPersonnel !== null) {
       const personnelCount = ((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any).cnt;
-      if (personnelCount >= 10) {
+      if (personnelCount >= maxPersonnel) {
         return NextResponse.json(
-          { error: "Ücretsiz planda en fazla 10 personel eklenebilir. Daha fazlası için Pro plana geçin.", upgrade: true },
+          { error: limitMessage("personnel"), upgrade: true },
           { status: 402 }
         );
       }
