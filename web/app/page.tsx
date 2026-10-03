@@ -110,8 +110,8 @@ export default function LandingPage() {
                   <div className="text-xs sm:text-xs text-slate-500 font-bold">Şube</div>
                 </div>
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-500 mb-1">0</div>
-                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Çakışma Garantisi</div>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-600 mb-1">11 sa</div>
+                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Dinlenme kontrolü</div>
                 </div>
               </div>
             </div>

@@ -78,14 +78,14 @@ export default function PricingPage() {
               </div>
               
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-forest-500 text-white text-xs font-black px-5 py-2 rounded-full shadow-[0_4px_10px_rgba(20,69,61,0.3)]">
-                EN ÇOK TERCİH EDİLEN
+                ÖNERİLEN
               </div>
               <div className="mb-8 relative z-10">
                 <h3 className="text-2xl font-black text-slate-900 mb-2">Profesyonel</h3>
                 <p className="text-slate-600 font-medium h-12">Büyüyen işletmeler ve zincir mağazalar için.</p>
               </div>
               <div className="mb-8 flex items-baseline gap-2 relative z-10">
-                <span className="text-5xl font-black text-slate-900">₺1,299</span>
+                <span className="text-5xl font-black text-slate-900">₺1.299</span>
                 <span className="text-slate-500 font-bold">/ ay</span>
               </div>
               <Link href="/register" className="w-full mb-8 relative z-10">

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Gizlilik Politikası ve KVKK Aydınlatma Metni" updatedAt="19 Temmuz 2026">
+    <LegalShell title="Gizlilik Politikası ve KVKK Aydınlatma Metni" updatedAt="3 Ekim 2026">
       <p>
         Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
         OptiShift vardiya yönetim platformunu (&quot;Platform&quot;) kullanan kişilerin kişisel
@@ -60,6 +60,7 @@ export default function PrivacyPage() {
         <li><strong>Neon</strong>: veritabanı barındırma</li>
         <li><strong>Render</strong>: vardiya planlama hesaplama servisi</li>
         <li><strong>Resend</strong>: işlemsel e-posta gönderimi (ör. şifre sıfırlama)</li>
+        <li><strong>Google (Gemini)</strong>: yöneticinin İşletme Asistanı&apos;na sorduğu soru ve yanıt için gereken işletme bilgisi özeti (yalnızca asistan kullanıldığında)</li>
       </ul>
 
       <h2>5. Çerezler</h2>
