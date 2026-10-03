@@ -1,9 +1,10 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, X, Plus, Trash2, CalendarClock, Users, Grid3x3, Sparkles } from "lucide-react";
 import { SECTOR_PRESETS } from "@/lib/presets";
+import { getVariant, industryFromRules } from "@/lib/templates/registry";
 import type { ShiftDefinition } from "@/lib/types";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
@@ -76,8 +77,28 @@ export function ShiftDefModal({ locationId, onClose }: { locationId: string; onC
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Şubenin işletme türü seçiliyse (kurulum/Ayarlar) aynı alt türün vardiyaları gelir: kayıt sihirbazı
+  // ile burada iki farklı şablon önerilmesin (lib/templates tek kaynak)
+  const [choices, setChoices] = useState<{ key: string; label: string; shiftDefs: ShiftDefinition[] }[]>(SECTOR_PRESETS);
+  useEffect(() => {
+    let stale = false;
+    fetch(`/api/locations?id=${locationId}`).then(r => (r.ok ? r.json() : [])).then(rows => {
+      if (stale) return;
+      const rules = Array.isArray(rows) ? rows[0]?.rules : null;
+      const industry = industryFromRules(rules);
+      if (!industry) return;
+      let variantKey: string | undefined;
+      try { const r = typeof rules === "string" ? JSON.parse(rules) : rules; variantKey = typeof r?.industry_variant === "string" ? r.industry_variant : undefined; } catch { /* yok */ }
+      const current = getVariant(industry, variantKey);
+      setChoices([current, ...industry.variants.filter(v => v.key !== current.key)]
+        .map(v => ({ key: `${industry.key}:${v.key}`, label: v.label, shiftDefs: v.shifts })));
+      setDefs(prev => (prev.length === 0 ? current.shifts.map(d => ({ ...d })) : prev));
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, [locationId]);
+
   const applyPreset = (key: string) => {
-    const p = SECTOR_PRESETS.find(s => s.key === key);
+    const p = choices.find(s => s.key === key);
     if (p) setDefs(p.shiftDefs.map(d => ({ ...d })));
   };
 
@@ -111,7 +132,7 @@ export function ShiftDefModal({ locationId, onClose }: { locationId: string; onC
   return (
     <ModalShell title="Vardiyaları Tanımla" subtitle="Hazır bir şablonla başlayın, saatleri işletmenize göre düzenleyin." onClose={onClose}>
       <div className="flex flex-wrap gap-2">
-        {SECTOR_PRESETS.map(p => (
+        {choices.map(p => (
           <button
             key={p.key}
             onClick={() => applyPreset(p.key)}

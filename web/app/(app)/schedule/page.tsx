@@ -1864,13 +1864,13 @@ function SchedulePageInner() {
     }
   };
 
-  const handleDemandSave = async (silent = false) => {
+  const handleDemandSave = async (silent = false, matrix: Record<string, Record<number, number>> = demandMatrix) => {
     if (!activeLocationId) return;
     try {
       await fetch(`/api/locations?id=${activeLocationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_matrix: demandMatrix }),
+        body: JSON.stringify({ demand_matrix: matrix }),
       });
       if (!silent) showToast("Personel ihtiyacı kaydedildi.", "success");
     } catch {
@@ -1947,8 +1947,33 @@ function SchedulePageInner() {
     } catch { /* sessiz */ }
   };
 
-  const handleDeptDemandSave = async (deptId: string) => {
-    const matrix = deptDemandMatrix[deptId] ?? {};
+  // İhtiyaç tablosu kısayolu: satırdaki ilk sayıyı haftanın boş günlerine kopyalar (42 kutuyu tek tek doldurmamak için)
+  const fillRow = (row: Record<number, number> | undefined): Record<number, number> | null => {
+    const first = Array.from({ length: 7 }, (_, d) => row?.[d] ?? 0).find(v => v > 0);
+    if (!first) return null;
+    return Object.fromEntries(Array.from({ length: 7 }, (_, d) => [d, (row?.[d] ?? 0) > 0 ? row![d] : first]));
+  };
+  const fillDemandRow = (defId: string) => {
+    const filled = fillRow(demandMatrix[defId]);
+    if (!filled) return;
+    const next = { ...demandMatrix, [defId]: filled };
+    setDemandMatrix(next);
+    handleDemandSave(true, next);
+  };
+  const fillDeptDemandRow = (deptId: string, defId: string) => {
+    const filled = fillRow(deptDemandMatrix[deptId]?.[defId]);
+    if (!filled) return;
+    const deptNext = { ...(deptDemandMatrix[deptId] ?? {}), [defId]: filled };
+    setDeptDemandMatrix(prev => ({ ...prev, [deptId]: deptNext }));
+    handleDeptDemandSave(deptId, deptNext);
+  };
+  const canFillRow = (row: Record<number, number> | undefined) => {
+    const vals = Array.from({ length: 7 }, (_, d) => row?.[d] ?? 0);
+    return vals.some(v => v > 0) && vals.some(v => v === 0);
+  };
+
+  const handleDeptDemandSave = async (deptId: string, override?: Record<string, Record<number, number>>) => {
+    const matrix = override ?? deptDemandMatrix[deptId] ?? {};
     try {
       await fetch(`/api/departments?id=${deptId}`, {
         method: "PATCH",
@@ -2644,6 +2669,10 @@ loading ? (
                             <span className="text-sm font-semibold text-slate-700">{def.name}</span>
                             <span className="text-[10px] text-slate-400 ml-2">{def.start}–{def.end}</span>
                             <span className="text-[10px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
+                            {canFillRow(demandMatrix[def.id]) && !(isPublishedWeek && !editUnlocked) && (
+                              <button type="button" onClick={() => fillDemandRow(def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
+                                className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
+                            )}
                           </td>
                           {Array.from({ length: 7 }, (_, day) => {
                             const val = demandMatrix[def.id]?.[day] ?? 0;
@@ -2712,6 +2741,10 @@ loading ? (
                                 <td className="py-2.5 pl-8 pr-4">
                                   <span className="text-[12px] font-semibold text-slate-600">{def.name}</span>
                                   <span className="text-[10px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
+                                  {canFillRow(deptRow) && !(isPublishedWeek && !editUnlocked) && (
+                                    <button type="button" onClick={() => fillDeptDemandRow(dept.id, def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
+                                      className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
+                                  )}
                                 </td>
                                 {Array.from({ length: 7 }, (_, day) => {
                                   const val = deptRow[day] ?? 0;

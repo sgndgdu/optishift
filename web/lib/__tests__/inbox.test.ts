@@ -27,6 +27,11 @@ describe("buildInbox", () => {
     expect(buildInbox(base)).toEqual([]);
   });
 
+  it("okunmamış mesaj bugün maddesi olur", () => {
+    const [item] = buildInbox({ ...base, unreadMessages: 2 });
+    expect(item).toMatchObject({ id: "messages", severity: "today", title: "2 okunmamış mesaj" });
+  });
+
   it("personel yoksa sadece 'ekibinizi ekleyin' gösterilir", () => {
     expect(ids({ personnelCount: 0, pendingApprovals: 3, nextWeek: "none" })).toEqual(["add-personnel"]);
   });

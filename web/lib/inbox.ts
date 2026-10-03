@@ -37,6 +37,8 @@ export type InboxInput = {
   nextWeek: NextWeekState;
   pendingApprovals: number;
   pendingAccounts: number;
+  /** Müdüre gelen okunmamış mesaj sayısı (Mesajlaşma modülü kapalıysa verilmez). */
+  unreadMessages?: number;
   availability: { enabled: boolean; missing: number };
   /** Dolmamış ilanlar (vardiyası hâlâ sahibinde olan devir ilanları hariç). soon: bugün/yarın olan var mı,
    *  nearest: en yakının okunur etiketi ("6 Ekim Salı, 15:00"). */
@@ -116,6 +118,15 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       severity: "today",
       title: `${input.pendingAccounts} yeni hesap onay bekliyor`,
       action: { label: "İncele", href: "/personnel" },
+    });
+  }
+
+  if ((input.unreadMessages ?? 0) > 0) {
+    items.push({
+      id: "messages",
+      severity: "today",
+      title: `${input.unreadMessages} okunmamış mesaj`,
+      action: { label: "Oku", href: "/chat" },
     });
   }
 

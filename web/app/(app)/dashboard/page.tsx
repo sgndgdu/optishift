@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [nextWeek, setNextWeek] = useState<NextWeekState>("published");
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingAccounts, setPendingAccounts] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
   const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
   const [publishLead, setPublishLead] = useState<number | null>(null);
@@ -95,7 +96,7 @@ export default function DashboardPage() {
       const weekStart = getTodayWeekStart();
       const canApproveAccounts = u.role === "admin" || u.role === "supervisor";
       const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, publishStatsData, locData,
-             leaves, swaps, edits, overtimes, accounts, autopilotData] = await Promise.all([
+             leaves, swaps, edits, overtimes, accounts, autopilotData, unreadData] = await Promise.all([
         json(`/api/personnel?location_id=${loc}`),
         json(`/api/shifts?location_id=${loc}&week_start=${weekStart}`),
         json(`/api/open-shifts?location_id=${loc}`),
@@ -110,8 +111,10 @@ export default function DashboardPage() {
         json(`/api/overtime?location_id=${loc}&status=pending`),
         canApproveAccounts ? json(`/api/users?approval_status=pending`) : Promise.resolve([]),
         json(`/api/autopilot?location_id=${loc}`),
+        json(`/api/messages/unread-count`),
       ]);
       setAutopilot(autopilotData && !autopilotData.error ? autopilotData : null);
+      setUnreadMessages(typeof unreadData?.count === "number" ? unreadData.count : Number(unreadData?.count ?? 0) || 0);
 
       const next = list(nextShiftsData);
       setPersonnel(list(personnelData));
@@ -269,6 +272,7 @@ export default function DashboardPage() {
     nextWeek,
     pendingApprovals,
     pendingAccounts,
+    unreadMessages: isModuleOn(rules, "chat_enabled") ? unreadMessages : 0,
     availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },
     openShifts:   {
       enabled: openShiftsEnabled, count: openShiftCount,
