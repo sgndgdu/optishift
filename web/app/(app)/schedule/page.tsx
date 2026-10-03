@@ -309,6 +309,8 @@ type AvailMap = Record<string, Record<number, AvailDay>>;
  */
 function scheduleSnapshot(a: {
   cellMap: CellMap; onCallMap: Record<string, { defId: string }>; shiftDefs: ShiftDefinition[];
+  /** Aynı gündeki ek vardiyalar (takas/açık vardiyadan; tabloda salt okunur) */
+  extraCells?: Record<string, CellData[]>;
   demandMatrix: Record<string, Record<number, number>>;
   deptDemandMatrix: Record<string, Record<string, Record<number, number>>>;
   availMap: AvailMap; personnel: any[]; locRules: FairnessRules; clopeningMinRest: number;
@@ -319,7 +321,11 @@ function scheduleSnapshot(a: {
   const r = a.locRules as Record<string, unknown>;
   const num = (k: string, d: number) => (typeof r[k] === "number" ? (r[k] as number) : d);
   const hhmm = (m: number) => `${String(Math.floor((m % 1440) / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-  const assignments = Object.entries(a.cellMap).map(([key, c]) => {
+  const cells: [string, CellData][] = [
+    ...Object.entries(a.cellMap),
+    ...Object.entries(a.extraCells ?? {}).flatMap(([key, list]) => list.map(c => [key, c] as [string, CellData])),
+  ];
+  const assignments = cells.map(([key, c]) => {
     const lastDash = key.lastIndexOf("-");
     // Hücre vardiya tanımına başlangıç saatiyle bağlanır (±10 dk)
     const def = a.shiftDefs.find(d => { if (d.on_call) return false; const [h, m] = d.start.split(":").map(Number); return Math.abs(h * 60 + m - c.startMin) <= 10; });
@@ -422,6 +428,8 @@ function SchedulePageInner() {
   const [personnel, setPersonnel]                 = useState<any[]>([]);
   const [departments, setDepartments]             = useState<any[]>([]);
   const [cellMap, setCellMap]                     = useState<CellMap>({});
+  // Aynı kişi-gün için ek vardiyalar (takas/açık vardiya/çakışma); tablo tek hücre düzenler, bunlar salt okunur gösterilir
+  const [extraCells, setExtraCells]               = useState<Record<string, CellData[]>>({});
   const [forceAssignMap, setForceAssignMap]       = useState<Record<string, { status: string; multiplier: number }>>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
@@ -843,6 +851,7 @@ function SchedulePageInner() {
         setAvailMap(newAvailMap);
 
         const newCellMap: CellMap = {};
+        const newExtra: Record<string, CellData[]> = {};
         const newOnCall: Record<string, { defId: string; pinned?: boolean; id?: number }> = {};
         const newForceMap: Record<string, { status: string; multiplier: number }> = {};
         if (Array.isArray(sData)) {
@@ -858,7 +867,9 @@ function SchedulePageInner() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}) };
+              const cellData: CellData = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}) };
+              if (newCellMap[key]) { (newExtra[key] ??= []).push(cellData); continue; }
+              newCellMap[key] = cellData;
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
                 newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 5 };
@@ -869,6 +880,7 @@ function SchedulePageInner() {
         }
         setForceAssignMap(newForceMap);
         setCellMap(newCellMap);
+        setExtraCells(newExtra);
         setOnCallMap(newOnCall);
         if (Object.keys(newOnCall).length > 0) {
           fetch(`/api/on-call-callouts?location_id=${activeLocationId}&week_start=${weekStart}`)
@@ -876,7 +888,7 @@ function SchedulePageInner() {
             .then(d => { if (!stale) setCallouts(Array.isArray(d) ? d : []); })
             .catch(() => {});
         } else setCallouts([]);
-        setDbShiftCount(Object.keys(newCellMap).length + Object.keys(newOnCall).length);
+        setDbShiftCount(Object.keys(newCellMap).length + Object.values(newExtra).flat().length + Object.keys(newOnCall).length);
         // Hafta yüklemesi kullanıcı düzenlemesi değildir — otomatik kayıt tetiklenmesin
         userEditRef.current = false;
         setDirty(false);
@@ -1324,7 +1336,7 @@ function SchedulePageInner() {
     let total = 0;
     let missingWage = 0;
     for (const p of personnel) {
-      const hours = Object.entries(cellMap)
+      const hours = [...Object.entries(cellMap), ...Object.entries(extraCells).flatMap(([k, l]) => l.map(v => [k, v] as [string, CellData]))]
         .filter(([k]) => k.startsWith(`${p.id}-`))
         .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
       if (hours === 0) continue;
@@ -1339,7 +1351,7 @@ function SchedulePageInner() {
       if (typeof pay === "number" && pay > 0) total += pay;
     }
     return { total: Math.round(total), missingWage };
-  }, [personnel, cellMap, onCallMap, shiftDefs, locRules]);
+  }, [personnel, cellMap, extraCells, onCallMap, shiftDefs, locRules]);
   const weeklyLaborBudgetTry = typeof (locRules as Record<string, unknown>)?.weekly_labor_budget_try === "number"
     ? (locRules as Record<string, number>).weekly_labor_budget_try : 0;
   const laborBudgetExceeded = weeklyLaborBudgetTry > 0 && laborCost.total > weeklyLaborBudgetTry;
@@ -2264,7 +2276,7 @@ function SchedulePageInner() {
   // Haftanın durumu: ekrandaki (henüz kaydedilmemiş olanlar dahil) plandan. Plan Asistanı ve
   // yayın öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
   // Kişi × 7 gün: her render'da hesaplamak ucuz
-  const weekSnapshot = scheduleSnapshot({ cellMap, onCallMap, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
+  const weekSnapshot = scheduleSnapshot({ cellMap, onCallMap, extraCells, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
     clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart });
 
   const weekBudgets: WeekBudgets = {
@@ -3341,6 +3353,24 @@ loading ? (
                             </div>
                           ) : null;
 
+                          // Aynı gün ek vardiya: tabloda düzenlenemez, çakışma olarak kırmızı gösterilir.
+                          // Yayınlı haftada tıklanınca "Gelemiyor" penceresi açılır (yedeğe ver / ilana çıkar).
+                          const extras = extraCells[cellKey] ?? [];
+                          const extraChip = extras.length > 0 ? extras.map(x => {
+                            const xDef = matchShiftDef(x.startMin, x.endMin, shiftDefs);
+                            const label = `${normTime(minToHHMM(x.startMin))}–${normTime(minToHHMM(x.endMin, x.endMin >= 1440))}`;
+                            return (
+                              <div key={x.id ?? label}
+                                onClick={readOnlyWeek && x.id ? () => openAbsence(x.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${label}`) : undefined}
+                                title="Aynı gün ikinci vardiya: dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlı haftada tıklayıp başkasına verebilirsiniz."
+                                className={cn("mt-0.5 mx-auto w-full max-w-[84px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
+                              >
+                                <div className="text-[10px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
+                                <div className="text-[9px] text-red-500">{label}</div>
+                              </div>
+                            );
+                          }) : null;
+
                           if (isPublishedWeek && !editUnlocked) {
                             const cellIsNight = cell ? isNightCell(cell) : false;
                             return (
@@ -3364,6 +3394,7 @@ loading ? (
                                     <span className="text-slate-200 text-xs">—</span>
                                   </div>
                                 ) : null}
+                                {extraChip}
                                 {onCallChip}
                               </td>
                             );
@@ -3441,6 +3472,7 @@ loading ? (
                                   <Plus size={13} />
                                 </button>
                               )}
+                              {extraChip}
                               {onCallChip}
                             </DroppableCell>
                           );
