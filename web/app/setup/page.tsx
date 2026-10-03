@@ -2,10 +2,9 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
-import { LogoMark } from "@/components/Logo";
 import { routeAfterLogin } from "@/lib/sessionRouting";
+import { AuthLogo } from "@/components/AuthLogo";
 
 function SetupForm() {
   const router = useRouter();
@@ -146,11 +145,8 @@ function SetupForm() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors mb-6">
-            <LogoMark size="md" />
-            OptiShift
-          </Link>
-          <div className="w-16 h-16 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <AuthLogo className="mb-6" />
+          <div className="flex justify-center mb-3">
             <Shield size={32} className="text-forest-600" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Hesabınızı Kurun</h1>

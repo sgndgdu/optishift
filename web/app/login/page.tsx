@@ -9,6 +9,7 @@ import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication } from "@simplewebauthn/browser";
 import { routeAfterLogin as routeAfterLoginShared, type LoginData } from "@/lib/sessionRouting";
+import { AuthLogo } from "@/components/AuthLogo";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
@@ -106,14 +107,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white flex">
       {/* Sol — Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-slate-50 relative">
-        <div className="absolute top-4 sm:top-6 left-4 sm:left-6">
+        <div className="hidden lg:block absolute top-6 left-6">
           <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
             <LogoMark size="md" />
             OptiShift
           </Link>
         </div>
 
-        <div className="w-full max-w-[400px] mt-10 sm:mt-12 lg:mt-0">
+        <div className="w-full max-w-[400px]">
+          <AuthLogo className="lg:hidden" />
           <div className="mb-8 sm:mb-10 text-center lg:text-left">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Tekrar Hoş Geldiniz</h1>
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın, doğru panele otomatik yönlendirilirsiniz.</p>

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
-import { LogoMark } from "@/components/Logo";
+import { AuthLogo } from "@/components/AuthLogo";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -60,14 +60,9 @@ function ResetPasswordForm() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-[400px] space-y-6">
-        <div className="text-center">
-          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors">
-            <LogoMark size="md" />
-            OptiShift
-          </Link>
-        </div>
+        <AuthLogo className="mb-2" />
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6">
+        <div className="space-y-6">
           {/* Token kontrol ediliyor */}
           {tokenValid === null && (
             <div className="text-center py-8">
@@ -79,7 +74,7 @@ function ResetPasswordForm() {
           {/* Geçersiz token */}
           {tokenValid === false && (
             <div className="text-center space-y-4">
-              <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto">
+              <div className="flex justify-center">
                 <AlertCircle size={26} className="text-red-500" />
               </div>
               <div>
@@ -101,7 +96,7 @@ function ResetPasswordForm() {
           {/* Başarılı sıfırlama */}
           {success && (
             <div className="text-center space-y-4">
-              <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto">
+              <div className="flex justify-center">
                 <CheckCircle2 size={26} className="text-emerald-600" />
               </div>
               <div>
@@ -117,9 +112,6 @@ function ResetPasswordForm() {
           {tokenValid === true && !success && (
             <>
               <div className="text-center">
-                <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Lock size={22} className="text-forest-600" />
-                </div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">Yeni Şifre Belirle</h1>
                 {name && (
                   <p className="text-sm text-slate-500 mt-1">Merhaba {name}, yeni şifrenizi girin.</p>

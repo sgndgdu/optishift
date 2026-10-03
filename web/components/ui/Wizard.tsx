@@ -52,21 +52,19 @@ export function WizardProgress({ steps, current, className = "" }: {
 }
 
 /** Tek bir adımın başlığı + içeriği. */
-export function WizardStep({ icon, color, title, sub, children }: {
-  icon: ReactNode;
-  color: string;
+export function WizardStep({ title, sub, children }: {
+  /** Eski çağrılar için kabul edilir, çizilmez (DESIGN.md: başlık yanında ikon kutusu yok). */
+  icon?: ReactNode;
+  color?: string;
   title: string;
   sub: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>{icon}</div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
-          <p className="text-slate-500 text-sm mt-1">{sub}</p>
-        </div>
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{title}</h2>
+        <p className="text-slate-500 text-sm mt-1">{sub}</p>
       </div>
       <div className="space-y-5">{children}</div>
     </div>

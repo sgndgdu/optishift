@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { LogoMark } from "@/components/Logo";
+import { AuthLogo } from "@/components/AuthLogo";
 
 export default function SelfSignupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -75,7 +75,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
-          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="flex justify-center mb-3">
             <AlertCircle size={28} className="text-red-500" />
           </div>
           <h1 className="text-xl font-bold text-slate-900 mb-2">Bu link kullanılamıyor</h1>
@@ -110,10 +110,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <LogoMark size="md" />
-            <span className="font-bold text-slate-900 text-lg">OptiShift</span>
-          </div>
+          <AuthLogo className="mb-6" />
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Ekibe Katıl</h1>
           <p className="text-slate-500 text-sm">
             <span className="font-semibold text-slate-700">{orgName}</span>

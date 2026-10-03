@@ -7,6 +7,7 @@ import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 import { Logo } from "@/components/Logo";
+import { AuthLogo } from "@/components/AuthLogo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -180,14 +181,11 @@ export default function RegisterPage() {
       {/* Sağ — Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-slate-50">
         <div className="w-full max-w-[440px]">
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <Logo size="md" className="w-10 h-10" />
-            <span className="text-xl font-bold tracking-tight text-slate-900">OptiShift</span>
-          </div>
+          <AuthLogo className="lg:hidden" />
 
           {!registeredUser && googlePending ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6 sm:mb-8">
+              <div className="mb-6 sm:mb-8 text-center lg:text-left">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Son Bir Adım</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">
                   <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. İşletmenizin adını ve bir kullanıcı adı belirleyin.
@@ -244,7 +242,7 @@ export default function RegisterPage() {
             </div>
           ) : !registeredUser ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6 sm:mb-8">
+              <div className="mb-6 sm:mb-8 text-center lg:text-left">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Ücretsiz Hesap Oluştur</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">İşletmenizi 1 dakikadan kısa sürede sisteme kaydedin.</p>
               </div>

@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Store, CalendarClock, Sparkles, ArrowRight, Plus, Trash2, Check, Zap } from "lucide-react";
+import { Store, CalendarClock, ArrowRight, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
 import { openBranchPanel } from "@/lib/sessionRouting";
+import { AuthLogo } from "@/components/AuthLogo";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
@@ -181,14 +182,15 @@ export default function OnboardingWizard() {
   if (!mounted || !user) return <div />;
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-50 to-forest-50 overflow-auto flex flex-col items-center justify-start md:justify-center p-4 pt-8 md:pt-4">
+    <div className="fixed inset-0 z-50 bg-slate-50 overflow-auto flex flex-col items-center justify-start md:justify-center p-4 pt-8 md:pt-4">
       <div className="w-full max-w-2xl">
+        <AuthLogo className="mb-6" />
 
         {/* Progress bar */}
         {step < 2 && <WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
 
         {/* Kart */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100">
+        <div className="bg-white rounded-2xl border border-slate-200">
           <div className="p-5 md:p-8 lg:p-10">
 
             {/* ── Adım 0: Sektör + Şubeler ── */}
@@ -209,9 +211,9 @@ export default function OnboardingWizard() {
                         value={b}
                         onChange={e => updateBranch(i, e.target.value)}
                         placeholder={["Kadıköy Şube", "Beşiktaş Şube", "Şişli Merkez", "Yeni Şube"][i] ?? "Şube adı"}
-                        className="flex-1 border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+                        className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
                       />
-                      <button onClick={() => removeBranch(i)} disabled={branches.length <= 1}
+                      <button onClick={() => removeBranch(i)} disabled={branches.length <= 1} aria-label="Şubeyi kaldır" title="Şubeyi kaldır"
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 transition-colors">
                         <Trash2 size={15} />
                       </button>
@@ -222,8 +224,8 @@ export default function OnboardingWizard() {
                   )}
                   {branches.length < 30 && !(freePlan && branches.length >= 1) && (
                     <button onClick={addBranch}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors">
-                      <Plus size={15} /> Şube Ekle
+                      className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+                      <Plus size={15} /> Şube ekle
                     </button>
                   )}
                 </div>
@@ -254,8 +256,8 @@ export default function OnboardingWizard() {
                         <input type="range" min={1} max={10} value={s.base_points}
                           onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: +e.target.value } : x))}
                           className="w-14 accent-primary" />
-                        <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))}
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))} aria-label="Vardiyayı kaldır" title="Vardiyayı kaldır"
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                           <Trash2 size={12} />
                         </button>
                       </div>
@@ -264,8 +266,8 @@ export default function OnboardingWizard() {
                   {shifts.length < 6 && (
                     <button
                       onClick={() => setShifts(p => [...p, { id: `s${Date.now()}`, name: "", start: "09:00", end: "17:00", base_points: 3 }])}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors">
-                      <Plus size={15} /> Vardiya Ekle
+                      className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+                      <Plus size={15} /> Vardiya ekle
                     </button>
                   )}
                 </div>
@@ -278,19 +280,10 @@ export default function OnboardingWizard() {
             {/* ── Adım 2: Tamamlandı ── */}
             {step === 2 && (
               <div className="text-center space-y-6 py-4">
-                <div className="relative inline-block">
-                  <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                    <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center">
-                      <Check size={32} className="text-white" strokeWidth={3} />
-                    </div>
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center animate-bounce">
-                    <Sparkles size={14} className="text-white" />
-                  </div>
-                </div>
+                <CheckCircle2 size={40} className="mx-auto text-emerald-600" />
 
                 <div>
-                  <h2 className="text-3xl font-bold text-slate-900">Her Şey Hazır!</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">Her şey hazır</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
                     {readyCount > 0
                       ? <><strong>{readyCount} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}</>
@@ -313,8 +306,7 @@ export default function OnboardingWizard() {
                       router.push("/supervisor");
                     }
                   }}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 group">
-                    <Zap size={18} />
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-colors group">
                     {singleLocationId ? "Vardiya Planına Git" : "Yönetim Paneline Git"}
                     <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
                   </button>

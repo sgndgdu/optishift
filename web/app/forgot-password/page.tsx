@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AtSign, ArrowLeft, AlertCircle, Mail } from "lucide-react";
-import { LogoMark } from "@/components/Logo";
+import { AuthLogo } from "@/components/AuthLogo";
 
 export default function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState("");
@@ -35,21 +35,12 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-[400px] space-y-6">
-        {/* Logo */}
-        <div className="text-center">
-          <Link href="/login" className="inline-flex items-center gap-2 text-slate-900 font-bold hover:text-forest-600 transition-colors">
-            <LogoMark size="md" />
-            OptiShift
-          </Link>
-        </div>
+        <AuthLogo className="mb-2" />
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6">
+        <div className="space-y-6">
           {!done ? (
             <>
               <div className="text-center">
-                <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <AtSign size={22} className="text-forest-600" />
-                </div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">Şifremi Unuttum</h1>
                 <p className="text-sm text-slate-500 mt-1.5">
                   Hesabınıza kayıtlı e-posta adresinizi veya kullanıcı adınızı girin.
@@ -97,7 +88,7 @@ export default function ForgotPasswordPage() {
           ) : (
             /* Güvenlik: hesap bulunsa da bulunmasa da aynı mesaj */
             <div className="text-center space-y-4">
-              <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto">
+              <div className="flex justify-center">
                 <Mail size={26} className="text-emerald-600" />
               </div>
               <div>
