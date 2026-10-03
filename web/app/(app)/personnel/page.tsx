@@ -6,20 +6,23 @@ import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Users, Plus, Search, Edit2, Trash2, X, Check, Copy,
-  Phone, Mail, Link, Upload, CheckCircle, AlertCircle, Loader2, RefreshCw,
+  Plus, Search, Trash2, Check, Copy,
+  Link, Upload, Loader2, RefreshCw, UserCog,
   ChevronDown,
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import ManagersCard from "@/components/personnel/ManagersCard";
+import { ManagerAccessEditor, ManagerAddSheet, accessSummary, canEditManager, type Mgr } from "@/components/personnel/ManagersCard";
 import { isBranchManager, parseAccess } from "@/lib/userAccess";
 
 const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListEmpty, ListItem, ListSection } from "@/components/ui/List";
+import { DetailRow, Sheet, sheetDangerClass, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 
 type MergedPerson = {
   /** Giriş hesabı; hızlı eklenen personelde yoktur (portala giremez). */
@@ -76,6 +79,9 @@ export default function PersonnelPage() {
   const [search, setSearch] = useState("");
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // Yöneticilerin yetki bilgisi (permissions, kapsam) ayrıntıda yetki düzenleyici için
+  const [rawUsers, setRawUsers] = useState<Mgr[]>([]);
+  const [showManagerAdd, setShowManagerAdd] = useState(false);
   const [showSignupCard, setShowSignupCard] = useState(false);
   const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
   // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü her zaman, müdür şube ayarına göre
@@ -95,9 +101,6 @@ export default function PersonnelPage() {
   const [addLoading, setAddLoading] = useState(false);
 
   // Post-creation invite modal
-  const [inviteModal, setInviteModal] = useState<{ name: string; username: string; tempPassword: string; inviteUrl: string } | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [passCopied, setPassCopied] = useState(false);
 
   // Invite link for existing user
   // Giriş bağlantıları (tek kişi ya da uygulamaya hiç girmemiş herkes); WhatsApp ile gönder / kopyala
@@ -142,6 +145,7 @@ export default function PersonnelPage() {
         fetch(`/api/crews?location_id=${u.location_id}`),
       ]);
       const users = await usersRes.json();
+      setRawUsers(Array.isArray(users) ? users : []);
       const personnelList = await personnelRes.json();
       const crewData = await crewRes.json();
       if (Array.isArray(crewData)) setCrewList(crewData.map((c: any) => ({ id: c.id, name: c.name, color: c.color ?? "#6366f1" })));
@@ -270,11 +274,7 @@ export default function PersonnelPage() {
       const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setAddError(data.error ?? "Bir hata oluştu"); setAddLoading(false); return; }
-      setInviteModal({
-        name: data.user.name, username: data.credentials.username,
-        tempPassword: data.credentials.temp_password,
-        inviteUrl: `${window.location.origin}/setup?token=${data.inviteToken}`,
-      });
+      setInviteLinks([{ name: data.user.name, username: data.credentials.username, invite_token: data.inviteToken }]);
       setShowAddModal(false);
       resetAddForm();
       fetchData(authUser);
@@ -333,11 +333,7 @@ export default function PersonnelPage() {
       const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ existing_personnel_id: person.personnelId, role: "employee" }) });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "Hesap açılamadı"); return; }
-      setInviteModal({
-        name: data.user.name, username: data.credentials.username,
-        tempPassword: data.credentials.temp_password,
-        inviteUrl: `${window.location.origin}/setup?token=${data.inviteToken}`,
-      });
+      setInviteLinks([{ name: data.user.name, username: data.credentials.username, invite_token: data.inviteToken }]);
       fetchData(authUser);
     } finally { setOpeningAccountId(null); }
   };
@@ -351,7 +347,6 @@ export default function PersonnelPage() {
 
   const handleDelete = async (person: MergedPerson) => {
     if (!person.userId) return;
-    if (!confirm(`${person.name} hesabını silmek istediğinize emin misiniz?`)) return;
     await fetch(`/api/users?id=${person.userId}`, { method: "DELETE" });
     fetchData(authUser);
   };
@@ -446,6 +441,28 @@ export default function PersonnelPage() {
     setEditLoading(false);
   };
 
+  // Yönetici/şef ekleme ve yetki düzenleme: patron, bölge yöneticisi, şube müdürü (kendi şefleri)
+  const branchMgr = isBranchManager(viewerAccessOf(authUser));
+  const canManageManagers = authUser?.role === "admin" || authUser?.role === "supervisor" || branchMgr;
+  const managerLocations = (authUser?.role === "manager" ? locations.filter(l => l.id === authUser?.location_id) : locations).map(l => ({ id: l.id, name: l.name }));
+
+  // Ayrıntı paneli (kişiye dokununca) ve iki adımlı silme
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const detailPerson = detailKey ? persons.find(p => (p.personnelId ?? p.userId) === detailKey) ?? null : null;
+  const userOf = (p: MergedPerson) => (p.userId ? rawUsers.find(u => u.id === p.userId) ?? null : null);
+  const managerSummary = (p: MergedPerson) => {
+    const u = userOf(p);
+    return u ? accessSummary(u, id => editDepts.find(d => d.id === id)?.name) : null;
+  };
+  /** Satırdaki tek durum (DESIGN.md §4): en önemlisi. */
+  const rowStatus = (p: MergedPerson): { label: string; tone: PillTone } | null => {
+    if (p.approval_status === "pending") return { label: "Onay bekliyor", tone: "attention" };
+    if (p.userId && p.is_temp_password) return { label: "Henüz girmedi", tone: "attention" };
+    if (p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0) return { label: "Departman seçin", tone: "attention" };
+    return null;
+  };
+
   // Hesabı var ama davet bağlantısıyla hiç girip şifresini belirlememiş
   const notJoined = persons.filter(p => p.userId && p.is_temp_password && p.approval_status !== "pending");
 
@@ -495,13 +512,13 @@ export default function PersonnelPage() {
   if (!mounted) return <Page />;
 
   return (
-    <Page>
+    <Page width="narrow">
       {/* Header */}
       <PageHeader title="Ekip" description={`${persons.length} kişi`} actions={
         /* Kişi eklemenin üç yolu tek düğmede */
         <div className="relative">
           <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
-            <Plus size={16} /> Personel Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+            <Plus size={16} /> Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
           {addMenuOpen && (
             <>
@@ -511,6 +528,11 @@ export default function PersonnelPage() {
                   { icon: Plus, title: "Tek kişi ekle", sub: "İsim ve telefonla hesap açılır", on: () => { resetAddForm(); setShowAddModal(true); } },
                   { icon: Upload, title: "Excel'den toplu ekle", sub: "Şablonu doldurup tüm ekibi bir kerede", on: () => setShowBulkModal(true) },
                   { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Personel kendi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
+                  ...(canManageManagers ? [{
+                    icon: UserCog, title: branchMgr ? "Şef ata" : "Yönetici ekle",
+                    sub: branchMgr ? "Bir departmanın planını yapacak kişi" : "Planı ve ekibi sizin yerinize yönetecek kişi",
+                    on: () => setShowManagerAdd(true),
+                  }] : []),
                 ].map(o => (
                   <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
                     className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50">
@@ -567,11 +589,6 @@ export default function PersonnelPage() {
         );
       })()}
 
-      {/* Yöneticiler: sadece patron ve bölge yöneticisi görür (müdür çalışan ekler) */}
-      {(authUser?.role === "admin" || authUser?.role === "supervisor" || isBranchManager(viewerAccessOf(authUser))) && locations.length > 0 && (
-        <ManagersCard viewerRole={authUser.role} branchManager={authUser.role === "manager"}
-          locations={(authUser.role === "manager" ? locations.filter(l => l.id === authUser.location_id) : locations).map(l => ({ id: l.id, name: l.name }))} />
-      )}
 
       {notJoined.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
@@ -592,162 +609,165 @@ export default function PersonnelPage() {
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
       </div>
 
-      {/* List */}
+      {/* Liste (DESIGN.md §2): satırda ad, unvan ve en önemli tek durum; ayrıntılar dokununca açılır */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 animate-pulse flex gap-4">
-              <div className="w-12 h-12 bg-slate-100 rounded-full" />
-              <div className="flex-1 space-y-2 pt-1"><div className="h-4 bg-slate-100 rounded w-1/3" /><div className="h-3 bg-slate-100 rounded w-1/2" /></div>
-            </div>
+        <List>
+          {[1, 2, 3, 4].map(i => (
+            <li key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+              <span className="w-8 h-8 rounded-full bg-slate-100" />
+              <span className="flex-1 space-y-1.5"><span className="block h-3 bg-slate-100 rounded w-1/3" /><span className="block h-2.5 bg-slate-100 rounded w-1/4" /></span>
+            </li>
           ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-          <Users size={40} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-500 font-medium">{search ? "Arama sonucu bulunamadı" : "Henüz kimse eklenmedi"}</p>
-          {!search && <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="mt-4 text-forest-600 font-bold text-sm hover:underline">+ İlk hesabı ekle</button>}
-        </div>
+        </List>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map(p => {
-            const badge = roleBadge(p);
-            const isPending = p.approval_status === "pending";
+        <List>
+          {filtered.length === 0 ? (
+            <ListEmpty action={!search && (
+              <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="text-sm font-semibold text-forest-700 hover:underline">Kişi ekle</button>
+            )}>
+              {search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
+            </ListEmpty>
+          ) : (() => {
+            const managers = filtered.filter(p => p.role !== "employee");
+            const staff = filtered.filter(p => p.role === "employee");
+            const row = (p: MergedPerson) => {
+              const pill = rowStatus(p);
+              const sub = [
+                p.role === "employee" ? (p.title || null) : roleBadge(p).label,
+                p.role !== "employee" && p.role !== "admin" ? managerSummary(p) : null,
+                p.department_id ? (editDepts.find(d => d.id === p.department_id)?.name ?? null) : null,
+                !p.userId ? "Giriş hesabı yok" : null,
+              ].filter(Boolean).join(" · ");
+              return (
+                <ListItem key={p.personnelId ?? p.userId}
+                  leading={<Avatar name={p.name} tone={p.role === "employee" ? "neutral" : "brand"} />}
+                  title={p.name}
+                  subtitle={sub || undefined}
+                  trailing={pill && <StatusPill tone={pill.tone}>{pill.label}</StatusPill>}
+                  onClick={() => setDetailKey(p.personnelId ?? p.userId)}
+                />
+              );
+            };
             return (
-              <div key={p.personnelId ?? p.userId} className={`group bg-white rounded-2xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.role === "manager" ? "bg-gradient-to-br from-forest-100 to-forest-200 text-forest-700" : "bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600"}`}>
-                  {p.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-extrabold text-slate-800 text-base truncate">{p.name}</h3>
-                      {p.userId
-                        ? <p className="text-xs font-mono text-slate-400 mt-0.5">{p.username}</p>
-                        : (
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            Giriş hesabı yok, portala giremez.{" "}
-                            <button onClick={() => handleOpenAccount(p)} disabled={openingAccountId === p.personnelId}
-                              className="font-bold text-forest-700 underline disabled:opacity-50">
-                              {openingAccountId === p.personnelId ? "Açılıyor…" : "Hesap Aç"}
-                            </button>
-                          </p>
-                        )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <StatusPill tone={badge.tone}>{badge.label}</StatusPill>
-                      {isPending && <StatusPill tone="attention">Onay Bekliyor</StatusPill>}
-                      {p.is_temp_password && !isPending && p.userId && (
-                        <button onClick={() => handleGenerateInvite(p)} title="Giriş bağlantısını gönder" className="hover:opacity-80">
-                          <StatusPill tone="attention">Henüz girmedi</StatusPill>
-                        </button>
-                      )}
-                      {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
-                        <button onClick={() => openEdit(p)} title="Departmanı seçilmemiş kişi otomatik plana alınmaz"
-                          className="hover:opacity-80"><StatusPill tone="attention">Departman seçin</StatusPill></button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100">
-                    {p.email && (
-                      <div className="flex flex-col gap-0.5 col-span-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">E-posta</span>
-                        <span className="text-xs font-medium text-slate-600 truncate flex items-center gap-1"><Mail size={11} className="text-slate-400 shrink-0" />{p.email}</span>
-                      </div>
-                    )}
-                    {p.phone && (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Telefon</span>
-                        <span className="text-xs font-medium text-slate-600 flex items-center gap-1"><Phone size={11} className="text-slate-400 shrink-0" />{p.phone}</span>
-                      </div>
-                    )}
-                    {p.title && (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unvan</span>
-                        <span className="text-xs font-medium text-slate-600 truncate">{p.title}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {p.personnelId && p.role === "employee" && (
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <span className="text-xs font-bold text-slate-500">Adalet Puanı: <strong className="text-forest-600">{p.prev_score}</strong></span>
-                      {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">⭐ {p.hero_count}x</span>}
-                      {p.crew_id && (() => { const crew = crewList.find(c => c.id === p.crew_id); return crew ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: crew.color }}>{crew.name}</span> : null; })()}
-                      {(p.ytd_overtime_hours ?? 0) > 0 && <StatusPill tone="attention">⏱ Bu yıl {p.ytd_overtime_hours} s mesai</StatusPill>}
-                    </div>
-                  )}
-
-                  {isPending && (authUser?.role === "admin" || authUser?.role === "supervisor") && (
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => handleApprove(p, "active")} className="flex-1 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-xl flex items-center justify-center gap-1"><CheckCircle size={13} /> Onayla</button>
-                      <button onClick={() => handleApprove(p, "rejected")} className="flex-1 text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 py-2 rounded-xl flex items-center justify-center gap-1"><AlertCircle size={13} /> Reddet</button>
-                    </div>
-                  )}
-
-                  {/* Dokunmatik ekranda fare yok: telefonda hep görünür */}
-                  <div className="flex items-center gap-1 mt-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-lg transition-colors" title="Düzenle"><Edit2 size={15} /></button>
-                    {p.userId && <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Davet Linki Oluştur">
-                      {inviteLinkLoading === p.userId ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={15} />}
-                    </button>}
-                    {/* Kendi hesabı ve patron hesabı buradan silinmez (sunucu da engeller) */}
-                    {p.userId && p.userId !== authUser?.id && p.role !== "admin"
-                      && (authUser?.role === "admin" || (authUser?.role === "supervisor" && p.role !== "supervisor") || (p.role === "employee" && can("personnel_delete"))) && (
-                      <button onClick={() => handleDelete(p)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hesabı Sil"><Trash2 size={15} /></button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <>
+                {managers.length > 0 && <ListSection title="Yönetim" count={managers.length} />}
+                {managers.map(row)}
+                {managers.length > 0 && staff.length > 0 && <ListSection title="Çalışanlar" count={staff.length} />}
+                {staff.map(row)}
+              </>
             );
-          })}
-        </div>
+          })()}
+        </List>
+      )}
+
+      {/* Kişi ayrıntısı: iletişim, Adalet Puanı ve tüm işlemler burada */}
+      {detailPerson && (() => {
+        const p = detailPerson;
+        const isPending = p.approval_status === "pending";
+        const canDelete = !!p.userId && p.userId !== authUser?.id && p.role !== "admin"
+          && (authUser?.role === "admin" || (authUser?.role === "supervisor" && p.role !== "supervisor") || (p.role === "employee" && can("personnel_delete")));
+        const crew = p.crew_id ? crewList.find(c => c.id === p.crew_id) : null;
+        const close = () => { setDetailKey(null); setConfirmDeleteKey(null); };
+        return (
+          <Sheet open onClose={close}
+            title={<span className="flex items-center gap-3"><Avatar name={p.name} size="md" tone={p.role === "employee" ? "neutral" : "brand"} />{p.name}</span>}
+            footer={<>
+              {canDelete && (confirmDeleteKey === p.userId
+                ? <button onClick={async () => { await handleDelete(p); close(); }} className="mr-auto px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">Evet, sil</button>
+                : <button onClick={() => setConfirmDeleteKey(p.userId)} className={`mr-auto ${sheetDangerClass}`}>Hesabı sil</button>)}
+              {p.userId
+                ? <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className={sheetSecondaryClass}>Giriş bağlantısı</button>
+                : p.personnelId && <button onClick={() => handleOpenAccount(p)} disabled={openingAccountId === p.personnelId} className={sheetSecondaryClass}>{openingAccountId === p.personnelId ? "Açılıyor…" : "Hesap aç"}</button>}
+              <button onClick={() => { close(); openEdit(p); }} className={sheetPrimaryClass}>Düzenle</button>
+            </>}
+          >
+            {isPending && (authUser?.role === "admin" || authUser?.role === "supervisor") && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+                <span className="flex-1 text-sm text-amber-900">Hesap onay bekliyor.</span>
+                <button onClick={async () => { await handleApprove(p, "rejected"); close(); }} className="text-sm font-semibold text-red-700 px-2">Reddet</button>
+                <button onClick={async () => { await handleApprove(p, "active"); close(); }} className="text-sm font-bold text-white bg-emerald-600 rounded-lg px-3 py-1.5">Onayla</button>
+              </div>
+            )}
+            <DetailRow label="Rol">{roleBadge(p).label}</DetailRow>
+            {p.title && p.role === "employee" && <DetailRow label="Unvan">{p.title}</DetailRow>}
+            {p.department_id && <DetailRow label="Departman">{editDepts.find(d => d.id === p.department_id)?.name ?? "-"}</DetailRow>}
+            {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
+              <DetailRow label="Departman"><span className="text-amber-700">Seçilmemiş, otomatik plana alınmaz</span></DetailRow>
+            )}
+            <DetailRow label="Kullanıcı adı">{p.userId ? p.username : "Giriş hesabı yok"}</DetailRow>
+            {p.userId && p.is_temp_password && <DetailRow label="Durum"><span className="text-amber-700">Henüz uygulamaya girmedi</span></DetailRow>}
+            {p.phone && <DetailRow label="Telefon"><a href={`tel:${p.phone}`} className="text-forest-700">{p.phone}</a></DetailRow>}
+            {p.email && <DetailRow label="E-posta">{p.email}</DetailRow>}
+            {p.personnelId && p.role === "employee" && <DetailRow label="Adalet Puanı">{p.prev_score}</DetailRow>}
+            {p.hero_count > 0 && <DetailRow label="Açık vardiya üstlenme">{p.hero_count} kez</DetailRow>}
+            {crew && <DetailRow label="Ekip">{crew.name}</DetailRow>}
+            {(p.ytd_overtime_hours ?? 0) > 0 && <DetailRow label="Bu yıl fazla mesai">{p.ytd_overtime_hours} saat</DetailRow>}
+            {(() => {
+              const u = userOf(p);
+              if (!u || (u.role !== "manager" && u.role !== "supervisor")) return null;
+              return (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-base font-bold text-slate-900 mb-3">Yönetim yetkisi</p>
+                  <p className="text-sm text-slate-600 mb-3">{accessSummary(u, id => editDepts.find(d => d.id === id)?.name)}</p>
+                  {canEditManager(authUser?.role ?? "", branchMgr, u) && (
+                    <ManagerAccessEditor key={u.id} m={u} locations={managerLocations} viewerRole={authUser?.role ?? ""} branchManager={branchMgr}
+                      onDone={() => { close(); fetchData(authUser); }} />
+                  )}
+                </div>
+              );
+            })()}
+          </Sheet>
+        );
+      })()}
+
+      {canManageManagers && (
+        <ManagerAddSheet open={showManagerAdd} onClose={() => setShowManagerAdd(false)} locations={managerLocations}
+          viewerRole={authUser?.role ?? ""} branchManager={branchMgr} onDone={() => fetchData(authUser)} />
       )}
 
       {/* ADD MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-800">Çalışan Ekle</h2>
-              <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-            </div>
+        <Sheet open onClose={() => { setShowAddModal(false); setAddError(""); }} title="Çalışan ekle"
+          description="Eklendikten sonra giriş bağlantısı gösterilir."
+          footer={<>
+            <button onClick={() => { setShowAddModal(false); setAddError(""); }} className={sheetSecondaryClass}>Vazgeç</button>
+            <button onClick={handleAdd} disabled={addLoading} className={sheetPrimaryClass}>{addLoading ? "Ekleniyor…" : "Ekle"}</button>
+          </>}>
             <div className="space-y-4">
               {/* Basic info */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad *</label>
-                  <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Ad Soyad *</label>
+                  <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 {isEmployee && (
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
-                    <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
+                    <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">E-posta</label>
-                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">E-posta</label>
+                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
-                  <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Telefon</label>
+                  <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
               {isEmployee && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Çalışma Tipi</label>
                     <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                       {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Max Haftalık Saat</label>
-                    <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Max Haftalık Saat</label>
+                    <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                   </div>
                 </div>
               )}
@@ -771,7 +791,7 @@ export default function PersonnelPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Şube *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Şube *</label>
                   <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                     <option value="">Şube seçin...</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -798,111 +818,42 @@ export default function PersonnelPage() {
                   </div>
                 </div>
               )}
-              {addError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{addError}</div>}
-              <div className="bg-forest-50 border border-forest-100 rounded-xl p-3 text-xs text-forest-700 flex items-center gap-2">
-                <Link size={12} className="shrink-0" />
-                Oluşturduktan sonra <strong className="ml-1">davet linki</strong>&nbsp;ve geçici şifre gösterilecek.
-              </div>
+              {addError && <p className="text-sm text-red-600">{addError}</p>}
             </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
-              <button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
-                {addLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Hesap Oluştur</>}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Sheet>
       )}
 
-      {/* POST-CREATION INVITE MODAL */}
-      {inviteModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0"><CheckCircle size={24} className="text-emerald-600" /></div>
-              <div>
-                <p className="font-black text-slate-900">{inviteModal.name} oluşturuldu!</p>
-                <p className="text-xs text-slate-500 mt-0.5">Personele aşağıdakilerden birini iletin</p>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Davet Linki (Önerilen)</p>
-                <StatusPill tone="positive">7 gün geçerli</StatusPill>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
-                <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
-                <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${inviteCopied ? "bg-emerald-500 text-white" : "bg-forest-600 text-white hover:bg-forest-700"}`}>
-                  {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1.5">Linke tıklandığında oturum otomatik açılır, sadece şifre belirlenir.</p>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Kullanıcı Adı & Geçici Şifre (Yedek)</p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Kullanıcı adı:</span>
-                  <span className="font-mono font-bold text-slate-800 text-sm">{inviteModal.username}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Geçici şifre:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-forest-600 text-sm">{inviteModal.tempPassword}</span>
-                    <button onClick={() => { navigator.clipboard.writeText(inviteModal.tempPassword); setPassCopied(true); setTimeout(() => setPassCopied(false), 2000); }} className={`p-1 rounded ${passCopied ? "text-emerald-600" : "text-slate-400 hover:text-slate-600"}`}>
-                      {passCopied ? <Check size={13} /> : <Copy size={13} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button onClick={() => { setInviteModal(null); setInviteCopied(false); setPassCopied(false); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors">Tamam, Kapat</button>
-          </div>
-        </div>
-      )}
-
-      {/* GİRİŞ BAĞLANTILARI (tek kişi ya da henüz girmeyen herkes) */}
-      {inviteLinks && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setInviteLinks(null)}>
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-black text-slate-900">Giriş bağlantıları</h2>
-              <button onClick={() => setInviteLinks(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" aria-label="Kapat"><X size={18} /></button>
-            </div>
-            <InviteLinkList results={inviteLinks} />
-          </div>
-        </div>
-      )}
+      {/* GİRİŞ BAĞLANTILARI (yeni hesap, tek kişi ya da henüz girmeyen herkes) */}
+      <Sheet open={!!inviteLinks} onClose={() => setInviteLinks(null)} title="Giriş bağlantıları"
+        footer={<button onClick={() => setInviteLinks(null)} className={sheetPrimaryClass}>Tamam</button>}>
+        {inviteLinks && <InviteLinkList results={inviteLinks} />}
+      </Sheet>
 
       {/* EDIT MODAL */}
       {editingPerson && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">Personel Düzenle</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{editingPerson.email}</p>
-              </div>
-              <button onClick={() => setEditingPerson(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-            </div>
+        <Sheet open onClose={() => setEditingPerson(null)} title={`${editingPerson.name} · Düzenle`}
+          footer={<>
+            <button onClick={() => setEditingPerson(null)} className={sheetSecondaryClass}>Vazgeç</button>
+            <button onClick={handleEdit} disabled={editLoading} className={sheetPrimaryClass}>{editLoading ? "Kaydediliyor…" : "Kaydet"}</button>
+          </>}>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad</label>
-                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Ad Soyad</label>
+                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
-                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
+                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Telefon</label>
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
               </div>
               {editingPerson.personnelId && editDepts.length > 0 && (
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Departman</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Departman</label>
                   <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
                     className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${editForm.department_id ? "border-slate-200" : "border-amber-300"}`}>
                     <option value="">Seçilmedi (otomatik plana alınmaz)</option>
@@ -914,23 +865,23 @@ export default function PersonnelPage() {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Çalışma Tipi</label>
                       <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Max Haftalık Saat</label>
-                      <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Max Haftalık Saat</label>
+                      <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Min Haftalık Saat</label>
-                      <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Min Haftalık Saat</label>
+                      <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Sabit İzin Günü</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Sabit İzin Günü</label>
                       <select value={editForm.weekly_off_day === null ? "" : String(editForm.weekly_off_day)} onChange={e => setEditForm(f => ({ ...f, weekly_off_day: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
                         <option value="">Tanımsız</option>
                         {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
@@ -938,8 +889,8 @@ export default function PersonnelPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Saatlik Ücret (₺, brüt)</label>
-                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!can("budget")} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white disabled:opacity-60 disabled:cursor-not-allowed" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Saatlik Ücret (₺, brüt)</label>
+                    <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!can("budget")} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                     <p className="text-[10px] text-slate-400 mt-1">
                       {can("budget")
                         ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
@@ -947,7 +898,7 @@ export default function PersonnelPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Gece Çalışma Engeli</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Gece Çalışma Engeli</label>
                     <select
                       value={editForm.night_restriction ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, night_restriction: e.target.value || null }))}
@@ -973,22 +924,22 @@ export default function PersonnelPage() {
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşe Giriş Tarihi</label>
-                      <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">İşe Giriş Tarihi</label>
+                      <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Yıllık İzin (gün)</label>
-                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Yıllık İzin (gün)</label>
+                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">İzin Düzeltme (±)</label>
-                      <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">İzin Düzeltme (±)</label>
+                      <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
                   {crewList.length > 0 && (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ekip Ataması</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Ekip Ataması</label>
                       <select
                         value={editForm.crew_id ?? ""}
                         onChange={e => setEditForm(f => ({ ...f, crew_id: e.target.value || null }))}
@@ -1039,7 +990,7 @@ export default function PersonnelPage() {
                   )}
                   {complianceTrackingEnabled && (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Belgeler</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Belgeler</label>
                       <p className="text-[10px] text-slate-400 mb-2">
                         {branchIndustry
                           ? "Bir rolün gerektirdiği belge geçersizse kişi o role atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
@@ -1077,13 +1028,13 @@ export default function PersonnelPage() {
                         </div>
                       )}
                       <div className="flex gap-2">
-                        <input value={newDocType} onChange={e => setNewDocType(e.target.value)} list="industry-doc-catalog" placeholder="Belge adı (örn. İş Güvenliği Belgesi)" className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        <input value={newDocType} onChange={e => setNewDocType(e.target.value)} list="industry-doc-catalog" placeholder="Belge adı (örn. İş Güvenliği Belgesi)" className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-forest-400" />
                         {branchIndustry && (
                           <datalist id="industry-doc-catalog">
                             {branchIndustry.documents.map(d => <option key={d.id} value={d.label} />)}
                           </datalist>
                         )}
-                        <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
+                        <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-white focus:outline-none focus:border-forest-400" />
                         <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
                       {docError && <p className="text-[10px] text-red-600 mt-1">{docError}</p>}
@@ -1091,7 +1042,7 @@ export default function PersonnelPage() {
                   )}
                   {kioskModeEnabled && (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ortak Tablet PIN'i</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Ortak Tablet PIN'i</label>
                       <p className="text-[10px] text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açık şubelerde geçerlidir.</p>
                       {editingPerson?.kiosk_pin_set ? (
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
@@ -1105,7 +1056,7 @@ export default function PersonnelPage() {
                             onChange={e => setNewKioskPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
                             placeholder="4 haneli PIN"
                             inputMode="numeric"
-                            className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
+                            className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-forest-400"
                           />
                           <button type="button" onClick={handleSetKioskPin} disabled={!/^\d{4}$/.test(newKioskPin) || kioskPinSaving} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">
                             {kioskPinSaving ? "..." : "Ata"}
@@ -1117,16 +1068,9 @@ export default function PersonnelPage() {
                   )}
                 </>
               )}
-              {editError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">{editError}</div>}
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
             </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setEditingPerson(null)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
-              <button onClick={handleEdit} disabled={editLoading} className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
-                {editLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Kaydet</>}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Sheet>
       )}
 
       {/* Excel/CSV ile toplu aktarım (components/personnel/BulkImportModal) */}
