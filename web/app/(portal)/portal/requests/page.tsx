@@ -14,6 +14,7 @@ import {
 import { violationText } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
+import { CountBadge, StatusPill } from "@/components/ui/StatusPill";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const LEAVE_TYPES = [
@@ -603,7 +604,7 @@ export default function PortalRequests() {
               <div className="flex items-center gap-1.5">
                 <Clock size={14} className="text-forest-600" />
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fazla Mesai Onayları</h2>
-                <span className="ml-1 bg-forest-100 text-forest-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{overtimePending.length}</span>
+                <CountBadge tone="brand" className="ml-1" count={overtimePending.length} />
               </div>
               {overtimePending.map((r: any) => (
                 <div key={r.id} className="bg-white rounded-2xl border border-forest-200 p-4 space-y-3">
@@ -663,7 +664,7 @@ export default function PortalRequests() {
               <div className="flex items-center gap-1.5">
                 <ShieldAlert size={14} className="text-amber-600" />
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zorunlu Atama Talepleri</h2>
-                <span className="ml-1 bg-amber-100 text-amber-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{forceAssigns.length}</span>
+                <CountBadge tone="attention" className="ml-1" count={forceAssigns.length} />
               </div>
               {forceAssigns.map((fa: any) => (
                 <ForceAssignCard
@@ -993,12 +994,12 @@ export default function PortalRequests() {
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Şube İzin Kuralları</p>
                   <div className="flex flex-wrap gap-2 mt-1.5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${leavePolicy.require_reason ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                    <StatusPill tone={leavePolicy.require_reason ? "attention" : "positive"}>
                       {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret isteğe bağlı"}
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${leavePolicy.allow_multi_day ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
-                      {leavePolicy.allow_multi_day ? `Çoklu gün (max ${leavePolicy.max_days_per_request})` : "Yalnızca tek gün"}
-                    </span>
+                    </StatusPill>
+                    <StatusPill tone={leavePolicy.allow_multi_day ? "info" : "neutral"}>
+                      {leavePolicy.allow_multi_day ? `Çoklu gün (en fazla ${leavePolicy.max_days_per_request})` : "Yalnızca tek gün"}
+                    </StatusPill>
                   </div>
                 </div>
               )}

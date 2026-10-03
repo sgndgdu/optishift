@@ -8,6 +8,7 @@ import { usePortalAuth } from "@/hooks/useAuth";
 import { useShiftWords } from "@/hooks/useShiftWords";
 import { violationText } from "@/lib/ruleViolations";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
@@ -129,7 +130,7 @@ export default function PortalOpenShiftsPage() {
           if (s.released_by && s.released_by === user?.personnel_id) {
             return (
               <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Senin ilanın</span>
+                <StatusPill tone="neutral">Senin ilanın</StatusPill>
                 <div>
                   <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
@@ -151,12 +152,12 @@ export default function PortalOpenShiftsPage() {
             <div key={s.id} className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 {s.hero_bonus_multiplier > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
+                  <StatusPill tone="attention">
                     <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
-                  </span>
+                  </StatusPill>
                 )}
                 {biddingEnabled && s.bid_count > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">{s.bid_count} teklif</span>
+                  <StatusPill tone="info">{s.bid_count} teklif</StatusPill>
                 )}
               </div>
               <div>

@@ -67,6 +67,7 @@ import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
+import { CountBadge } from "@/components/ui/StatusPill";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
 // group: "more"  → katlanır "Daha Fazla" grubu (kapalı başlar)
@@ -246,10 +247,10 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
     // adminOnly: sadece işletme sahibi (ör. Faturalandırma)
     .filter(item => !("adminOnly" in item && (item as any).adminOnly) || user?.role === "admin");
   const badgeOf = (href: string) =>
-    href === "/chat"      ? { n: chatUnread,       tone: "bg-red-500" } :
-    href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "bg-amber-500" } :
-    href === "/requests"  ? { n: pendingApprovals, tone: "bg-amber-500" } :
-    { n: 0, tone: "" };
+    href === "/chat"      ? { n: chatUnread,       tone: "danger" as const } :
+    href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "attention" as const } :
+    href === "/requests"  ? { n: pendingApprovals, tone: "attention" as const } :
+    { n: 0, tone: "danger" as const };
   const renderItem = ({ href, label, icon: Icon, exact }: { href: string; label: string; icon: any; exact?: boolean }) => {
     const active = exact ? pathname === href : pathname.startsWith(href);
     const badge  = badgeOf(href);
@@ -271,7 +272,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
         <Icon size={18} className={cn("shrink-0 transition-colors", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
         {label}
         {badge.n > 0 && (
-          <span className={cn("ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center", badge.tone)}>{badge.n}</span>
+          <CountBadge tone={badge.tone} className="ml-auto" count={badge.n} />
         )}
       </Link>
     );
@@ -384,7 +385,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
               Daha Fazla
               <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
               {!open && hiddenUnread > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">{hiddenUnread}</span>
+                <CountBadge size="sm" className="ml-auto" count={hiddenUnread} />
               )}
             </button>
             {open && more.map(renderItem)}

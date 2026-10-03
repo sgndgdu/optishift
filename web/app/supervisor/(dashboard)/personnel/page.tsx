@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 const EMP_TYPES = [
   { value: "full_time",  label: "Tam Zamanlı" },
@@ -315,7 +316,7 @@ function SupervisorPersonnelInner() {
                       {m.display_title || "Müdür"} · {locations.find((l: { id: string; name: string }) => l.id === m.location_id)?.name ?? "Şube atanmamış"} · {m.username}
                     </p>
                   </div>
-                  {m.is_temp_password && <span className="text-[10px] font-extrabold px-2 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 shrink-0">Henüz giriş yapmadı</span>}
+                  {m.is_temp_password && <StatusPill tone="danger" className="shrink-0">Henüz giriş yapmadı</StatusPill>}
                   <Button size="sm" variant="outline" disabled={inviteLinkLoading === m.id}
                     onClick={() => handleGenerateInvite({ id: m.id, user_id: m.id, name: m.name })}>
                     Davet bağlantısı
@@ -575,7 +576,7 @@ function SupervisorPersonnelInner() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Davet Linki (Önerilen)</p>
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">7 gün geçerli</span>
+                <StatusPill tone="positive">7 gün geçerli</StatusPill>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
                 <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>

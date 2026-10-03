@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Send, Users, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { CountBadge } from "@/components/ui/StatusPill";
 
 interface Message {
   id: number;
@@ -62,9 +63,9 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
       }`}>
         {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
         {(c.unread ?? 0) > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+          <CountBadge size="sm" className="absolute -top-1 -right-1">
             {c.unread}
-          </span>
+          </CountBadge>
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -322,7 +323,7 @@ export default function ManagerChatPage() {
             </div>
             <div className="flex items-center gap-2">
               {totalUnread > 0 && (
-                <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{totalUnread}</span>
+                <CountBadge count={totalUnread} />
               )}
               <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
                 <ChevronRight size={16} />

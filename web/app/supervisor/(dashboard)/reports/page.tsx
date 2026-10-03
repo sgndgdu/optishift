@@ -12,6 +12,7 @@ import {
   ShieldCheck, 
 } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 function formatWeekLabel(weekStart: string) {
@@ -245,15 +246,12 @@ export default function SupervisorReports() {
                       </div>
                     </div>
                     {branch.compliance_flags.length > 0 && (
-                      <span className="text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full shrink-0 cursor-pointer hover:bg-red-100"
-                        onClick={e => { e.stopPropagation(); setActiveTab("compliance"); }}>
-                        {branch.compliance_flags.length} uyarı
-                      </span>
+                      <button className="shrink-0 hover:opacity-80" onClick={e => { e.stopPropagation(); setActiveTab("compliance"); }}>
+                        <StatusPill tone="danger">{branch.compliance_flags.length} uyarı</StatusPill>
+                      </button>
                     )}
                     {branch.compliance_flags.length === 0 && (
-                      <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
-                        Uyumlu
-                      </span>
+                      <StatusPill tone="positive" className="shrink-0">Uyumlu</StatusPill>
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-3">

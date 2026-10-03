@@ -7,6 +7,7 @@ import { useManagerAuth } from "@/hooks/useAuth";
 import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, ShieldAlert, Info, RotateCcw } from "lucide-react";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { CountBadge, StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -238,14 +239,10 @@ export default function OvertimePage() {
           >
             {t === "pending" ? "Bekleyen Onaylar" : t === "status" ? "Personel Durumu" : "Uyarılar"}
             {t === "pending" && pending.length > 0 && (
-              <span className="ml-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {pending.length}
-              </span>
+              <CountBadge tone="attention" className="ml-2" count={pending.length} />
             )}
             {t === "warnings" && warnings.length > 0 && (
-              <span className="ml-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {warnings.length}
-              </span>
+              <CountBadge className="ml-2" count={warnings.length} />
             )}
           </button>
         ))}
@@ -460,21 +457,21 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
   onCompTime?: (id: number, used: boolean) => void;
   wage?: number;
 }) {
-  const statusMap: Record<string, { label: string; cls: string }> = {
-    pending:  { label: "Bekliyor",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
-    approved: { label: "Onaylandı",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    rejected: { label: "Reddedildi",  cls: "bg-red-50 text-red-600 border-red-200" },
+  const statusMap: Record<string, { label: string; tone: PillTone }> = {
+    pending:  { label: "Bekliyor",    tone: "attention" },
+    approved: { label: "Onaylandı",   tone: "positive" },
+    rejected: { label: "Reddedildi",  tone: "danger" },
   };
-  const st = statusMap[r.status] ?? { label: r.status, cls: "bg-slate-100 text-slate-500 border-slate-200" };
+  const st = statusMap[r.status] ?? { label: r.status, tone: "neutral" as PillTone };
 
   // Personel onayı (İş K. m.41) — kabulde telafi türü de gösterilir
   const compLabel = r.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret";
   const empChip =
     r.employee_status === "accepted"
-      ? { label: `Personel kabul ✓ · ${compLabel}`, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      ? { label: `Personel kabul ✓ · ${compLabel}`, tone: "positive" as PillTone }
       : r.employee_status === "declined"
-        ? { label: "Personel reddetti ✗", cls: "bg-red-50 text-red-600 border-red-200" }
-        : { label: "Personel onayı bekleniyor", cls: "bg-slate-50 text-slate-500 border-slate-200" };
+        ? { label: "Personel reddetti ✗", tone: "danger" as PillTone }
+        : { label: "Personel onayı bekleniyor", tone: "neutral" as PillTone };
 
   const isCompTimeRecord = r.status === "approved" && r.compensation_type === "time_off";
 
@@ -486,10 +483,10 @@ function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <span className="font-semibold text-slate-900 text-sm">{r.personnel_name ?? "—"}</span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${empChip.cls}`}>{empChip.label}</span>
+          <StatusPill tone={st.tone}>{st.label}</StatusPill>
+          <StatusPill tone={empChip.tone}>{empChip.label}</StatusPill>
           {isCompTimeRecord && r.comp_time_used_at && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">İzin kullandırıldı ✓</span>
+            <StatusPill tone="info">İzin kullandırıldı ✓</StatusPill>
           )}
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -567,21 +564,21 @@ function WarningsTab({ warnings }: { warnings: Warning[] }) {
     );
   }
 
-  const cfg: Record<WarningLevel, { icon: React.ReactNode; bg: string; border: string; badge: string; badgeTxt: string; label: string }> = {
+  const cfg: Record<WarningLevel, { icon: React.ReactNode; bg: string; border: string; badge: PillTone; badgeTxt: string; label: string }> = {
     critical: {
       icon: <ShieldAlert size={18} className="text-red-500 shrink-0" />,
       bg: "bg-red-50/60", border: "border-red-200",
-      badge: "bg-red-100 text-red-700 border-red-300", badgeTxt: "Kritik", label: "KRİTİK",
+      badge: "danger" as PillTone, badgeTxt: "Kritik", label: "KRİTİK",
     },
     high: {
       icon: <AlertTriangle size={18} className="text-amber-500 shrink-0" />,
       bg: "bg-amber-50/60", border: "border-amber-200",
-      badge: "bg-amber-100 text-amber-700 border-amber-300", badgeTxt: "Yüksek", label: "YÜKSEK",
+      badge: "attention" as PillTone, badgeTxt: "Yüksek", label: "YÜKSEK",
     },
     info: {
       icon: <Info size={18} className="text-blue-400 shrink-0" />,
       bg: "bg-blue-50/40", border: "border-blue-200",
-      badge: "bg-blue-100 text-blue-700 border-blue-200", badgeTxt: "Bilgi", label: "BİLGİ",
+      badge: "info" as PillTone, badgeTxt: "Bilgi", label: "BİLGİ",
     },
   };
 
@@ -612,9 +609,7 @@ function WarningsTab({ warnings }: { warnings: Warning[] }) {
                       {w.personnelName && (
                         <span className="font-bold text-slate-800 text-sm">{w.personnelName}</span>
                       )}
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${c.badge}`}>
-                        {c.badgeTxt}
-                      </span>
+                      <StatusPill tone={c.badge}>{c.badgeTxt}</StatusPill>
                     </div>
                     <p className="text-sm font-semibold text-slate-700">{w.title}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{w.detail}</p>
@@ -663,14 +658,14 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-sm font-semibold text-slate-800 truncate">{p.name}</span>
                   {isRed && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 shrink-0">
+                    <StatusPill tone="danger" className="shrink-0">
                       Limite Yakın
-                    </span>
+                    </StatusPill>
                   )}
                   {isAmber && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                    <StatusPill tone="attention" className="shrink-0">
                       Dikkat
-                    </span>
+                    </StatusPill>
                   )}
                 </div>
                 <YtdBar hours={ytd} max={maxYtd} />

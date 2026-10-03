@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X, CalendarCheck, Copy } from "lucide-react";
 import Link from "next/link";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Status = "available" | "preferred_not" | "unavailable";
@@ -199,7 +200,7 @@ function RangeSlider({ start, end, status, onChange }: {
           className={`text-right rounded-xl px-2 py-1 -mr-2 transition-colors ${picker === "end" ? cfg.light : "hover:bg-slate-50"}`}>
           <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5 flex items-center justify-end gap-1">
             Bitiş
-            {isNextDay && <span className="bg-ember-100 text-ember-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">+1</span>}
+            {isNextDay && <StatusPill tone="info">+1</StatusPill>}
           </div>
           <div className={`text-2xl font-black tabular-nums leading-none ${isNextDay ? "text-ember-700" : "text-slate-800"}`}>
             {displayTime(eMin)}

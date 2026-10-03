@@ -14,6 +14,7 @@ import { confirmDespiteViolations, violationText, type ViolationResponse } from 
 import { formatDateTR } from "@/lib/date";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
+import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -502,10 +503,10 @@ export default function ManagerRequestsPage() {
           {(visibleOvertimes as any[]).map((o: any) => {
             const pending = o.status === "pending";
             const empChip = o.employee_status === "accepted"
-              ? { label: `Personel kabul ✓ · ${o.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret"}`, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+              ? { label: `Personel kabul ✓ · ${o.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret"}`, tone: "positive" as PillTone }
               : o.employee_status === "declined"
-                ? { label: "Personel reddetti ✗", cls: "bg-red-50 text-red-600 border-red-200" }
-                : { label: "Personel onayı bekleniyor", cls: "bg-slate-50 text-slate-500 border-slate-200" };
+                ? { label: "Personel reddetti ✗", tone: "danger" as PillTone }
+                : { label: "Personel onayı bekleniyor", tone: "neutral" as PillTone };
             return (
               <div key={o.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-amber-200" : "border-slate-100"}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -514,7 +515,7 @@ export default function ManagerRequestsPage() {
                       <Timer size={13} className="text-amber-600 shrink-0" />
                       <span className="text-sm font-black text-slate-900">{o.personnel_name ?? "—"}</span>
                       <StatusBadge status={o.status} />
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${empChip.cls}`}>{empChip.label}</span>
+                      <StatusPill tone={empChip.tone}>{empChip.label}</StatusPill>
                     </div>
                     <p className="text-xs text-slate-600 font-semibold">{o.overtime_hours} saat fazla mesai</p>
                     <p className="text-xs text-slate-500">{o.week_start ? otWeekLabel(o.week_start) : "—"} haftası · {o.scheduled_hours} saat planlı</p>

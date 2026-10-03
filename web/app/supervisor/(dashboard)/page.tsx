@@ -18,6 +18,7 @@ import { getWeekStart } from "@/lib/date";
 import { openBranchPanel } from "@/lib/sessionRouting";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { CountBadge } from "@/components/ui/StatusPill";
 type Location = {
   id: string;
   name: string;
@@ -160,7 +161,7 @@ export default function SupervisorDashboard() {
         <div>
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
             Bekleyen Onaylar
-            <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{editRequests.length}</span>
+            <CountBadge tone="attention" count={editRequests.length} />
           </h2>
           <div className="space-y-2">
             {editRequests.map(req => {

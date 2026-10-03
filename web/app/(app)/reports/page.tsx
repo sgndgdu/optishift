@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 interface ReportRow {
   personnel_id: string;
@@ -292,9 +293,9 @@ function WorkHoursReport() {
                   <td className="px-3 sm:px-5 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap">{row.total_hours} sa</td>
                   <td className="px-3 sm:px-5 py-3.5 text-right whitespace-nowrap">
                     {row.overtime_hours > 0 ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                      <StatusPill tone="attention">
                         +{row.overtime_hours} sa
-                      </span>
+                      </StatusPill>
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}

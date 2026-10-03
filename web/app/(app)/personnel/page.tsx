@@ -14,6 +14,7 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
 type MergedPerson = {
   /** Giriş hesabı; hızlı eklenen personelde yoktur (portala giremez). */
@@ -453,10 +454,10 @@ export default function PersonnelPage() {
   const todayISO = new Date().toISOString().split("T")[0];
 
   const roleBadge = (p: MergedPerson) => {
-    if (p.role === "admin") return { label: "İşletme Sahibi", color: "bg-ember-50 text-ember-700 border-ember-100" };
-    if (p.role === "supervisor") return { label: "Bölge Müdürü", color: "bg-ember-50 text-ember-700 border-ember-100" };
-    if (p.display_title) return { label: p.display_title, color: "bg-forest-50 text-forest-700 border-forest-100" };
-    return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
+    if (p.role === "admin") return { label: "İşletme Sahibi", tone: "accent" as PillTone };
+    if (p.role === "supervisor") return { label: "Bölge Müdürü", tone: "accent" as PillTone };
+    if (p.display_title) return { label: p.display_title, tone: "brand" as PillTone };
+    return { label: "Personel", tone: "neutral" as PillTone };
   };
 
   if (!mounted) return <Page />;
@@ -583,12 +584,12 @@ export default function PersonnelPage() {
                         )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${badge.color}`}>{badge.label}</span>
-                      {isPending && <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">Onay Bekliyor</span>}
-                      {p.is_temp_password && !isPending && <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">Şifre Geçici</span>}
+                      <StatusPill tone={badge.tone}>{badge.label}</StatusPill>
+                      {isPending && <StatusPill tone="attention">Onay Bekliyor</StatusPill>}
+                      {p.is_temp_password && !isPending && <StatusPill tone="danger">Şifre Geçici</StatusPill>}
                       {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
                         <button onClick={() => openEdit(p)} title="Departmanı seçilmemiş kişi otomatik plana alınmaz"
-                          className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100">Departman seçin</button>
+                          className="hover:opacity-80"><StatusPill tone="attention">Departman seçin</StatusPill></button>
                       )}
                     </div>
                   </div>
@@ -619,7 +620,7 @@ export default function PersonnelPage() {
                       <span className="text-xs font-bold text-slate-500">Adalet Puanı: <strong className="text-forest-600">{p.prev_score}</strong></span>
                       {p.hero_count > 0 && <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">⭐ {p.hero_count}x</span>}
                       {p.crew_id && (() => { const crew = crewList.find(c => c.id === p.crew_id); return crew ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: crew.color }}>{crew.name}</span> : null; })()}
-                      {(p.ytd_overtime_hours ?? 0) > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">⏱ Bu yıl {p.ytd_overtime_hours} s mesai</span>}
+                      {(p.ytd_overtime_hours ?? 0) > 0 && <StatusPill tone="attention">⏱ Bu yıl {p.ytd_overtime_hours} s mesai</StatusPill>}
                     </div>
                   )}
 
@@ -781,7 +782,7 @@ export default function PersonnelPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Davet Linki (Önerilen)</p>
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">7 gün geçerli</span>
+                <StatusPill tone="positive">7 gün geçerli</StatusPill>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
                 <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>

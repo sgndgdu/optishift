@@ -7,6 +7,7 @@ import { useManagerAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 type StatusFilter = "all" | "unread" | "read";
 
@@ -101,17 +102,17 @@ export default function HandoversPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-sm font-bold text-slate-800 truncate">{r.author_name}</span>
                   {r.department_name && (
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full shrink-0">{r.department_name}</span>
+                    <StatusPill tone="neutral" className="shrink-0">{r.department_name}</StatusPill>
                   )}
                 </div>
                 {r.read_by_personnel_id ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full shrink-0">
+                  <StatusPill tone="positive" className="shrink-0">
                     <Check size={11} /> {r.reader_name} teslim aldı
-                  </span>
+                  </StatusPill>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full shrink-0">
+                  <StatusPill tone="attention" className="shrink-0">
                     <Clock size={11} /> Bekliyor
-                  </span>
+                  </StatusPill>
                 )}
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">{r.note}</p>

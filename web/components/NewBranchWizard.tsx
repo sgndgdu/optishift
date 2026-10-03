@@ -18,6 +18,7 @@ import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { geocodePlace } from "@/lib/geo";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 const STEPS = [
   { label: "Şube",       icon: Building2 },
@@ -216,7 +217,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       <div>
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bu şube için açılan özellikler</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {highlights.map(h => <span key={h} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-forest-50 text-forest-700 border border-forest-100">{h}</span>)}
+                          {highlights.map(h => <StatusPill key={h} tone="brand">{h}</StatusPill>)}
                         </div>
                       </div>
                     )}

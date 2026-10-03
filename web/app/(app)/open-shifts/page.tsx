@@ -10,15 +10,16 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "open") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Açık</span>;
-  if (status === "claimed") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Üstlenildi</span>;
-  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">İptal</span>;
+  if (status === "open") return <StatusPill tone="attention">Açık</StatusPill>;
+  if (status === "claimed") return <StatusPill tone="positive">Üstlenildi</StatusPill>;
+  return <StatusPill tone="neutral">İptal</StatusPill>;
 }
 
 export default function OpenShiftsPage() {
@@ -321,9 +322,9 @@ export default function OpenShiftsPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <StatusBadge status={s.status} />
                   {s.hero_bonus_multiplier > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
+                    <StatusPill tone="attention">
                       <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
-                    </span>
+                    </StatusPill>
                   )}
                 </div>
                 <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>

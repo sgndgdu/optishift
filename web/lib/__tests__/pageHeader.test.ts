@@ -13,7 +13,7 @@ const PANEL_DIRS = ["app/(app)", "app/supervisor", "app/(portal)", "components"]
 const EXEMPT = [
   "app/(app)/onboarding/", "app/(portal)/portal/login/", "app/(portal)/layout.tsx",
   "components/ui/PageHeader.tsx", "components/LegalShell.tsx", "components/guide/", "components/Sidebar.tsx",
-  "components/PublicHeader.tsx",
+  "components/PublicHeader.tsx", "components/ui/",
 ];
 
 function files(dir: string): string[] {
@@ -43,6 +43,13 @@ describe("sayfa standardı", () => {
   it("sayfa kartı rounded-2xl; rounded-3xl sadece açılır pencerede", () => {
     const bad = all.filter(f => readFileSync(join(ROOT, f), "utf8").split("\n").some(line =>
       /\bbg-white\b/.test(line) && /\brounded-3xl\b/.test(line) && !/shadow-2xl/.test(line)));
+    expect(bad).toEqual([]);
+  });
+
+  it("durum etiketi ve sayı balonu elle çizilmez (StatusPill / CountBadge)", () => {
+    const badge = /<span\b[^>]*className=[{"`][^>]*text-\[(8|9|10|11)px\][^>]*rounded-(full|lg|md)[^>]*bg-(red|amber|emerald|sky|blue|slate|forest|rose|orange|yellow|ember)-(50|100|200|500)|<span\b[^>]*className=[{"`][^>]*bg-(red|amber)-500[^>]*text-white[^>]*rounded-full/;
+    const bad = all.flatMap(f => readFileSync(join(ROOT, f), "utf8").split("\n")
+      .map((line, i) => (badge.test(line) ? `${f}:${i + 1}` : null)).filter(Boolean));
     expect(bad).toEqual([]);
   });
 });

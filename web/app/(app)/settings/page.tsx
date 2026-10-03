@@ -20,6 +20,7 @@ import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -267,7 +268,7 @@ function RequiredSkillsEditor({
       {skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {skills.map((rs, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-forest-50 border border-forest-200 text-forest-700">
+            <StatusPill key={i} tone="brand">
               ≥{rs.count} {rs.skill}
               <button
                 type="button"
@@ -276,7 +277,7 @@ function RequiredSkillsEditor({
               >
                 <X size={10} />
               </button>
-            </span>
+            </StatusPill>
           ))}
         </div>
       )}
@@ -2110,10 +2111,10 @@ export default function SettingsPage() {
                           )}
                           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {(dept as any).personnel_count !== undefined && (
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                            <StatusPill tone="neutral" className="shrink-0">
                               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {(dept as any).personnel_count} personel
-                            </span>
+                            </StatusPill>
                           )}
                           {editingDeptId === dept.id ? (
                             <>
@@ -2251,7 +2252,7 @@ export default function SettingsPage() {
                           <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
                         )}
                         {(crew as any).member_count !== undefined && (
-                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{(crew as any).member_count} üye</span>
+                          <StatusPill tone="neutral">{(crew as any).member_count} üye</StatusPill>
                         )}
                         {editingCrewId === crew.id ? (
                           <>

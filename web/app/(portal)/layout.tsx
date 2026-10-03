@@ -10,6 +10,7 @@ import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
 import { AvailabilityEnabledContext, OpenShiftsEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
+import { CountBadge } from "@/components/ui/StatusPill";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -156,12 +157,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 <div className="relative shrink-0">
                   <Icon size={18} className={cn("transition-colors", isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
                   {badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{badge}</span>
+                    <CountBadge size="sm" className="absolute -top-1.5 -right-1.5">{badge}</CountBadge>
                   )}
                 </div>
                 {label}
                 {badge > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
+                  <CountBadge count={badge} className="ml-auto" />
                 )}
               </Link>
               </div>
@@ -215,7 +216,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{notifUnread}</span>
+                <CountBadge size="sm" className="absolute top-1 right-1">{notifUnread}</CountBadge>
               )}
             </Link>
             <Link href="/portal/settings" aria-label="Hesabım" title="Hesabım" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
@@ -248,7 +249,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     <div className="relative">
                       <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="relative" />
                       {isChat && chatUnread > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">{chatUnread}</span>
+                        <CountBadge size="sm" className="absolute -top-1.5 -right-1.5">{chatUnread}</CountBadge>
                       )}
                     </div>
                     <span className={cn("text-[10px] relative", isActive ? "font-bold" : "font-medium")}>{label}</span>

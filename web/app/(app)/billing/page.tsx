@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { FEATURES } from "@/lib/features";
 import FeatureDisabled from "@/components/FeatureDisabled";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 const PLANS = [
   {
@@ -136,7 +137,7 @@ function BillingContent() {
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mevcut Plan</p>
           <p className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
             {PLANS.find(p => p.id === currentPlan)?.name ?? currentPlan}
-            {currentPlan === "pro" && <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Aktif</span>}
+            {currentPlan === "pro" && <StatusPill tone="positive">Aktif</StatusPill>}
           </p>
         </div>
         {!isStripeConfigured && (

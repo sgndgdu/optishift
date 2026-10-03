@@ -9,6 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { fairnessBarColor, fairnessLabelFromAverage } from "@/lib/fairness";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 
@@ -255,9 +256,9 @@ export default function FairnessReport() {
                     <span className="font-semibold text-slate-700">{d.name}</span>
                     <span className="text-xs text-slate-400">{d.start}–{d.end}</span>
                     {d.is_night && (
-                      <span className="flex items-center gap-0.5 text-[10px] font-bold bg-forest-50 text-forest-600 px-1.5 py-0.5 rounded-md">
+                      <StatusPill tone="brand">
                         <Moon size={9} /> Gece
-                      </span>
+                      </StatusPill>
                     )}
                     <span className="text-xs font-bold text-ember-600 bg-ember-50 px-1.5 py-0.5 rounded-md">
                       {d.base_points ?? "?"}p
@@ -369,14 +370,14 @@ function CurrentView({
             {/* Rozetler */}
             <div className="flex items-center gap-1 w-12 shrink-0">
               {(p.hero_count ?? 0) > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-lg">
+                <StatusPill tone="attention">
                   <Trophy size={9} />{p.hero_count}
-                </span>
+                </StatusPill>
               )}
               {(p.no_show_count ?? 0) > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-lg">
+                <StatusPill tone="danger">
                   <AlertTriangle size={9} />{p.no_show_count}
-                </span>
+                </StatusPill>
               )}
             </div>
           </button>

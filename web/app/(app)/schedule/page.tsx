@@ -39,6 +39,7 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { hasManagerPermission } from "@/lib/ruleLocks";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 const DAYS = DAY_SHORT;
 
@@ -2893,15 +2894,15 @@ loading ? (
             {/* Durum çipi */}
             {!loading && (
               cellCount === 0 && dbShiftCount === 0 ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap">Boş hafta</span>
+                <StatusPill tone="neutral">Boş hafta</StatusPill>
               ) : isPublishedWeek && !dirty ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-100 text-emerald-700 whitespace-nowrap flex items-center gap-1">
+                <StatusPill tone="positive">
                   <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` · ${currentRevision}. güncelleme` : ""}
-                </span>
+                </StatusPill>
               ) : isPublishedWeek && dirty ? (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">Yayınlanmamış değişiklik</span>
+                <StatusPill tone="attention">Yayınlanmamış değişiklik</StatusPill>
               ) : (
-                <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-100 text-sky-700 whitespace-nowrap" title="Personel taslağı göremez">Taslak</span>
+                <StatusPill tone="info" title="Personel taslağı göremez">Taslak</StatusPill>
               )
             )}
 
@@ -3257,12 +3258,10 @@ loading ? (
                             <div className="text-[10px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
                           )}
                           {totalNeeded > 0 && (
-                            <div className={cn(
-                              "mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mx-auto w-fit border",
-                              totalAssigned < totalNeeded ? "bg-red-50 text-red-600 border-red-100" :
-                              totalAssigned === totalNeeded ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                              "bg-sky-50 text-sky-600 border-sky-100"
-                            )} title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</div>
+                            <div className="mt-1 w-fit mx-auto">
+                              <StatusPill tone={totalAssigned < totalNeeded ? "danger" : totalAssigned === totalNeeded ? "positive" : "info"}
+                                title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</StatusPill>
+                            </div>
                           )}
                         </th>
                       );
@@ -4026,9 +4025,9 @@ loading ? (
             const hardCount = [isWknd, isNght, isPrfN].filter(Boolean).length;
             return (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {isWknd && <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-100">Hf. sonu</span>}
-                {isNght && <span className="text-[10px] bg-forest-50 text-forest-700 px-2 py-0.5 rounded-full font-semibold border border-forest-100">🌙 Gece</span>}
-                {isPrfN && <span className="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-semibold border border-yellow-100">Sarı gün</span>}
+                {isWknd && <StatusPill tone="attention">Hf. sonu</StatusPill>}
+                {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
+                {isPrfN && <StatusPill tone="attention">Sarı gün</StatusPill>}
                 <span className="text-[10px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
               </div>
             );

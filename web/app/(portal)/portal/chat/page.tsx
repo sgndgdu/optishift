@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Send, Users, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { CountBadge } from "@/components/ui/StatusPill";
 
 interface Message {
   id: number;
@@ -278,7 +279,7 @@ export default function EmployeeChatPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-black text-slate-700">Mesajlar</h2>
               {totalUnread > 0 && (
-                <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{totalUnread}</span>
+                <CountBadge count={totalUnread} />
               )}
             </div>
             <div className="relative">
@@ -304,7 +305,7 @@ export default function EmployeeChatPage() {
                   }`}>
                     {c.type === "group" ? <Users size={14} /> : c.name.charAt(0).toUpperCase()}
                     {(c.unread ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
+                      <CountBadge size="sm" className="absolute -top-1 -right-1">{c.unread}</CountBadge>
                     )}
                   </div>
                   <span className={`text-[9px] font-semibold truncate max-w-[52px] ${isSelected ? "text-primary" : "text-slate-500"}`}>
@@ -336,7 +337,7 @@ export default function EmployeeChatPage() {
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative bg-emerald-100 text-emerald-700`}>
                             <Users size={14} />
                             {(c.unread ?? 0) > 0 && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
+                              <CountBadge size="sm" className="absolute -top-1 -right-1">{c.unread}</CountBadge>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -370,7 +371,7 @@ export default function EmployeeChatPage() {
                           }`}>
                             {c.name.charAt(0).toUpperCase()}
                             {(c.unread ?? 0) > 0 && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{c.unread}</span>
+                              <CountBadge size="sm" className="absolute -top-1 -right-1">{c.unread}</CountBadge>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
