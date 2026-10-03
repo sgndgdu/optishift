@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Wallet, Plus, Split, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 
 function todayStr() {
   const d = new Date();
@@ -116,35 +117,27 @@ export default function TipPoolsPage() {
 
   if (enabled === false) {
     return (
-      <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <Page width="narrow">
+        <PageHeader title="Bahşiş Havuzu" />
         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
           <Wallet size={28} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-600">Bahşiş Havuzu bu şubede kapalı</p>
           <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Ek Özellikler sekmesinden açabilirsiniz.</p>
         </div>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
-            <Wallet size={20} className="text-emerald-600" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900">Bahşiş Havuzu</h1>
-            <p className="text-sm text-slate-500">Dönemlik prim dağıtımı</p>
-          </div>
-        </div>
+    <Page width="narrow">
+      <PageHeader title="Bahşiş Havuzu" description="Dönemlik prim dağıtımı." actions={
         <button
           onClick={() => setShowForm(v => !v)}
-          className="flex items-center gap-2 bg-primary text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+          className={pageActionClass}
         >
           <Plus size={16} /> Yeni Havuz
         </button>
-      </div>
+      } />
 
       {showForm && (
         <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
@@ -244,6 +237,6 @@ export default function TipPoolsPage() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

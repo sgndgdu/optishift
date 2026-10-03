@@ -8,6 +8,8 @@ import { useManagerAuth } from "@/hooks/useAuth";
 import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks, Gavel } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -207,41 +209,24 @@ export default function OpenShiftsPage() {
   if (!mounted) return <div className="space-y-6" />;
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
+    <Page width="narrow">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-            <Megaphone size={20} className="text-amber-600" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900">Açık Vardiyalar</h1>
-            <p className="text-xs md:text-sm text-slate-500">İlan et, personel kahraman bonusuyla üstlensin</p>
-          </div>
-        </div>
+      <PageHeader title="Açık Vardiyalar" description="İlan et, personel kahraman bonusuyla üstlensin." actions={
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 md:gap-2 bg-primary text-white px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 shrink-0"
+          className={pageActionClass}
         >
-          <Plus size={16} /> <span className="hidden sm:inline">Yeni İlan</span><span className="sm:hidden">Ekle</span>
+          <Plus size={16} /> Yeni İlan
         </button>
-      </div>
+      } />
 
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3 md:gap-4">
         {[
-          { label: "Açık İlan", value: openCount, icon: Megaphone, badgeBg: "bg-amber-100", text: "text-amber-600" },
-          { label: "Üstlenildi", value: claimedCount, icon: CheckCircle2, badgeBg: "bg-emerald-100", text: "text-emerald-600" },
-          { label: "Toplam", value: shifts.length, icon: ListChecks, badgeBg: "bg-slate-100", text: "text-slate-600" },
-        ].map(k => (
-          <div key={k.label} className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 mx-auto ${k.badgeBg} ${k.text}`}>
-              <k.icon size={18} />
-            </div>
-            <p className="text-2xl font-black text-slate-900">{k.value}</p>
-            <p className="text-xs font-bold text-slate-500 mt-0.5">{k.label}</p>
-          </div>
-        ))}
+          { label: "Açık İlan", value: openCount, icon: Megaphone, tone: "attention" as const },
+          { label: "Üstlenildi", value: claimedCount, icon: CheckCircle2, tone: "positive" as const },
+          { label: "Toplam", value: shifts.length, icon: ListChecks, tone: "neutral" as const },
+        ].map(k => <StatCard key={k.label} {...k} />)}
       </div>
 
       {/* Create form */}
@@ -489,6 +474,6 @@ export default function OpenShiftsPage() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

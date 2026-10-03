@@ -5,6 +5,7 @@ import { Plus, X, Check } from "lucide-react";
 import { ERP_SYSTEMS, erpLabel } from "@/lib/erp";
 import { FEATURES } from "@/lib/features";
 import FeatureDisabled from "@/components/FeatureDisabled";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 interface MappedField { erp: string; sys: string }
 
@@ -98,13 +99,8 @@ function IntegrationsPageInner() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Entegrasyon Merkezi</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          ERP ve İK sisteminize bağlanın, işletme genelinde tek bağlantı geçerlidir
-        </p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title="Entegrasyon Merkezi" description="ERP ve İK sisteminize bağlanın, işletme genelinde tek bağlantı geçerlidir." />
 
       {!canEdit && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm text-slate-600">
@@ -127,7 +123,7 @@ function IntegrationsPageInner() {
         {ERP_SYSTEMS.map(({ value, label, desc, logo, color }) => {
           const isConnected = connectedErp === value;
           return (
-            <div key={value} className={`bg-white rounded-xl shadow-sm border p-5 flex items-center gap-4 ${isConnected ? "border-emerald-300 ring-1 ring-emerald-200" : "border-slate-100"}`}>
+            <div key={value} className={`bg-white rounded-2xl shadow-sm border p-5 flex items-center gap-4 ${isConnected ? "border-emerald-300 ring-1 ring-emerald-200" : "border-slate-100"}`}>
               <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
                 {logo}
               </div>
@@ -159,7 +155,7 @@ function IntegrationsPageInner() {
       </div>
 
       {/* Alan Eşleştirme — organizations.erp_mapped_fields */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
         <h2 className="font-semibold text-slate-700 mb-1">Alan Eşleştirme</h2>
         <p className="text-xs text-slate-400 mb-4">
           ERP&apos;den gelen sütun adlarını OptiShift alanlarıyla eşleştirin. Eşitleme bu eşleştirmeyi kullanır.
@@ -211,6 +207,6 @@ function IntegrationsPageInner() {
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Send, Users, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 interface Message {
   id: number;
@@ -265,8 +266,9 @@ export default function EmployeeChatPage() {
 
   // ── Mobile: chat area visible when selected, directory otherwise
   return (
-    <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 m-5"
-      style={{ height: "calc(100vh - 120px)" }}>
+    <Page>
+      <PageHeader title="Mesajlar" />
+      <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 h-[calc(100vh-17rem)] md:h-[calc(100vh-15rem)] min-h-[380px]">
       <div className="flex flex-col md:flex-row h-full">
 
         {/* ── Directory panel ───────────────────────────────────────────── */}
@@ -523,5 +525,6 @@ export default function EmployeeChatPage() {
         </div>
       </div>
     </div>
+    </Page>
   );
 }

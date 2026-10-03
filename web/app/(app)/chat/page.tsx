@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Send, Users, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 interface Message {
   id: number;
@@ -302,7 +303,9 @@ export default function ManagerChatPage() {
   const individualContacts = filtered.filter(c => c.type === "individual");
 
   return (
-    <div className="h-[calc(100vh-4rem)] md:h-screen flex overflow-hidden bg-slate-50 relative">
+    <Page>
+      <PageHeader title="Mesajlaşma" description="Ekibinizle ve yöneticilerle mesajlaşın." />
+      <div className="h-[calc(100vh-15rem)] min-h-[420px] flex overflow-hidden bg-white rounded-2xl border border-slate-200 relative">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -493,5 +496,6 @@ export default function ManagerChatPage() {
         )}
       </div>
     </div>
+    </Page>
   );
 }

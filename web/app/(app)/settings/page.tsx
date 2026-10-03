@@ -19,6 +19,7 @@ import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from 
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -1213,13 +1214,13 @@ export default function SettingsPage() {
   if (!locationData) {
     if (activeTab === "account") {
       return (
-        <div className="max-w-4xl space-y-6">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Şube Ayarları</h1>
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <Page width="narrow">
+          <PageHeader title="Şube Ayarları" />
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <TabBar />
             <div className="p-6"><AccountTab storageKey="optishift_manager_user" allowNameEdit={true} /></div>
           </div>
-        </div>
+        </Page>
       );
     }
     return <div className="p-8 text-slate-500">Yükleniyor...</div>;
@@ -1227,13 +1228,10 @@ export default function SettingsPage() {
 
   return (
     <SettingsLockCtx.Provider value={isCatLocked}>
-    <div className="max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Şube Ayarları</h1>
-        <p className="text-slate-500 text-sm mt-0.5">{locationData.name}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title="Şube Ayarları" description={locationData.name} />
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TabBar />
 
         <div className="p-5 md:p-6">
@@ -2709,7 +2707,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </Page>
     </SettingsLockCtx.Provider>
   );
 }

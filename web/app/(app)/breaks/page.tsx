@@ -8,6 +8,8 @@ import { Coffee, Play, Square, AlertTriangle, Users, Clock, CheckCircle2 } from 
 import { useManagerAuth } from "@/hooks/useAuth";
 import { FEATURES } from "@/lib/features";
 import FeatureDisabled from "@/components/FeatureDisabled";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 
 
 function elapsed(startAt: number) {
@@ -133,34 +135,15 @@ function BreaksPageInner() {
   if (!mounted) return <div className="space-y-6" />;
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
+    <Page width="narrow">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-            <Coffee size={20} className="text-amber-600" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900">Canlı Mola Takibi</h1>
-            <p className="text-sm text-slate-500">{today} · gerçek zamanlı</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Canlı Mola Takibi" description={`${today} · gerçek zamanlı`} />
 
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-amber-50 rounded-2xl p-3 md:p-4 text-center">
-          <p className="text-xl md:text-2xl font-black text-amber-700">{active.length}</p>
-          <p className="text-[10px] md:text-xs font-bold text-amber-600 opacity-80 mt-0.5">Molada</p>
-        </div>
-        <div className="bg-emerald-50 rounded-2xl p-3 md:p-4 text-center">
-          <p className="text-xl md:text-2xl font-black text-emerald-700">{available.length}</p>
-          <p className="text-[10px] md:text-xs font-bold text-emerald-600 opacity-80 mt-0.5">Aktif Çalışıyor</p>
-        </div>
-        <div className="bg-slate-50 rounded-2xl p-3 md:p-4 text-center">
-          <p className="text-xl md:text-2xl font-black text-slate-700">{totalBreakMin}</p>
-          <p className="text-[10px] md:text-xs font-bold text-slate-500 opacity-80 mt-0.5">Mola (dk)</p>
-        </div>
+        <StatCard label="Molada" value={active.length} icon={Coffee} tone="attention" />
+        <StatCard label="Aktif Çalışıyor" value={available.length} icon={Users} tone="positive" />
+        <StatCard label="Mola (dk)" value={totalBreakMin} icon={Clock} tone="neutral" />
       </div>
 
       {/* Multi-break alert */}
@@ -281,6 +264,6 @@ function BreaksPageInner() {
 
       {/* Suppress unused tick warning */}
       <span className="hidden">{tick}</span>
-    </div>
+    </Page>
   );
 }

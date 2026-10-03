@@ -3,13 +3,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Building2, Plug, Plus, Save, Check, Sparkles, UserCircle } from "lucide-react";
+import { Building2, Plug, Plus, Save, Check, Sparkles, UserCircle } from "lucide-react";
 import AccountTab from "@/components/AccountTab";
 import NewBranchWizard from "@/components/NewBranchWizard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ERP_SYSTEMS } from "@/lib/erp";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 const ERP_OPTIONS = [
   { value: "none", label: "Bağlı Değil", desc: "ERP entegrasyonu yok" },
@@ -19,7 +20,7 @@ const ERP_OPTIONS = [
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:       { label: "Ücretsiz",   color: "bg-slate-100 text-slate-600" },
   pro:        { label: "Pro",        color: "bg-forest-100 text-forest-700" },
-  enterprise: { label: "Kurumsal",   color: "bg-ember-100 text-ember-700" },
+  enterprise: { label: "Kurumsal",   color: "bg-forest-100 text-forest-700" },
 };
 
 export default function SupervisorSettingsPage() {
@@ -101,20 +102,17 @@ export default function SupervisorSettingsPage() {
   const plan = org?.plan ?? "free";
   const planInfo = PLAN_LABELS[plan] ?? PLAN_LABELS.free;
 
-  if (!mounted) return <div className="space-y-8" />;
+  if (!mounted) return <Page />;
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Ayarlar</h1>
-        <p className="text-muted-foreground mt-1 text-sm sm:text-base">İşletme geneli ayarlar ve entegrasyonlar.</p>
-      </div>
+    <Page width="narrow" className="animate-in fade-in duration-500">
+      <PageHeader title="Ayarlar" description="İşletme geneli ayarlar ve entegrasyonlar." />
 
       {/* Organizasyon Bilgileri */}
       <Card className="stripe-card border-0 shadow-none">
         <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-ember-100 rounded-xl text-ember-600">
+            <div className="p-2 bg-forest-100 rounded-xl text-forest-600">
               <Building2 size={18} />
             </div>
             <CardTitle className="text-base font-bold">İşletme</CardTitle>
@@ -162,7 +160,7 @@ export default function SupervisorSettingsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2 border-ember-200 text-ember-700 hover:bg-ember-50"
+                className="gap-2 border-forest-200 text-forest-700 hover:bg-forest-50"
                 onClick={() => setShowAddBranch(true)}
               >
                 <Plus size={14} />
@@ -186,8 +184,8 @@ export default function SupervisorSettingsPage() {
               {locations.map(loc => (
                 <div key={loc.id} className="flex items-center justify-between px-4 py-3.5 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-ember-100 flex items-center justify-center">
-                      <Building2 size={14} className="text-ember-600" />
+                    <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center">
+                      <Building2 size={14} className="text-forest-600" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">{loc.name}</p>
@@ -248,13 +246,13 @@ export default function SupervisorSettingsPage() {
                 onClick={() => setSelectedErp(erp.value)}
                 className={`text-left p-4 rounded-xl border-2 transition-all ${
                   selectedErp === erp.value
-                    ? "border-ember-500 bg-ember-50"
+                    ? "border-forest-500 bg-forest-50"
                     : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                    selectedErp === erp.value ? "border-ember-600 bg-ember-600" : "border-slate-300"
+                    selectedErp === erp.value ? "border-forest-600 bg-forest-600" : "border-slate-300"
                   }`}>
                     {selectedErp === erp.value && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                   </div>
@@ -271,7 +269,7 @@ export default function SupervisorSettingsPage() {
             <Button
               onClick={handleSaveErp}
               disabled={erpSaving}
-              className="bg-ember-600 hover:bg-ember-700 text-white gap-2"
+              className="bg-forest-600 hover:bg-forest-700 text-white gap-2"
             >
               {erpSaving
                 ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -282,6 +280,6 @@ export default function SupervisorSettingsPage() {
         </CardContent>
       </Card>
       )}
-    </div>
+    </Page>
   );
 }

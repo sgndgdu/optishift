@@ -11,6 +11,7 @@ import { addDays, businessToday, getWeekStart, weekRangeTR } from "@/lib/date";
 import { DAY_NAMES as DAYS, DAY_SHORT } from "@/lib/constants";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 export default function PortalCalendar() {
   const words = useShiftWords();
   const router = useRouter();
@@ -66,15 +67,11 @@ export default function PortalCalendar() {
   };
 
   return (
-    <div className="p-5 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tab === "mine" ? words.MyShifts : "Şube Programı"}</h1>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title={tab === "mine" ? words.MyShifts : "Şube Programı"} />
 
       {/* Hafta Navigasyonu */}
-      <Card className="stripe-card rounded-[1.25rem] border-0">
+      <Card className="stripe-card rounded-2xl border-0">
         <CardContent className="p-1.5 flex items-center justify-between">
           <Button
             variant="ghost"
@@ -98,7 +95,7 @@ export default function PortalCalendar() {
         </CardContent>
       </Card>
 
-      <div className="flex bg-slate-100/80 p-1.5 rounded-[1.25rem] border border-border/40 shadow-inner">
+      <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-border/40 shadow-inner">
         <button
           onClick={() => setTab("mine")}
           className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${tab === "mine" ? "bg-white text-primary shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
@@ -182,7 +179,7 @@ export default function PortalCalendar() {
         /* ── Tüm Şube görünümü ── */
         <div className="space-y-4">
           {allShifts.length === 0 ? (
-            <div className="text-center py-16 bg-slate-50/50 rounded-[2rem] border border-border/40">
+            <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-border/40">
               <Users size={40} className="mx-auto text-slate-300 mb-4" />
               <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış {words.shift} yok.</p>
             </div>
@@ -232,6 +229,6 @@ export default function PortalCalendar() {
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

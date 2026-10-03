@@ -12,6 +12,8 @@ import {
   AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX
 } from "lucide-react";
 import { violationText } from "@/lib/ruleViolations";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { RequestStatusPill } from "@/components/ui/RequestStatus";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const LEAVE_TYPES = [
@@ -43,24 +45,9 @@ function isUpcoming(row: { week_start: string; day: number }): boolean {
   return addDays(row.week_start, Number(row.day ?? 0)) >= businessToday();
 }
 
-const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  pending:           { label: "Bekliyor",              cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  peer_accepted:     { label: "Müdür Onayı Bekliyor",  cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  peer_rejected:     { label: "Karşı Taraf Reddetti",  cls: "bg-red-50 text-red-600 border-red-200" },
-  cancelled:         { label: "İptal Edildi",           cls: "bg-slate-100 text-slate-500 border-slate-200" },
-  manager_approved:  { label: "Onaylandı ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  manager_rejected:  { label: "Reddedildi",             cls: "bg-red-50 text-red-600 border-red-200" },
-  approved:          { label: "Onaylandı ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  open:              { label: "Üstlenen bekleniyor",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  claimed:           { label: "Devredildi ✓",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  rejected:          { label: "Reddedildi",             cls: "bg-red-50 text-red-600 border-red-200" },
-};
-
+// Durum rozeti: components/ui/RequestStatus (renk anlamı tüm uygulamada aynı)
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? { label: status, cls: "bg-slate-50 text-slate-600 border-slate-200" };
-  return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.cls}`}>{s.label}</span>
-  );
+  return <RequestStatusPill status={status} audience="employee" />;
 }
 
 function otWeekLabel(iso: string) {
@@ -493,22 +480,16 @@ export default function PortalRequests() {
   const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length + forceAssigns.length + overtimePending.length;
 
   return (
-    <div className="p-5 space-y-4">
+    <Page>
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Talepler</h1>
-          <p className="text-sm text-slate-500 mt-1">İzin, değişiklik ve gelemediğin günler</p>
-        </div>
-        {activeTab !== "new" && (
+      <PageHeader title="Talepler" description="İzin, değişiklik ve gelemediğin günler" actions={activeTab !== "new" && (
           <button
             onClick={() => { setActiveTab("new"); setNewType(null); resetSwapWizard(); }}
-            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-sm hover:bg-primary/90 transition-colors"
+            className={pageActionClass}
           >
             <Plus size={16} /> Yeni talep
           </button>
-        )}
-      </div>
+        )} />
 
       {activeTab === "new" ? (
         <button
@@ -1142,7 +1123,7 @@ export default function PortalRequests() {
           {toast.msg}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -1162,7 +1143,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-100 p-5 text-center text-xs text-slate-400 font-medium">
+    <div className="bg-white rounded-2xl border border-slate-100 p-5 text-center text-xs text-slate-400 font-medium">
       {text}
     </div>
   );
@@ -1226,7 +1207,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
 }) {
   const isFinal = ["cancelled", "manager_approved", "manager_rejected", "approved", "rejected", "peer_rejected", "claimed"].includes(status);
   return (
-    <div className={`bg-white rounded-xl border p-4 space-y-2 ${isFinal ? "opacity-70 border-slate-100" : "border-slate-200"}`}>
+    <div className={`bg-white rounded-2xl border p-4 space-y-2 ${isFinal ? "opacity-70 border-slate-100" : "border-slate-200"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-slate-800 truncate">{title}</p>

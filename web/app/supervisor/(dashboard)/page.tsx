@@ -16,6 +16,8 @@ import Link from "next/link";
 import { formatPublishLead } from "@/lib/publishLead";
 import { getWeekStart } from "@/lib/date";
 import { openBranchPanel } from "@/lib/sessionRouting";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 type Location = {
   id: string;
   name: string;
@@ -125,58 +127,31 @@ export default function SupervisorDashboard() {
   const totalPersonnel  = locations.reduce((s, l) => s + l.personnel_count, 0);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <Page className="animate-in fade-in duration-500">
 
       {/* Başlık */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {org?.name ?? "Genel Bakış"}
-          </h1>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">
-            Hoş geldiniz, <strong>{user?.name}</strong>. Tüm şubelerinizin özeti aşağıda.
-          </p>
-        </div>
-        {/* Şube açmak sadece işletme sahibinin işi */}
-        {user?.role === "admin" && (
+      <PageHeader title={org?.name ?? "Genel Bakış"}
+        description={<>Hoş geldiniz, <strong>{user?.name}</strong>. Tüm şubelerinizin özeti aşağıda.</>}
+        actions={user?.role === "admin" && (
           <Link href="/supervisor/settings?new=1" className="shrink-0">
             <Button variant="outline" className="gap-2 w-full sm:w-auto">
               <Plus size={16} />
               Şube Ekle
             </Button>
           </Link>
-        )}
-      </div>
+        )} />
 
       {/* Özet sayılar */}
       <div className={`grid gap-3 sm:gap-4 ${totalDepts > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         {[
-          { label: "Şube",       value: locations.length, icon: Building2, color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor" },
+          { label: "Şube",       value: locations.length, icon: Building2, href: "/supervisor" },
           // Departman bilinçli olarak isteğe bağlı: hiç yoksa "0" kutusu gösterilmez
-          ...(totalDepts > 0 ? [{ label: "Departman", value: totalDepts, icon: Layers, color: "text-ember-600", bg: "bg-ember-100" }] : []),
-          { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor/personnel" },
-        ].map(({ label, value, icon: Icon, color, bg, href }) => (
-          <Card key={label} className={`border-0 shadow-sm ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
-            onClick={href ? () => router.push(href) : undefined}>
-            <CardContent className="p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
-              <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
-                <Icon size={18} className={color} />
-              </div>
-              <div className="text-center sm:text-left w-full sm:w-auto">
-                {loading ? (
-                  <>
-                    <div className="h-6 sm:h-7 w-10 bg-slate-100 rounded-md animate-pulse mx-auto sm:mx-0" />
-                    <div className="h-3.5 w-16 bg-slate-100 rounded-md animate-pulse mt-1.5 mx-auto sm:mx-0" />
-                  </>
-                ) : (
-                  <>
-                    <div className={`text-xl sm:text-2xl font-black ${color}`}>{value}</div>
-                    <div className="text-xs sm:text-sm font-semibold text-slate-500">{label}</div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          ...(totalDepts > 0 ? [{ label: "Departman", value: totalDepts, icon: Layers }] : []),
+          { label: "Personel",   value: totalPersonnel,    icon: Users,     href: "/supervisor/personnel" },
+        ].map(({ label, value, icon, href }: { label: string; value: number; icon: typeof Users; href?: string }) => (
+          <StatCard key={label} label={label} icon={icon} tone="neutral"
+            value={loading ? <span className="inline-block h-7 w-10 bg-slate-100 rounded-md animate-pulse" /> : value}
+            onClick={href ? () => router.push(href) : undefined} />
         ))}
       </div>
 
@@ -253,8 +228,8 @@ export default function SupervisorDashboard() {
         ) : locations.length === 0 ? (
           <Card className="border-dashed border-2 border-slate-200">
             <CardContent className="py-16 text-center">
-              <div className="w-16 h-16 bg-ember-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Zap size={28} className="text-ember-400" />
+              <div className="w-16 h-16 bg-forest-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Zap size={28} className="text-forest-400" />
               </div>
               <p className="font-bold text-slate-600 mb-1">Henüz şube eklenmedi</p>
               <p className="text-sm text-slate-400 mb-5">
@@ -280,8 +255,8 @@ export default function SupervisorDashboard() {
                   {/* Üst satır */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
-                        <MapPin size={18} className="text-ember-600" />
+                      <div className="w-11 h-11 bg-forest-100 rounded-xl flex items-center justify-center shrink-0">
+                        <MapPin size={18} className="text-forest-600" />
                       </div>
                       <div>
                         <p className="font-black text-slate-800 text-base">{loc.name}</p>
@@ -302,7 +277,7 @@ export default function SupervisorDashboard() {
                       <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
                       <p className="text-[11px] font-semibold text-slate-500">Personel</p>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-ember-50 transition-colors"
+                    <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-forest-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
                       {(() => {
                         const lead = loc.publish_lead === null && loc.next_published
@@ -333,7 +308,7 @@ export default function SupervisorDashboard() {
                     ) : (
                       <Link href={`/supervisor/schedule?location_id=${loc.id}`} className="flex-1"
                         onClick={e => e.stopPropagation()}>
-                        <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-ember-600 bg-ember-50 hover:bg-ember-100 rounded-xl transition-colors">
+                        <button className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-forest-600 bg-forest-50 hover:bg-forest-100 rounded-xl transition-colors">
                           <CalendarClock size={13} />
                           Vardiya Planı
                         </button>
@@ -354,6 +329,6 @@ export default function SupervisorDashboard() {
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

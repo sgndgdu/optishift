@@ -21,6 +21,7 @@ import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
 import { industryFromRules } from "@/lib/templates";
 import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 const ITEM_ICON: Record<string, any> = {
   "add-personnel": UserPlus,
@@ -333,15 +334,11 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl animate-in fade-in duration-500">
+    <Page width="narrow" className="animate-in fade-in duration-500">
       {/* Günün özeti */}
       <div>
-        <p className="text-sm font-medium text-slate-500">
-          {now.toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
-        </p>
-        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-1">
-          {greeting(now)}, {user.name}
-        </h1>
+        <PageHeader eyebrow={now.toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
+          title={`${greeting(now)}, ${user.name}`} />
         {!loading && (
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3">
             {summary.map(({ icon: Icon, text }) => (
@@ -505,6 +502,6 @@ export default function DashboardPage() {
           </Card>
         );
       })()}
-    </div>
+    </Page>
   );
 }

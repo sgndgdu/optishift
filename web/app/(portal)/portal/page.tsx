@@ -15,6 +15,7 @@ import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
 import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -296,21 +297,13 @@ export default function PortalDashboard() {
   const todayLabel    = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="p-5 pb-8 space-y-5 animate-in fade-in duration-300">
+    <Page className="animate-in fade-in duration-300">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">{todayLabel}</p>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Merhaba, {user?.name?.split(" ")[0]} 👋
-          </h1>
-        </div>
-
-      </div>
+      <PageHeader eyebrow={todayLabel} title={`Merhaba, ${user?.name?.split(" ")[0] ?? ""} 👋`} />
 
       {/* ── Hero: Bugün ─────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary via-forest-600 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-primary via-forest-600 to-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-forest-400/20 rounded-full blur-2xl" />
         <div className="relative z-10">
@@ -741,6 +734,6 @@ export default function PortalDashboard() {
         </div>
       </div>
 
-    </div>
+    </Page>
   );
 }

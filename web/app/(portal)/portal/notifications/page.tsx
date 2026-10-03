@@ -3,11 +3,12 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, ArrowLeft, Trash2, ArrowRightLeft } from "lucide-react";
+import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, Trash2, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
 import { getNotifHref } from "@/lib/notif";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 const TYPE_CONFIG: Record<string, { Icon: any; color: string }> = {
   schedule:        { Icon: CalendarDays,    color: "bg-blue-100 text-blue-600" },
@@ -194,24 +195,13 @@ export default function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.is_read).length;
 
   return (
-    <div className="p-5 space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <Link href="/portal" className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors shrink-0">
-          <ArrowLeft size={22} />
-        </Link>
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-forest-100 rounded-xl flex items-center justify-center text-forest-600 shrink-0">
-          <Bell size={18} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-slate-800">Bildirimler</h1>
-          <p className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} okunmamış` : "Tümü okundu"}</p>
-        </div>
-        {unreadCount > 0 && (
-          <button onClick={markAllRead} className="text-xs text-forest-600 font-bold hover:underline shrink-0">
+    <Page>
+      <PageHeader title="Bildirimler" description={unreadCount > 0 ? `${unreadCount} okunmamış` : "Tümü okundu"}
+        actions={unreadCount > 0 && (
+          <button onClick={markAllRead} className="text-sm text-forest-600 font-bold hover:underline">
             Tümünü Oku
           </button>
-        )}
-      </div>
+        )} />
 
       {loading ? (
         <div className="flex flex-col gap-3">
@@ -245,6 +235,6 @@ export default function NotificationsPage() {
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

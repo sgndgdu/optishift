@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 interface ReportRow {
   personnel_id: string;
@@ -366,13 +367,8 @@ function ReportsPageInner() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-ember-100 flex items-center justify-center">
-          <BarChart2 size={20} className="text-ember-600" />
-        </div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-900">Raporlar</h1>
-      </div>
+    <Page>
+      <PageHeader title="Raporlar" />
 
       <div className="flex items-center gap-1 border-b border-slate-200" role="tablist">
         {REPORT_TABS.map(({ key, label, icon: Icon }) => (
@@ -391,6 +387,6 @@ function ReportsPageInner() {
       </div>
 
       {tab === "saatler" ? <WorkHoursReport /> : <FairnessReport />}
-    </div>
+    </Page>
   );
 }

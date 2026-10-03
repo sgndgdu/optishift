@@ -7,6 +7,7 @@ import { usePortalAuth } from "@/hooks/useAuth";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
 import { violationText } from "@/lib/ruleViolations";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
@@ -108,16 +109,8 @@ export default function PortalOpenShiftsPage() {
   if (!mounted) return <div className="p-4 md:p-8" />;
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-          <Megaphone size={20} className="text-amber-600" />
-        </div>
-        <div>
-          <h1 className="text-xl font-black text-slate-900">{words.OpenShifts}</h1>
-          <p className="text-xs text-slate-500">{biddingEnabled ? "Teklif ver, müdür seçsin" : "Üstlen, kahraman bonusu kazan"}</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title={words.OpenShifts} description={biddingEnabled ? "Teklif ver, müdür seçsin." : "Üstlen, kahraman bonusu kazan."} />
 
       {loading && <p className="text-sm text-slate-400 text-center py-8">Yükleniyor…</p>}
 
@@ -225,6 +218,6 @@ export default function PortalOpenShiftsPage() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

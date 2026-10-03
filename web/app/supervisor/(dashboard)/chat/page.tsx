@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Send, Users, Building2, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 interface Message {
   id: number;
@@ -55,13 +56,13 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
     <button onClick={() => onSelect(c)}
       className={cn(
         "w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors",
-        isSelected && "bg-ember-50 hover:bg-ember-50"
+        isSelected && "bg-forest-50 hover:bg-forest-50"
       )}>
       <div className={cn(
         "w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 relative",
         isSelected
-          ? "bg-ember-600 text-white"
-          : c.type === "group" ? "bg-ember-100 text-ember-600" : "bg-ember-100 text-ember-600"
+          ? "bg-forest-600 text-white"
+          : c.type === "group" ? "bg-forest-100 text-forest-600" : "bg-forest-100 text-forest-600"
       )}>
         {c.type === "group" ? <Users size={15} /> : c.name.charAt(0)}
         {(c.unread ?? 0) > 0 && (
@@ -72,7 +73,7 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <p className={cn("text-sm truncate", isSelected ? "font-bold text-ember-700" : "font-semibold text-slate-700")}>{c.name}</p>
+          <p className={cn("text-sm truncate", isSelected ? "font-bold text-forest-700" : "font-semibold text-slate-700")}>{c.name}</p>
           {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
         </div>
         {c.lastMessage ? (
@@ -322,11 +323,8 @@ export default function SupervisorChatPage() {
   if (!mounted) return <div className="flex h-full" />;
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Mesajlaşma</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Şube grupları ve müdürlerle mesajlaşın.</p>
-      </div>
+    <Page className="animate-in fade-in duration-500">
+      <PageHeader title="Mesajlaşma" description="Şube grupları ve müdürlerle mesajlaşın." />
 
       <div className="flex flex-col md:flex-row gap-4 h-auto md:h-[calc(100vh-240px)] relative">
         {sidebarOpen && (
@@ -341,7 +339,7 @@ export default function SupervisorChatPage() {
           <div className="p-4 border-b border-slate-100">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <MessageSquare size={15} className="text-ember-500" />
+                <MessageSquare size={15} className="text-forest-500" />
                 Kanallar ve Müdürler
               </h2>
               <div className="flex items-center gap-2">
@@ -358,7 +356,7 @@ export default function SupervisorChatPage() {
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Kişi ara…"
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-ember-500 transition-colors placeholder:text-slate-400"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -398,7 +396,7 @@ export default function SupervisorChatPage() {
         <div className="flex-1 bg-white rounded-2xl border border-slate-200/60 flex flex-col overflow-hidden min-h-[400px] md:min-h-0 relative">
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-              <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-ember-50 text-ember-700 rounded-xl text-sm font-bold">
+              <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-forest-50 text-forest-700 rounded-xl text-sm font-bold">
                 <ChevronRight size={16} className="rotate-180" /> Kanalları ve Müdürleri Göster
               </button>
               <MessageSquare size={40} className="mb-3 text-slate-300" />
@@ -412,7 +410,7 @@ export default function SupervisorChatPage() {
                 <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors shrink-0">←</button>
                 <div className={cn(
                   "w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center shrink-0",
-                  selected.type === "group" ? "bg-ember-100 text-ember-600" : "bg-ember-600 text-white"
+                  selected.type === "group" ? "bg-forest-100 text-forest-600" : "bg-forest-600 text-white"
                 )}>
                   {selected.type === "group" ? <Users size={16} /> : selected.name.charAt(0)}
                 </div>
@@ -469,7 +467,7 @@ export default function SupervisorChatPage() {
                               <div className={cn(
                                 "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
                                 isMe
-                                  ? `bg-ember-600 text-white rounded-tr-sm${msg._optimistic ? " opacity-60" : ""}`
+                                  ? `bg-forest-600 text-white rounded-tr-sm${msg._optimistic ? " opacity-60" : ""}`
                                   : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
                               )}>
                                 {msg.content}
@@ -494,7 +492,7 @@ export default function SupervisorChatPage() {
 
               {newMsgCount > 0 && (
                 <button onClick={scrollToBottom}
-                  className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-ember-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg hover:bg-ember-700 transition-colors z-10">
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-forest-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg hover:bg-forest-700 transition-colors z-10">
                   <ArrowDown size={12} />
                   {newMsgCount} yeni mesaj
                 </button>
@@ -504,12 +502,12 @@ export default function SupervisorChatPage() {
                 <textarea value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
                   placeholder="Mesajınızı yazın..." rows={1}
-                  className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm font-medium resize-none focus:outline-none focus:border-ember-500 transition-colors max-h-32"
+                  className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm font-medium resize-none focus:outline-none focus:border-forest-500 transition-colors max-h-32"
                   style={{ minHeight: "44px" }}
                   onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, 128)}px`; }}
                 />
                 <button onClick={sendMessage} disabled={!draft.trim() || sending}
-                  className="w-11 h-11 rounded-2xl bg-ember-600 hover:bg-ember-700 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-colors shrink-0">
+                  className="w-11 h-11 rounded-2xl bg-forest-600 hover:bg-forest-700 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-colors shrink-0">
                   {sending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
                 </button>
               </div>
@@ -517,6 +515,6 @@ export default function SupervisorChatPage() {
           )}
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

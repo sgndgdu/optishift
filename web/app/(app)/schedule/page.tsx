@@ -38,6 +38,7 @@ import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { hasManagerPermission } from "@/lib/ruleLocks";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const DAYS = DAY_SHORT;
 
@@ -2874,10 +2875,7 @@ loading ? (
         <div className="space-y-4">
 
           {/* ── Sayfa başlığı ── */}
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Vardiya Planı</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Bir kutuya tıklayarak vardiya ekleyin, değişiklikler otomatik kaydedilir</p>
-          </div>
+          <PageHeader title="Vardiya Planı" description="Bir kutuya tıklayarak vardiya ekleyin, değişiklikler otomatik kaydedilir." />
 
           {/* ── Üst bant ── */}
           <div className="flex flex-wrap items-center gap-2">
@@ -3137,7 +3135,7 @@ loading ? (
 
           {/* ── Personel İhtiyacı (isteğe bağlı panel; İşlemler menüsünden açılır) ── */}
           {demandOpen && !wizardOpen && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
                 <p className="flex-1 text-[11px] font-black text-slate-500 uppercase tracking-widest">Personel İhtiyacı · kaç kişi gerekli?</p>
                 <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
@@ -3191,7 +3189,7 @@ loading ? (
           )}
 
           {/* ── Personel Haftalık Planı (Grid) ── */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
             {loading && (
               <div className="absolute inset-0 bg-white/70 z-20 flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />

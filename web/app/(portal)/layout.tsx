@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, X, BellRing, HelpCircle, Megaphone } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, BellRing, HelpCircle, Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -225,7 +225,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </div>
 
         <div className="flex-1 overflow-auto">
-          <div className="pb-20 md:pb-0">
+          {/* Portal sayfalarının genişliği ve dolgusu TEK YERDE (components/ui/PageHeader → Page) */}
+          <div className="mx-auto w-full max-w-3xl px-4 py-5 md:px-8 md:py-8 pb-24 md:pb-8">
             <ShiftWordsContext.Provider value={words}>
               <AvailabilityEnabledContext.Provider value={availKnown ? availCollectionEnabled : null}>
                 <OpenShiftsEnabledContext.Provider value={openShiftsEnabled}>{children}</OpenShiftsEnabledContext.Provider>

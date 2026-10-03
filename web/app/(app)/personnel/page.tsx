@@ -13,6 +13,7 @@ import {
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 
 type MergedPerson = {
   /** Giriş hesabı; hızlı eklenen personelde yoktur (portala giremez). */
@@ -458,19 +459,15 @@ export default function PersonnelPage() {
     return { label: "Personel", color: "bg-slate-50 text-slate-600 border-slate-200" };
   };
 
-  if (!mounted) return <div className="space-y-6 max-w-5xl" />;
+  if (!mounted) return <Page />;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <Page>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Ekip</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{persons.length} kişi</p>
-        </div>
-        {/* Kişi eklemenin üç yolu tek düğmede */}
+      <PageHeader title="Ekip" description={`${persons.length} kişi`} actions={
+        /* Kişi eklemenin üç yolu tek düğmede */
         <div className="relative">
-          <button onClick={() => setAddMenuOpen(o => !o)} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-sm font-bold px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors shadow-md shadow-forest-100">
+          <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
             <Plus size={16} /> Personel Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
           {addMenuOpen && (
@@ -495,7 +492,7 @@ export default function PersonnelPage() {
             </>
           )}
         </div>
-      </div>
+      } />
 
       {/* Kayıt Linki: açık bir bağlantı varsa ya da menüden seçildiyse */}
       {authUser?.location_id && (() => {
@@ -565,7 +562,7 @@ export default function PersonnelPage() {
             const badge = roleBadge(p);
             const isPending = p.approval_status === "pending";
             return (
-              <div key={p.personnelId ?? p.userId} className={`group bg-white rounded-3xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
+              <div key={p.personnelId ?? p.userId} className={`group bg-white rounded-2xl p-5 flex items-start gap-4 border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${isPending ? "border-amber-200" : "border-slate-200/60"}`}>
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 shadow-sm ${p.role === "manager" ? "bg-gradient-to-br from-forest-100 to-forest-200 text-forest-700" : "bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600"}`}>
                   {p.name.charAt(0)}
                 </div>
@@ -1105,6 +1102,6 @@ export default function PersonnelPage() {
       {toast && (
         <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
       )}
-    </div>
+    </Page>
   );
 }

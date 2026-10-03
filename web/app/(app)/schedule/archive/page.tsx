@@ -8,6 +8,7 @@ import {
   CheckCircle2, RefreshCw, ArrowLeft, History, AlertCircle,
 } from "lucide-react";
 import { resolveShiftDef } from "@/lib/fairness";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -393,11 +394,11 @@ export default function ScheduleArchivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-6xl mx-auto px-4 py-6 lg:px-8">
+    <Page>
+      <div className="space-y-6">
 
         {/* ── Header ── */}
-        <div className="mb-8">
+        <div>
           <button
             onClick={() => router.push("/schedule")}
             className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors group"
@@ -406,26 +407,16 @@ export default function ScheduleArchivePage() {
             Vardiya Planına Dön
           </button>
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm">
-                <Archive size={22} className="text-slate-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-slate-900">Yayın Arşivi</h1>
-                <p className="text-slate-500 text-sm mt-0.5">
-                  {locationName && <span className="font-medium text-slate-600">{locationName} · </span>}
-                  Onaylanmış tüm programlar, güncellemeleriyle birlikte
-                </p>
-              </div>
-            </div>
-            {!loading && (
+          <PageHeader
+            title="Yayın Arşivi"
+            description={<>{locationName && <span className="font-medium text-slate-600">{locationName} · </span>}Onaylanmış tüm programlar, güncellemeleriyle birlikte</>}
+            actions={!loading && (
               <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
                 <Calendar size={14} className="text-slate-400" />
                 <span className="text-sm font-bold text-slate-700">{publications.length} hafta</span>
               </div>
             )}
-          </div>
+          />
         </div>
 
         {/* ── İçerik ── */}
@@ -577,6 +568,6 @@ export default function ScheduleArchivePage() {
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

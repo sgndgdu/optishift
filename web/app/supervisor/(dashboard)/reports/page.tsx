@@ -9,8 +9,9 @@ import { getWeekStart } from "@/lib/date";
 import {
   BarChart3, Building2, Users, Clock, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, TrendingUp,
-  ShieldCheck, Download,
+  ShieldCheck, 
 } from "lucide-react";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 function formatWeekLabel(weekStart: string) {
@@ -144,25 +145,16 @@ export default function SupervisorReports() {
   if (!mounted) return <div className="h-screen" />;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+    <Page>
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-ember-100 rounded-xl flex items-center justify-center shrink-0">
-            <BarChart3 size={18} className="text-ember-600" />
-          </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-black text-slate-900">Raporlar</h1>
-            <p className="text-xs text-slate-500">Çapraz şube haftalık analiz</p>
-          </div>
-        </div>
+      <PageHeader title="Raporlar" description="Çapraz şube haftalık analiz" actions={
         <button
           onClick={loadData}
           className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 shrink-0"
         >
           Yenile
         </button>
-      </div>
+      } />
 
       {/* Week navigator */}
       <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-100 px-4 py-3">
@@ -353,7 +345,7 @@ export default function SupervisorReports() {
           {activeTab === "fairness" && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <KpiCard icon={<TrendingUp size={16} className="text-ember-600" />} bg="bg-ember-50"
+                <KpiCard icon={<TrendingUp size={16} className="text-forest-600" />} bg="bg-forest-50"
                   label="Ort. Puan" value={`${avgScore}`} />
                 <KpiCard icon={<TrendingUp size={16} className="text-emerald-600" />} bg="bg-emerald-50"
                   label="En Yüksek"
@@ -386,12 +378,12 @@ export default function SupervisorReports() {
                                 <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-semibold text-slate-800 hover:underline hover:text-primary">{p.name}</Link>
                                 <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-ember-400 rounded-full transition-all"
+                                    className="h-full bg-forest-400 rounded-full transition-all"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
                               </div>
-                              <p className="text-sm font-black text-ember-700 shrink-0 w-10 text-right">
+                              <p className="text-sm font-black text-forest-700 shrink-0 w-10 text-right">
                                 {p.prev_score}
                               </p>
                             </div>
@@ -405,7 +397,7 @@ export default function SupervisorReports() {
           )}
         </>
       )}
-    </div>
+    </Page>
   );
 }
 

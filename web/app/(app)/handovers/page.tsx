@@ -6,6 +6,7 @@ import { ClipboardCheck, Check, Clock } from "lucide-react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 type StatusFilter = "all" | "unread" | "read";
 
@@ -47,31 +48,23 @@ export default function HandoversPage() {
 
   if (enabled === false) {
     return (
-      <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <Page width="narrow">
+        <PageHeader title="Devir-Teslim Kayıtları" />
         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
           <ClipboardCheck size={28} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-600">Devir-Teslim Defteri bu şubede kapalı</p>
           <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Ek Özellikler sekmesinden açabilirsiniz.</p>
         </div>
-      </div>
+      </Page>
     );
   }
 
   const unreadCount = records.filter(r => !r.read_by_personnel_id).length;
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-          <ClipboardCheck size={20} className="text-amber-600" />
-        </div>
-        <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900">Devir-Teslim Kayıtları</h1>
-          <p className="text-sm text-slate-500">
-            {unreadCount > 0 ? `${unreadCount} not henüz teslim alınmadı` : "Tüm notlar teslim alındı"}
-          </p>
-        </div>
-      </div>
+    <Page width="narrow">
+      <PageHeader title="Devir-Teslim Kayıtları"
+        description={unreadCount > 0 ? `${unreadCount} not henüz teslim alınmadı` : "Tüm notlar teslim alındı"} />
 
       <div className="flex gap-2">
         {([
@@ -127,6 +120,6 @@ export default function HandoversPage() {
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

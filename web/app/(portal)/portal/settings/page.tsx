@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AccountTab from "@/components/AccountTab";
 import BiometricCard from "@/components/portal/BiometricCard";
 import { HelpCircle, LogOut } from "lucide-react";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 export default function PortalSettingsPage() {
   const router = useRouter();
@@ -19,11 +20,8 @@ export default function PortalSettingsPage() {
   if (!mounted) return null;
 
   return (
-    <div className="p-5 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Hesabım</h1>
-        <p className="text-sm text-slate-500 mt-1">Profil, şifre ve giriş ayarları</p>
-      </div>
+    <Page>
+      <PageHeader title="Hesabım" description="Profil, şifre ve giriş ayarları" />
       {/* Cihaz desteklemiyorsa görünmez */}
       <BiometricCard />
       <AccountTab storageKey="optishift_portal_user" />
@@ -39,6 +37,6 @@ export default function PortalSettingsPage() {
           <LogOut size={16} /> Çıkış Yap
         </button>
       </div>
-    </div>
+    </Page>
   );
 }

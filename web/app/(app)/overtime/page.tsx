@@ -4,7 +4,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, Bell, ShieldAlert, Info, RotateCcw } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, ShieldAlert, Info, RotateCcw } from "lucide-react";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -183,47 +185,43 @@ export default function OvertimePage() {
   const warnings = buildWarnings(personnel, history, maxYtd);
 
   return (
-    <div className="space-y-6">
+    <Page>
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Fazla Mesai</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Onay bekleyenler · Yıllık durum · Kayıt oluştur</p>
-        </div>
+      <PageHeader title="Fazla Mesai" description="Onay bekleyenler · Yıllık durum · Kayıt oluştur" actions={
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
+          className={pageActionClass}
         >
           <Plus size={16} />
           Yeni Kayıt
         </button>
-      </div>
+      } />
 
       {/* Özet kartlar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard
+        <StatCard
           label="Bekleyen Onay"
           value={pending.length}
-          icon={<Clock size={18} className="text-amber-500" />}
-          accent="amber"
+          icon={Clock}
+          tone="attention"
         />
-        <SummaryCard
+        <StatCard
           label="Bu Ay Onaylanan"
           value={history.filter(r => r.status === "approved" && isThisMonth(r.created_at)).length}
-          icon={<CheckCircle2 size={18} className="text-emerald-500" />}
-          accent="emerald"
+          icon={CheckCircle2}
+          tone="positive"
         />
-        <SummaryCard
+        <StatCard
           label="Limite Yakın"
           value={atLimitCount}
-          icon={<AlertTriangle size={18} className="text-red-500" />}
-          accent="red"
+          icon={AlertTriangle}
+          tone="danger"
         />
-        <SummaryCard
+        <StatCard
           label="Bu Ay Mesai Maliyeti"
           value={hasWages ? `₺${Math.round(monthCost).toLocaleString("tr-TR")}` : "—"}
-          icon={<TrendingUp size={18} className="text-blue-500" />}
-          accent="blue"
+          icon={TrendingUp}
+          tone="neutral"
           hint={hasWages ? "onaylı · zamlı ücret ×1,5" : "personele saatlik ücret girin"}
         />
       </div>
@@ -354,7 +352,7 @@ export default function OvertimePage() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -417,24 +415,6 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
 
 // ─── Alt Bileşenler ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, icon, accent, hint }: { label: string; value: number | string; icon: React.ReactNode; accent: string; hint?: string }) {
-  const badgeBg: Record<string, string> = {
-    amber: "bg-amber-100",
-    emerald: "bg-emerald-100",
-    red: "bg-red-100",
-    blue: "bg-blue-100",
-  };
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${badgeBg[accent] ?? "bg-slate-100"}`}>
-        {icon}
-      </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
-      {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
-    </div>
-  );
-}
 
 function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   pending: any[];

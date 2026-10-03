@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Edit2, ChevronLeft, ChevronRight, Check, AlertCircle, X, CalendarCheck, Copy } from "lucide-react";
 import Link from "next/link";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Status = "available" | "preferred_not" | "unavailable";
@@ -382,12 +383,13 @@ export default function PortalAvailability() {
   // Uygunluk toplama bu işletmede kapalı — giriş UI'ı yerine bilgi kartı
   if (!collectionEnabled) {
     return (
-      <div className="p-5 animate-in fade-in duration-300">
-        <div className="flex flex-col items-center text-center gap-3 bg-white border border-slate-200 rounded-2xl px-6 py-10 mt-6">
+      <Page className="animate-in fade-in duration-300">
+        <PageHeader title="Uygunluk" />
+        <div className="flex flex-col items-center text-center gap-3 bg-white border border-slate-200 rounded-2xl px-6 py-10">
           <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
             <CalendarCheck size={22} className="text-forest-500" />
           </div>
-          <h1 className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</h1>
+          <p className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</p>
           <p className="text-sm text-slate-500 max-w-xs">
             Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>
@@ -396,7 +398,7 @@ export default function PortalAvailability() {
             Vardiyalarımı Gör
           </Link>
         </div>
-      </div>
+      </Page>
     );
   }
 
@@ -409,14 +411,10 @@ export default function PortalAvailability() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-5 space-y-5 animate-in fade-in duration-300">
+    <Page className="animate-in fade-in duration-300">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Uygunluk</h1>
-          <p className="text-sm text-slate-500 mt-1">{weekLabel(ws)}</p>
-        </div>
+      <PageHeader title="Uygunluk" description={weekLabel(ws)} actions={
         <div className="flex items-center bg-slate-100 rounded-2xl p-1 shrink-0 gap-0.5">
           <button onClick={() => setWeekOffset(o => Math.max(0, o - 1))} disabled={weekOffset === 0}
             className="p-2 rounded-xl text-slate-500 hover:bg-white disabled:opacity-30 transition-all">
@@ -430,7 +428,7 @@ export default function PortalAvailability() {
             <ChevronRight size={15} />
           </button>
         </div>
-      </div>
+      } />
 
       {/* ── Plan yayınlandı: uygunluk artık planı değiştirmez ─────────────────── */}
       {weekPublished && !fetchLoading && (
@@ -594,6 +592,6 @@ export default function PortalAvailability() {
         </button>
       )}
 
-    </div>
+    </Page>
   );
 }

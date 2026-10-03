@@ -3,10 +3,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, CreditCard, Zap, Shield, AlertCircle, Sparkles } from "lucide-react";
+import { Check, CreditCard, Shield, AlertCircle, Sparkles } from "lucide-react";
 import { Suspense } from "react";
 import { FEATURES } from "@/lib/features";
 import FeatureDisabled from "@/components/FeatureDisabled";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 const PLANS = [
   {
@@ -122,12 +123,9 @@ function BillingContent() {
   const isStripeConfigured = stripeConfigured;
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 md:space-y-10">
+    <Page>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Faturalandırma ve Plan</h1>
-        <p className="text-slate-500 mt-2">{org?.name} · abonelik yönetimi</p>
-      </div>
+      <PageHeader title="Faturalandırma ve Plan" description={`${org?.name ?? ""} · abonelik yönetimi`} />
 
       {/* Current plan strip */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex items-center gap-3 md:gap-4 shadow-sm flex-wrap">
@@ -244,7 +242,7 @@ function BillingContent() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 

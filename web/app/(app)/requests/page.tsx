@@ -7,11 +7,13 @@ import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   ClipboardList, ArrowLeftRight, FileEdit, CalendarOff,
-  CheckCircle2, XCircle, Clock, History, Timer
+  CheckCircle2, XCircle, History, Timer
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { formatDateTR } from "@/lib/date";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { RequestStatusPill } from "@/components/ui/RequestStatus";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -35,20 +37,9 @@ function timeAgo(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
 }
 
-const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  pending:          { label: "Bekliyor",         cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  peer_accepted:    { label: "Onay Bekliyor",     cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  approved:         { label: "Onaylandı",         cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  manager_approved: { label: "Onaylandı",         cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  rejected:         { label: "Reddedildi",        cls: "bg-red-50 text-red-600 border-red-200" },
-  manager_rejected: { label: "Reddedildi",        cls: "bg-red-50 text-red-600 border-red-200" },
-  peer_rejected:    { label: "Pers. Reddetti",    cls: "bg-slate-100 text-slate-500 border-slate-200" },
-  cancelled:        { label: "İptal Edildi",      cls: "bg-slate-100 text-slate-500 border-slate-200" },
-};
-
+// Durum rozeti: components/ui/RequestStatus (renk anlamı tüm uygulamada aynı)
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? { label: status, cls: "bg-slate-100 text-slate-500 border-slate-200" };
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.cls}`}>{s.label}</span>;
+  return <RequestStatusPill status={status} audience="manager" />;
 }
 
 type RejectModalState = { type: "swap" | "edit" | "leave"; id: number };
@@ -250,20 +241,9 @@ export default function ManagerRequestsPage() {
   if (!mounted) return <div className="space-y-6" />;
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
+    <Page width="narrow">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-            <ClipboardList size={20} className="text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Onaylar</h1>
-            <p className="text-sm text-slate-500">
-              {totalPending > 0 ? `${totalPending} bekleyen talep` : "Bekleyen talep yok"}
-            </p>
-          </div>
-        </div>
+      <PageHeader title="Onaylar" description={totalPending > 0 ? `${totalPending} bekleyen talep` : "Bekleyen talep yok"} actions={
         <button
           onClick={() => setShowHistory(v => !v)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
@@ -273,7 +253,7 @@ export default function ManagerRequestsPage() {
           <History size={13} />
           {showHistory ? "Sadece Bekleyen" : "Geçmişi Göster"}
         </button>
-      </div>
+      } />
 
       {/* Tab bar */}
       <div className="flex bg-slate-100 p-1 rounded-2xl gap-1 overflow-x-auto">
@@ -606,7 +586,7 @@ export default function ManagerRequestsPage() {
           {toast}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
