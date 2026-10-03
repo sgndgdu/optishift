@@ -69,8 +69,9 @@ export async function POST(req: NextRequest) {
       SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'
     `).all(`%"${location_id}"%`) as any[];
 
+    // Kişi başı bildirimler paralel: sırayla gidince yayın kalabalık şubede ~11 sn sürüyordu (Test 3)
     let sentCount = 0;
-    for (const p of activePersonnel) {
+    await Promise.allSettled(activePersonnel.map(async (p) => {
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
         VALUES (?, 'schedule', ?, ?, '/portal/calendar', false, ?)
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
         url: "/portal/calendar",
       });
       sentCount++;
-    }
+    }));
 
     // ── 8. Yayın kaydı — revision takibi + snapshot ──────────────────────────
     const prevPub = await db.prepare(

@@ -53,6 +53,10 @@ export async function GET(req: NextRequest) {
         location_id: user.location_id ?? null,
         department_id: user.department_id ?? null,
         is_temp_password: !!user.is_temp_password,
+        // Kayıtlı telefon kurulum ekranında dolu gelsin (kişinin kendi numarası; token sahibine gösterilir)
+        phone: user.phone || (user.personnel_id
+          ? ((await db.prepare("SELECT phone FROM personnel WHERE id = ?").get(user.personnel_id)) as any)?.phone || null
+          : null),
       },
     });
     setCookie(res, sessionToken);

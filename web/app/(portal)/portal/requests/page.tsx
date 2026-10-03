@@ -94,6 +94,7 @@ export default function PortalRequests() {
   // swap wizard
   const [swapStep, setSwapStep]       = useState(0);
   const [myShifts, setMyShifts]       = useState<any[]>([]);
+  const [shiftNames, setShiftNames]   = useState<Record<string, string>>({}); // vardiya tanımı id → ad
   const [teammates, setTeammates]     = useState<any[]>([]);
   const [theirShifts, setTheirShifts] = useState<any[]>([]);
   const [selMyShift, setSelMyShift]   = useState<any>(null);
@@ -240,6 +241,17 @@ export default function PortalRequests() {
       setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && isUpcoming(s)));
     })();
   }, [activeTab, newType, user]);
+
+  // Şubenin vardiya adları (seçim listelerinde saatin yanında)
+  useEffect(() => {
+    if (!user?.location_id) return;
+    fetch(`/api/locations?id=${user.location_id}`).then(r => (r.ok ? r.json() : [])).then(rows => {
+      const raw = Array.isArray(rows) ? rows[0]?.shift_definitions : null;
+      let defs: { id: string; name: string }[] = [];
+      try { defs = typeof raw === "string" ? JSON.parse(raw) : (raw ?? []); } catch { defs = []; }
+      if (Array.isArray(defs)) setShiftNames(Object.fromEntries(defs.map(d => [String(d.id), d.name])));
+    }).catch(() => {});
+  }, [user?.location_id]);
 
   // ── load teammates ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -806,10 +818,10 @@ export default function PortalRequests() {
                     ? "Takas bekliyor" : null;
                 return busy
                   ? <div key={s.id} className="opacity-50 pointer-events-none relative">
-                      <ShiftOption shift={s} selected={false} onSelect={() => {}} />
+                      <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
                     </div>
-                  : <ShiftOption key={s.id} shift={s} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
+                  : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
               })}
               <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
                 Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
@@ -842,7 +854,7 @@ export default function PortalRequests() {
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas etmek istediğin vardiyayı seç:</p>
                     {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan bulunmuyor. Müdürünüzün vardiya planını yayınlamasını bekleyin.</p>}
                     {myShifts.map(s => (
-                      <ShiftOption key={s.id} shift={s} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
+                      <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
                     ))}
                     <NextBtn disabled={!selMyShift} onClick={() => setSwapStep(1)} />
                   </div>
@@ -881,7 +893,7 @@ export default function PortalRequests() {
                     <p className="text-xs font-bold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını sana versin?</p>
                     {theirShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan vardiyaları yok.</p>}
                     {theirShifts.map(s => (
-                      <ShiftOption key={s.id} shift={s} selected={selTheirShift?.id === s.id} onSelect={() => setSelTheirShift(s)} />
+                      <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selTheirShift?.id === s.id} onSelect={() => setSelTheirShift(s)} />
                     ))}
                     <div className="flex gap-2 mt-2">
                       <BackBtn onClick={() => setSwapStep(1)} />
@@ -931,7 +943,7 @@ export default function PortalRequests() {
                 {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan bulunmuyor. Müdürünüzün vardiya planını yayınlamasını bekleyin.</p>}
                 <div className="space-y-2">
                   {myShifts.map(s => (
-                    <ShiftOption key={s.id} shift={s} selected={editShift?.id === s.id} onSelect={() => setEditShift(s)} />
+                    <ShiftOption key={s.id} shift={s} names={shiftNames} selected={editShift?.id === s.id} onSelect={() => setEditShift(s)} />
                   ))}
                 </div>
               </div>
@@ -1240,11 +1252,14 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
   );
 }
 
-function ShiftOption({ shift, selected, onSelect }: { shift: any; selected: boolean; onSelect: () => void }) {
+function ShiftOption({ shift, selected, onSelect, names = {} }: { shift: any; selected: boolean; onSelect: () => void; names?: Record<string, string> }) {
   const d = new Date(shift.week_start || "");
   d.setDate(d.getDate() + (shift.day ?? 0));
   const label = `${DAY_SHORT[shift.day ?? 0]} ${d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}`;
-  const time = shift.start_time && shift.end_time ? ` · ${shift.start_time}–${shift.end_time}` : "";
+  // Vardiyanın adı (şube vardiya tanımlarından): "Açılış · 07:00–15:00"
+  const shiftName = names[String(shift.shift_id)] ?? null;
+  const hours = shift.start_time && shift.end_time ? `${shift.start_time}–${shift.end_time}` : "";
+  const time = [shiftName, hours].filter(Boolean).join(" · ");
   return (
     <button
       onClick={onSelect}

@@ -93,7 +93,16 @@ export default function SupervisorManager({ locations }: { locations: Loc[] }) {
         )}
       </div>
 
-      {invite && <InviteLinkList results={invite} />}
+      {/* Yeni eklenenin giriş bağlantısı: listedeki satırın kopyası gibi durmasın, tek seferlik paylaşım kutusu */}
+      {invite && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold text-emerald-800">Eklendi. Giriş bağlantısını kendisine gönderin:</p>
+            <button onClick={() => setInvite(null)} className="text-xs font-bold text-emerald-800 hover:underline shrink-0">Tamam</button>
+          </div>
+          <InviteLinkList results={invite} />
+        </div>
+      )}
 
       {adding && (
         <div className="rounded-xl border border-slate-200 p-4 space-y-3">

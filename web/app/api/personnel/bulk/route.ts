@@ -102,8 +102,10 @@ export async function POST(req: NextRequest) {
       try {
         await db.prepare(`
           INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, department_id, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 'employee', ?, ?, ?, ?, 'Personel', 'full_time', 'active', 45, 0, 0, 0, 0, 14, ?, '{}', '[]', '[]', '[]', ?, ?, ?)
+          VALUES (?, ?, ?, ?, 'employee', ?, ?, ?, ?, ?, 'full_time', 'active', 45, 0, 0, 0, 0, 14, ?, '{}', '[]', '[]', '[]', ?, ?, ?)
         `).run(personnelId, org_id, location_id, JSON.stringify([location_id]), p.name, employeeId, p.email || null, p.phone || "",
+          // Unvan: ilk yetenek (Garson, Aşçı...); kartta herkes "Personel" görünmesin
+          p.skills[0] ?? "Personel",
           JSON.stringify(p.skills), p.departmentId, now, now);
 
         await db.prepare(`

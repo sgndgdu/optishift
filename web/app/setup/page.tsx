@@ -38,6 +38,7 @@ function SetupForm() {
           if (data.success) {
             setSetupUser({ name: data.user.name, username: data.user.username ?? "", role: data.user.role });
             setName(data.user.name ?? "");
+            if (data.user.phone) setPhone(data.user.phone);
           } else {
             setTokenError(data.error ?? "Geçersiz davet linki");
           }

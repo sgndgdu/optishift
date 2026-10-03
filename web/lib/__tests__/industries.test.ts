@@ -97,6 +97,9 @@ describe("akıllı varsayılanlar", () => {
     expect(d.operating_hours[0]).toEqual({ isOpen: true, open: "00:00", close: "23:59" });
     const c = buildIndustryDefaults("healthcare", "clinic")!;
     expect(c.operating_hours[3]).toEqual({ isOpen: true, open: "08:00", close: "20:00" });
+    // Restoran: akşam servisi gece yarısı biter, sabah 10'da açılır → 24 saat açık değil
+    const r = buildIndustryDefaults("hospitality", "restaurant")!;
+    expect(r.operating_hours[0]).toEqual({ isOpen: true, open: "10:00", close: "23:59" });
   });
 
   it("bilinmeyen sektör null, bilinmeyen alt tür ilk alt türe düşer", () => {

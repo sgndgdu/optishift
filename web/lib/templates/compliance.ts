@@ -30,18 +30,24 @@ export interface IndustryDefaults {
   task_templates: Record<string, string[]>;
 }
 
-/** Vardiyaların kapsadığı en erken başlangıç / en geç bitiş (gece geçişi → 23:59). */
-function operatingWindow(shifts: ShiftDefinition[]): { open: string; close: string } {
+/**
+ * Vardiyaların kapsadığı en erken başlangıç / en geç bitiş. Gece yarısını geçen vardiya varsa:
+ * sabaha kadar (neredeyse) kesintisiz sürüyorsa (fabrika, hastane) tüm gün; geceyi geçip açılıştan
+ * çok önce bitiyorsa (restoran 16:00-00:00, açılış 10:00) açılıştan gece yarısına kadar (Test 3 #14).
+ */
+export function operatingWindow(shifts: ShiftDefinition[]): { open: string; close: string } {
   if (!shifts.length) return { open: "09:00", close: "22:00" };
   const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-  let open = 24 * 60, close = 0, crossesMidnight = false;
+  let open = 24 * 60, close = 0, overnightEnd = -1;
   for (const s of shifts) {
     const a = toMin(s.start), b = toMin(s.end);
     open = Math.min(open, a);
-    if (b <= a) crossesMidnight = true; else close = Math.max(close, b);
+    if (b <= a) overnightEnd = Math.max(overnightEnd, b); else close = Math.max(close, b);
   }
   const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-  return crossesMidnight ? { open: "00:00", close: "23:59" } : { open: fmt(open), close: fmt(close) };
+  if (overnightEnd < 0) return { open: fmt(open), close: fmt(close) };
+  // Gece vardiyası sabah açılışa 2 saatten yakın bitiyorsa (fabrika 22:00-05:30, açılış 06:00) kesintisiz
+  return open - overnightEnd <= 120 ? { open: "00:00", close: "23:59" } : { open: fmt(open), close: "23:59" };
 }
 
 /** Sektör + alt tür → yeni şube alanları. Bilinmeyen sektörde null döner (çağıran eski davranışa düşer). */

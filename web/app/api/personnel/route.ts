@@ -295,7 +295,7 @@ export async function PATCH(req: NextRequest) {
 
     // Terfi/rol değişikliği bildirimi — eski rol farklıysa kişiye bildir
     if (user_access_level && user_access_level !== existing.user_access_level) {
-      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Süpervizör", admin: "İşletme Sahibi" };
+      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Bölge Müdürü", admin: "İşletme Sahibi" };
       const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)

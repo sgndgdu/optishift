@@ -127,7 +127,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: BarChart2,
         paragraphs: [
           "Aylık özet raporlar ve puantaj (kimin ne zaman geldiği/gittiği, geç kalmalar, gelinmeyen günler) burada listelenir. Excel olarak dışa aktarabilirsiniz.",
-          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece admin veya süpervizör açabilir, müdür açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
+          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece işletme sahibi ya da bölge müdürü açabilir, müdür açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
         ],
       },
       {

@@ -234,7 +234,9 @@ export default function PersonnelPage() {
 
   const resetAddForm = () => {
     setAddForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
-    setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); setRoleOption(3); setAddError("");
+    // Şube panelindeyiz: form o şube seçili açılır
+    const here = authUser?.location_id ?? "";
+    setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setRoleOption(3); setAddError("");
   };
 
   const handleAdd = async () => {

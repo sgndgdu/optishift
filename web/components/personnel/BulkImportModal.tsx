@@ -225,7 +225,9 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
               <button onClick={onClose} disabled={busy} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-50">İptal</button>
               <button onClick={submit} disabled={busy || okCount === 0}
                 className="flex-[2] bg-forest-600 disabled:bg-forest-400 text-white font-bold py-3 rounded-xl hover:bg-forest-700 flex items-center justify-center gap-2">
-                {busy ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Upload size={16} /> {okCount} kişiyi ekle</>}
+                {busy
+                  ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {okCount} kişi ekleniyor, hesaplar açılıyor…</>
+                  : <><Upload size={16} /> {okCount} kişiyi ekle</>}
               </button>
             </div>
           </div>

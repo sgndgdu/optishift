@@ -236,7 +236,7 @@ export default function LoginPage() {
             Herkese Tek Kapı
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed">
-            Personel, müdür ya da süpervizör, tek giriş sayfası, otomatik yönlendirme.
+            Personel, müdür, bölge müdürü ya da işletme sahibi: tek giriş sayfası, herkes kendi ekranına yönlenir.
             Rol ne ise o portal açılır.
           </p>
         </div>

@@ -3084,7 +3084,7 @@ loading ? (
               locationId={activeLocationId}
               shiftDefsCount={shiftDefs.length}
               personnelCount={personnel.length}
-              demandFilled={Object.keys(demandMatrix).length > 0 || Object.keys(deptDemandMatrix).length > 0}
+              demandFilled={[demandMatrix, ...Object.values(deptDemandMatrix)].some(m => Object.values(m ?? {}).some(row => Object.values(row ?? {}).some(v => Number(v) > 0)))}
               onOpenDemand={() => openWizard()}
             />
           )}

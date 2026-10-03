@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 import { formatPublishLead } from "@/lib/publishLead";
+import { getWeekStart } from "@/lib/date";
 import { openBranchPanel } from "@/lib/sessionRouting";
 type Location = {
   id: string;
@@ -21,6 +22,8 @@ type Location = {
   dept_count: number;
   personnel_count: number;
   publish_lead: number | null;
+  /** Gelecek haftanın planı yayınlandı mı (ortalama 3 hafta birikmeden de durum gösterilir) */
+  next_published: boolean;
 };
 
 type EditRequest = {
@@ -107,6 +110,7 @@ export default function SupervisorDashboard() {
             dept_count: Array.isArray(depts) ? depts.length : 0,
             personnel_count: Array.isArray(pers) ? pers.filter((p: any) => p.status === "active").length : 0,
             publish_lead: typeof pubStats?.avg_lead_days === "number" ? pubStats.avg_lead_days : null,
+            next_published: Array.isArray(pubStats?.weeks) && pubStats.weeks.some((w: { week_start: string }) => w.week_start === getWeekStart(1)),
           };
         })
       );
@@ -145,10 +149,11 @@ export default function SupervisorDashboard() {
       </div>
 
       {/* Özet sayılar */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className={`grid gap-3 sm:gap-4 ${totalDepts > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         {[
           { label: "Şube",       value: locations.length, icon: Building2, color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor" },
-          { label: "Departman",  value: totalDepts,        icon: Layers,    color: "text-ember-600", bg: "bg-ember-100" },
+          // Departman bilinçli olarak isteğe bağlı: hiç yoksa "0" kutusu gösterilmez
+          ...(totalDepts > 0 ? [{ label: "Departman", value: totalDepts, icon: Layers, color: "text-ember-600", bg: "bg-ember-100" }] : []),
           { label: "Personel",   value: totalPersonnel,    icon: Users,     color: "text-ember-600", bg: "bg-ember-100", href: "/supervisor/personnel" },
         ].map(({ label, value, icon: Icon, color, bg, href }) => (
           <Card key={label} className={`border-0 shadow-sm ${href ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
@@ -285,11 +290,13 @@ export default function SupervisorDashboard() {
                   </div>
 
                   {/* Sayaçlar */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-slate-50 rounded-xl p-3 text-center">
-                      <p className="text-lg font-black text-forest-600">{loc.dept_count}</p>
-                      <p className="text-[11px] font-semibold text-slate-500">Departman</p>
-                    </div>
+                  <div className={`grid gap-3 ${loc.dept_count > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+                    {loc.dept_count > 0 && (
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-lg font-black text-forest-600">{loc.dept_count}</p>
+                        <p className="text-[11px] font-semibold text-slate-500">Departman</p>
+                      </div>
+                    )}
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/personnel?location_id=${loc.id}`); }}>
                       <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
@@ -298,7 +305,9 @@ export default function SupervisorDashboard() {
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-ember-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
                       {(() => {
-                        const lead = formatPublishLead(loc.publish_lead);
+                        const lead = loc.publish_lead === null && loc.next_published
+                          ? { short: "Hazır", tone: "good" as const }
+                          : formatPublishLead(loc.publish_lead);
                         return (
                           <p className={`text-base font-black leading-7 ${
                             lead.tone === "none" ? "text-slate-300" : lead.tone === "good" ? "text-emerald-600"

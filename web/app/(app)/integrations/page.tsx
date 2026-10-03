@@ -108,7 +108,7 @@ function IntegrationsPageInner() {
 
       {!canEdit && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm text-slate-600">
-          ERP bağlantısını yalnızca <strong>yönetici (admin)</strong> veya <strong>süpervizör</strong> değiştirebilir.
+          ERP bağlantısını yalnızca <strong>işletme sahibi</strong> değiştirebilir.
           Aşağıda mevcut bağlantı durumunu görüyorsunuz.
         </div>
       )}
