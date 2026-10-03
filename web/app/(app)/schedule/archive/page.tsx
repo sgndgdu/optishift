@@ -3,12 +3,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Archive, Calendar, Clock, User, ChevronDown, ChevronUp,
-  CheckCircle2, RefreshCw, ArrowLeft, History, AlertCircle,
-} from "lucide-react";
+import { ChevronDown, ArrowLeft, AlertCircle } from "lucide-react";
 import { resolveShiftDef } from "@/lib/fairness";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { List, ListEmpty } from "@/components/ui/List";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -395,46 +395,22 @@ export default function ScheduleArchivePage() {
 
   return (
     <Page>
-      <div className="space-y-6">
+        <PageHeader
+          eyebrow={
+            <button onClick={() => router.push("/schedule")} className="inline-flex items-center gap-1.5 min-h-[32px] text-sm text-slate-500 hover:text-slate-800">
+              <ArrowLeft size={15} /> Vardiya Planı
+            </button>
+          }
+          title="Yayın Arşivi"
+          description={`${locationName ? `${locationName} · ` : ""}Yayınlanmış haftalar, sonraki güncellemeleriyle birlikte`}
+        />
 
-        {/* ── Header ── */}
-        <div>
-          <button
-            onClick={() => router.push("/schedule")}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors group"
-          >
-            <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
-            Vardiya Planına Dön
-          </button>
-
-          <PageHeader
-            title="Yayın Arşivi"
-            description={<>{locationName && <span className="font-medium text-slate-600">{locationName} · </span>}Onaylanmış tüm programlar, güncellemeleriyle birlikte</>}
-            actions={!loading && (
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-                <Calendar size={14} className="text-slate-400" />
-                <span className="text-sm font-bold text-slate-700">{publications.length} hafta</span>
-              </div>
-            )}
-          />
-        </div>
-
-        {/* ── İçerik ── */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="w-8 h-8 border-2 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
-            <p className="text-sm text-slate-400">Arşiv yükleniyor…</p>
-          </div>
+          <List><ListEmpty>Arşiv yükleniyor…</ListEmpty></List>
         ) : publications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-white border border-slate-200 rounded-2xl">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-              <Archive size={28} className="text-slate-400" />
-            </div>
-            <p className="text-base font-bold text-slate-600 mb-1">Henüz yayınlanmış vardiya yok</p>
-            <p className="text-sm text-slate-400">Vardiya planını yayınladığında burada görünür.</p>
-          </div>
+          <List><ListEmpty>Henüz yayınlanmış hafta yok. Planı yayınladığında burada görünür.</ListEmpty></List>
         ) : (
-          <div className="space-y-3">
+          <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
             {publications.map(pub => {
               const isOpen = expandedWeek === pub.week_start;
               const info = getWeekInfo(pub.week_start);
@@ -445,56 +421,22 @@ export default function ScheduleArchivePage() {
               const isLoadingRevs = loadingRevs === pub.week_start;
 
               return (
-                <div
-                  key={pub.week_start}
-                  className={`bg-white rounded-2xl border transition-all overflow-hidden ${isOpen ? "border-slate-300 shadow-md" : "border-slate-200 hover:border-slate-300 shadow-sm"}`}
-                >
-                  {/* ── Kart Başlığı ── */}
+                <li key={pub.week_start}>
                   <button
                     onClick={() => toggleWeek(pub.week_start)}
-                    className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center gap-3 px-4 py-3 min-h-[56px] text-left hover:bg-slate-50 transition-colors"
                   >
-                    {/* İkon */}
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${hasRevisions ? "bg-ember-50 border border-ember-200" : "bg-emerald-50 border border-emerald-200"}`}>
-                      {hasRevisions
-                        ? <RefreshCw size={16} className="text-ember-600" />
-                        : <CheckCircle2 size={16} className="text-emerald-600" />
-                      }
-                    </div>
-
-                    {/* Hafta bilgisi */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className="font-bold text-slate-900 text-sm">{info.label}</span>
-                        {hasRevisions && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-ember-100 text-ember-700 text-[10px] font-bold border border-ember-200">
-                            <History size={9} />
-                            {pub.revision + 1} versiyon
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <User size={10} />
-                          {pub.published_by_name ?? "Yönetici"}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={10} />
-                          {fmtTimestamp(pub.published_at)}
-                        </span>
-                        <span className="font-medium text-slate-500">
-                          {revLabel(pub.revision)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Expand ikon */}
-                    <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isOpen ? "bg-slate-100" : "bg-slate-50 hover:bg-slate-100"}`}>
-                      {isOpen
-                        ? <ChevronUp size={15} className="text-slate-500" />
-                        : <ChevronDown size={15} className="text-slate-500" />
-                      }
-                    </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-slate-900 truncate">{info.label}</span>
+                      <span className="block text-xs text-slate-500 truncate mt-0.5">
+                        {pub.published_by_name ?? "Yönetici"} · {fmtTimestamp(pub.published_at)}
+                      </span>
+                    </span>
+                    {hasRevisions
+                      ? <StatusPill tone="attention">{pub.revision + 1} sürüm</StatusPill>
+                      : <StatusPill tone="positive">İlk yayın</StatusPill>}
+                    <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
 
                   {/* ── Genişletilmiş Alan ── */}
@@ -508,34 +450,13 @@ export default function ScheduleArchivePage() {
                       ) : (
                         <>
                           {/* Revizyon sekmeleri (birden fazla varsa) */}
-                          {revisions.length > 1 && (
-                            <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 border-b border-slate-100 overflow-x-auto">
-                              <span className="text-[10px] font-bold text-slate-400 shrink-0">Versiyon:</span>
-                              {revisions.map(rev => {
-                                const isSelected = currentRevId === rev.id;
-                                const isSnapping = loadingSnap === rev.id;
-                                return (
-                                  <button
-                                    key={rev.id}
-                                    onClick={() => selectRevision(pub.week_start, rev.id)}
-                                    disabled={isSnapping}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                                      isSelected
-                                        ? "bg-slate-900 text-white border-slate-900"
-                                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
-                                    }`}
-                                  >
-                                    {rev.revision === 0
-                                      ? <CheckCircle2 size={11} />
-                                      : <RefreshCw size={11} className={isSnapping ? "animate-spin" : ""} />
-                                    }
-                                    {revLabel(rev.revision)}
-                                    <span className={`text-[9px] font-normal ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
-                                      {new Date(rev.published_at * 1000).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                          {revisions.length > 1 && currentRevId && (
+                            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                              <Tabs value={String(currentRevId)} onChange={id => selectRevision(pub.week_start, Number(id))}
+                                items={revisions.map(rev => ({
+                                  id: String(rev.id),
+                                  label: `${revLabel(rev.revision)} · ${new Date(rev.published_at * 1000).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`,
+                                }))} />
                             </div>
                           )}
 
@@ -562,12 +483,11 @@ export default function ScheduleArchivePage() {
                       )}
                     </div>
                   )}
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-      </div>
     </Page>
   );
 }
