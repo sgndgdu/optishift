@@ -5,15 +5,10 @@ import { defaultWeeklyHours } from "@/lib/legal";
 import { Suspense, useEffect, useState } from "react";
 import ManagersCard from "@/components/personnel/ManagersCard";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Users, Plus, Search, Edit2, X, Check,
-  Phone, Mail, Briefcase, Shield, Building2, ChevronDown,
-  Copy, Link,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Plus, Search, Check, ChevronDown, Copy } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty, ListSection } from "@/components/ui/List";
+import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 
@@ -58,6 +53,8 @@ function SupervisorPersonnelInner() {
 
   // Onay bekleyen hesaplar (manager'ın oluşturduğu, henüz aktif olmayan)
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   // Şube müdürleri: personel kaydı olmadığı için personel listesinde görünmezler (Test 3 Ö1)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
@@ -258,9 +255,12 @@ function SupervisorPersonnelInner() {
 
   if (!mounted) return <Page />;
 
+  const detail = personnel.find(p => p.id === detailId) ?? null;
+  const pendingOpen = pendingUsers.find(u => u.id === pendingOpenId) ?? null;
+
   return (
     <Page className="animate-in fade-in duration-500">
-      <PageHeader title="Tüm Personel" description="İşletme geneli tüm personeli yönetin." actions={
+      <PageHeader title="Tüm Personel" description="Tüm şubelerin ekibi" actions={
         <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className={pageActionClass}>
           <Plus size={16} /> Çalışan Ekle
         </button>
@@ -271,137 +271,97 @@ function SupervisorPersonnelInner() {
         <ManagersCard viewerRole={user.role} locations={locations.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name }))} />
       )}
 
-      {/* Filtreler */}
-      <div className="flex flex-wrap gap-2 sm:gap-3">
+      {/* Arama + şube */}
+      <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 transition-colors" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Ad, e-posta ya da unvan ara"
+            className="w-full pl-9 pr-3 min-h-[40px] bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
         <div className="relative">
-          <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <select value={selectedLocId} onChange={e => { setSelectedLocId(e.target.value); fetchPersonnel(e.target.value); }}
-            className="pl-9 pr-8 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-forest-500 appearance-none cursor-pointer">
-            <option value="">Tüm Şubeler</option>
+            className="pl-3 pr-8 min-h-[40px] bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
+            <option value="">Tüm şubeler</option>
             {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
-
-      {/* Onay Bekleyen Hesaplar */}
+      {/* Onay bekleyen hesaplar (kendi kendine kayıt bağlantısından gelenler) */}
       {pendingUsers.length > 0 && (
-        <Card className="stripe-card border-0 shadow-none border-l-4 border-l-amber-400">
-          <CardHeader className="border-b border-border/40 bg-amber-50/50 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-amber-100 rounded-xl text-amber-600"><Shield size={18} /></div>
-              <CardTitle className="text-base font-bold">Onay Bekleyen Hesaplar</CardTitle>
-              <Badge variant="secondary">{pendingUsers.length}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-50">
-              {pendingUsers.map(u => (
-                <div key={u.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm shrink-0">{u.name.charAt(0)}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{ROLE_LABELS[u.role] ?? u.role}{u.display_title ? ` · ${u.display_title}` : ""} · {u.username}</p>
-                  </div>
-                  <Button size="sm" variant="outline" disabled={pendingActionId === u.id}
-                    onClick={() => handlePendingReview(u.id, "rejected")}
-                    className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
-                    Reddet
-                  </Button>
-                  <Button size="sm" disabled={pendingActionId === u.id}
-                    onClick={() => handlePendingReview(u.id, "active")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
-                    <Check size={14} /> Onayla
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <List>
+          <ListSection title="Onay bekleyen hesaplar" count={pendingUsers.length} />
+          {pendingUsers.map(u => (
+            <ListItem key={u.id} onClick={() => setPendingOpenId(u.id)}
+              leading={<Avatar name={u.name} />}
+              title={u.name}
+              subtitle={`${ROLE_LABELS[u.role] ?? u.role}${u.display_title ? ` · ${u.display_title}` : ""}`}
+              trailing={<StatusPill tone="attention">Bekliyor</StatusPill>}
+            />
+          ))}
+        </List>
       )}
 
-      {/* Liste */}
-      <Card className="stripe-card border-0 shadow-none">
-        <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-forest-100 rounded-xl text-forest-600"><Users size={18} /></div>
-            <CardTitle className="text-base font-bold">Personel Listesi</CardTitle>
-            <Badge variant="secondary">{filtered.length} kişi</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-6 space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}</div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-slate-400">
-              <p className="font-semibold">{search ? "Arama sonucu bulunamadı." : "Henüz personel yok."}</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {filtered.map(p => {
-                const loc = locations.find(l => l.id === p.primary_location_id);
-                return (
-                  <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors group">
-                    <div className="w-10 h-10 rounded-full bg-forest-100 flex items-center justify-center text-forest-600 font-bold text-sm shrink-0">{p.name.charAt(0)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-800 text-sm">{p.name}</span>
-                        <Badge variant={p.status === "active" ? "success" : "secondary"} className="text-xs">{p.status === "active" ? "Aktif" : "Pasif"}</Badge>
-                        {p.user_access_level !== "employee" && (
-                          <Badge variant="warning" className="text-xs"><Shield size={9} className="mr-1" />{ACCESS_LEVELS.find(a => a.value === p.user_access_level)?.label}</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <span className="text-xs text-slate-500 flex items-center gap-1"><Briefcase size={11} /> {p.title || "—"}</span>
-                        <span className="text-xs text-slate-500 flex items-center gap-1"><Mail size={11} /> {p.email}</span>
-                        {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} /> {p.phone}</span>}
-                        {loc && <span className="text-xs text-forest-600 font-semibold flex items-center gap-1"><Building2 size={11} /> {loc.name}</span>}
-                        {p.crew_id && crewMap[p.crew_id] && (
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: crewMap[p.crew_id].color }}>
-                            {crewMap[p.crew_id].name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div className="text-right mr-2 hidden md:block">
-                        <div className="text-sm font-bold text-slate-700">{p.prev_score ?? 0}p</div>
-                        <div className="text-xs text-slate-400">adalet</div>
-                      </div>
-                      {p.user_id && (
-                        <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.id} title="Davet Linki"
-                          className="p-1.5 text-slate-300 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50">
-                          {inviteLinkLoading === p.id ? <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" /> : <Link size={14} />}
-                        </button>
-                      )}
-                      <Button variant="outline" size="icon" className="h-8 w-8 text-slate-400 hover:text-forest-600 hover:border-forest-300 opacity-0 group-hover:opacity-100" onClick={() => openEdit(p)}>
-                        <Edit2 size={14} />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      <List>
+        <ListSection title="Personel" count={filtered.length} />
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : filtered.length === 0 ? (
+          <ListEmpty>{search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}</ListEmpty>
+        ) : filtered.map(p => {
+          const loc = locations.find(l => l.id === p.primary_location_id);
+          return (
+            <ListItem key={p.id} onClick={() => setDetailId(p.id)}
+              leading={<Avatar name={p.name} />}
+              title={p.name}
+              subtitle={[p.title, loc?.name].filter(Boolean).join(" · ") || "—"}
+              trailing={p.status !== "active" ? <StatusPill tone="neutral">Pasif</StatusPill>
+                : p.user_access_level !== "employee" ? <StatusPill tone="brand">{ACCESS_LEVELS.find(a => a.value === p.user_access_level)?.label ?? "Yönetici"}</StatusPill>
+                : undefined}
+            />
+          );
+        })}
+      </List>
+
+      {/* Kişi ayrıntısı */}
+      <Sheet open={!!detail} onClose={() => setDetailId(null)} title={detail?.name ?? ""}
+        description={detail ? [detail.title, locations.find(l => l.id === detail.primary_location_id)?.name].filter(Boolean).join(" · ") : undefined}
+        footer={detail && <>
+          {detail.user_id && (
+            <button onClick={() => handleGenerateInvite(detail)} disabled={inviteLinkLoading === detail.id} className={sheetSecondaryClass}>
+              {inviteLinkLoading === detail.id ? "Hazırlanıyor…" : "Giriş bağlantısı"}
+            </button>
           )}
-        </CardContent>
-      </Card>
+          <button onClick={() => { const d = detail; setDetailId(null); openEdit(d); }} className={sheetPrimaryClass}>Düzenle</button>
+        </>}>
+        {detail && <div>
+          <DetailRow label="Durum">{detail.status === "active" ? "Aktif" : "Pasif"}</DetailRow>
+          <DetailRow label="E-posta">{detail.email || "—"}</DetailRow>
+          <DetailRow label="Telefon">{detail.phone || "—"}</DetailRow>
+          {detail.crew_id && crewMap[detail.crew_id] && <DetailRow label="Ekip">{crewMap[detail.crew_id].name}</DetailRow>}
+          <DetailRow label="Adalet puanı">{detail.prev_score ?? 0}</DetailRow>
+        </div>}
+      </Sheet>
 
-      {/* ADD MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Çalışan Ekle</h2>
-              <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={16} /></button>
-            </div>
+      {/* Onay bekleyen hesap ayrıntısı */}
+      <Sheet open={!!pendingOpen} onClose={() => setPendingOpenId(null)} title={pendingOpen?.name ?? ""}
+        description="Kayıt bağlantısıyla hesap açtı, onayınızı bekliyor"
+        footer={pendingOpen && <>
+          <button disabled={pendingActionId === pendingOpen.id} onClick={() => { handlePendingReview(pendingOpen.id, "rejected"); setPendingOpenId(null); }} className={sheetDangerClass}>Reddet</button>
+          <button disabled={pendingActionId === pendingOpen.id} onClick={() => { handlePendingReview(pendingOpen.id, "active"); setPendingOpenId(null); }} className={sheetPrimaryClass}>Onayla</button>
+        </>}>
+        {pendingOpen && <div>
+          <DetailRow label="Rol">{ROLE_LABELS[pendingOpen.role] ?? pendingOpen.role}</DetailRow>
+          {pendingOpen.display_title && <DetailRow label="Unvan">{pendingOpen.display_title}</DetailRow>}
+          <DetailRow label="Kullanıcı adı">{pendingOpen.username}</DetailRow>
+        </div>}
+      </Sheet>
 
+      {/* Çalışan ekle */}
+      <Sheet open={showAddModal} onClose={() => { setShowAddModal(false); setAddError(""); }} title="Çalışan ekle"
+        footer={<>
+          <button onClick={() => { setShowAddModal(false); setAddError(""); }} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={handleAdd} disabled={addLoading} className={sheetPrimaryClass}>{addLoading ? "Oluşturuluyor…" : "Hesap oluştur"}</button>
+        </>}>
             <div className="space-y-4">
 
               {/* Temel bilgiler */}
@@ -409,29 +369,29 @@ function SupervisorPersonnelInner() {
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad *</label>
                   <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">E-posta</label>
                   <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ahmet@sirket.com"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="05XX XXX XX XX"
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 {isEmployee && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
                       <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Kasiyer"
-                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
                       <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))}
-                        className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary appearance-none">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
@@ -463,7 +423,7 @@ function SupervisorPersonnelInner() {
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-2 block">Şube *</label>
                   <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary appearance-none">
                     <option value="">Şube seçin...</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
@@ -494,141 +454,85 @@ function SupervisorPersonnelInner() {
 
               {addError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600 font-medium">{addError}</div>}
 
-              <div className="bg-forest-50 border border-forest-100 rounded-xl p-3 text-xs text-forest-700 flex items-center gap-2">
-                <Link size={12} className="shrink-0" />
-                Oluşturduktan sonra <strong className="ml-1">davet linki</strong>&nbsp;ve geçici şifre gösterilecek.
-              </div>
+              <p className="text-xs text-slate-500">Oluşturduktan sonra giriş bağlantısı ve geçici şifre gösterilir.</p>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" onClick={() => { setShowAddModal(false); setAddError(""); }} className="flex-1">İptal</Button>
-              <Button onClick={handleAdd} disabled={addLoading} className="flex-[2] bg-forest-600 hover:bg-forest-700 text-white gap-2">
-                {addLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Check size={16} /> Hesap Oluştur</>}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
 
-      {/* POST-CREATION INVITE MODAL */}
-      {inviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0"><Check size={24} className="text-emerald-600" /></div>
-              <div>
-                <p className="font-bold text-slate-900">{inviteModal.name} oluşturuldu!</p>
-                <p className="text-xs text-slate-500 mt-0.5">Personele aşağıdakilerden birini iletin</p>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-slate-700">Davet Linki (Önerilen)</p>
-                <StatusPill tone="positive">7 gün geçerli</StatusPill>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
-                <p className="text-xs font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
-                <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
-                  className={cn("shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors", inviteCopied ? "bg-emerald-500 text-white" : "bg-forest-600 text-white hover:bg-forest-700")}>
-                  {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
-                </button>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-700 mb-2">Geçici Şifre (Yedek)</p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Kullanıcı adı:</span>
-                  <span className="font-mono font-bold text-slate-800 text-sm">{inviteModal.username}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Geçici şifre:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-forest-600 text-sm">{inviteModal.tempPassword}</span>
-                    <button onClick={() => { navigator.clipboard.writeText(inviteModal.tempPassword); setPassCopied(true); setTimeout(() => setPassCopied(false), 2000); }} className={cn("p-1 rounded", passCopied ? "text-emerald-600" : "text-slate-400 hover:text-slate-600")}>
-                      {passCopied ? <Check size={13} /> : <Copy size={13} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <Button onClick={() => { setInviteModal(null); setInviteCopied(false); setPassCopied(false); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white">Tamam, Kapat</Button>
-          </div>
-        </div>
-      )}
-
-      {/* INVITE LINK MODAL (existing) */}
-      {inviteLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setInviteLinkModal(null)}>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Link size={18} className="text-amber-600" /></div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">{inviteLinkModal.name}</p>
-                <p className="text-xs text-slate-500">Davet linki (7 gün geçerli)</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-              <p className="text-xs text-slate-500 font-mono break-all leading-relaxed">{inviteLinkModal.url}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setInviteLinkModal(null)} className="flex-1">Kapat</Button>
-              <button onClick={() => { navigator.clipboard.writeText(inviteLinkModal.url); setInviteLinkCopied(true); setTimeout(() => setInviteLinkCopied(false), 2000); }}
-                className={cn("flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-colors", inviteLinkCopied ? "bg-emerald-500 text-white" : "bg-amber-500 hover:bg-amber-600 text-white")}>
-                {inviteLinkCopied ? <><Check size={14} /> Kopyalandı!</> : <><Copy size={14} /> Kopyala</>}
+      {/* Hesap oluşturuldu: giriş bilgileri */}
+      <Sheet open={!!inviteModal} onClose={() => { setInviteModal(null); setInviteCopied(false); setPassCopied(false); }}
+        title={inviteModal ? `${inviteModal.name} eklendi` : ""} description="Kişiye aşağıdakilerden birini iletin"
+        footer={<button onClick={() => { setInviteModal(null); setInviteCopied(false); setPassCopied(false); }} className={sheetPrimaryClass}>Tamam</button>}>
+        {inviteModal && <div className="space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-slate-600">Giriş bağlantısı (7 gün geçerli)</p>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 pl-3">
+              <p className="text-xs text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
+              <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
+                className="shrink-0 inline-flex items-center gap-1 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold">
+                {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
               </button>
             </div>
           </div>
-        </div>
-      )}
+          <div>
+            <p className="text-xs font-semibold text-slate-600 mb-1">Yedek: kullanıcı adı ve geçici şifre</p>
+            <DetailRow label="Kullanıcı adı">{inviteModal.username}</DetailRow>
+            <DetailRow label="Geçici şifre">
+              <span className="inline-flex items-center gap-2">{inviteModal.tempPassword}
+                <button aria-label="Şifreyi kopyala" title="Şifreyi kopyala" onClick={() => { navigator.clipboard.writeText(inviteModal.tempPassword); setPassCopied(true); setTimeout(() => setPassCopied(false), 2000); }} className="text-slate-400 hover:text-slate-700">
+                  {passCopied ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+              </span>
+            </DetailRow>
+          </div>
+        </div>}
+      </Sheet>
 
-      {/* EDIT MODAL */}
-      {editingPersonnel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setEditingPersonnel(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Personel Düzenle</h2>
-              <button onClick={() => setEditingPersonnel(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={16} /></button>
-            </div>
-            <form onSubmit={handleEdit} className="space-y-4">
+      {/* Mevcut kişiye giriş bağlantısı */}
+      <Sheet open={!!inviteLinkModal} onClose={() => setInviteLinkModal(null)} title={inviteLinkModal?.name ?? ""} description="Giriş bağlantısı, 7 gün geçerli"
+        footer={inviteLinkModal && <>
+          <button onClick={() => setInviteLinkModal(null)} className={sheetSecondaryClass}>Kapat</button>
+          <button onClick={() => { navigator.clipboard.writeText(inviteLinkModal.url); setInviteLinkCopied(true); setTimeout(() => setInviteLinkCopied(false), 2000); }} className={sheetPrimaryClass}>
+            {inviteLinkCopied ? "Kopyalandı" : "Kopyala"}
+          </button>
+        </>}>
+        {inviteLinkModal && <p className="text-xs text-slate-600 break-all bg-slate-50 border border-slate-200 rounded-xl p-3">{inviteLinkModal.url}</p>}
+      </Sheet>
+
+      {/* Düzenle */}
+      <Sheet open={!!editingPersonnel} onClose={() => setEditingPersonnel(null)} title="Personeli düzenle"
+        footer={<>
+          <button type="button" onClick={() => setEditingPersonnel(null)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button type="submit" form="sv-edit-form" disabled={editLoading} className={sheetPrimaryClass}>{editLoading ? "Kaydediliyor…" : "Kaydet"}</button>
+        </>}>
+        <form id="sv-edit-form" onSubmit={handleEdit} className="space-y-4">
               {editError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600 font-medium">{editError}</div>}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad</label>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
                   <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
                   <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
                   <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary appearance-none">
                     {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="flex gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setEditingPersonnel(null)} className="flex-1">İptal</Button>
-                <Button type="submit" disabled={editLoading} className="flex-1 bg-forest-600 hover:bg-forest-700 text-white">
-                  {editLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Kaydet"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Sheet>
     </Page>
   );
 }

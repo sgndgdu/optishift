@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +24,9 @@ export function Sheet({ open, onClose, title, description, children, footer, siz
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-  if (!open) return null;
-  return (
+  if (!open || typeof document === "undefined") return null;
+  // Portal: sayfa kendi katman bağlamını açsa da (animate-in, transform) pencere alt menünün üstünde kalır
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose}>
       <div
         role="dialog"
@@ -47,7 +49,8 @@ export function Sheet({ open, onClose, title, description, children, footer, siz
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
