@@ -273,6 +273,7 @@ export default function DashboardPage() {
     nextWeek,
     pendingApprovals,
     pendingAccounts,
+    notJoined: personnel.filter((p: any) => p.user_id && p.is_temp_password && p.status !== "inactive").length,
     unreadMessages: isModuleOn(rules, "chat_enabled") ? unreadMessages : 0,
     availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },
     openShifts:   {

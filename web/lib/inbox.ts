@@ -37,6 +37,8 @@ export type InboxInput = {
   nextWeek: NextWeekState;
   pendingApprovals: number;
   pendingAccounts: number;
+  /** Hesabı açılmış ama davet bağlantısıyla şifresini hiç belirlememiş (uygulamaya hiç girmemiş) kişi sayısı. */
+  notJoined?: number;
   /** Müdüre gelen okunmamış mesaj sayısı (Mesajlaşma modülü kapalıysa verilmez). */
   unreadMessages?: number;
   availability: { enabled: boolean; missing: number };
@@ -118,6 +120,16 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       severity: "today",
       title: `${input.pendingAccounts} yeni hesap onay bekliyor`,
       action: { label: "İncele", href: "/personnel" },
+    });
+  }
+
+  if ((input.notJoined ?? 0) > 0) {
+    items.push({
+      id: "not-joined",
+      severity: "today",
+      title: `${input.notJoined} kişi henüz uygulamaya girmedi`,
+      detail: "Giriş bağlantılarını gönderin, yoksa vardiyalarını göremezler.",
+      action: { label: "Bağlantıları Gönder", href: "/personnel?notJoined=1" },
     });
   }
 

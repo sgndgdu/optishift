@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const baseSelect = `
-      SELECT p.*, u.username, u.id as user_id
+      SELECT p.*, u.username, u.id as user_id, u.is_temp_password
       FROM personnel p
       LEFT JOIN users u ON u.personnel_id = p.id
     `;

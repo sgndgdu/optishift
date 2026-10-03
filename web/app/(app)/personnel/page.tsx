@@ -3,7 +3,7 @@
 
 import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users, Plus, Search, Edit2, Trash2, X, Check, Copy,
@@ -13,6 +13,7 @@ import {
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
+import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
@@ -98,8 +99,9 @@ export default function PersonnelPage() {
   const [passCopied, setPassCopied] = useState(false);
 
   // Invite link for existing user
-  const [inviteLinkModal, setInviteLinkModal] = useState<{ name: string; url: string } | null>(null);
-  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+  // Giriş bağlantıları (tek kişi ya da uygulamaya hiç girmemiş herkes); WhatsApp ile gönder / kopyala
+  const [inviteLinks, setInviteLinks] = useState<InviteResult[] | null>(null);
+  const [preparingLinks, setPreparingLinks] = useState(false);
   const [inviteLinkLoading, setInviteLinkLoading] = useState<string | null>(null);
 
   // Edit modal
@@ -280,13 +282,29 @@ export default function PersonnelPage() {
     setAddLoading(false);
   };
 
+  const createInvite = async (person: MergedPerson): Promise<InviteResult | null> => {
+    const res = await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: person.userId }) });
+    const data = await res.json().catch(() => null);
+    return res.ok && data?.token ? { name: person.name, username: person.username, invite_token: data.token } : null;
+  };
+
   const handleGenerateInvite = async (person: MergedPerson) => {
     setInviteLinkLoading(person.userId);
     try {
-      const res = await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: person.userId }) });
-      const data = await res.json();
-      if (res.ok) { setInviteLinkModal({ name: person.name, url: `${window.location.origin}/setup?token=${data.token}` }); setInviteLinkCopied(false); }
+      const r = await createInvite(person);
+      if (r) setInviteLinks([r]);
     } finally { setInviteLinkLoading(null); }
+  };
+
+  /** Uygulamaya hiç girmemiş herkesin bağlantısını tek seferde hazırlar. */
+  const prepareNotJoinedLinks = async (list: MergedPerson[]) => {
+    if (list.length === 0) return;
+    setPreparingLinks(true);
+    try {
+      const results = await Promise.all(list.map(p => createInvite(p).catch(() => null)));
+      const ok = results.filter((r): r is InviteResult => r !== null);
+      if (ok.length) setInviteLinks(ok);
+    } finally { setPreparingLinks(false); }
   };
 
   const handleSelfSignup = async (action: "generate" | "disable") => {
@@ -428,6 +446,20 @@ export default function PersonnelPage() {
     setEditLoading(false);
   };
 
+  // Hesabı var ama davet bağlantısıyla hiç girip şifresini belirlememiş
+  const notJoined = persons.filter(p => p.userId && p.is_temp_password && p.approval_status !== "pending");
+
+  // Ana Sayfa'daki "henüz girmedi" maddesinden gelindiyse bağlantılar hemen hazırlanır
+  const autoPrepared = useRef(false);
+  useEffect(() => {
+    if (autoPrepared.current || loading || notJoined.length === 0) return;
+    if (new URLSearchParams(window.location.search).get("notJoined") !== "1") return;
+    autoPrepared.current = true;
+    // Effect gövdesinde senkron setState olmasın diye bir sonraki mikro göreve bırakılır
+    void Promise.resolve().then(() => prepareNotJoinedLinks(notJoined));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, persons]);
+
   const filtered = persons.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -535,6 +567,19 @@ export default function PersonnelPage() {
         );
       })()}
 
+      {notJoined.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">{notJoined.length} kişi henüz uygulamaya girmedi</p>
+            <p className="text-xs text-amber-800 mt-0.5">Giriş bağlantılarını gönderin, yoksa vardiyalarını göremezler.</p>
+          </div>
+          <button onClick={() => prepareNotJoinedLinks(notJoined)} disabled={preparingLinks}
+            className="shrink-0 flex items-center justify-center gap-2 bg-forest-700 hover:bg-forest-800 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            {preparingLinks ? <Loader2 size={14} className="animate-spin" /> : <Link size={14} />} Bağlantıları Gönder
+          </button>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -586,7 +631,11 @@ export default function PersonnelPage() {
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <StatusPill tone={badge.tone}>{badge.label}</StatusPill>
                       {isPending && <StatusPill tone="attention">Onay Bekliyor</StatusPill>}
-                      {p.is_temp_password && !isPending && <StatusPill tone="danger">Şifre Geçici</StatusPill>}
+                      {p.is_temp_password && !isPending && p.userId && (
+                        <button onClick={() => handleGenerateInvite(p)} title="Giriş bağlantısını gönder" className="hover:opacity-80">
+                          <StatusPill tone="attention">Henüz girmedi</StatusPill>
+                        </button>
+                      )}
                       {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
                         <button onClick={() => openEdit(p)} title="Departmanı seçilmemiş kişi otomatik plana alınmaz"
                           className="hover:opacity-80"><StatusPill tone="attention">Departman seçin</StatusPill></button>
@@ -815,27 +864,15 @@ export default function PersonnelPage() {
         </div>
       )}
 
-      {/* INVITE LINK MODAL (existing users) */}
-      {inviteLinkModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setInviteLinkModal(null)}>
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Link size={18} className="text-amber-600" /></div>
-              <div>
-                <p className="text-sm font-black text-slate-900">{inviteLinkModal.name}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Davet linki (7 gün geçerli)</p>
-              </div>
+      {/* GİRİŞ BAĞLANTILARI (tek kişi ya da henüz girmeyen herkes) */}
+      {inviteLinks && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setInviteLinks(null)}>
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black text-slate-900">Giriş bağlantıları</h2>
+              <button onClick={() => setInviteLinks(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" aria-label="Kapat"><X size={18} /></button>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-              <p className="text-[11px] text-slate-500 font-mono break-all leading-relaxed">{inviteLinkModal.url}</p>
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">Bu linki <strong>WhatsApp, SMS veya e-posta</strong> ile iletin. 7 gün sonra geçersiz olur.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setInviteLinkModal(null)} className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Kapat</button>
-              <button onClick={() => { navigator.clipboard.writeText(inviteLinkModal.url); setInviteLinkCopied(true); setTimeout(() => setInviteLinkCopied(false), 2000); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-colors ${inviteLinkCopied ? "bg-emerald-500 text-white" : "bg-amber-500 hover:bg-amber-600 text-white"}`}>
-                {inviteLinkCopied ? <><Check size={14} /> Kopyalandı!</> : <><Copy size={14} /> Kopyala</>}
-              </button>
-            </div>
+            <InviteLinkList results={inviteLinks} />
           </div>
         </div>
       )}

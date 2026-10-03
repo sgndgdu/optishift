@@ -4,7 +4,7 @@ import type { IndustryProfile } from "../types";
 export const callcenter: IndustryProfile = {
   key: "callcenter",
   label: "Çağrı Merkezi ve Müşteri Hizmetleri",
-  description: "Inbound, outbound, canlı destek. Çağrı yoğunluğuna göre kaydırmalı vardiya ve ekran molaları.",
+  description: "Gelen arama, giden arama, canlı destek. Çağrı yoğunluğuna göre kaydırmalı vardiya ve ekran molaları.",
   icon: "Headset",
 
   variants: [

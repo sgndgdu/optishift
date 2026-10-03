@@ -31,7 +31,7 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
   const steps = [
     { key: "shifts",    label: "Vardiyaları tanımla",  done: shiftDefsCount > 0,  icon: CalendarClock, action: () => setModal("shifts") },
     { key: "personnel", label: "Personel ekle",         done: personnelCount > 0,  icon: Users,          action: () => setModal("personnel") },
-    { key: "demand",    label: "Kaç kişi gerekli? gir", done: demandFilled,        icon: Grid3x3,        action: onOpenDemand },
+    { key: "demand",    label: "Kaç kişi gerektiğini gir", done: demandFilled,        icon: Grid3x3,        action: onOpenDemand },
   ];
   const allDone = steps.every(s => s.done);
   if (allDone) return null;
@@ -251,6 +251,8 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
               value={r.name}
               onChange={e => update(i, "name", e.target.value)}
               placeholder="Ad Soyad"
+              // "Satır ekle" ile gelen yeni satıra doğrudan yazılabilsin
+              autoFocus={i >= 3 && i === rows.length - 1}
               className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-forest-400"
             />
             <input

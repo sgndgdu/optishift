@@ -3916,7 +3916,7 @@ loading ? (
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{s.name}</span>
                     <span className="flex items-center gap-1">
-                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd}hs</span>}
+                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} h.sonu</span>}
                       {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
                       {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} sarı gün ataması (telafili)`}>{prfn}!</span>}
                       <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5">{Math.round(s.score * 10) / 10}</span>

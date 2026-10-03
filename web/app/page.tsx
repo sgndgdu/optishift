@@ -52,7 +52,7 @@ export default function LandingPage() {
           <div className="text-center mb-12 sm:mb-16 md:mb-24">
             <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">İşinizi Kolaylaştıran Özellikler</h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg font-medium px-4">
-              Kurallarınızı bir kez tanımlayın. OptiShift, kapasite ihtiyacınızı, personel uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
+              Kurallarınızı bir kez tanımlayın. OptiShift, kaç kişiye ihtiyacınız olduğunu, personelin uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
             </p>
           </div>
 
@@ -77,7 +77,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Adil Dağıtım</h3>
               <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
-                Ağırlıklı Adalet Skoru ile hafta sonu ve akşam nöbetleri tüm personele tamamen adil bir şekilde dağıtılır.
+                Adalet Puanı kimin ne kadar zor vardiya aldığını sayar; hafta sonu ve akşamlar herkese sırayla düşer.
               </p>
             </div>
 
@@ -89,7 +89,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Anında Kurulum</h3>
               <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
-                Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Personelinize anında mobil uygulamadan bildirim gitsin.
+                Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Plan yayınlanınca personeliniz telefonundan hemen görsün.
               </p>
             </div>
 
@@ -98,7 +98,7 @@ export default function LandingPage() {
               <div className="flex-1 relative z-10">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2 sm:mb-3">Çoklu Şube Yönetimi</h3>
                 <p className="text-slate-600 font-medium leading-relaxed text-sm sm:text-base">
-                  İster 1 şube, ister 100 şube. Tüm lokasyonlarınızı tek bir panelden yönetin, personellerinizi şubeler arası kaydırın. 10+ şubesi olan markalar için kurumsal çözümleri inceleyin.
+                  İster 1 şube, ister 100 şube. Tüm şubelerinizi tek bir panelden yönetin, personellerinizi şubeler arası kaydırın. 10+ şubesi olan markalar için kurumsal çözümleri inceleyin.
                 </p>
                 <Link href="/pricing" className="inline-flex items-center gap-2 mt-4 sm:mt-6 text-primary font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
                   Kurumsal Planlar <ArrowRight size={16} />

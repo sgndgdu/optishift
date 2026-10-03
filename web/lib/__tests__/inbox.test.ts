@@ -27,6 +27,12 @@ describe("buildInbox", () => {
     expect(buildInbox(base)).toEqual([]);
   });
 
+  it("uygulamaya girmemiş kişiler bugün maddesi olur", () => {
+    const [item] = buildInbox({ ...base, notJoined: 6 });
+    expect(item).toMatchObject({ id: "not-joined", severity: "today", title: "6 kişi henüz uygulamaya girmedi" });
+    expect(ids({ notJoined: 0 })).toEqual([]);
+  });
+
   it("okunmamış mesaj bugün maddesi olur", () => {
     const [item] = buildInbox({ ...base, unreadMessages: 2 });
     expect(item).toMatchObject({ id: "messages", severity: "today", title: "2 okunmamış mesaj" });

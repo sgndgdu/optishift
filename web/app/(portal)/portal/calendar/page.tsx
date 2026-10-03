@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCcw, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +56,19 @@ export default function PortalCalendar() {
       setPersonnelMap(map);
     }).finally(() => setLoading(false));
   }, [user, weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bu hafta vardiyası yok ama gelecek haftanın planı yayınlandıysa (bildirim de onu söyler)
+  // ilk açılışta doğrudan gelecek hafta gösterilir.
+  const autoJumped = useRef(false);
+  useEffect(() => {
+    if (autoJumped.current || loading || weekOffset !== 0 || !user?.personnel_id) return;
+    autoJumped.current = true;
+    if (shifts.length > 0 || onCalls.length > 0) return;
+    fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${getWeekStart(1)}`)
+      .then(r => r.json())
+      .then(rows => { if (Array.isArray(rows) && rows.length > 0) setWeekOffset(1); })
+      .catch(() => {});
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!mounted) return <div className="space-y-4" />;
 
@@ -122,7 +135,14 @@ export default function PortalCalendar() {
           const workDays = [0, 1, 2, 3, 4, 5, 6].filter(d => shifts.some((x: any) => x.day === d) || onCalls.some((x: any) => x.day === d));
           const offDays = [0, 1, 2, 3, 4, 5, 6].filter(d => !workDays.includes(d));
           if (workDays.length === 0) {
-            return <div className="text-center py-12 text-muted-foreground font-semibold text-sm">Bu hafta için atanmış bir {words.shift} yok.</div>;
+            return (
+              <div className="text-center py-12 text-muted-foreground font-semibold text-sm space-y-3">
+                <p>Bu hafta için atanmış bir {words.shift} yok.</p>
+                {weekOffset === 0 && (
+                  <button onClick={() => setWeekOffset(1)} className="text-forest-700 font-bold underline">Gelecek haftaya bak</button>
+                )}
+              </div>
+            );
           }
           return (
             <div className="space-y-2.5">

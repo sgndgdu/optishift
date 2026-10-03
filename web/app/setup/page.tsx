@@ -156,8 +156,13 @@ function SetupForm() {
           <h1 className="text-2xl font-black text-slate-900 mb-2">Hesabınızı Kurun</h1>
           <p className="text-slate-500 text-sm">
             Hoş geldiniz, <span className="font-semibold text-slate-700">{setupUser.name}</span>!<br />
-            Devam etmek için bilgilerinizi tamamlayın.
+            Şifrenizi belirleyin, vardiyalarınızı hemen görün.
           </p>
+          {setupUser.username && (
+            <p className="mt-3 inline-block bg-forest-50 border border-forest-100 rounded-xl px-4 py-2 text-sm text-slate-600">
+              Giriş için kullanıcı adınız: <span className="font-mono font-bold text-forest-700">{setupUser.username}</span>
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
@@ -286,11 +291,6 @@ function SetupForm() {
           </form>
         </div>
 
-        {setupUser.username && (
-          <p className="text-center text-xs text-slate-400 mt-6">
-            Kullanıcı adınız: <span className="font-mono font-semibold text-slate-600">{setupUser.username}</span>
-          </p>
-        )}
       </div>
     </div>
   );
