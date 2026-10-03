@@ -14,6 +14,7 @@ import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
 import { CountBadge, StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
+import { Sheet, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const LEAVE_TYPES = [
@@ -1067,39 +1068,12 @@ export default function PortalRequests() {
         </div>
       )}
 
-      {/* ── İptal Onay Modalı ── */}
-      {cancelConfirm && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
-          onClick={() => setCancelConfirm(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl space-y-4"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600 shrink-0">
-                <AlertCircle size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">Talebi İptal Et</p>
-                <p className="text-xs text-slate-500 mt-0.5">Bu işlem geri alınamaz.</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCancelConfirm(null)}
-                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Vazgeç
-              </button>
-              <button
-                onClick={() => cancelRequest(cancelConfirm.kind, cancelConfirm.id)}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-colors"
-              >
-                <Undo2 size={14} className="inline mr-1" />
-                İptal Et
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── İptal onayı ── */}
+      <Sheet open={!!cancelConfirm} onClose={() => setCancelConfirm(null)} title="Talep iptal edilsin mi?" description="Bu işlem geri alınamaz."
+        footer={cancelConfirm && <>
+          <button onClick={() => setCancelConfirm(null)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={() => cancelRequest(cancelConfirm.kind, cancelConfirm.id)} className={sheetDangerClass}>İptal et</button>
+        </>} />
 
       {/* Toast */}
       {toast && (

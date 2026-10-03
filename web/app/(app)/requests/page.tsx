@@ -16,6 +16,7 @@ import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
+import { Sheet, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -533,35 +534,15 @@ export default function ManagerRequestsPage() {
       )}
 
       {/* Reject modal */}
-      {rejectModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
-          onClick={() => { setRejectModal(null); setRejectNote(""); }}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
-            onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-slate-900">Reddetme Nedeni</h3>
-            <textarea
-              value={rejectNote}
-              onChange={e => setRejectNote(e.target.value)}
-              rows={3}
-              placeholder="Personele iletilecek neden (isteğe bağlı)..."
-              className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors resize-none"
-            />
-            <div className="flex gap-2">
-              <button onClick={() => { setRejectModal(null); setRejectNote(""); }}
-                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                Vazgeç
-              </button>
-              <button
-                onClick={handleRejectConfirm}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-colors"
-              >
-                <XCircle size={14} className="inline mr-1" />
-                Reddet
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Sheet open={!!rejectModal} onClose={() => { setRejectModal(null); setRejectNote(""); }} title="Reddetme nedeni"
+        description="İsteğe bağlı, kişiye iletilir"
+        footer={<>
+          <button onClick={() => { setRejectModal(null); setRejectNote(""); }} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={handleRejectConfirm} className={sheetDangerClass}>Reddet</button>
+        </>}>
+        <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value)} rows={3} placeholder="Neden (isteğe bağlı)…"
+          className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none" />
+      </Sheet>
 
       {/* Toast */}
       {toast && (

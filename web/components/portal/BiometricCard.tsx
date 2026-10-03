@@ -8,8 +8,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
-import { Fingerprint, X } from "lucide-react";
+import { Fingerprint } from "lucide-react";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
+import { Sheet, sheetPrimaryClass } from "@/components/ui/Sheet";
 
 export default function BiometricCard() {
   const [available, setAvailable] = useState(false);
@@ -118,34 +119,20 @@ export default function BiometricCard() {
         )}
       </div>
 
-      {manageOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setManageOpen(false)}>
-          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Biyometrik Cihazlar</h3>
-              <button onClick={() => setManageOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div className="space-y-2">
-              {creds.map(c => (
-                <div key={c.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2.5">
-                  <div>
-                    <p className="text-xs font-bold text-slate-700">{c.device_name ?? "Cihaz"}</p>
-                    <p className="text-xs text-slate-400">{new Date(c.created_at * 1000).toLocaleDateString("tr-TR")} tarihinde eklendi</p>
-                  </div>
-                  <button onClick={() => remove(c.id)} disabled={busy} className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50">Kaldır</button>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={enroll}
-              disabled={busy}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-forest-200 bg-forest-50 text-forest-700 text-xs font-bold hover:bg-forest-100 transition-colors disabled:opacity-50"
-            >
-              <Fingerprint size={14} /> {busy ? "…" : "Bu Cihazı Ekle"}
-            </button>
-          </div>
-        </div>
-      )}
+      <Sheet open={manageOpen} onClose={() => setManageOpen(false)} title="Biyometrik cihazlar"
+        footer={<button onClick={enroll} disabled={busy} className={sheetPrimaryClass}>{busy ? "…" : "Bu cihazı ekle"}</button>}>
+        <ul className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+          {creds.map(c => (
+            <li key={c.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{c.device_name ?? "Cihaz"}</p>
+                <p className="text-xs text-slate-500">{new Date(c.created_at * 1000).toLocaleDateString("tr-TR")} tarihinde eklendi</p>
+              </div>
+              <button onClick={() => remove(c.id)} disabled={busy} className="shrink-0 px-2 min-h-[36px] text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-50">Kaldır</button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
     </>
   );
 }

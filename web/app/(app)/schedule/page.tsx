@@ -7,7 +7,7 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Eye, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive, Pin, PinOff,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive, Pin, PinOff, Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -41,6 +41,8 @@ import { canPublishPlan, departmentScope, isViewOnly, parseAccess, type UserAcce
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { Tabs } from "@/components/ui/Tabs";
 
 const DAYS = DAY_SHORT;
 
@@ -3087,11 +3089,11 @@ loading ? (
               ) : isPublishedWeek && !editUnlocked ? (
                 <button onClick={() => (hasManagerPermission(viewerRole, locRules, "publish_edit") ? setEditUnlocked(true) : setUnlockModal(true))}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
-                  🔒 Düzenle
+                  <Lock size={14} /> Düzenle
                 </button>
               ) : cellCount === 0 && !isPublishedWeek ? (
                 <button onClick={() => openWizard()} disabled={generating || loading}
-                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-forest-700 rounded-xl hover:bg-forest-800 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                   <Sparkles size={14} /> Haftayı Oluştur
                 </button>
               ) : !canPublish ? (
@@ -3100,7 +3102,7 @@ loading ? (
                     <span className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl">✓ Onaya gönderildi</span>
                   ) : (
                     <button onClick={submitForApproval} disabled={submitting}
-                      className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                      className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                       <Send size={14} /> {submitting ? "Gönderiliyor…" : "Onaya Gönder"}
                     </button>
                   )
@@ -3109,7 +3111,7 @@ loading ? (
                 )
               ) : (
                 <button onClick={handlePublish} disabled={publishLoading}
-                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+                  className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                   <Send size={14} /> {publishLoading ? "Yayınlanıyor…" : isPublishedWeek ? "Güncellemeyi Yayınla" : "Yayınla"}
                 </button>
               )}
@@ -3660,12 +3662,8 @@ loading ? (
               </tr>
             );
             return (
-              <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !scnBusy && setScnOpen(false)}>
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Ya şöyle olursa">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">Ya şöyle olursa?</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{weekLabel} · kaydedilmez, sadece dener</p>
-                  </div>
+              <Sheet open onClose={() => { if (!scnBusy) setScnOpen(false); }} size="lg" title="Ya şöyle olursa?" description={`${weekLabel} · kaydedilmez, sadece dener`}>
+                <div className="space-y-4">
                   <div className="space-y-3 text-xs text-slate-700">
                     <div>
                       <p className="font-semibold mb-1">Biri izne çıkarsa</p>
@@ -3697,7 +3695,7 @@ loading ? (
                     </div>
                   </div>
                   <button onClick={runScenario} disabled={scnBusy || (!scnAbsent.pid && scnExtra === 0 && scnDemandPct === 0)}
-                    className="w-full py-2 text-sm font-bold text-white bg-sky-700 rounded-xl hover:bg-sky-800 disabled:opacity-40">
+                    className="w-full py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 disabled:opacity-40">
                     {scnBusy ? "Çözülüyor…" : "Senaryoyu çöz"}
                   </button>
                   {scnResult && (scnResult.scn.error || scnResult.base.error) && (
@@ -3732,22 +3730,22 @@ loading ? (
                     );
                   })()}
                 </div>
-              </div>
+              </Sheet>
             );
           })()}
 
           {/* ── Gelemiyor: akıllı yedek ── */}
           {absence && (
-            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !absenceBusy && setAbsence(null)}>
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Gelemiyor">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">Gelemiyor · yerine kim geçsin?</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{absence.title}</p>
-                </div>
+            <Sheet open onClose={() => { if (!absenceBusy) setAbsence(null); }} title="Gelemiyor · yerine kim geçsin?" description={absence.title}
+              footer={<>
+                <button disabled={absenceBusy} onClick={() => resolveAbsence("all")} className={sheetSecondaryClass}>Herkese duyur</button>
+                <button disabled={absenceBusy || !absenceCands?.length} onClick={() => resolveAbsence("top")} className={sheetPrimaryClass}>İlk 3&apos;e teklif gönder</button>
+              </>}>
+              <div className="space-y-4">
                 <div className="flex flex-wrap gap-1.5">
                   {([["sick", "Hastalık"], ["emergency", "Acil durum"], ["no_show", "Gelmedi"]] as const).map(([k, l]) => (
                     <button key={k} onClick={() => setAbsenceReason(k)}
-                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border", absenceReason === k ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200")}>{l}</button>
+                      className={cn("text-xs px-3 min-h-[36px] rounded-lg font-semibold border", absenceReason === k ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200")}>{l}</button>
                   ))}
                 </div>
                 {absenceCands === null ? (
@@ -3771,26 +3769,20 @@ loading ? (
                     ))}
                   </div>
                 )}
-                <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                  <button disabled={absenceBusy || !absenceCands?.length} onClick={() => resolveAbsence("top")}
-                    className="flex-1 py-2 text-sm font-bold text-white bg-forest-600 rounded-xl hover:bg-forest-700 disabled:opacity-40">İlk 3&apos;e teklif gönder</button>
-                  <button disabled={absenceBusy} onClick={() => resolveAbsence("all")}
-                    className="flex-1 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Herkese duyur</button>
-                </div>
-                <p className="text-[11px] text-slate-400">Teklifte ilk kabul eden vardiyayı alır ve Kahraman Bonusu kazanır. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
+                <p className="text-xs text-slate-500">Teklifte ilk kabul eden vardiyayı alır ve Kahraman Bonusu kazanır. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
               </div>
-            </div>
+            </Sheet>
           )}
 
           {/* ── İcap çağrısı (yayınlanmış hafta) ── */}
           {calloutModal && (
-            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setCalloutModal(null)}>
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="İcap çağrısı">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">İcap çağrısı</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{calloutModal.title}</p>
-                  <p className="text-[11px] text-slate-400 mt-1.5">Çağrılıp çalışılan saat çalışma süresine ve mesaiye sayılır; bekleme süresi sayılmaz.</p>
-                </div>
+            <Sheet open onClose={() => setCalloutModal(null)} title="İcap çağrısı" description={calloutModal.title}
+              footer={<>
+                <button onClick={() => setCalloutModal(null)} className={sheetSecondaryClass}>Kapat</button>
+                <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end} className={sheetPrimaryClass}>Çağrıyı kaydet</button>
+              </>}>
+              <div className="space-y-4">
+                <p className="text-xs text-slate-500">Çağrılıp çalışılan saat çalışma süresine ve mesaiye sayılır; bekleme süresi sayılmaz.</p>
                 {callouts.filter(c => c.assignment_id === calloutModal.assignmentId).map(c => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
                     <span className="font-semibold text-violet-800">{c.start_time}–{c.end_time}{c.note ? ` · ${c.note}` : ""}</span>
@@ -3809,98 +3801,53 @@ loading ? (
                 </div>
                 <input value={calloutForm.note} onChange={e => setCalloutForm(f => ({ ...f, note: e.target.value }))} placeholder="Not (isteğe bağlı): acil hasta, arıza..."
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
-                <div className="flex gap-2">
-                  <button onClick={() => setCalloutModal(null)} className="flex-1 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">Kapat</button>
-                  <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end}
-                    className="flex-1 py-2 text-sm font-bold text-white bg-violet-600 rounded-xl hover:bg-violet-700 disabled:opacity-40">Çağrıyı Kaydet</button>
-                </div>
               </div>
-            </div>
+            </Sheet>
           )}
 
           {/* ── Düzenleme kilidi modalı ── */}
           {unlockModal && (
-            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { if (editRequestStatus !== "pending") setUnlockModal(false); }}>
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
-                {(editRequestStatus === "idle" || editRequestStatus === "sending") && (
-                  <div className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800">Düzenleme Onayı</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Patron onayı gerekiyor</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-5 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>işletme sahibine</strong> gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">İptal</button>
-                      <button onClick={handleSendEditRequest} disabled={editRequestStatus === "sending"} className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                        {editRequestStatus === "sending" && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-                        {editRequestStatus === "sending" ? "Gönderiliyor…" : "Onay İste"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {editRequestStatus === "pending" && (
-                  <div className="p-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-4">
-                      <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-                    </div>
-                    <p className="font-bold text-slate-800 mb-1">Onay Bekleniyor</p>
-                    <p className="text-sm text-slate-500 mb-5">Talep patrona iletildi. Onayladığında düzenleme modu otomatik açılacak.</p>
-                    <button onClick={() => setUnlockModal(false)} className="w-full py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Kapat (arka planda bekler)</button>
-                  </div>
-                )}
-                {editRequestStatus === "rejected" && (
-                  <div className="p-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
-                      <X size={22} className="text-red-500" />
-                    </div>
-                    <p className="font-bold text-slate-800 mb-1">Talep Reddedildi</p>
-                    {editRequestNote && <p className="text-sm text-slate-500 mb-1">&ldquo;{editRequestNote}&rdquo;</p>}
-                    <p className="text-xs text-slate-400 mb-5">Planı düzenlemek için tekrar onay isteyin veya yöneticinizle iletişime geçin.</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Kapat</button>
-                      <button onClick={() => { setEditRequestStatus("idle"); handleSendEditRequest(); }} className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors">Tekrar İste</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <Sheet open onClose={() => { if (editRequestStatus !== "pending") setUnlockModal(false); }}
+              title={editRequestStatus === "pending" ? "Onay bekleniyor" : editRequestStatus === "rejected" ? "Talep reddedildi" : "Düzenleme onayı"}
+              description={editRequestStatus === "idle" || editRequestStatus === "sending" ? "İşletme sahibinin onayı gerekiyor" : undefined}
+              footer={editRequestStatus === "pending" ? (
+                <button onClick={() => setUnlockModal(false)} className={sheetSecondaryClass}>Kapat (arka planda bekler)</button>
+              ) : editRequestStatus === "rejected" ? <>
+                <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className={sheetSecondaryClass}>Kapat</button>
+                <button onClick={() => { setEditRequestStatus("idle"); handleSendEditRequest(); }} className={sheetPrimaryClass}>Tekrar iste</button>
+              </> : <>
+                <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className={sheetSecondaryClass}>Vazgeç</button>
+                <button onClick={handleSendEditRequest} disabled={editRequestStatus === "sending"} className={sheetPrimaryClass}>
+                  {editRequestStatus === "sending" ? "Gönderiliyor…" : "Onay iste"}
+                </button>
+              </>}>
+              {(editRequestStatus === "idle" || editRequestStatus === "sending") && (
+                <p className="text-sm text-slate-600 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>işletme sahibine</strong> gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
+              )}
+              {editRequestStatus === "pending" && (
+                <p className="text-sm text-slate-600">Talep işletme sahibine iletildi. Onayladığında düzenleme kendiliğinden açılır.</p>
+              )}
+              {editRequestStatus === "rejected" && (
+                <div className="space-y-1">
+                  {editRequestNote && <p className="text-sm text-slate-700">&ldquo;{editRequestNote}&rdquo;</p>}
+                  <p className="text-sm text-slate-500">Planı düzenlemek için tekrar onay isteyin ya da işletme sahibiyle konuşun.</p>
+                </div>
+              )}
+            </Sheet>
           )}
 
           {/* ── Yayın Geçmişi Modalı ── */}
           {pubsModalOpen && (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPubsModalOpen(false)}>
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <History size={16} className="text-slate-400" />
-                    <h2 className="text-base font-bold text-slate-800">Yayın Geçmişi</h2>
-                  </div>
-                  <Link href="/schedule/archive" className="ml-auto mr-3 text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-                    <Archive size={12} /> Tüm arşivi aç
-                  </Link>
-                  <button onClick={() => setPubsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X size={16} /></button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
+            <Sheet open onClose={() => setPubsModalOpen(false)} size="lg" title="Yayın geçmişi"
+              footer={<Link href="/schedule/archive" className={sheetSecondaryClass}>Tüm arşivi aç</Link>}>
+                <div className="-mx-5 -my-4">
                   {pubsLoading ? (
                     <div className="py-12 flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
                       <p className="text-sm text-slate-400">Yükleniyor…</p>
                     </div>
                   ) : publications.length === 0 ? (
-                    <div className="py-16 flex flex-col items-center gap-3 text-center px-6">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                        <History size={24} className="text-slate-300" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-600">Henüz yayınlanmış vardiya yok</p>
-                        <p className="text-sm text-slate-400 mt-1">Planlamayı tamamlayıp yayınladığınızda burada görünür.</p>
-                      </div>
-                    </div>
+                    <p className="py-10 px-6 text-center text-sm text-slate-500">Henüz yayınlanmış hafta yok. Planı yayınladığınızda burada görünür.</p>
                   ) : (
                     <div className="divide-y divide-slate-50">
                       {publications.map(pub => {
@@ -3950,8 +3897,7 @@ loading ? (
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
+            </Sheet>
           )}
 
         </div>
@@ -4182,21 +4128,14 @@ loading ? (
 
       {/* ── Vardiya Teklifi modalı ── */}
       {proposalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setProposalModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            {/* Başlık */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center shrink-0">
-                  <MessageCircle size={15} className="text-sky-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">Vardiya Teklifi</p>
-                  <p className="text-xs text-slate-400">{proposalModal.name}</p>
-                </div>
-              </div>
-              <button onClick={() => setProposalModal(null)} className="text-slate-400 hover:text-slate-600 p-1"><X size={15} /></button>
-            </div>
+        <Sheet open onClose={() => setProposalModal(null)} title="Vardiya teklifi" description={proposalModal.name}
+          footer={<>
+            <button onClick={() => setProposalModal(null)} className={sheetSecondaryClass}>Vazgeç</button>
+            <button onClick={handleSendProposal} disabled={proposalSending} className={sheetPrimaryClass}>
+              {proposalSending ? "Gönderiliyor…" : "Teklifi gönder"}
+            </button>
+          </>}>
+          <div className="space-y-4">
 
             {/* Mevcut vardiya */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
@@ -4221,7 +4160,7 @@ loading ? (
                     className={cn(
                       "flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-colors",
                       proposalDay === i
-                        ? "bg-sky-600 text-white border-sky-600"
+                        ? "bg-primary text-white border-primary"
                         : "bg-white text-slate-500 border-slate-200 hover:border-sky-300 hover:text-sky-600"
                     )}
                   >
@@ -4248,7 +4187,7 @@ loading ? (
                         onClick={() => { setProposalStartMin(ds); setProposalEndMin(de); }}
                         className={cn(
                           "text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-colors",
-                          isActive ? "bg-sky-600 text-white border-sky-600" : "bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:text-sky-700"
+                          isActive ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:text-sky-700"
                         )}
                       >
                         {def.name}
@@ -4273,10 +4212,10 @@ loading ? (
             </div>
 
             {/* Özet ok */}
-            <div className="flex items-center gap-3 bg-sky-50 border border-sky-100 rounded-xl px-3 py-2.5 text-xs font-semibold">
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold">
               <span className="text-slate-500 line-through">{proposalModal.currentStart}–{proposalModal.currentEnd}</span>
               <span className="text-slate-300">→</span>
-              <span className="text-sky-700">{isoDates[proposalDay] !== proposalModal.currentDate ? `${DAYS[proposalDay]} ` : ""}{minToHHMM(proposalStartMin)}–{minToHHMM(proposalEndMin, proposalEndMin >= 1440)}</span>
+              <span className="text-primary">{isoDates[proposalDay] !== proposalModal.currentDate ? `${DAYS[proposalDay]} ` : ""}{minToHHMM(proposalStartMin)}–{minToHHMM(proposalEndMin, proposalEndMin >= 1440)}</span>
             </div>
 
             {/* Not */}
@@ -4289,34 +4228,19 @@ loading ? (
               />
             </div>
 
-            <div className="flex gap-2">
-              <button onClick={() => setProposalModal(null)} className="flex-1 py-2.5 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">İptal</button>
-              <button
-                onClick={handleSendProposal}
-                disabled={proposalSending}
-                className="flex-1 py-2.5 text-sm font-bold text-white bg-sky-600 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {proposalSending
-                  ? <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Gönderiliyor…</>
-                  : <><Send size={13} /> Teklif Gönder</>}
-              </button>
-            </div>
           </div>
-        </div>
+        </Sheet>
       )}
 
       {/* ── Etkinlik ekleme modalı ── */}
       {addEventModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setAddEventModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-800">Etkinlik Ekle</h2>
-              <button onClick={() => setAddEventModal(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors"><X size={16} /></button>
-            </div>
-            <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-              <button onClick={() => setNewEventScope("day")} className={cn("flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all", newEventScope === "day" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}>📅 Özel Gün</button>
-              <button onClick={() => setNewEventScope("week")} className={cn("flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all", newEventScope === "week" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}>🗓 Haftalık Not</button>
-            </div>
+        <Sheet open onClose={() => setAddEventModal(null)} title="Etkinlik ekle"
+          footer={<>
+            <button onClick={() => setAddEventModal(null)} className={sheetSecondaryClass}>Vazgeç</button>
+            <button onClick={saveEvent} disabled={!newEventTitle.trim() || eventSaving} className={sheetPrimaryClass}>{eventSaving ? "Kaydediliyor…" : "Kaydet"}</button>
+          </>}>
+          <div className="space-y-4">
+            <Tabs fill value={newEventScope} onChange={setNewEventScope} items={[{ id: "day", label: "Özel gün" }, { id: "week", label: "Haftalık not" }] as const} />
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Başlık</label>
@@ -4354,14 +4278,8 @@ loading ? (
                 <input type="text" value={newEventNote} onChange={e => setNewEventNote(e.target.value)} placeholder="Ekstra detay..." className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-forest-400" />
               </div>
             </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setAddEventModal(null)} className="flex-1 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">İptal</button>
-              <button onClick={saveEvent} disabled={!newEventTitle.trim() || eventSaving} className="flex-1 py-2 text-sm font-bold text-white bg-forest-600 rounded-xl hover:bg-forest-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {eventSaving ? "Kaydediliyor..." : "Kaydet"}
-              </button>
-            </div>
           </div>
-        </div>
+        </Sheet>
       )}
 
       <DragOverlay>

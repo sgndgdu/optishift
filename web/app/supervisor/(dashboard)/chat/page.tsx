@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Send, Users, Building2, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
+import { Send, Users, ChevronLeft, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { CountBadge } from "@/components/ui/StatusPill";
@@ -99,7 +99,6 @@ export default function SupervisorChatPage() {
   const [draft,           setDraft]           = useState("");
   const [sending,         setSending]         = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(true);
-  const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const [newMsgCount,     setNewMsgCount]     = useState(0);
   const [isAtBottom,      setIsAtBottom]      = useState(true);
   const [search,          setSearch]          = useState("");
@@ -256,7 +255,6 @@ export default function SupervisorChatPage() {
 
   const handleSelect = (c: Contact) => {
     setSelected(c);
-    setSidebarOpen(false);
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
   };
 
@@ -324,33 +322,20 @@ export default function SupervisorChatPage() {
   if (!mounted) return <div className="flex h-full" />;
 
   return (
-    <Page className="animate-in fade-in duration-500">
+    <Page>
       <PageHeader title="Mesajlaşma" description="Şube grupları ve müdürlerle mesajlaşın." />
 
       <div className="flex flex-col md:flex-row gap-4 h-auto md:h-[calc(100vh-240px)] relative">
-        {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
-        )}
-
         {/* ── Contacts / Directory ─────────────────────────────────────── */}
+        {/* Telefonda iki görünüm: seçili sohbet yoksa liste, varsa sohbet (geri ile listeye) */}
         <div className={cn(
-          "absolute md:relative inset-y-0 left-0 z-30 md:z-auto w-72 md:w-64 md:shrink-0 bg-white rounded-2xl border border-slate-200/60 flex flex-col overflow-hidden transition-transform duration-200 md:translate-x-0",
-          sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full md:translate-x-0"
+          "w-full md:w-64 md:shrink-0 bg-white rounded-2xl border border-slate-200 flex-col overflow-hidden min-h-[400px] md:min-h-0",
+          selected ? "hidden md:flex" : "flex"
         )}>
           <div className="p-4 border-b border-slate-100">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <MessageSquare size={15} className="text-forest-500" />
-                Kanallar ve Müdürler
-              </h2>
-              <div className="flex items-center gap-2">
-                {totalUnread > 0 && (
-                  <CountBadge count={totalUnread} />
-                )}
-                <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                  <ChevronRight size={15} />
-                </button>
-              </div>
+              <h2 className="text-sm font-semibold text-slate-900">Kanallar ve müdürler</h2>
+              {totalUnread > 0 && <CountBadge count={totalUnread} />}
             </div>
             <div className="relative">
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -368,12 +353,9 @@ export default function SupervisorChatPage() {
                 {[1, 2, 3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
               </div>
             ) : contacts.length === 0 ? (
-              <div className="p-6 text-center text-slate-400">
-                <Building2 size={28} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-sm font-semibold">Kişi bulunamadı.</p>
-              </div>
+              <p className="p-6 text-center text-sm text-slate-500">Kişi bulunamadı.</p>
             ) : filtered.length === 0 ? (
-              <p className="text-xs text-slate-400 p-4 text-center">"{search}" için sonuç yok.</p>
+              <p className="text-xs text-slate-400 p-4 text-center">&ldquo;{search}&rdquo; için sonuç yok.</p>
             ) : (
               <>
                 {groupContacts.length > 0 && (
@@ -394,20 +376,16 @@ export default function SupervisorChatPage() {
         </div>
 
         {/* ── Chat area ────────────────────────────────────────────────── */}
-        <div className="flex-1 bg-white rounded-2xl border border-slate-200/60 flex flex-col overflow-hidden min-h-[400px] md:min-h-0 relative">
+        <div className={cn("flex-1 bg-white rounded-2xl border border-slate-200 flex-col overflow-hidden min-h-[400px] md:min-h-0 relative", selected ? "flex" : "hidden md:flex")}>
           {!selected ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-              <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-forest-50 text-forest-700 rounded-xl text-sm font-bold">
-                <ChevronRight size={16} className="rotate-180" /> Kanalları ve Müdürleri Göster
-              </button>
-              <p className="font-semibold text-slate-500">Kime yazmak istiyorsunuz?</p>
-              <p className="text-sm text-slate-400 mt-1"><span className="md:hidden">Yukarıdaki düğmeyle bir kanal veya müdür seçin.</span><span className="hidden md:inline">Soldan bir kanal veya müdür seçin.</span></p>
+            <div className="flex-1 flex items-center justify-center p-8 text-center">
+              <p className="text-sm text-slate-500">Soldan bir kanal ya da müdür seçin.</p>
             </div>
           ) : (
             <>
               {/* Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
-                <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors shrink-0">←</button>
+                <button onClick={() => setSelected(null)} aria-label="Listeye dön" title="Listeye dön" className="md:hidden w-10 h-10 -ml-2 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors shrink-0"><ChevronLeft size={18} /></button>
                 <div className={cn(
                   "w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center shrink-0",
                   selected.type === "group" ? "bg-forest-100 text-forest-600" : "bg-forest-600 text-white"

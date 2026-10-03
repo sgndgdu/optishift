@@ -16,6 +16,7 @@ import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
 import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -496,40 +497,22 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Çıkış devir notu modalı ──────────────────────────────────── */}
-      {checkoutModal !== null && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckoutModal(null)}>
-          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Vardiyadan Çıkış</h3>
-              <p className="text-xs text-slate-500 mt-1">Sonraki vardiyaya iletmek istediğin bir not var mı? (isteğe bağlı)</p>
-            </div>
-            <textarea
-              value={handoverDraft}
-              onChange={e => setHandoverDraft(e.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder="Örn: 3 no'lu pres arızalı, teknik servis çağrıldı. Sevkiyat paletleri hazır."
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-amber-400 focus:bg-white resize-none"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCheckOut(checkoutModal)}
-                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Notsuz Çık
-              </button>
-              <button
-                onClick={() => handleCheckOut(checkoutModal, handoverDraft)}
-                disabled={!handoverDraft.trim()}
-                className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-40"
-              >
-                Notu Bırak ve Çık
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Çıkış devir notu ──────────────────────────────────────────── */}
+      <Sheet open={checkoutModal !== null} onClose={() => setCheckoutModal(null)} title="Vardiyadan çıkış"
+        description="Sonraki vardiyaya iletmek istediğin bir not var mı? (isteğe bağlı)"
+        footer={checkoutModal !== null && <>
+          <button onClick={() => handleCheckOut(checkoutModal)} className={sheetSecondaryClass}>Notsuz çık</button>
+          <button onClick={() => handleCheckOut(checkoutModal, handoverDraft)} disabled={!handoverDraft.trim()} className={sheetPrimaryClass}>Notu bırak ve çık</button>
+        </>}>
+        <textarea
+          value={handoverDraft}
+          onChange={e => setHandoverDraft(e.target.value)}
+          maxLength={500}
+          rows={3}
+          placeholder="Örn: 3 no'lu pres arızalı, teknik servis çağrıldı. Sevkiyat paletleri hazır."
+          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+        />
+      </Sheet>
 
       {/* ── Bu Hafta mini takvim ─────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -596,50 +579,29 @@ export default function PortalDashboard() {
         </button>
       </div>
 
-      {emergencyOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => !emergencySending && setEmergencyOpen(false)}>
-          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
-            {emergencySent ? (
-              <div className="text-center py-4">
-                <Check size={32} className="text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm font-bold text-slate-800">Bildirim gönderildi</p>
-                <p className="text-xs text-slate-500 mt-1">Yöneticilerine anında ulaştı.</p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Acil Durum Bildir</h3>
-                  <p className="text-xs text-slate-500 mt-1">Şubendeki tüm yöneticilere anında bildirim gider. Sadece gerçek acil durumlarda kullan.</p>
-                </div>
-                <textarea
-                  value={emergencyMsg}
-                  onChange={e => setEmergencyMsg(e.target.value)}
-                  maxLength={300}
-                  rows={3}
-                  placeholder="Örn: Trafik kazası nedeniyle vardiyaya geç kalacağım."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-red-400 focus:bg-white resize-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEmergencyOpen(false)}
-                    disabled={emergencySending}
-                    className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                  >
-                    Vazgeç
-                  </button>
-                  <button
-                    onClick={handleEmergencyAlert}
-                    disabled={emergencySending}
-                    className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {emergencySending ? "Gönderiliyor…" : "Bildir"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
+        title={emergencySent ? "Bildirim gönderildi" : "Acil durum bildir"}
+        description={emergencySent ? "Yöneticilerine anında ulaştı." : "Şubendeki tüm yöneticilere anında bildirim gider. Sadece gerçek acil durumlarda kullan."}
+        footer={emergencySent ? (
+          <button onClick={() => setEmergencyOpen(false)} className={sheetSecondaryClass}>Kapat</button>
+        ) : <>
+          <button onClick={() => setEmergencyOpen(false)} disabled={emergencySending} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={handleEmergencyAlert} disabled={emergencySending}
+            className="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+            {emergencySending ? "Gönderiliyor…" : "Bildir"}
+          </button>
+        </>}>
+        {!emergencySent && (
+          <textarea
+            value={emergencyMsg}
+            onChange={e => setEmergencyMsg(e.target.value)}
+            maxLength={300}
+            rows={3}
+            placeholder="Örn: Trafik kazası nedeniyle vardiyaya geç kalacağım."
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+          />
+        )}
+      </Sheet>
 
       {/* ── Uygunluk hatırlatıcı ────────────────────────────────────────── */}
       {availEnabled === true && nextWeekAvail === false && !nextWeekPublished && (
