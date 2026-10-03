@@ -101,7 +101,7 @@ export default function AuditPage() {
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-12 text-center text-slate-600 text-sm">
-                      Kayit yok
+                      Kayıt yok
                     </td>
                   </tr>
                 )}

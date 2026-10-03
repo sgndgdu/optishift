@@ -42,10 +42,10 @@ type OrgSummary = {
 
 function timeAgo(ts: number): string {
   const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return `${diff}s once`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}dk once`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}sa once`;
-  return `${Math.floor(diff / 86400)}g once`;
+  if (diff < 60) return `${diff}s önce`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}dk önce`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}sa önce`;
+  return `${Math.floor(diff / 86400)}g önce`;
 }
 
 function eventIcon(type: string) {
@@ -56,9 +56,9 @@ function eventIcon(type: string) {
 }
 
 function eventLabel(ev: PlatformEvent): string {
-  if (ev.type === "login") return `${ev.meta?.user_name ?? "Kullanici"} giris yapti`;
+  if (ev.type === "login") return `${ev.meta?.user_name ?? "Kullanıcı"} giriş yaptı`;
   if (ev.type === "or_tools_call") return `OR-Tools çalıştırıldı (${ev.meta?.latency_ms ?? "?"}ms)`;
-  if (ev.type === "shift_created") return "Vardiya olusturuldu";
+  if (ev.type === "shift_created") return "Vardiya oluşturuldu";
   return ev.type;
 }
 
@@ -81,7 +81,7 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
     medium: "bg-amber-500/15 text-amber-400 border-amber-500/20",
     low: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
   };
-  const labels = { high: "Yuksek", medium: "Orta", low: "Dusuk" };
+  const labels = { high: "Yüksek", medium: "Orta", low: "Düşük" };
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
       {labels[risk]}
@@ -166,12 +166,12 @@ export default function AdminOverviewPage() {
     <div className="p-6 space-y-6 min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Platform Genel Bakis</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Platform Genel Bakış</h1>
           <p className="text-sm text-slate-500 mt-0.5">OptiShift God Mode</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-medium text-emerald-400">Canli</span>
+          <span className="text-xs font-medium text-emerald-400">Canlı</span>
         </div>
       </div>
 
@@ -185,7 +185,7 @@ export default function AdminOverviewPage() {
           color="bg-ember-600"
         />
         <MetricCard
-          label="Toplam Kullanici"
+          label="Toplam Kullanıcı"
           value={metrics?.total_users ?? "—"}
           icon={Users}
           color="bg-blue-600"
@@ -204,13 +204,13 @@ export default function AdminOverviewPage() {
           color="bg-forest-600"
         />
         <MetricCard
-          label="Girisler/24s"
+          label="Girişler/24s"
           value={metrics?.logins_24h ?? "—"}
           icon={TrendingUp}
           color="bg-emerald-600"
         />
         <MetricCard
-          label="Risk Alti Org"
+          label="Risk Altı Org"
           value={metrics?.at_risk_orgs ?? "—"}
           icon={AlertTriangle}
           color="bg-red-600"
@@ -222,7 +222,7 @@ export default function AdminOverviewPage() {
         {/* Live Feed */}
         <div className="xl:col-span-3 bg-white/3 border border-white/8 rounded-2xl p-5 flex flex-col" style={{ minHeight: 400 }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Canli Olay Akisi</h2>
+            <h2 className="text-sm font-semibold text-white">Canlı Olay Akışı</h2>
             <span className="text-xs font-medium text-slate-500 tabular-nums">
               {events.length} olay
             </span>
@@ -263,7 +263,7 @@ export default function AdminOverviewPage() {
         {/* Churn Radar */}
         <div className="xl:col-span-2 bg-white/3 border border-white/8 rounded-2xl p-5 flex flex-col" style={{ minHeight: 400 }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Kayip Riski Radari</h2>
+            <h2 className="text-sm font-semibold text-white">Kayıp Riski Radarı</h2>
             <Link
               href="/admin/orgs"
               className="text-xs text-ember-400 hover:text-ember-300 transition-colors"
@@ -276,7 +276,7 @@ export default function AdminOverviewPage() {
             {atRiskOrgs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 gap-3">
                 <AlertTriangle size={24} className="text-slate-700" />
-                <p className="text-sm text-slate-600">Risk alti org yok</p>
+                <p className="text-sm text-slate-600">Risk altı org yok</p>
               </div>
             ) : (
               atRiskOrgs.map((org) => (

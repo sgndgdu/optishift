@@ -20,9 +20,9 @@ async function verifyGodCookie(): Promise<boolean> {
 }
 
 const NAV = [
-  { href: "/admin",         label: "Genel Bakis",      icon: LayoutDashboard },
+  { href: "/admin",         label: "Genel Bakış",      icon: LayoutDashboard },
   { href: "/admin/orgs",    label: "Organizasyonlar",  icon: Building2 },
-  { href: "/admin/users",   label: "Kullanicilar",     icon: Users },
+  { href: "/admin/users",   label: "Kullanıcılar",     icon: Users },
   { href: "/admin/banners", label: "Duyurular",        icon: Megaphone },
   { href: "/admin/promo-codes", label: "Kampanya Kodları", icon: Gift },
   { href: "/admin/audit",   label: "Audit Logu",       icon: ClipboardList },

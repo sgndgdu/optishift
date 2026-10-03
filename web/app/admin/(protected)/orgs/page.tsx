@@ -54,7 +54,7 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
     medium: "bg-amber-500/15 text-amber-400 border-amber-500/20",
     low: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
   };
-  const labels = { high: "Yuksek", medium: "Orta", low: "Dusuk" };
+  const labels = { high: "Yüksek", medium: "Orta", low: "Düşük" };
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
       {labels[risk]}
@@ -63,10 +63,10 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
 }
 
 function timeAgo(ts: number | null): string {
-  if (!ts) return "Hic";
+  if (!ts) return "Hiç";
   const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}sa once`;
-  return `${Math.floor(diff / 86400)}g once`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}sa önce`;
+  return `${Math.floor(diff / 86400)}g önce`;
 }
 
 export default function OrgsPage() {
@@ -115,7 +115,7 @@ export default function OrgsPage() {
           onChange={(e) => setPlanFilter(e.target.value)}
           className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-ember-500/50 transition-colors"
         >
-          <option value="all">Tum Planlar</option>
+          <option value="all">Tüm Planlar</option>
           <option value="free">Free</option>
           <option value="pro">Pro</option>
           <option value="enterprise">Enterprise</option>
@@ -133,9 +133,9 @@ export default function OrgsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">İsim</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Plan</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Saglik</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Sağlık</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Personel</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Aktivite</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">OR-Tools/7g</th>
@@ -157,7 +157,7 @@ export default function OrgsPage() {
                         <div>
                           <p className="font-medium text-white">{org.name}</p>
                           {org.suspended_at && (
-                            <p className="text-xs text-red-400">Askiya alinmis</p>
+                            <p className="text-xs text-red-400">Askıya alınmış</p>
                           )}
                         </div>
                       </div>
@@ -204,7 +204,7 @@ export default function OrgsPage() {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-5 py-12 text-center text-slate-600 text-sm">
-                      Sonuc bulunamadi
+                      Sonuç bulunamadı
                     </td>
                   </tr>
                 )}

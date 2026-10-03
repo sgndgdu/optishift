@@ -15,12 +15,12 @@ type OrgDetail = {
 };
 
 function timeAgo(ts: number | null): string {
-  if (!ts) return "Hic";
+  if (!ts) return "Hiç";
   const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return `${diff}s once`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}dk once`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}sa once`;
-  return `${Math.floor(diff / 86400)}g once`;
+  if (diff < 60) return `${diff}s önce`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}dk önce`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}sa önce`;
+  return `${Math.floor(diff / 86400)}g önce`;
 }
 
 const TABS = [
@@ -91,7 +91,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
 
   if (!data) {
     return (
-      <div className="p-6 text-slate-400">Org bulunamadi.</div>
+      <div className="p-6 text-slate-400">Org bulunamadı.</div>
     );
   }
 
@@ -114,7 +114,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
         </div>
         {org.suspended_at && (
           <span className="ml-2 bg-red-500/15 text-red-400 border border-red-500/20 text-xs font-semibold px-3 py-1 rounded-full">
-            Askiya Alinmis
+            Askıya Alınmış
           </span>
         )}
       </div>
@@ -142,7 +142,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
         <div className="space-y-4">
           {/* Plan */}
           <div className="bg-white/3 border border-white/8 rounded-2xl p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white">Plan Yonetimi</h3>
+            <h3 className="text-sm font-semibold text-white">Plan Yönetimi</h3>
             <div className="flex gap-3 flex-wrap">
               <div className="flex-1 min-w-[200px]">
                 <label className="block text-xs text-slate-500 mb-1.5">Plan</label>
@@ -194,7 +194,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
             {org.suspended_at ? (
               <div className="space-y-3">
                 <p className="text-sm text-slate-400">
-                  Askiya alinma tarihi: <span className="text-white">{timeAgo(org.suspended_at)}</span>
+                  Askıya alınma tarihi: <span className="text-white">{timeAgo(org.suspended_at)}</span>
                 </p>
                 {org.suspended_reason && (
                   <p className="text-sm text-slate-400">
@@ -215,7 +215,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   type="text"
                   value={suspendReason}
                   onChange={(e) => setSuspendReason(e.target.value)}
-                  placeholder="Askiya alma sebebi..."
+                  placeholder="Askıya alma sebebi..."
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-red-500/50"
                 />
                 <button
@@ -223,7 +223,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   disabled={saving}
                   className="bg-red-600/80 hover:bg-red-600 disabled:opacity-50 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors"
                 >
-                  Askiya Al
+                  Askıya Al
                 </button>
               </div>
             )}
@@ -256,7 +256,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
       {/* Metrikler Sekmesi */}
       {tab === "metrikler" && (
         <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Son 7 Gun Vardiya Sayisi</h3>
+          <h3 className="text-sm font-semibold text-white mb-4">Son 7 Gün Vardiya Sayısı</h3>
           {daily_shifts.length === 0 ? (
             <p className="text-sm text-slate-600">Veri yok</p>
           ) : (
@@ -284,9 +284,9 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">İsim</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Rol</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giris</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giriş</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -313,7 +313,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
               {admin_users.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-5 py-10 text-center text-slate-600 text-sm">
-                    Kullanici yok
+                    Kullanıcı yok
                   </td>
                 </tr>
               )}
@@ -325,7 +325,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
       {/* Timeline Sekmesi */}
       {tab === "timeline" && (
         <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Son Platform Olaylari</h3>
+          <h3 className="text-sm font-semibold text-white mb-4">Son Platform Olayları</h3>
           <div className="space-y-2">
             {events.map((ev: any) => (
               <div
