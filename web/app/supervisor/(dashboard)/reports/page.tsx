@@ -2,13 +2,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useSupervisorAuth } from "@/hooks/useAuth";
 import { getWeekStart } from "@/lib/date";
-import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, TrendingUp, ShieldCheck } from "lucide-react";
+import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, ShieldCheck, RefreshCw, Scale } from "lucide-react";
+import { StatCard } from "@/components/ui/StatCard";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty, ListSection } from "@/components/ui/List";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 function formatWeekLabel(weekStart: string) {
@@ -58,7 +60,6 @@ interface PersonnelRow {
 
 // ─── page ──────────────────────────────────────────────────────────────────
 export default function SupervisorReports() {
-  const router = useRouter();
   const { user, mounted } = useSupervisorAuth();
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -141,320 +142,117 @@ export default function SupervisorReports() {
 
   if (!mounted) return <div className="h-screen" />;
 
+  const planHref = (id: string) => `/supervisor/schedule?location_id=${id}`;
+
   return (
     <Page>
-      {/* Header */}
-      <PageHeader title="Raporlar" description="Çapraz şube haftalık analiz" actions={
-        <button
-          onClick={loadData}
-          className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 shrink-0"
-        >
-          Yenile
+      <PageHeader title="Raporlar" description="Tüm şubeler, haftalık" actions={
+        <button onClick={loadData}
+          className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 shrink-0">
+          <RefreshCw size={14} /> Yenile
         </button>
       } />
 
-      {/* Week navigator */}
-      <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-100 px-4 py-3">
-        <button
-          onClick={() => setWeekOffset(w => w - 1)}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-        >
-          <ChevronLeft size={16} className="text-slate-600" />
+      {/* Hafta seçici */}
+      <div className="flex items-center gap-1">
+        <button onClick={() => setWeekOffset(w => w - 1)} aria-label="Önceki hafta" title="Önceki hafta"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+          <ChevronLeft size={18} />
         </button>
-        <div className="text-center">
-          <p className="text-sm font-bold text-slate-900">{formatWeekLabel(getWeekStart(weekOffset))}</p>
-          {weekOffset === 0 && <p className="text-xs text-primary font-bold">Bu Hafta</p>}
-          {weekOffset !== 0 && (
-            <button onClick={() => setWeekOffset(0)} className="text-xs text-slate-400 hover:text-primary transition-colors">
-              Bu haftaya dön
-            </button>
-          )}
-        </div>
-        <button
-          onClick={() => setWeekOffset(w => w + 1)}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-        >
-          <ChevronRight size={16} className="text-slate-600" />
+        <p className="min-w-[8rem] text-center text-base font-bold text-slate-900">{formatWeekLabel(getWeekStart(weekOffset))}</p>
+        <button onClick={() => setWeekOffset(w => w + 1)} aria-label="Sonraki hafta" title="Sonraki hafta"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+          <ChevronRight size={18} />
         </button>
-      </div>
-
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <KpiCard icon={<Building2 size={16} className="text-blue-600" />} bg="bg-blue-50"
-          label="Şube" value={`${branches.length}`} href="/supervisor" />
-        <KpiCard icon={<Users size={16} className="text-forest-600" />} bg="bg-forest-50"
-          label="Personel" value={`${totalPersonnel}`} href="/supervisor/personnel" />
-        <KpiCard icon={<Clock size={16} className="text-emerald-600" />} bg="bg-emerald-50"
-          label="Toplam Saat" value={`${totalHours} sa`} sub={`${totalShifts} vardiya`} />
-        <KpiCard
-          icon={totalFlags > 0
-            ? <AlertTriangle size={16} className="text-red-500" />
-            : <ShieldCheck size={16} className="text-emerald-600" />}
-          bg={totalFlags > 0 ? "bg-red-50" : "bg-emerald-50"}
-          label="Yasal Uyumluluk"
-          value={totalFlags > 0 ? `${totalFlags} uyarı` : "Temiz"}
-          valueClass={totalFlags > 0 ? "text-red-600" : "text-emerald-700"}
-          onClick={totalFlags > 0 ? () => setActiveTab("compliance") : undefined}
-        />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-        {([
-          { id: "summary",    label: "Şube Özeti" },
-          { id: "compliance", label: `Uyumluluk${totalFlags > 0 ? ` (${totalFlags})` : ""}` },
-          { id: "fairness",   label: `Adalet Puanı · Ort. ${avgScore}` },
-        ] as const).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              activeTab === t.id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {t.label}
+        {weekOffset !== 0 && (
+          <button onClick={() => setWeekOffset(0)} className="ml-1 px-2 min-h-[40px] text-xs font-semibold text-primary hover:underline">
+            Bu hafta
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Content */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Şube" value={branches.length} icon={Building2} />
+        <StatCard label="Personel" value={totalPersonnel} icon={Users} />
+        <StatCard label="Toplam saat" value={`${totalHours} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
+        <StatCard label="Yasal uyumluluk" value={totalFlags > 0 ? `${totalFlags} uyarı` : "Temiz"}
+          icon={totalFlags > 0 ? AlertTriangle : ShieldCheck} tone={totalFlags > 0 ? "danger" : "positive"}
+          onClick={totalFlags > 0 ? () => setActiveTab("compliance") : undefined} />
+      </div>
+
+      <Tabs fill value={activeTab} onChange={setActiveTab} items={[
+        { id: "summary",    label: "Şubeler" },
+        { id: "compliance", label: "Uyumluluk", count: totalFlags },
+        { id: "fairness",   label: "Adalet" },
+      ] as const} />
+
       {loading ? (
-        <div className="py-16 text-center text-slate-400 text-sm">Yükleniyor...</div>
-      ) : (
-        <>
-          {/* ── SUMMARY TAB ── */}
-          {activeTab === "summary" && (
-            <div className="space-y-3">
-              {branches.length === 0 && (
-                <EmptyState text="Şube bulunamadı" />
-              )}
-              {branches.map(branch => (
-                <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
-                        <Building2 size={16} className="text-slate-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{branch.name}</p>
-                        <p className="text-xs text-slate-500">{branch.personnel_count} personel</p>
-                      </div>
-                    </div>
-                    {branch.compliance_flags.length > 0 && (
-                      <button className="shrink-0 hover:opacity-80" onClick={e => { e.stopPropagation(); setActiveTab("compliance"); }}>
-                        <StatusPill tone="danger">{branch.compliance_flags.length} uyarı</StatusPill>
-                      </button>
-                    )}
-                    {branch.compliance_flags.length === 0 && (
-                      <StatusPill tone="positive" className="shrink-0">Uyumlu</StatusPill>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatBox label="Vardiya" value={`${branch.scheduled_shifts}`} href={`/supervisor/schedule?location_id=${branch.id}`} />
-                    <StatBox label="Toplam Saat" value={`${branch.total_hours} sa`} />
-                    <StatBox
-                      label="Ort. Puan"
-                      value={branch.personnel.length
-                        ? `${Math.round(branch.personnel.reduce((a, p) => a + p.prev_score, 0) / branch.personnel.length * 10) / 10}`
-                        : "—"}
+        <List><ListEmpty>Yükleniyor…</ListEmpty></List>
+      ) : activeTab === "summary" ? (
+        <List>
+          {branches.length === 0 ? <ListEmpty>Şube bulunamadı.</ListEmpty> : branches.map(b => (
+            <ListItem key={b.id} href={planHref(b.id)}
+              leading={<Avatar name={b.name} tone="brand" />}
+              title={b.name}
+              subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${b.total_hours} sa`}
+              trailing={b.compliance_flags.length > 0
+                ? <StatusPill tone="danger">{b.compliance_flags.length} uyarı</StatusPill>
+                : <StatusPill tone="positive">Uyumlu</StatusPill>}
+            />
+          ))}
+        </List>
+      ) : activeTab === "compliance" ? (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">Haftalık çalışma sınırının %90&apos;ına yaklaşan ya da aşan kişiler.</p>
+          <List>
+            {totalFlags === 0 ? <ListEmpty>Bu hafta hiçbir şubede uyarı yok.</ListEmpty>
+              : branches.filter(b => b.compliance_flags.length > 0).flatMap(b => [
+                <ListSection key={`h-${b.id}`} title={b.name} count={b.compliance_flags.length} />,
+                ...b.compliance_flags.map((flag, i) => {
+                  const over = flag.hours > flag.max_weekly_hours;
+                  return (
+                    <ListItem key={`${b.id}-${i}`} href={`/supervisor/personnel?location_id=${b.id}`}
+                      leading={<Avatar name={flag.name} />}
+                      title={flag.name}
+                      subtitle={`Sınır ${flag.max_weekly_hours} sa`}
+                      trailing={<StatusPill tone={over ? "danger" : "attention"}>{flag.hours} sa</StatusPill>}
                     />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── COMPLIANCE TAB ── */}
-          {activeTab === "compliance" && (
-            <div className="space-y-4">
-              {totalFlags === 0 ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 flex flex-col items-center gap-3 text-emerald-700">
-                  <p className="text-sm font-bold">Tüm şubelerde yasal uyumluluk sağlandı</p>
-                  <p className="text-xs text-emerald-600 text-center">Bu hafta hiçbir personel haftalık çalışma sınırının %90'ını aşmadı.</p>
-                </div>
-              ) : (
-                branches.map(branch =>
-                  branch.compliance_flags.length > 0 ? (
-                    <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                      <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
-                        onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
-                        <Building2 size={13} className="text-slate-400" />
-                        <span className="text-xs font-bold text-slate-600 hover:underline">{branch.name}</span>
-                      </div>
-                      <div className="divide-y divide-slate-50">
-                        {branch.compliance_flags.map((flag, i) => {
-                          const pct = Math.round((flag.hours / flag.max_weekly_hours) * 100);
-                          const over = flag.hours > flag.max_weekly_hours;
-                          return (
-                            <div key={i} className="px-5 py-3 flex items-center justify-between gap-4">
-                              <div className="min-w-0">
-                                <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-bold text-slate-800 hover:underline hover:text-primary">{flag.name}</Link>
-                                <div className="mt-1.5 h-1.5 w-36 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${over ? "bg-red-500" : "bg-amber-400"}`}
-                                    style={{ width: `${Math.min(pct, 100)}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className={`text-sm font-bold ${over ? "text-red-600" : "text-amber-600"}`}>
-                                  {flag.hours} sa
-                                </p>
-                                <p className="text-xs text-slate-400">limit: {flag.max_weekly_hours} sa ({pct}%)</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null
-                )
-              )}
-
-              {/* Full personnel compliance table */}
-              {totalFlags === 0 && (
-                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-50">
-                    <p className="text-xs font-bold text-slate-500">Tüm Personel · Bu Hafta</p>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {allPersonnel.map((p, i) => (
-                      <div key={i} className="px-5 py-2.5 flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-800">{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.branch}</p>
-                        </div>
-                        <p className="text-sm font-bold text-emerald-700 shrink-0">{p.weekly_hours} sa</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── FAIRNESS TAB ── */}
-          {activeTab === "fairness" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <KpiCard icon={<TrendingUp size={16} className="text-forest-600" />} bg="bg-forest-50"
-                  label="Ort. Puan" value={`${avgScore}`} />
-                <KpiCard icon={<TrendingUp size={16} className="text-emerald-600" />} bg="bg-emerald-50"
-                  label="En Yüksek"
-                  value={allPersonnel.length ? `${Math.max(...allPersonnel.map(p => p.prev_score))}` : "—"} />
-                <KpiCard icon={<TrendingUp size={16} className="text-amber-500" />} bg="bg-amber-50"
-                  label="En Düşük"
-                  value={allPersonnel.length ? `${Math.min(...allPersonnel.map(p => p.prev_score))}` : "—"} />
-              </div>
-
-              {branches.map(branch => (
-                <div key={branch.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
-                    onClick={() => router.push(`/supervisor/schedule?location_id=${branch.id}`)}>
-                    <Building2 size={13} className="text-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 hover:underline">{branch.name}</span>
-                  </div>
-                  {branch.personnel.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-5">Personel yok</p>
-                  ) : (
-                    <div className="divide-y divide-slate-50">
-                      {[...branch.personnel]
-                        .sort((a, b) => b.prev_score - a.prev_score)
-                        .map((p, i) => {
-                          const max = Math.max(...branch.personnel.map(x => x.prev_score), 1);
-                          const pct = max > 0 ? Math.round((p.prev_score / max) * 100) : 0;
-                          return (
-                            <div key={i} className="px-5 py-3 flex items-center gap-4">
-                              <div className="w-5 text-xs font-bold text-slate-400 shrink-0">{i + 1}</div>
-                              <div className="flex-1 min-w-0">
-                                <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-semibold text-slate-800 hover:underline hover:text-primary">{p.name}</Link>
-                                <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-forest-400 rounded-full transition-all"
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <p className="text-sm font-bold text-forest-700 shrink-0 w-10 text-right">
-                                {p.prev_score}
-                              </p>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+                  );
+                }),
+              ])}
+          </List>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="Ortalama" value={avgScore} icon={Scale} />
+            <StatCard label="En yüksek" value={allPersonnel.length ? Math.max(...allPersonnel.map(p => p.prev_score)) : "—"} icon={TrendingUp} />
+            <StatCard label="En düşük" value={allPersonnel.length ? Math.min(...allPersonnel.map(p => p.prev_score)) : "—"} icon={TrendingDown} />
+          </div>
+          <List>
+            {branches.flatMap(b => {
+              const max = Math.max(...b.personnel.map(x => x.prev_score), 1);
+              return [
+                <ListSection key={`h-${b.id}`} title={b.name} count={b.personnel.length} />,
+                ...(b.personnel.length === 0
+                  ? [<ListEmpty key={`e-${b.id}`}>Personel yok.</ListEmpty>]
+                  : [...b.personnel].sort((x, y) => y.prev_score - x.prev_score).map((p, i) => (
+                    <ListItem key={`${b.id}-${i}`} href={`/supervisor/personnel?location_id=${b.id}`}
+                      leading={<Avatar name={p.name} />}
+                      title={p.name}
+                      subtitle={
+                        <span className="block mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <span className="block h-full bg-forest-400 rounded-full" style={{ width: `${Math.round((p.prev_score / max) * 100)}%` }} />
+                        </span>
+                      }
+                      trailing={<span className="text-sm font-semibold text-slate-700 tabular-nums">{p.prev_score}</span>}
+                    />
+                  ))),
+              ];
+            })}
+          </List>
+        </div>
       )}
     </Page>
-  );
-}
-
-// ─── sub-components ──────────────────────────────────────────────────────────
-
-function KpiCard({
-  icon, bg, label, value, sub, valueClass, href, onClick,
-}: {
-  icon: React.ReactNode;
-  bg: string;
-  label: string;
-  value: string;
-  sub?: string;
-  valueClass?: string;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const isClickable = !!(href || onClick);
-  const inner = (
-    <>
-      <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-        {icon}
-      </div>
-      <p className={`text-xl font-bold ${valueClass ?? "text-slate-900"}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 font-medium">{sub}</p>}
-      <p className="text-xs text-slate-500 mt-0.5">{label}</p>
-    </>
-  );
-  if (href) {
-    return (
-      <Link href={href} className={`bg-white rounded-2xl border border-slate-100 p-4 block ${isClickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}>
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <div className={`bg-white rounded-2xl border border-slate-100 p-4 ${isClickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
-      onClick={onClick}>
-      {inner}
-    </div>
-  );
-}
-
-function StatBox({ label, value, href }: { label: string; value: string; href?: string }) {
-  if (href) {
-    return (
-      <Link href={href} className="bg-slate-50 rounded-xl px-3 py-2.5 block hover:bg-slate-100 transition-colors" onClick={e => e.stopPropagation()}>
-        <p className="text-base font-bold text-slate-900">{value}</p>
-        <p className="text-xs text-slate-400 font-medium mt-0.5">{label}</p>
-      </Link>
-    );
-  }
-  return (
-    <div className="bg-slate-50 rounded-xl px-3 py-2.5">
-      <p className="text-base font-bold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-400 font-medium mt-0.5">{label}</p>
-    </div>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-400">
-      <p className="text-sm font-semibold">{text}</p>
-    </div>
   );
 }

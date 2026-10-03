@@ -3,13 +3,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Trophy, AlertTriangle, TrendingUp, Moon, Zap, Info, RefreshCw, ExternalLink, Scale, Gauge, Ruler,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trophy, AlertTriangle, RefreshCw, Scale, Gauge, Ruler, ChevronRight } from "lucide-react";
+import { StatCard } from "@/components/ui/StatCard";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty } from "@/components/ui/List";
+import { DetailRow } from "@/components/ui/Sheet";
+import { formatDateTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { fairnessBarColor, fairnessLabelFromAverage } from "@/lib/fairness";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 
@@ -97,200 +100,74 @@ export default function FairnessReport() {
 
   if (!mounted) return <div className="space-y-6" />;
 
+  const gapTone = gap > 40 ? "danger" : gap > 20 ? "attention" : "positive";
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Adalet Puanı</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Birikimli puan dağılımı · son {rules.fairness_window_weeks ?? 4} hafta toplamı</p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">Son {rules.fairness_window_weeks ?? 4} haftanın toplamı. Yeni plan bu birikimi dengeler.</p>
         <button
           onClick={() => locationId && load(locationId)}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          className="shrink-0 inline-flex items-center gap-1.5 px-2 min-h-[40px] text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
         >
-          <RefreshCw size={13} />
-          Yenile
+          <RefreshCw size={13} /> Yenile
         </button>
       </div>
 
-      {/* ── Özet Kartları ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
-        {[
-          {
-            label: "Ort. Puan",
-            value: Math.round(avgBurden * 10) / 10,
-            icon: Scale,
-            color: "text-forest-600",
-            badgeBg: "bg-forest-100",
-          },
-          {
-            label: "En Az Yüklü",
-            value: leastLoaded ? leastLoaded.name.split(" ")[0] : "—",
-            icon: Gauge,
-            color: "text-emerald-600",
-            badgeBg: "bg-emerald-100",
-          },
-          {
-            label: "Maks – Min Fark",
-            value: `${Math.round(gap * 10) / 10}p`,
-            icon: Ruler,
-            color: gap > 40 ? "text-red-600" : gap > 20 ? "text-amber-600" : "text-emerald-600",
-            badgeBg: gap > 40 ? "bg-red-100" : gap > 20 ? "bg-amber-100" : "bg-emerald-100",
-          },
-        ].map(({ label, value, icon: Icon, color, badgeBg }) => (
-          <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", badgeBg, color)}>
-              <Icon size={18} />
-            </div>
-            <span className={cn("text-xl font-bold tabular-nums block", color)}>{value}</span>
-            <span className="text-xs font-semibold text-slate-500">{label}</span>
-          </div>
-        ))}
+        <StatCard label="Ortalama" value={`${Math.round(avgBurden * 10) / 10}`} icon={Scale} />
+        <StatCard label="En hafif" value={<span className="block truncate">{leastLoaded ? leastLoaded.name.split(" ")[0] : "—"}</span>} icon={Gauge} tone="positive" />
+        <StatCard label="Fark" value={`${Math.round(gap * 10) / 10}`} icon={Ruler} tone={gapTone} />
       </div>
 
-      {/* ── Personel Yük Tablosu ────────────────────────────────────────────── */}
-      <Card className="stripe-card border-0 shadow-none">
-        <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-forest-100 rounded-lg text-forest-600">
-                <TrendingUp size={15} />
-              </div>
-              <CardTitle className="text-sm font-bold">Yük Dağılımı</CardTitle>
-            </div>
-            <div className="flex bg-slate-100 rounded-xl p-0.5 text-xs font-bold">
-              {(["current", "history"] as const).map(v => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-[10px] transition-colors",
-                    view === v ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {v === "current" ? "Güncel" : "8 Hafta"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-slate-900">Yük dağılımı</h2>
+          <Tabs items={[{ id: "current", label: "Güncel" }, { id: "history", label: "8 Hafta" }] as const} value={view} onChange={setView} />
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}
             </div>
           ) : personnel.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">
-              <p className="font-semibold">Henüz veri yok.</p>
-            </div>
+            <p className="py-8 text-center text-sm text-slate-500">Henüz veri yok.</p>
           ) : view === "current" ? (
             <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} scoreHist={scoreHist} adjustments={adjustments} />
           ) : (
             <HistoryView personnel={personnel} scoreHist={scoreHist} />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* ── Kahraman Bonusları + No-Show ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <HeroCard heroEvents={heroEvents} personnel={personnel} loading={loading} />
         <NoShowCard noShowPersonnel={noShowPersonnel} loading={loading} />
       </div>
 
-      {/* ── Adalet Ayarları Özeti ────────────────────────────────────────────── */}
-      <Card className="stripe-card border-0 shadow-none">
-        <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-ember-100 rounded-lg text-ember-600">
-                <Zap size={15} />
-              </div>
-              <div>
-                <CardTitle className="text-sm font-bold">Adalet Puanı Ayarları</CardTitle>
-                <p className="text-xs text-slate-400 mt-0.5">Mevcut yapılandırma, Ayarlar sayfasından değiştirin</p>
-              </div>
-            </div>
-            <a
-              href="/settings"
-              className="flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0"
-            >
-              <ExternalLink size={11} />
-              Ayarları Aç
-            </a>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          {/* Puan bileşenleri */}
-          <div>
-            <p className="text-xs font-semibold text-slate-500 mb-2">Zor Vardiya & Bonus Puanları</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { label: "Zor vardiya", value: rules.hard_shift_points ?? 4, icon: null, note: "Hf.sonu/gece/sarı gün" },
-                { label: "Kahraman bonusu", value: rules.hero_bonus_points ?? 6, icon: <Moon size={10} className="text-forest-400" />, note: "Açık vardiya üstlenme" },
-                { label: "Zorunlu atama bonusu", value: rules.force_bonus_points ?? 5, icon: null, note: "İzinliyken kabul" },
-                { label: "Değişiklik telafisi", value: rules.change_compensation_points ?? 2, icon: null, note: "Yayın sonrası değişiklik" },
-              ].map(({ label, value, icon, note }) => (
-                <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-0.5">
-                    {icon}
-                    <span className="text-xs text-slate-500 font-medium">{label}</span>
-                  </div>
-                  <span className="text-lg font-bold text-slate-800">+{value} puan</span>
-                  <p className="text-xs text-slate-400 mt-0.5">{note}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-2">
-              Değiştirmek için: <a href="/settings?tab=advanced&group=fairness" className="text-primary font-semibold hover:underline">Ayarlar → Gelişmiş Seçenekler → Adalet Puanı</a>
-            </p>
-          </div>
-
-          {/* Vardiya tanımları */}
+      {/* Puan kuralları: salt okunur özet, değiştirme Ayarlar'da */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-slate-900">Puan kuralları</h2>
+          <a href="/settings?tab=advanced&group=fairness" className="inline-flex items-center gap-1 min-h-[40px] text-xs font-semibold text-primary hover:underline">
+            Ayarlarda değiştir <ChevronRight size={14} />
+          </a>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2">
+          <DetailRow label="Zor vardiya (hafta sonu, gece, sarı gün)">+{rules.hard_shift_points ?? 4}</DetailRow>
+          <DetailRow label="Açık vardiyayı üstlenme">+{rules.hero_bonus_points ?? 6}</DetailRow>
+          <DetailRow label="İzinliyken zorunlu atama">+{rules.force_bonus_points ?? 5}</DetailRow>
+          <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
           {shiftDefs.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-2">Vardiya Tanımları</p>
-              <div className="flex flex-wrap gap-2">
-                {shiftDefs.map((d: any) => (
-                  <div key={d.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm">
-                    <span className="font-semibold text-slate-700">{d.name}</span>
-                    <span className="text-xs text-slate-400">{d.start}–{d.end}</span>
-                    {d.is_night && (
-                      <StatusPill tone="brand">
-                        <Moon size={9} /> Gece
-                      </StatusPill>
-                    )}
-                    <span className="text-xs font-bold text-ember-600 bg-ember-50 px-1.5 py-0.5 rounded-md">
-                      {d.base_points ?? "?"}p
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-slate-400 mt-2">
-                Gece işareti veya zorluk puanı için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Temel Ayarlar → Vardiya Tanımları</a>
-              </p>
-            </div>
+            <DetailRow label="Vardiya zorluğu">
+              {shiftDefs.map((d: any) => `${d.name} ${d.base_points ?? 5}`).join(" · ")}
+            </DetailRow>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ── Footer Açıklama ─────────────────────────────────────────────────── */}
-      <Card className="bg-slate-50/50 border-slate-200/60 shadow-none">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Info size={13} className="text-slate-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-slate-500 space-y-1 leading-relaxed">
-              <p>
-                <strong className="text-slate-700">Puan:</strong>{" "}
-                saat × zorluk (vardiya tanımı) + zor vardiya puanı (hafta sonu/gece/sarı gün, birden fazlası geçerli olsa da tek sefer) + kahraman/zorunlu atama bonusları. Basit toplama, çarpan zinciri yok.
-              </p>
-              <p>
-                <strong className="text-slate-700">Birikimli puan:</strong>{" "}
-                Son {rules.fairness_window_weeks ?? 4} haftanın toplamı. Yeni plan bu birikimi dengeleyecek şekilde üretilir.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <p className="text-xs text-slate-500">
+          Puan = saat × zorluk ÷ 5 + zor vardiya puanı (bir vardiyada bir kez) + bonuslar. Çarpan zinciri yok, düz toplam.
+        </p>
+      </section>
     </div>
   );
 }
@@ -316,7 +193,7 @@ function CurrentView({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-0.5">
       {sorted.map(p => {
         const burden = p.prev_score ?? 0;
         const { text: fairnessText, level } = fairnessLabelFromAverage(burden, avgBurden);
@@ -329,26 +206,25 @@ function CurrentView({
           <div key={p.id}>
           <button
             onClick={() => setExpandedId(isExpanded ? null : p.id)}
-            className={cn("w-full flex items-center gap-2 md:gap-3 rounded-xl px-1 py-0.5 transition-colors text-left", isExpanded ? "bg-forest-50/60" : "hover:bg-slate-50")}
+            className={cn("w-full flex items-center gap-2 md:gap-3 rounded-xl px-1 py-1.5 min-h-[44px] transition-colors text-left", isExpanded ? "bg-forest-50/60" : "hover:bg-slate-50")}
           >
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-600 font-bold text-xs flex items-center justify-center shrink-0">
-              {p.name.charAt(0)}
-            </div>
+            <Avatar name={p.name} tone="brand" />
 
-            {/* İsim + durum */}
-            <div className="w-24 md:w-32 shrink-0 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{p.name.split(" ")[0]}</p>
-              <p className={cn(
-                "text-xs font-medium truncate",
-                level === "low" ? "text-emerald-600" : level === "high" ? "text-red-500" : "text-slate-400"
-              )}>
-                {fairnessText}
-              </p>
+            {/* İsim + durum (ortalamadaysa durum yazılmaz) */}
+            <div className="w-28 md:w-40 shrink-0 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
+              {fairnessText !== "Takım ortalamasında" && (
+                <p className={cn(
+                  "text-xs truncate",
+                  level === "low" ? "text-emerald-600" : level === "high" ? "text-red-600" : "text-slate-500"
+                )}>
+                  {level === "low" ? "Az yüklü" : level === "high" ? "Çok yüklü" : "Ortalamanın üstü"}
+                </p>
+              )}
             </div>
 
             {/* Bar */}
-            <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden relative">
+            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden relative">
               <div
                 className={cn("h-full rounded-full transition-all duration-700", color)}
                 style={{ width: `${(burden / maxBurden) * 100}%` }}
@@ -362,28 +238,15 @@ function CurrentView({
             </div>
 
             {/* Puan */}
-            <div className="text-sm font-bold text-slate-700 w-14 text-right shrink-0 tabular-nums">
-              {Math.round(burden * 10) / 10}p
-            </div>
-
-            {/* Rozetler */}
-            <div className="flex items-center gap-1 w-12 shrink-0">
-              {(p.hero_count ?? 0) > 0 && (
-                <StatusPill tone="attention">
-                  <Trophy size={9} />{p.hero_count}
-                </StatusPill>
-              )}
-              {(p.no_show_count ?? 0) > 0 && (
-                <StatusPill tone="danger">
-                  <AlertTriangle size={9} />{p.no_show_count}
-                </StatusPill>
-              )}
+            <div className="text-sm font-semibold text-slate-700 w-12 text-right shrink-0 tabular-nums">
+              {Math.round(burden * 10) / 10}
             </div>
           </button>
 
           {/* Kırılım — neden bu puan? */}
           {isExpanded && (
             <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
+              <p className="text-xs text-slate-500">{fairnessText}{(p.hero_count ?? 0) > 0 && ` · ${p.hero_count} kez açık vardiya üstlendi`}{(p.no_show_count ?? 0) > 0 && ` · ${p.no_show_count} kez gelmedi`}</p>
               {pHist.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -434,18 +297,18 @@ function CurrentView({
       })}
 
       {/* Renk açıklaması */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-4 text-xs text-slate-400">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-emerald-500 rounded-full inline-block" />Ortalamanın %20 altı (az yüklü)</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block" />Normal aralık</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-400 rounded-full inline-block" />Ortalamanın %20 üstü (çok yüklü)</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-emerald-500 rounded-full inline-block" />Az yüklü (%20 altı)</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block" />Normal</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-400 rounded-full inline-block" />Çok yüklü (%20 üstü)</span>
         <span className="flex items-center gap-1.5"><span className="w-0.5 h-3.5 bg-amber-400 inline-block" />Ortalama</span>
       </div>
 
       {gap > 30 && (
-        <div className="mt-4 flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl p-4">
+        <div className="mt-3 flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-px" />
           <div>
-            <p className="text-sm font-bold text-amber-800">
+            <p className="text-sm font-semibold text-amber-800">
               Yük dağılımı dengesiz, {Math.round(gap * 10) / 10} puanlık fark var.
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
@@ -471,16 +334,12 @@ function HistoryView({
 
   if (!hasData) {
     return (
-      <div className="py-12 text-center text-slate-400">
-        <p className="font-semibold">Henüz tarihsel veri yok.</p>
-        <p className="text-sm mt-1">Her hafta vardiya yayınlandıkça bu bölüm otomatik dolar.</p>
-      </div>
+      <p className="py-8 text-center text-sm text-slate-500">Vardiya yayınlandıkça haftalık geçmiş burada birikir.</p>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <p className="text-xs text-slate-500">Son 8 haftada haftalık yük değişimi</p>
+    <div className="space-y-3">
       {personnel.map(p => {
         const entries: any[] = scoreHist[p.id] ?? [];
         if (entries.length === 0) return null;
@@ -494,12 +353,10 @@ function HistoryView({
 
         return (
           <div key={p.id} className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-600 font-bold text-xs flex items-center justify-center shrink-0">
-              {p.name.charAt(0)}
-            </div>
-            <div className="w-24 shrink-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{p.name.split(" ")[0]}</p>
-              <p className="text-xs text-slate-400">{entries.length} hafta</p>
+            <Avatar name={p.name} tone="brand" />
+            <div className="w-24 md:w-40 shrink-0 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
+              <p className="text-xs text-slate-500">{entries.length} hafta</p>
             </div>
 
             {/* Sparkline */}
@@ -542,92 +399,63 @@ function HistoryView({
 
 function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; personnel: any[]; loading: boolean }) {
   return (
-    <Card className="stripe-card border-0 shadow-none">
-      <CardHeader className="border-b border-border/40 bg-amber-50/50 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><Trophy size={15} /></div>
-          <div>
-            <CardTitle className="text-sm font-bold">Kahraman Bonusları</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Açık vardiyayı üstlenen personel, düz puan bonusu</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        {loading ? (
-          <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-11 bg-slate-100 rounded-xl animate-pulse" />)}</div>
-        ) : heroEvents.length === 0 ? (
-          <div className="py-8 text-center text-slate-400">
-            <Trophy size={26} className="mx-auto mb-2 text-slate-200" />
-            <p className="text-sm font-semibold">Bu dönemde kahraman bonusu yok.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {heroEvents.map(ev => {
-              const person = personnel.find(p => p.id === ev.claimed_by);
-              const dateStr = ev.date ?? "—";
-              return (
-                <div key={ev.id} className="flex items-center gap-3 px-3 py-2.5 bg-amber-50/70 rounded-xl border border-amber-100">
-                  <div className="w-7 h-7 rounded-full bg-amber-200 text-amber-800 font-bold text-xs flex items-center justify-center shrink-0">
-                    {person ? person.name.charAt(0) : "?"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{person?.name ?? ev.claimed_by}</p>
-                    <p className="text-xs text-slate-400">{dateStr}</p>
-                  </div>
-                  <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg shrink-0">
-                    +{ev.hero_bonus_multiplier ?? 6} puan
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-bold text-slate-900">Açık vardiya üstlenenler</h2>
+        <p className="text-xs text-slate-500 mt-0.5">Her üstlenme kahraman bonusu kazandırır</p>
+      </div>
+      <List>
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty>
+          : heroEvents.length === 0 ? <ListEmpty>Bu dönemde açık vardiya üstlenen olmadı.</ListEmpty>
+          : heroEvents.map(ev => {
+            const person = personnel.find(p => p.id === ev.claimed_by);
+            const name = person?.name ?? ev.claimed_by_name ?? "Personel";
+            return (
+              <ListItem key={ev.id}
+                leading={<Avatar name={name} />}
+                title={name}
+                subtitle={ev.date ? formatDateTR(ev.date) : undefined}
+                trailing={<StatusPill tone="attention"><Trophy size={10} /> +{ev.hero_bonus_multiplier ?? 6}</StatusPill>}
+              />
+            );
+          })}
+      </List>
+    </section>
   );
 }
 
-// ─── No-Show Kayıtları ────────────────────────────────────────────────────────
+// ─── Gelmeme Kayıtları ────────────────────────────────────────────────────────
+
+const NO_SHOW_PREVIEW = 5;
 
 function NoShowCard({ noShowPersonnel, loading }: { noShowPersonnel: any[]; loading: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  const sorted = [...noShowPersonnel].sort((a, b) => (b.no_show_count ?? 0) - (a.no_show_count ?? 0));
   return (
-    <Card className="stripe-card border-0 shadow-none">
-      <CardHeader className="border-b border-border/40 bg-red-50/30 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-red-100 rounded-lg text-red-600"><AlertTriangle size={15} /></div>
-          <div>
-            <CardTitle className="text-sm font-bold">No-Show Kayıtları</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Bildirimsiz gelmeme, otomatik kayıt</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        {loading ? (
-          <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-11 bg-slate-100 rounded-xl animate-pulse" />)}</div>
-        ) : noShowPersonnel.length === 0 ? (
-          <div className="py-8 text-center text-slate-400">
-            <AlertTriangle size={26} className="mx-auto mb-2 text-slate-200" />
-            <p className="text-sm font-semibold">Bu dönemde no-show kaydı yok.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...noShowPersonnel].sort((a, b) => (b.no_show_count ?? 0) - (a.no_show_count ?? 0)).map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 bg-red-50/60 rounded-xl border border-red-100">
-                <div className="w-7 h-7 rounded-full bg-red-100 text-red-600 font-bold text-xs flex items-center justify-center shrink-0">
-                  {p.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                  <p className="text-xs text-slate-400">{p.no_show_count} kez</p>
-                </div>
-                <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-lg shrink-0">
-                  {p.no_show_count}×
-                </span>
-              </div>
-            ))}
-          </div>
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-bold text-slate-900">Haber vermeden gelmeyenler</h2>
+        <p className="text-xs text-slate-500 mt-0.5">Giriş yapılmayan vardiyalardan otomatik sayılır</p>
+      </div>
+      <List>
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty>
+          : noShowPersonnel.length === 0 ? <ListEmpty>Bu dönemde gelmeme kaydı yok.</ListEmpty>
+          : (showAll ? sorted : sorted.slice(0, NO_SHOW_PREVIEW)).map(p => (
+            <ListItem key={p.id}
+              leading={<Avatar name={p.name} />}
+              title={p.name}
+              subtitle={p.title || undefined}
+              trailing={<StatusPill tone="danger">{p.no_show_count} kez</StatusPill>}
+            />
+          ))}
+        {!loading && sorted.length > NO_SHOW_PREVIEW && (
+          <li>
+            <button onClick={() => setShowAll(v => !v)} className="w-full py-3 text-sm font-semibold text-primary hover:bg-slate-50">
+              {showAll ? "Daha az göster" : `Tümünü göster (${sorted.length} kişi)`}
+            </button>
+          </li>
         )}
-      </CardContent>
-    </Card>
+      </List>
+    </section>
   );
 }

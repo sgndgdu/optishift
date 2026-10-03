@@ -2,10 +2,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
-import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 interface ReportRow {
   personnel_id: string;
@@ -39,6 +42,8 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const downloadClass = "inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors";
+
 // Liste bu kadar kişiden uzunsa katlanır (telefonda sayfa 6 ekran boyuna çıkıyordu); tamamı Excel'de
 const ROW_PREVIEW = 8;
 
@@ -46,7 +51,6 @@ function WorkHoursReport() {
   const [month, setMonth] = useState(currentMonth());
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [showAllRows, setShowAllRows] = useState(false);
-  const [locationName, setLocationName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [periodLock, setPeriodLock] = useState<any>(null); // null = kilitli değil
@@ -113,7 +117,6 @@ function WorkHoursReport() {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Hata oluştu"); return; }
       setRows(data.rows ?? []);
-      setLocationName(data.location ?? "");
     } catch {
       setError("Bağlantı hatası");
     } finally {
@@ -141,115 +144,65 @@ function WorkHoursReport() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Çalışma Saatleri</h2>
-          <p className="text-sm text-slate-500">Personel bazında aylık özet (sadece yayınlanan vardiyalar)</p>
+      {/* Ay + indirmeler: tek satır. İndirmeler ikincil (DESIGN.md §5: bu görünümde birincil eylem yok) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <button onClick={() => setMonth(prevMonth(month))} aria-label="Önceki ay" title="Önceki ay"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+            <ChevronLeft size={18} />
+          </button>
+          <p className="min-w-[7.5rem] text-center text-base font-bold text-slate-900">{getMonthLabel(month)}</p>
+          <button onClick={() => setMonth(nextMonth(month))} disabled={month >= currentMonth()} aria-label="Sonraki ay" title="Sonraki ay"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <ChevronRight size={18} />
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
             title="Kişi-gün bazlı giriş/çıkış puantajı, bordro ve muhasebe aktarımı için CSV"
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+            className={downloadClass}
           >
-            <Download size={15} />
-            Puantaj (CSV)
+            <Download size={15} /> Puantaj
           </button>
-          <button
-            onClick={handleExport}
-            disabled={rows.length === 0 || loading}
-            className={pageActionClass}
-          >
-            <Download size={15} />
-            Excel İndir
+          <button onClick={handleExport} disabled={rows.length === 0 || loading} title="Aylık özet, Excel dosyası" className={downloadClass}>
+            <Download size={15} /> Excel
           </button>
         </div>
       </div>
 
-      {/* Month Navigator */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
-        <button
-          onClick={() => setMonth(prevMonth(month))}
-          className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <div className="text-center">
-          <p className="text-lg font-bold text-slate-900">{getMonthLabel(month)}</p>
-          {locationName && <p className="text-xs text-slate-500 mt-0.5">{locationName}</p>}
-        </div>
-        <button
-          onClick={() => setMonth(nextMonth(month))}
-          disabled={month >= currentMonth()}
-          className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Puantaj Dönem Kilidi */}
-      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border ${periodLock ? "bg-slate-50 border-slate-200" : "bg-amber-50 border-amber-200"}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${periodLock ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-600"}`}>
-            {periodLock ? <Lock size={16} /> : <Unlock size={16} />}
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800">
-              {periodLock ? "Bu dönem kilitli" : "Bu dönem açık"}
-            </p>
-            <p className="text-xs text-slate-500">
-              {periodLock
-                ? `${periodLock.locked_by_name ?? "Yönetici"} tarafından kilitlendi. Giriş/çıkış ve düzenleme yapılamaz.`
-                : "Puantaj onaylandıktan sonra kilitleyerek geçmiş verinin değişmesini önleyin."}
-            </p>
-          </div>
+      {/* Puantaj dönem kilidi: tek satır */}
+      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3">
+        {periodLock ? <Lock size={16} className="shrink-0 text-slate-500" /> : <Unlock size={16} className="shrink-0 text-amber-600" />}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-900">{periodLock ? "Dönem kilitli" : "Dönem açık"}</p>
+          <p className="text-xs text-slate-500">
+            {periodLock
+              ? `${periodLock.locked_by_name ?? "Yönetici"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`
+              : "Puantajı onaylayınca kilitleyin, geçmiş veri değişmesin."}
+          </p>
         </div>
         {periodLock ? (
           (role === "admin" || role === "supervisor") && (
-            <button
-              onClick={handleUnlockPeriod}
-              disabled={lockActionLoading}
-              className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-50 shrink-0"
-            >
+            <button onClick={handleUnlockPeriod} disabled={lockActionLoading} className={cn(downloadClass, "shrink-0")}>
               Kilidi Aç
             </button>
           )
         ) : (
-          <button
-            onClick={handleLockPeriod}
-            disabled={lockActionLoading}
-            className="px-4 py-2 rounded-xl bg-forest-600 text-white text-sm font-bold hover:bg-forest-700 transition-colors disabled:opacity-50 shrink-0"
-          >
-            Dönemi Kilitle
+          <button onClick={handleLockPeriod} disabled={lockActionLoading} className={cn(downloadClass, "shrink-0")}>
+            <Lock size={14} /> Kilitle
           </button>
         )}
       </div>
 
-      {/* Summary Cards */}
       {rows.length > 0 && (
-        <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3 md:gap-4`}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-bold text-slate-900">{rows.length}</p>
-            <p className="text-xs text-slate-500 mt-1">Personel</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-            <p className="text-xl md:text-2xl font-bold text-slate-900 break-words">{totalHours}<span className="text-sm font-medium text-slate-400"> sa</span></p>
-            <p className="text-xs text-slate-500 mt-1">Toplam Çalışma</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-            <p className={`text-2xl font-bold ${totalOvertime > 0 ? "text-amber-600" : "text-slate-900"}`}>
-              {totalOvertime}<span className="text-sm font-medium text-slate-400"> sa</span>
-            </p>
-            <p className="text-xs text-slate-500 mt-1">Fazla Mesai</p>
-          </div>
+        <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3`}>
+          <StatCard label="Personel" value={rows.length} icon={Users} />
+          <StatCard label="Toplam çalışma" value={`${totalHours} sa`} icon={Clock} />
+          <StatCard label="Fazla mesai" value={`${totalOvertime} sa`} icon={TrendingUp} tone={totalOvertime > 0 ? "attention" : "neutral"} />
           {hasCost && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-              <p className={`text-xl md:text-2xl font-bold break-words ${totalOvertimeCost > 0 ? "text-red-600" : "text-slate-900"}`}>
-                ₺{totalOvertimeCost.toLocaleString("tr-TR")}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">Mesai Maliyeti (×1,5)</p>
-            </div>
+            <StatCard label="Mesai maliyeti" value={`₺${totalOvertimeCost.toLocaleString("tr-TR")}`} icon={Wallet}
+              tone={totalOvertimeCost > 0 ? "danger" : "neutral"} hint="Saat × ücret × 1,5" />
           )}
         </div>
       )}
@@ -271,26 +224,26 @@ function WorkHoursReport() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="text-left px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Ad Soyad</th>
-                <th className="hidden sm:table-cell text-left px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Unvan</th>
-                <th className="hidden sm:table-cell text-right px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Vardiya</th>
-                <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Saat</th>
-                <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Mesai</th>
-                {hasCost && <th className="text-right px-3 sm:px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Maliyet</th>}
+                <th className="text-left px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Ad Soyad</th>
+                <th className="hidden sm:table-cell text-left px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Unvan</th>
+                <th className="hidden sm:table-cell text-right px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Vardiya</th>
+                <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Saat</th>
+                <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Mesai</th>
+                {hasCost && <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Maliyet</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {visibleRows.map((row, i) => (
                 <tr key={row.personnel_id} className={`hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/20"}`}>
-                  <td className="px-3 sm:px-5 py-3.5 font-medium text-slate-900">
+                  <td className="px-3 sm:px-5 py-3 font-medium text-slate-900">
                     {row.name}
                     {/* Telefonda Unvan/Vardiya sütunları gizli: ismin altında kısa özet */}
                     <span className="sm:hidden block text-xs font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
                   </td>
-                  <td className="hidden sm:table-cell px-5 py-3.5 text-slate-500">{row.title || "—"}</td>
-                  <td className="hidden sm:table-cell px-5 py-3.5 text-right text-slate-700">{row.shift_count}</td>
-                  <td className="px-3 sm:px-5 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap">{row.total_hours} sa</td>
-                  <td className="px-3 sm:px-5 py-3.5 text-right whitespace-nowrap">
+                  <td className="hidden sm:table-cell px-5 py-3 text-slate-500">{row.title || "—"}</td>
+                  <td className="hidden sm:table-cell px-5 py-3 text-right text-slate-700">{row.shift_count}</td>
+                  <td className="px-3 sm:px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{row.total_hours} sa</td>
+                  <td className="px-3 sm:px-5 py-3 text-right whitespace-nowrap">
                     {row.overtime_hours > 0 ? (
                       <StatusPill tone="attention">
                         +{row.overtime_hours} sa
@@ -300,7 +253,7 @@ function WorkHoursReport() {
                     )}
                   </td>
                   {hasCost && (
-                    <td className="px-3 sm:px-5 py-3.5 text-right text-slate-700 whitespace-nowrap">
+                    <td className="px-3 sm:px-5 py-3 text-right text-slate-700 whitespace-nowrap">
                       {row.overtime_cost ? `₺${row.overtime_cost.toLocaleString("tr-TR")}` : <span className="text-slate-400">—</span>}
                     </td>
                   )}
@@ -309,12 +262,12 @@ function WorkHoursReport() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="px-3 sm:px-5 py-3.5 font-bold text-slate-900">Toplam <span className="font-normal text-slate-400">({rows.length} kişi)</span></td>
+                <td className="px-3 sm:px-5 py-3 font-bold text-slate-900">Toplam <span className="font-normal text-slate-400">({rows.length} kişi)</span></td>
                 <td className="hidden sm:table-cell" />
-                <td className="hidden sm:table-cell px-5 py-3.5 text-right font-bold text-slate-900">{totalShifts}</td>
-                <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">{totalHours} sa</td>
-                <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
-                {hasCost && <td className="px-3 sm:px-5 py-3.5 text-right font-bold text-red-700 whitespace-nowrap">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
+                <td className="hidden sm:table-cell px-5 py-3 text-right font-bold text-slate-900">{totalShifts}</td>
+                <td className="px-3 sm:px-5 py-3 text-right font-bold text-slate-900 whitespace-nowrap">{totalHours} sa</td>
+                <td className="px-3 sm:px-5 py-3 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
+                {hasCost && <td className="px-3 sm:px-5 py-3 text-right font-bold text-red-700 whitespace-nowrap">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
               </tr>
             </tfoot>
           </table>
@@ -338,10 +291,10 @@ function WorkHoursReport() {
 // ?tab=adalet derin linki desteklenir (eski /fairness adresi buraya yönlendirir).
 
 const REPORT_TABS = [
-  { key: "saatler", label: "Çalışma Saatleri", icon: Clock },
-  { key: "adalet",  label: "Adalet Puanı",     icon: Scale },
+  { id: "saatler", label: "Çalışma Saatleri", icon: Clock },
+  { id: "adalet",  label: "Adalet Puanı",     icon: Scale },
 ] as const;
-type ReportTab = typeof REPORT_TABS[number]["key"];
+type ReportTab = typeof REPORT_TABS[number]["id"];
 
 // useSearchParams (?tab=adalet, /fairness yönlendirmesi) Suspense sınırı ister
 export default function ReportsPage() {
@@ -356,7 +309,7 @@ function ReportsPageInner() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReportTab>(() => {
     const t = searchParams.get("tab");
-    return REPORT_TABS.some(x => x.key === t) ? (t as ReportTab) : "saatler";
+    return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "saatler";
   });
 
   const selectTab = (key: ReportTab) => {
@@ -370,21 +323,7 @@ function ReportsPageInner() {
     <Page>
       <PageHeader title="Raporlar" />
 
-      <div className="flex items-center gap-1 border-b border-slate-200" role="tablist">
-        {REPORT_TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => selectTab(key)}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === key ? "border-forest-600 text-forest-700" : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Icon size={14} /> {label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={REPORT_TABS} value={tab} onChange={selectTab} />
 
       {tab === "saatler" ? <WorkHoursReport /> : <FairnessReport />}
     </Page>

@@ -13,6 +13,7 @@ import { violationText } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
 import { CountBadge, StatusPill } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const LEAVE_TYPES = [
@@ -498,22 +499,10 @@ export default function PortalRequests() {
           <ChevronLeft size={16} /> {newType ? "Talep türleri" : "Taleplerim"}
         </button>
       ) : (
-        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-          {([
-            { id: "sent",     label: "Taleplerim" },
-            { id: "incoming", label: `Sana Gelen${incomingPendingCount > 0 ? ` (${incomingPendingCount})` : ""}` },
-          ] as const).map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setActiveTab(t.id); resetSwapWizard(); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                activeTab === t.id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs fill value={activeTab === "incoming" ? "incoming" : "sent"} onChange={id => { setActiveTab(id); resetSwapWizard(); }} items={[
+          { id: "sent",     label: "Taleplerim" },
+          { id: "incoming", label: "Sana Gelen", count: incomingPendingCount },
+        ] as const} />
       )}
 
       {/* ── SENT TAB ── */}

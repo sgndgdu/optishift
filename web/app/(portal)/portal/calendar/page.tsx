@@ -12,6 +12,7 @@ import { DAY_NAMES as DAYS, DAY_SHORT } from "@/lib/constants";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { Tabs } from "@/components/ui/Tabs";
 export default function PortalCalendar() {
   const words = useShiftWords();
   const router = useRouter();
@@ -108,20 +109,7 @@ export default function PortalCalendar() {
         </CardContent>
       </Card>
 
-      <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-border/40 shadow-inner">
-        <button
-          onClick={() => setTab("mine")}
-          className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${tab === "mine" ? "bg-white text-primary shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          Benim
-        </button>
-        <button
-          onClick={() => setTab("all")}
-          className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${tab === "all" ? "bg-white text-primary shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          Tüm Şube
-        </button>
-      </div>
+      <Tabs fill value={tab} onChange={setTab} items={[{ id: "mine", label: "Benim" }, { id: "all", label: "Tüm Şube" }] as const} />
 
       {loading ? (
         <div className="animate-pulse space-y-4 pt-4">
