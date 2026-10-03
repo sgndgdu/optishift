@@ -240,6 +240,17 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // department_id: undefined → dokunma, null → departmansız, string → kişinin şubesindeki departman
+    if (body.department_id !== undefined) {
+      const deptId = body.department_id === null || body.department_id === "" ? null : String(body.department_id);
+      if (deptId) {
+        const dept = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(deptId, existing.primary_location_id);
+        if (!dept) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
+      }
+      await db.prepare("UPDATE personnel SET department_id=?, assigned_department_ids=? WHERE id=?")
+        .run(deptId, JSON.stringify(deptId ? [deptId] : []), id);
+    }
+
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata
     if (weekly_off_day !== undefined) {
       await db.prepare("UPDATE personnel SET weekly_off_day=? WHERE id=?").run(

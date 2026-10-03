@@ -36,6 +36,7 @@ type MergedPerson = {
   min_weekly_hours: number | null;
   location_id: string | null;
   crew_id: string | null;
+  department_id: string | null;
   ytd_overtime_hours: number | null;
   hourly_wage: number | null;
   night_restriction: string | null;
@@ -101,7 +102,7 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, isSenior: false, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0 });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, isSenior: false, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0, department_id: null as string | null });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -156,6 +157,7 @@ export default function PersonnelPage() {
         weekly_off_day: p?.weekly_off_day ?? null, max_weekly_hours: p?.max_weekly_hours ?? null,
         min_weekly_hours: p?.min_weekly_hours ?? null, location_id: acc?.location_id ?? p?.primary_location_id ?? null,
         crew_id: p?.crew_id ?? null,
+        department_id: p?.department_id ?? null,
         ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
         hourly_wage: p?.hourly_wage ?? null,
         night_restriction: p?.night_restriction ?? null,
@@ -334,7 +336,7 @@ export default function PersonnelPage() {
 
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, isSenior: Object.values(p.role_levels ?? {}).includes("primary"), hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0 });
+    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, isSenior: Object.values(p.role_levels ?? {}).includes("primary"), hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0, department_id: p.department_id ?? null });
     setEditError("");
     setPersonnelDocs([]);
     setNewDocType(""); setNewDocExpiry(""); setDocError("");
@@ -413,7 +415,7 @@ export default function PersonnelPage() {
       if (editingPerson.personnelId) {
         // Hesabı olmayan personelde ad ve telefon yalnızca personel kaydında tutulur
         const nameFields = editingPerson.userId ? {} : { name: editForm.name, phone: editForm.phone };
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days }) });
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days, ...(editDepts.length > 0 ? { department_id: editForm.department_id } : {}) }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -585,6 +587,10 @@ export default function PersonnelPage() {
                       <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${badge.color}`}>{badge.label}</span>
                       {isPending && <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">Onay Bekliyor</span>}
                       {p.is_temp_password && !isPending && <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">Şifre Geçici</span>}
+                      {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
+                        <button onClick={() => openEdit(p)} title="Departmanı seçilmemiş kişi otomatik plana alınmaz"
+                          className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100">Departman seçin</button>
+                      )}
                     </div>
                   </div>
 
@@ -858,6 +864,16 @@ export default function PersonnelPage() {
                 <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white" />
               </div>
+              {editingPerson.personnelId && editDepts.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Departman</label>
+                  <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${editForm.department_id ? "border-slate-200" : "border-amber-300"}`}>
+                    <option value="">Seçilmedi (otomatik plana alınmaz)</option>
+                    {editDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
               {editingPerson.personnelId && (
                 <>
                   <div className="grid grid-cols-2 gap-3">

@@ -2778,6 +2778,9 @@ loading ? (
             )
   );
 
+  // Departmanlı şubede departmanı seçilmemiş kişi otomatik plana alınmaz (lib/generatePlan)
+  const noDeptPeople = departments.length > 0 ? personnel.filter((p: { department_id?: string | null }) => !p.department_id) : [];
+
   // Haftanın uyarıları tek şeritte (components/schedule/WeekAlerts)
   const weekAlerts: WeekAlert[] = [
     ...(error ? [{ id: "error", tone: "danger" as const, title: error, action: { label: "Kapat", onClick: () => setError(null) } }] : []),
@@ -2802,6 +2805,12 @@ loading ? (
       id: "revoked-skills", tone: "warning" as const,
       title: `${new Set(revokedSkills.map(r => r.id)).size} kişi belge nedeniyle bazı rollere atanmadı`,
       detail: <>{revokedSkills.map(r => `${r.name}: ${r.skill} (${r.document} ${r.reason === "expired" ? "süresi dolmuş" : "girilmemiş"})`).join(" · ")}</>,
+    }] : []),
+    ...(noDeptPeople.length > 0 ? [{
+      id: "no-department", tone: "warning" as const,
+      title: `${noDeptPeople.length} kişinin departmanı seçilmemiş, otomatik plana alınmıyor`,
+      detail: <>{noDeptPeople.map((p: { name: string }) => p.name).join(", ")}. Ekip sayfasından departman seçin.</>,
+      action: { label: "Ekip", onClick: () => { window.location.href = "/personnel"; } },
     }] : []),
     ...(excludedCompliance.length > 0 ? [{
       id: "compliance", tone: "warning" as const,

@@ -319,6 +319,13 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // yanlışlıkla tekrar göndermeyi engelleyen ikinci bir güvenlik katmanı.
     const hasDepartments =
       departmentRows.length > 0 || personnelData.some((p) => !!p.department_id);
+    // Departmanlı şubede departmanı seçilmemiş kişi hiçbir departmanın ihtiyacına sayılmaz;
+    // motora gidince ihtiyaç tablosunun dışında her gün fazladan yazılıyordu.
+    // Kullanıcı kararı (2026-10-03): otomatik plana alınmaz, ekranda uyarılır.
+    const excludedNoDepartment = departmentRows.length > 0
+      ? personnelData.filter((p) => !p.department_id).map((p) => ({ id: p.id, name: p.name }))
+      : [];
+    if (excludedNoDepartment.length > 0) personnelData = personnelData.filter((p) => !!p.department_id);
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
     if (locationRow?.demand_matrix && !hasDepartments) {
       try {
@@ -852,6 +859,9 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
 
     if (excludedCompliance.length > 0) {
       data.excluded_compliance = excludedCompliance;
+    }
+    if (excludedNoDepartment.length > 0) {
+      data.excluded_no_department = excludedNoDepartment;
     }
     if (revokedSkills.length > 0) {
       data.revoked_skills = revokedSkills;
