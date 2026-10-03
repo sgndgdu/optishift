@@ -1,5 +1,6 @@
 "use client";
 
+import { SALES_EMAIL } from "@/lib/plans";
 import { useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
   Save, Plus, X, Send, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
@@ -14,7 +15,7 @@ import AccountTab from "@/components/AccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
-import { applySkillRecommendation, buildIndustryDefaults, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
+import { applySkillRecommendation, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
@@ -1170,18 +1171,15 @@ export default function SettingsPage() {
     : [];
   const industryChanged = !!industryDraft && (industryDraft.industry !== savedIndustry?.key || industryDraft.variant !== savedVariant);
 
-  const saveIndustry = async (applyDefaults: boolean) => {
-    if (!locationData || !industryDraft) return;
-    if (applyDefaults && !confirm("Bu türün önerilen kuralları ve özellikleri uygulansın mı? Haftalık saat, dinlenme süreleri, gece kuralları ve açık/kapalı özellikler değişir. Vardiya tanımlarınıza dokunulmaz.")) return;
+  // Sadece hiç seçilmemiş (eski) şubede bir kez; sunucu da seçilmiş türü değiştirmez
+  const saveIndustry = async () => {
+    if (!locationData || !industryDraft || savedIndustry) return;
     setIndustrySaving(true);
     try {
       const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
       const fr = Array.isArray(fresh) ? fresh[0]?.rules : null;
       const base: Record<string, unknown> = fr ? (typeof fr === "string" ? JSON.parse(fr) : { ...fr }) : {};
-      const defaults = buildIndustryDefaults(industryDraft.industry, industryDraft.variant)!;
-      const rules = applyDefaults
-        ? { ...base, ...defaults.rules }
-        : { ...base, industry: industryDraft.industry, industry_variant: industryDraft.variant };
+      const rules = { ...base, industry: industryDraft.industry, industry_variant: industryDraft.variant };
       const res = await fetch(`/api/locations?id=${locationData.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1189,7 +1187,7 @@ export default function SettingsPage() {
       });
       if (!res.ok) throw new Error();
       setIndustryDraft(null);
-      showToast("ok", applyDefaults ? "İşletme türü ve önerilen kurallar uygulandı." : "İşletme türü kaydedildi.");
+      showToast("ok", "İşletme türü kaydedildi.");
       window.dispatchEvent(new Event("optishift_location_changed"));
     } catch {
       showToast("error", "İşletme türü kaydedilemedi.");
@@ -1269,21 +1267,33 @@ export default function SettingsPage() {
               {/* İşletme türü: roller, belge kataloğu, sektör dili ve önerilen kurallar buna bağlı */}
               <div>
                 <SectionLabel>İşletme Türü</SectionLabel>
-                <p className="text-xs text-slate-500 mb-3">
-                  Rol listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
-                  {!savedIndustry && " Bu şube için henüz seçilmedi."}
-                </p>
-                <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
-                  onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
-                {industryChanged && (
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <button onClick={() => saveIndustry(false)} disabled={industrySaving || isDirty}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50">Sadece Türü Kaydet</button>
-                    <button onClick={() => saveIndustry(true)} disabled={industrySaving || isDirty}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet ve Önerilen Kuralları Uygula</button>
-                    <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
-                    {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
-                  </div>
+                {savedIndustry ? (
+                  <>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {savedIndustry.variants.find(v => v.key === savedVariant)?.label ?? savedIndustry.variants[0].label}
+                      <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Şube açılırken seçildi; roller, belge kontrolü ve öneriler buna göre çalışır. Yanlış seçildiyse{" "}
+                      <a href={`mailto:${SALES_EMAIL}?subject=${encodeURIComponent("İşletme türü düzeltme")}`} className="font-semibold text-forest-700 hover:underline">bize yazın</a>.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-slate-500 mb-3">
+                      Bu şube için henüz seçilmedi. Rol listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır. Bir kez seçilir, sonra değişmez.
+                    </p>
+                    <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
+                      onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
+                    {industryChanged && (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
+                        <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
+                        {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
+                      </div>
+                    )}
+                  </>
                 )}
                 {savedIndustry && !industryChanged && skillRecs.length > 0 && (
                     <div className="mt-3 rounded-xl border border-slate-200 p-3 space-y-2.5">
@@ -1820,7 +1830,7 @@ export default function SettingsPage() {
                 <SectionCard title="Planlama Kuralları">
                   <RuleRow
                     label="Kıdemli Personel Kuralı"
-                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir.</>}
+                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
                   <RuleRow

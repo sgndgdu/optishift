@@ -1,6 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { isSenior } from "@/lib/seniority";
+import { businessToday } from "@/lib/date";
 import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useRef, useState } from "react";
@@ -110,7 +112,7 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, isSenior: false, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0, department_id: null as string | null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0, department_id: null as string | null });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -353,7 +355,7 @@ export default function PersonnelPage() {
 
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, isSenior: Object.values(p.role_levels ?? {}).includes("primary"), hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0, department_id: p.department_id ?? null });
+    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0, department_id: p.department_id ?? null });
     setEditError("");
     setPersonnelDocs([]);
     setNewDocType(""); setNewDocExpiry(""); setDocError("");
@@ -432,7 +434,7 @@ export default function PersonnelPage() {
       if (editingPerson.personnelId) {
         // Hesabı olmayan personelde ad ve telefon yalnızca personel kaydında tutulur
         const nameFields = editingPerson.userId ? {} : { name: editForm.name, phone: editForm.phone };
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, role_levels: editForm.isSenior ? { senior: "primary" } : {}, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days, ...(editDepts.length > 0 ? { department_id: editForm.department_id } : {}) }) });
+        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days, ...(editDepts.length > 0 ? { department_id: editForm.department_id } : {}) }) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
@@ -486,6 +488,7 @@ export default function PersonnelPage() {
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   const complianceTrackingEnabled = locations.some(l => isModuleOn(l.rules, "compliance_tracking_enabled"));
   // Şubenin işletme türü (lib/templates): rol listesi ve belge kataloğu buradan gelir
+  const autoLeaveOn = locations.find(l => l.id === authUser?.location_id)?.rules?.auto_leave_entitlement_enabled === true;
   const branchIndustry = industryFromRules(locations.find(l => l.id === authUser?.location_id)?.rules);
   const roleLabels = new Set(branchIndustry?.roles.map(r => r.label) ?? []);
   // Seçili rollerin gerektirdiği belgeler ve bu kişideki durumu (geçerli / süresi dolmuş / girilmemiş)
@@ -912,31 +915,32 @@ export default function PersonnelPage() {
                     </select>
                     <p className="text-xs text-slate-400 mt-1">Bir engel seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
-                  <label className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.isSenior}
-                      onChange={e => setEditForm(f => ({ ...f, isSenior: e.target.checked }))}
-                      className="w-4 h-4 rounded accent-forest-600"
-                    />
-                    <span className="text-sm font-semibold text-slate-700">Kıdemli Personel</span>
-                    <span className="text-xs text-slate-400 ml-auto">Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları&apos;ndaki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
-                  </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">İşe Giriş Tarihi</label>
                       <input type="date" value={editForm.hire_date ?? ""} onChange={e => setEditForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Yıllık İzin (gün)</label>
-                      <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                    </div>
+                    {/* Kıdeme göre hak ediş açıkken ve tarih girilmişse hak tarihten hesaplanır: sabit gün alanı gösterilmez (tek kaynak) */}
+                    {!(autoLeaveOn && editForm.hire_date) && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Yıllık İzin (gün)</label>
+                        <input type="number" min={0} max={60} value={editForm.annual_leave_days_total} onChange={e => setEditForm(f => ({ ...f, annual_leave_days_total: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">İzin Düzeltme (±)</label>
                       <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
+                  <p className="text-xs text-slate-400 -mt-2">
+                    {editForm.hire_date
+                      ? <>{isSenior(editForm.hire_date, businessToday()) ? "1 yılını doldurdu: kıdemli sayılır." : "1 yılı dolunca kıdemli sayılır."} </>
+                      : <>Tarih girilmezse kıdemli sayılmaz. </>}
+                    {autoLeaveOn && editForm.hire_date
+                      ? "Yıllık izin hakkı işe giriş tarihinden hesaplanır (İş K. m.53)."
+                      : "Yıllık izin hakkı buradaki sabit günden hesaplanır."}
+                    {" "}Düzeltme geçmiş dönem devri gibi elle eklemeler içindir.
+                  </p>
                   {crewList.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Ekip Ataması</label>

@@ -581,7 +581,7 @@ export default function PortalDashboard() {
 
       <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
         title={emergencySent ? "Bildirim gönderildi" : "Acil durum bildir"}
-        description={emergencySent ? "Yöneticilerine anında ulaştı." : "Şubendeki tüm yöneticilere anında bildirim gider. Sadece gerçek acil durumlarda kullan."}
+        description={emergencySent ? "Yöneticilerine anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Şubendeki tüm yöneticilere anında bildirim gider."}
         footer={emergencySent ? (
           <button onClick={() => setEmergencyOpen(false)} className={sheetSecondaryClass}>Kapat</button>
         ) : <>
@@ -592,12 +592,19 @@ export default function PortalDashboard() {
           </button>
         </>}>
         {!emergencySent && (
+          <p className="text-xs text-slate-500 mb-2">
+            Vardiyaya gelemeyecek ya da geç kalacaksan bunu{" "}
+            <Link href="/portal/requests" className="font-semibold text-primary hover:underline">Talepler › Yeni talep</Link>{" "}
+            ile bildir.
+          </p>
+        )}
+        {!emergencySent && (
           <textarea
             value={emergencyMsg}
             onChange={e => setEmergencyMsg(e.target.value)}
             maxLength={300}
             rows={3}
-            placeholder="Örn: Trafik kazası nedeniyle vardiyaya geç kalacağım."
+            placeholder="Örn: İş yerinde biri yaralandı, hemen gelin."
             className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
           />
         )}

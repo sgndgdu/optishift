@@ -8,6 +8,7 @@ import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
 import { weekStates } from "@/lib/workCycle";
 import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
+import { isSenior } from "@/lib/seniority";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -216,14 +217,10 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     }
 
     // Personel verisini formatla
+    const todayForSeniority = businessToday();
     let personnelData = personnelRows.map((p: any) => {
-      let role_level = "secondary";
-      try {
-        const rls = JSON.parse(p.role_levels || "{}");
-        if (Object.values(rls).includes("primary")) role_level = "primary";
-      } catch {
-        /* ignore */
-      }
+      // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
+      const role_level = isSenior(p.hire_date, todayForSeniority) ? "primary" : "secondary";
       return {
         id: p.id,
         name: p.name,

@@ -109,12 +109,17 @@ export async function PATCH(req: NextRequest) {
     }
     if (body.rules !== undefined) {
       let rules = typeof body.rules === "string" ? JSON.parse(body.rules) : body.rules;
+      const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(id) as { rules?: string } | undefined;
+      let current: Record<string, unknown> = {};
+      try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }
       // Müdür kilitli alanları (bütçe, çalışma kuralları, ek özellikler) değiştiremez: mevcut değer korunur
       if (!isOwnerRole(auth.role)) {
-        const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(id) as { rules?: string } | undefined;
-        let current: Record<string, unknown> = {};
-        try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }
         rules = applyRuleLocks(current, rules ?? {});
+      }
+      // İşletme türü şube açılırken bir kez seçilir, sonradan değişmez (kafe bir gün fabrika olmaz).
+      // Sadece hiç seçilmemiş eski şubelerde bir kez yazılabilir.
+      if (current.industry && rules) {
+        rules = { ...rules, industry: current.industry, industry_variant: current.industry_variant };
       }
       updates.push("rules = ?");
       values.push(JSON.stringify(rules));
