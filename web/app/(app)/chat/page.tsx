@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Users, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
+import { Send, Users, ChevronRight, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { CountBadge } from "@/components/ui/StatusPill";
 
@@ -92,7 +92,6 @@ export default function ManagerChatPage() {
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [text,         setText]         = useState("");
   const [sending,      setSending]      = useState(false);
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
   const [newMsgCount,  setNewMsgCount]  = useState(0);
   const [isAtBottom,   setIsAtBottom]   = useState(true);
   const [search,       setSearch]       = useState("");
@@ -239,7 +238,6 @@ export default function ManagerChatPage() {
 
   const handleSelectContact = (c: Contact) => {
     setSelected(c);
-    setSidebarOpen(false);
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
   };
 
@@ -307,28 +305,13 @@ export default function ManagerChatPage() {
     <Page>
       <PageHeader title="Mesajlaşma" description="Ekibinizle ve yöneticilerle mesajlaşın." />
       <div className="h-[calc(100vh-15rem)] min-h-[420px] flex overflow-hidden bg-white rounded-2xl border border-slate-200 relative">
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
       {/* ── Sidebar / Directory ───────────────────────────────────────────── */}
-      <div className={`absolute md:relative inset-y-0 left-0 z-30 w-72 shrink-0 bg-white border-r border-slate-100 flex flex-col transition-transform duration-200 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      {/* Telefonda iki görünüm: seçili sohbet yoksa liste, varsa sohbet (geri ile listeye) */}
+      <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-72 shrink-0 bg-white md:border-r border-slate-100 flex-col`}>
         <div className="p-4 md:p-5 border-b border-slate-100 shrink-0">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                <MessageSquare size={16} className="text-primary" />
-              </div>
-              <h2 className="text-base font-bold text-slate-900">Kişiler ve Kanallar</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {totalUnread > 0 && (
-                <CountBadge count={totalUnread} />
-              )}
-              <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                <ChevronRight size={16} />
-              </button>
-            </div>
+            <h2 className="text-base font-bold text-slate-900">Kişiler ve kanallar</h2>
+            {totalUnread > 0 && <CountBadge count={totalUnread} />}
           </div>
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -344,7 +327,7 @@ export default function ManagerChatPage() {
           {contacts.length === 0 ? (
             <p className="text-xs text-slate-400 text-center mt-8 px-4">Kişi bulunamadı.</p>
           ) : filtered.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center mt-8 px-4">"{search}" için sonuç yok.</p>
+            <p className="text-xs text-slate-400 text-center mt-8 px-4">&ldquo;{search}&rdquo; için sonuç yok.</p>
           ) : (
             <>
               {groupContacts.length > 0 && (
@@ -369,12 +352,12 @@ export default function ManagerChatPage() {
       </div>
 
       {/* ── Chat area ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className={`${selected ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0 relative`}>
         {selected ? (
           <>
             {/* Header */}
             <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 md:py-4 flex items-center gap-3 shrink-0">
-              <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 shrink-0">
+              <button onClick={() => setSelected(null)} aria-label="Kişilere dön" title="Kişilere dön" className="md:hidden w-10 h-10 -ml-2 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-500 shrink-0">
                 <ChevronRight size={16} className="rotate-180" />
               </button>
               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
@@ -480,17 +463,8 @@ export default function ManagerChatPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-300">
-            <div className="flex flex-col items-center gap-3 text-center px-6">
-              <p className="text-sm font-semibold text-slate-400">Kime yazmak istiyorsunuz?</p>
-              <p className="text-xs text-slate-400">
-                <span className="md:hidden">Ekip kanalını ya da bir kişiyi seçmek için aşağıdaki düğmeye dokunun.</span>
-                <span className="hidden md:inline">Soldan bir kişi veya kanal seçin.</span>
-              </p>
-            </div>
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold">
-              <ChevronRight size={16} className="rotate-180" /> Kişileri ve Kanalları Göster
-            </button>
+          <div className="flex-1 flex items-center justify-center px-6">
+            <p className="text-sm text-slate-500">Soldan bir kişi ya da kanal seçin.</p>
           </div>
         )}
       </div>

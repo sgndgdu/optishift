@@ -2,10 +2,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { Wallet, Plus, Split, ChevronDown, ChevronUp, X } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty } from "@/components/ui/List";
+import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { StatusPill } from "@/components/ui/StatusPill";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
+
+const inputClass = "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20";
+
+/** "21–27 Eylül" ya da ay değişiyorsa "28 Eyl – 4 Eki". */
+function periodLabel(start: string, end: string) {
+  const a = new Date(start + "T00:00:00"), b = new Date(end + "T00:00:00");
+  if (start === end) return a.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  if (a.getMonth() === b.getMonth()) return `${a.getDate()}–${b.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`;
+  const f = (d: Date) => d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  return `${f(a)} – ${f(b)}`;
+}
 
 function todayStr() {
   const d = new Date();
@@ -94,7 +110,10 @@ export default function TipPoolsPage() {
       if (r.ok) {
         showToast("Havuz dağıtıldı");
         await load();
-        await toggleDetail(id, true);
+        // Taslakken açılan ayrıntı önbellekte; dağıtım paylarını tazele
+        const d = await fetch(`/api/tip-pools?id=${id}`).then(r => r.json()).catch(() => null);
+        if (d) setDetail(prev => ({ ...prev, [id]: d }));
+        setExpandedId(id);
       } else {
         const err = await r.json().catch(() => ({}));
         showToast(err.error || "Dağıtım başarısız");
@@ -119,118 +138,89 @@ export default function TipPoolsPage() {
     return (
       <Page width="narrow">
         <PageHeader title="Bahşiş Havuzu" />
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
-          <Wallet size={28} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-bold text-slate-600">Bahşiş Havuzu bu şubede kapalı</p>
-          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Ek Özellikler sekmesinden açabilirsiniz.</p>
-        </div>
+        <List>
+          <ListEmpty action={<Link href="/settings?tab=features" className="text-sm font-semibold text-primary hover:underline">Ayarlarda aç</Link>}>
+            Bahşiş havuzu bu şubede kapalı.
+          </ListEmpty>
+        </List>
       </Page>
     );
   }
 
+  const open = pools.find(p => p.id === expandedId) ?? null;
+  const openDetail = open ? detail[open.id] : null;
+  const period = (p: any) => periodLabel(p.period_start, p.period_end);
+
   return (
     <Page width="narrow">
-      <PageHeader title="Bahşiş Havuzu" description="Dönemlik prim dağıtımı." actions={
-        <button
-          onClick={() => setShowForm(v => !v)}
-          className={pageActionClass}
-        >
+      <PageHeader title="Bahşiş Havuzu" description="Dönemin bahşişini çalışılan saate göre dağıtır." actions={
+        <button onClick={() => setShowForm(true)} className={pageActionClass}>
           <Plus size={16} /> Yeni Havuz
         </button>
       } />
 
-      {showForm && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-slate-800">Yeni Bahşiş Havuzu</p>
-            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Başlangıç</label>
-              <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Bitiş</label>
-              <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1">Toplam Tutar (₺)</label>
-            <input type="number" min="0" step="0.01" value={totalAmount} onChange={e => setTotalAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
-          </div>
-          <button
-            onClick={createPool}
-            disabled={saving}
-            className="w-full bg-primary text-white text-sm font-bold py-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? "Kaydediliyor…" : "Havuzu Oluştur"}
-          </button>
-        </div>
-      )}
+      <List>
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : pools.length === 0 ? <ListEmpty>Henüz bahşiş havuzu yok.</ListEmpty> : pools.map(pool => (
+          <ListItem key={pool.id} onClick={() => toggleDetail(pool.id, true)}
+            title={period(pool)}
+            subtitle={pool.status === "distributed" ? `Dağıtılan ${formatTry(pool.distributed_amount)}` : "Henüz dağıtılmadı"}
+            trailing={<>
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">{formatTry(pool.total_amount)}</span>
+              {pool.status === "distributed" ? <StatusPill tone="positive">Dağıtıldı</StatusPill> : <StatusPill tone="attention">Taslak</StatusPill>}
+            </>}
+          />
+        ))}
+      </List>
 
-      <div>
-        {loading && <p className="text-sm text-slate-400">Yükleniyor…</p>}
-        {!loading && pools.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 text-sm">
-            Henüz bahşiş havuzu oluşturulmadı
-          </div>
+      <Sheet open={!!open} onClose={() => setExpandedId(null)} title={open ? period(open) : ""}
+        description={open ? `Toplam ${formatTry(open.total_amount)}` : undefined}
+        footer={open?.status === "draft" ? (
+          <button onClick={() => distributePool(open.id)} disabled={distributingId === open.id} className={sheetPrimaryClass}>
+            {distributingId === open.id ? "Dağıtılıyor…" : "Saate göre dağıt"}
+          </button>
+        ) : undefined}>
+        {open?.status === "draft" ? (
+          <p className="text-sm text-slate-600">Dağıtınca tutar, bu dönemde çalışılan saate göre kişilere bölünür.</p>
+        ) : !openDetail ? (
+          <p className="text-sm text-slate-500">Yükleniyor…</p>
+        ) : (openDetail.allocations?.length ?? 0) === 0 ? (
+          <p className="text-sm text-slate-500">Dağıtım kaydı yok.</p>
+        ) : (
+          <List>
+            {openDetail.allocations.map((a: any) => (
+              <ListItem key={a.id}
+                leading={<Avatar name={a.personnel_name ?? "?"} />}
+                title={a.personnel_name ?? a.personnel_id}
+                subtitle={`${(Math.round(a.worked_minutes / 60 * 10) / 10).toLocaleString("tr-TR")} saat`}
+                trailing={<span className="text-sm font-semibold text-slate-900 tabular-nums">{formatTry(a.amount)}</span>}
+              />
+            ))}
+          </List>
         )}
-        <div className="space-y-2">
-          {pools.map(pool => {
-            const isOpen = expandedId === pool.id;
-            const d = detail[pool.id];
-            return (
-              <div key={pool.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <div className="p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900">{pool.period_start} – {pool.period_end}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {pool.status === "distributed" ? `Dağıtıldı · ${formatTry(pool.distributed_amount)}` : "Taslak · henüz dağıtılmadı"}
-                    </p>
-                  </div>
-                  <p className="text-base font-bold text-emerald-700 shrink-0">{formatTry(pool.total_amount)}</p>
-                  {pool.status === "draft" ? (
-                    <button
-                      onClick={() => distributePool(pool.id)}
-                      disabled={distributingId === pool.id}
-                      className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-xl hover:bg-emerald-200 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      <Split size={13} /> {distributingId === pool.id ? "Dağıtılıyor…" : "Dağıt"}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => toggleDetail(pool.id)}
-                      className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors shrink-0"
-                    >
-                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-                  )}
-                </div>
-                {isOpen && pool.status === "distributed" && (
-                  <div className="border-t border-slate-100 px-4 py-3 space-y-1.5 bg-slate-50/50">
-                    {!d && <p className="text-xs text-slate-400">Yükleniyor…</p>}
-                    {d?.allocations?.map((a: any) => (
-                      <div key={a.id} className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-slate-700">{a.personnel_name ?? a.personnel_id}</span>
-                        <span className="text-xs text-slate-400">{Math.round(a.worked_minutes / 60 * 10) / 10} sa</span>
-                        <span className="font-bold text-emerald-700">{formatTry(a.amount)}</span>
-                      </div>
-                    ))}
-                    {d?.allocations?.length === 0 && <p className="text-xs text-slate-400">Dağıtım kaydı yok</p>}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      </Sheet>
+
+      <Sheet open={showForm} onClose={() => setShowForm(false)} title="Yeni bahşiş havuzu"
+        footer={<>
+          <button onClick={() => setShowForm(false)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={createPool} disabled={saving} className={sheetPrimaryClass}>{saving ? "Kaydediliyor…" : "Havuzu oluştur"}</button>
+        </>}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Başlangıç</span>
+              <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Bitiş</span>
+              <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className={inputClass} />
+            </label>
+          </div>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold text-slate-600">Toplam tutar (₺)</span>
+            <input type="number" min="0" step="0.01" inputMode="decimal" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} placeholder="0,00" className={inputClass} />
+          </label>
         </div>
-      </div>
+      </Sheet>
 
       {toast && (
         <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">

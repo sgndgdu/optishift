@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardCheck, Check, Clock } from "lucide-react";
+import Link from "next/link";
+import { Check, Clock } from "lucide-react";
+import { List, ListEmpty } from "@/components/ui/List";
+import { Tabs } from "@/components/ui/Tabs";
 import { useManagerAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
 import { isModuleOn } from "@/lib/moduleVisibility";
@@ -50,12 +53,12 @@ export default function HandoversPage() {
   if (enabled === false) {
     return (
       <Page width="narrow">
-        <PageHeader title="Devir-Teslim Kayıtları" />
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
-          <ClipboardCheck size={28} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-bold text-slate-600">Devir-Teslim Defteri bu şubede kapalı</p>
-          <p className="text-xs text-slate-400 mt-1">Ayarlar &gt; Ek Özellikler sekmesinden açabilirsiniz.</p>
-        </div>
+        <PageHeader title="Devir-Teslim" />
+        <List>
+          <ListEmpty action={<Link href="/settings?tab=features" className="text-sm font-semibold text-primary hover:underline">Ayarlarda aç</Link>}>
+            Devir-teslim defteri bu şubede kapalı.
+          </ListEmpty>
+        </List>
       </Page>
     );
   }
@@ -64,63 +67,29 @@ export default function HandoversPage() {
 
   return (
     <Page width="narrow">
-      <PageHeader title="Devir-Teslim Kayıtları"
+      <PageHeader title="Devir-Teslim"
         description={unreadCount > 0 ? `${unreadCount} not henüz teslim alınmadı` : "Tüm notlar teslim alındı"} />
 
-      <div className="flex gap-2">
-        {([
-          { key: "all", label: "Tümü" },
-          { key: "unread", label: "Bekleyen" },
-          { key: "read", label: "Teslim Alındı" },
-        ] as { key: StatusFilter; label: string }[]).map(t => (
-          <button
-            key={t.key}
-            onClick={() => setStatus(t.key)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-              status === t.key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={status} onChange={setStatus} items={[
+        { id: "all", label: "Tümü" },
+        { id: "unread", label: "Bekleyen", count: status === "all" ? unreadCount : undefined },
+        { id: "read", label: "Teslim alındı" },
+      ] as const} />
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />)}
-        </div>
-      ) : records.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
-          <ClipboardCheck size={24} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">Kayıt yok</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {records.map(r => (
-            <div key={r.id} className="bg-white rounded-2xl border border-slate-100 p-4">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-bold text-slate-800 truncate">{r.author_name}</span>
-                  {r.department_name && (
-                    <StatusPill tone="neutral" className="shrink-0">{r.department_name}</StatusPill>
-                  )}
-                </div>
-                {r.read_by_personnel_id ? (
-                  <StatusPill tone="positive" className="shrink-0">
-                    <Check size={11} /> {r.reader_name} teslim aldı
-                  </StatusPill>
-                ) : (
-                  <StatusPill tone="attention" className="shrink-0">
-                    <Clock size={11} /> Bekliyor
-                  </StatusPill>
-                )}
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed">{r.note}</p>
-              <p className="text-xs text-slate-400 font-medium mt-2">{timeAgo(Number(r.created_at))}</p>
+      <List>
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : records.length === 0 ? <ListEmpty>Kayıt yok.</ListEmpty> : records.map(r => (
+          <li key={r.id} className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-semibold text-slate-900 truncate">{r.author_name}</span>
+              <span className="text-xs text-slate-500 truncate">{[r.department_name, timeAgo(Number(r.created_at))].filter(Boolean).join(" · ")}</span>
             </div>
-          ))}
-        </div>
-      )}
+            <p className="text-sm text-slate-700 leading-relaxed">{r.note}</p>
+            {r.read_by_personnel_id
+              ? <StatusPill tone="positive"><Check size={11} /> {r.reader_name} teslim aldı</StatusPill>
+              : <StatusPill tone="attention"><Clock size={11} /> Teslim alınmadı</StatusPill>}
+          </li>
+        ))}
+      </List>
     </Page>
   );
 }
