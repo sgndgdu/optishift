@@ -105,8 +105,12 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   const tpl = (format: "xlsx" | "csv") => `/api/personnel/bulk/template?format=${format}&location_id=${encodeURIComponent(locationId)}`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !busy && close()}>
-      <div className="bg-white w-full max-w-3xl rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()} role="dialog" aria-label="Excel ile içe aktar">
+    // Dışarı tıklama sadece boş pencereyi kapatır: yüklenen/yapıştırılan liste ya da davet bağlantıları
+    // kazara tıklamayla kaybolmasın (kapatmak için Kapat/İptal)
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={() => { if (!busy && !rows && !done && !paste.trim()) close(); }}>
+      <div className={cn("bg-white w-full max-w-3xl rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]", rows && !done && "h-[90vh]")}
+        onClick={e => e.stopPropagation()} role="dialog" aria-label="Excel ile içe aktar">
         <div className="flex items-start justify-between mb-4 gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Excel/CSV ile Toplu Aktar</h2>
