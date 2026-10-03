@@ -17,7 +17,7 @@ import { managerOutsideBranch } from "@/lib/access";
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const day = (d: number) => DAY_SHORT[d] ?? String(d);
 const short = (iso: string) => { const [, m, dd] = iso.split("-"); return `${Number(dd)}.${Number(m)}`; };
-const ROLE: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Bölge Müdürü", manager: "Müdür", employee: "Personel" };
+const ROLE: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Yönetici (birden çok şube)", manager: "Yönetici", employee: "Çalışan" };
 const DETAIL_BRANCH_LIMIT = 8;
 const EMP: Record<string, string> = { full_time: "tam zamanlı", part_time: "yarı zamanlı" };
 
@@ -187,7 +187,7 @@ export async function buildBusinessContext(db: any, auth: AuthUser, locationId: 
   const mgrs = await db.prepare(`SELECT name, role, location_id FROM users WHERE org_id = ? AND role IN ('manager','supervisor') AND COALESCE(approval_status,'active')='active'`).all(auth.org_id) as any[];
   const locName = new Map(locs.map(l => [l.id, l.name]));
   const visible = mgrs.filter(m => m.role === "supervisor" || locName.has(m.location_id));
-  if (visible.length) lines.push(`## Yöneticiler: ${visible.map(m => `${m.name} (${m.role === "supervisor" ? "Bölge Müdürü" : `Müdür, ${locName.get(m.location_id)}`})`).join(", ")}`);
+  if (visible.length) lines.push(`## Yöneticiler: ${visible.map(m => `${m.name} (${m.role === "supervisor" ? "Yönetici, birden çok şube" : `Yönetici, ${locName.get(m.location_id)}`})`).join(", ")}`);
   if (locs.length > DETAIL_BRANCH_LIMIT) lines.push("Not: Tek bir şubenin ayrıntısı için o şubeye girip asistana sorun.");
   return lines.join("\n");
 }

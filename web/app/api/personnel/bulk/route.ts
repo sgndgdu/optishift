@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const org_id = auth.org_id;
     const now = Math.floor(Date.now() / 1000);
     // Manager'ın oluşturduğu hesaplar patron onayına bekler; admin/supervisor direkt aktif (tekil akışla aynı kural)
-    const approvalStatus = auth.role === "manager" ? "pending" : "active";
+    const approvalStatus = "active"; // yöneticinin eklediği hesap direkt aktif (onay sadece kendi kendine kayıtta)
     const results: any[] = [];
     const skipped: { line: number; name: string; reason: string }[] = [];
 
@@ -136,7 +136,6 @@ export async function POST(req: NextRequest) {
       results,
       skipped,
       createdDepartments,
-      approvalPending: approvalStatus === "pending",
     });
   } catch (err: any) {
     console.error("[personnel/bulk]", err);

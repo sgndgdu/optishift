@@ -83,7 +83,7 @@ export default function AdminBannersPage() {
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Duyurular</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Tüm portallarda (müdür, personel, bölge müdürü) üst banner olarak gösterilir
+          Tüm portallarda (işletme sahibi, yönetici, çalışan) üst banner olarak gösterilir
         </p>
       </div>
 

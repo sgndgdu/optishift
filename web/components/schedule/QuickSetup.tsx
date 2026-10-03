@@ -189,7 +189,7 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // Eklendikten sonra: giriş bağlantıları ve atlananlar (pencere bunları göstermeden kapanmaz)
-  const [done, setDone] = useState<{ results: InviteResult[]; skipped: { name: string; reason: string }[]; approvalPending: boolean } | null>(null);
+  const [done, setDone] = useState<{ results: InviteResult[]; skipped: { name: string; reason: string }[]} | null>(null);
 
   const update = (i: number, field: "name" | "phone", val: string) =>
     setRows(prev => prev.map((r, j) => (j === i ? { ...r, [field]: val } : r)));
@@ -212,7 +212,7 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setError(d.error || "Personel eklenemedi. Lütfen tekrar deneyin."); return; }
       // Sayfa yenilemesi pencere kapanınca: şimdi yenilenirse bant yeniden kurulur ve bağlantılar kaybolur
-      setDone({ results: d.results ?? [], skipped: d.skipped ?? [], approvalPending: !!d.approvalPending });
+      setDone({ results: d.results ?? [], skipped: d.skipped ?? [] });
     } catch {
       setError("Bağlantı hatası. Lütfen tekrar deneyin.");
     } finally {
@@ -227,9 +227,6 @@ function QuickPersonnelModal({ locationId, onClose, onImport }: { locationId: st
     };
     return (
       <ModalShell title={done.results.length > 0 ? `${done.results.length} kişi eklendi` : "Kimse eklenmedi"} subtitle="Personelin telefonundan giriş yapabilmesi için bağlantısını gönderin." onClose={finish}>
-        {done.approvalPending && done.results.length > 0 && (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">Hesaplar işletme sahibinin onayına düştü; onaylanınca giriş yapabilirler.</p>
-        )}
         {done.skipped.length > 0 && (
           <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 space-y-0.5">
             <p className="font-semibold">{done.skipped.length} kişi eklenmedi:</p>

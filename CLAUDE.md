@@ -188,6 +188,8 @@ Admin
 | **Manager** | Kendi biriminin shift'ini oluşturur ve yönetir; personel bilgilerini düzenler |
 | **Employee** | Kendi vardiyasını görür; müsaitlik bilgisi girer; swap/edit talepleri oluşturur |
 
+**Kullanıcıya görünen model (2026-10-03, kullanıcı kararı): 3 rol — İşletme Sahibi / Yönetici / Çalışan.** DB rolleri değişmedi; arayüz eşler: yönetici eklerken rol değil KAPSAM sorulur (`components/personnel/ManagersCard.tsx`): tek şube = `manager` (+ isteğe bağlı tek departman), birden çok şube = `supervisor` + `managed_location_ids` (sadece patron). Unvan serbest metin (`display_title`), yetkiyi değiştirmez; etiketlerde unvan ya da "Yönetici". Kapsam değişikliği `PATCH /api/users` `scope_location_ids` (sadece patron; rol manager↔supervisor geçer, bir sonraki girişte geçerli). "Personel/Çalışan Ekle" formu sadece çalışan ekler. Yöneticinin eklediği hesap DİREKT AKTİF (onay sadece kendi kendine kayıt bağlantısında). Bölge yöneticisi sadece kapsamındaki şubelere hesap açar. Yetki ince ayarı yine `rules.manager_permissions` (lib/ruleLocks).
+
 ---
 
 ## 6. Üç Portal Mimarisi (Route Yapısı)

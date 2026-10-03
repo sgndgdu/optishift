@@ -22,7 +22,7 @@ type GodUserRow = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "İşletme Sahibi", supervisor: "Bölge Müdürü", manager: "Müdür", employee: "Personel",
+  admin: "İşletme Sahibi", supervisor: "Yönetici (çok şube)", manager: "Yönetici (tek şube)", employee: "Çalışan",
 };
 
 function timeAgo(ts: number | null): string {
@@ -111,7 +111,7 @@ export default function AdminUsersPage() {
         >
           <option value="">Tüm Roller</option>
           <option value="admin">Admin</option>
-          <option value="supervisor">Bölge Müdürü</option>
+          <option value="supervisor">Yönetici (çok şube)</option>
           <option value="manager">Müdür</option>
           <option value="employee">Personel</option>
         </select>

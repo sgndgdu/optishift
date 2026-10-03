@@ -3,7 +3,7 @@ import GuideContent from "@/components/guide/GuideContent";
 
 export const metadata: Metadata = {
   title: "Kullanım Kılavuzu – OptiShift",
-  description: "OptiShift vardiya yönetim platformunu müdür, personel, bölge müdürü ve işletme sahibi için nasıl kullanacağınızı anlatan kapsamlı kılavuz.",
+  description: "OptiShift vardiya yönetim platformunu çalışan, yönetici ve işletme sahibi için nasıl kullanacağınızı anlatan kapsamlı kılavuz.",
 };
 
 export default function GuidePage() {

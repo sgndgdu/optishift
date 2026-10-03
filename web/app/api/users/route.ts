@@ -93,9 +93,9 @@ export async function POST(req: NextRequest) {
     const isSupervisor = role === "supervisor";
     let managedIds: string[] = [];
     if (isSupervisor) {
-      if (auth.role !== "admin") return NextResponse.json({ error: "Bölge müdürünü sadece işletme sahibi ekler" }, { status: 403 });
+      if (auth.role !== "admin") return NextResponse.json({ error: "Birden çok şubeli yöneticiyi sadece işletme sahibi ekler" }, { status: 403 });
       const want = Array.isArray(body.managed_location_ids) ? body.managed_location_ids.map(String) : [];
-      if (!want.length) return NextResponse.json({ error: "Bölge müdürü için en az bir şube seçin" }, { status: 400 });
+      if (!want.length) return NextResponse.json({ error: "Yönetici için en az bir şube seçin" }, { status: 400 });
       const ok = await db.prepare(`SELECT id FROM locations WHERE org_id = ? AND id IN (${want.map(() => "?").join(",")})`).all(auth.org_id, ...want) as { id: string }[];
       if (ok.length !== want.length) return NextResponse.json({ error: "Şube bulunamadı" }, { status: 400 });
       managedIds = want;
@@ -138,6 +138,10 @@ export async function POST(req: NextRequest) {
     if (auth.role === "manager" && auth.location_id && !inManagersBranch) {
       return NextResponse.json({ error: "Sadece kendi şubenize hesap oluşturabilirsiniz" }, { status: 403 });
     }
+    // Bölge yöneticisi sadece sorumlu olduğu şubelere hesap açar
+    if (auth.role === "supervisor" && !isSupervisor && (!primaryLocId || managerOutsideBranch(auth, primaryLocId))) {
+      return NextResponse.json({ error: "Sadece sorumlu olduğunuz şubelere hesap oluşturabilirsiniz" }, { status: 403 });
+    }
 
     const tempPassword = generateTempPassword();
     const username = await generateUsername(db, name);
@@ -146,8 +150,9 @@ export async function POST(req: NextRequest) {
     const now = Math.floor(Date.now() / 1000);
     const userId = `U-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Manager'ın oluşturduğu hesaplar patron onayına bekler; admin/supervisor direkt aktif
-    const approvalStatus = (auth.role === "manager") ? "pending" : "active";
+    // Yöneticinin eklediği hesap da direkt aktif (kullanıcı kararı 2026-10-03); onay sadece
+    // kendi kendine kayıt bağlantısıyla gelenlerde (/api/self-signup) kalır
+    const approvalStatus = "active";
 
     // Personnel kaydı da oluştur (employee rolü için)
     let personnelId: string | null = existing?.id ?? null;
@@ -261,6 +266,24 @@ export async function PATCH(req: NextRequest) {
       await db.prepare("UPDATE users SET managed_location_ids = ? WHERE id = ?").run(JSON.stringify(want), id);
     }
 
+    // Yöneticinin kapsamı (sadece patron): tek şube = şube yöneticisi (manager), birden çok = bölge yöneticisi
+    // (supervisor). Rol değişikliği kişinin bir sonraki girişinde geçerli olur.
+    if (body.scope_location_ids !== undefined) {
+      if (auth.role !== "admin" || (target.role !== "manager" && target.role !== "supervisor")) {
+        return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      }
+      const want: string[] = Array.isArray(body.scope_location_ids) ? [...new Set<string>(body.scope_location_ids.map(String))] : [];
+      const ok = want.length
+        ? await db.prepare(`SELECT id FROM locations WHERE org_id = ? AND id IN (${want.map(() => "?").join(",")})`).all(auth.org_id, ...want) as { id: string }[]
+        : [];
+      if (!want.length || ok.length !== want.length) return NextResponse.json({ error: "En az bir geçerli şube seçin" }, { status: 400 });
+      if (want.length === 1) {
+        await db.prepare("UPDATE users SET role = 'manager', location_id = ?, managed_location_ids = NULL WHERE id = ?").run(want[0], id);
+      } else {
+        await db.prepare("UPDATE users SET role = 'supervisor', location_id = NULL, department_id = NULL, managed_location_ids = ? WHERE id = ?").run(JSON.stringify(want), id);
+      }
+    }
+
     if (body.approval_status !== undefined) {
       // Onay/red işlemi — sadece admin/supervisor yapabilir
       if (auth.role !== "admin" && auth.role !== "supervisor") {
@@ -270,7 +293,7 @@ export async function PATCH(req: NextRequest) {
         .run(body.approval_status, auth.id, now, id);
     }
 
-    if (body.name !== undefined || body.phone !== undefined || body.location_id !== undefined || body.department_id !== undefined) {
+    if (body.name !== undefined || body.phone !== undefined || body.location_id !== undefined || body.department_id !== undefined || body.display_title !== undefined) {
       const fields: string[] = [];
       const vals: any[] = [];
       if (body.name !== undefined) { fields.push("name = ?"); vals.push(body.name); }

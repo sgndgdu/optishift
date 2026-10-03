@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
     const employeeId = `EMP-${Math.floor(Math.random() * 90000) + 10000}`;
     const username = await generateUsername(db, name);
     // Diğer hesap açma yollarıyla aynı: müdürün açtığı hesap onaya düşer, şifre geçicidir, davet bağlantısı üretilir
-    const approvalStatus = auth.role === "manager" ? "pending" : "active";
+    const approvalStatus = "active"; // yöneticinin eklediği hesap direkt aktif (onay sadece kendi kendine kayıtta)
 
     await db.prepare(`
       INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(`IT-${Date.now()}-${Math.floor(Math.random() * 100000)}`, inviteToken, userId, auth.org_id, location_id, role ?? "employee", name, auth.id, now + 7 * 24 * 3600, now);
 
-    return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password, invite_token: inviteToken, approval_pending: approvalStatus === "pending" });
+    return NextResponse.json({ success: true, personnel_id: personnelId, username, temp_password: password, invite_token: inviteToken });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -295,7 +295,7 @@ export async function PATCH(req: NextRequest) {
 
     // Terfi/rol değişikliği bildirimi — eski rol farklıysa kişiye bildir
     if (user_access_level && user_access_level !== existing.user_access_level) {
-      const ROLE_LABELS: Record<string, string> = { employee: "Personel", manager: "Müdür / Yönetici", supervisor: "Bölge Müdürü", admin: "İşletme Sahibi" };
+      const ROLE_LABELS: Record<string, string> = { employee: "Çalışan", manager: "Yönetici", supervisor: "Yönetici", admin: "İşletme Sahibi" };
       const newLabel = ROLE_LABELS[user_access_level] ?? user_access_level;
       await db.prepare(`
         INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
@@ -334,7 +334,7 @@ export async function DELETE(req: NextRequest) {
     }
     // Pasife alma (silme) müdür iznine bağlı (lib/ruleLocks)
     if (!(await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete"))) {
-      return NextResponse.json({ error: "Personel silme izniniz yok. İşletme sahibi veya bölge müdürü açabilir." }, { status: 403 });
+      return NextResponse.json({ error: "Personel silme izniniz yok. İşletme sahibi açabilir." }, { status: 403 });
     }
 
     const now = Math.floor(Date.now() / 1000);

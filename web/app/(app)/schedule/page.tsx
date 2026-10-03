@@ -3755,7 +3755,7 @@ loading ? (
                         <p className="text-xs text-slate-500 mt-0.5">Patron onayı gerekiyor</p>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-600 mb-5 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>işletme sahibine</strong> (varsa bölge müdürüne) gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
+                    <p className="text-sm text-slate-600 mb-5 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>işletme sahibine</strong> gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
                     <div className="flex gap-2">
                       <button onClick={() => { setUnlockModal(false); setEditRequestStatus("idle"); }} className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">İptal</button>
                       <button onClick={handleSendEditRequest} disabled={editRequestStatus === "sending"} className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">

@@ -3,7 +3,7 @@
 
 import { defaultWeeklyHours } from "@/lib/legal";
 import { Suspense, useEffect, useState } from "react";
-import SupervisorManager from "@/components/SupervisorManager";
+import ManagersCard from "@/components/personnel/ManagersCard";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users, Plus, Search, Edit2, X, Check,
@@ -24,20 +24,18 @@ const EMP_TYPES = [
 ];
 
 const ACCESS_LEVELS = [
-  { value: "employee",  label: "Personel" },
-  { value: "manager",   label: "Müdür" },
-  { value: "supervisor", label: "Bölge Müdürü" },
+  { value: "employee",  label: "Çalışan" },
+  { value: "manager",   label: "Yönetici" },
+  // Birden çok şubeli yönetici Yöneticiler kartından (kapsam seçilerek) eklenir
 ];
 
+// Yöneticiler ayrı kartta (components/personnel/ManagersCard) eklenir; bu form sadece çalışan ekler
 const ROLE_DEFS = [
-  { label: "Şube Müdürü",      role: "manager",   display_title: "Şube Müdürü" },
-  { label: "Müdür Yardımcısı", role: "manager",   display_title: "Müdür Yardımcısı" },
-  { label: "Departman Müdürü", role: "manager",   display_title: "Departman Müdürü" },
-  { label: "Personel",         role: "employee",  display_title: "" },
+  { label: "Çalışan", role: "employee", display_title: "" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "İşletme Sahibi", supervisor: "Bölge Müdürü", manager: "Müdür", employee: "Personel",
+  admin: "İşletme Sahibi", supervisor: "Yönetici", manager: "Yönetici", employee: "Çalışan",
 };
 
 export default function SupervisorPersonnelPage() {
@@ -61,12 +59,10 @@ function SupervisorPersonnelInner() {
   // Onay bekleyen hesaplar (manager'ın oluşturduğu, henüz aktif olmayan)
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   // Şube müdürleri: personel kaydı olmadığı için personel listesinde görünmezler (Test 3 Ö1)
-  const [managers, setManagers] = useState<any[]>([]);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
   // Add modal
   const [showAddModal, setShowAddModal] = useState(false);
-  const [roleOption, setRoleOption] = useState(3); // default Personel
   const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
   const [selLocIds, setSelLocIds] = useState<string[]>([]);
   const [selDeptIds, setSelDeptIds] = useState<string[]>([]);
@@ -90,9 +86,8 @@ function SupervisorPersonnelInner() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
 
-  const isEmployee = roleOption === 3;
-  const isDeptMgr  = roleOption === 2;
-  const useMultiSelect = isEmployee || isDeptMgr;
+  const isEmployee = true;
+  const useMultiSelect = true; // çalışan birden çok şubeye atanabilir
 
   const cacheDept = async (locId: string) => {
     if (deptCache[locId]) return;
@@ -119,7 +114,6 @@ function SupervisorPersonnelInner() {
       const data = await res.json();
       const list: any[] = Array.isArray(data) ? data : [];
       setPendingUsers(list.filter(u => u.approval_status === "pending"));
-      setManagers(list.filter(u => u.role === "manager" && u.approval_status !== "pending" && u.approval_status !== "rejected"));
     } catch {}
   };
 
@@ -189,7 +183,7 @@ function SupervisorPersonnelInner() {
 
   const resetAddForm = () => {
     setAddForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
-    setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); setRoleOption(3); setAddError("");
+    setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); setAddError("");
   };
 
   const handleAdd = async () => {
@@ -200,7 +194,7 @@ function SupervisorPersonnelInner() {
     if (!useMultiSelect && !singleLocId) { setAddError("Şube seçmelisiniz"); return; }
     setAddLoading(true);
     try {
-      const rd = ROLE_DEFS[roleOption];
+      const rd = ROLE_DEFS[0];
       const body: any = {
         name: addForm.name.trim(), email: addForm.email.trim() || undefined,
         phone: addForm.phone.trim() || undefined,
@@ -268,13 +262,13 @@ function SupervisorPersonnelInner() {
     <Page className="animate-in fade-in duration-500">
       <PageHeader title="Tüm Personel" description="İşletme geneli tüm personeli yönetin." actions={
         <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className={pageActionClass}>
-          <Plus size={16} /> Yeni Hesap Ekle
+          <Plus size={16} /> Çalışan Ekle
         </button>
       } />
 
-      {/* Bölge müdürleri: sadece patron yönetir */}
-      {user?.role === "admin" && locations.length > 0 && (
-        <SupervisorManager locations={locations.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name }))} />
+      {/* Yöneticiler: patron her şubeye, bölge yöneticisi kendi şubelerine ekler */}
+      {(user?.role === "admin" || user?.role === "supervisor") && locations.length > 0 && (
+        <ManagersCard viewerRole={user.role} locations={locations.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name }))} />
       )}
 
       {/* Filtreler */}
@@ -295,38 +289,6 @@ function SupervisorPersonnelInner() {
         </div>
       </div>
 
-      {/* Şube Müdürleri */}
-      {managers.length > 0 && (
-        <Card className="stripe-card border-0 shadow-none">
-          <CardHeader className="border-b border-border/40 bg-slate-50/50 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-forest-100 rounded-xl text-forest-700"><Shield size={18} /></div>
-              <CardTitle className="text-base font-bold">Şube Müdürleri</CardTitle>
-              <Badge variant="secondary">{managers.filter(m => !selectedLocId || m.location_id === selectedLocId).length}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-50">
-              {managers.filter(m => !selectedLocId || m.location_id === selectedLocId).map(m => (
-                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="w-10 h-10 rounded-full bg-forest-100 flex items-center justify-center text-forest-700 font-bold text-sm shrink-0">{m.name.charAt(0)}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-slate-900 truncate">{m.name}</p>
-                    <p className="text-xs text-slate-500 truncate">
-                      {m.display_title || "Müdür"} · {locations.find((l: { id: string; name: string }) => l.id === m.location_id)?.name ?? "Şube atanmamış"} · {m.username}
-                    </p>
-                  </div>
-                  {m.is_temp_password && <StatusPill tone="danger" className="shrink-0">Henüz giriş yapmadı</StatusPill>}
-                  <Button size="sm" variant="outline" disabled={inviteLinkLoading === m.id}
-                    onClick={() => handleGenerateInvite({ id: m.id, user_id: m.id, name: m.name })}>
-                    Davet bağlantısı
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Onay Bekleyen Hesaplar */}
       {pendingUsers.length > 0 && (
@@ -437,23 +399,11 @@ function SupervisorPersonnelInner() {
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-slate-900">Yeni Hesap Ekle</h2>
+              <h2 className="text-xl font-black text-slate-900">Çalışan Ekle</h2>
               <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={16} /></button>
             </div>
 
             <div className="space-y-4">
-              {/* Rol seçimi */}
-              <div>
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Rol</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ROLE_DEFS.map((rd, i) => (
-                    <button key={i} type="button" onClick={() => { setRoleOption(i); setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); }}
-                      className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                      {rd.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Temel bilgiler */}
               <div className="grid grid-cols-2 gap-4">

@@ -15,7 +15,7 @@ export const MANAGER_PERMISSION_LIST: { key: ManagerPermission; label: string; d
   { key: "rules", label: "Çalışma kuralları", description: "Haftalık saat sınırı, dinlenme, ardışık gün, fazla mesai sınırları, Adalet Puanı ağırlıkları." },
   { key: "features", label: "Ek özellikler", description: "Mesajlaşma, açık vardiya, bahşiş, ortak tablet gibi modülleri açıp kapatma." },
   { key: "personnel_delete", label: "Personel silme", description: "Personeli pasife alma ve hesabını silme." },
-  { key: "publish_edit", label: "Yayınlanmış planı onaysız değiştirme", description: "Kapalıysa yayınlanmış haftayı düzenlemek için patron veya bölge müdürü onayı gerekir." },
+  { key: "publish_edit", label: "Yayınlanmış planı onaysız değiştirme", description: "Kapalıysa yayınlanmış haftayı düzenlemek için işletme sahibinin onayı gerekir." },
 ];
 
 export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
@@ -61,7 +61,7 @@ export function hasManagerPermission(role: string | null | undefined, rules: unk
   return managerPermissions(rules)[perm];
 }
 
-export const LOCK_NOTE = "Bu ayarı işletme sahibi veya bölge müdürü değiştirir.";
+export const LOCK_NOTE = "Bu ayarı işletme sahibi değiştirir.";
 
 /**
  * Müdürün gönderdiği kurallarda izni olmayan alanları ve izin ayarının kendisini

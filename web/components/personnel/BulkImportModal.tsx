@@ -29,7 +29,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   const [createDepts, setCreateDepts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ results: Result[]; skipped: { line: number; name: string; reason: string }[]; createdDepartments: string[]; approvalPending: boolean } | null>(null);
+  const [done, setDone] = useState<{ results: Result[]; skipped: { line: number; name: string; reason: string }[]; createdDepartments: string[]} | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? "Aktarım yapılamadı."); return; }
-      setDone({ results: d.results ?? [], skipped: d.skipped ?? [], createdDepartments: d.createdDepartments ?? [], approvalPending: !!d.approvalPending });
+      setDone({ results: d.results ?? [], skipped: d.skipped ?? [], createdDepartments: d.createdDepartments ?? [] });
       onDone?.(d.addedCount ?? 0);
     } catch { setError("Sunucuya bağlanılamadı."); }
     finally { setBusy(false); }
@@ -122,9 +122,6 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
         {done ? (
           <div className="flex-1 overflow-y-auto space-y-3">
             <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl font-bold text-sm flex items-center gap-2"><Check size={18} /> {done.results.length} personel eklendi.</div>
-            {done.approvalPending && done.results.length > 0 && (
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">Hesaplar yönetici onayına düştü; onaylanınca personel giriş yapabilir.</p>
-            )}
             {done.createdDepartments.length > 0 && (
               <p className="text-xs text-slate-600">Oluşturulan departmanlar: {done.createdDepartments.join(", ")}</p>
             )}

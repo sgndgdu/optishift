@@ -14,6 +14,7 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
+import ManagersCard from "@/components/personnel/ManagersCard";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
@@ -50,11 +51,9 @@ type MergedPerson = {
   kiosk_pin_set: boolean;
 };
 
+// Yöneticiler ayrı kartta (components/personnel/ManagersCard) eklenir; bu form sadece çalışan ekler
 const ROLE_DEFS = [
-  { label: "Şube Müdürü", role: "manager", display_title: "Şube Müdürü" },
-  { label: "Müdür Yardımcısı", role: "manager", display_title: "Müdür Yardımcısı" },
-  { label: "Departman Müdürü", role: "manager", display_title: "Departman Müdürü" },
-  { label: "Personel", role: "employee", display_title: "" },
+  { label: "Çalışan", role: "employee", display_title: "" },
 ];
 
 const EMP_TYPES = [
@@ -85,7 +84,6 @@ export default function PersonnelPage() {
 
   // Add form
   const [showAddModal, setShowAddModal] = useState(false);
-  const [roleOption, setRoleOption] = useState(3);
   const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
   const [selLocIds, setSelLocIds] = useState<string[]>([]);
   const [selDeptIds, setSelDeptIds] = useState<string[]>([]);
@@ -129,9 +127,8 @@ export default function PersonnelPage() {
   const [toast, setToast] = useState("");
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
-  const isEmployee = roleOption === 3;
-  const isDeptMgr = roleOption === 2;
-  const useMultiSelect = isEmployee || isDeptMgr;
+  const isEmployee = true;
+  const useMultiSelect = true; // çalışan birden çok şubeye atanabilir
 
   const fetchData = async (u: any) => {
     setLoading(true);
@@ -240,7 +237,7 @@ export default function PersonnelPage() {
     setAddForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
     // Şube panelindeyiz: form o şube seçili açılır
     const here = authUser?.location_id ?? "";
-    setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setRoleOption(3); setAddError("");
+    setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setAddError("");
   };
 
   const handleAdd = async () => {
@@ -251,7 +248,7 @@ export default function PersonnelPage() {
     if (!useMultiSelect && !singleLocId) { setAddError("Şube seçmelisiniz"); return; }
     setAddLoading(true);
     try {
-      const rd = ROLE_DEFS[roleOption];
+      const rd = ROLE_DEFS[0];
       const body: any = {
         name: addForm.name.trim(), email: addForm.email.trim() || undefined,
         phone: addForm.phone.trim() || undefined, role: rd.role,
@@ -487,9 +484,9 @@ export default function PersonnelPage() {
 
   const roleBadge = (p: MergedPerson) => {
     if (p.role === "admin") return { label: "İşletme Sahibi", tone: "accent" as PillTone };
-    if (p.role === "supervisor") return { label: "Bölge Müdürü", tone: "accent" as PillTone };
-    if (p.display_title) return { label: p.display_title, tone: "brand" as PillTone };
-    return { label: "Personel", tone: "neutral" as PillTone };
+    // Yönetici (tek ya da çok şubeli): unvan girildiyse o, yoksa "Yönetici"
+    if (p.role === "supervisor" || p.role === "manager") return { label: p.display_title || "Yönetici", tone: "brand" as PillTone };
+    return { label: "Çalışan", tone: "neutral" as PillTone };
   };
 
   if (!mounted) return <Page />;
@@ -566,6 +563,11 @@ export default function PersonnelPage() {
           </div>
         );
       })()}
+
+      {/* Yöneticiler: sadece patron ve bölge yöneticisi görür (müdür çalışan ekler) */}
+      {(authUser?.role === "admin" || authUser?.role === "supervisor") && locations.length > 0 && (
+        <ManagersCard viewerRole={authUser.role} locations={locations.map(l => ({ id: l.id, name: l.name }))} />
+      )}
 
       {notJoined.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
@@ -704,19 +706,10 @@ export default function PersonnelPage() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-800">Yeni Hesap Ekle</h2>
+              <h2 className="text-xl font-bold text-slate-800">Çalışan Ekle</h2>
               <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
             </div>
             <div className="space-y-4">
-              {/* Role */}
-              <div>
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Rol</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ROLE_DEFS.map((rd, i) => (
-                    <button key={i} type="button" onClick={() => { setRoleOption(i); setSelLocIds([]); setSelDeptIds([]); setSingleLocId(""); }} className={`px-3 py-2.5 rounded-xl text-sm font-bold border transition-all text-left ${roleOption === i ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>{rd.label}</button>
-                  ))}
-                </div>
-              </div>
               {/* Basic info */}
               <div className="grid grid-cols-2 gap-3">
                 <div>

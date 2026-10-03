@@ -424,7 +424,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 "text-[10px] font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "manager" ? "Müdür" : user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : "Personel"}
+                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "manager" || user?.role === "supervisor" ? (user?.display_title || "Yönetici") : "Çalışan"}
               </p>
             </div>
           </div>
