@@ -167,7 +167,8 @@ export async function publishOpenShift(
     INSERT INTO notifications (personnel_id, type, title, message, created_at)
     VALUES (?, 'open_shift', ?, ?, ?)
   `);
-  for (const p of targets) {
+  // Bildirimler paralel: sırayla gönderilince kalabalık şubede ilan saniyelerce sürüyordu
+  await Promise.allSettled(targets.map(async p => {
     await insertNotif.run(
       p.id,
       notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
@@ -181,6 +182,6 @@ export async function publishOpenShift(
       body: `${o.start_time}–${o.end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
       url: "/portal/open-shifts",
     });
-  }
+  }));
   return { id: result.lastInsertRowid ?? null, notified: targets.map(p => p.name ?? p.id) };
 }

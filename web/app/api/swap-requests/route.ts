@@ -141,6 +141,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // İlandaki ("gelemeyeceğim") vardiya takasa konmaz; ilan önce geri çekilmeli
+    const listed = await db.prepare(
+      `SELECT id FROM open_shifts WHERE source_assignment_id IN (?, ?) AND status = 'open' LIMIT 1`
+    ).get(requester_shift_id, target_shift_id);
+    if (listed) {
+      return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Takas için önce ilanı geri çek." }, { status: 409 });
+    }
+
+    // Takas aynı departman içinde (iki tarafın da departmanı varsa)
+    const depts = await db.prepare(`SELECT id, department_id FROM personnel WHERE id IN (?, ?)`).all(requester_id, target_id) as any[];
+    const dR = depts.find(d => d.id === requester_id)?.department_id;
+    const dT = depts.find(d => d.id === target_id)?.department_id;
+    if (dR && dT && dR !== dT) {
+      return NextResponse.json({ error: "Sadece aynı departmandaki arkadaşınla takas edebilirsin." }, { status: 400 });
+    }
+
     // Vardiyalar gerçekten iki tarafa ait, yayınlanmış ve aynı işletmede olmalı
     const pair = await db.prepare(`
       SELECT sa.id, sa.personnel_id, sa.publication_status, p.org_id

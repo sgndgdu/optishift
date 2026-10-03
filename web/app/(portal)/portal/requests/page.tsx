@@ -248,7 +248,11 @@ export default function PortalRequests() {
       .then(r => r.json())
       .then(ppl => {
         if (Array.isArray(ppl)) {
-          setTeammates(ppl.filter((p: any) => p.id !== user.personnel_id));
+          // Takas sadece aynı departmanda (garson ↔ aşçı olmaz) ve çalışan arkadaşlarla
+          const myDept = ppl.find((p: any) => p.id === user.personnel_id)?.department_id ?? null;
+          setTeammates(ppl.filter((p: any) => p.id !== user.personnel_id && p.status !== "inactive"
+            && !["manager", "admin", "supervisor"].includes(p.user_access_level)
+            && (!myDept || !p.department_id || p.department_id === myDept)));
         }
       }).catch(() => {});
   }, [swapStep, user]);
@@ -793,9 +797,20 @@ export default function PortalRequests() {
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2">
               <p className="text-xs font-bold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
               {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan yayınlanmış vardiyan yok.</p>}
-              {myShifts.map(s => (
-                <ShiftOption key={s.id} shift={s} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
-              ))}
+              {myShifts.map(s => {
+                // İlanda ya da takası süren vardiya tekrar seçilemez
+                const busy = myListings.some((o: any) => o.status === "open" && Number(o.source_assignment_id) === Number(s.id))
+                  ? "Zaten ilanda"
+                  : [...swapsSent, ...swapsIn].some((w: any) => ["pending", "peer_accepted"].includes(w.status)
+                      && (Number(w.requester_shift_id) === Number(s.id) || Number(w.target_shift_id) === Number(s.id)))
+                    ? "Takas bekliyor" : null;
+                return busy
+                  ? <div key={s.id} className="opacity-50 pointer-events-none relative">
+                      <ShiftOption shift={s} selected={false} onSelect={() => {}} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
+                    </div>
+                  : <ShiftOption key={s.id} shift={s} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
+              })}
               <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
                 Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
               </p>
