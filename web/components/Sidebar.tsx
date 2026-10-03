@@ -208,13 +208,24 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       router.push("/dashboard");
       return;
     }
+    // Açık sayfada kaydedilmemiş değişiklik varsa (sayfa olayı iptal eder) önce sor
+    const check = new Event("optishift_before_location_change", { cancelable: true });
+    if (!window.dispatchEvent(check)
+      && !window.confirm("Kaydedilmemiş değişiklikler kaybolacak. Yine de şube değiştirilsin mi?")) {
+      setIsDropdownOpen(false);
+      return;
+    }
     setSelectedLocationId(locId);
     const updated = { ...user, location_id: locId };
     localStorage.setItem("optishift_manager_user", JSON.stringify(updated));
     localStorage.setItem("optishift_selected_location", locId);
     setUser(updated);
     setIsDropdownOpen(false);
-    window.dispatchEvent(new Event("optishift_location_changed"));
+    // Açık sayfaların çoğu şubeyi ilk yüklemede okuyor; olayı dinlemeyen sayfa eski
+    // şubenin verisiyle kalıp işlemi yanlış şubeye gönderebiliyordu. Tam yenileme hepsini
+    // yeni şubeyle açar. Onay yukarıda alındı: sayfaların beforeunload uyarısı tekrar sormasın.
+    (window as Window & { __optishiftSkipUnloadGuard?: boolean }).__optishiftSkipUnloadGuard = true;
+    window.location.reload();
   };
 
   const handleLogout = () => {

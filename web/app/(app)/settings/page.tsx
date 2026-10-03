@@ -856,9 +856,17 @@ export default function SettingsPage() {
   // Kaydedilmemiş değişiklik varken sayfadan çıkışta uyar
   useEffect(() => {
     if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const handler = (e: BeforeUnloadEvent) => {
+      if ((window as Window & { __optishiftSkipUnloadGuard?: boolean }).__optishiftSkipUnloadGuard) return;
+      e.preventDefault(); e.returnValue = "";
+    };
+    const beforeLocChange = (e: Event) => e.preventDefault();
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener("optishift_before_location_change", beforeLocChange);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      window.removeEventListener("optishift_before_location_change", beforeLocChange);
+    };
   }, [isDirty]);
 
   const handleSave = async () => {

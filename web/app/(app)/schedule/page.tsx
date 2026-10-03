@@ -1094,6 +1094,23 @@ function SchedulePageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cellMap, onCallMap, activeLocationId, weekStart]);
 
+  // Kaydedilmemiş düzenleme (bekleyen taslak kaydı ya da yayınlı haftada yerel değişiklik)
+  // varken sayfa kapanır/yenilenirse ya da şube değiştirilirse uyar
+  useEffect(() => {
+    const skip = () => (window as Window & { __optishiftSkipUnloadGuard?: boolean }).__optishiftSkipUnloadGuard;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!userEditRef.current || skip()) return;
+      e.preventDefault(); e.returnValue = "";
+    };
+    const beforeLocChange = (e: Event) => { if (userEditRef.current) e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    window.addEventListener("optishift_before_location_change", beforeLocChange);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      window.removeEventListener("optishift_before_location_change", beforeLocChange);
+    };
+  }, []);
+
   // Hava durumu — Open-Meteo (ücretsiz, key yok)
   useEffect(() => {
     if (!locationLatLon || !weekStart) { setWeather({}); return; }
