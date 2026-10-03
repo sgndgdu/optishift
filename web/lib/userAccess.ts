@@ -4,7 +4,8 @@
  * - mode "view":    her şeyi görür, hiçbir şeyi değiştirmez (proxy yazma isteklerini keser)
  * - mode "prepare": planı hazırlar ama yayınlayamaz
  * - mode "publish": hazırlar ve yayınlar (varsayılan)
- * - department_id:  departman şefi; sadece o departmanı görür/planlar, her zaman "prepare"
+ * - department_id:  departman şefi; sadece o departmanı görür/planlar. Varsayılan "prepare" (müdüre onaya
+ *                   gönderir); patron ya da şube müdürü "publish" verirse sadece kendi departmanını yayınlar.
  * İşletme sahibi (admin) her zaman tam yetkilidir. Değişiklik kişinin bir sonraki girişinde geçerli olur.
  */
 
@@ -24,9 +25,9 @@ export function parseAccess(raw: unknown): UserAccess | null {
     if (!v || typeof v !== "object") return null;
     const o = v as Record<string, unknown>;
     const department_id = typeof o.department_id === "string" && o.department_id ? o.department_id : null;
-    const mode = MODES.includes(o.mode as AccessMode) ? (o.mode as AccessMode) : "publish";
-    // Departman şefi planı yayınlayamaz, müdüre onaya gönderir
-    return { mode: department_id && mode === "publish" ? "prepare" : mode, department_id };
+    // Mod yazılmamışsa: şef müdüre onaya gönderir, diğer yönetici tam yetkili
+    const mode = MODES.includes(o.mode as AccessMode) ? (o.mode as AccessMode) : department_id ? "prepare" : "publish";
+    return { mode, department_id };
   } catch { return null; }
 }
 
@@ -35,6 +36,14 @@ export function normalizeAccess(raw: unknown): string | null {
   const a = parseAccess(raw);
   if (!a || (a.mode === "publish" && !a.department_id)) return null;
   return JSON.stringify(a.department_id ? { mode: a.mode, department_id: a.department_id } : { mode: a.mode });
+}
+
+/**
+ * Şube müdürü: kendi şubesinin tamamını yöneten ve yayınlayan yönetici (departman şefi ya da "sadece görür" değil).
+ * Kendi şubesinde departman şefi atayabilir, şefin yetkisini değiştirebilir, şefi çalışana döndürebilir.
+ */
+export function isBranchManager(user: WithAccess | null | undefined): boolean {
+  return user?.role === "manager" && !departmentScope(user) && accessMode(user) === "publish";
 }
 
 type WithAccess = { role?: string | null; access?: UserAccess | null };

@@ -64,6 +64,9 @@ export async function POST(req: NextRequest) {
     if (user.approval_status === "rejected") {
       return NextResponse.json({ error: "Hesabınız reddedildi. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
     }
+    if (user.approval_status === "disabled") {
+      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+    }
 
     const now = Math.floor(Date.now() / 1000);
     await db

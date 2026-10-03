@@ -36,6 +36,10 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
     }
+    // İşten çıkan (pasife alınan) kişinin eski davet bağlantısı da çalışmaz
+    if (user.approval_status === "disabled" || user.approval_status === "rejected") {
+      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+    }
 
     await db.prepare("UPDATE invite_tokens SET used_at = ? WHERE token = ?").run(now, token);
 

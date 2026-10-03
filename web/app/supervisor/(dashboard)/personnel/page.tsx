@@ -619,13 +619,6 @@ function SupervisorPersonnelInner() {
                     {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Rol / Yetki</label>
-                  <select value={editForm.user_access_level} onChange={e => setEditForm(f => ({ ...f, user_access_level: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
-                    {ACCESS_LEVELS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                  </select>
-                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditingPersonnel(null)} className="flex-1">İptal</Button>

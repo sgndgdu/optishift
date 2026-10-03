@@ -3,7 +3,7 @@ import { weekRangeTR } from "@/lib/date";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { canPublishPlan } from "@/lib/userAccess";
+import { canPublishPlan, departmentScope } from "@/lib/userAccess";
 import { canManageLocation } from "@/lib/access";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
@@ -66,9 +66,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 7. Bildirimler ────────────────────────────────────────────────────────
-    const activePersonnel = await db.prepare(`
+    // Departman şefi kendi departmanını yayınlar: bildirim sadece kendi ekibine
+    const chefDept = departmentScope(auth);
+    const activePersonnel = (await db.prepare(`
       SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'
-    `).all(`%"${location_id}"%`) as any[];
+    `).all(`%"${location_id}"%`) as any[]).filter((p: any) => !chefDept || p.department_id === chefDept);
 
     // Kişi başı bildirimler paralel: sırayla gidince yayın kalabalık şubede ~11 sn sürüyordu (Test 3)
     let sentCount = 0;
@@ -136,7 +138,11 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(auth.org_id, location_id, week_start, revision, auth.id, auth.name ?? "Yönetici", Math.floor(Date.now() / 1000), snapshot);
     // Yayınlanan haftanın departman onay kayıtları tamamlandı
-    await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ?").run(location_id, week_start);
+    if (chefDept) {
+      await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ? AND department_id = ?").run(location_id, week_start, chefDept);
+    } else {
+      await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ?").run(location_id, week_start);
+    }
     return NextResponse.json({ success: true, message: `${sentCount} personele bildirim gönderildi.`, revision });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

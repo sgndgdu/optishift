@@ -507,11 +507,15 @@ export async function PATCH(req: NextRequest) {
       if (!(await canEditPublishedWeek(db, auth, location_id, week_start))) {
         return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için patron onayı gerekiyor" }, { status: 403 });
       }
+      // Departman şefi sadece kendi ekibinin taslağını yayınlar
+      const scopeIds = await departmentPersonnelIds(db, auth, location_id);
+      if (scopeIds && scopeIds.length === 0) return NextResponse.json({ success: true, updated: 0 });
+      const scopeSql = scopeIds ? ` AND personnel_id IN (${scopeIds.map(() => "?").join(",")})` : "";
       const info = await db.prepare(`
         UPDATE shift_assignments SET publication_status = 'published',
           published_at = COALESCE(published_at, ?)
-        WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'
-      `).run(Math.floor(Date.now() / 1000), location_id, week_start);
+        WHERE location_id = ? AND week_start = ? AND publication_status = 'draft'${scopeSql}
+      `).run(Math.floor(Date.now() / 1000), location_id, week_start, ...(scopeIds ?? []));
       return NextResponse.json({ success: true, updated: info.changes });
     }
 

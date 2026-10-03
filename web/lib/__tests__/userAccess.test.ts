@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  accessMode, canPublishPlan, departmentScope, isChefBlocked, isViewOnly, normalizeAccess, parseAccess,
+  isBranchManager, accessMode, canPublishPlan, departmentScope, isChefBlocked, isViewOnly, normalizeAccess, parseAccess,
 } from "@/lib/userAccess";
 
 describe("userAccess", () => {
@@ -11,8 +11,9 @@ describe("userAccess", () => {
     expect(canPublishPlan({ role: "manager" })).toBe(true);
   });
 
-  it("departman şefi her zaman 'hazırlar'", () => {
-    expect(parseAccess({ mode: "publish", department_id: "d1" })).toEqual({ mode: "prepare", department_id: "d1" });
+  it("departman şefi varsayılan 'hazırlar', izin verilirse yayınlar", () => {
+    expect(parseAccess({ department_id: "d1" })).toEqual({ mode: "prepare", department_id: "d1" });
+    expect(parseAccess({ mode: "publish", department_id: "d1" })).toEqual({ mode: "publish", department_id: "d1" });
     expect(parseAccess('{"mode":"view","department_id":"d1"}')).toEqual({ mode: "view", department_id: "d1" });
   });
 
@@ -20,7 +21,7 @@ describe("userAccess", () => {
     expect(normalizeAccess({ mode: "publish" })).toBeNull();
     expect(normalizeAccess(undefined)).toBeNull();
     expect(normalizeAccess({ mode: "view" })).toBe('{"mode":"view"}');
-    expect(normalizeAccess({ mode: "publish", department_id: "d1" })).toBe('{"mode":"prepare","department_id":"d1"}');
+    expect(normalizeAccess({ mode: "publish", department_id: "d1" })).toBe('{"mode":"publish","department_id":"d1"}');
   });
 
   it("işletme sahibi kısıtlanamaz", () => {
@@ -28,6 +29,13 @@ describe("userAccess", () => {
     expect(isViewOnly(owner)).toBe(false);
     expect(departmentScope(owner)).toBeNull();
     expect(isChefBlocked(owner, "PATCH", "/api/locations")).toBe(false);
+  });
+
+  it("şube müdürü: tam şubeli, yayınlayan yönetici", () => {
+    expect(isBranchManager({ role: "manager", access: null })).toBe(true);
+    expect(isBranchManager({ role: "manager", access: { mode: "publish", department_id: "d1" } })).toBe(false);
+    expect(isBranchManager({ role: "manager", access: { mode: "view" } })).toBe(false);
+    expect(isBranchManager({ role: "supervisor", access: null })).toBe(false);
   });
 
   it("şef şube ayarına ve onaylara yazamaz, okuyabilir", () => {

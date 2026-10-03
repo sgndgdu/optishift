@@ -15,6 +15,9 @@ import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templ
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import ManagersCard from "@/components/personnel/ManagersCard";
+import { isBranchManager, parseAccess } from "@/lib/userAccess";
+
+const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 
@@ -565,8 +568,9 @@ export default function PersonnelPage() {
       })()}
 
       {/* Yöneticiler: sadece patron ve bölge yöneticisi görür (müdür çalışan ekler) */}
-      {(authUser?.role === "admin" || authUser?.role === "supervisor") && locations.length > 0 && (
-        <ManagersCard viewerRole={authUser.role} locations={locations.map(l => ({ id: l.id, name: l.name }))} />
+      {(authUser?.role === "admin" || authUser?.role === "supervisor" || isBranchManager(viewerAccessOf(authUser))) && locations.length > 0 && (
+        <ManagersCard viewerRole={authUser.role} branchManager={authUser.role === "manager"}
+          locations={(authUser.role === "manager" ? locations.filter(l => l.id === authUser.location_id) : locations).map(l => ({ id: l.id, name: l.name }))} />
       )}
 
       {notJoined.length > 0 && (

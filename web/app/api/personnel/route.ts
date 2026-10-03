@@ -221,6 +221,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
+    // Rol değişikliği tek yerden: PATCH /api/users make_manager / make_employee (şube, departman ve yetkiyle birlikte)
+    if (body.user_access_level !== undefined && body.user_access_level !== existing.user_access_level) {
+      return NextResponse.json({ error: "Rol değişikliği Ekip › Yöneticiler kartından yapılır" }, { status: 400 });
+    }
     if (departmentScope(auth) && body.department_id !== undefined && body.department_id !== departmentScope(auth)) {
       return NextResponse.json({ error: "Personeli başka departmana sadece şube yöneticisi taşıyabilir" }, { status: 403 });
     }
@@ -249,6 +253,13 @@ export async function PATCH(req: NextRequest) {
     `).run(name, phone, title, employment_type, status, max_weekly_hours, min_weekly_hours ?? null,
       user_access_level,
       roles !== undefined ? JSON.stringify(roles) : null, now, id);
+
+    // İşten çıkan (pasife alınan) kişi giriş yapamaz; tekrar aktif edilince hesabı açılır
+    if (status === "inactive") {
+      await db.prepare("UPDATE users SET approval_status = 'disabled' WHERE personnel_id = ?").run(id);
+    } else if (status === "active") {
+      await db.prepare("UPDATE users SET approval_status = 'active' WHERE personnel_id = ? AND approval_status = 'disabled'").run(id);
+    }
 
     // hourly_wage: undefined → dokunma, null → temizle, sayı → ata
     if (hourly_wage !== undefined) {
@@ -359,6 +370,8 @@ export async function DELETE(req: NextRequest) {
 
     const now = Math.floor(Date.now() / 1000);
     await db.prepare("UPDATE personnel SET status='inactive', updated_at=? WHERE id=?").run(now, id);
+    // İşten çıkan kişi giriş yapamaz (tekrar aktif edilince açılır)
+    await db.prepare("UPDATE users SET approval_status = 'disabled' WHERE personnel_id = ?").run(id);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

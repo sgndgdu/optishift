@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
   if (user.approval_status === "pending") {
     return NextResponse.redirect(appUrl(`/login?google_error=account_pending`));
   }
-  if (user.approval_status === "rejected") {
+  if (user.approval_status === "rejected" || user.approval_status === "disabled") {
     return NextResponse.redirect(appUrl(`/login?google_error=account_rejected`));
   }
 
