@@ -134,8 +134,8 @@ function BillingContent() {
           <Shield size={20} />
         </div>
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mevcut Plan</p>
-          <p className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+          <p className="text-xs font-bold text-slate-400">Mevcut Plan</p>
+          <p className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
             {PLANS.find(p => p.id === currentPlan)?.name ?? currentPlan}
             {currentPlan === "pro" && <StatusPill tone="positive">Aktif</StatusPill>}
           </p>
@@ -155,19 +155,19 @@ function BillingContent() {
           return (
             <div
               key={plan.id}
-              className={`relative rounded-3xl border-2 p-7 flex flex-col transition-all ${
+              className={`relative rounded-2xl border-2 p-7 flex flex-col transition-all ${
                 plan.dark
                   ? "bg-slate-900 border-primary shadow-xl"
                   : `bg-white ${plan.color} ${isCurrent ? "shadow-md scale-[1.02]" : ""}`
               }`}
             >
               {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                   Mevcut Plan
                 </div>
               )}
               {plan.dark && (
-                <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
                   <div className="absolute -top-16 -right-16 w-48 h-48 bg-primary/30 blur-3xl rounded-full" />
                 </div>
               )}
@@ -175,7 +175,7 @@ function BillingContent() {
               <div className="relative">
                 <p className={`text-sm font-bold mb-1 ${plan.dark ? "text-slate-400" : "text-slate-500"}`}>{plan.name}</p>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className={`text-3xl font-black ${plan.dark ? "text-white" : "text-slate-900"}`}>{plan.price}</span>
+                  <span className={`text-3xl font-bold ${plan.dark ? "text-white" : "text-slate-900"}`}>{plan.price}</span>
                   {plan.period && <span className={`text-sm ${plan.dark ? "text-slate-400" : "text-slate-500"}`}>{plan.period}</span>}
                 </div>
                 <p className={`text-xs mb-6 ${plan.dark ? "text-slate-400" : "text-slate-500"}`}>{plan.desc}</p>
@@ -218,7 +218,7 @@ function BillingContent() {
 
       {/* Plan limits info */}
       <div className="bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-200">
-        <h3 className="text-sm font-black text-slate-800 mb-3">Plan Sınırları</h3>
+        <h3 className="text-sm font-bold text-slate-800 mb-3">Plan Sınırları</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 text-center">
           {[
             { label: "Şube Limiti",    free: "1",        pro: "Sınırsız" },
@@ -227,7 +227,7 @@ function BillingContent() {
             { label: "Excel'e Aktarma",   free: "✓",        pro: "✓" },
           ].map(row => (
             <div key={row.label} className="bg-white rounded-xl p-3 border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{row.label}</p>
+              <p className="text-xs font-bold text-slate-400 mb-2">{row.label}</p>
               <div className="flex justify-around text-xs font-bold">
                 <div><p className="text-slate-400 mb-0.5">Free</p><p className="text-slate-700">{row.free}</p></div>
                 <div><p className="text-primary mb-0.5">Pro</p><p className="text-primary">{row.pro}</p></div>

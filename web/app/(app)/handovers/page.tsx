@@ -116,7 +116,7 @@ export default function HandoversPage() {
                 )}
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">{r.note}</p>
-              <p className="text-[10px] text-slate-400 font-medium mt-2">{timeAgo(Number(r.created_at))}</p>
+              <p className="text-xs text-slate-400 font-medium mt-2">{timeAgo(Number(r.created_at))}</p>
             </div>
           ))}
         </div>

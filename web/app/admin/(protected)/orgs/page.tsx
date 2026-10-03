@@ -42,7 +42,7 @@ function PlanBadge({ plan }: { plan: string }) {
   const labels: Record<string, string> = { enterprise: "Enterprise", pro: "Pro", free: "Free" };
   const cls = map[plan] ?? map.free;
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
       {labels[plan] ?? plan}
     </span>
   );
@@ -56,7 +56,7 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
   };
   const labels = { high: "Yuksek", medium: "Orta", low: "Dusuk" };
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
       {labels[risk]}
     </span>
   );
@@ -133,13 +133,13 @@ export default function OrgsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Plan</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Saglik</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Personel</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Aktivite</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">OR-Tools/7g</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Risk</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Plan</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Saglik</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Personel</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Aktivite</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">OR-Tools/7g</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Risk</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -157,7 +157,7 @@ export default function OrgsPage() {
                         <div>
                           <p className="font-medium text-white">{org.name}</p>
                           {org.suspended_at && (
-                            <p className="text-[10px] text-red-400">Askiya alinmis</p>
+                            <p className="text-xs text-red-400">Askiya alinmis</p>
                           )}
                         </div>
                       </div>

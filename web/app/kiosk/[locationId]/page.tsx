@@ -118,14 +118,14 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 select-none">
       <div className="flex items-center gap-2 mb-8">
         <LogoMark size="md" />
-        <span className="font-black text-white text-lg">{locationName || "OptiShift"}</span>
+        <span className="font-bold text-white text-lg">{locationName || "OptiShift"}</span>
       </div>
 
       {pendingHandover ? (
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-2 text-amber-400 mb-3 justify-center">
             <AlertTriangle size={22} />
-            <span className="font-black text-white text-base">Devir-Teslim Notu</span>
+            <span className="font-bold text-white text-base">Devir-Teslim Notu</span>
           </div>
           {pendingHandover.personnelName && (
             <p className="text-white/50 text-xs text-center mb-4">{pendingHandover.personnelName}</p>
@@ -136,7 +136,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
           <button
             onClick={handleAcknowledgeAndContinue}
             disabled={submitting}
-            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl transition-colors disabled:opacity-50"
+            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl transition-colors disabled:opacity-50"
           >
             {submitting ? "…" : "Devam Et"}
           </button>
@@ -148,14 +148,14 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
           ) : (
             <XCircle size={64} className="text-red-400 mx-auto mb-5" />
           )}
-          <p className={`text-xl font-black ${result.ok ? "text-emerald-300" : "text-red-300"}`}>{result.message}</p>
+          <p className={`text-xl font-bold ${result.ok ? "text-emerald-300" : "text-red-300"}`}>{result.message}</p>
         </div>
       ) : (
         <div className="w-full max-w-sm">
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button
               onClick={() => setAction("checkin")}
-              className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-colors ${
+              className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-colors ${
                 action === "checkin" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50"
               }`}
             >
@@ -163,7 +163,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
             </button>
             <button
               onClick={() => setAction("checkout")}
-              className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-colors ${
+              className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-colors ${
                 action === "checkout" ? "bg-amber-500 text-white" : "bg-white/5 text-white/50"
               }`}
             >
@@ -213,7 +213,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
                   key={key}
                   onClick={() => pressKey(key)}
                   disabled={submitting}
-                  className="text-white text-2xl font-black rounded-2xl bg-white/10 hover:bg-white/20 py-6 disabled:opacity-40 active:scale-95 transition-transform"
+                  className="text-white text-2xl font-bold rounded-2xl bg-white/10 hover:bg-white/20 py-6 disabled:opacity-40 active:scale-95 transition-transform"
                 >
                   {key}
                 </button>

@@ -107,11 +107,11 @@ export default function LandingPage() {
               <div className="w-full md:w-auto grid grid-cols-2 gap-3 sm:gap-4 shrink-0 relative z-10">
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
                   <div className="text-2xl sm:text-3xl font-black text-primary mb-1">Sınırsız</div>
-                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Şube</div>
+                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Şube</div>
                 </div>
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
                   <div className="text-2xl sm:text-3xl font-black text-emerald-500 mb-1">0</div>
-                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider">Çakışma Garantisi</div>
+                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Çakışma Garantisi</div>
                 </div>
               </div>
             </div>

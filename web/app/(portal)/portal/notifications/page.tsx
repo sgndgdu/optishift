@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, Trash2, ArrowRightLeft } from "lucide-react";
+import { CheckCircle2, CalendarDays, RefreshCw, AlertTriangle, Trash2, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
 import { timeAgo } from "@/lib/date";
@@ -101,7 +101,7 @@ function NotifCard({
               {notif.title}
               {!notif.is_read && <span className="ml-2 inline-block w-2 h-2 bg-forest-500 rounded-full align-middle" />}
             </h3>
-            <span className="text-[10px] text-slate-400 whitespace-nowrap mt-0.5 shrink-0">{timeAgo(notif.created_at)}</span>
+            <span className="text-xs text-slate-400 whitespace-nowrap mt-0.5 shrink-0">{timeAgo(notif.created_at)}</span>
           </div>
           <p className={`text-xs leading-relaxed ${notif.is_read ? "text-slate-500" : "text-forest-800/80 font-medium"}`}>
             {notif.message}
@@ -123,8 +123,8 @@ function NotifCard({
               </button>
             </div>
           )}
-          {notif.responded === "accepted" && <p className="text-[11px] text-emerald-600 font-semibold mt-2">✓ Kabul edildi</p>}
-          {notif.responded === "rejected" && <p className="text-[11px] text-red-500 font-semibold mt-2">✗ Reddedildi</p>}
+          {notif.responded === "accepted" && <p className="text-xs text-emerald-600 font-semibold mt-2">✓ Kabul edildi</p>}
+          {notif.responded === "rejected" && <p className="text-xs text-red-500 font-semibold mt-2">✗ Reddedildi</p>}
           {!notif.is_read && notif.type === "trade_request" && (
             <div className="flex gap-2 mt-3">
               <button className="flex-1 bg-white border border-slate-200 text-slate-600 py-1.5 text-xs font-bold rounded-lg hover:bg-slate-50">Reddet</button>
@@ -217,12 +217,11 @@ export default function NotificationsPage() {
         </div>
       ) : notifs.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
-          <Bell size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">Henüz bildirim yok</p>
         </div>
       ) : (
         <div>
-          <p className="text-[10px] text-slate-400 font-medium mb-3 text-center">Silmek için sola kaydırın</p>
+          <p className="text-xs text-slate-400 font-medium mb-3 text-center">Silmek için sola kaydırın</p>
           {notifs.map((notif) => (
             <NotifCard
               key={notif.id}

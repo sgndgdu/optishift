@@ -161,7 +161,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
         <table className="w-full text-xs border-collapse min-w-[680px]">
           <thead>
             <tr className="border-b-2 border-slate-200">
-              <th className="py-3 px-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider w-40 sticky left-0 bg-white z-10">
+              <th className="py-3 px-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-40 sticky left-0 bg-white z-10">
                 Personel
               </th>
               {columnDates.map((col, i) => (
@@ -172,12 +172,12 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                   <div className={`text-[10px] font-semibold ${WEEKEND_DAYS.includes(i) ? "text-forest-500" : "text-slate-400"}`}>
                     {col.abbr}
                   </div>
-                  <div className={`text-lg font-black leading-none ${WEEKEND_DAYS.includes(i) ? "text-forest-600" : "text-slate-700"}`}>
+                  <div className={`text-lg font-bold leading-none ${WEEKEND_DAYS.includes(i) ? "text-forest-600" : "text-slate-700"}`}>
                     {col.num}
                   </div>
                 </th>
               ))}
-              <th className="py-3 px-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider w-16">
+              <th className="py-3 px-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16">
                 Saat
               </th>
             </tr>
@@ -192,7 +192,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                 /* Departman başlık satırı */
                 <tr key={`d-${deptId}`}>
                   <td colSpan={9} className="py-2 px-5 bg-slate-100/80 border-t border-b border-slate-200">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-slate-500">
                       {dept?.name ?? "Diğer"}
                     </span>
                   </td>
@@ -211,7 +211,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                       <td className="py-2.5 px-5 sticky left-0 bg-white z-10">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-black text-slate-500 uppercase">{p.name.charAt(0)}</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{p.name.charAt(0)}</span>
                           </div>
                           <span className="font-semibold text-slate-800 text-[11px] truncate max-w-[90px]">{p.name}</span>
                         </div>
@@ -256,7 +256,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
           {/* Günlük özet */}
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td className="py-2.5 px-5 text-[10px] font-black text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-50 z-10">
+              <td className="py-2.5 px-5 text-[10px] font-bold text-slate-400 sticky left-0 bg-slate-50 z-10">
                 Günlük
               </td>
               {Array.from({ length: 7 }, (_, d) => {
@@ -266,7 +266,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                   <td key={d} className={`py-2.5 px-1 text-center ${WEEKEND_DAYS.includes(d) ? "bg-forest-50/50" : ""}`}>
                     {dayAssignments.length > 0 ? (
                       <div>
-                        <div className="text-[10px] font-black text-slate-700">{dayAssignments.length} kişi</div>
+                        <div className="text-[10px] font-bold text-slate-700">{dayAssignments.length} kişi</div>
                         <div className="text-[9px] text-slate-400">{Math.round(dayHours)}s</div>
                       </div>
                     ) : (
@@ -276,7 +276,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                 );
               })}
               <td className="py-2.5 px-3 text-center">
-                <div className="text-[11px] font-black text-slate-700">{Math.round(totalPersonHours)}s</div>
+                <div className="text-[11px] font-bold text-slate-700">{Math.round(totalPersonHours)}s</div>
               </td>
             </tr>
           </tfoot>
@@ -467,7 +467,7 @@ export default function ScheduleArchivePage() {
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <span className="font-bold text-slate-900 text-sm">{info.label}</span>
                         {hasRevisions && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-ember-100 text-ember-700 text-[10px] font-black border border-ember-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-ember-100 text-ember-700 text-[10px] font-bold border border-ember-200">
                             <History size={9} />
                             {pub.revision + 1} versiyon
                           </span>
@@ -510,7 +510,7 @@ export default function ScheduleArchivePage() {
                           {/* Revizyon sekmeleri (birden fazla varsa) */}
                           {revisions.length > 1 && (
                             <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 border-b border-slate-100 overflow-x-auto">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0">Versiyon:</span>
+                              <span className="text-[10px] font-bold text-slate-400 shrink-0">Versiyon:</span>
                               {revisions.map(rev => {
                                 const isSelected = currentRevId === rev.id;
                                 const isSnapping = loadingSnap === rev.id;

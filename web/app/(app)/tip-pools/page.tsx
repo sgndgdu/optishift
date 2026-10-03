@@ -190,12 +190,12 @@ export default function TipPoolsPage() {
               <div key={pool.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                 <div className="p-4 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-slate-900">{pool.period_start} – {pool.period_end}</p>
+                    <p className="text-sm font-bold text-slate-900">{pool.period_start} – {pool.period_end}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {pool.status === "distributed" ? `Dağıtıldı · ${formatTry(pool.distributed_amount)}` : "Taslak · henüz dağıtılmadı"}
                     </p>
                   </div>
-                  <p className="text-base font-black text-emerald-700 shrink-0">{formatTry(pool.total_amount)}</p>
+                  <p className="text-base font-bold text-emerald-700 shrink-0">{formatTry(pool.total_amount)}</p>
                   {pool.status === "draft" ? (
                     <button
                       onClick={() => distributePool(pool.id)}

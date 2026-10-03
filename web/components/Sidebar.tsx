@@ -62,7 +62,9 @@ function usePendingApprovals(orgId: string | undefined) {
   }, [orgId]);
   return count;
 }
-import { LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, UserCog, Timer, HelpCircle, Wallet, ClipboardCheck, Building2 } from "lucide-react";
+import {
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2,
+} from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
@@ -298,7 +300,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
           <Logo size="md" className="shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">{scope === "all" ? "İşletme Geneli" : "Yönetim Paneli"}</p>
+            <p className="text-xs font-medium text-slate-400 mt-1">{scope === "all" ? "İşletme Geneli" : "Yönetim Paneli"}</p>
           </div>
         </Link>
         {onClose && (
@@ -313,7 +315,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
 
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{scope === "all" ? "Görünüm" : "Aktif Şube"}</p>
+        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" ? "Görünüm" : "Aktif Şube"}</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -385,7 +387,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
             <button
               onClick={toggleMore}
               aria-expanded={open}
-              className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+              className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
             >
               Daha Fazla
               <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
@@ -426,7 +428,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
             <div className="truncate">
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
               <p className={cn(
-                "text-[10px] font-medium tracking-wide uppercase",
+                "text-xs font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
                 {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "manager" || user?.role === "supervisor" ? (user?.display_title || "Yönetici") : "Çalışan"}

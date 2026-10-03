@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 // shadcn Badge, StatusPill ile aynı ölçü ve renk anlamına bağlı (components/ui/StatusPill)
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap",
   {
     variants: {
       variant: {

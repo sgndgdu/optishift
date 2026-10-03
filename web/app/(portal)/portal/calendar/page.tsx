@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCcw, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePortalAuth } from "@/hooks/useAuth";
@@ -155,13 +155,13 @@ export default function PortalCalendar() {
                 return (
                   <div key={d} className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${isToday ? "border-primary/40 bg-primary/5" : "border-slate-100 bg-white"} ${isPast ? "opacity-50" : ""}`}>
                     <div className={`w-12 shrink-0 text-center rounded-xl py-1.5 ${isToday ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>
-                      <p className="text-[10px] font-bold uppercase">{DAY_SHORT[d]}</p>
-                      <p className="text-sm font-black leading-none mt-0.5">{Number(date.slice(8))}</p>
+                      <p className="text-xs font-bold uppercase">{DAY_SHORT[d]}</p>
+                      <p className="text-sm font-bold leading-none mt-0.5">{Number(date.slice(8))}</p>
                     </div>
                     <div className="flex-1 min-w-0">
                       {shift && (
                         <>
-                          <p className="text-base font-black text-slate-900 tabular-nums">{shift.start_time}–{shift.end_time}</p>
+                          <p className="text-base font-bold text-slate-900 tabular-nums">{shift.start_time}–{shift.end_time}</p>
                           <p className="text-xs font-semibold text-slate-500 truncate">
                             {shift.shift_id === "custom" ? "Özel" : shiftNames[shift.shift_id] ?? words.Shift}
                             {isToday && <span className="text-primary font-bold"> · Bugün</span>}
@@ -169,7 +169,7 @@ export default function PortalCalendar() {
                         </>
                       )}
                       {onCall && (
-                        <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700"
+                        <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
                           title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
                           İcap · {onCall.start_time}–{onCall.end_time}
                         </p>
@@ -200,7 +200,6 @@ export default function PortalCalendar() {
         <div className="space-y-4">
           {allShifts.length === 0 ? (
             <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-border/40">
-              <Users size={40} className="mx-auto text-slate-300 mb-4" />
               <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış {words.shift} yok.</p>
             </div>
           ) : (
@@ -217,7 +216,7 @@ export default function PortalCalendar() {
               return (
                 <div key={dayIndex} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-sm font-black text-slate-800">{dayName}</span>
+                    <span className="text-sm font-bold text-slate-800">{dayName}</span>
                     <span className="text-xs text-slate-400 font-medium">{dateStr}</span>
                   </div>
                   <div className="divide-y divide-slate-50">
@@ -227,11 +226,11 @@ export default function PortalCalendar() {
                       return (
                         <div key={s.id} className={`flex items-center justify-between px-4 py-3 ${isMe ? "bg-primary/5" : ""}`}>
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
                               {name.charAt(0)}
                             </div>
                             <span className={`text-sm font-bold truncate ${isMe ? "text-primary" : "text-slate-700"}`}>
-                              {name}{isMe && <span className="text-[10px] font-normal text-primary/70 ml-1">(ben)</span>}
+                              {name}{isMe && <span className="text-xs font-normal text-primary/70 ml-1">(ben)</span>}
                             </span>
                           </div>
                           {s.start_time && s.end_time && (

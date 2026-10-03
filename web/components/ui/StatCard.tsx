@@ -17,17 +17,16 @@ export function StatCard({ label, value, icon: Icon, tone = "neutral", hint, onC
   className?: string;
 }) {
   const t = kpiToneClasses(tone);
+  // Kompakt (DESIGN.md §1): telefonda üç kutu yan yana sığar; ikon etiketin yanında küçük, ayrı kutu yok
   return (
     <div onClick={onClick}
-      className={cn("bg-white border border-slate-200 rounded-2xl p-4 shadow-sm", onClick && "cursor-pointer hover:shadow-md transition-shadow", className)}>
-      {Icon && (
-        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", t.bg)}>
-          <Icon size={18} className={t.color} />
-        </div>
-      )}
-      <p className="text-2xl font-black text-slate-900">{value}</p>
-      <p className="text-xs font-semibold text-slate-500 mt-0.5">{label}</p>
-      {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
+      className={cn("bg-white border border-slate-200 rounded-2xl px-3 py-3 sm:px-4", onClick && "cursor-pointer hover:border-slate-300 transition-colors", className)}>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500 truncate">
+        {Icon && <Icon size={14} className={cn("shrink-0", t.color)} />}
+        <span className="truncate">{label}</span>
+      </p>
+      <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{value}</p>
+      {hint && <p className="text-xs text-slate-400 mt-0.5 truncate">{hint}</p>}
     </div>
   );
 }

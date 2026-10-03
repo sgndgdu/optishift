@@ -4,10 +4,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, User, ShieldAlert, Info, RotateCcw } from "lucide-react";
+import {
+  Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, ShieldAlert, Info, RotateCcw,
+} from "lucide-react";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { CountBadge, StatusPill, type PillTone } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -227,26 +230,11 @@ export default function OvertimePage() {
         />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-        {(["pending", "status", "warnings"] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-              tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {t === "pending" ? "Bekleyen Onaylar" : t === "status" ? "Personel Durumu" : "Uyarılar"}
-            {t === "pending" && pending.length > 0 && (
-              <CountBadge tone="attention" className="ml-2" count={pending.length} />
-            )}
-            {t === "warnings" && warnings.length > 0 && (
-              <CountBadge className="ml-2" count={warnings.length} />
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onChange={setTab} items={[
+        { id: "pending", label: "Bekleyen Onaylar", count: pending.length },
+        { id: "status", label: "Personel Durumu" },
+        { id: "warnings", label: "Uyarılar", count: warnings.length },
+      ] as const} />
 
       {loading ? (
         <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>
@@ -261,7 +249,7 @@ export default function OvertimePage() {
       {/* Yeni Kayıt Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-in slide-in-from-bottom-4 duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-6 space-y-5 animate-in slide-in-from-bottom-4 duration-200">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-900 text-lg">Yeni Mesai Kaydı</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
@@ -424,7 +412,6 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
     <div className="space-y-6">
       {pending.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
-          <CheckCircle2 size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">Bekleyen onay yok</p>
         </div>
       ) : (
@@ -437,7 +424,7 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
 
       {history.length > 0 && (
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Geçmiş</p>
+          <p className="text-xs font-bold text-slate-400 mb-3">Geçmiş</p>
           <div className="space-y-2">
             {history.slice(0, 10).map(r => (
               <OvertimeRow key={r.id} record={r} readonly onUndo={onDecision} onCompTime={onCompTime} wage={wageById[r.personnel_id]} />
@@ -557,7 +544,6 @@ function WarningsTab({ warnings }: { warnings: Warning[] }) {
   if (warnings.length === 0) {
     return (
       <div className="text-center py-16 text-slate-400">
-        <CheckCircle2 size={40} className="mx-auto mb-3 opacity-30" />
         <p className="text-sm font-medium">Aktif uyarı yok</p>
         <p className="text-xs mt-1">Tüm personel yasal limitler içinde</p>
       </div>
@@ -593,7 +579,7 @@ function WarningsTab({ warnings }: { warnings: Warning[] }) {
         const c = cfg[level];
         return (
           <div key={level}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1.5">
               {c.icon} {c.label} · {items.length} uyarı
             </p>
             <div className="space-y-2">
@@ -630,7 +616,6 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
   if (sorted.length === 0) {
     return (
       <div className="text-center py-16 text-slate-400">
-        <User size={40} className="mx-auto mb-3 opacity-30" />
         <p className="text-sm font-medium">Personel bulunamadı</p>
       </div>
     );
@@ -639,7 +624,7 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-50 flex items-center justify-between">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Personel</span>
+        <span className="text-xs font-bold text-slate-500">Personel</span>
         <span className="text-xs text-slate-400">Yıllık sınır: {maxYtd} saat</span>
       </div>
       <div className="divide-y divide-slate-50">
@@ -672,7 +657,7 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
               </div>
               <div className="text-right shrink-0">
                 <p className="text-sm font-bold text-slate-900">{ytd.toFixed(0)}s</p>
-                <p className="text-[10px] text-slate-400">Bu yıl mesai</p>
+                <p className="text-xs text-slate-400">Bu yıl mesai</p>
               </div>
               <ChevronRight size={14} className="text-slate-300 shrink-0" />
             </div>

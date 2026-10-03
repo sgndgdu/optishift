@@ -70,7 +70,7 @@ export default function UserActions({ user }: { user: GodUser }) {
         onClick={handleImpersonate}
         disabled={busy !== null}
         title="Bu kullanıcı olarak giriş yap"
-        className="flex items-center gap-1 text-[11px] font-medium text-ember-400 hover:text-ember-200 border border-ember-500/20 hover:border-ember-400/40 bg-ember-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
+        className="flex items-center gap-1 text-xs font-medium text-ember-400 hover:text-ember-200 border border-ember-500/20 hover:border-ember-400/40 bg-ember-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
       >
         <LogIn size={11} /> {busy === "imp" ? "…" : "Gir"}
       </button>
@@ -78,12 +78,12 @@ export default function UserActions({ user }: { user: GodUser }) {
         onClick={handleResetPassword}
         disabled={busy !== null}
         title="Geçici şifre üret"
-        className="flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-200 border border-amber-500/20 hover:border-amber-400/40 bg-amber-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
+        className="flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-200 border border-amber-500/20 hover:border-amber-400/40 bg-amber-500/10 rounded-lg px-2 py-1 transition-colors disabled:opacity-40"
       >
         <KeyRound size={11} /> {busy === "pwd" ? "…" : "Şifre"}
       </button>
 
-      {error && <span className="text-[10px] text-red-400">{error}</span>}
+      {error && <span className="text-xs text-red-400">{error}</span>}
 
       {/* Temp şifre modalı */}
       {tempPwd && (
@@ -98,7 +98,7 @@ export default function UserActions({ user }: { user: GodUser }) {
               İlk girişte yeni şifre belirlemesi istenecek. Bu şifre bir daha gösterilmez.
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-lg font-mono font-bold text-emerald-400 text-center tracking-widest">
+              <code className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-lg font-mono font-bold text-emerald-400 text-center">
                 {tempPwd}
               </code>
               <button

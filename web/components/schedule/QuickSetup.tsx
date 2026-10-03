@@ -41,12 +41,12 @@ export default function QuickSetup({ locationId, shiftDefsCount, personnelCount,
       <div className="bg-forest-50/70 border border-forest-100 rounded-2xl px-4 py-3.5">
         <div className="flex items-center gap-2 mb-2.5">
           <Sparkles size={14} className="text-forest-500" />
-          <p className="text-xs font-black text-forest-700 uppercase tracking-wider">Hızlı Kurulum · {steps.filter(s => s.done).length}/3</p>
+          <p className="text-xs font-bold text-forest-700">Hızlı Kurulum · {steps.filter(s => s.done).length}/3</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           {steps.map((s, i) => (
             <div key={s.key} className={`flex-1 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${s.done ? "bg-white border-emerald-200" : "bg-white border-slate-200"}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-black ${s.done ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"}`}>
                 {s.done ? <Check size={13} /> : i + 1}
               </div>
               <span className={`text-xs font-semibold flex-1 ${s.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{s.label}</span>
@@ -289,7 +289,7 @@ function ModalShell({ title, subtitle, onClose, children }: {
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 animate-in slide-in-from-bottom-4 duration-200 max-h-[85vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl p-6 space-y-4 animate-in slide-in-from-bottom-4 duration-200 max-h-[85vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="font-bold text-slate-900 text-lg">{title}</h3>

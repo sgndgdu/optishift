@@ -128,13 +128,13 @@ export default function AdminUsersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">İsim</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Kullanıcı Adı</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Org</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Rol</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Durum</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giriş</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">İşlem</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">İsim</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Kullanıcı Adı</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Org</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Rol</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Durum</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giriş</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">İşlem</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,12 +142,12 @@ export default function AdminUsersPage() {
                   <tr key={u.id} className="border-b border-white/4 hover:bg-white/3 transition-colors">
                     <td className="px-5 py-3">
                       <p className="font-medium text-slate-200">{u.name}</p>
-                      {u.email && <p className="text-[10px] text-slate-600">{u.email}</p>}
+                      {u.email && <p className="text-xs text-slate-600">{u.email}</p>}
                     </td>
                     <td className="px-4 py-3 text-slate-400 font-mono text-xs">
                       {u.username}
                       {u.is_temp_password && (
-                        <span className="ml-1.5 text-[9px] text-amber-400" title="Geçici şifre, ilk girişte değiştirilecek">⏳</span>
+                        <span className="ml-1.5 text-xs text-amber-400" title="Geçici şifre, ilk girişte değiştirilecek">⏳</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -158,12 +158,12 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 text-slate-300 text-xs">{ROLE_LABELS[u.role] ?? u.role}</td>
                     <td className="px-4 py-3">
                       {u.approval_status === "active" ? (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Aktif</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Aktif</span>
                       ) : u.approval_status === "pending" ? (
                         <button
                           onClick={() => setStatus(u, "active")}
                           title="Tıkla: onayla"
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/30 transition-colors"
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/30 transition-colors"
                         >
                           Onay Bekliyor → Onayla
                         </button>
@@ -171,7 +171,7 @@ export default function AdminUsersPage() {
                         <button
                           onClick={() => setStatus(u, "active")}
                           title="Tıkla: tekrar aktifleştir"
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition-colors"
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition-colors"
                         >
                           Reddedilmiş → Aktifleştir
                         </button>

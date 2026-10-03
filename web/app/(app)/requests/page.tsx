@@ -15,6 +15,7 @@ import { formatDateTR } from "@/lib/date";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
+import { Tabs } from "@/components/ui/Tabs";
 
 const DAY_NAMES = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
@@ -256,52 +257,33 @@ export default function ManagerRequestsPage() {
         </button>
       } />
 
-      {/* Tab bar */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl gap-1 overflow-x-auto">
-        {([
-          { id: "all", label: "Tümü", count: totalPending, icon: ClipboardList },
-          ...(swapRequestsEnabled ? [{ id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight }] as const : []),
-          ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit }] as const : []),
-          ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff }] as const : []),
-          ...(overtimeTrackingEnabled ? [{ id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer }] as const : []),
-        ] as const).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl transition-all ${
-              activeTab === t.id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <t.icon size={12} />
-            {t.label}
-            {t.count > 0 && (
-              <span className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center ${
-                activeTab === t.id ? "bg-primary text-white" : "bg-slate-300 text-slate-600"
-              }`}>{t.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onChange={id => setActiveTab(id)} items={[
+        { id: "all", label: "Tümü", count: totalPending, icon: ClipboardList },
+        ...(swapRequestsEnabled ? [{ id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight }] as const : []),
+        ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit }] as const : []),
+        ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff }] as const : []),
+        ...(overtimeTrackingEnabled ? [{ id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer }] as const : []),
+      ] as const} />
 
       {loading && <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>}
       {!loading && activeTab === "all" && visibleSwaps.length + visibleEdits.length + visibleLeaves.length + visibleOvertimes.length === 0 && (
-        <EmptyState text={showHistory ? "Talep yok" : "Onay bekleyen bir şey yok"} />
+        <div className="bg-white border border-slate-200 rounded-2xl"><EmptyState text={showHistory ? "Talep yok" : "Onay bekleyen bir şey yok"} /></div>
       )}
 
       {/* ── SWAP TAB ── */}
       {!loading && (activeTab === "swap" || (activeTab === "all" && visibleSwaps.length > 0)) && (
-        <div className="space-y-3">
-          {activeTab === "all" && <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Takas</p>}
+        <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Takas</p>}
           {activeTab !== "all" && visibleSwaps.length === 0 && <EmptyState text={showHistory ? "Takas talebi yok" : "Onay bekleyen takas talebi yok"} />}
           {visibleSwaps.map(s => {
             const pending = s.status === "peer_accepted";
             return (
-              <div key={s.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-amber-200" : "border-slate-100"}`}>
+              <div key={s.id} className="px-4 py-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <ArrowLeftRight size={13} className="text-primary shrink-0" />
-                      <p className="text-sm font-black text-slate-900">
+                      <p className="text-sm font-bold text-slate-900">
                         <Link href="/personnel" className="hover:underline hover:text-primary">{s.requester_name}</Link>
                         {" ↔ "}
                         <Link href="/personnel" className="hover:underline hover:text-primary">{s.target_name}</Link>
@@ -325,20 +307,20 @@ export default function ManagerRequestsPage() {
                     )}
                   </div>
                   {s.created_at && (
-                    <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(s.created_at)}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{timeAgo(s.created_at)}</span>
                   )}
                 </div>
                 {pending && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setRejectModal({ type: "swap", id: s.id })}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-700 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={15} /> Reddet
                     </button>
                     <button
                       onClick={() => approveSwap(s.id, Array.isArray(s.violations) ? s.violations : [])}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <CheckCircle2 size={15} /> Onayla
                     </button>
@@ -352,18 +334,18 @@ export default function ManagerRequestsPage() {
 
       {/* ── EDIT TAB ── */}
       {!loading && (activeTab === "edit" || (activeTab === "all" && visibleEdits.length > 0)) && (
-        <div className="space-y-3">
-          {activeTab === "all" && <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Saat düzeltme</p>}
+        <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Saat düzeltme</p>}
           {activeTab !== "all" && visibleEdits.length === 0 && <EmptyState text={showHistory ? "Düzenleme talebi yok" : "Onay bekleyen düzenleme talebi yok"} />}
           {visibleEdits.map(e => {
             const pending = e.status === "pending";
             return (
-              <div key={e.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-blue-200" : "border-slate-100"}`}>
+              <div key={e.id} className="px-4 py-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <FileEdit size={13} className="text-blue-600 shrink-0" />
-                      <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">{e.personnel_name ?? "Personel"}</Link>
+                      <Link href="/personnel" className="text-sm font-bold text-slate-900 hover:underline hover:text-primary">{e.personnel_name ?? "Personel"}</Link>
                       <StatusBadge status={e.status} />
                     </div>
                     <p className="text-xs text-slate-500">
@@ -375,20 +357,20 @@ export default function ManagerRequestsPage() {
                     )}
                   </div>
                   {e.created_at && (
-                    <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(e.created_at)}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{timeAgo(e.created_at)}</span>
                   )}
                 </div>
                 {pending && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setRejectModal({ type: "edit", id: e.id })}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-700 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={15} /> Reddet
                     </button>
                     <button
                       onClick={() => approveEdit(e.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <CheckCircle2 size={15} /> Onayla
                     </button>
@@ -402,18 +384,18 @@ export default function ManagerRequestsPage() {
 
       {/* ── LEAVE TAB ── */}
       {!loading && (activeTab === "leave" || (activeTab === "all" && visibleLeaves.length > 0)) && (
-        <div className="space-y-3">
-          {activeTab === "all" && <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">İzin</p>}
+        <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">İzin</p>}
           {activeTab !== "all" && visibleLeaves.length === 0 && <EmptyState text={showHistory ? "İzin talebi yok" : "Bekleyen izin talebi yok"} />}
           {(visibleLeaves as any[]).map((l: any) => {
             const pending = l.status === "pending";
             return (
-              <div key={l.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-ember-200" : "border-slate-100"}`}>
+              <div key={l.id} className="px-4 py-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <CalendarOff size={13} className="text-ember-600 shrink-0" />
-                      <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">
+                      <Link href="/personnel" className="text-sm font-bold text-slate-900 hover:underline hover:text-primary">
                         {l.personnel_name ?? l.personnel_id}
                       </Link>
                       <StatusBadge status={l.status} />
@@ -425,25 +407,25 @@ export default function ManagerRequestsPage() {
                         : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
                     </p>
                     {pending && leaveBalances[l.personnel_id] && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
-                      <p className={`text-[11px] font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
+                      <p className={`text-xs font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
                         Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
                         {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
                       </p>
                     )}
                     {pending && leaveBalances[l.personnel_id]?.hireDateMissing && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
-                      <p className="text-[11px] text-amber-700 mt-0.5">
+                      <p className="text-xs text-amber-700 mt-0.5">
                         İşe giriş tarihi girilmemiş, bakiye tahmini. <Link href="/personnel" className="underline font-semibold">Ekip&apos;ten ekleyin</Link>
                       </p>
                     )}
                     {pending && leaveBalances[l.personnel_id]?.firstEligibleDate && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
-                      <p className="text-[11px] text-amber-700 mt-0.5">
+                      <p className="text-xs text-amber-700 mt-0.5">
                         1 yıllık kıdemi dolmadı; yıllık izin hakkı {formatDateTR(leaveBalances[l.personnel_id].firstEligibleDate, { weekday: false })} tarihinde doğar.
                       </p>
                     )}
                     {l.note && <p className="text-xs text-slate-400 mt-1 italic">"{l.note}"</p>}
                   </div>
                   {l.created_at && (
-                    <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(l.created_at)}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{timeAgo(l.created_at)}</span>
                   )}
                 </div>
                 {pending && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
@@ -460,7 +442,7 @@ export default function ManagerRequestsPage() {
                   <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setRejectModal({ type: "leave", id: l.id })}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-700 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={15} /> Reddet
                     </button>
@@ -482,7 +464,7 @@ export default function ManagerRequestsPage() {
                     ) : (
                       <button
                         onClick={() => reviewLeave(l.id, "approved", undefined, "remove")}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
                       >
                         <CheckCircle2 size={15} /> Onayla
                       </button>
@@ -497,8 +479,8 @@ export default function ManagerRequestsPage() {
 
       {/* ── OVERTIME TAB ── */}
       {!loading && (activeTab === "overtime" || (activeTab === "all" && visibleOvertimes.length > 0)) && (
-        <div className="space-y-3">
-          {activeTab === "all" && <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Fazla mesai</p>}
+        <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Fazla mesai</p>}
           {activeTab !== "all" && visibleOvertimes.length === 0 && <EmptyState text={showHistory ? "Mesai kaydı yok" : "Onay bekleyen mesai kaydı yok"} />}
           {(visibleOvertimes as any[]).map((o: any) => {
             const pending = o.status === "pending";
@@ -508,12 +490,12 @@ export default function ManagerRequestsPage() {
                 ? { label: "Personel reddetti ✗", tone: "danger" as PillTone }
                 : { label: "Personel onayı bekleniyor", tone: "neutral" as PillTone };
             return (
-              <div key={o.id} className={`bg-white rounded-2xl border p-5 space-y-4 ${pending ? "border-amber-200" : "border-slate-100"}`}>
+              <div key={o.id} className="px-4 py-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <Timer size={13} className="text-amber-600 shrink-0" />
-                      <span className="text-sm font-black text-slate-900">{o.personnel_name ?? "—"}</span>
+                      <span className="text-sm font-bold text-slate-900">{o.personnel_name ?? "—"}</span>
                       <StatusBadge status={o.status} />
                       <StatusPill tone={empChip.tone}>{empChip.label}</StatusPill>
                     </div>
@@ -522,20 +504,20 @@ export default function ManagerRequestsPage() {
                     {o.note && <p className="text-xs text-slate-400 mt-1 italic">{o.note}</p>}
                   </div>
                   {o.created_at && (
-                    <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(o.created_at)}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{timeAgo(o.created_at)}</span>
                   )}
                 </div>
                 {pending && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => decideOvertime(o.id, "rejected")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-700 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={15} /> Reddet
                     </button>
                     <button
                       onClick={() => decideOvertime(o.id, "approved")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <CheckCircle2 size={15} /> Onayla
                     </button>
@@ -544,7 +526,7 @@ export default function ManagerRequestsPage() {
               </div>
             );
           })}
-          <p className="text-[11px] text-slate-400 text-center pt-1">
+          <p className="text-xs text-slate-400 text-center pt-1">
             Yıllık sınırlar, maliyet ve serbest zaman takibi için <Link href="/overtime" className="underline hover:text-slate-600">Fazla Mesai sayfası</Link>na bakın.
           </p>
         </div>
@@ -554,9 +536,9 @@ export default function ManagerRequestsPage() {
       {rejectModal && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
           onClick={() => { setRejectModal(null); setRejectNote(""); }}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4"
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
             onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-black text-slate-900">Reddetme Nedeni</h3>
+            <h3 className="text-base font-bold text-slate-900">Reddetme Nedeni</h3>
             <textarea
               value={rejectNote}
               onChange={e => setRejectNote(e.target.value)}
@@ -591,11 +573,7 @@ export default function ManagerRequestsPage() {
   );
 }
 
+/** Boş durum (DESIGN.md §7): tek cümle, büyük ikon yok. Liste çerçevesinin içinde de dışında da kullanılır. */
 function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-2 text-slate-300">
-      <CheckCircle2 size={40} strokeWidth={1.5} />
-      <p className="text-sm font-semibold">{text}</p>
-    </div>
-  );
+  return <p className="px-4 py-8 text-center text-sm text-slate-500">{text}</p>;
 }

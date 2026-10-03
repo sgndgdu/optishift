@@ -63,12 +63,12 @@ export default function AuditPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Zaman</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Aksiyon</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Hedef Org</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Hedef User</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">IP</th>
-                  <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Detay</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Zaman</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Aksiyon</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Hedef Org</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Hedef User</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">IP</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Detay</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,7 +91,7 @@ export default function AuditPage() {
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       {row.payload ? (
-                        <span className="text-[10px] text-slate-600 font-mono truncate block max-w-xs" title={row.payload}>
+                        <span className="text-xs text-slate-600 font-mono truncate block max-w-xs" title={row.payload}>
                           {row.payload.slice(0, 80)}
                         </span>
                       ) : "—"}

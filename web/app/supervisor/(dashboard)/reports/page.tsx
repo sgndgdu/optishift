@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSupervisorAuth } from "@/hooks/useAuth";
 import { getWeekStart } from "@/lib/date";
-import {
-  BarChart3, Building2, Users, Clock, AlertTriangle,
-  CheckCircle2, ChevronLeft, ChevronRight, TrendingUp,
-  ShieldCheck, 
-} from "lucide-react";
+import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, TrendingUp, ShieldCheck } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 
@@ -166,10 +162,10 @@ export default function SupervisorReports() {
           <ChevronLeft size={16} className="text-slate-600" />
         </button>
         <div className="text-center">
-          <p className="text-sm font-black text-slate-900">{formatWeekLabel(getWeekStart(weekOffset))}</p>
-          {weekOffset === 0 && <p className="text-[10px] text-primary font-bold">Bu Hafta</p>}
+          <p className="text-sm font-bold text-slate-900">{formatWeekLabel(getWeekStart(weekOffset))}</p>
+          {weekOffset === 0 && <p className="text-xs text-primary font-bold">Bu Hafta</p>}
           {weekOffset !== 0 && (
-            <button onClick={() => setWeekOffset(0)} className="text-[10px] text-slate-400 hover:text-primary transition-colors">
+            <button onClick={() => setWeekOffset(0)} className="text-xs text-slate-400 hover:text-primary transition-colors">
               Bu haftaya dön
             </button>
           )}
@@ -241,7 +237,7 @@ export default function SupervisorReports() {
                         <Building2 size={16} className="text-slate-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-900">{branch.name}</p>
+                        <p className="text-sm font-bold text-slate-900">{branch.name}</p>
                         <p className="text-xs text-slate-500">{branch.personnel_count} personel</p>
                       </div>
                     </div>
@@ -274,7 +270,6 @@ export default function SupervisorReports() {
             <div className="space-y-4">
               {totalFlags === 0 ? (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 flex flex-col items-center gap-3 text-emerald-700">
-                  <CheckCircle2 size={36} strokeWidth={1.5} />
                   <p className="text-sm font-bold">Tüm şubelerde yasal uyumluluk sağlandı</p>
                   <p className="text-xs text-emerald-600 text-center">Bu hafta hiçbir personel haftalık çalışma sınırının %90'ını aşmadı.</p>
                 </div>
@@ -303,10 +298,10 @@ export default function SupervisorReports() {
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <p className={`text-sm font-black ${over ? "text-red-600" : "text-amber-600"}`}>
+                                <p className={`text-sm font-bold ${over ? "text-red-600" : "text-amber-600"}`}>
                                   {flag.hours} sa
                                 </p>
-                                <p className="text-[10px] text-slate-400">limit: {flag.max_weekly_hours} sa ({pct}%)</p>
+                                <p className="text-xs text-slate-400">limit: {flag.max_weekly_hours} sa ({pct}%)</p>
                               </div>
                             </div>
                           );
@@ -321,14 +316,14 @@ export default function SupervisorReports() {
               {totalFlags === 0 && (
                 <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <div className="px-5 py-3 border-b border-slate-50">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tüm Personel · Bu Hafta</p>
+                    <p className="text-xs font-bold text-slate-500">Tüm Personel · Bu Hafta</p>
                   </div>
                   <div className="divide-y divide-slate-50">
                     {allPersonnel.map((p, i) => (
                       <div key={i} className="px-5 py-2.5 flex items-center justify-between gap-4">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-800">{p.name}</p>
-                          <p className="text-[10px] text-slate-400">{p.branch}</p>
+                          <p className="text-xs text-slate-400">{p.branch}</p>
                         </div>
                         <p className="text-sm font-bold text-emerald-700 shrink-0">{p.weekly_hours} sa</p>
                       </div>
@@ -371,7 +366,7 @@ export default function SupervisorReports() {
                           const pct = max > 0 ? Math.round((p.prev_score / max) * 100) : 0;
                           return (
                             <div key={i} className="px-5 py-3 flex items-center gap-4">
-                              <div className="w-5 text-[10px] font-bold text-slate-400 shrink-0">{i + 1}</div>
+                              <div className="w-5 text-xs font-bold text-slate-400 shrink-0">{i + 1}</div>
                               <div className="flex-1 min-w-0">
                                 <Link href={`/supervisor/personnel?location_id=${branch.id}`} className="text-sm font-semibold text-slate-800 hover:underline hover:text-primary">{p.name}</Link>
                                 <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -381,7 +376,7 @@ export default function SupervisorReports() {
                                   />
                                 </div>
                               </div>
-                              <p className="text-sm font-black text-forest-700 shrink-0 w-10 text-right">
+                              <p className="text-sm font-bold text-forest-700 shrink-0 w-10 text-right">
                                 {p.prev_score}
                               </p>
                             </div>
@@ -419,8 +414,8 @@ function KpiCard({
       <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center mb-3`}>
         {icon}
       </div>
-      <p className={`text-xl font-black ${valueClass ?? "text-slate-900"}`}>{value}</p>
-      {sub && <p className="text-[10px] text-slate-400 font-medium">{sub}</p>}
+      <p className={`text-xl font-bold ${valueClass ?? "text-slate-900"}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-400 font-medium">{sub}</p>}
       <p className="text-xs text-slate-500 mt-0.5">{label}</p>
     </>
   );
@@ -443,15 +438,15 @@ function StatBox({ label, value, href }: { label: string; value: string; href?: 
   if (href) {
     return (
       <Link href={href} className="bg-slate-50 rounded-xl px-3 py-2.5 block hover:bg-slate-100 transition-colors" onClick={e => e.stopPropagation()}>
-        <p className="text-base font-black text-slate-900">{value}</p>
-        <p className="text-[10px] text-slate-400 font-medium mt-0.5">{label}</p>
+        <p className="text-base font-bold text-slate-900">{value}</p>
+        <p className="text-xs text-slate-400 font-medium mt-0.5">{label}</p>
       </Link>
     );
   }
   return (
     <div className="bg-slate-50 rounded-xl px-3 py-2.5">
-      <p className="text-base font-black text-slate-900">{value}</p>
-      <p className="text-[10px] text-slate-400 font-medium mt-0.5">{label}</p>
+      <p className="text-base font-bold text-slate-900">{value}</p>
+      <p className="text-xs text-slate-400 font-medium mt-0.5">{label}</p>
     </div>
   );
 }
@@ -459,7 +454,6 @@ function StatBox({ label, value, href }: { label: string; value: string; href?: 
 function EmptyState({ text }: { text: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-400">
-      <BarChart3 size={36} strokeWidth={1.5} />
       <p className="text-sm font-semibold">{text}</p>
     </div>
   );

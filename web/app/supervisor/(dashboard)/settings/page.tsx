@@ -126,18 +126,18 @@ export default function SupervisorSettingsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">İşletme Adı</p>
+                <p className="text-xs font-bold text-slate-400 mb-1">İşletme Adı</p>
                 <p className="font-bold text-slate-800 text-lg">{org?.name ?? "—"}</p>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Plan</p>
+                <p className="text-xs font-bold text-slate-400 mb-1">Plan</p>
                 <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-xl ${planInfo.color}`}>
                   <Sparkles size={13} />
                   {planInfo.label}
                 </span>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Şube Sayısı</p>
+                <p className="text-xs font-bold text-slate-400 mb-1">Şube Sayısı</p>
                 <p className="font-bold text-slate-800">{locations.length}</p>
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function SupervisorSettingsPage() {
                       <p className="text-sm font-bold text-slate-800">{loc.name}</p>
                     </div>
                   </div>
-                  <Badge variant="success" className="text-[10px]">Aktif</Badge>
+                  <Badge variant="success" className="text-xs">Aktif</Badge>
                 </div>
               ))}
             </div>

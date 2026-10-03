@@ -71,14 +71,14 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
           <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
-          {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+          {c.lastAt && <span className="text-xs text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
         </div>
         {c.lastMessage ? (
-          <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>
+          <p className={`text-xs truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>
             {c.lastMessage}
           </p>
         ) : (
-          <p className="text-[11px] text-slate-500 font-medium">{c.label ?? c.role}</p>
+          <p className="text-xs text-slate-500 font-medium">{c.label ?? c.role}</p>
         )}
       </div>
     </button>
@@ -319,7 +319,7 @@ export default function ManagerChatPage() {
               <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                 <MessageSquare size={16} className="text-primary" />
               </div>
-              <h2 className="text-base font-black text-slate-900">Kişiler ve Kanallar</h2>
+              <h2 className="text-base font-bold text-slate-900">Kişiler ve Kanallar</h2>
             </div>
             <div className="flex items-center gap-2">
               {totalUnread > 0 && (
@@ -349,7 +349,7 @@ export default function ManagerChatPage() {
             <>
               {groupContacts.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                  <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
                   {groupContacts.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
@@ -357,7 +357,7 @@ export default function ManagerChatPage() {
               )}
               {individualContacts.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kişiler</p>
+                  <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kişiler</p>
                   {individualContacts.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
@@ -383,8 +383,8 @@ export default function ManagerChatPage() {
                 {selected.type === "group" ? <Users size={16} /> : selected.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-slate-900 truncate">{selected.name}</p>
-                <p className="text-[10px] text-slate-400 font-medium">{selected.label ?? selected.role}</p>
+                <p className="text-sm font-bold text-slate-900 truncate">{selected.name}</p>
+                <p className="text-xs text-slate-400 font-medium">{selected.label ?? selected.role}</p>
               </div>
               {clearConfirm ? (
                 <div className="flex items-center gap-2 shrink-0">
@@ -405,7 +405,6 @@ export default function ManagerChatPage() {
               className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-2 bg-slate-50/50">
               {grouped.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-300">
-                  <MessageSquare size={40} strokeWidth={1.5} />
                   <p className="text-sm font-medium">İlk mesajı gönder!</p>
                 </div>
               )}
@@ -413,7 +412,7 @@ export default function ManagerChatPage() {
                 <div key={date}>
                   <div className="flex items-center gap-3 my-3">
                     <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{date}</span>
+                    <span className="text-xs font-bold text-slate-400">{date}</span>
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
                   <div className="space-y-1.5">
@@ -430,7 +429,7 @@ export default function ManagerChatPage() {
                           )}
                           <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
                             {!isMe && selected.type === "group" && (
-                              <span className="text-[10px] font-bold text-slate-500 px-1">{name}</span>
+                              <span className="text-xs font-bold text-slate-500 px-1">{name}</span>
                             )}
                             <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                               isMe
@@ -440,7 +439,7 @@ export default function ManagerChatPage() {
                               {m.content}
                             </div>
                             <div className={`flex items-center gap-1 px-1 ${isMe ? "flex-row-reverse" : ""}`}>
-                              <span className="text-[10px] text-slate-400">{formatTime(m.created_at)}</span>
+                              <span className="text-xs text-slate-400">{formatTime(m.created_at)}</span>
                               {isMe && !m._optimistic && selected.type === "individual" && (
                                 isRead
                                   ? <CheckCheck size={12} className="text-blue-400" />
@@ -483,7 +482,6 @@ export default function ManagerChatPage() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-300">
             <div className="flex flex-col items-center gap-3 text-center px-6">
-              <MessageSquare size={48} strokeWidth={1.5} />
               <p className="text-sm font-semibold text-slate-400">Kime yazmak istiyorsunuz?</p>
               <p className="text-xs text-slate-400">
                 <span className="md:hidden">Ekip kanalını ya da bir kişiyi seçmek için aşağıdaki düğmeye dokunun.</span>

@@ -45,7 +45,7 @@ export function StatusPill({
         "inline-flex items-center gap-1 border font-semibold whitespace-nowrap",
         t.bg, t.text, t.border,
         size === "pill"
-          ? "text-[10px] px-1.5 py-0.5 rounded-full"
+          ? "text-xs px-1.5 py-0.5 rounded-full"
           : "text-sm px-4 py-2.5 rounded-xl w-full justify-center",
         className
       )}
@@ -70,7 +70,7 @@ export function CountBadge({ count, children, tone = "danger", size = "md", clas
 }) {
   return (
     <span className={cn("inline-flex items-center justify-center rounded-full font-bold text-white",
-      size === "md" ? "min-w-[18px] h-[18px] px-1.5 text-[10px]" : "min-w-[15px] h-[15px] px-0.5 text-[9px]",
+      size === "md" ? "min-w-[18px] h-[18px] px-1.5 text-xs" : "min-w-[15px] h-[15px] px-0.5 text-xs",
       COUNT_TONES[tone], className)}>
       {children ?? count}
     </span>

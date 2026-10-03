@@ -31,7 +31,7 @@ export default function OwnerBranchBanner() {
   return (
     <div className="flex items-center justify-between gap-3 bg-ember-50 border-b border-ember-100 px-4 py-2 text-xs">
       <span className="text-ember-800 font-semibold truncate">
-        <span className="font-black">{info.name}</span> şubesinde çalışıyorsunuz
+        <span className="font-bold">{info.name}</span> şubesinde çalışıyorsunuz
       </span>
       <button
         onClick={() => {

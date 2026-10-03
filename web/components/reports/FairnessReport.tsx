@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Trophy, AlertTriangle, TrendingUp, Moon, Calendar, Zap, Info, RefreshCw, ExternalLink, Scale, Gauge, Ruler,
+  Trophy, AlertTriangle, TrendingUp, Moon, Zap, Info, RefreshCw, ExternalLink, Scale, Gauge, Ruler,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -142,8 +142,8 @@ export default function FairnessReport() {
             <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", badgeBg, color)}>
               <Icon size={18} />
             </div>
-            <span className={cn("text-xl font-black tabular-nums block", color)}>{value}</span>
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
+            <span className={cn("text-xl font-bold tabular-nums block", color)}>{value}</span>
+            <span className="text-xs font-semibold text-slate-500">{label}</span>
           </div>
         ))}
       </div>
@@ -181,7 +181,6 @@ export default function FairnessReport() {
             </div>
           ) : personnel.length === 0 ? (
             <div className="py-12 text-center text-slate-400">
-              <TrendingUp size={32} className="mx-auto mb-3 text-slate-200" />
               <p className="font-semibold">Henüz veri yok.</p>
             </div>
           ) : view === "current" ? (
@@ -223,7 +222,7 @@ export default function FairnessReport() {
         <CardContent className="p-4 space-y-4">
           {/* Puan bileşenleri */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Zor Vardiya & Bonus Puanları</p>
+            <p className="text-xs font-semibold text-slate-500 mb-2">Zor Vardiya & Bonus Puanları</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { label: "Zor vardiya", value: rules.hard_shift_points ?? 4, icon: null, note: "Hf.sonu/gece/sarı gün" },
@@ -234,14 +233,14 @@ export default function FairnessReport() {
                 <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-center">
                   <div className="flex items-center justify-center gap-1 mb-0.5">
                     {icon}
-                    <span className="text-[10px] text-slate-500 font-medium">{label}</span>
+                    <span className="text-xs text-slate-500 font-medium">{label}</span>
                   </div>
-                  <span className="text-lg font-black text-slate-800">+{value} puan</span>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{note}</p>
+                  <span className="text-lg font-bold text-slate-800">+{value} puan</span>
+                  <p className="text-xs text-slate-400 mt-0.5">{note}</p>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 mt-2">
+            <p className="text-xs text-slate-400 mt-2">
               Değiştirmek için: <a href="/settings?tab=advanced&group=fairness" className="text-primary font-semibold hover:underline">Ayarlar → Gelişmiş Seçenekler → Adalet Puanı</a>
             </p>
           </div>
@@ -249,7 +248,7 @@ export default function FairnessReport() {
           {/* Vardiya tanımları */}
           {shiftDefs.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Vardiya Tanımları</p>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Vardiya Tanımları</p>
               <div className="flex flex-wrap gap-2">
                 {shiftDefs.map((d: any) => (
                   <div key={d.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm">
@@ -266,7 +265,7 @@ export default function FairnessReport() {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-2">
+              <p className="text-xs text-slate-400 mt-2">
                 Gece işareti veya zorluk puanı için: <a href="/settings" className="text-primary font-semibold hover:underline">Ayarlar → Temel Ayarlar → Vardiya Tanımları</a>
               </p>
             </div>
@@ -341,7 +340,7 @@ function CurrentView({
             <div className="w-24 md:w-32 shrink-0 min-w-0">
               <p className="text-sm font-semibold text-slate-800 truncate">{p.name.split(" ")[0]}</p>
               <p className={cn(
-                "text-[10px] font-medium truncate",
+                "text-xs font-medium truncate",
                 level === "low" ? "text-emerald-600" : level === "high" ? "text-red-500" : "text-slate-400"
               )}>
                 {fairnessText}
@@ -363,7 +362,7 @@ function CurrentView({
             </div>
 
             {/* Puan */}
-            <div className="text-sm font-black text-slate-700 w-14 text-right shrink-0 tabular-nums">
+            <div className="text-sm font-bold text-slate-700 w-14 text-right shrink-0 tabular-nums">
               {Math.round(burden * 10) / 10}p
             </div>
 
@@ -387,7 +386,7 @@ function CurrentView({
             <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
               {pHist.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[11px]">
+                  <table className="w-full text-xs">
                     <thead>
                       <tr className="text-slate-400 font-semibold text-left">
                         <th className="pr-3 pb-1 font-semibold">Hafta</th>
@@ -415,13 +414,13 @@ function CurrentView({
                   </table>
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-400">Henüz yayınlanmış hafta puanı yok.</p>
+                <p className="text-xs text-slate-400">Henüz yayınlanmış hafta puanı yok.</p>
               )}
               {pAdjs.length > 0 && (
                 <div className="border-t border-slate-200/60 pt-2 space-y-1">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Puan Olayları</p>
+                  <p className="text-xs text-slate-400 font-bold">Puan Olayları</p>
                   {pAdjs.slice(0, 5).map((a: any) => (
-                    <div key={a.id} className="flex items-center justify-between text-[11px]">
+                    <div key={a.id} className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Elle düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
                       <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
                     </div>
@@ -435,7 +434,7 @@ function CurrentView({
       })}
 
       {/* Renk açıklaması */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-4 text-[10px] text-slate-400">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-4 text-xs text-slate-400">
         <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-emerald-500 rounded-full inline-block" />Ortalamanın %20 altı (az yüklü)</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block" />Normal aralık</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-400 rounded-full inline-block" />Ortalamanın %20 üstü (çok yüklü)</span>
@@ -473,7 +472,6 @@ function HistoryView({
   if (!hasData) {
     return (
       <div className="py-12 text-center text-slate-400">
-        <Calendar size={32} className="mx-auto mb-3 text-slate-200" />
         <p className="font-semibold">Henüz tarihsel veri yok.</p>
         <p className="text-sm mt-1">Her hafta vardiya yayınlandıkça bu bölüm otomatik dolar.</p>
       </div>
@@ -501,7 +499,7 @@ function HistoryView({
             </div>
             <div className="w-24 shrink-0">
               <p className="text-sm font-semibold text-slate-800 truncate">{p.name.split(" ")[0]}</p>
-              <p className="text-[10px] text-slate-400">{entries.length} hafta</p>
+              <p className="text-xs text-slate-400">{entries.length} hafta</p>
             </div>
 
             {/* Sparkline */}
@@ -530,7 +528,7 @@ function HistoryView({
             </div>
 
             <div className="w-14 text-right shrink-0">
-              <p className="text-sm font-black text-slate-700 tabular-nums">{Math.round(latest * 10) / 10}p</p>
+              <p className="text-sm font-bold text-slate-700 tabular-nums">{Math.round(latest * 10) / 10}p</p>
               <p className={cn("text-xs font-bold", trendCls)}>{trend}</p>
             </div>
           </div>
@@ -574,7 +572,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{person?.name ?? ev.claimed_by}</p>
-                    <p className="text-[10px] text-slate-400">{dateStr}</p>
+                    <p className="text-xs text-slate-400">{dateStr}</p>
                   </div>
                   <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg shrink-0">
                     +{ev.hero_bonus_multiplier ?? 6} puan
@@ -620,7 +618,7 @@ function NoShowCard({ noShowPersonnel, loading }: { noShowPersonnel: any[]; load
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                  <p className="text-[10px] text-slate-400">{p.no_show_count} kez</p>
+                  <p className="text-xs text-slate-400">{p.no_show_count} kez</p>
                 </div>
                 <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-lg shrink-0">
                   {p.no_show_count}×

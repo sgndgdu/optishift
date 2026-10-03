@@ -3,10 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Store, CalendarClock, Sparkles, MapPin,
-  ArrowRight, Plus, Trash2, Check, Zap,
-} from "lucide-react";
+import { Store, CalendarClock, Sparkles, ArrowRight, Plus, Trash2, Check, Zap } from "lucide-react";
 import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
@@ -191,7 +188,7 @@ export default function OnboardingWizard() {
         {step < 2 && <WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
 
         {/* Kart */}
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-100">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100">
           <div className="p-5 md:p-8 lg:p-10">
 
             {/* ── Adım 0: Sektör + Şubeler ── */}
@@ -202,10 +199,10 @@ export default function OnboardingWizard() {
                 <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
 
                 <div className="space-y-2.5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Şubeler (tek şube de olabilir, sonradan da eklenebilir)</p>
+                  <p className="text-xs font-bold text-slate-400">Şubeler (tek şube de olabilir, sonradan da eklenebilir)</p>
                   {branches.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500 shrink-0">
+                      <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
                         {i + 1}
                       </div>
                       <input
@@ -253,7 +250,7 @@ export default function OnboardingWizard() {
                         onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
                         className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">Zorluk {s.base_points}</span>
+                        <span className="text-xs text-slate-400 font-bold whitespace-nowrap">Zorluk {s.base_points}</span>
                         <input type="range" min={1} max={10} value={s.base_points}
                           onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: +e.target.value } : x))}
                           className="w-14 accent-primary" />
@@ -293,7 +290,7 @@ export default function OnboardingWizard() {
                 </div>
 
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900">Her Şey Hazır!</h2>
+                  <h2 className="text-3xl font-bold text-slate-900">Her Şey Hazır!</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
                     {readyCount > 0
                       ? <><strong>{readyCount} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}</>

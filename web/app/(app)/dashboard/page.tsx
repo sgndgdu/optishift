@@ -8,7 +8,7 @@ import { addDays, businessToday, formatDateTR } from "@/lib/date";
 import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
-  Users, AlertTriangle, Clock, Check, X, ArrowRight, RefreshCw, CheckCircle2,
+  Users, AlertTriangle, Check, ArrowRight, RefreshCw, CheckCircle2,
   CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck, FileWarning, Store,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
+import { Avatar } from "@/components/ui/Avatar";
+import { StatusPill } from "@/components/ui/StatusPill";
 import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
 import { industryFromRules } from "@/lib/templates";
 import { formatPublishLead } from "@/lib/publishLead";
@@ -435,7 +437,7 @@ export default function DashboardPage() {
                     { label: "Çıktı",    value: checkedOut.length, color: "text-slate-400" },
                   ].filter(x => x.value > 0).map(({ label, value, color }) => (
                     <span key={label} className="flex items-center gap-1 text-xs text-slate-400 font-medium">
-                      <span className={`text-sm font-black ${color}`}>{value}</span> {label}
+                      <span className={`text-sm font-bold ${color}`}>{value}</span> {label}
                     </span>
                   ))}
                 </div>
@@ -445,42 +447,31 @@ export default function DashboardPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <CardContent className="p-0">
+              {/* Satır listesi (DESIGN.md §2): kişi başına kart değil, çizgiyle ayrılan satır */}
+              <ul className="divide-y divide-slate-100">
                 {todayShifts.map((s: any) => {
                   const p            = personnel.find(px => px.id === s.personnel_id);
                   const isCheckedIn  = !!s.check_in_at;
                   const isCheckedOut = !!s.check_out_at;
                   const late         = isLate(s);
+                  const status = isCheckedOut ? { label: "Çıktı", tone: "neutral" as const }
+                    : isCheckedIn ? { label: "Aktif", tone: "positive" as const }
+                    : late ? { label: "Gelmedi", tone: "danger" as const }
+                    : { label: "Bekleniyor", tone: "attention" as const };
                   return (
-                    <div key={s.id} className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      isCheckedOut ? "bg-slate-50 border-slate-100" :
-                      isCheckedIn  ? "bg-emerald-50 border-emerald-200" :
-                      late         ? "bg-red-50 border-red-200" :
-                                     "bg-white border-slate-200"
-                    }`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                        isCheckedOut ? "bg-slate-200 text-slate-500" :
-                        isCheckedIn  ? "bg-emerald-500 text-white" :
-                        late         ? "bg-red-500 text-white" :
-                                       "bg-amber-100 text-amber-700"
-                      }`}>
-                        {isCheckedOut ? <X size={14} /> : isCheckedIn ? <Check size={14} /> : late ? <AlertTriangle size={14} /> : <Clock size={14} />}
-                      </div>
+                    <li key={s.id} className="flex items-center gap-3 px-4 sm:px-5 py-3">
+                      <Avatar name={p?.name ?? "?"} />
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-slate-800 truncate">{p?.name ?? s.personnel_id}</div>
-                        <div className="text-xs text-slate-500">{s.start_time}–{s.end_time}
-                          {isCheckedOut && <span className="ml-1 text-slate-400">• Çıktı</span>}
-                          {isCheckedIn && !isCheckedOut && <span className="ml-1 text-emerald-600 font-semibold">• Aktif</span>}
-                          {!isCheckedIn && late && <span className="ml-1 text-red-600 font-semibold">• Gelmedi</span>}
-                          {!isCheckedIn && !late && <span className="ml-1 text-amber-600">• Bekleniyor</span>}
-                        </div>
+                        <div className="text-sm font-semibold text-slate-900 truncate">{p?.name ?? s.personnel_id}</div>
+                        <div className="text-xs text-slate-500">{s.start_time}–{s.end_time}</div>
                       </div>
+                      <StatusPill tone={status.tone}>{status.label}</StatusPill>
                       {/* Telefonla "gelemiyorum" haberi: yerine kim geçsin penceresini doğrudan aç */}
                       {!isCheckedIn && !isCheckedOut && !(late && openShiftsEnabled && !autoOpenOnLate) && (
                         <button
                           onClick={() => router.push(`/schedule?week=this&gelemiyor=${s.id}&p=${encodeURIComponent(s.personnel_id)}&t=${encodeURIComponent(`${p?.name ?? ""} · ${s.start_time}–${s.end_time}`)}`)}
-                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                          className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                           title="Yerine kim geçebilir? Uygun yedekler önerilir"
                         >
                           Gelemiyor
@@ -489,16 +480,16 @@ export default function DashboardPage() {
                       {!isCheckedIn && !isCheckedOut && late && openShiftsEnabled && !autoOpenOnLate && (
                         <button
                           onClick={() => convertToOpenShift(s, false)}
-                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                          className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                           title="Vardiyayı açık ilana dönüştür, ekip üstlenebilir"
                         >
-                          İlana Çevir
+                          İlana çevir
                         </button>
                       )}
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </CardContent>
           </Card>
         );

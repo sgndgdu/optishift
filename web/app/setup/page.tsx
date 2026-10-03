@@ -68,7 +68,7 @@ function SetupForm() {
           <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle size={40} className="text-red-500" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Davet Linki Geçersiz</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Davet Linki Geçersiz</h1>
           <p className="text-slate-500 mb-6">{tokenError}</p>
           <a href="/login" className="inline-flex items-center gap-2 bg-forest-600 text-white font-bold px-6 py-3 rounded-2xl hover:bg-forest-700 transition-colors">
             Giriş Sayfasına Git
@@ -127,7 +127,7 @@ function SetupForm() {
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Hesabınız Hazır!</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Hesabınız Hazır!</h1>
           <p className="text-slate-500">Yönlendiriliyorsunuz...</p>
         </div>
       </div>
@@ -153,7 +153,7 @@ function SetupForm() {
           <div className="w-16 h-16 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield size={32} className="text-forest-600" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Hesabınızı Kurun</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Hesabınızı Kurun</h1>
           <p className="text-slate-500 text-sm">
             Hoş geldiniz, <span className="font-semibold text-slate-700">{setupUser.name}</span>!<br />
             Şifrenizi belirleyin, vardiyalarınızı hemen görün.
@@ -165,7 +165,7 @@ function SetupForm() {
           )}
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium">
@@ -174,7 +174,7 @@ function SetupForm() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Ad Soyad
               </label>
               <div className="relative">
@@ -191,7 +191,7 @@ function SetupForm() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Telefon <span className="text-slate-400 font-normal normal-case">(isteğe bağlı)</span>
               </label>
               <div className="relative">
@@ -207,11 +207,11 @@ function SetupForm() {
             </div>
 
             <div className="border-t border-slate-100 pt-5">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Yeni Şifreniz</p>
+              <p className="text-xs font-bold text-slate-400 mb-4">Yeni Şifreniz</p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">
                     Şifre
                   </label>
                   <div className="relative">
@@ -244,7 +244,7 @@ function SetupForm() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">
                     Şifre Tekrar
                   </label>
                   <div className="relative">

@@ -115,7 +115,7 @@ const SettingsLockCtx = createContext<(cat: LockCategory) => boolean>(() => fals
 
 function LockNote() {
   // span: açıklama paragrafının içinde de kullanılır (<p> içinde <p> olamaz)
-  return <span className="block text-[11px] font-semibold text-amber-700 mt-1">🔒 {LOCK_NOTE}</span>;
+  return <span className="block text-xs font-semibold text-amber-700 mt-1">🔒 {LOCK_NOTE}</span>;
 }
 
 /** Kilitli bölüm: müdür görür, değiştiremez. */
@@ -151,7 +151,7 @@ function SectionCard({ title, children }: { title: string; children: ReactNode }
   return (
     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_10px_-3px_rgba(20,69,61,0.12)] overflow-hidden">
       <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</h3>
+        <h3 className="text-xs font-bold text-slate-400">{title}</h3>
       </div>
       <div className="px-5 divide-y divide-slate-100">{children}</div>
     </div>
@@ -159,7 +159,7 @@ function SectionCard({ title, children }: { title: string; children: ReactNode }
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
-  return <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{children}</h3>;
+  return <h3 className="text-xs font-bold text-slate-400 mb-3">{children}</h3>;
 }
 
 // Gelişmiş Seçenekler: kapalı gelen başlıklar (aşamalı gösterim)
@@ -303,7 +303,7 @@ function RequiredSkillsEditor({
         <button
           type="button"
           onClick={add}
-          className="text-[10px] font-bold px-2 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors shrink-0"
+          className="text-xs font-bold px-2 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors shrink-0"
         >
           Ekle
         </button>
@@ -1271,7 +1271,7 @@ export default function SettingsPage() {
                 )}
                 {savedIndustry && !industryChanged && skillRecs.length > 0 && (
                     <div className="mt-3 rounded-xl border border-slate-200 p-3 space-y-2.5">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Önerilen zorunlu roller</p>
+                      <p className="text-xs font-bold text-slate-500">Önerilen zorunlu roller</p>
                       {skillRecs.map(r => (
                         <div key={r.shiftId + r.skill} className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
                           <div className="flex-1 min-w-[220px]">
@@ -1443,7 +1443,7 @@ export default function SettingsPage() {
                         }} />
                       </div>
                       {shift.on_call && (
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
                           <span className="flex-1 min-w-[180px]">İcap: evden beklenir, çalışma saatine ve mesaiye sayılmaz. Çağrılınca çalışılan saat Vardiya Planı&apos;ndan girilir.</span>
                           <label className="flex items-center gap-1 font-semibold">
                             İcap ücreti
@@ -1461,7 +1461,7 @@ export default function SettingsPage() {
                         </div>
                       )}
                       {!shift.on_call && (savedIndustry?.key === "logistics" || (shift.driving_hours ?? 0) > 0) && (
-                        <label className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5">
+                        <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5">
                           <span className="font-semibold">Direksiyon süresi</span>
                           <input type="number" min={0} max={12} step={0.5} value={shift.driving_hours ?? ""} placeholder="0"
                             onChange={e => {
@@ -1477,17 +1477,17 @@ export default function SettingsPage() {
                         </label>
                       )}
                       {(shift.driving_hours ?? 0) > DAILY_DRIVING_EXTENDED_HOURS && (
-                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                        <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Günlük direksiyon süresi 10 saati aşamaz (AETR). Bu vardiya kimseye yazılmaz.
                         </p>
                       )}
                       {!shift.on_call && netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
-                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                        <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Vardiya {shiftDurationHours(shift)} saat: yasal mola düşülse de günlük 11 saat sınırını aşıyor (İş Kanunu m.63). Saatleri kısaltın.
                         </p>
                       )}
                       {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
-                        <p className="text-[10px] text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                        <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
                         </p>
                       )}
@@ -1496,7 +1496,7 @@ export default function SettingsPage() {
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-400">Zorluk ağırlığı</span>
-                          <span className={cn("text-sm font-black", pointsColor(shift.base_points))}>{shift.base_points}</span>
+                          <span className={cn("text-sm font-bold", pointsColor(shift.base_points))}>{shift.base_points}</span>
                         </div>
                         <input
                           type="range"
@@ -1512,7 +1512,7 @@ export default function SettingsPage() {
                           }}
                           className={cn("w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-200", pointsAccent(shift.base_points))}
                         />
-                        <div className="flex justify-between text-[9px] text-slate-300 px-0.5">
+                        <div className="flex justify-between text-xs text-slate-300 px-0.5">
                           <span>Kolay</span><span>Orta</span><span>Zor</span>
                         </div>
                       </div>
@@ -2192,7 +2192,7 @@ export default function SettingsPage() {
 
                 {/* Ekip Ekle */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Ekip</p>
+                  <p className="text-xs font-bold text-slate-400">Yeni Ekip</p>
                   <div className="flex flex-wrap items-end gap-3">
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">Ekip Adı</label>
@@ -2316,9 +2316,9 @@ export default function SettingsPage() {
                     </div>
                     {workCycle?.pattern && WORK_CYCLES[workCycle.pattern] && (
                       <>
-                        <p className="text-[11px] text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Ekibe yeniden dağıt&quot;a basın.</p>
+                        <p className="text-xs text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Ekibe yeniden dağıt&quot;a basın.</p>
                         <div className="overflow-x-auto">
-                          <table className="text-[11px]">
+                          <table className="text-xs">
                             <thead><tr><th className="text-left pr-3 font-semibold text-slate-500">Bu hafta</th>{DAY_SHORT.map(d => <th key={d} className="px-1 font-semibold text-slate-500">{d}</th>)}</tr></thead>
                             <tbody>
                               {cyclePersonnel.map(p => {
@@ -2339,7 +2339,7 @@ export default function SettingsPage() {
                               })}
                             </tbody>
                           </table>
-                          <p className="text-[10px] text-slate-400 mt-1">Ç: çalışır · Gü: gündüz · G: gece · –: dinlenme · ?: döngüye dağıtılmamış</p>
+                          <p className="text-xs text-slate-400 mt-1">Ç: çalışır · Gü: gündüz · G: gece · –: dinlenme · ?: döngüye dağıtılmamış</p>
                         </div>
                       </>
                     )}
@@ -2408,7 +2408,7 @@ export default function SettingsPage() {
                 {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                     <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
+                      <h3 className="text-xs font-bold text-slate-400">Ekip · Vardiya Ataması (Hafta Bazında)</h3>
                     </div>
                     <div className="p-5 overflow-x-auto">
                       <table className="w-full text-sm">
@@ -2577,7 +2577,7 @@ export default function SettingsPage() {
                         />
                         <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
-                      {salesDataError && <p className="text-[10px] text-red-600">{salesDataError}</p>}
+                      {salesDataError && <p className="text-xs text-red-600">{salesDataError}</p>}
                       {salesData.length > 0 && (
                         <div className="space-y-1 max-h-40 overflow-y-auto">
                           {salesData.slice(0, 14).map(s => (
@@ -2637,7 +2637,7 @@ export default function SettingsPage() {
                       >
                         {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
                       </button>
-                      <p className="text-[10px] text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
+                      <p className="text-xs text-slate-400 mt-1.5">Bu linki ortak tabletin tarayıcısında sabit sekme olarak açın.</p>
                     </div>
                 </FeatureCard>
               </FeatureGroup>

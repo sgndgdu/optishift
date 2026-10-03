@@ -54,7 +54,7 @@ export default function GodLoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-slate-400 mb-2">
               Şifre
             </label>
             <div className="relative">

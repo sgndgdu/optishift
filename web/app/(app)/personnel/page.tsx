@@ -775,10 +775,10 @@ export default function PersonnelPage() {
               {useMultiSelect ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Şube(ler) *</label>
+                    <label className="text-xs font-bold text-slate-600">Şube(ler) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -803,10 +803,10 @@ export default function PersonnelPage() {
               {useMultiSelect && selLocIds.length > 0 && allSelectedDepts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Departman(lar) *</label>
+                    <label className="text-xs font-bold text-slate-600">Departman(lar) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => setSelDeptIds([])} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => setSelDeptIds([])} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -891,7 +891,7 @@ export default function PersonnelPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Saatlik Ücret (₺, brüt)</label>
                     <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!can("budget")} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400 disabled:opacity-60 disabled:cursor-not-allowed" />
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-xs text-slate-400 mt-1">
                       {can("budget")
                         ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
                         : `🔒 ${LOCK_NOTE}`}
@@ -910,7 +910,7 @@ export default function PersonnelPage() {
                       <option value="under18">18 yaş altı (gece çalışamaz)</option>
                       <option value="medical">Sağlık raporu (gece çalışamaz)</option>
                     </select>
-                    <p className="text-[10px] text-slate-400 mt-1">Bir engel seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
+                    <p className="text-xs text-slate-400 mt-1">Bir engel seçiliyse otomatik planlama bu kişiye hiçbir gece vardiyası yazmaz (İş K. m.73). Elle atamalarda yayın öncesi uyarı verilir.</p>
                   </div>
                   <label className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 cursor-pointer">
                     <input
@@ -920,7 +920,7 @@ export default function PersonnelPage() {
                       className="w-4 h-4 rounded accent-forest-600"
                     />
                     <span className="text-sm font-semibold text-slate-700">Kıdemli Personel</span>
-                    <span className="text-[10px] text-slate-400 ml-auto">Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları&apos;ndaki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
+                    <span className="text-xs text-slate-400 ml-auto">Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları&apos;ndaki &quot;Kıdemli Personel Kuralı&quot; açıksa, otomatik planlama her vardiyada en az 1 kıdemli bulundurmaya çalışır</span>
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
@@ -936,7 +936,7 @@ export default function PersonnelPage() {
                       <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
+                  <p className="text-xs text-slate-400 -mt-2">Kalan izin otomatik hesaplanır: Ayarlar'da &quot;Kıdeme Göre İzin Hak Edişi&quot; açıksa işe giriş tarihinden (1-5 yıl 14g, 5+ yıl 20g, 15+ yıl 26g, devirli); kapalıysa buradaki sabit günden. Düzeltme alanı geçmiş dönem devri gibi elle eklemeler içindir.</p>
                   {crewList.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Ekip Ataması</label>
@@ -955,7 +955,7 @@ export default function PersonnelPage() {
                   {branchIndustry && (
                     <div>
                       <label className="text-xs font-bold text-slate-600 mb-1 block">Rol ve Yetkinlikler</label>
-                      <p className="text-[10px] text-slate-400 mb-2">Otomatik planlama, bir vardiyada &quot;en az 1 Bakım Teknisyeni&quot; gibi zorunluluğu bu listeye bakarak karşılar.</p>
+                      <p className="text-xs text-slate-400 mb-2">Otomatik planlama, bir vardiyada &quot;en az 1 Bakım Teknisyeni&quot; gibi zorunluluğu bu listeye bakarak karşılar.</p>
                       <div className="flex flex-wrap gap-1.5">
                         {branchIndustry.roles.map(role => {
                           const selected = editForm.roles.includes(role.label);
@@ -991,7 +991,7 @@ export default function PersonnelPage() {
                   {complianceTrackingEnabled && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Belgeler</label>
-                      <p className="text-[10px] text-slate-400 mb-2">
+                      <p className="text-xs text-slate-400 mb-2">
                         {branchIndustry
                           ? "Bir rolün gerektirdiği belge geçersizse kişi o role atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
                           : "Süresi dolmuş zorunlu bir belgesi olan personel, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
@@ -1001,7 +1001,7 @@ export default function PersonnelPage() {
                           {requiredDocStates.map(({ spec, state }) => (
                             <button key={spec.id} type="button" onClick={() => state !== "valid" && setNewDocType(spec.label)}
                               title={state === "valid" ? "Geçerli" : state === "expired" ? "Süresi dolmuş, yenisini ekleyin" : spec.strict ? "Kritik belge girilmemiş: ilgili role atanamaz" : "Girilmemiş"}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                              className={`px-2 py-1 rounded-lg text-xs font-bold border ${
                                 state === "valid" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                 : state === "expired" || spec.strict ? "bg-red-50 text-red-700 border-red-100"
                                 : "bg-amber-50 text-amber-700 border-amber-100"}`}>
@@ -1037,13 +1037,13 @@ export default function PersonnelPage() {
                         <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-white focus:outline-none focus:border-forest-400" />
                         <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
-                      {docError && <p className="text-[10px] text-red-600 mt-1">{docError}</p>}
+                      {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
                     </div>
                   )}
                   {kioskModeEnabled && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Ortak Tablet PIN'i</label>
-                      <p className="text-[10px] text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açık şubelerde geçerlidir.</p>
+                      <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açık şubelerde geçerlidir.</p>
                       {editingPerson?.kiosk_pin_set ? (
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
                           <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>
@@ -1063,7 +1063,7 @@ export default function PersonnelPage() {
                           </button>
                         </div>
                       )}
-                      {kioskPinError && <p className="text-[10px] text-red-600 mt-1">{kioskPinError}</p>}
+                      {kioskPinError && <p className="text-xs text-red-600 mt-1">{kioskPinError}</p>}
                     </div>
                   )}
                 </>

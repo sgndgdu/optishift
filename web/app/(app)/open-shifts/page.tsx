@@ -234,7 +234,7 @@ export default function OpenShiftsPage() {
       {showForm && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50 space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-black text-slate-900">Yeni Açık Vardiya İlanı</h2>
+            <h2 className="text-base font-bold text-slate-900">Yeni Açık Vardiya İlanı</h2>
             <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200">
               <X size={14} />
             </button>
@@ -242,17 +242,17 @@ export default function OpenShiftsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Tarih</label>
+              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Tarih</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Başlangıç</label>
+              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Başlangıç</label>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Bitiş</label>
+              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Bitiş</label>
               <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
                 className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
             </div>
@@ -260,7 +260,7 @@ export default function OpenShiftsPage() {
 
           {/* Hero bonus selector */}
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+            <label className="text-xs font-bold text-slate-400 mb-2 block flex items-center gap-1">
               <Star size={10} className="text-amber-500" /> Kahraman Bonus Puanı
             </label>
             <div className="flex gap-2">
@@ -276,14 +276,14 @@ export default function OpenShiftsPage() {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">• Ayarlar → Gelişmiş Seçenekler → Adalet Puanı&apos;ndaki varsayılan bonus</p>
+            <p className="text-xs text-slate-400 mt-1">• Ayarlar → Gelişmiş Seçenekler → Adalet Puanı&apos;ndaki varsayılan bonus</p>
             <p className="text-xs text-slate-400 mt-1.5">
               {bonus === 0 ? "Standart puan (bonus yok)" : `Bu vardiyayı üstlenen personel +${bonus} puan kahraman bonusu kazanır`}
             </p>
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (isteğe bağlı)</label>
+            <label className="text-xs font-bold text-slate-400 mb-1.5 block">Not (isteğe bağlı)</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
               placeholder="Personele ek bilgi..."
               className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors resize-none" />
@@ -310,7 +310,6 @@ export default function OpenShiftsPage() {
         {loading && <div className="text-center py-12 text-slate-400 text-sm">Yükleniyor…</div>}
         {!loading && shifts.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-500">
-            <Megaphone size={40} strokeWidth={1.5} />
             <p className="text-sm font-semibold">Henüz açık vardiya ilanı yok</p>
             <p className="text-xs text-center max-w-xs">Personelin rapor aldığında veya acil kapanma gerektiğinde ilan oluştur. Personele anlık bildirim gider.</p>
           </div>
@@ -327,7 +326,7 @@ export default function OpenShiftsPage() {
                     </StatusPill>
                   )}
                 </div>
-                <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>
+                <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
                 {s.note && <p className="text-xs text-slate-400 mt-1 italic">"{s.note}"</p>}
               </div>
@@ -369,7 +368,7 @@ export default function OpenShiftsPage() {
                   {!bids[s.id] && (
                     <button
                       onClick={() => loadBids(s.id)}
-                      className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-700 hover:bg-sky-100 transition-colors"
+                      className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-700 hover:bg-sky-100 transition-colors"
                     >
                       Teklifleri Göster
                     </button>
@@ -390,20 +389,20 @@ export default function OpenShiftsPage() {
                             {b.personnel_name}
                             <span className="ml-2 font-medium text-sky-600">+{b.requested_bonus_points} puan istiyor</span>
                           </p>
-                          {b.note && <p className="text-[10px] text-slate-400 truncate italic">"{b.note}"</p>}
+                          {b.note && <p className="text-xs text-slate-400 truncate italic">"{b.note}"</p>}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             disabled={bidActingId === b.id}
                             onClick={() => handleBidAction(b.id, "reject", s.id)}
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
                           >
                             Reddet
                           </button>
                           <button
                             disabled={bidActingId === b.id}
                             onClick={() => handleBidAction(b.id, "accept", s.id)}
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors disabled:opacity-50"
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors disabled:opacity-50"
                           >
                             {bidActingId === b.id ? "…" : "Kabul Et"}
                           </button>
@@ -423,7 +422,7 @@ export default function OpenShiftsPage() {
                   {!candidates[s.id] && (
                     <button
                       onClick={() => loadCandidates(s.id)}
-                      className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                      className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
                     >
                       Uygun Adayları Göster
                     </button>
@@ -439,26 +438,26 @@ export default function OpenShiftsPage() {
                   <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
                     {candidates[s.id].list.map((c: any, i: number) => (
                       <div key={c.personnel_id} className="flex items-center gap-3 px-3 py-2 bg-white">
-                        <span className="text-[10px] font-black text-slate-300 w-4 shrink-0">{i + 1}</span>
+                        <span className="text-xs font-bold text-slate-300 w-4 shrink-0">{i + 1}</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-slate-800 truncate">
                             {c.name}
                             <span className="ml-2 font-medium text-slate-400">{Math.round(c.prev_score)} puan</span>
                           </p>
                           {c.warnings.length > 0 && (
-                            <p className="text-[10px] text-amber-600 truncate">⚠ {c.warnings.join(" · ")}</p>
+                            <p className="text-xs text-amber-600 truncate">⚠ {c.warnings.join(" · ")}</p>
                           )}
                         </div>
                         <button
                           disabled={assigning === s.id}
                           onClick={() => handleAssign(s, c)}
-                          className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                          className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
                         >
                           {assigning === s.id ? "Atanıyor…" : "Ata"}
                         </button>
                       </div>
                     ))}
-                    <p className="text-[10px] text-slate-400 px-3 py-1.5 bg-slate-50">
+                    <p className="text-xs text-slate-400 px-3 py-1.5 bg-slate-50">
                       Sıralama: en az yük taşıyan önce (adalet puanı). Uyarılı adaylar sona alınır.
                     </p>
                   </div>

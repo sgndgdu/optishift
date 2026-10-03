@@ -87,24 +87,24 @@ function TimePicker({ currentMin, isEnd, statusCfg, onApply, onClose }: {
 
         {/* Saat */}
         <div className="flex flex-col items-center gap-2">
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Saat</span>
+          <span className="text-xs font-bold text-slate-400">Saat</span>
           <button onClick={() => setHour(h => Math.min(maxHour, h + 1))}
-            className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-black text-lg flex items-center justify-center active:scale-95 transition-transform">+</button>
+            className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-bold text-lg flex items-center justify-center active:scale-95 transition-transform">+</button>
           <div className="text-center min-w-[52px]">
             {nextDay && <div className="text-[8px] text-ember-500 font-bold mb-0.5">ertesi gün</div>}
-            <div className={`text-3xl font-black tabular-nums leading-none ${nextDay ? "text-ember-700" : "text-slate-800"}`}>
+            <div className={`text-3xl font-bold tabular-nums leading-none ${nextDay ? "text-ember-700" : "text-slate-800"}`}>
               {String(dispHour).padStart(2, "0")}
             </div>
           </div>
           <button onClick={() => setHour(h => Math.max(0, h - 1))}
-            className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-black text-lg flex items-center justify-center active:scale-95 transition-transform">−</button>
+            className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-bold text-lg flex items-center justify-center active:scale-95 transition-transform">−</button>
         </div>
 
-        <span className="text-3xl font-black text-slate-300 mb-1">:</span>
+        <span className="text-3xl font-bold text-slate-300 mb-1">:</span>
 
         {/* Dakika — 4 pill */}
         <div className="flex flex-col items-center gap-2">
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Dakika</span>
+          <span className="text-xs font-bold text-slate-400">Dakika</span>
           <div className="grid grid-cols-2 gap-1.5">
             {[0, 15, 30, 45].map(m => (
               <button key={m} onClick={() => setMin(m)}
@@ -178,7 +178,7 @@ function RangeSlider({ start, end, status, onChange }: {
       </div>
 
       {/* Saat işaretleri */}
-      <div className="flex justify-between text-[9px] font-semibold mt-0.5">
+      <div className="flex justify-between text-xs font-semibold mt-0.5">
         {["00:00","06:00","12:00","18:00","00:00","06:00"].map((t, i) => (
           <span key={i} className={i === 4 ? "text-slate-600 font-bold" : "text-slate-400"}>{t}</span>
         ))}
@@ -188,21 +188,21 @@ function RangeSlider({ start, end, status, onChange }: {
       <div className="flex items-end justify-between mt-3">
         <button onClick={() => setPicker(p => p === "start" ? null : "start")}
           className={`text-left rounded-xl px-2 py-1 -ml-2 transition-colors ${picker === "start" ? cfg.light : "hover:bg-slate-50"}`}>
-          <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Başlangıç</div>
-          <div className="text-2xl font-black text-slate-800 tabular-nums leading-none">{displayTime(sMin)}</div>
+          <div className="text-xs font-semibold text-slate-400 mb-0.5">Başlangıç</div>
+          <div className="text-2xl font-bold text-slate-800 tabular-nums leading-none">{displayTime(sMin)}</div>
         </button>
 
-        <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full mb-0.5 ${cfg.light} ${cfg.ltext}`}>
+        <div className={`text-xs font-bold px-2.5 py-1 rounded-full mb-0.5 ${cfg.light} ${cfg.ltext}`}>
           {durLabel}
         </div>
 
         <button onClick={() => setPicker(p => p === "end" ? null : "end")}
           className={`text-right rounded-xl px-2 py-1 -mr-2 transition-colors ${picker === "end" ? cfg.light : "hover:bg-slate-50"}`}>
-          <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5 flex items-center justify-end gap-1">
+          <div className="text-xs font-semibold text-slate-400 mb-0.5 flex items-center justify-end gap-1">
             Bitiş
             {isNextDay && <StatusPill tone="info">+1</StatusPill>}
           </div>
-          <div className={`text-2xl font-black tabular-nums leading-none ${isNextDay ? "text-ember-700" : "text-slate-800"}`}>
+          <div className={`text-2xl font-bold tabular-nums leading-none ${isNextDay ? "text-ember-700" : "text-slate-800"}`}>
             {displayTime(eMin)}
           </div>
         </button>
@@ -390,7 +390,7 @@ export default function PortalAvailability() {
           <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
             <CalendarCheck size={22} className="text-forest-500" />
           </div>
-          <p className="text-lg font-black text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</p>
+          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</p>
           <p className="text-sm text-slate-500 max-w-xs">
             Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>
@@ -482,7 +482,7 @@ export default function PortalAvailability() {
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">
               <Copy size={13} /> Geçen haftanın aynısı
             </button>
-            <span className="text-[11px] text-slate-400 font-medium text-right">
+            <span className="text-xs text-slate-400 font-medium text-right">
               Esnek hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span>
             </span>
           </div>
@@ -499,8 +499,8 @@ export default function PortalAvailability() {
                   {/* Başlık satırı */}
                   <div className={`flex items-center gap-2 ${d.status !== "unavailable" && (expanded.has(i) || d.start) ? "mb-4" : ""}`}>
                     <div className="shrink-0 min-w-[90px]">
-                      <span className="font-black text-slate-800 text-[15px] block leading-tight">{name}</span>
-                      <span className="text-[11px] font-semibold text-slate-400">{weekDates[i]}</span>
+                      <span className="font-bold text-slate-800 text-[15px] block leading-tight">{name}</span>
+                      <span className="text-xs font-semibold text-slate-400">{weekDates[i]}</span>
                     </div>
                     <div className="flex gap-1.5 flex-1">
                       {(["available","preferred_not","unavailable"] as Status[]).map(s => {
@@ -508,7 +508,7 @@ export default function PortalAvailability() {
                         const active = d.status === s;
                         return (
                           <button key={s} onClick={() => setStatus(i, s)}
-                            className={`flex items-center justify-center gap-1 flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                            className={`flex items-center justify-center gap-1 flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
                               active
                                 ? `${c.bg} ${c.text} shadow-sm`
                                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -524,14 +524,14 @@ export default function PortalAvailability() {
                   {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat. İstenirse açılır. */}
                   {d.status !== "unavailable" && !expanded.has(i) && !d.start && (
                     <button onClick={() => setExpanded(prev => new Set(prev).add(i))}
-                      className="mt-2 text-[11px] font-bold text-slate-400 hover:text-primary">
+                      className="mt-2 text-xs font-bold text-slate-400 hover:text-primary">
                       + Saat sınırı ekle
                     </button>
                   )}
                   {d.status !== "unavailable" && (expanded.has(i) || !!d.start) && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {(() => {
-                        const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+                        const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                           active ? `${cfg.bg} ${cfg.text} border-transparent shadow-sm` : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`;
                         return (
                           <>
@@ -555,7 +555,7 @@ export default function PortalAvailability() {
                     </div>
                   )}
                   {d.status !== "unavailable" && d.start && (
-                    <p className="text-[11px] text-slate-500 mb-1">
+                    <p className="text-xs text-slate-500 mb-1">
                       {d.status === "available"
                         ? "Bu saatlerin dışına vardiya yazılmaz."
                         : "Mümkünse bu saatlerin dışına vardiya yazılmaz."}

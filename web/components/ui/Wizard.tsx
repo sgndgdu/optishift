@@ -37,7 +37,7 @@ export function WizardProgress({ steps, current, className = "" }: {
               }`}>
                 {done ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}
               </div>
-              <span className={`text-[10px] font-bold hidden sm:block ${
+              <span className={`text-xs font-bold hidden sm:block ${
                 active ? "text-primary" : done ? "text-slate-600" : "text-slate-400"
               }`}>{s.label}</span>
             </div>
@@ -64,7 +64,7 @@ export function WizardStep({ icon, color, title, sub, children }: {
       <div className="flex items-start gap-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>{icon}</div>
         <div>
-          <h2 className="text-2xl font-black text-slate-900">{title}</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
           <p className="text-slate-500 text-sm mt-1">{sub}</p>
         </div>
       </div>

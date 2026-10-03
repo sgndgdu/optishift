@@ -203,7 +203,7 @@ export default function RegisterPage() {
 
               <form onSubmit={handleGoogleRegister} className="space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
                     <Store size={14} className="text-forest-500" />
                     İşletme Adı
                   </label>
@@ -216,7 +216,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
                     <AtSign size={14} className="text-forest-500" />
                     Kullanıcı Adı
                   </label>
@@ -226,7 +226,7 @@ export default function RegisterPage() {
                     placeholder="ahmet.yilmaz"
                     className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium font-mono bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1.5">Giriş yaparken kullanacaksınız (Google ile de giriş yapabilirsiniz). Sadece harf, rakam, nokta ve tire.</p>
+                  <p className="text-xs text-slate-400 mt-1.5">Giriş yaparken kullanacaksınız (Google ile de giriş yapabilirsiniz). Sadece harf, rakam, nokta ve tire.</p>
                 </div>
 
                 <button
@@ -254,7 +254,7 @@ export default function RegisterPage() {
                   <GoogleAuthButton intent="register" label="Google ile Kaydol" />
                   <div className="flex items-center gap-3">
                     <div className="h-px bg-slate-200 flex-1" />
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+                    <span className="text-xs font-bold text-slate-400">veya</span>
                     <div className="h-px bg-slate-200 flex-1" />
                   </div>
                 </div>
@@ -269,7 +269,7 @@ export default function RegisterPage() {
 
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
                     <Store size={14} className="text-forest-500" />
                     İşletme Adı
                   </label>
@@ -282,7 +282,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
                     <User size={14} className="text-forest-500" />
                     Adınız Soyadınız
                   </label>
@@ -295,7 +295,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">E-posta Adresi</label>
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">E-posta Adresi</label>
                   {/* Kullanıcı adı ayrıca sorulmaz: giriş e-postayla yapılır, kullanıcı adı sunucuda türetilir */}
                   <input
                     type="email"
@@ -307,7 +307,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Şifre</label>
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">Şifre</label>
                   <div className="relative">
                     <input
                       type={showPass ? "text" : "password"}
@@ -328,7 +328,7 @@ export default function RegisterPage() {
 
                 {showPromoField ? (
                   <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
                       <Gift size={14} className="text-ember-500" />
                       Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(isteğe bağlı)</span>
                     </label>
@@ -338,7 +338,7 @@ export default function RegisterPage() {
                         onChange={(e) => set("promo_code", e.target.value.toUpperCase())}
                         placeholder="Örn: OPTI3AY"
                         autoFocus={!initialPromo}
-                        className={`w-full border-2 rounded-2xl px-4 py-3.5 pr-11 text-slate-900 font-bold font-mono uppercase tracking-wider bg-white focus:outline-none transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case ${
+                        className={`w-full border-2 rounded-2xl px-4 py-3.5 pr-11 text-slate-900 font-bold font-mono bg-white focus:outline-none transition-colors placeholder:text-slate-400 placeholder:font-normal placeholder:normal-case ${
                           promoCheck.status === "valid"
                             ? "border-emerald-400 focus:border-emerald-500"
                             : promoCheck.status === "invalid"

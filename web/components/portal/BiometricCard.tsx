@@ -84,12 +84,12 @@ export default function BiometricCard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-slate-800">Bu cihazda hızlı giriş</p>
-              <p className="text-[11px] text-slate-400">Face ID / parmak izi ile şifresiz giriş yap</p>
+              <p className="text-xs text-slate-400">Face ID / parmak izi ile şifresiz giriş yap</p>
             </div>
             <button
               onClick={enroll}
               disabled={busy}
-              className="px-3 py-1.5 text-[11px] font-bold text-forest-700 bg-forest-50 rounded-lg hover:bg-forest-100 transition-colors disabled:opacity-50 shrink-0"
+              className="px-3 py-1.5 text-xs font-bold text-forest-700 bg-forest-50 rounded-lg hover:bg-forest-100 transition-colors disabled:opacity-50 shrink-0"
             >
               {busy ? "…" : "Etkinleştir"}
             </button>
@@ -101,18 +101,18 @@ export default function BiometricCard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-slate-800">Biyometrik giriş aktif</p>
-              <p className="text-[11px] text-slate-400">{creds.length} cihaz kayıtlı</p>
+              <p className="text-xs text-slate-400">{creds.length} cihaz kayıtlı</p>
             </div>
             <button
               onClick={() => setManageOpen(true)}
-              className="px-3 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+              className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
             >
               Yönet
             </button>
           </div>
         )}
         {msg && (
-          <p className={`text-[11px] font-semibold mt-2 ${msg.error ? "text-red-500" : "text-emerald-600"}`}>
+          <p className={`text-xs font-semibold mt-2 ${msg.error ? "text-red-500" : "text-emerald-600"}`}>
             {msg.text}
           </p>
         )}
@@ -122,7 +122,7 @@ export default function BiometricCard() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setManageOpen(false)}>
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900">Biyometrik Cihazlar</h3>
+              <h3 className="text-base font-bold text-slate-900">Biyometrik Cihazlar</h3>
               <button onClick={() => setManageOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
             <div className="space-y-2">
@@ -130,9 +130,9 @@ export default function BiometricCard() {
                 <div key={c.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2.5">
                   <div>
                     <p className="text-xs font-bold text-slate-700">{c.device_name ?? "Cihaz"}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(c.created_at * 1000).toLocaleDateString("tr-TR")} tarihinde eklendi</p>
+                    <p className="text-xs text-slate-400">{new Date(c.created_at * 1000).toLocaleDateString("tr-TR")} tarihinde eklendi</p>
                   </div>
-                  <button onClick={() => remove(c.id)} disabled={busy} className="text-[11px] font-bold text-red-500 hover:text-red-600 disabled:opacity-50">Kaldır</button>
+                  <button onClick={() => remove(c.id)} disabled={busy} className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50">Kaldır</button>
                 </div>
               ))}
             </div>

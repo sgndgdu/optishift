@@ -7,9 +7,7 @@ import { usePortalAuth } from "@/hooks/useAuth";
 import { getWeekStart as libGetWeekStart, formatDateTR, addDays, businessToday } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import {
-  Inbox, ArrowLeftRight, FileEdit, CalendarOff,
-  CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2,
-  AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX
+  ArrowLeftRight, FileEdit, CalendarOff, CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2, AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX,
 } from "lucide-react";
 import { violationText } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
@@ -603,14 +601,14 @@ export default function PortalRequests() {
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <Clock size={14} className="text-forest-600" />
-                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fazla Mesai Onayları</h2>
+                <h2 className="text-xs font-bold text-slate-500">Fazla Mesai Onayları</h2>
                 <CountBadge tone="brand" className="ml-1" count={overtimePending.length} />
               </div>
               {overtimePending.map((r: any) => (
                 <div key={r.id} className="bg-white rounded-2xl border border-forest-200 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-black text-slate-900">
+                      <p className="text-sm font-bold text-slate-900">
                         {r.overtime_hours} saat fazla mesai
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -620,7 +618,7 @@ export default function PortalRequests() {
                     </div>
                     <Clock size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   </div>
-                  <p className="text-[11px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                  <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
                     Kabul edersen telafi türünü sen seçersin: <b>zamlı ücret</b> (%50 artırımlı) veya <b>serbest zaman</b> (1 saat mesai = 1,5 saat izin).
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -663,7 +661,7 @@ export default function PortalRequests() {
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <ShieldAlert size={14} className="text-amber-600" />
-                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zorunlu Atama Talepleri</h2>
+                <h2 className="text-xs font-bold text-slate-500">Zorunlu Atama Talepleri</h2>
                 <CountBadge tone="attention" className="ml-1" count={forceAssigns.length} />
               </div>
               {forceAssigns.map((fa: any) => (
@@ -694,13 +692,12 @@ export default function PortalRequests() {
             {(forceAssigns.length > 0 || overtimePending.length > 0) && (
               <div className="flex items-center gap-1.5">
                 <ArrowLeftRight size={14} className="text-slate-400" />
-                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gelen Takas Teklifleri</h2>
+                <h2 className="text-xs font-bold text-slate-500">Gelen Takas Teklifleri</h2>
               </div>
             )}
           {swapsIn.length === 0 ? (
             forceAssigns.length === 0 && overtimePending.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-10 flex flex-col items-center gap-3 text-slate-400">
-              <Inbox size={36} strokeWidth={1.5} />
               <p className="text-sm font-semibold">Bekleyen gelen talep yok</p>
             </div>
             ) : null
@@ -712,7 +709,7 @@ export default function PortalRequests() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-black text-slate-900">{s.requester_name ?? "Personel"} sana takas teklif etti</p>
+                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Personel"} sana takas teklif etti</p>
                         <StatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -801,11 +798,11 @@ export default function PortalRequests() {
                 return busy
                   ? <div key={s.id} className="opacity-50 pointer-events-none relative">
                       <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
                     </div>
                   : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
               })}
-              <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+              <p className="text-xs text-slate-400 leading-relaxed pt-1">
                 Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
               </p>
               {myShifts.length > 0 && <button
@@ -824,7 +821,7 @@ export default function PortalRequests() {
               {/* Progress */}
               <div className="flex border-b border-slate-100">
                 {["Vardiyam", "Arkadaşım", "Vardiyası", "Gönder"].map((s, i) => (
-                  <div key={i} className={`flex-1 py-2.5 text-center text-[9px] sm:text-[10px] font-bold transition-colors px-1 ${
+                  <div key={i} className={`flex-1 py-2.5 text-center text-xs sm:text-xs font-bold transition-colors px-1 ${
                     swapStep === i ? "bg-primary text-white" : swapStep > i ? "bg-primary/10 text-primary" : "text-slate-400"
                   }`}>{s}</div>
                 ))}
@@ -859,7 +856,7 @@ export default function PortalRequests() {
                         </div>
                         <div>
                           <p className={`text-sm font-bold ${selMate?.id === p.id ? "text-primary" : "text-slate-800"}`}>{p.name}</p>
-                          <p className="text-[10px] text-slate-400">{p.title || "Personel"}</p>
+                          <p className="text-xs text-slate-400">{p.title || "Personel"}</p>
                         </div>
                       </button>
                     ))}
@@ -892,7 +889,7 @@ export default function PortalRequests() {
                       <p><span className="font-bold">Teklif alıcı:</span> {selMate?.name}</p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Not (isteğe bağlı)</label>
+                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">Not (isteğe bağlı)</label>
                       <textarea
                         value={swapNote}
                         onChange={e => setSwapNote(e.target.value)}
@@ -932,7 +929,7 @@ export default function PortalRequests() {
               {editShift && (
                 <>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Neden değiştirmek istiyorsun?</label>
+                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsun?</label>
                     <textarea
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
@@ -992,7 +989,7 @@ export default function PortalRequests() {
               {/* Politika özeti */}
               {leavePolicy && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Şube İzin Kuralları</p>
+                  <p className="text-xs font-bold text-slate-500">Şube İzin Kuralları</p>
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     <StatusPill tone={leavePolicy.require_reason ? "attention" : "positive"}>
                       {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret isteğe bağlı"}
@@ -1005,7 +1002,7 @@ export default function PortalRequests() {
               )}
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">İzin Türü</label>
+                <label className="text-xs font-bold text-slate-400 mb-1.5 block">İzin Türü</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {LEAVE_TYPES.map(t => (
                     <button
@@ -1027,7 +1024,7 @@ export default function PortalRequests() {
               {/* Tarih alanları — çoklu gün kapalıysa bitiş = başlangıç */}
               <div className={leavePolicy?.allow_multi_day === false ? "" : "grid grid-cols-2 gap-3"}>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
+                  <label className="text-xs font-bold text-slate-400 mb-1.5 block">
                     {leavePolicy?.allow_multi_day === false ? "İzin Tarihi" : "Başlangıç"}
                   </label>
                   <input
@@ -1042,7 +1039,7 @@ export default function PortalRequests() {
                 </div>
                 {leavePolicy?.allow_multi_day !== false && (
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Bitiş</label>
+                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Bitiş</label>
                     <input type="date" value={leaveEnd} min={leaveStart}
                       onChange={e => setLeaveEnd(e.target.value)}
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-primary transition-colors" />
@@ -1056,7 +1053,7 @@ export default function PortalRequests() {
               )}
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
+                <label className="text-xs font-bold text-slate-400 mb-1.5 block">
                   Mazeret / Açıklama {leavePolicy?.require_reason && <span className="text-red-500">*</span>}
                 </label>
                 <textarea
@@ -1086,14 +1083,14 @@ export default function PortalRequests() {
       {cancelConfirm && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
           onClick={() => setCancelConfirm(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-2xl space-y-4"
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl space-y-4"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600 shrink-0">
                 <AlertCircle size={20} />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-900">Talebi İptal Et</p>
+                <p className="text-sm font-bold text-slate-900">Talebi İptal Et</p>
                 <p className="text-xs text-slate-500 mt-0.5">Bu işlem geri alınamaz.</p>
               </div>
             </div>
@@ -1135,7 +1132,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-slate-400">{icon}</span>
-        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</h2>
+        <h2 className="text-xs font-bold text-slate-500">{title}</h2>
       </div>
       <div className="space-y-2">{children}</div>
     </div>
@@ -1182,10 +1179,10 @@ function SwapSteps({ status }: { status: string }) {
       {STEPS.map((label, i) => (
         <div key={label} className="flex items-center gap-1 flex-1 last:flex-none">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${dotCls[states[i]]}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${dotCls[states[i]]}`}>
               {states[i] === "done" ? "✓" : states[i] === "failed" ? "✕" : i + 1}
             </span>
-            <span className={`text-[10px] font-bold ${labelCls[states[i]]}`}>{label}</span>
+            <span className={`text-xs font-bold ${labelCls[states[i]]}`}>{label}</span>
           </div>
           {i < STEPS.length - 1 && (
             <div className={`flex-1 h-px mx-1 ${states[i] === "done" ? "bg-emerald-200" : "bg-slate-100"}`} />
@@ -1274,12 +1271,12 @@ function ForceAssignCard({ item, onRespond }: { item: any; onRespond: (action: "
           <ShieldAlert size={18} className="text-amber-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-slate-900">Zorunlu Atama Talebi</p>
+          <p className="text-sm font-bold text-slate-900">Zorunlu Atama Talebi</p>
           <p className="text-xs text-slate-500 mt-0.5">
             {item.date_label}{item.start_time && item.end_time ? ` · ${item.start_time}–${item.end_time}` : ""}
           </p>
           {item.location_name && (
-            <p className="text-[10px] text-slate-400 mt-0.5">{item.location_name}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{item.location_name}</p>
           )}
         </div>
       </div>

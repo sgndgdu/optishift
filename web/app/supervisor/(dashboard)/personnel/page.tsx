@@ -340,7 +340,6 @@ function SupervisorPersonnelInner() {
             <div className="p-6 space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}</div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center text-slate-400">
-              <Users size={32} className="mx-auto mb-3 text-slate-300" />
               <p className="font-semibold">{search ? "Arama sonucu bulunamadı." : "Henüz personel yok."}</p>
             </div>
           ) : (
@@ -353,9 +352,9 @@ function SupervisorPersonnelInner() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-slate-800 text-sm">{p.name}</span>
-                        <Badge variant={p.status === "active" ? "success" : "secondary"} className="text-[10px]">{p.status === "active" ? "Aktif" : "Pasif"}</Badge>
+                        <Badge variant={p.status === "active" ? "success" : "secondary"} className="text-xs">{p.status === "active" ? "Aktif" : "Pasif"}</Badge>
                         {p.user_access_level !== "employee" && (
-                          <Badge variant="warning" className="text-[10px]"><Shield size={9} className="mr-1" />{ACCESS_LEVELS.find(a => a.value === p.user_access_level)?.label}</Badge>
+                          <Badge variant="warning" className="text-xs"><Shield size={9} className="mr-1" />{ACCESS_LEVELS.find(a => a.value === p.user_access_level)?.label}</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
@@ -364,7 +363,7 @@ function SupervisorPersonnelInner() {
                         {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} /> {p.phone}</span>}
                         {loc && <span className="text-xs text-forest-600 font-semibold flex items-center gap-1"><Building2 size={11} /> {loc.name}</span>}
                         {p.crew_id && crewMap[p.crew_id] && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: crewMap[p.crew_id].color }}>
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: crewMap[p.crew_id].color }}>
                             {crewMap[p.crew_id].name}
                           </span>
                         )}
@@ -373,7 +372,7 @@ function SupervisorPersonnelInner() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="text-right mr-2 hidden md:block">
                         <div className="text-sm font-bold text-slate-700">{p.prev_score ?? 0}p</div>
-                        <div className="text-[10px] text-slate-400">adalet</div>
+                        <div className="text-xs text-slate-400">adalet</div>
                       </div>
                       {p.user_id && (
                         <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.id} title="Davet Linki"
@@ -397,9 +396,9 @@ function SupervisorPersonnelInner() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-slate-900">Çalışan Ekle</h2>
+              <h2 className="text-xl font-bold text-slate-900">Çalışan Ekle</h2>
               <button onClick={() => { setShowAddModal(false); setAddError(""); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={16} /></button>
             </div>
 
@@ -408,29 +407,29 @@ function SupervisorPersonnelInner() {
               {/* Temel bilgiler */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Ad Soyad *</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad *</label>
                   <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Ahmet Yılmaz"
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">E-posta</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">E-posta</label>
                   <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ahmet@sirket.com"
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Telefon</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="05XX XXX XX XX"
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 {isEmployee && (
                   <>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Unvan</label>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
                       <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Kasiyer"
                         className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Çalışma Tipi</label>
+                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
                       <select value={addForm.employment_type} onChange={e => setAddForm(f => ({ ...f, employment_type: e.target.value, ...("max_weekly_hours" in f && f.max_weekly_hours === defaultWeeklyHours(f.employment_type) ? { max_weekly_hours: defaultWeeklyHours(e.target.value) } : {}) }))}
                         className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
                         {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -444,10 +443,10 @@ function SupervisorPersonnelInner() {
               {useMultiSelect ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Şube(ler) *</label>
+                    <label className="text-xs font-bold text-slate-600">Şube(ler) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -462,7 +461,7 @@ function SupervisorPersonnelInner() {
                 </div>
               ) : (
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Şube *</label>
+                  <label className="text-xs font-bold text-slate-600 mb-2 block">Şube *</label>
                   <select value={singleLocId} onChange={e => setSingleLocId(e.target.value)}
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
                     <option value="">Şube seçin...</option>
@@ -475,10 +474,10 @@ function SupervisorPersonnelInner() {
               {useMultiSelect && selLocIds.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Departman(lar) *</label>
+                    <label className="text-xs font-bold text-slate-600">Departman(lar) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-[11px] font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => setSelDeptIds([])} className="text-[11px] font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => setSelDeptIds([])} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -515,21 +514,21 @@ function SupervisorPersonnelInner() {
       {inviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0"><Check size={24} className="text-emerald-600" /></div>
               <div>
-                <p className="font-black text-slate-900">{inviteModal.name} oluşturuldu!</p>
+                <p className="font-bold text-slate-900">{inviteModal.name} oluşturuldu!</p>
                 <p className="text-xs text-slate-500 mt-0.5">Personele aşağıdakilerden birini iletin</p>
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Davet Linki (Önerilen)</p>
+                <p className="text-xs font-bold text-slate-700">Davet Linki (Önerilen)</p>
                 <StatusPill tone="positive">7 gün geçerli</StatusPill>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
-                <p className="text-[11px] font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
+                <p className="text-xs font-mono text-slate-600 truncate flex-1">{inviteModal.inviteUrl}</p>
                 <button onClick={() => { navigator.clipboard.writeText(inviteModal.inviteUrl); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
                   className={cn("shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors", inviteCopied ? "bg-emerald-500 text-white" : "bg-forest-600 text-white hover:bg-forest-700")}>
                   {inviteCopied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
@@ -537,7 +536,7 @@ function SupervisorPersonnelInner() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Geçici Şifre (Yedek)</p>
+              <p className="text-xs font-bold text-slate-700 mb-2">Geçici Şifre (Yedek)</p>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">Kullanıcı adı:</span>
@@ -563,16 +562,16 @@ function SupervisorPersonnelInner() {
       {inviteLinkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setInviteLinkModal(null)}>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Link size={18} className="text-amber-600" /></div>
               <div>
-                <p className="text-sm font-black text-slate-900">{inviteLinkModal.name}</p>
+                <p className="text-sm font-bold text-slate-900">{inviteLinkModal.name}</p>
                 <p className="text-xs text-slate-500">Davet linki (7 gün geçerli)</p>
               </div>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-              <p className="text-[11px] text-slate-500 font-mono break-all leading-relaxed">{inviteLinkModal.url}</p>
+              <p className="text-xs text-slate-500 font-mono break-all leading-relaxed">{inviteLinkModal.url}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setInviteLinkModal(null)} className="flex-1">Kapat</Button>
@@ -589,31 +588,31 @@ function SupervisorPersonnelInner() {
       {editingPersonnel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setEditingPersonnel(null)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-slate-900">Personel Düzenle</h2>
+              <h2 className="text-xl font-bold text-slate-900">Personel Düzenle</h2>
               <button onClick={() => setEditingPersonnel(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={16} /></button>
             </div>
             <form onSubmit={handleEdit} className="space-y-4">
               {editError && <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600 font-medium">{editError}</div>}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Ad Soyad</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad Soyad</label>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Telefon</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon</label>
                   <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Unvan</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Unvan</label>
                   <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Çalışma Tipi</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1.5 block">Çalışma Tipi</label>
                   <select value={editForm.employment_type} onChange={e => setEditForm(f => ({ ...f, employment_type: e.target.value }))}
                     className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-forest-500 appearance-none">
                     {EMP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

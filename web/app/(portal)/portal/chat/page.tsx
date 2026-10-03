@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Users, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
+import { Send, Users, Check, CheckCheck, ArrowDown, Trash2, Search } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { CountBadge } from "@/components/ui/StatusPill";
 
@@ -277,7 +277,7 @@ export default function EmployeeChatPage() {
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-100 shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-black text-slate-700">Mesajlar</h2>
+              <h2 className="text-sm font-bold text-slate-700">Mesajlar</h2>
               {totalUnread > 0 && (
                 <CountBadge count={totalUnread} />
               )}
@@ -308,7 +308,7 @@ export default function EmployeeChatPage() {
                       <CountBadge size="sm" className="absolute -top-1 -right-1">{c.unread}</CountBadge>
                     )}
                   </div>
-                  <span className={`text-[9px] font-semibold truncate max-w-[52px] ${isSelected ? "text-primary" : "text-slate-500"}`}>
+                  <span className={`text-xs font-semibold truncate max-w-[52px] ${isSelected ? "text-primary" : "text-slate-500"}`}>
                     {c.name.split(" ")[0]}
                   </span>
                 </button>
@@ -326,7 +326,7 @@ export default function EmployeeChatPage() {
               <>
                 {groupContacts.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                    <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
                     {groupContacts.map(c => {
                       const isSelected = selected?.id === c.id;
                       return (
@@ -343,12 +343,12 @@ export default function EmployeeChatPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
                               <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
-                              {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+                              {c.lastAt && <span className="text-xs text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
                             </div>
                             {c.lastMessage ? (
-                              <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
+                              <p className={`text-xs truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
                             ) : (
-                              <p className="text-[11px] text-slate-500 font-medium">{c.label}</p>
+                              <p className="text-xs text-slate-500 font-medium">{c.label}</p>
                             )}
                           </div>
                         </button>
@@ -358,7 +358,7 @@ export default function EmployeeChatPage() {
                 )}
                 {individualContacts.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kişiler</p>
+                    <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kişiler</p>
                     {individualContacts.map(c => {
                       const isSelected = selected?.id === c.id;
                       return (
@@ -377,12 +377,12 @@ export default function EmployeeChatPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
                               <p className={`text-sm truncate ${isSelected ? "font-bold text-primary" : "font-semibold text-slate-700"}`}>{c.name}</p>
-                              {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+                              {c.lastAt && <span className="text-xs text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
                             </div>
                             {c.lastMessage ? (
-                              <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
+                              <p className={`text-xs truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
                             ) : (
-                              <p className="text-[11px] text-slate-500 font-medium">{c.label}</p>
+                              <p className="text-xs text-slate-500 font-medium">{c.label}</p>
                             )}
                           </div>
                         </button>
@@ -397,9 +397,8 @@ export default function EmployeeChatPage() {
           {/* Mobile: empty directory state */}
           {!selected && (
             <div className="flex md:hidden flex-1 flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
-              <MessageSquare size={36} strokeWidth={1.5} />
               <p className="text-xs font-medium">Kime yazmak istiyorsunuz?</p>
-              <p className="text-[11px] text-slate-400">Yukarıdan bir kişi seçin.</p>
+              <p className="text-xs text-slate-400">Yukarıdan bir kişi seçin.</p>
             </div>
           )}
         </div>
@@ -421,14 +420,14 @@ export default function EmployeeChatPage() {
                   {selected.type === "group" ? <Users size={14} /> : selected.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-slate-900 truncate">{selected.name}</p>
-                  <p className="text-[10px] text-slate-400">{selected.label}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{selected.name}</p>
+                  <p className="text-xs text-slate-400">{selected.label}</p>
                 </div>
                 {clearConfirm ? (
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[11px] text-slate-500">Sil?</span>
-                    <button onClick={clearConversation} className="text-[11px] font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors">Evet</button>
-                    <button onClick={() => setClearConfirm(false)} className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg transition-colors">İptal</button>
+                    <span className="text-xs text-slate-500">Sil?</span>
+                    <button onClick={clearConversation} className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors">Evet</button>
+                    <button onClick={() => setClearConfirm(false)} className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg transition-colors">İptal</button>
                   </div>
                 ) : (
                   <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
@@ -443,7 +442,6 @@ export default function EmployeeChatPage() {
                 className="flex-1 overflow-y-auto px-4 py-3 space-y-1 bg-slate-50/50">
                 {grouped.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-300 py-12">
-                    <MessageSquare size={36} strokeWidth={1.5} />
                     <p className="text-xs font-medium">İlk mesajı sen gönder!</p>
                   </div>
                 )}
@@ -451,7 +449,7 @@ export default function EmployeeChatPage() {
                   <div key={date}>
                     <div className="flex items-center gap-2 my-3">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{date}</span>
+                      <span className="text-xs font-bold text-slate-400">{date}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
                     {msgs.map(m => {
@@ -461,13 +459,13 @@ export default function EmployeeChatPage() {
                       return (
                         <div key={m.id} className={`flex gap-2 mb-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
                           {!isMe && (
-                            <div className="w-6 h-6 rounded-full bg-forest-100 flex items-center justify-center text-[10px] font-bold text-forest-600 shrink-0 mt-0.5">
+                            <div className="w-6 h-6 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0 mt-0.5">
                               {name?.charAt(0)?.toUpperCase() ?? "?"}
                             </div>
                           )}
                           <div className={`max-w-[80%] sm:max-w-[72%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
                             {!isMe && selected.type === "group" && (
-                              <span className="text-[10px] font-bold text-slate-400 px-1">{name}</span>
+                              <span className="text-xs font-bold text-slate-400 px-1">{name}</span>
                             )}
                             <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                               isMe
@@ -477,7 +475,7 @@ export default function EmployeeChatPage() {
                               {m.content}
                             </div>
                             <div className={`flex items-center gap-1 px-1 ${isMe ? "flex-row-reverse" : ""}`}>
-                              <span className="text-[10px] text-slate-400">{formatTime(m.created_at)}</span>
+                              <span className="text-xs text-slate-400">{formatTime(m.created_at)}</span>
                               {isMe && !m._optimistic && selected.type === "individual" && (
                                 isRead
                                   ? <CheckCheck size={12} className="text-blue-400" />
@@ -518,9 +516,8 @@ export default function EmployeeChatPage() {
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-300 p-8 text-center">
-              <MessageSquare size={36} strokeWidth={1.5} />
               <p className="text-xs font-semibold">Kime yazmak istiyorsunuz?</p>
-              <p className="text-[11px] text-slate-400">Soldan bir kişi veya kanal seçin.</p>
+              <p className="text-xs text-slate-400">Soldan bir kişi veya kanal seçin.</p>
             </div>
           )}
         </div>

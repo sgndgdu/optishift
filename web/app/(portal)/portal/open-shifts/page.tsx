@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { Megaphone, Star, Gavel, Clock } from "lucide-react";
+import { Star, Gavel, Clock } from "lucide-react";
 import { usePortalAuth } from "@/hooks/useAuth";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
@@ -117,7 +117,6 @@ export default function PortalOpenShiftsPage() {
 
       {!loading && shifts.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 p-10 flex flex-col items-center gap-3 text-slate-300">
-          <Megaphone size={36} strokeWidth={1.5} />
           <p className="text-sm font-semibold text-slate-400">Şu an {words.openShift} ilanı yok</p>
         </div>
       )}
@@ -132,7 +131,7 @@ export default function PortalOpenShiftsPage() {
               <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
                 <StatusPill tone="neutral">Senin ilanın</StatusPill>
                 <div>
-                  <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>
+                  <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
                   <p className="text-xs text-slate-500 mt-1">Biri üstlenene kadar bu vardiya sende kalır.</p>
                 </div>
@@ -161,7 +160,7 @@ export default function PortalOpenShiftsPage() {
                 )}
               </div>
               <div>
-                <p className="text-sm font-black text-slate-900">{formatDate(s.date)}</p>
+                <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
                 {s.note && <p className="text-xs text-slate-400 mt-1 italic">&quot;{s.note}&quot;</p>}
               </div>

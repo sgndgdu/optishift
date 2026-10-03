@@ -138,7 +138,7 @@ export default function LoginPage() {
               )}
               <div className="flex items-center gap-3">
                 <div className="h-px bg-slate-200 flex-1" />
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">veya</span>
+                <span className="text-xs font-bold text-slate-400">veya</span>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Kullanıcı Adı veya E-Posta</label>
+              <label className="text-xs font-bold text-slate-700 mb-2 block">Kullanıcı Adı veya E-Posta</label>
               <div className="relative">
                 <AtSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -176,7 +176,7 @@ export default function LoginPage() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Şifre</label>
+                <label className="text-xs font-bold text-slate-700">Şifre</label>
                 <Link href="/forgot-password" className="text-xs text-forest-600 font-semibold hover:text-forest-700 transition-colors">
                   Şifremi Unuttum
                 </Link>
@@ -229,7 +229,7 @@ export default function LoginPage() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-600/20 rounded-full blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-md text-center">
-          <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-sm">
+          <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-8 backdrop-blur-sm">
             <ShieldCheck size={40} className="text-forest-400" />
           </div>
           <h2 className="font-serif text-3xl font-semibold text-white mb-4 leading-tight">

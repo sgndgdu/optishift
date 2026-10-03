@@ -46,7 +46,7 @@ export default function MobileTabBar({ scope = "branch" }: { scope?: "branch" | 
               <Link href={href} className={cn("flex flex-col items-center gap-1 w-full py-1.5 rounded-2xl relative", active ? "text-primary" : "text-slate-400")}>
                 {active && <span className="absolute inset-0 bg-primary/10 rounded-2xl" />}
                 <Icon size={20} strokeWidth={active ? 2.5 : 2} className="relative" />
-                <span className={cn("text-[10px] relative", active ? "font-bold" : "font-medium")}>{label}</span>
+                <span className={cn("text-xs relative", active ? "font-bold" : "font-medium")}>{label}</span>
               </Link>
             </li>
           );

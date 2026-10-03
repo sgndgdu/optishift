@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
                 <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <AtSign size={22} className="text-forest-600" />
                 </div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">Şifremi Unuttum</h1>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Şifremi Unuttum</h1>
                 <p className="text-sm text-slate-500 mt-1.5">
                   Hesabınıza kayıtlı e-posta adresinizi veya kullanıcı adınızı girin.
                 </p>
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">
                     E-posta veya Kullanıcı Adı
                   </label>
                   <div className="relative">
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
                 <Mail size={26} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">Talebiniz Alındı</h2>
+                <h2 className="text-lg font-bold text-slate-900">Talebiniz Alındı</h2>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                   Eğer bu e-posta / kullanıcı adı sistemimizde kayıtlıysa, kayıtlı e-posta
                   adresine bir sıfırlama bağlantısı gönderdik. Bağlantı 1 saat geçerlidir.

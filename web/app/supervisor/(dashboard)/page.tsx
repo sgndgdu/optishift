@@ -159,7 +159,7 @@ export default function SupervisorDashboard() {
       {/* Bekleyen Düzenleme Onayları */}
       {editRequests.length > 0 && (
         <div>
-          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
             Bekleyen Onaylar
             <CountBadge tone="attention" count={editRequests.length} />
           </h2>
@@ -218,7 +218,7 @@ export default function SupervisorDashboard() {
 
       {/* Şube kartları */}
       <div>
-        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Şubeler</h2>
+        <h2 className="text-sm font-bold text-slate-400 mb-4">Şubeler</h2>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,7 +260,7 @@ export default function SupervisorDashboard() {
                         <MapPin size={18} className="text-forest-600" />
                       </div>
                       <div>
-                        <p className="font-black text-slate-800 text-base">{loc.name}</p>
+                        <p className="font-bold text-slate-800 text-base">{loc.name}</p>
                       </div>
                     </div>
                   </div>
@@ -269,14 +269,14 @@ export default function SupervisorDashboard() {
                   <div className={`grid gap-3 ${loc.dept_count > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
                     {loc.dept_count > 0 && (
                       <div className="bg-slate-50 rounded-xl p-3 text-center">
-                        <p className="text-lg font-black text-forest-600">{loc.dept_count}</p>
-                        <p className="text-[11px] font-semibold text-slate-500">Departman</p>
+                        <p className="text-lg font-bold text-forest-600">{loc.dept_count}</p>
+                        <p className="text-xs font-semibold text-slate-500">Departman</p>
                       </div>
                     )}
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/personnel?location_id=${loc.id}`); }}>
-                      <p className="text-lg font-black text-emerald-600">{loc.personnel_count}</p>
-                      <p className="text-[11px] font-semibold text-slate-500">Personel</p>
+                      <p className="text-lg font-bold text-emerald-600">{loc.personnel_count}</p>
+                      <p className="text-xs font-semibold text-slate-500">Personel</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 text-center cursor-pointer hover:bg-forest-50 transition-colors"
                       onClick={e => { e.stopPropagation(); router.push(`/supervisor/schedule?location_id=${loc.id}`); }}>
@@ -285,14 +285,14 @@ export default function SupervisorDashboard() {
                           ? { short: "Hazır", tone: "good" as const }
                           : formatPublishLead(loc.publish_lead);
                         return (
-                          <p title={"sentence" in lead && lead.sentence ? lead.sentence : "Gelecek haftanın planı yayınlandı"} className={`text-base font-black leading-7 ${
+                          <p title={"sentence" in lead && lead.sentence ? lead.sentence : "Gelecek haftanın planı yayınlandı"} className={`text-base font-bold leading-7 ${
                             lead.tone === "none" ? "text-slate-300" : lead.tone === "good" ? "text-emerald-600"
                             : lead.tone === "ok" ? "text-amber-600" : "text-red-600"}`}>
                             {lead.short}
                           </p>
                         );
                       })()}
-                      <p className="text-[11px] font-semibold text-slate-500">Plan yayını</p>
+                      <p className="text-xs font-semibold text-slate-500">Plan yayını</p>
                     </div>
                   </div>
 

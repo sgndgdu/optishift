@@ -160,7 +160,7 @@ function BreaksPageInner() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Coffee size={14} className="text-amber-500" />
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Şu An Molada</h2>
+          <h2 className="text-xs font-bold text-slate-500">Şu An Molada</h2>
         </div>
         {loading && <p className="text-sm text-slate-400">Yükleniyor…</p>}
         {!loading && active.length === 0 && (
@@ -175,18 +175,18 @@ function BreaksPageInner() {
             const isLong = elapsedMin >= maxBreakMin;
             return (
               <div key={s.id} className={`bg-white rounded-2xl border p-4 flex items-center gap-4 ${isLong ? "border-red-200" : "border-amber-200"}`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${isLong ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${isLong ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
                   {s.personnel_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Link href="/personnel" className="text-sm font-black text-slate-900 hover:underline hover:text-primary">{s.personnel_name}</Link>
+                  <Link href="/personnel" className="text-sm font-bold text-slate-900 hover:underline hover:text-primary">{s.personnel_name}</Link>
                   <p className="text-xs text-slate-500">Başladı: {formatHM(s.start_at)}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-base font-black tabular-nums ${isLong ? "text-red-600" : "text-amber-600"}`}>
+                  <p className={`text-base font-bold tabular-nums ${isLong ? "text-red-600" : "text-amber-600"}`}>
                     {elapsed(s.start_at)}
                   </p>
-                  {isLong && <p className="text-[10px] text-red-500 font-bold">Uzun mola!</p>}
+                  {isLong && <p className="text-xs text-red-500 font-bold">Uzun mola!</p>}
                 </div>
                 <button
                   onClick={() => endBreak(s)}
@@ -205,8 +205,8 @@ function BreaksPageInner() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Users size={14} className="text-emerald-500" />
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Aktif Personel</h2>
-          <span className="text-[10px] text-slate-400">(Mola başlat)</span>
+          <h2 className="text-xs font-bold text-slate-500">Aktif Personel</h2>
+          <span className="text-xs text-slate-400">(Mola başlat)</span>
         </div>
         {!loading && available.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 text-sm">
@@ -220,12 +220,12 @@ function BreaksPageInner() {
               onClick={() => startBreak(p)}
               className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all group text-left"
             >
-              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center text-xs font-black text-forest-600 shrink-0">
+              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0">
                 {p.name.charAt(0)}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-slate-800 truncate group-hover:text-primary">{p.name}</p>
-                <p className="text-[10px] text-slate-400">{p.title || "Personel"}</p>
+                <p className="text-xs text-slate-400">{p.title || "Personel"}</p>
               </div>
               <Play size={13} className="text-slate-300 group-hover:text-primary shrink-0" />
             </button>
@@ -238,7 +238,7 @@ function BreaksPageInner() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 size={14} className="text-slate-400" />
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bugünkü Molalar</h2>
+            <h2 className="text-xs font-bold text-slate-500">Bugünkü Molalar</h2>
           </div>
           <div className="space-y-1.5">
             {done.map(s => (

@@ -78,7 +78,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={28} className="text-red-500" />
           </div>
-          <h1 className="text-xl font-black text-slate-900 mb-2">Bu link kullanılamıyor</h1>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Bu link kullanılamıyor</h1>
           <p className="text-slate-500 text-sm">{tokenError}</p>
         </div>
       </div>
@@ -92,13 +92,13 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Kaydınız alındı!</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Kaydınız alındı!</h1>
           <p className="text-slate-500 text-sm mb-4">
             Yöneticiniz hesabınızı onayladığında giriş yapabilirsiniz.
           </p>
           <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Kullanıcı Adınız</p>
-            <p className="text-lg font-black text-slate-900">{result.username}</p>
+            <p className="text-xs font-bold text-slate-400 mb-1">Kullanıcı Adınız</p>
+            <p className="text-lg font-bold text-slate-900">{result.username}</p>
             <p className="text-xs text-slate-400 mt-1">Giriş için bunu not edin.</p>
           </div>
         </div>
@@ -112,9 +112,9 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
             <LogoMark size="md" />
-            <span className="font-black text-slate-900 text-lg">OptiShift</span>
+            <span className="font-bold text-slate-900 text-lg">OptiShift</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Ekibe Katıl</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Ekibe Katıl</h1>
           <p className="text-slate-500 text-sm">
             <span className="font-semibold text-slate-700">{orgName}</span>
             {locationName && <> · {locationName}</>}
@@ -122,7 +122,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium">
@@ -131,7 +131,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Ad Soyad
               </label>
               <div className="relative">
@@ -148,7 +148,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Telefon <span className="text-slate-400 font-normal normal-case">(isteğe bağlı)</span>
               </label>
               <div className="relative">
@@ -164,7 +164,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Şifre
               </label>
               <div className="relative">
@@ -189,7 +189,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">
                 Şifre Tekrar
               </label>
               <div className="relative">

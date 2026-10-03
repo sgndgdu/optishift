@@ -268,7 +268,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                     style={{ height: `${(Number(d.count) / maxShifts) * 100}%`, minHeight: "4px" }}
                     title={`${d.date}: ${d.count} vardiya`}
                   />
-                  <span className="text-[9px] text-slate-600 tabular-nums">
+                  <span className="text-xs text-slate-600 tabular-nums">
                     {d.date?.slice(5)}
                   </span>
                 </div>
@@ -284,9 +284,9 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">
-                <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
-                <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Rol</th>
-                <th className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giris</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Isim</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Rol</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Son Giris</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -296,7 +296,7 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                   <td className="px-5 py-4">
                     <div>
                       <p className="font-medium text-white">{u.name}</p>
-                      <p className="text-[10px] text-slate-500">{u.email}</p>
+                      <p className="text-xs text-slate-500">{u.email}</p>
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -336,12 +336,12 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-slate-200">{ev.type}</p>
                   {ev.meta && (
-                    <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
+                    <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">
                       {typeof ev.meta === "string" ? ev.meta : JSON.stringify(ev.meta)}
                     </p>
                   )}
                 </div>
-                <span className="text-[10px] text-slate-600 shrink-0 tabular-nums">
+                <span className="text-xs text-slate-600 shrink-0 tabular-nums">
                   {timeAgo(ev.created_at)}
                 </span>
               </div>

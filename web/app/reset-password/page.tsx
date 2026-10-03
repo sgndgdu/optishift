@@ -83,7 +83,7 @@ function ResetPasswordForm() {
                 <AlertCircle size={26} className="text-red-500" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">Geçersiz Link</h2>
+                <h2 className="text-lg font-bold text-slate-900">Geçersiz Link</h2>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                   Bu şifre sıfırlama linki geçersiz veya süresi dolmuş.
                   Lütfen yeni bir sıfırlama talebi oluşturun.
@@ -105,7 +105,7 @@ function ResetPasswordForm() {
                 <CheckCircle2 size={26} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">Şifre Güncellendi!</h2>
+                <h2 className="text-lg font-bold text-slate-900">Şifre Güncellendi!</h2>
                 <p className="text-sm text-slate-500 mt-1.5">
                   Şifreniz başarıyla değiştirildi. Giriş sayfasına yönlendiriliyorsunuz…
                 </p>
@@ -120,7 +120,7 @@ function ResetPasswordForm() {
                 <div className="w-12 h-12 bg-forest-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Lock size={22} className="text-forest-600" />
                 </div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">Yeni Şifre Belirle</h1>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Yeni Şifre Belirle</h1>
                 {name && (
                   <p className="text-sm text-slate-500 mt-1">Merhaba {name}, yeni şifrenizi girin.</p>
                 )}
@@ -135,7 +135,7 @@ function ResetPasswordForm() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">
                     Yeni Şifre
                   </label>
                   <div className="relative">
@@ -166,7 +166,7 @@ function ResetPasswordForm() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  <label className="text-xs font-bold text-slate-700 mb-2 block">
                     Şifre Tekrar
                   </label>
                   <div className="relative">

@@ -83,7 +83,7 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
   };
   const labels = { high: "Yuksek", medium: "Orta", low: "Dusuk" };
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[risk]}`}>
       {labels[risk]}
     </span>
   );
@@ -103,7 +103,7 @@ function MetricCard({
       <div className="min-w-0">
         <p className="text-2xl font-bold text-white tabular-nums">{value}</p>
         <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
-        {sub && <p className="text-[10px] text-slate-600 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-slate-600 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -223,7 +223,7 @@ export default function AdminOverviewPage() {
         <div className="xl:col-span-3 bg-white/3 border border-white/8 rounded-2xl p-5 flex flex-col" style={{ minHeight: 400 }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-white">Canli Olay Akisi</h2>
-            <span className="text-[10px] font-medium text-slate-500 tabular-nums">
+            <span className="text-xs font-medium text-slate-500 tabular-nums">
               {events.length} olay
             </span>
           </div>
@@ -247,11 +247,11 @@ export default function AdminOverviewPage() {
                     <p className="text-xs font-medium text-slate-200 truncate">
                       {eventLabel(ev)}
                     </p>
-                    <p className="text-[10px] text-slate-600 truncate">
+                    <p className="text-xs text-slate-600 truncate">
                       {ev.org_name ?? ev.org_id ?? "Bilinmeyen org"}
                     </p>
                   </div>
-                  <span className="text-[10px] text-slate-600 shrink-0 mt-0.5 tabular-nums">
+                  <span className="text-xs text-slate-600 shrink-0 mt-0.5 tabular-nums">
                     {timeAgo(ev.created_at)}
                   </span>
                 </div>
@@ -266,7 +266,7 @@ export default function AdminOverviewPage() {
             <h2 className="text-sm font-semibold text-white">Kayip Riski Radari</h2>
             <Link
               href="/admin/orgs"
-              className="text-[10px] text-ember-400 hover:text-ember-300 transition-colors"
+              className="text-xs text-ember-400 hover:text-ember-300 transition-colors"
             >
               Tumunu goster
             </Link>
@@ -290,7 +290,7 @@ export default function AdminOverviewPage() {
                     <p className="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">
                       {org.name}
                     </p>
-                    <p className="text-[10px] text-slate-600">
+                    <p className="text-xs text-slate-600">
                       {org.personnel_count} personel
                     </p>
                   </div>

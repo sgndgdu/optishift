@@ -134,7 +134,7 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
 
               {snapshot.status !== "empty" && (
                 <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hazır sorular</p>
+                  <p className="text-xs font-bold text-slate-500">Hazır sorular</p>
                   <div className="flex flex-wrap gap-1.5">
                     {QUESTIONS.filter(q => !q.needsPerson).map(q => (
                       <button key={q.id} onClick={() => setAsked({ id: q.id })}

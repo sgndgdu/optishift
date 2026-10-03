@@ -116,12 +116,12 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
         </button>
       )}
       {open && (
-        <div className="fixed z-50 inset-x-0 bottom-0 lg:inset-auto lg:right-6 lg:bottom-6 lg:w-[400px] h-[80vh] lg:h-[600px] bg-white border border-slate-200 rounded-t-2xl lg:rounded-2xl shadow-2xl flex flex-col" role="dialog" aria-label="İşletme Asistanı">
+        <div className="fixed z-50 inset-x-0 bottom-0 lg:inset-auto lg:right-6 lg:bottom-6 lg:w-[400px] h-[80vh] lg:h-[600px] bg-white border border-slate-200 rounded-t-2xl lg:rounded-2xl shadow-xl flex flex-col" role="dialog" aria-label="İşletme Asistanı">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
             <Sparkles size={16} className="text-ember-500" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-slate-900">İşletme Asistanı</p>
-              <p className="text-[11px] text-slate-500 truncate">{scope === "all" ? "Tüm şubeler hakkında sorun" : "Bu şube hakkında sorun"}</p>
+              <p className="text-sm font-bold text-slate-900">İşletme Asistanı</p>
+              <p className="text-xs text-slate-500 truncate">{scope === "all" ? "Tüm şubeler hakkında sorun" : "Bu şube hakkında sorun"}</p>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Kapat" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
           </div>
@@ -164,7 +164,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
                 <Send size={16} />
               </button>
             </form>
-            <p className="text-[10px] text-slate-400 px-1">Yapay zekâ cevaplarını kontrol edin. Asistan kayıt değiştirmez, bilgi ve öneri verir.</p>
+            <p className="text-xs text-slate-400 px-1">Yapay zekâ cevaplarını kontrol edin. Asistan kayıt değiştirmez, bilgi ve öneri verir.</p>
           </div>
         </div>
       )}

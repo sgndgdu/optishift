@@ -109,7 +109,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
     // kazara tıklamayla kaybolmasın (kapatmak için Kapat/İptal)
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={() => { if (!busy && !rows && !done && !paste.trim()) close(); }}>
-      <div className={cn("bg-white w-full max-w-3xl rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]", rows && !done && "h-[90vh]")}
+      <div className={cn("bg-white w-full max-w-3xl rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col max-h-[90vh]", rows && !done && "h-[90vh]")}
         onClick={e => e.stopPropagation()} role="dialog" aria-label="Excel ile içe aktar">
         <div className="flex items-start justify-between mb-4 gap-3">
           <div>

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -265,7 +265,6 @@ function WorkHoursReport() {
           <div className="py-16 text-center text-sm text-red-500">{error}</div>
         ) : rows.length === 0 ? (
           <div className="py-16 text-center">
-            <BarChart2 size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-500">Bu ay için yayınlanan vardiya bulunamadı.</p>
           </div>
         ) : (
@@ -286,7 +285,7 @@ function WorkHoursReport() {
                   <td className="px-3 sm:px-5 py-3.5 font-medium text-slate-900">
                     {row.name}
                     {/* Telefonda Unvan/Vardiya sütunları gizli: ismin altında kısa özet */}
-                    <span className="sm:hidden block text-[11px] font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
+                    <span className="sm:hidden block text-xs font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
                   </td>
                   <td className="hidden sm:table-cell px-5 py-3.5 text-slate-500">{row.title || "—"}</td>
                   <td className="hidden sm:table-cell px-5 py-3.5 text-right text-slate-700">{row.shift_count}</td>

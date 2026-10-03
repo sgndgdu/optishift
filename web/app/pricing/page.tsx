@@ -51,7 +51,7 @@ export default function PricingPage() {
                 </Button>
               </Link>
               <div className="space-y-4 flex-1">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Neler Dahil?</p>
+                <p className="text-xs font-bold text-slate-400 mb-4">Neler Dahil?</p>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
                   <span className="text-slate-700 font-medium">1 Şube</span>
@@ -77,7 +77,7 @@ export default function PricingPage() {
                 <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-gradient-to-bl from-forest-100/60 to-transparent rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-700" />
               </div>
               
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-forest-500 text-white text-xs font-black uppercase tracking-widest px-5 py-2 rounded-full shadow-[0_4px_10px_rgba(20,69,61,0.3)]">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-forest-500 text-white text-xs font-black px-5 py-2 rounded-full shadow-[0_4px_10px_rgba(20,69,61,0.3)]">
                 EN ÇOK TERCİH EDİLEN
               </div>
               <div className="mb-8 relative z-10">
@@ -94,7 +94,7 @@ export default function PricingPage() {
                 </Button>
               </Link>
               <div className="space-y-4 flex-1 relative z-10">
-                <p className="text-xs font-bold text-primary uppercase tracking-widest mb-4">Neler Dahil?</p>
+                <p className="text-xs font-bold text-primary mb-4">Neler Dahil?</p>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-primary" />
                   <span className="text-slate-900 font-bold">Sınırsız Şube</span>
@@ -135,7 +135,7 @@ export default function PricingPage() {
                 </Button>
               </a>
               <div className="space-y-4 flex-1">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">HER ŞEYE EK OLARAK</p>
+                <p className="text-xs font-bold text-slate-400 mb-4">HER ŞEYE EK OLARAK</p>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={20} className="text-ember-500" />
                   <span className="text-slate-700 font-medium">Özel SLA & Uptime Garantisi</span>

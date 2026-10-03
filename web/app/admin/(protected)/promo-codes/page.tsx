@@ -96,7 +96,7 @@ export default function AdminPromoCodesPage() {
         {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kod</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kod</label>
             <input
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
@@ -105,7 +105,7 @@ export default function AdminPromoCodesPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kampanya Adı</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kampanya Adı</label>
             <input
               value={campaignName}
               onChange={e => setCampaignName(e.target.value)}
@@ -114,7 +114,7 @@ export default function AdminPromoCodesPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Ücretsiz Ay</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Ücretsiz Ay</label>
             <input
               type="number" min={1} max={24}
               value={freeMonths}
@@ -123,7 +123,7 @@ export default function AdminPromoCodesPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Maks. Kullanım</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Maks. Kullanım</label>
             <input
               type="number" min={1}
               value={maxUses}
@@ -133,7 +133,7 @@ export default function AdminPromoCodesPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Son Kullanım (isteğe bağlı)</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Son Kullanım (isteğe bağlı)</label>
             <input
               type="datetime-local"
               value={expiresAt}
@@ -168,7 +168,7 @@ export default function AdminPromoCodesPage() {
               <div key={c.id} className={`flex items-center gap-3 px-5 py-4 ${c.active ? "" : "opacity-40"}`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-white tracking-wider">{c.code}</span>
+                    <span className="font-mono font-bold text-sm text-white">{c.code}</span>
                     {c.campaign_name && <span className="text-xs text-slate-500">· {c.campaign_name}</span>}
                     <button
                       onClick={() => navigator.clipboard?.writeText(registerUrl(c.code))}
@@ -178,7 +178,7 @@ export default function AdminPromoCodesPage() {
                       <Copy size={12} />
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-600 mt-1 tabular-nums">
+                  <p className="text-xs text-slate-600 mt-1 tabular-nums">
                     {c.free_months} ay ücretsiz {c.plan} · Kullanım: {c.used_count}{c.max_uses ? ` / ${c.max_uses}` : " (sınırsız)"}
                     {c.expires_at ? ` · Son gün: ${fmtDate(c.expires_at)}` : ""}
                     {c.active ? "" : " · PASİF"}

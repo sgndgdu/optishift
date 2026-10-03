@@ -101,7 +101,7 @@ export default function AdminBannersPage() {
         />
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tür</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tür</label>
             <div className="flex gap-1.5">
               {Object.entries(TYPE_META).map(([val, meta]) => (
                 <button
@@ -117,7 +117,7 @@ export default function AdminBannersPage() {
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Bitiş (isteğe bağlı)
             </label>
             <input
@@ -155,12 +155,12 @@ export default function AdminBannersPage() {
               const active = isActive(b);
               return (
                 <div key={b.id} className={`flex items-start gap-3 px-5 py-4 ${active ? "" : "opacity-45"}`}>
-                  <span className={`mt-0.5 shrink-0 flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${meta.cls}`}>
+                  <span className={`mt-0.5 shrink-0 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${meta.cls}`}>
                     <meta.icon size={10} /> {meta.label}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-200">{b.message}</p>
-                    <p className="text-[10px] text-slate-600 mt-1 tabular-nums">
+                    <p className="text-xs text-slate-600 mt-1 tabular-nums">
                       Oluşturuldu: {fmtDate(b.created_at)}
                       {b.ends_at ? ` · Bitiş: ${fmtDate(b.ends_at)}` : ""}
                       {active ? " · Yayında" : " · Pasif"}

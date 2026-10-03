@@ -188,9 +188,9 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start md:items-center justify-center p-3 md:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Yeni Şube Aç">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl my-auto">
         <div className="flex items-center justify-between px-5 md:px-8 pt-5 md:pt-6">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yeni Şube Aç</p>
+          <p className="text-xs font-bold text-slate-400">Yeni Şube Aç</p>
           <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30" aria-label="Kapat">
             <X size={18} />
           </button>
@@ -203,7 +203,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                 <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
                   <Check size={30} className="text-emerald-600" strokeWidth={3} />
                 </div>
-                <h2 className="text-2xl font-black text-slate-900 mt-4">{created.name} açıldı</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-4">{created.name} açıldı</h2>
                 <p className="text-sm text-slate-500 mt-1">Vardiya saatleri ve kurallar {getIndustry(created.industry)?.label.toLocaleLowerCase("tr-TR")} için hazırlandı.</p>
               </div>
 
@@ -215,21 +215,21 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
                     {highlights.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Bu şube için açılan özellikler</p>
+                        <p className="text-xs font-bold text-slate-500 mb-1.5">Bu şube için açılan özellikler</p>
                         <div className="flex flex-wrap gap-1.5">
                           {highlights.map(h => <StatusPill key={h} tone="brand">{h}</StatusPill>)}
                         </div>
                       </div>
                     )}
                     <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">İlk adımlar</p>
+                      <p className="text-xs font-bold text-slate-500 mb-1.5">İlk adımlar</p>
                       <ul className="space-y-1">
                         {ind.nudges.firstSteps.map(t => <li key={t} className="text-sm text-slate-700 flex gap-2"><Check size={14} className="text-forest-600 shrink-0 mt-0.5" />{t}</li>)}
                       </ul>
                     </div>
                     {recs.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Önerilen kural</p>
+                        <p className="text-xs font-bold text-slate-500 mb-1.5">Önerilen kural</p>
                         {recs.map(r => (
                           <p key={r.shiftId + r.skill} className="text-sm text-slate-700">
                             <strong>{shifts.find(s => s.id === r.shiftId)?.name ?? r.shiftId}</strong> vardiyasında en az {r.count} {r.skill}. <span className="text-slate-500">{r.reason} Ekipte rolü işaretledikten sonra Ayarlar &rsaquo; İşletme Türü&apos;nden tek tıkla ekleyebilirsiniz.</span>

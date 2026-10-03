@@ -322,7 +322,7 @@ export default function PortalDashboard() {
               )}
             </div>
             {todayShift && (
-              <span className={`text-[11px] font-bold px-3 py-1.5 rounded-full border ${
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
                 isCompleted ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" :
                 isCheckedIn ? "bg-amber-400/20 text-amber-200 border-amber-400/30 animate-pulse" :
                               "bg-white/10 text-white/80 border-white/20"
@@ -346,7 +346,7 @@ export default function PortalDashboard() {
             </div>
           ) : todayShift ? (
             <div className="mb-5">
-              <div className="text-4xl font-black tracking-tight mb-1.5">
+              <div className="text-4xl font-bold tracking-tight mb-1.5">
                 {todayShift.start_time} – {todayShift.end_time}
               </div>
               {isCheckedIn && elapsed && (
@@ -370,7 +370,7 @@ export default function PortalDashboard() {
             </div>
           ) : (
             <div className="mb-5">
-              <div className="text-2xl font-black mb-1 text-white/70">Bugün {words.shift} yok</div>
+              <div className="text-2xl font-bold mb-1 text-white/70">Bugün {words.shift} yok</div>
               {upcomingShifts.length > 0 ? (
                 <p className="text-forest-200/70 text-sm">
                   Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
@@ -418,11 +418,11 @@ export default function PortalDashboard() {
       {/* ── Önceki vardiyadan devir notu ─────────────────────────────────── */}
       {todayShift && !isCompleted && handoverNotes.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
-          <p className="text-xs font-black text-amber-800 uppercase tracking-wider">📋 Önceki Vardiyadan Devir Notu</p>
+          <p className="text-xs font-bold text-amber-800">📋 Önceki Vardiyadan Devir Notu</p>
           {handoverNotes.map((n, i) => (
             <div key={i} className="bg-white/70 rounded-xl px-3 py-2">
               <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
-              <p className="text-[10px] text-amber-600 font-semibold mt-1">{n.author} · {n.shift}</p>
+              <p className="text-xs text-amber-600 font-semibold mt-1">{n.author} · {n.shift}</p>
             </div>
           ))}
         </div>
@@ -431,7 +431,7 @@ export default function PortalDashboard() {
       {/* ── Görevlerim (rules.task_management_enabled) ──────────────────── */}
       {todayShift && shiftTasks.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
-          <p className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+          <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
             <ClipboardList size={14} /> Görevlerim
             <span className="ml-auto text-slate-400 font-bold normal-case">
               {shiftTasks.filter(t => t.is_completed).length}/{shiftTasks.length}
@@ -460,8 +460,8 @@ export default function PortalDashboard() {
             <Wallet size={18} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Bu Hafta Kazanılan Prim</p>
-            <p className="text-lg font-black text-emerald-800">
+            <p className="text-xs font-bold text-emerald-700">Bu Hafta Kazanılan Prim</p>
+            <p className="text-lg font-bold text-emerald-800">
               {weeklyTipAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
             </p>
           </div>
@@ -474,14 +474,14 @@ export default function PortalDashboard() {
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4">
             <div className="flex items-center gap-2 text-amber-600">
               <AlertCircle size={20} />
-              <h3 className="text-base font-black text-slate-900">Devir-Teslim Notu</h3>
+              <h3 className="text-base font-bold text-slate-900">Devir-Teslim Notu</h3>
             </div>
             <p className="text-xs text-slate-500">
               Giriş yapmadan önce sizden önceki vardiyanın bıraktığı notu okuyup teslim almanız gerekiyor.
             </p>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
               <p className="text-sm text-slate-800 leading-relaxed">{pendingHandoverModal.handover.note}</p>
-              <p className="text-[10px] text-amber-600 font-semibold mt-2">
+              <p className="text-xs text-amber-600 font-semibold mt-2">
                 {pendingHandoverModal.handover.author_name} · {timeAgo(pendingHandoverModal.handover.created_at)}
               </p>
             </div>
@@ -501,7 +501,7 @@ export default function PortalDashboard() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckoutModal(null)}>
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
             <div>
-              <h3 className="text-base font-black text-slate-900">Vardiyadan Çıkış</h3>
+              <h3 className="text-base font-bold text-slate-900">Vardiyadan Çıkış</h3>
               <p className="text-xs text-slate-500 mt-1">Sonraki vardiyaya iletmek istediğin bir not var mı? (isteğe bağlı)</p>
             </div>
             <textarea
@@ -534,7 +534,7 @@ export default function PortalDashboard() {
       {/* ── Bu Hafta mini takvim ─────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <span className="text-sm font-black text-slate-800">Bu Hafta</span>
+          <span className="text-sm font-bold text-slate-800">Bu Hafta</span>
           {!dataLoading && (
             <span className="text-xs font-bold text-slate-400">
               {shifts.length} {words.shift} · {totalHours.toFixed(0)} saat
@@ -557,11 +557,11 @@ export default function PortalDashboard() {
                       hasShift ? "bg-forest-50 text-forest-700" :
                                  "bg-slate-50 text-slate-400"
                     }`}>
-                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-forest-200" : "opacity-60"}`}>
+                    <span className={`text-xs font-bold ${isToday ? "text-forest-200" : "opacity-60"}`}>
                       {SHORT[i]}
                     </span>
                     {hasShift ? (
-                      <span className={`text-[9px] font-black leading-none ${isToday ? "text-white" : "text-forest-600"}`}>
+                      <span className={`text-xs font-bold leading-none ${isToday ? "text-white" : "text-forest-600"}`}>
                         {dayShift?.start_time?.slice(0, 5) ?? ""}
                       </span>
                     ) : (
@@ -608,7 +608,7 @@ export default function PortalDashboard() {
             ) : (
               <>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Acil Durum Bildir</h3>
+                  <h3 className="text-base font-bold text-slate-900">Acil Durum Bildir</h3>
                   <p className="text-xs text-slate-500 mt-1">Şubendeki tüm yöneticilere anında bildirim gider. Sadece gerçek acil durumlarda kullan.</p>
                 </div>
                 <textarea
@@ -662,7 +662,7 @@ export default function PortalDashboard() {
       {!dataLoading && upcomingShifts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-black text-slate-900 text-base">Yaklaşan {words.Shifts}</h3>
+            <h3 className="font-bold text-slate-900 text-base">Yaklaşan {words.Shifts}</h3>
             <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">
               Tümü <ChevronRight size={13} />
             </Link>
@@ -676,7 +676,7 @@ export default function PortalDashboard() {
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     isT ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
                   }`}>
-                    <span className="text-[10px] font-black">{SHORT[s.day]}</span>
+                    <span className="text-xs font-bold">{SHORT[s.day]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-bold ${isT ? "text-primary" : "text-slate-800"}`}>
@@ -695,7 +695,7 @@ export default function PortalDashboard() {
       {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-black text-slate-900 text-base">Bildirimler</h3>
+          <h3 className="font-bold text-slate-900 text-base">Bildirimler</h3>
           <Link href="/portal/notifications" className="text-xs font-bold text-primary flex items-center gap-0.5">
             Tümünü Gör <ChevronRight size={13} />
           </Link>
@@ -726,7 +726,7 @@ export default function PortalDashboard() {
                     <p className={`text-sm font-bold leading-tight ${!n.is_read ? "text-slate-800" : "text-slate-600"}`}>{n.title}</p>
                     <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{n.message}</p>
                   </div>
-                  <span className="text-[10px] text-slate-400 shrink-0 mt-0.5 whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                  <span className="text-xs text-slate-400 shrink-0 mt-0.5 whitespace-nowrap">{timeAgo(n.created_at)}</span>
                 </Link>
               ))}
             </div>

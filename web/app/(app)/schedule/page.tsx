@@ -226,13 +226,13 @@ function SnapshotGrid({ data }: { data: FullPub }) {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="bg-slate-50/80 border-b border-slate-200">
-            <th className="py-2.5 px-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-40 sticky left-0 bg-slate-50/80 z-10">Personel</th>
+            <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest w-40 sticky left-0 bg-slate-50/80 z-10">Personel</th>
             {DAYS_SHORT.map((d, i) => (
-              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-black uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
+              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-bold uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
                 {d}
               </th>
             ))}
-            <th className="py-2.5 px-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-12">Saat</th>
+            <th className="py-2.5 px-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest w-12">Saat</th>
           </tr>
         </thead>
         <tbody>
@@ -244,7 +244,7 @@ function SnapshotGrid({ data }: { data: FullPub }) {
               <Fragment key={`sg-dept-${deptId}`}>
                 <tr className="border-t-2 border-slate-200 bg-slate-50/60">
                   <td colSpan={9} className="py-2 px-4">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{dept?.name ?? "Diğer"}</span>
+                    <span className="text-[10px] font-bold text-slate-500">{dept?.name ?? "Diğer"}</span>
                   </td>
                 </tr>
                 {ppl.map(p => {
@@ -261,7 +261,7 @@ function SnapshotGrid({ data }: { data: FullPub }) {
                     <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/40 transition-colors">
                       <td className="py-2.5 px-4 sticky left-0 bg-white z-10">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-forest-100 text-forest-600 text-[10px] font-black flex items-center justify-center shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-forest-100 text-forest-600 text-[10px] font-bold flex items-center justify-center shrink-0">
                             {p.name.charAt(0)}
                           </div>
                           <span className="font-semibold text-slate-800 truncate max-w-[90px]">{p.name}</span>
@@ -2651,7 +2651,7 @@ loading ? (
                 {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
                 {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Şablonlar</span>
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">Şablonlar</span>
                   {Object.keys(demandTemplates).length === 0 && (
                     <span className="text-[11px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
                   )}
@@ -2695,11 +2695,11 @@ loading ? (
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left py-2.5 px-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
+                      <th className="text-left py-2.5 px-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
                       {DAYS.map((d, i) => {
                         const isWeekend = i === 5 || i === 6;
                         return (
-                          <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-black uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
+                          <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-bold uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
                             <div>{d}</div>
                             <div className={cn("text-[10px] font-semibold mt-0.5", isWeekend ? "text-forest-300" : "text-slate-300")}>{dates[i]}</div>
                           </th>
@@ -2775,7 +2775,7 @@ loading ? (
                             <td colSpan={8} className="px-5 py-2">
                               <div className="flex items-center gap-2">
                                 <div className="w-0.5 h-4 rounded-full bg-forest-400 shrink-0" />
-                                <span className="text-xs font-black text-slate-700">{dept.name}</span>
+                                <span className="text-xs font-bold text-slate-700">{dept.name}</span>
                                 <span className="text-[10px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
                               </div>
                             </td>
@@ -3186,7 +3186,7 @@ loading ? (
             <div className="bg-ember-50 border border-ember-200 rounded-2xl px-5 py-4 relative">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={14} className="text-ember-500" />
-                <span className="text-xs font-bold text-ember-700 uppercase tracking-wide">AI Hafta Özeti</span>
+                <span className="text-xs font-bold text-ember-700">AI Hafta Özeti</span>
               </div>
               <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiLoading && !aiSummary ? "…" : aiSummary}</p>
               <button onClick={() => setAiSummary(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><X size={14} /></button>
@@ -3204,7 +3204,7 @@ loading ? (
                     <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
                     <span className="font-bold">{ev.title}</span>
                     {ev.note && <span className="opacity-60">({ev.note})</span>}
-                    <span className="text-[9px] opacity-50 uppercase tracking-wide">haftalık</span>
+                    <span className="text-[9px] opacity-50">haftalık</span>
                     <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Sil"><X size={11} /></button>
                   </div>
                 ))}
@@ -3216,7 +3216,7 @@ loading ? (
           {demandOpen && !wizardOpen && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
-                <p className="flex-1 text-[11px] font-black text-slate-500 uppercase tracking-widest">Personel İhtiyacı · kaç kişi gerekli?</p>
+                <p className="flex-1 text-[11px] font-bold text-slate-500">Personel İhtiyacı · kaç kişi gerekli?</p>
                 <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
               </div>
               {demandTableEl}
@@ -3297,7 +3297,7 @@ loading ? (
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
                     <th className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <span className="text-[10px] font-bold text-slate-400">
                         Personel {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
                       {/* Gün başlığındaki sayı ve (açıksa) isim altındaki çubuk ne anlatıyor */}
@@ -3314,7 +3314,7 @@ loading ? (
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       return (
                         <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top", isWeekend ? "bg-forest-50/50" : "", mobileDay !== i && "hidden sm:table-cell")}>
-                          <div className={cn("text-[11px] font-black uppercase tracking-wider", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
+                          <div className={cn("text-[11px] font-bold", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
                           <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
                           {holiday && (
                             <div className="mt-1 text-[9px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
@@ -3380,7 +3380,7 @@ loading ? (
                             >
                               <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-200 group-hover:text-slate-600", isCollapsed && "-rotate-90")} />
                               <div className="w-2 h-2 rounded-full bg-forest-400 shrink-0" />
-                              <span className="text-xs font-black text-slate-700">{row.dept.name}</span>
+                              <span className="text-xs font-bold text-slate-700">{row.dept.name}</span>
                               <span className="text-[10px] text-slate-400 font-semibold">{byDeptCount[deptId]?.length ?? 0} kişi</span>
                             </button>
                           </td>
@@ -3661,7 +3661,7 @@ loading ? (
             );
             return (
               <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !scnBusy && setScnOpen(false)}>
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Ya şöyle olursa">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Ya şöyle olursa">
                   <div>
                     <p className="text-sm font-bold text-slate-900">Ya şöyle olursa?</p>
                     <p className="text-xs text-slate-500 mt-0.5">{weekLabel} · kaydedilmez, sadece dener</p>
@@ -3721,7 +3721,7 @@ loading ? (
                         </table>
                         {x.problems.length > 0 ? (
                           <div className="space-y-1.5">
-                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Senaryoda dikkat</p>
+                            <p className="text-[11px] font-semibold text-slate-500">Senaryoda dikkat</p>
                             {x.problems.slice(0, 5).map(pr => (
                               <p key={pr.id} className={cn("text-xs", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>• {pr.title}</p>
                             ))}
@@ -3739,7 +3739,7 @@ loading ? (
           {/* ── Gelemiyor: akıllı yedek ── */}
           {absence && (
             <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !absenceBusy && setAbsence(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Gelemiyor">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-label="Gelemiyor">
                 <div>
                   <p className="text-sm font-bold text-slate-900">Gelemiyor · yerine kim geçsin?</p>
                   <p className="text-xs text-slate-500 mt-0.5">{absence.title}</p>
@@ -3756,7 +3756,7 @@ loading ? (
                   <p className="text-xs text-slate-500">O gün uygun kimse yok (vardiyası, izni ya da &quot;gelemem&quot; günü olmayan). Vardiyayı açık ilana çıkarabilirsiniz.</p>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Önerilen yedekler</p>
+                    <p className="text-[11px] font-semibold text-slate-500">Önerilen yedekler</p>
                     {absenceCands.slice(0, 5).map((c, i) => (
                       <div key={c.personnel_id} className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
                         <div className="flex items-center gap-2">
@@ -3785,7 +3785,7 @@ loading ? (
           {/* ── İcap çağrısı (yayınlanmış hafta) ── */}
           {calloutModal && (
             <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setCalloutModal(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="İcap çağrısı">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="İcap çağrısı">
                 <div>
                   <p className="text-sm font-bold text-slate-900">İcap çağrısı</p>
                   <p className="text-xs text-slate-500 mt-0.5">{calloutModal.title}</p>
@@ -3821,7 +3821,7 @@ loading ? (
           {/* ── Düzenleme kilidi modalı ── */}
           {unlockModal && (
             <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { if (editRequestStatus !== "pending") setUnlockModal(false); }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
                 {(editRequestStatus === "idle" || editRequestStatus === "sending") && (
                   <div className="p-6">
                     <div className="flex items-center gap-3 mb-4">
@@ -3874,7 +3874,7 @@ loading ? (
           {/* ── Yayın Geçmişi Modalı ── */}
           {pubsModalOpen && (
             <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPubsModalOpen(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
                   <div className="flex items-center gap-2">
                     <History size={16} className="text-slate-400" />
@@ -3915,8 +3915,8 @@ loading ? (
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className={cn("font-bold text-sm", isThisWeek ? "text-forest-700" : "text-slate-800")}>{fullWeekLabel(pub.week_start)}</span>
-                                  {isThisWeek && <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-forest-100 text-forest-700 border border-forest-200 uppercase tracking-wider">Bu Hafta</span>}
-                                  {pub.revision > 0 && <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-ember-100 text-ember-700 border border-ember-200">R{pub.revision}</span>}
+                                  {isThisWeek && <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-forest-100 text-forest-700 border border-forest-200">Bu Hafta</span>}
+                                  {pub.revision > 0 && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-ember-100 text-ember-700 border border-ember-200">R{pub.revision}</span>}
                                 </div>
                                 <p className="text-[11px] text-slate-400 mt-0.5">{pub.published_by_name ?? "Yönetici"} · {timeAgo(pub.published_at)}</p>
                               </div>
@@ -3932,7 +3932,7 @@ loading ? (
                                 ) : expandedPubData?.id === pub.id ? (
                                   <>
                                     <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <span className="text-[10px] font-semibold text-slate-500">
                                         {expandedPubData.snapshot?.locationName} · {fullWeekLabel(pub.week_start)}{pub.revision > 0 && ` · R${pub.revision}`}
                                       </span>
                                       <span className="ml-auto text-[10px] text-slate-400">{expandedPubData.snapshot?.assignments.length ?? 0} atama</span>
@@ -3960,7 +3960,7 @@ loading ? (
       {/* ── Adalet Dağılımı yan çekmecesi ── */}
       {fairnessOpen && <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setFairnessOpen(false)} />}
       <div className={cn(
-        "fixed top-0 right-0 h-full w-72 bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col transition-transform duration-300",
+        "fixed top-0 right-0 h-full w-72 bg-white border-l border-slate-200 shadow-xl z-50 flex flex-col transition-transform duration-300",
         fairnessOpen ? "translate-x-0" : "translate-x-full"
       )}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
@@ -4019,7 +4019,7 @@ loading ? (
       {popover && (
         <div
           data-popover
-          className="fixed z-50 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 w-[calc(100vw-2rem)] max-w-[288px] sm:w-72"
+          className="fixed z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 w-[calc(100vw-2rem)] max-w-[288px] sm:w-72"
           style={{ left: Math.min(popover.x, window.innerWidth - 320), top: popover.y }}
           onClick={e => e.stopPropagation()}
         >
@@ -4066,7 +4066,7 @@ loading ? (
           })()}
           {shiftDefs.some(d => !d.on_call) && (
             <div className="mb-3">
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1.5">Şablondan seç</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Şablondan seç</p>
               <div className="flex flex-wrap gap-1.5">
                 {shiftDefs.filter(d => !d.on_call).map(def => {
                   const ds = hhmmToMin(def.start);
@@ -4155,7 +4155,7 @@ loading ? (
           )}
           {shiftDefs.some(d => d.on_call) && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1.5">İcap nöbeti (evden, çağrılırsa gelir)</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">İcap nöbeti (evden, çağrılırsa gelir)</p>
               <div className="flex flex-wrap gap-1.5">
                 {[null, ...shiftDefs.filter(d => d.on_call)].map(def => {
                   const current = onCallMap[`${popover!.personnelId}-${popover!.day}`]?.defId ?? null;
@@ -4200,7 +4200,7 @@ loading ? (
 
             {/* Mevcut vardiya */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mevcut Vardiya</p>
+              <p className="text-[10px] font-bold text-slate-400 mb-1">Mevcut Vardiya</p>
               <p className="text-sm font-semibold text-slate-700">
                 {(() => {
                   const d = new Date(proposalModal.currentDate);
@@ -4212,7 +4212,7 @@ loading ? (
 
             {/* Önerilen gün */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Önerilen Gün</p>
+              <p className="text-[10px] font-bold text-slate-400 mb-2">Önerilen Gün</p>
               <div className="flex gap-1">
                 {DAYS.map((d, i) => (
                   <button
@@ -4235,7 +4235,7 @@ loading ? (
             {/* Önerilen vardiya — şablondan seç */}
             {shiftDefs.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Önerilen Vardiya</p>
+                <p className="text-[10px] font-bold text-slate-400 mb-2">Önerilen Vardiya</p>
                 <div className="flex flex-wrap gap-1.5">
                   {shiftDefs.map(def => {
                     const ds = hhmmToMin(def.start);
@@ -4281,7 +4281,7 @@ loading ? (
 
             {/* Not */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Not <span className="font-normal normal-case">(isteğe bağlı)</span></p>
+              <p className="text-[10px] font-bold text-slate-400 mb-1.5">Not <span className="font-normal normal-case">(isteğe bağlı)</span></p>
               <input
                 type="text" value={proposalNote} onChange={e => setProposalNote(e.target.value)}
                 placeholder="Neden değişiklik istiyorsunuz?"

@@ -75,10 +75,10 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
           <p className={cn("text-sm truncate", isSelected ? "font-bold text-forest-700" : "font-semibold text-slate-700")}>{c.name}</p>
-          {c.lastAt && <span className="text-[9px] text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
+          {c.lastAt && <span className="text-xs text-slate-400 shrink-0">{formatRelative(c.lastAt)}</span>}
         </div>
         {c.lastMessage ? (
-          <p className={cn("text-[11px] truncate", (c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium")}>
+          <p className={cn("text-xs truncate", (c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium")}>
             {c.lastMessage}
           </p>
         ) : (
@@ -335,7 +335,7 @@ export default function SupervisorChatPage() {
         {/* ── Contacts / Directory ─────────────────────────────────────── */}
         <div className={cn(
           "absolute md:relative inset-y-0 left-0 z-30 md:z-auto w-72 md:w-64 md:shrink-0 bg-white rounded-2xl border border-slate-200/60 flex flex-col overflow-hidden transition-transform duration-200 md:translate-x-0",
-          sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
+          sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full md:translate-x-0"
         )}>
           <div className="p-4 border-b border-slate-100">
             <div className="flex items-center justify-between mb-3">
@@ -378,13 +378,13 @@ export default function SupervisorChatPage() {
               <>
                 {groupContacts.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Kanallar</p>
+                    <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
                     {groupContacts.map(c => <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelect} />)}
                   </>
                 )}
                 {individualContacts.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 pt-3 pb-1">Müdürler</p>
+                    <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Müdürler</p>
                     {individualContacts.map(c => <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelect} />)}
                   </>
                 )}
@@ -400,7 +400,6 @@ export default function SupervisorChatPage() {
               <button onClick={() => setSidebarOpen(true)} className="md:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-forest-50 text-forest-700 rounded-xl text-sm font-bold">
                 <ChevronRight size={16} className="rotate-180" /> Kanalları ve Müdürleri Göster
               </button>
-              <MessageSquare size={40} className="mb-3 text-slate-300" />
               <p className="font-semibold text-slate-500">Kime yazmak istiyorsunuz?</p>
               <p className="text-sm text-slate-400 mt-1"><span className="md:hidden">Yukarıdaki düğmeyle bir kanal veya müdür seçin.</span><span className="hidden md:inline">Soldan bir kanal veya müdür seçin.</span></p>
             </div>
@@ -438,7 +437,6 @@ export default function SupervisorChatPage() {
                 className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12">
-                    <MessageSquare size={32} className="mb-2 text-slate-300" />
                     <p className="text-sm font-semibold">Henüz mesaj yok.</p>
                   </div>
                 )}
@@ -446,7 +444,7 @@ export default function SupervisorChatPage() {
                   <div key={date}>
                     <div className="flex items-center gap-3 my-3">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{date}</span>
+                      <span className="text-xs font-bold text-slate-400">{date}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
                     <div className="space-y-2">
@@ -463,7 +461,7 @@ export default function SupervisorChatPage() {
                             )}
                             <div className={cn("max-w-[75%] flex flex-col gap-0.5", isMe ? "items-end" : "items-start")}>
                               {!isMe && selected.type === "group" && (
-                                <span className="text-[10px] font-bold text-slate-400 px-1">{name}</span>
+                                <span className="text-xs font-bold text-slate-400 px-1">{name}</span>
                               )}
                               <div className={cn(
                                 "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
@@ -474,7 +472,7 @@ export default function SupervisorChatPage() {
                                 {msg.content}
                               </div>
                               <div className={cn("flex items-center gap-1 px-1", isMe && "flex-row-reverse")}>
-                                <span className="text-[10px] text-slate-400">{formatTime(msg.created_at)}</span>
+                                <span className="text-xs text-slate-400">{formatTime(msg.created_at)}</span>
                                 {isMe && !msg._optimistic && selected.type === "individual" && (
                                   isRead
                                     ? <CheckCheck size={12} className="text-blue-400" />
