@@ -1,7 +1,7 @@
 # OptiShift · 3. Tur Canlı Test Raporu (tüm roller)
 
 **Test tarihi:** 3 Ekim 2026
-**Durum:** 31 bulgu, HİÇBİRİ henüz düzeltilmedi. Kullanıcı kararı: bir sonraki oturumda hepsi ele alınacak.
+**Durum (3 Ekim 2026, ikinci oturum):** 31 bulgunun hepsi düzeltildi ve canlıda, canlı e2e 12/12. Bilinçli yapılmayan tek parça: Ö7'deki "bölge müdürü şube ekibinde görünmüyor" (bölge müdürü şubeye bağlı değil, Ekip'te göstermek kafa karıştırır). Test Lokanta işletmesi silindi. Kullanıcı kararları: K6 şube açmak sadece patron; Ö2 departmanlı şubede departmansız kişi otomatik plana alınmaz.
 **Ortam:** kayıt ve kurulum canlıda (https://web-nine-drab-19.vercel.app), sonrası localhost:3000 (aynı canlı DB). Asistan canlıda test edildi.
 
 ## Test işletmesi (canlı DB'de duruyor, silinmedi)
