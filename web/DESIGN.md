@@ -48,3 +48,11 @@ Design System" kararlarından gelir. Bu belge onun üstüne **ekran düzeni ve y
 
 ## 7. Boş durum
 - Tek cümle + tek eylem. Büyük ikon/illüstrasyon yok.
+
+## 8. Ortak parçalar (tek kaynak)
+- Sekmeler `components/ui/Tabs` (telefonda 2-3 sekmede `fill`). Sayfa kendi sekme çubuğunu çizmez.
+- Pencere `components/ui/Sheet` (document.body'ye portal; `animate-in` gibi katman açan sayfalarda da alt menünün üstünde kalır).
+  Bilinçli istisnalar: portal devir-teslim notu (kapatılamaz), toplu Excel aktarımı (kazara kapanmasın), sihirbazlar.
+- Ayar satırı (`settings` RuleRow): etiket + denetim üstte, açıklama tam genişlikte altta.
+- Giriş/kayıt/şifre/kurulum logosu `components/AuthLogo`. Sihirbaz başlığı `ui/Wizard` WizardStep (ikon kutusu yok).
+- Telefonda sohbet: önce kişi listesi, seçince sohbet, geri ile liste (çekmece yok).
