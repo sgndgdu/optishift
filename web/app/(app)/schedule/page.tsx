@@ -7,7 +7,7 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Copy,
   Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Archive, Pin, PinOff, Lock,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Pin, PinOff, Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -23,7 +23,6 @@ import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
-import { FEATURES } from "@/lib/features";
 import {
   DndContext,
   DragEndEvent,
@@ -148,159 +147,6 @@ const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: s
   diger:    { emoji: "📌", color: "bg-slate-100 text-slate-600 border-slate-200",   label: "Diğer"     },
 };
 
-// ─── Yayın geçmişi tipleri ────────────────────────────────────────────────────
-interface PubSummary {
-  id: number;
-  week_start: string;
-  revision: number;
-  published_by_name: string | null;
-  published_at: number;
-}
-
-interface SnapshotAssignment {
-  personnelId: string;
-  personnelName: string;
-  departmentId: string | null;
-  departmentName: string;
-  day: number;
-  startTime: string;
-  endTime: string;
-  shiftId: string;
-  points: number;
-}
-
-interface PubSnapshot {
-  locationName: string;
-  shiftDefs: { id: string; name: string; start: string; end: string }[];
-  departments: { id: string; name: string }[];
-  assignments: SnapshotAssignment[];
-}
-
-interface FullPub extends PubSummary {
-  snapshot: PubSnapshot | null;
-}
-
-const DAYS_SHORT = DAY_SHORT;
-
-function fullWeekLabel(weekStart: string): string {
-  if (!weekStart) return "";
-  const [y, m, d] = weekStart.split("-").map(Number);
-  const mon = new Date(y, m - 1, d);
-  const sun = new Date(y, m - 1, d + 6);
-  return `${mon.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} – ${sun.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}`;
-}
-
-function timeAgo(ts: number): string {
-  const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return "az önce";
-  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} saat önce`;
-  const days = Math.floor(diff / 86400);
-  if (days < 7) return `${days} gün önce`;
-  if (days < 30) return `${Math.floor(days / 7)} hafta önce`;
-  return `${Math.floor(days / 30)} ay önce`;
-}
-
-// ─── Snapshot viewer (read-only grid) ─────────────────────────────────────────
-function SnapshotGrid({ data }: { data: FullPub }) {
-  const snap = data.snapshot;
-  if (!snap) return <div className="py-10 text-center text-sm text-slate-400">Anlık görüntü bulunamadı.</div>;
-
-  const cellMap: Record<string, SnapshotAssignment> = {};
-  for (const a of snap.assignments) cellMap[`${a.personnelId}-${a.day}`] = a;
-
-  const personnelByDept: Record<string, { id: string; name: string }[]> = {};
-  const seen = new Set<string>();
-  for (const a of snap.assignments) {
-    if (!seen.has(a.personnelId)) {
-      seen.add(a.personnelId);
-      const key = a.departmentId ?? "__none__";
-      if (!personnelByDept[key]) personnelByDept[key] = [];
-      personnelByDept[key].push({ id: a.personnelId, name: a.personnelName });
-    }
-  }
-
-  const deptOrder = [...snap.departments.map(d => d.id)];
-  if (personnelByDept["__none__"]?.length) deptOrder.push("__none__");
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
-        <thead>
-          <tr className="bg-slate-50/80 border-b border-slate-200">
-            <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest w-40 sticky left-0 bg-slate-50/80 z-10">Personel</th>
-            {DAYS_SHORT.map((d, i) => (
-              <th key={i} className={cn("py-2.5 px-2 text-center text-[10px] font-bold uppercase tracking-widest min-w-[72px]", i >= 5 ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
-                {d}
-              </th>
-            ))}
-            <th className="py-2.5 px-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest w-12">Saat</th>
-          </tr>
-        </thead>
-        <tbody>
-          {deptOrder.map(deptId => {
-            const dept = snap.departments.find(d => d.id === deptId);
-            const ppl = personnelByDept[deptId] ?? [];
-            if (!ppl.length) return null;
-            return (
-              <Fragment key={`sg-dept-${deptId}`}>
-                <tr className="border-t-2 border-slate-200 bg-slate-50/60">
-                  <td colSpan={9} className="py-2 px-4">
-                    <span className="text-[10px] font-bold text-slate-500">{dept?.name ?? "Diğer"}</span>
-                  </td>
-                </tr>
-                {ppl.map(p => {
-                  const totalMins = Array.from({ length: 7 }, (_, d) => {
-                    const c = cellMap[`${p.id}-${d}`];
-                    if (!c) return 0;
-                    const [sh, sm] = c.startTime.split(":").map(Number);
-                    const [eh, em] = c.endTime.split(":").map(Number);
-                    let start = sh * 60 + sm, end = eh * 60 + em;
-                    if (end <= start) end += 1440;
-                    return end - start;
-                  }).reduce((a, b) => a + b, 0);
-                  return (
-                    <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/40 transition-colors">
-                      <td className="py-2.5 px-4 sticky left-0 bg-white z-10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-forest-100 text-forest-600 text-[10px] font-bold flex items-center justify-center shrink-0">
-                            {p.name.charAt(0)}
-                          </div>
-                          <span className="font-semibold text-slate-800 truncate max-w-[90px]">{p.name}</span>
-                        </div>
-                      </td>
-                      {Array.from({ length: 7 }, (_, d) => {
-                        const cell = cellMap[`${p.id}-${d}`];
-                        const snapIsNight = cell ? parseInt(cell.startTime.split(":")[0], 10) >= 22 || cell.endTime < cell.startTime : false;
-                        return (
-                          <td key={d} className={cn("py-1 px-1 text-center", d >= 5 && "bg-forest-50/20")}>
-                            {cell ? (
-                              <div className={cn("border rounded-lg py-1 px-1 mx-auto max-w-[80px]", snapIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70")}>
-                                <div className={cn("font-bold text-[10px] truncate", snapIsNight ? "text-indigo-700" : "text-forest-700")}>
-                                  {snap.shiftDefs.find(s => s.id === cell.shiftId)?.name ?? "—"}
-                                </div>
-                                <div className={cn("text-[9px]", snapIsNight ? "text-indigo-400/80" : "text-forest-400/80")}>{cell.startTime}–{cell.endTime}</div>
-                              </div>
-                            ) : <span className="text-slate-200 text-[10px]">—</span>}
-                          </td>
-                        );
-                      })}
-                      <td className="py-1 px-3 text-center">
-                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">
-                          {totalMins > 0 ? `${Math.round(totalMins / 60 * 10) / 10}s` : "—"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 // pinned: müdür elle düzeltti; Haftayı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
 type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean; id?: number };
@@ -539,8 +385,6 @@ function SchedulePageInner() {
   const [tplName, setTplName]                     = useState("");
   const [tplOpen, setTplOpen]                     = useState(false); // ilk kullanımda şablon çubuğu kapalı
   const [tplBusy, setTplBusy]                     = useState(false);
-  const [aiSummary, setAiSummary]                 = useState<string | null>(null);
-  const [aiLoading, setAiLoading]                 = useState(false);
   const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
   const [excludedCompliance, setExcludedCompliance] = useState<{ id: string; name: string; doc_type: string; expiry_date: string }[]>([]);
   // Sertifika Kalkanı: belgesi geçersiz olduğu için bu haftalık planda düşürülen roller (/api/generate revoked_skills)
@@ -548,13 +392,7 @@ function SchedulePageInner() {
   const [personnelFilter, setPersonnelFilter]     = useState('');
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
-  const [pubsModalOpen, setPubsModalOpen]           = useState(false);
   const [demandOpen, setDemandOpen]               = useState(false);
-  const [publications, setPublications]            = useState<PubSummary[]>([]);
-  const [pubsLoading, setPubsLoading]              = useState(false);
-  const [expandedPubId, setExpandedPubId]          = useState<number | null>(null);
-  const [expandedPubData, setExpandedPubData]      = useState<FullPub | null>(null);
-  const [expandedPubLoading, setExpandedPubLoading] = useState(false);
   const [collapsedDepts, setCollapsedDepts]       = useState<Set<string>>(new Set());
   const [proposalModal, setProposalModal]         = useState<{
     personnelId: string; name: string;
@@ -1192,18 +1030,6 @@ function SchedulePageInner() {
       .catch(() => setWeather({}));
   }, [locationLatLon, weekStart]);
 
-  // Yayın geçmişi modalı açıldığında publication listesini yükle
-  useEffect(() => {
-    if (!pubsModalOpen || !activeLocationId) return;
-    setPubsLoading(true);
-    setExpandedPubId(null);
-    setExpandedPubData(null);
-    fetch(`/api/schedule/publications?location_id=${activeLocationId}`)
-      .then(r => r.json())
-      .then(data => setPublications(Array.isArray(data) ? data : []))
-      .catch(() => setPublications([]))
-      .finally(() => setPubsLoading(false));
-  }, [pubsModalOpen, activeLocationId]);
 
   // ── Düzenleme onay talebi polling (status = "pending" olduğu sürece) ──────────
   useEffect(() => {
@@ -1813,48 +1639,23 @@ function SchedulePageInner() {
 
   // Request availability — varsayılan: müdürün baktığı haftanın sonraki haftası (UX-5 fix).
   // Sihirbaz, planlanan haftanın kendisi için ister (targetOffset = weekOffset).
+  // Ana Sayfa'daki "Hatırlat" ile aynı uç nokta: sadece uygunluğunu girmemiş kişilere gider
   const handleRequestAvailability = async (targetOffset: number = weekOffset + 1) => {
-    const targetWeek = getWeekStart(targetOffset);
-    const targetWeekLabel = new Date(targetWeek).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
     try {
-      const payload = personnel.map(p => ({
-        personnel_id: p.id,
-        type:         "alert",
-        title:        "Uygunluk Bildiriminizi Girin 📋",
-        message:      `${targetWeekLabel} haftası için uygunluk bilginizi girmeniz bekleniyor.`,
-        link:         "/portal/availability",
-      }));
-      await fetch("/api/notifications", {
+      const res = await fetch("/api/availability/remind", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ location_id: activeLocationId, week_start: getWeekStart(targetOffset) }),
       });
-      showToast(`${payload.length} personele uygunluk isteği gönderildi.`, "success");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error();
+      showToast(data.sent > 0 ? `${data.sent} kişiye uygunluk hatırlatması gönderildi.` : "Herkes uygunluğunu girmiş.", "success");
     } catch {
       showToast("Uygunluk isteği gönderilirken hata oluştu.", "error");
     }
   };
 
-  const handleExpandPub = async (pub: PubSummary) => {
-    if (expandedPubId === pub.id) {
-      setExpandedPubId(null);
-      setExpandedPubData(null);
-      return;
-    }
-    setExpandedPubId(pub.id);
-    setExpandedPubData(null);
-    setExpandedPubLoading(true);
-    try {
-      const res = await fetch("/api/schedule/publications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: pub.id }),
-      });
-      const data = await res.json();
-      setExpandedPubData(data);
-    } catch { /* ignore */ }
-    setExpandedPubLoading(false);
-  };
+
 
   // Yayınlanmış plan düzenleme onayı — supervisor'a gönder ve polling başlat
   const handleSendEditRequest = async () => {
@@ -2133,38 +1934,7 @@ function SchedulePageInner() {
   // (Effect popover değişince yeniden bağlanır — popover ve hasExisting değişkenlerine bağımlı)
 
   // Factor 10: küçük odaklı ajan — sadece planı açıklar, başka bir şey yapmaz
-  const handleAISummary = async () => {
-    if (!activeLocationId || !weekStart) return;
-    setAiLoading(true);
-    setAiSummary("");
-    try {
-      const res = await fetch("/api/ai/explain-schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ week_start: weekStart, location_id: activeLocationId }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        showToast(err.error ?? "AI özet alınamadı.", "error");
-        setAiSummary(null);
-        return;
-      }
-      // Stream'i oku ve state'e ekle
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) return;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setAiSummary(prev => (prev ?? "") + decoder.decode(value));
-      }
-    } catch {
-      showToast("AI özet sırasında hata oluştu.", "error");
-      setAiSummary(null);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+
 
   // ── Etkinlik yönetimi ─────────────────────────────────────────────────────
   const deleteEvent = async (id: number) => {
@@ -3029,23 +2799,13 @@ loading ? (
                           <Sparkles size={13} className="text-sky-500" /> Ya şöyle olursa?
                         </button>
                       )}
-                      {FEATURES.aiSummary && (
-                        <button onClick={() => { setActionsOpen(false); handleAISummary(); }} disabled={aiLoading || cellCount === 0}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          <Sparkles size={13} className="text-ember-500" /> {aiLoading ? "Analiz ediliyor…" : "AI Özet"}
-                        </button>
-                      )}
                       <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                         <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
                       </button>
-                      <button onClick={() => { setActionsOpen(false); setPubsModalOpen(true); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <History size={13} className="text-slate-400" /> Yayın Geçmişi
-                      </button>
                       <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <Archive size={13} className="text-slate-400" /> Geçmiş Haftalar (Arşiv)
+                        <History size={13} className="text-slate-400" /> Yayın Arşivi
                       </Link>
                       </div>
                     )}
@@ -3154,16 +2914,6 @@ loading ? (
               {toast.type === "success" && <Check size={16} />}
               {toast.type === "error"   && <AlertCircle size={16} />}
               {toast.msg}
-            </div>
-          )}
-          {aiSummary !== null && (
-            <div className="bg-ember-50 border border-ember-200 rounded-2xl px-5 py-4 relative">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-ember-500" />
-                <span className="text-xs font-bold text-ember-700">AI Hafta Özeti</span>
-              </div>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiLoading && !aiSummary ? "…" : aiSummary}</p>
-              <button onClick={() => setAiSummary(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><X size={14} /></button>
             </div>
           )}
 
@@ -3808,69 +3558,6 @@ loading ? (
             </Sheet>
           )}
 
-          {/* ── Yayın Geçmişi Modalı ── */}
-          {pubsModalOpen && (
-            <Sheet open onClose={() => setPubsModalOpen(false)} size="lg" title="Yayın geçmişi"
-              footer={<Link href="/schedule/archive" className={sheetSecondaryClass}>Tüm arşivi aç</Link>}>
-                <div className="-mx-5 -my-4">
-                  {pubsLoading ? (
-                    <div className="py-12 flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin" />
-                      <p className="text-sm text-slate-400">Yükleniyor…</p>
-                    </div>
-                  ) : publications.length === 0 ? (
-                    <p className="py-10 px-6 text-center text-sm text-slate-500">Henüz yayınlanmış hafta yok. Planı yayınladığınızda burada görünür.</p>
-                  ) : (
-                    <div className="divide-y divide-slate-50">
-                      {publications.map(pub => {
-                        const isThisWeek = pub.week_start === weekStart;
-                        const isExpanded = expandedPubId === pub.id;
-                        return (
-                          <div key={pub.id}>
-                            <button onClick={() => handleExpandPub(pub)} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50/70 transition-colors text-left">
-                              <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", pub.revision === 0 ? "bg-emerald-50 border border-emerald-200" : "bg-ember-50 border border-ember-200")}>
-                                {pub.revision === 0 ? <CheckCircle2 size={14} className="text-emerald-600" /> : <RefreshCw size={14} className="text-ember-600" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={cn("font-bold text-sm", isThisWeek ? "text-forest-700" : "text-slate-800")}>{fullWeekLabel(pub.week_start)}</span>
-                                  {isThisWeek && <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-forest-100 text-forest-700 border border-forest-200">Bu Hafta</span>}
-                                  {pub.revision > 0 && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-ember-100 text-ember-700 border border-ember-200">R{pub.revision}</span>}
-                                </div>
-                                <p className="text-[11px] text-slate-400 mt-0.5">{pub.published_by_name ?? "Yönetici"} · {timeAgo(pub.published_at)}</p>
-                              </div>
-                              <ChevronDown size={14} className={cn("text-slate-300 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />
-                            </button>
-                            {isExpanded && (
-                              <div className="border-t border-slate-100">
-                                {expandedPubLoading && expandedPubId === pub.id ? (
-                                  <div className="py-10 flex flex-col items-center gap-2">
-                                    <div className="w-6 h-6 border-2 border-forest-200 border-t-indigo-500 rounded-full animate-spin" />
-                                    <p className="text-xs text-slate-400">Yükleniyor…</p>
-                                  </div>
-                                ) : expandedPubData?.id === pub.id ? (
-                                  <>
-                                    <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                                      <span className="text-[10px] font-semibold text-slate-500">
-                                        {expandedPubData.snapshot?.locationName} · {fullWeekLabel(pub.week_start)}{pub.revision > 0 && ` · R${pub.revision}`}
-                                      </span>
-                                      <span className="ml-auto text-[10px] text-slate-400">{expandedPubData.snapshot?.assignments.length ?? 0} atama</span>
-                                    </div>
-                                    <SnapshotGrid data={expandedPubData} />
-                                  </>
-                                ) : (
-                                  <div className="py-6 text-center text-xs text-slate-400">Yüklenemedi.</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-            </Sheet>
-          )}
 
         </div>
       )}
@@ -4015,7 +3702,8 @@ loading ? (
           {(() => {
             const matchedDef = matchShiftDef(popover.startMin, popover.endMin, shiftDefs);
             const isWknd = (popover.day === 5 || popover.day === 6) && locRules.hard_shift_weekend !== false;
-            const isNght = (matchedDef?.is_night ?? false) && locRules.hard_shift_night !== false;
+            // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
+            const isNght = matchedDef?.is_night ?? false;
             const isPrfN = availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not" && locRules.hard_shift_preferred_not !== false;
             if (!isWknd && !isNght && !isPrfN) return null;
             const hardCount = [isWknd, isNght, isPrfN].filter(Boolean).length;

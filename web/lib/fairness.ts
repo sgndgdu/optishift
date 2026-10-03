@@ -4,8 +4,10 @@
  * Formüller:
  *   puan        = saat × (base_points/5) + (zor_vardiya_mi ? hard_shift_points : 0)
  *                 + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
- *   zor_vardiya_mi = (hafta_sonu AND hard_shift_weekend) OR (gece AND hard_shift_night)
- *                    OR (sarı_gün AND hard_shift_preferred_not)   — OR'lanır, asla iki kez eklenmez
+ *   zor_vardiya_mi = (hafta_sonu AND hard_shift_weekend) OR (sarı_gün AND hard_shift_preferred_not)
+ *                    — OR'lanır, asla iki kez eklenmez
+ *   Gece vardiyasının zorluğu SADECE vardiya tanımındaki zorluktan (base_points) gelir (2026-10-03,
+ *   tek yer kuralı); eski hard_shift_night bayrağı okunmaz.
  *   kümülatif   = Σ(son N hafta puanı) + Σ(o pencerede score_adjustments.points)   — decay YOK, düz toplam
  *   takım_sırası= puana göre artan sıralama → percentile (0-100, yüksek=az yüklü)
  *
@@ -26,7 +28,6 @@ export interface Rules {
   // Zor vardiya tanımı — tek puan, üç kapsam bayrağı
   hard_shift_points?: number;          // varsayılan 4, 0 = kapalı
   hard_shift_weekend?: boolean;        // varsayılan true
-  hard_shift_night?: boolean;          // varsayılan true
   hard_shift_preferred_not?: boolean;  // varsayılan true
   // Bonuslar — düz puan, 0 = kapalı
   hero_bonus_points?: number;          // varsayılan 6
@@ -164,9 +165,10 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
   const base = hours * (input.base_points / 5);
 
   const isWeekend = (input.day === 5 || input.day === 6) && rules.hard_shift_weekend !== false;
-  const isNight = (input.is_night ?? false) && rules.hard_shift_night !== false;
+  // Gece bayrağı bilgi içindir; puana zorluk (base_points) üzerinden yansır
+  const isNight = input.is_night ?? false;
   const isPrefNot = (input.is_pref_not ?? false) && rules.hard_shift_preferred_not !== false;
-  const isHard = isWeekend || isNight || isPrefNot;
+  const isHard = isWeekend || isPrefNot;
   const isHero = input.is_hero ?? false;
   const isForce = typeof input.force_points === "number" && input.force_points > 0;
 

@@ -27,7 +27,7 @@ export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
     "no_night_to_morning", "consecutive_night_weeks_enabled", "night_legal_warning_enabled",
     "clopening_enabled", "clopening_min_rest_hours", "clopening_penalty_weight",
     "overtime_threshold_hours", "max_ytd_overtime_hours", "overtime_fair_distribution",
-    "hard_shift_points", "hard_shift_weekend", "hard_shift_night", "hard_shift_preferred_not",
+    "hard_shift_points", "hard_shift_weekend", "hard_shift_preferred_not",
     "hero_bonus_points", "force_bonus_points", "change_compensation_enabled", "change_compensation_points",
     "fairness_window_weeks",
   ],

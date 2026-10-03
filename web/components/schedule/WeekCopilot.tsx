@@ -4,13 +4,14 @@
  * Vardiya Planı: haftanın TEK uyarı kartı.
  *
  * Üstte işlem uyarıları (hata, personel ihtiyacı çelişkisi, düzenleme talebi, son otomatik
- * planlamanın notları) her zaman görünür. Altında Plan Asistanı: ekrandaki plandan
+ * planlamanın notları) her zaman görünür. Altında Plan Kontrolü (yapay zekâ değil, kurallı; sohbet eden
+ * yapay zekâ sağ alttaki İşletme Asistanı'dır): ekrandaki plandan
  * (kaydedilmemiş değişiklikler dahil) kurallı içgörüler ve hazır sorular. Sorunlar,
  * Yayınla'daki kontrolle aynı listedir (lib/copilot/checks.ts).
  */
 
 import { useState, type ReactNode } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Info, Sparkles } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ClipboardCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTIONS, answerQuestion, type Answer, type Insight, type WeekSnapshot } from "@/lib/copilot";
 
@@ -97,8 +98,8 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
         <>
           <button onClick={() => setOpen(o => !o)} aria-expanded={open}
             className={cn("w-full flex items-center gap-2.5 px-4 py-3 text-left", alerts.length > 0 && "border-t border-slate-100")}>
-            <Sparkles size={15} className="text-ember-500 shrink-0" />
-            <span className="text-sm font-bold text-slate-900 shrink-0">Plan Asistanı</span>
+            <ClipboardCheck size={15} className="text-forest-600 shrink-0" />
+            <span className="text-sm font-bold text-slate-900 shrink-0">Plan Kontrolü</span>
             <span className={cn("text-xs font-semibold truncate", critical ? "text-red-600" : problems.length ? "text-amber-700" : "text-slate-500")}>
               {headline}
             </span>

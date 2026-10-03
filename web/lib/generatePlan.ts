@@ -816,6 +816,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         max_on_call_per_week: maxOnCallPerWeek,
         weekend_multiplier: weekendMultiplier,
         night_multiplier: nightMultiplier,
+        // Gece zorluğu vardiya tanımından (base_points) gelir; motorun eski varsayılanı kapatılır (lib/fairness ile aynı)
+        hard_shift_night: false,
       },
     };
 

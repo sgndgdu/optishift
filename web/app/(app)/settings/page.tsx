@@ -4,7 +4,7 @@ import { FEATURES } from "@/lib/features";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
-  Save, Plus, X, Send, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
+  Save, Plus, X, UserCircle, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown, Sparkles,
   MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer, Wallet,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
@@ -384,8 +384,6 @@ export default function SettingsPage() {
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
   const [autopilotDay, setAutopilotDay] = useState(String(AUTOPILOT_DEFAULT_DAY));
   const [reminderTime, setReminderTime] = useState("18:00");
-  const [reminding, setReminding] = useState(false);
-  const [remindResult, setRemindResult] = useState<string | null>(null);
 
   // Lokasyon state
   const [selectedLocationId, setSelectedLocationId] = useState("");
@@ -408,7 +406,6 @@ export default function SettingsPage() {
   // Adalet puanı — additive model (2026-09-20): tek "zor vardiya" puanı + bonuslar, 0 = kapalı
   const [hardShiftPoints, setHardShiftPoints]                     = useState(4);
   const [hardShiftWeekend, setHardShiftWeekend]                   = useState(true);
-  const [hardShiftNight, setHardShiftNight]                       = useState(true);
   const [hardShiftPreferredNot, setHardShiftPreferredNot]         = useState(true);
   const [heroBonusPoints, setHeroBonusPoints]                     = useState(6);
   const [forceBonusPoints, setForceBonusPoints]                   = useState(5);
@@ -580,7 +577,6 @@ export default function SettingsPage() {
           if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
           if (typeof loc.rules?.hard_shift_points === "number")         setHardShiftPoints(loc.rules.hard_shift_points);
           setHardShiftWeekend(loc.rules?.hard_shift_weekend !== false);
-          setHardShiftNight(loc.rules?.hard_shift_night !== false);
           setHardShiftPreferredNot(loc.rules?.hard_shift_preferred_not !== false);
           if (typeof loc.rules?.hero_bonus_points === "number")         setHeroBonusPoints(loc.rules.hero_bonus_points);
           if (typeof loc.rules?.force_bonus_points === "number")        setForceBonusPoints(loc.rules.force_bonus_points);
@@ -722,7 +718,6 @@ export default function SettingsPage() {
             changeCompensationPoints: typeof loc.rules?.change_compensation_points === "number" ? loc.rules.change_compensation_points : 2,
             hardShiftPoints: typeof loc.rules?.hard_shift_points === "number" ? loc.rules.hard_shift_points : 4,
             hardShiftWeekend: loc.rules?.hard_shift_weekend !== false,
-            hardShiftNight: loc.rules?.hard_shift_night !== false,
             hardShiftPreferredNot: loc.rules?.hard_shift_preferred_not !== false,
             heroBonusPoints: typeof loc.rules?.hero_bonus_points === "number" ? loc.rules.hero_bonus_points : 6,
             forceBonusPoints: typeof loc.rules?.force_bonus_points === "number" ? loc.rules.force_bonus_points : 5,
@@ -805,7 +800,7 @@ export default function SettingsPage() {
       ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
-      hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+      hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
@@ -825,7 +820,7 @@ export default function SettingsPage() {
     ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
-    hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+    hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
@@ -974,7 +969,6 @@ export default function SettingsPage() {
             change_compensation_points:         changeCompensationPoints,
             hard_shift_points:                  hardShiftPoints,
             hard_shift_weekend:                 hardShiftWeekend,
-            hard_shift_night:                   hardShiftNight,
             hard_shift_preferred_not:           hardShiftPreferredNot,
             hero_bonus_points:                  heroBonusPoints,
             force_bonus_points:                 forceBonusPoints,
@@ -1057,7 +1051,7 @@ export default function SettingsPage() {
         ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
-        hardShiftPoints, hardShiftWeekend, hardShiftNight, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+        hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
@@ -1653,39 +1647,6 @@ export default function SettingsPage() {
                       right={<Toggle on={reminderEnabled} onToggle={() => setReminderEnabled(v => !v)} />}
                     />
                   )}
-                  {availabilityCollectionEnabled && (
-                    <RuleRow
-                      label="Şimdi Hatırlatma Gönder"
-                      description={remindResult ?? "Bu haftanın uygunluğunu henüz girmemiş tüm personele anında bildirim gönderir."}
-                      right={
-                        <button
-                          disabled={reminding}
-                          onClick={async () => {
-                            setReminding(true);
-                            setRemindResult(null);
-                            try {
-                              const userRaw = localStorage.getItem("optishift_manager_user");
-                              const u = userRaw ? JSON.parse(userRaw) : null;
-                              const locId = localStorage.getItem("optishift_selected_location") || u?.location_id || "";
-                              const res = await fetch("/api/availability/remind", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ org_id: u?.org_id, location_id: locId }),
-                              });
-                              const data = await res.json();
-                              setRemindResult(data.sent > 0 ? `${data.sent} personele hatırlatma gönderildi.` : "Tüm personel zaten uygunluğunu girmiş.");
-                            } catch {
-                              setRemindResult("Hata oluştu, tekrar deneyin.");
-                            }
-                            setReminding(false);
-                          }}
-                          className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                        >
-                          <Send size={14} /> {reminding ? "Gönderiliyor…" : "Gönder"}
-                        </button>
-                      }
-                    />
-                  )}
                 </SectionCard>
                 <SectionCard title="Vardiya Talepleri">
                   <RuleRow
@@ -1824,65 +1785,11 @@ export default function SettingsPage() {
               </SectionCard>
               </SettingsGroup>
               <SettingsGroup id="planning" title="Planlama Kuralları" description="Çalışma ve dinlenme sınırları, gece kuralları, bütçe" open={!!openGroups["planning"]} onToggle={toggleGroup}>
-                <SectionCard title="Planlama Kuralları">
-                  <RuleRow
-                    label="Kıdemli Personel Kuralı"
-                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
-                    right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Gececi→Sabahçı Yasağı"
-                    description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
-                    right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Geçmişten Tercih Öğrenme"
-                    description="Kişi uygunluk girmeyi unutsa da son haftalarda sürekli istemediği günlerden ve sık takasa verdiği vardiyalardan kaçınılır. Esnektir; açık girilen tercihten zayıftır, gerekirse yine yazılır."
-                    right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
-                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
-                    right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Gece 7,5 Saat Uyarısı"
-                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
-                    right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Müdürü Planlamaya Dahil Et"
-                    description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
-                    right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Kapanış→Açılış Tespiti"
-                    description="Geç çıkıp ertesi sabah erken gelme (kapanış→açılış) tespit edilir: plan oluştururken bu geçişten kaçınılır ve yayınlamadan önce uyarı olarak gösterilir."
-                    right={<Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />}
-                  />
-                  {clopeningEnabled && (
-                    <>
-                      <RuleRow
-                        lock="rules" label="Kapanış→Açılış Eşiği"
-                        description="İki vardiya arasında bu saatten az dinlenme varsa kapanış→açılış sayılır (yasal alt sınır olan 11 saatten fazla olmalı)."
-                        right={<NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />}
-                      />
-                      <RuleRow
-                        lock="rules" label="Kaçınma Hassasiyeti"
-                        description="Sistem kapanış→açılış geçişinden ne kadar kaçınsın? Değer yükseldikçe bu geçişe daha az yer verilir."
-                        right={<NumberInput value={clopeningPenaltyWeight} onChange={setClopeningPenaltyWeight} min={1} max={100} suffix="×" />}
-                      />
-                    </>
-                  )}
+                <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
                     description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
-                  />
-                  <RuleRow
-                    lock="rules" label="En Az Dinlenme Süresi"
-                    description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
-                    right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                   />
                   <RuleRow
                     lock="rules" label="Denkleştirme Dönemi"
@@ -1901,6 +1808,60 @@ export default function SettingsPage() {
                       right={<NumberInput value={maxOnCallPerWeek} onChange={setMaxOnCallPerWeek} min={0} max={7} suffix="icap" />}
                     />
                   )}
+                </SectionCard>
+                {/* Dinlenme tek yerde: kesin alt sınır + esnek tercih (eski kapanış→açılış tespiti/eşiği/hassasiyeti tek satır) */}
+                <SectionCard title="Dinlenme">
+                  <RuleRow
+                    lock="rules" label="En Az Dinlenme Süresi"
+                    description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
+                    right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
+                  />
+                  <RuleRow
+                    lock="rules" label="Mümkünse En Az Dinlenme"
+                    description="Plan, iki vardiya arasında bundan az dinlenme kalan geçişlerden (geç kapanıştan erken açılışa) kaçınır ve yayınlamadan önce uyarır. Gerekirse yine yazar."
+                    right={
+                      <div className="flex items-center gap-2">
+                        <div className={clopeningEnabled ? "" : "opacity-40 pointer-events-none"}>
+                          <NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />
+                        </div>
+                        <Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />
+                      </div>
+                    }
+                  />
+                  <RuleRow
+                    lock="rules" label="Gececi→Sabahçı Yasağı"
+                    description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
+                    right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
+                  />
+                </SectionCard>
+                <SectionCard title="Gece Çalışması">
+                  <RuleRow
+                    lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
+                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
+                    right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
+                  />
+                  <RuleRow
+                    lock="rules" label="Gece 7,5 Saat Uyarısı"
+                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
+                    right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
+                  />
+                </SectionCard>
+                <SectionCard title="Plan Oluşturma">
+                  <RuleRow
+                    label="Kıdemli Personel Kuralı"
+                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
+                    right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Geçmişten Tercih Öğrenme"
+                    description="Kişi uygunluk girmeyi unutsa da son haftalarda sürekli istemediği günlerden ve sık takasa verdiği vardiyalardan kaçınılır. Esnektir; açık girilen tercihten zayıftır, gerekirse yine yazılır."
+                    right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
+                  />
+                  <RuleRow
+                    label="Müdürü Planlamaya Dahil Et"
+                    description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
+                    right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
+                  />
                   <RuleRow
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
                     description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
@@ -2040,48 +2001,41 @@ export default function SettingsPage() {
                   />
                 </SectionCard>
               </SettingsGroup>
-              <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor vardiyaların puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
+              <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor gün puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
                 <LockArea cat="rules">
 
                 {/* Açıklama banner */}
                 <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
                   <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-forest-800">Adalet Puanı Sistemi</p>
+                    <p className="text-sm font-semibold text-forest-800">Adalet Puanı</p>
                     <p className="text-xs text-forest-600 mt-0.5">
-                      Puan = saat × zorluk (vardiya tanımı) + zor vardiya/bonus puanları. Basit toplama, kimse çarpan zinciri takip etmek zorunda kalmaz.
+                      Kimin ne kadar yük aldığını ölçer. Bir vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndaki zorluk ayarından gelir; burada sadece ek puanlar var.
                     </p>
                   </div>
                 </div>
-
-                {/* 1. ZOR VARDİYA TANIMI */}
-                <SectionCard title="Zor Vardiya Tanımı">
-                  <div className="text-xs text-slate-400 px-4 py-2 -mt-2">Her vardiyanın temel puanı saat × zorluk&apos;tan (vardiya tanımındaki 1–10 değer) gelir. Aşağıdaki kategorilerden biri geçerliyse vardiya &ldquo;zor&rdquo; sayılır, birden fazlası geçerli olsa bile bonus SADECE BİR KEZ eklenir.</div>
+                {/* 1. GÜN PUANI: vardiya zorluğu değil, çalışılan günün kendisi */}
+                <SectionCard title="Zor Gün Puanı">
                   <RuleRow
-                    label="Zor Vardiya Puanı"
-                    description="Zor sayılan bir vardiyaya eklenen düz bonus puanı. 0 = kapalı."
+                    label="Zor Gün Puanı"
+                    description="Seçili günlerde çalışana eklenen puan. 0 = kapalı."
                     right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
                   />
                   <RuleRow
-                    label="Hangi vardiyalar zor sayılsın?"
-                    description="Haftalık sarı gün hakkı Personel Talepleri sekmesindedir."
+                    label="Hangi günler?"
+                    description="İstenmeyen gün: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
                     right={
                       <div className="flex items-center gap-4">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
                         </label>
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Moon size={11} className="text-forest-400" />
-                          <Toggle on={hardShiftNight} onToggle={() => setHardShiftNight(v => !v)} /> Gece
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Sarı gün
+                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> İstenmeyen gün
                         </label>
                       </div>
                     }
                   />
                 </SectionCard>
-
                 {/* 2. BONUS PUANLARI */}
                 <SectionCard title="Bonus Puanları">
                   <RuleRow

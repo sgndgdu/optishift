@@ -50,10 +50,11 @@ describe("calcAssignmentPoints", () => {
     expect(calcAssignmentPoints({ ...baseInput, day: 4 }, noRules).points).toBe(8); // Cuma değil
   });
 
-  it("gece → +hard_shift_points", () => {
+  it("gece ek puan almaz: zorluğu vardiya tanımından (base_points) gelir", () => {
     const r = calcAssignmentPoints({ ...baseInput, is_night: true }, noRules);
-    expect(r.points).toBeCloseTo(12);
+    expect(r.points).toBe(8);
     expect(r.flags.night).toBe(true);
+    expect(r.flags.hard).toBe(false);
   });
 
   it("sarı gün → +hard_shift_points; rules'tan özel değer okunur", () => {
@@ -95,7 +96,6 @@ describe("calcAssignmentPoints", () => {
   it("toggle kapalıyken zor vardiya sayılmaz", () => {
     const rules: Rules = {
       hard_shift_weekend: false,
-      hard_shift_night: false,
       hard_shift_preferred_not: false,
     };
     const r = calcAssignmentPoints(
