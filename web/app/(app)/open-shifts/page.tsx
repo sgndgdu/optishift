@@ -5,12 +5,16 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
-import { Megaphone, Plus, X, Star, CheckCircle2, Clock, Trash2, AlertTriangle, ListChecks, Gavel } from "lucide-react";
+import { Plus } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty, ListSection } from "@/components/ui/List";
+import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 import { StatusPill } from "@/components/ui/StatusPill";
+
+const inputClass = "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
@@ -28,6 +32,8 @@ export default function OpenShiftsPage() {
 
   const [shifts, setShifts]         = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showForm, setShowForm]     = useState(false);
   const [toast, setToast]           = useState("");
 
@@ -204,276 +210,204 @@ export default function OpenShiftsPage() {
     await load();
   }
 
-  const openCount   = shifts.filter(s => s.status === "open").length;
-  const claimedCount = shifts.filter(s => s.status === "claimed").length;
+  const openShifts = shifts.filter(s => s.status === "open");
+  const pastShifts = shifts.filter(s => s.status !== "open");
+  const selected = shifts.find(s => s.id === selectedId) ?? null;
+
+  function openDetail(s: any) {
+    setSelectedId(s.id);
+    setConfirmDelete(false);
+    if (s.status === "open") {
+      if (!candidates[s.id]) loadCandidates(s.id);
+      if (shiftBiddingEnabled && !bids[s.id]) loadBids(s.id);
+    }
+  }
 
   if (!mounted) return <div className="space-y-6" />;
 
+  const row = (s: any) => (
+    <ListItem key={s.id} onClick={() => openDetail(s)}
+      leading={<DateBadge date={s.date} />}
+      title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
+      subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} üstlendi`
+        : s.note || (s.hero_bonus_multiplier > 0 ? `+${s.hero_bonus_multiplier} kahraman puanı` : "Bonus yok")}
+      trailing={s.status === "open"
+        ? (shiftBiddingEnabled && s.bid_count > 0 ? <StatusPill tone="info">{s.bid_count} teklif</StatusPill> : <StatusBadge status={s.status} />)
+        : <StatusBadge status={s.status} />}
+    />
+  );
+
+  const pendingBids = selected && bids[selected.id] ? bids[selected.id].list.filter((b: any) => b.status === "pending") : [];
+
   return (
     <Page width="narrow">
-      {/* Header */}
       <PageHeader title="Açık Vardiyalar" description="İlan et, personel kahraman bonusuyla üstlensin." actions={
-        <button
-          onClick={() => setShowForm(true)}
-          className={pageActionClass}
-        >
+        <button onClick={() => setShowForm(true)} className={pageActionClass}>
           <Plus size={16} /> Yeni İlan
         </button>
       } />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3 md:gap-4">
-        {[
-          { label: "Açık İlan", value: openCount, icon: Megaphone, tone: "attention" as const },
-          { label: "Üstlenildi", value: claimedCount, icon: CheckCircle2, tone: "positive" as const },
-          { label: "Toplam", value: shifts.length, icon: ListChecks, tone: "neutral" as const },
-        ].map(k => <StatCard key={k.label} {...k} />)}
-      </div>
+      <List>
+        {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : shifts.length === 0 ? (
+          <ListEmpty>Açık vardiya ilanı yok. Biri gelemeyince ilan aç, ekibe anında bildirim gider.</ListEmpty>
+        ) : <>
+          <ListSection title="Açık" count={openShifts.length} />
+          {openShifts.length === 0 ? <ListEmpty>Şu an açık ilan yok.</ListEmpty> : openShifts.map(row)}
+          {pastShifts.length > 0 && <ListSection title="Geçmiş" count={pastShifts.length} />}
+          {pastShifts.map(row)}
+        </>}
+      </List>
 
-      {/* Create form */}
-      {showForm && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Yeni Açık Vardiya İlanı</h2>
-            <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200">
-              <X size={14} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-1">
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Tarih</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
-            </div>
+      {/* İlan ayrıntısı */}
+      <Sheet open={!!selected} onClose={() => setSelectedId(null)}
+        title={selected ? `${formatDate(selected.date)}` : ""}
+        description={selected ? `${selected.start_time}–${selected.end_time}` : undefined}
+        footer={selected?.status === "open" ? (confirmDelete ? <>
+          <span className="mr-auto text-sm text-slate-600">İlan tamamen silinsin mi?</span>
+          <button onClick={() => setConfirmDelete(false)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={() => { handleDelete(selected.id); setSelectedId(null); }} className={sheetDangerClass}>Sil</button>
+        </> : <>
+          <button onClick={() => setConfirmDelete(true)} className={sheetDangerClass}>Sil</button>
+          <button onClick={() => { handleCancel(selected.id); setSelectedId(null); }} className={sheetSecondaryClass}>İlanı kapat</button>
+        </>) : undefined}>
+        {selected && (
+          <div className="space-y-5">
             <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Başlangıç</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-                className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">Bitiş</label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors" />
-            </div>
-          </div>
-
-          {/* Hero bonus selector */}
-          <div>
-            <label className="text-xs font-bold text-slate-400 mb-2 block flex items-center gap-1">
-              <Star size={10} className="text-amber-500" /> Kahraman Bonus Puanı
-            </label>
-            <div className="flex gap-2">
-              {Array.from(new Set([0, 3, defaultBonus, 10])).sort((a, b) => a - b).map(b => (
-                <button
-                  key={b}
-                  onClick={() => setBonus(b)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                    bonus === b ? "border-amber-400 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:border-amber-300"
-                  }`}
-                >
-                  {b === 0 ? "Yok" : `+${b}`}{b === defaultBonus && b !== 0 ? " •" : ""}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">• Ayarlar → Gelişmiş Seçenekler → Adalet Puanı&apos;ndaki varsayılan bonus</p>
-            <p className="text-xs text-slate-400 mt-1.5">
-              {bonus === 0 ? "Standart puan (bonus yok)" : `Bu vardiyayı üstlenen personel +${bonus} puan kahraman bonusu kazanır`}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block">Not (isteğe bağlı)</label>
-            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
-              placeholder="Personele ek bilgi..."
-              className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary transition-colors resize-none" />
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={() => setShowForm(false)}
-              className="flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-              İptal
-            </button>
-            <button
-              disabled={!date || !startTime || !endTime || saving}
-              onClick={handleCreate}
-              className="flex-1 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Kaydediliyor…" : "İlan Oluştur"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      <div className="space-y-3">
-        {loading && <div className="text-center py-12 text-slate-400 text-sm">Yükleniyor…</div>}
-        {!loading && shifts.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-500">
-            <p className="text-sm font-semibold">Henüz açık vardiya ilanı yok</p>
-            <p className="text-xs text-center max-w-xs">Personelin rapor aldığında veya acil kapanma gerektiğinde ilan oluştur. Personele anlık bildirim gider.</p>
-          </div>
-        )}
-        {shifts.map(s => (
-          <div key={s.id} className={`bg-white rounded-2xl border p-5 space-y-3 ${s.status === "open" ? "border-amber-200" : "border-slate-100"}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <StatusBadge status={s.status} />
-                  {s.hero_bonus_multiplier > 0 && (
-                    <StatusPill tone="attention">
-                      <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
-                    </StatusPill>
-                  )}
-                </div>
-                <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
-                {s.note && <p className="text-xs text-slate-400 mt-1 italic">"{s.note}"</p>}
-              </div>
-              {s.status === "open" && (
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => handleCancel(s.id)}
-                    title="İptal et"
-                    className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 transition-colors"
-                  >
-                    <AlertTriangle size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    title="Sil"
-                    className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+              <DetailRow label="Durum"><StatusBadge status={selected.status} /></DetailRow>
+              <DetailRow label="Kahraman bonusu">{selected.hero_bonus_multiplier > 0 ? `+${selected.hero_bonus_multiplier} puan` : "Yok"}</DetailRow>
+              {selected.note && <DetailRow label="Not">{selected.note}</DetailRow>}
+              {selected.status === "claimed" && selected.claimed_by_name && (
+                <DetailRow label="Üstlenen"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
               )}
             </div>
 
-            {s.status === "claimed" && s.claimed_by_name && (
-              <div className="flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-2">
-                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                <p className="text-xs font-bold text-emerald-700">
-                  <Link href="/personnel" className="hover:underline">{s.claimed_by_name}</Link>
-                  {" bu vardiyayı üstlendi, "}+{s.hero_bonus_multiplier} puan kahraman bonusu kazandı
-                </p>
-              </div>
+            {selected.status === "open" && shiftBiddingEnabled && (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-900">Teklifler</h3>
+                {bids[selected.id]?.loading ? <p className="text-xs text-slate-500">Yükleniyor…</p>
+                  : pendingBids.length === 0 ? <p className="text-xs text-slate-500">Bekleyen teklif yok.</p>
+                  : (
+                    <List>
+                      {pendingBids.map((b: any) => (
+                        <li key={b.id} className="flex items-center gap-3 px-3 py-2.5">
+                          <Avatar name={b.personnel_name ?? "?"} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{b.personnel_name}</p>
+                            <p className="text-xs text-slate-500 truncate">+{b.requested_bonus_points} puan istiyor{b.note ? ` · ${b.note}` : ""}</p>
+                          </div>
+                          <button disabled={bidActingId === b.id} onClick={() => handleBidAction(b.id, "reject", selected.id)}
+                            className="shrink-0 px-2.5 min-h-[36px] rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Reddet</button>
+                          <button disabled={bidActingId === b.id} onClick={() => handleBidAction(b.id, "accept", selected.id)}
+                            className="shrink-0 px-2.5 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
+                            {bidActingId === b.id ? "…" : "Kabul et"}
+                          </button>
+                        </li>
+                      ))}
+                    </List>
+                  )}
+              </section>
             )}
 
-            {s.status === "open" && shiftBiddingEnabled && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-sky-700 bg-sky-50 rounded-xl px-3 py-2">
-                  <Gavel size={13} className="shrink-0" />
-                  <span className="flex-1">{s.bid_count > 0 ? `${s.bid_count} teklif bekliyor` : "Henüz teklif yok"}</span>
-                  {!bids[s.id] && (
-                    <button
-                      onClick={() => loadBids(s.id)}
-                      className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-700 hover:bg-sky-100 transition-colors"
-                    >
-                      Teklifleri Göster
-                    </button>
-                  )}
+            {selected.status === "open" && (
+              <section className="space-y-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Uygun adaylar</h3>
+                  <p className="text-xs text-slate-500">Ekibe bildirim gitti. Beklemeden birini sen de atayabilirsin. En az yüklü önce.</p>
                 </div>
-                {bids[s.id]?.loading && (
-                  <p className="text-xs text-slate-400 px-1">Teklifler yükleniyor…</p>
-                )}
-                {bids[s.id] && !bids[s.id].loading && bids[s.id].list.filter((b: any) => b.status === "pending").length === 0 && (
-                  <p className="text-xs text-slate-400 px-1">Bekleyen teklif yok.</p>
-                )}
-                {bids[s.id] && !bids[s.id].loading && bids[s.id].list.filter((b: any) => b.status === "pending").length > 0 && (
-                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-                    {bids[s.id].list.filter((b: any) => b.status === "pending").map((b: any) => (
-                      <div key={b.id} className="flex items-center gap-3 px-3 py-2 bg-white">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-800 truncate">
-                            {b.personnel_name}
-                            <span className="ml-2 font-medium text-sky-600">+{b.requested_bonus_points} puan istiyor</span>
-                          </p>
-                          {b.note && <p className="text-xs text-slate-400 truncate italic">"{b.note}"</p>}
-                        </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <button
-                            disabled={bidActingId === b.id}
-                            onClick={() => handleBidAction(b.id, "reject", s.id)}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                          >
-                            Reddet
+                {candidates[selected.id]?.loading ? <p className="text-xs text-slate-500">Hesaplanıyor…</p>
+                  : (candidates[selected.id]?.list.length ?? 0) === 0 ? <p className="text-xs text-slate-500">Uygun aday yok, herkes o gün dolu, izinli ya da çalışamıyor.</p>
+                  : (
+                    <List>
+                      {candidates[selected.id].list.map((c: any) => (
+                        <li key={c.personnel_id} className="flex items-center gap-3 px-3 py-2.5">
+                          <Avatar name={c.name} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
+                            <p className={`text-xs truncate ${c.warnings.length > 0 ? "text-amber-700" : "text-slate-500"}`}>
+                              {c.warnings.length > 0 ? c.warnings.join(" · ") : `${Math.round(c.prev_score)} puan`}
+                            </p>
+                          </div>
+                          <button disabled={assigning === selected.id} onClick={() => handleAssign(selected, c)}
+                            className="shrink-0 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
+                            {assigning === selected.id ? "Atanıyor…" : "Ata"}
                           </button>
-                          <button
-                            disabled={bidActingId === b.id}
-                            onClick={() => handleBidAction(b.id, "accept", s.id)}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors disabled:opacity-50"
-                          >
-                            {bidActingId === b.id ? "…" : "Kabul Et"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {s.status === "open" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-                  <Clock size={13} className="shrink-0" />
-                  <span className="flex-1">Personel bildirimi gönderildi, yanıt bekleniyor</span>
-                  {!candidates[s.id] && (
-                    <button
-                      onClick={() => loadCandidates(s.id)}
-                      className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
-                    >
-                      Uygun Adayları Göster
-                    </button>
+                        </li>
+                      ))}
+                    </List>
                   )}
-                </div>
-                {candidates[s.id]?.loading && (
-                  <p className="text-xs text-slate-400 px-1">Uygun adaylar hesaplanıyor…</p>
-                )}
-                {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length === 0 && (
-                  <p className="text-xs text-slate-400 px-1">Bu vardiya için uygun aday bulunamadı, herkes o gün dolu, izinli ya da çalışamıyor.</p>
-                )}
-                {candidates[s.id] && !candidates[s.id].loading && candidates[s.id].list.length > 0 && (
-                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-                    {candidates[s.id].list.map((c: any, i: number) => (
-                      <div key={c.personnel_id} className="flex items-center gap-3 px-3 py-2 bg-white">
-                        <span className="text-xs font-bold text-slate-300 w-4 shrink-0">{i + 1}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-800 truncate">
-                            {c.name}
-                            <span className="ml-2 font-medium text-slate-400">{Math.round(c.prev_score)} puan</span>
-                          </p>
-                          {c.warnings.length > 0 && (
-                            <p className="text-xs text-amber-600 truncate">⚠ {c.warnings.join(" · ")}</p>
-                          )}
-                        </div>
-                        <button
-                          disabled={assigning === s.id}
-                          onClick={() => handleAssign(s, c)}
-                          className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
-                        >
-                          {assigning === s.id ? "Atanıyor…" : "Ata"}
-                        </button>
-                      </div>
-                    ))}
-                    <p className="text-xs text-slate-400 px-3 py-1.5 bg-slate-50">
-                      Sıralama: en az yük taşıyan önce (adalet puanı). Uyarılı adaylar sona alınır.
-                    </p>
-                  </div>
-                )}
-              </div>
+              </section>
             )}
           </div>
-        ))}
-      </div>
+        )}
+      </Sheet>
 
-      {/* Toast */}
+      {/* Yeni ilan */}
+      <Sheet open={showForm} onClose={() => setShowForm(false)} title="Yeni açık vardiya"
+        description="Ekibe anında bildirim gider"
+        footer={<>
+          <button onClick={() => setShowForm(false)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button disabled={!date || !startTime || !endTime || saving} onClick={handleCreate} className={sheetPrimaryClass}>
+            {saving ? "Kaydediliyor…" : "İlanı yayınla"}
+          </button>
+        </>}>
+        <div className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold text-slate-600">Tarih</span>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Başlangıç</span>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Bitiş</span>
+              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
+            </label>
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs font-semibold text-slate-600">Kahraman bonusu</span>
+            <div className="flex gap-2">
+              {Array.from(new Set([0, 3, defaultBonus, 10])).sort((a, b) => a - b).map(b => (
+                <button key={b} type="button" onClick={() => setBonus(b)}
+                  className={`flex-1 min-h-[40px] rounded-xl text-sm font-semibold border transition-colors ${
+                    bonus === b ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}>
+                  {b === 0 ? "Yok" : `+${b}`}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              {bonus === 0 ? "Standart puan, bonus yok." : `Üstlenen kişi +${bonus} puan kazanır.`}{defaultBonus > 0 && ` Varsayılan +${defaultBonus}.`}
+            </p>
+          </div>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold text-slate-600">Not (isteğe bağlı)</span>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Ekibe ek bilgi…" className={`${inputClass} resize-none`} />
+          </label>
+        </div>
+      </Sheet>
+
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-[60] animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}
     </Page>
+  );
+}
+
+function weekdayName(d: string) {
+  return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long" });
+}
+
+/** Listede tarih kutusu: gün + ay kısaltması (avatar yerine). */
+function DateBadge({ date }: { date: string }) {
+  const d = new Date(date + "T00:00:00");
+  return (
+    <span aria-hidden className="w-10 h-10 shrink-0 rounded-xl bg-slate-100 flex flex-col items-center justify-center leading-none">
+      <span className="text-sm font-bold text-slate-900">{d.getDate()}</span>
+      <span className="text-[10px] font-medium text-slate-500 mt-0.5">{d.toLocaleDateString("tr-TR", { month: "short" })}</span>
+    </span>
   );
 }

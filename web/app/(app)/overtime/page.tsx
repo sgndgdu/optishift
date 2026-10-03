@@ -4,13 +4,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
-import {
-  Clock, CheckCircle2, XCircle, Plus, X, AlertTriangle, TrendingUp, ChevronRight, ShieldAlert, Info, RotateCcw,
-} from "lucide-react";
+import { Clock, CheckCircle2, Plus, AlertTriangle, TrendingUp, RotateCcw } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { List, ListItem, ListEmpty } from "@/components/ui/List";
+import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { CountBadge, StatusPill, type PillTone } from "@/components/ui/StatusPill";
+import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
+
+const inputClass = "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 const LEGAL_MAX = 270; // İş Kanunu 41 — yıllık maksimum fazla mesai saati
 
@@ -191,7 +194,7 @@ export default function OvertimePage() {
   return (
     <Page>
       {/* Header */}
-      <PageHeader title="Fazla Mesai" description="Onay bekleyenler · Yıllık durum · Kayıt oluştur" actions={
+      <PageHeader title="Fazla Mesai" description="Haftalık eşiği aşan çalışma, onay ve yıllık sınır" actions={
         <button
           onClick={() => setShowForm(true)}
           className={pageActionClass}
@@ -204,35 +207,35 @@ export default function OvertimePage() {
       {/* Özet kartlar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
-          label="Bekleyen Onay"
+          label="Bekleyen"
           value={pending.length}
           icon={Clock}
           tone="attention"
         />
         <StatCard
-          label="Bu Ay Onaylanan"
+          label="Bu ay onaylı"
           value={history.filter(r => r.status === "approved" && isThisMonth(r.created_at)).length}
           icon={CheckCircle2}
           tone="positive"
         />
         <StatCard
-          label="Limite Yakın"
+          label="Limite yakın"
           value={atLimitCount}
           icon={AlertTriangle}
           tone="danger"
         />
         <StatCard
-          label="Bu Ay Mesai Maliyeti"
+          label="Bu ay maliyet"
           value={hasWages ? `₺${Math.round(monthCost).toLocaleString("tr-TR")}` : "—"}
           icon={TrendingUp}
           tone="neutral"
-          hint={hasWages ? "onaylı · zamlı ücret ×1,5" : "personele saatlik ücret girin"}
+          hint={hasWages ? "Onaylı, ücret × 1,5" : "Saatlik ücret girilmemiş"}
         />
       </div>
 
       <Tabs value={tab} onChange={setTab} items={[
-        { id: "pending", label: "Bekleyen Onaylar", count: pending.length },
-        { id: "status", label: "Personel Durumu" },
+        { id: "pending", label: "Kayıtlar", count: pending.length },
+        { id: "status", label: "Yıllık durum" },
         { id: "warnings", label: "Uyarılar", count: warnings.length },
       ] as const} />
 
@@ -246,90 +249,35 @@ export default function OvertimePage() {
         <WarningsTab warnings={warnings} />
       )}
 
-      {/* Yeni Kayıt Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-6 space-y-5 animate-in slide-in-from-bottom-4 duration-200">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">Yeni Mesai Kaydı</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <FormField label="Personel">
-                <select
-                  value={fPersonnel}
-                  onChange={e => setFPersonnel(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
-                >
-                  <option value="">— Seçin —</option>
-                  {personnel.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Hafta Başlangıcı (Pazartesi)">
-                <input
-                  type="date"
-                  value={fWeek}
-                  onChange={e => setFWeek(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Planlanan Saat">
-                  <input
-                    type="number"
-                    min={1} max={80} step={0.5}
-                    value={fScheduled}
-                    onChange={e => setFScheduled(Number(e.target.value))}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </FormField>
-                <FormField label="Mesai Saati">
-                  <input
-                    type="number"
-                    min={0.5} max={20} step={0.5}
-                    value={fOvertime}
-                    onChange={e => setFOvertime(Number(e.target.value))}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Not (isteğe bağlı)">
-                <input
-                  type="text"
-                  placeholder="Üretim hattı fazla mesaisi…"
-                  value={fNote}
-                  onChange={e => setFNote(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </FormField>
-            </div>
-
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={saving}
-                className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50"
-              >
-                {saving ? "Kaydediliyor…" : "Kaydet"}
-              </button>
-            </div>
+      <Sheet open={showForm} onClose={() => setShowForm(false)} title="Yeni mesai kaydı"
+        description="Plan dışında doğan mesaiyi elle eklemek için"
+        footer={<>
+          <button onClick={() => setShowForm(false)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={handleCreate} disabled={saving} className={sheetPrimaryClass}>{saving ? "Kaydediliyor…" : "Kaydet"}</button>
+        </>}>
+        <div className="space-y-4">
+          <FormField label="Personel">
+            <select value={fPersonnel} onChange={e => setFPersonnel(e.target.value)} className={inputClass}>
+              <option value="">— Seçin —</option>
+              {personnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Hafta başı (Pazartesi)">
+            <input type="date" value={fWeek} onChange={e => setFWeek(e.target.value)} className={inputClass} />
+          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Planlanan saat">
+              <input type="number" min={1} max={80} step={0.5} value={fScheduled} onChange={e => setFScheduled(Number(e.target.value))} className={inputClass} />
+            </FormField>
+            <FormField label="Mesai saati">
+              <input type="number" min={0.5} max={20} step={0.5} value={fOvertime} onChange={e => setFOvertime(Number(e.target.value))} className={inputClass} />
+            </FormField>
           </div>
+          <FormField label="Not (isteğe bağlı)">
+            <input type="text" placeholder="Üretim hattı fazla mesaisi…" value={fNote} onChange={e => setFNote(e.target.value)} className={inputClass} />
+          </FormField>
         </div>
-      )}
+      </Sheet>
 
       {/* Toast */}
       {toast && (
@@ -401,6 +349,29 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
 // ─── Alt Bileşenler ──────────────────────────────────────────────────────────
 
 
+const STATUS: Record<string, { label: string; tone: PillTone }> = {
+  pending:  { label: "Bekliyor",   tone: "attention" },
+  approved: { label: "Onaylandı",  tone: "positive" },
+  rejected: { label: "Reddedildi", tone: "danger" },
+};
+
+// Personel onayı (İş K. m.41): kısa durum metni
+function employeeStatus(r: any): { label: string; tone: PillTone } {
+  if (r.employee_status === "accepted") return { label: r.compensation_type === "time_off" ? "Kabul etti · serbest zaman" : "Kabul etti · zamlı ücret", tone: "positive" };
+  if (r.employee_status === "declined") return { label: "Personel reddetti", tone: "danger" };
+  return { label: "Personelin onayı bekleniyor", tone: "neutral" };
+}
+
+function recordCost(r: any, wage?: number) {
+  return wage && r.compensation_type !== "time_off" ? Math.round(r.overtime_hours * wage * 1.5) : null;
+}
+
+function recordSubtitle(r: any, wage?: number) {
+  const cost = recordCost(r, wage);
+  return [`${r.overtime_hours} sa mesai`, cost !== null ? `≈ ₺${cost.toLocaleString("tr-TR")}` : null, r.week_start ? weekLabel(r.week_start) : null]
+    .filter(Boolean).join(" · ");
+}
+
 function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   pending: any[];
   history: any[];
@@ -408,262 +379,123 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   onCompTime: (id: number, used: boolean) => void;
   wageById: Record<string, number>;
 }) {
+  const [openId, setOpenId] = useState<number | null>(null);
+  const open = [...pending, ...history].find(r => r.id === openId) ?? null;
+  const act = (fn: () => void) => { fn(); setOpenId(null); };
+
   return (
     <div className="space-y-6">
-      {pending.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-sm font-medium">Bekleyen onay yok</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {pending.map(r => (
-            <OvertimeRow key={r.id} record={r} onDecision={onDecision} wage={wageById[r.personnel_id]} />
-          ))}
-        </div>
-      )}
+      <List>
+        {pending.length === 0 ? <ListEmpty>Onay bekleyen mesai yok.</ListEmpty> : pending.map(r => {
+          return (
+            <ListItem key={r.id} onClick={() => setOpenId(r.id)}
+              leading={<Avatar name={r.personnel_name ?? "?"} />}
+              title={r.personnel_name ?? "—"}
+              subtitle={recordSubtitle(r, wageById[r.personnel_id])}
+              trailing={r.employee_status === "declined" ? <StatusPill tone="danger">Reddetti</StatusPill>
+                : r.employee_status === "accepted" ? <StatusPill tone="positive">Kabul etti</StatusPill>
+                : undefined}
+            />
+          );
+        })}
+      </List>
 
       {history.length > 0 && (
-        <div>
-          <p className="text-xs font-bold text-slate-400 mb-3">Geçmiş</p>
-          <div className="space-y-2">
-            {history.slice(0, 10).map(r => (
-              <OvertimeRow key={r.id} record={r} readonly onUndo={onDecision} onCompTime={onCompTime} wage={wageById[r.personnel_id]} />
-            ))}
-          </div>
-        </div>
+        <section className="space-y-3">
+          <h2 className="text-base font-bold text-slate-900">Geçmiş</h2>
+          <List>
+            {history.slice(0, 10).map(r => {
+              const st = STATUS[r.status] ?? { label: r.status, tone: "neutral" as PillTone };
+              return (
+                <ListItem key={r.id} onClick={() => setOpenId(r.id)}
+                  leading={<Avatar name={r.personnel_name ?? "?"} />}
+                  title={r.personnel_name ?? "—"}
+                  subtitle={recordSubtitle(r, wageById[r.personnel_id])}
+                  trailing={<StatusPill tone={st.tone}>{st.label}</StatusPill>}
+                />
+              );
+            })}
+          </List>
+        </section>
       )}
+
+      {open && (() => {
+        const st = STATUS[open.status] ?? { label: open.status, tone: "neutral" as PillTone };
+        const emp = employeeStatus(open);
+        const cost = recordCost(open, wageById[open.personnel_id]);
+        const isCompTime = open.status === "approved" && open.compensation_type === "time_off";
+        return (
+          <Sheet open onClose={() => setOpenId(null)} title={open.personnel_name ?? "Mesai kaydı"}
+            description={open.week_start ? `${weekLabel(open.week_start)} haftası` : undefined}
+            footer={open.status === "pending" ? <>
+              <button onClick={() => act(() => onDecision(open.id, "rejected"))} className={sheetDangerClass}>Reddet</button>
+              <button onClick={() => act(() => onDecision(open.id, "approved"))} className={sheetPrimaryClass}>Onayla</button>
+            </> : <>
+              {isCompTime && !open.comp_time_used_at && (
+                <button onClick={() => act(() => onCompTime(open.id, true))} className={sheetSecondaryClass}
+                  title="Serbest zaman iznini kullandırdığını işaretle, bakiyeden düşer">İzin kullandırıldı</button>
+              )}
+              <button onClick={() => act(() => onDecision(open.id, "pending"))} className={sheetSecondaryClass}
+                title="Kayıt tekrar beklemeye düşer, yıllık toplam yeniden hesaplanır">
+                <span className="inline-flex items-center gap-1.5"><RotateCcw size={14} /> Kararı geri al</span>
+              </button>
+            </>}>
+            <DetailRow label="Durum"><StatusPill tone={st.tone}>{st.label}</StatusPill></DetailRow>
+            <DetailRow label="Personel onayı"><StatusPill tone={emp.tone}>{emp.label}</StatusPill></DetailRow>
+            <DetailRow label="Mesai">{open.overtime_hours} saat</DetailRow>
+            <DetailRow label="Planlanan">{open.scheduled_hours} saat</DetailRow>
+            {cost !== null && <DetailRow label="Tahmini maliyet">₺{cost.toLocaleString("tr-TR")} (ücret × 1,5)</DetailRow>}
+            {isCompTime && <DetailRow label="Serbest zaman">{open.comp_time_used_at ? "Kullandırıldı" : `${open.overtime_hours * 1.5} saat hak`}</DetailRow>}
+            {open.note && <DetailRow label="Not">{open.note}</DetailRow>}
+            {open.created_at && <DetailRow label="Oluşturuldu">{timeAgo(open.created_at)}</DetailRow>}
+          </Sheet>
+        );
+      })()}
     </div>
   );
 }
 
-function OvertimeRow({ record: r, onDecision, readonly, onUndo, onCompTime, wage }: {
-  record: any;
-  onDecision?: (id: number, status: "approved" | "rejected") => void;
-  readonly?: boolean;
-  onUndo?: (id: number, status: "pending") => void;
-  onCompTime?: (id: number, used: boolean) => void;
-  wage?: number;
-}) {
-  const statusMap: Record<string, { label: string; tone: PillTone }> = {
-    pending:  { label: "Bekliyor",    tone: "attention" },
-    approved: { label: "Onaylandı",   tone: "positive" },
-    rejected: { label: "Reddedildi",  tone: "danger" },
-  };
-  const st = statusMap[r.status] ?? { label: r.status, tone: "neutral" as PillTone };
-
-  // Personel onayı (İş K. m.41) — kabulde telafi türü de gösterilir
-  const compLabel = r.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret";
-  const empChip =
-    r.employee_status === "accepted"
-      ? { label: `Personel kabul ✓ · ${compLabel}`, tone: "positive" as PillTone }
-      : r.employee_status === "declined"
-        ? { label: "Personel reddetti ✗", tone: "danger" as PillTone }
-        : { label: "Personel onayı bekleniyor", tone: "neutral" as PillTone };
-
-  const isCompTimeRecord = r.status === "approved" && r.compensation_type === "time_off";
-
-  return (
-    <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-slate-200 transition-colors">
-      <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
-        <span className="text-sm font-bold text-forest-600">{(r.personnel_name ?? "?").charAt(0).toUpperCase()}</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className="font-semibold text-slate-900 text-sm">{r.personnel_name ?? "—"}</span>
-          <StatusPill tone={st.tone}>{st.label}</StatusPill>
-          <StatusPill tone={empChip.tone}>{empChip.label}</StatusPill>
-          {isCompTimeRecord && r.comp_time_used_at && (
-            <StatusPill tone="info">İzin kullandırıldı ✓</StatusPill>
-          )}
-        </div>
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span>{r.week_start ? weekLabel(r.week_start) : "—"}</span>
-          <span className="text-slate-300">·</span>
-          <span><b className="text-slate-700">{r.overtime_hours}s</b> mesai</span>
-          {wage && r.compensation_type !== "time_off" && (
-            <>
-              <span className="text-slate-300">·</span>
-              <span title="mesai saati × saatlik ücret × 1,5 (%50 zamlı)">≈ <b className="text-slate-700">₺{Math.round(r.overtime_hours * wage * 1.5).toLocaleString("tr-TR")}</b></span>
-            </>
-          )}
-          <span className="text-slate-300">·</span>
-          <span>{r.scheduled_hours}s planlı</span>
-          {r.created_at && <><span className="text-slate-300">·</span><span>{timeAgo(r.created_at)}</span></>}
-        </div>
-        {r.note && <p className="text-xs text-slate-400 mt-1 truncate">{r.note}</p>}
-      </div>
-      {!readonly && onDecision && (
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => onDecision(r.id, "approved")}
-            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-          >
-            <CheckCircle2 size={13} />
-            Onayla
-          </button>
-          <button
-            onClick={() => onDecision(r.id, "rejected")}
-            className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-          >
-            <XCircle size={13} />
-            Reddet
-          </button>
-        </div>
-      )}
-      {readonly && (r.status === "approved" || r.status === "rejected") ? (
-        <div className="flex items-center gap-2 shrink-0">
-          {isCompTimeRecord && !r.comp_time_used_at && onCompTime && (
-            <button
-              onClick={() => onCompTime(r.id, true)}
-              title="Serbest zaman iznini kullandırdığını işaretle, bakiyeden düşer"
-              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-            >
-              <CheckCircle2 size={13} />
-              İzin Kullandırıldı
-            </button>
-          )}
-          {onUndo && (
-            <button
-              onClick={() => onUndo(r.id, "pending")}
-              title="Kararı geri al, kayıt tekrar beklemeye düşer, yıllık toplam yeniden hesaplanır"
-              className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-            >
-              <RotateCcw size={13} />
-              Geri Al
-            </button>
-          )}
-        </div>
-      ) : readonly ? (
-        <TrendingUp size={14} className="text-slate-300 shrink-0" />
-      ) : null}
-    </div>
-  );
-}
+const WARNING_TONE: Record<WarningLevel, { tone: PillTone; label: string }> = {
+  critical: { tone: "danger", label: "Kritik" },
+  high:     { tone: "attention", label: "Yüksek" },
+  info:     { tone: "info", label: "Bilgi" },
+};
 
 function WarningsTab({ warnings }: { warnings: Warning[] }) {
-  if (warnings.length === 0) {
-    return (
-      <div className="text-center py-16 text-slate-400">
-        <p className="text-sm font-medium">Aktif uyarı yok</p>
-        <p className="text-xs mt-1">Tüm personel yasal limitler içinde</p>
-      </div>
-    );
-  }
-
-  const cfg: Record<WarningLevel, { icon: React.ReactNode; bg: string; border: string; badge: PillTone; badgeTxt: string; label: string }> = {
-    critical: {
-      icon: <ShieldAlert size={18} className="text-red-500 shrink-0" />,
-      bg: "bg-red-50/60", border: "border-red-200",
-      badge: "danger" as PillTone, badgeTxt: "Kritik", label: "KRİTİK",
-    },
-    high: {
-      icon: <AlertTriangle size={18} className="text-amber-500 shrink-0" />,
-      bg: "bg-amber-50/60", border: "border-amber-200",
-      badge: "attention" as PillTone, badgeTxt: "Yüksek", label: "YÜKSEK",
-    },
-    info: {
-      icon: <Info size={18} className="text-blue-400 shrink-0" />,
-      bg: "bg-blue-50/40", border: "border-blue-200",
-      badge: "info" as PillTone, badgeTxt: "Bilgi", label: "BİLGİ",
-    },
-  };
-
-  const groups = (["critical", "high", "info"] as WarningLevel[]).map(level => ({
-    level,
-    items: warnings.filter(w => w.level === level),
-  })).filter(g => g.items.length > 0);
-
   return (
-    <div className="space-y-5">
-      {groups.map(({ level, items }) => {
-        const c = cfg[level];
-        return (
-          <div key={level}>
-            <p className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1.5">
-              {c.icon} {c.label} · {items.length} uyarı
-            </p>
-            <div className="space-y-2">
-              {items.map(w => (
-                <div key={w.id} className={`flex items-start gap-4 rounded-2xl border px-5 py-4 ${c.bg} ${c.border}`}>
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-slate-100 shadow-sm">
-                    <span className="text-xs font-bold text-slate-600">
-                      {(w.personnelName ?? "?").charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      {w.personnelName && (
-                        <span className="font-bold text-slate-800 text-sm">{w.personnelName}</span>
-                      )}
-                      <StatusPill tone={c.badge}>{c.badgeTxt}</StatusPill>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-700">{w.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{w.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <List>
+      {warnings.length === 0 ? <ListEmpty>Uyarı yok, herkes yasal sınırların içinde.</ListEmpty> : warnings.map(w => (
+        <ListItem key={w.id}
+          leading={<Avatar name={w.personnelName ?? "?"} />}
+          title={w.personnelName ?? w.title}
+          subtitle={`${w.title} · ${w.detail}`}
+          trailing={<StatusPill tone={WARNING_TONE[w.level].tone}>{WARNING_TONE[w.level].label}</StatusPill>}
+        />
+      ))}
+    </List>
   );
 }
 
 function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) {
   const sorted = [...personnel].sort((a, b) => (b.ytd_overtime_hours ?? 0) - (a.ytd_overtime_hours ?? 0));
-
-  if (sorted.length === 0) {
-    return (
-      <div className="text-center py-16 text-slate-400">
-        <p className="text-sm font-medium">Personel bulunamadı</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-slate-50 flex items-center justify-between">
-        <span className="text-xs font-bold text-slate-500">Personel</span>
-        <span className="text-xs text-slate-400">Yıllık sınır: {maxYtd} saat</span>
-      </div>
-      <div className="divide-y divide-slate-50">
-        {sorted.map(p => {
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500">Bu yıl yapılan onaylı mesai. Yasal sınır yılda {maxYtd} saat.</p>
+      <List>
+        {sorted.length === 0 ? <ListEmpty>Personel bulunamadı.</ListEmpty> : sorted.map(p => {
           const ytd = p.ytd_overtime_hours ?? 0;
           const pct = Math.min((ytd / maxYtd) * 100, 100);
-          const isRed = pct >= 90;
-          const isAmber = pct >= 67 && !isRed;
-
           return (
-            <div key={p.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-forest-600">{(p.name ?? "?").charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-sm font-semibold text-slate-800 truncate">{p.name}</span>
-                  {isRed && (
-                    <StatusPill tone="danger" className="shrink-0">
-                      Limite Yakın
-                    </StatusPill>
-                  )}
-                  {isAmber && (
-                    <StatusPill tone="attention" className="shrink-0">
-                      Dikkat
-                    </StatusPill>
-                  )}
-                </div>
-                <YtdBar hours={ytd} max={maxYtd} />
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-slate-900">{ytd.toFixed(0)}s</p>
-                <p className="text-xs text-slate-400">Bu yıl mesai</p>
-              </div>
-              <ChevronRight size={14} className="text-slate-300 shrink-0" />
-            </div>
+            <ListItem key={p.id}
+              leading={<Avatar name={p.name ?? "?"} />}
+              title={p.name}
+              subtitle={<span className="block mt-1"><YtdBar hours={ytd} max={maxYtd} /></span>}
+              trailing={pct >= 90 ? <StatusPill tone="danger">Limite yakın</StatusPill>
+                : pct >= 67 ? <StatusPill tone="attention">Dikkat</StatusPill> : undefined}
+            />
           );
         })}
-      </div>
+      </List>
     </div>
   );
 }
