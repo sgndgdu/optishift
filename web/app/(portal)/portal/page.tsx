@@ -579,7 +579,7 @@ export default function PortalDashboard() {
         {availEnabled === true && (
           <Link href="/portal/availability"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-            <Clock size={13} /> Uygunluğum
+            <Clock size={13} /> Uygunluk
           </Link>
         )}
         {openShiftsEnabled && (

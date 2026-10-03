@@ -309,7 +309,7 @@ export default function OpenShiftsPage() {
       <div className="space-y-3">
         {loading && <div className="text-center py-12 text-slate-400 text-sm">Yükleniyor…</div>}
         {!loading && shifts.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-300">
+          <div className="bg-white rounded-2xl border border-slate-100 p-12 flex flex-col items-center gap-3 text-slate-500">
             <Megaphone size={40} strokeWidth={1.5} />
             <p className="text-sm font-semibold">Henüz açık vardiya ilanı yok</p>
             <p className="text-xs text-center max-w-xs">Personelin rapor aldığında veya acil kapanma gerektiğinde ilan oluştur. Personele anlık bildirim gider.</p>

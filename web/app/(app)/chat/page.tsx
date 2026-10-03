@@ -78,7 +78,7 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
             {c.lastMessage}
           </p>
         ) : (
-          <p className="text-[11px] text-slate-300 font-medium">{c.label ?? c.role}</p>
+          <p className="text-[11px] text-slate-500 font-medium">{c.label ?? c.role}</p>
         )}
       </div>
     </button>

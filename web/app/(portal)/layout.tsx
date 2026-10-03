@@ -52,7 +52,7 @@ const NAV = [
   { href: "/portal/calendar",     label: "Vardiyalarım", icon: Calendar,     primary: true },
   { href: "/portal/requests",     label: "Talepler",    icon: Inbox,         primary: true },
   { href: "/portal/chat",         label: "Mesajlar",    icon: MessageSquare, primary: true },
-  { href: "/portal/availability", label: "Uygunluğum",  icon: Clock },
+  { href: "/portal/availability", label: "Uygunluk",  icon: Clock },
   { href: "/portal/open-shifts",  label: "Açık Vardiyalar", icon: Megaphone },
   { href: "/portal/notifications", label: "Bildirimler", icon: BellRing },
   { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },

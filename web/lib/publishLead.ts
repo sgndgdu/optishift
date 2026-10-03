@@ -10,6 +10,6 @@ export function formatPublishLead(days: number | null): { short: string; sentenc
     const n = Math.round(days);
     return { short: `${n} gün önce`, sentence: `Planlar ortalama ${n} gün önceden yayınlanıyor`, tone };
   }
-  if (days >= 0) return { short: "Son gün", sentence: "Planlar genellikle hafta başlamadan hemen önce yayınlanıyor", tone };
+  if (days >= 0) return { short: "Son gün yayın", sentence: "Planlar genellikle hafta başlamadan hemen önce yayınlanıyor", tone };
   return { short: "Geç", sentence: "Planlar genellikle hafta başladıktan sonra yayınlanıyor", tone };
 }

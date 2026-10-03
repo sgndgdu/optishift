@@ -285,7 +285,7 @@ export default function SupervisorDashboard() {
                           ? { short: "Hazır", tone: "good" as const }
                           : formatPublishLead(loc.publish_lead);
                         return (
-                          <p className={`text-base font-black leading-7 ${
+                          <p title={"sentence" in lead && lead.sentence ? lead.sentence : "Gelecek haftanın planı yayınlandı"} className={`text-base font-black leading-7 ${
                             lead.tone === "none" ? "text-slate-300" : lead.tone === "good" ? "text-emerald-600"
                             : lead.tone === "ok" ? "text-amber-600" : "text-red-600"}`}>
                             {lead.short}

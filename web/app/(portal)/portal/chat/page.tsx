@@ -348,7 +348,7 @@ export default function EmployeeChatPage() {
                             {c.lastMessage ? (
                               <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
                             ) : (
-                              <p className="text-[11px] text-slate-300 font-medium">{c.label}</p>
+                              <p className="text-[11px] text-slate-500 font-medium">{c.label}</p>
                             )}
                           </div>
                         </button>
@@ -382,7 +382,7 @@ export default function EmployeeChatPage() {
                             {c.lastMessage ? (
                               <p className={`text-[11px] truncate ${(c.unread ?? 0) > 0 ? "font-semibold text-slate-700" : "text-slate-400 font-medium"}`}>{c.lastMessage}</p>
                             ) : (
-                              <p className="text-[11px] text-slate-300 font-medium">{c.label}</p>
+                              <p className="text-[11px] text-slate-500 font-medium">{c.label}</p>
                             )}
                           </div>
                         </button>

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       .filter(u => u.role === "admin" || u.role === "supervisor" || scope === null || (u.location_id && scope.includes(u.location_id)))
       .map(u => ({
         id: u.id, name: u.name, role: u.role,
-        label: u.display_title || roleLabel[u.role] || "Personel",
+        label: (u.role === "admin" || u.role === "supervisor" ? roleLabel[u.role] : u.display_title || roleLabel[u.role]) || "Personel",
         location: u.location_id ? locName.get(u.location_id) ?? null : null,
       }))
       // Yöneticiler önce

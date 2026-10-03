@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart2, Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
-import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 
 interface ReportRow {
@@ -159,7 +159,7 @@ function WorkHoursReport() {
           <button
             onClick={handleExport}
             disabled={rows.length === 0 || loading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className={pageActionClass}
           >
             <Download size={15} />
             Excel İndir

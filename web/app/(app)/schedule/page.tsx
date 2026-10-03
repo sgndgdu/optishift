@@ -2780,7 +2780,7 @@ loading ? (
                                         />
                                         {overLimit ? (
                                           <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
-                                        ) : val > 0 ? (
+                                        ) : val > 0 && cellCount > 0 ? (
                                           <span className={cn(
                                             "text-[10px] font-bold leading-tight",
                                             coverState === "under" && "text-red-500",
@@ -3257,7 +3257,7 @@ loading ? (
                           {weather[isoDate] && (
                             <div className="text-[10px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
                           )}
-                          {totalNeeded > 0 && (
+                          {totalNeeded > 0 && cellCount > 0 && (
                             <div className="mt-1 w-fit mx-auto">
                               <StatusPill tone={totalAssigned < totalNeeded ? "danger" : totalAssigned === totalNeeded ? "positive" : "info"}
                                 title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</StatusPill>

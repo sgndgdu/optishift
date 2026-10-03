@@ -6,6 +6,7 @@ import { managerOutsideBranch } from "@/lib/access";
 import { swapReducer, toSwapEvent, SwapStatus } from "@/lib/swapReducer";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { checkPersonChange } from "@/lib/assignmentCheck";
+import { addDays, businessToday } from "@/lib/date";
 
 /**
  * Takas sonrası iki tarafın takvimi kurallara uyuyor mu (lib/assignmentCheck).
@@ -64,6 +65,15 @@ export async function GET(req: NextRequest) {
         WHERE sr.org_id = ? AND sr.status = ? AND (rs.location_id = ? OR ts.location_id = ?)
         ORDER BY sr.created_at DESC
       `).all(org_id, status, location_id, location_id);
+      // Vardiyası geçmiş takas onaylanamaz: bekleyen listesinden (ve sayaçlardan) düşer
+      if (status === "peer_accepted" || status === "pending") {
+        const today = businessToday();
+        const dateOf = (ws: string | null, d: number | null) => (ws ? addDays(String(ws), Number(d ?? 0)) : null);
+        rows = rows.filter(r => {
+          const a = dateOf(r.req_week_start, r.req_day), b = dateOf(r.tgt_week_start, r.tgt_day);
+          return (!a || a >= today) && (!b || b >= today);
+        });
+      }
       // Müdür onay kartı: onaylanırsa oluşacak kural sorunları (lib/assignmentCheck)
       if (status === "peer_accepted") {
         for (const r of rows) {
