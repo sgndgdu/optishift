@@ -5,17 +5,17 @@
  * birden çok şube seçilirse bölge yöneticisi (role = supervisor, managed_location_ids). Ayrı unvan alanı yok:
  * display_title kapsamdan türetilir (managerTitle). Kapsam değişikliği PATCH scope_location_ids.
  * Hiç yönetici eklenmezse her şey işletme sahibine gelir.
+ * Yöneticiler ayrı bir listede değil, Ekip ve Tüm Personel'in ortak listesinde (PeopleList) durur;
+ * yetkileri kişi kartında (PersonSheet) düzenlenir. Bu dosya ekleme penceresini, yetki alanlarını ve
+ * şube bazlı müdür izinlerini tutar.
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { StatusPill } from "@/components/ui/StatusPill";
-import { Avatar } from "@/components/ui/Avatar";
-import { List, ListItem, ListSection } from "@/components/ui/List";
-import { Sheet, sheetDangerClass, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { List } from "@/components/ui/List";
+import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import { ACCESS_MODE_LABELS, parseAccess, type AccessMode } from "@/lib/userAccess";
-import { MANAGER_PERMISSION_LIST, PERMISSIONS_RULE_KEY, isOwnerRole, managerPermissions, type ManagerPermissions } from "@/lib/ruleLocks";
+import { MANAGER_PERMISSION_LIST, PERMISSIONS_RULE_KEY, managerPermissions, type ManagerPermissions } from "@/lib/ruleLocks";
 
 type Loc = { id: string; name: string };
 type Dept = { id: string; name: string };
@@ -318,114 +318,6 @@ export function ManagerAccessFields({ m, value, onChange, locations, viewerRole 
 export async function demoteManager(m: Mgr): Promise<boolean> {
   const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ make_employee: true }) });
   return r.ok;
-}
-
-/**
- * Tüm Personel'deki yönetici penceresi: yetki alanları + yöneticilikten alma / hesabı silme + kaydet.
- * (Şubenin Ekip sayfasında aynı alanlar kişi kartının içindedir.)
- */
-export function ManagerAccessEditor({ m, locations, viewerRole, branchManager = false, onDone }: {
-  m: Mgr; locations: Loc[]; viewerRole: string; branchManager?: boolean; onDone?: () => void;
-}) {
-  const [value, setValue] = useState<ManagerAccessValue>(() => initialManagerAccess(m));
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const save = async () => {
-    setBusy(true); setError("");
-    try {
-      const err = await saveManagerAccess(m, value);
-      if (err) setError(err); else onDone?.();
-    } finally { setBusy(false); }
-  };
-  const remove = async () => {
-    const r = await fetch(`/api/users?id=${m.id}`, { method: "DELETE" });
-    if (r.ok) onDone?.();
-  };
-
-  return (
-    <div className="space-y-4">
-      <ManagerAccessFields m={m} value={value} onChange={setValue} locations={locations} viewerRole={viewerRole} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex flex-wrap items-center gap-2">
-        {m.personnel_id ? (
-          <button onClick={async () => { if (await demoteManager(m)) onDone?.(); }} className={sheetSecondaryClass}>Yöneticilikten al</button>
-        ) : !branchManager && (
-          confirmDelete
-            ? <button onClick={remove} className="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">Evet, hesabı sil</button>
-            : <button onClick={() => setConfirmDelete(true)} className={sheetDangerClass}>Hesabı sil</button>
-        )}
-        <button onClick={save} disabled={busy || !managerAccessDirty(m, value)} className={`ml-auto ${sheetPrimaryClass}`}>{busy ? "Kaydediliyor…" : "Kaydet"}</button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Tüm Şubeler paneli için yöneticiler listesi (ana listesi sadece personeli gösteren sayfalarda):
- * satıra dokununca yetki düzenleyici açılır, "Yönetici ekle" penceresi.
- */
-export default function ManagersCard({ locations, viewerRole, branchManager = false }: {
-  locations: Loc[]; viewerRole: string; branchManager?: boolean;
-}) {
-  const [mgrs, setMgrs] = useState<Mgr[]>([]);
-  const [deptNames, setDeptNames] = useState<Record<string, string>>({});
-  const [adding, setAdding] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [permsOpen, setPermsOpen] = useState(false);
-  const load = useCallback(() => {
-    fetch("/api/users").then(r => r.json())
-      .then(d => setMgrs((Array.isArray(d) ? d : []).filter((u: Mgr) => u.role === "manager" || u.role === "supervisor")))
-      .catch(() => {});
-  }, []);
-  useEffect(() => { load(); }, [load]);
-  const locKey = locations.map(l => l.id).join(",");
-  useEffect(() => {
-    if (!locKey) return;
-    Promise.all(locKey.split(",").map(id => fetch(`/api/departments?location_id=${id}`).then(r => r.json()).catch(() => [])))
-      .then(lists => setDeptNames(Object.fromEntries(lists.flatMap(l => (Array.isArray(l) ? l : []).map((d: Dept) => [d.id, d.name])))));
-  }, [locKey]);
-  const locName = (id: string) => locations.find(l => l.id === id)?.name ?? id;
-  const open = mgrs.find(m => m.id === openId) ?? null;
-
-  return (
-    <>
-      <List>
-        <ListSection title="Yöneticiler" count={mgrs.length} action={
-          <span className="inline-flex items-center gap-3">
-            {isOwnerRole(viewerRole) && (
-              <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Müdür yetkileri</button>
-            )}
-            <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-forest-700 hover:underline">
-              <Plus size={13} /> {branchManager ? "Şef ata" : "Yönetici ekle"}
-            </button>
-          </span>
-        } />
-        {mgrs.length === 0 && <li className="px-4 py-3 text-sm text-slate-500">Henüz yönetici yok. Her şey size gelir.</li>}
-        {mgrs.map(m => {
-          const ids = scopeOf(m);
-          const where = locations.length > 1 ? (ids.length ? ids.map(locName).join(", ") : "Tüm şubeler") : null;
-          return (
-            <ListItem key={m.id}
-              leading={<Avatar name={m.name} tone="brand" />}
-              title={m.name}
-              subtitle={[m.display_title || "Yönetici", accessSummary(m, id => deptNames[id]), where].filter(Boolean).join(" · ")}
-              trailing={m.is_temp_password ? <StatusPill tone="attention">Henüz girmedi</StatusPill> : undefined}
-              onClick={canEditManager(viewerRole, branchManager, m) ? () => setOpenId(m.id) : undefined}
-            />
-          );
-        })}
-      </List>
-      <ManagerAddSheet open={adding} onClose={() => setAdding(false)} locations={locations} viewerRole={viewerRole} branchManager={branchManager} onDone={load} />
-      {isOwnerRole(viewerRole) && <BranchPermissionsSheet open={permsOpen} onClose={() => setPermsOpen(false)} locations={locations} />}
-      {open && (
-        <Sheet open onClose={() => setOpenId(null)} title={open.name} description={open.display_title || "Yönetici"}>
-          <ManagerAccessEditor key={open.id} m={open} locations={locations} viewerRole={viewerRole} branchManager={branchManager} onDone={() => { setOpenId(null); load(); }} />
-        </Sheet>
-      )}
-    </>
-  );
 }
 
 /**

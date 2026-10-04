@@ -340,7 +340,7 @@ async function insertUsers(pwHash) {
   await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
             VALUES ('u-mega-admin', 'mega.admin', 'admin@megatest.demo', ${pwHash}, 'admin', ${ORG}, ${KAFE.id}, ${"Genel Müdür"}, ${"Admin"}, 'active')`;
   await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
-            VALUES ('u-mega-supervisor', 'mega.supervisor', 'supervisor@megatest.demo', ${pwHash}, 'supervisor', ${ORG}, NULL, ${"Bölge Direktörü"}, ${"Süpervizör"}, 'active')`;
+            VALUES ('u-mega-supervisor', 'mega.supervisor', 'supervisor@megatest.demo', ${pwHash}, 'supervisor', ${ORG}, NULL, ${"Bölge Direktörü"}, ${"Bölge Müdürü"}, 'active')`;
   for (const loc of LOCATIONS) {
     const uid = `u-mega-mgr-${loc.sector}`;
     await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
