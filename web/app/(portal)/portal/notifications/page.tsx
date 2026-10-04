@@ -196,7 +196,7 @@ export default function NotificationsPage() {
 
   return (
     <Page>
-      <PageHeader title="Bildirimler" description={unreadCount > 0 ? `${unreadCount} okunmamış` : "Tümü okundu"}
+      <PageHeader title="Bildirimler" description={unreadCount > 0 ? `${unreadCount} okunmamış` : notifs.length ? "Tümü okundu" : undefined}
         actions={unreadCount > 0 && (
           <button onClick={markAllRead} className="text-sm text-forest-600 font-bold hover:underline">
             Tümünü Oku

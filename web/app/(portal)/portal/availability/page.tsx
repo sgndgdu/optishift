@@ -496,18 +496,19 @@ export default function PortalAvailability() {
               <li key={i}>
                 <div className="px-4 py-3">
                   {/* Başlık satırı */}
-                  <div className={`flex items-center gap-2 ${d.status !== "unavailable" && (expanded.has(i) || d.start) ? "mb-4" : ""}`}>
-                    <div className="shrink-0 min-w-[90px]">
-                      <span className="font-semibold text-slate-900 text-sm block leading-tight">{name}</span>
+                  {/* Gün adı üstte, üç seçenek altta tam genişlik (telefonda 3. düğme kenara sıkışıyordu) */}
+                  <div className={`space-y-2 ${d.status !== "unavailable" && (expanded.has(i) || d.start) ? "mb-4" : ""}`}>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-semibold text-slate-900 text-sm leading-tight">{name}</span>
                       <span className="text-xs font-semibold text-slate-400">{weekDates[i]}</span>
                     </div>
-                    <div className="flex gap-1.5 flex-1">
+                    <div className="flex gap-1.5">
                       {(["available","preferred_not","unavailable"] as Status[]).map(s => {
                         const c = S[s];
                         const active = d.status === s;
                         return (
                           <button key={s} onClick={() => setStatus(i, s)}
-                            className={`flex items-center justify-center gap-1 flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            className={`flex items-center justify-center gap-1 flex-1 min-h-[44px] px-1 rounded-xl text-xs font-bold transition-all ${
                               active
                                 ? `${c.bg} ${c.text} shadow-sm`
                                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -523,7 +524,7 @@ export default function PortalAvailability() {
                   {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat. İstenirse açılır. */}
                   {d.status !== "unavailable" && !expanded.has(i) && !d.start && (
                     <button onClick={() => setExpanded(prev => new Set(prev).add(i))}
-                      className="mt-2 text-xs font-bold text-slate-400 hover:text-primary">
+                      className="mt-1 min-h-[44px] text-xs font-bold text-slate-500 hover:text-primary">
                       + Saat sınırı ekle
                     </button>
                   )}

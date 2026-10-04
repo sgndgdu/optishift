@@ -1,7 +1,9 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
+import { useAvailabilityEnabled } from "@/hooks/useShiftWords";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/hooks/useAuth";
 import { getWeekStart as libGetWeekStart, formatDateTR, addDays, businessToday } from "@/lib/date";
@@ -17,6 +19,8 @@ import { Tabs } from "@/components/ui/Tabs";
 import { Sheet, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
+// En sık kullanılan dört tür önde; diğerleri "Diğer" ile açılır
+const MAIN_LEAVE_TYPES = ["Yıllık İzin", "Hastalık / Rapor", "Mazeret İzni", "Ücretsiz İzin"];
 const LEAVE_TYPES = [
   "Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor",
   "Doğum İzni", "Süt İzni", "Evlilik İzni", "Ücretsiz İzin",
@@ -92,10 +96,32 @@ export default function PortalRequests() {
 
   // edit form
   const [editShift, setEditShift]     = useState<any>(null);
+  const availabilityOn = useAvailabilityEnabled();
+  useEffect(() => {
+    if (!deepShift.current || myShifts.length === 0) return;
+    const s = myShifts.find((x: any) => String(x.id) === deepShift.current);
+    if (!s) return;
+    deepShift.current = null;
+    const id = setTimeout(() => (newType === "edit" ? setEditShift(s) : setSelMyShift(s)), 0);
+    return () => clearTimeout(id);
+  }, [myShifts, newType]);
+  // Vardiyalarım'da vardiyaya dokununca: /portal/requests?new=giveaway|swap|edit&shift=<id>
+  // talep türü ve vardiya seçili açılır (eskiden genel sayfaya gidip vardiyayı tekrar seçmek gerekiyordu)
+  const deepShift = useRef<string | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const t = q.get("new") as NewType | null;
+    if (!t || !["leave", "giveaway", "swap", "edit"].includes(t)) return;
+    deepShift.current = q.get("shift");
+    const id = setTimeout(() => { setActiveTab("new"); setNewType(t); }, 0);
+    return () => clearTimeout(id);
+  }, []);
   const [editReason, setEditReason]   = useState("");
 
   // leave form
-  const [leaveType, setLeaveType]     = useState(LEAVE_TYPES[0]);
+  // Tür önceden seçili gelmez (bakiyesi 0 olana ilk açılışta kırmızı "0 gün" gösteriyordu)
+  const [leaveType, setLeaveType]     = useState("");
+  const [leaveOther, setLeaveOther]   = useState(false);
   const [leaveStart, setLeaveStart]   = useState("");
   const [leaveEnd, setLeaveEnd]       = useState("");
   const [leaveNote, setLeaveNote]     = useState("");
@@ -350,7 +376,7 @@ export default function PortalRequests() {
   }
 
   async function submitLeave() {
-    if (!leaveStart || !leaveEnd || !user?.personnel_id) return;
+    if (!leaveType || !leaveStart || !leaveEnd || !user?.personnel_id) return;
     // Client-side policy kontrolü
     if (leavePolicy?.require_reason && !leaveNote.trim()) {
       showToast("Bu şubede izin talebi için mazeret zorunludur.", "error"); return;
@@ -485,7 +511,7 @@ export default function PortalRequests() {
   return (
     <Page>
       {/* Header */}
-      <PageHeader title="Talepler" description="İzin, değişiklik ve gelemediğin günler" actions={activeTab !== "new" && (
+      <PageHeader title="Talepler" description="İzin, takas ve vardiya bırakma" actions={activeTab !== "new" && (
           <button
             onClick={() => { setActiveTab("new"); setNewType(null); resetSwapWizard(); }}
             className={pageActionClass}
@@ -638,15 +664,6 @@ export default function PortalRequests() {
             </div>
           )}
 
-          {/* ── Serbest zaman bakiyesi ── */}
-          {(overtimeMe?.comp_time_balance_hours ?? 0) > 0 && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <CalendarOff size={16} className="text-emerald-600 shrink-0" />
-              <p className="text-xs text-emerald-800">
-                <b>{overtimeMe.comp_time_balance_hours} saat</b> kullanılmamış serbest zaman bakiyen var, müdürünle planlayabilirsin.
-              </p>
-            </div>
-          )}
 
           {/* ── Zorunlu Atama Talepleri ── */}
           {forceAssigns.length > 0 && (
@@ -778,7 +795,12 @@ export default function PortalRequests() {
           {openShiftsEnabled && newType === "giveaway" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2">
               <p className="text-xs font-bold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
-              {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan yayınlanmış vardiyan yok.</p>}
+              {myShifts.length === 0 && (
+                <div className="text-sm text-slate-500 text-center py-6 space-y-2">
+                  <p>Yaklaşan yayınlanmış vardiyan yok.</p>
+                  {availabilityOn && <p className="text-xs">Plan henüz yayınlanmadıysa gelemeyeceğin günü <Link href="/portal/availability" className="font-semibold text-forest-700 underline">Uygunluk</Link>&apos;tan işaretle.</p>}
+                </div>
+              )}
               {myShifts.map(s => {
                 // İlanda ya da takası süren vardiya tekrar seçilemez
                 const busy = myListings.some((o: any) => o.status === "open" && Number(o.source_assignment_id) === Number(s.id))
@@ -811,7 +833,7 @@ export default function PortalRequests() {
             <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
               {/* Progress */}
               <div className="flex border-b border-slate-100">
-                {["Vardiyam", "Arkadaşım", "Vardiyası", "Gönder"].map((s, i) => (
+                {["Vardiyan", "Kiminle", "Onun vardiyası", "Onay"].map((s, i) => (
                   <div key={i} className={`flex-1 py-2.5 text-center text-xs sm:text-xs font-bold transition-colors px-1 ${
                     swapStep === i ? "bg-primary text-white" : swapStep > i ? "bg-primary/10 text-primary" : "text-slate-400"
                   }`}>{s}</div>
@@ -956,11 +978,11 @@ export default function PortalRequests() {
               )}
 
               {/* Kalan yıllık izin */}
-              {leaveBalance && (
-                <div className={`rounded-xl p-3 flex items-start gap-2.5 border ${leaveBalance.remaining <= 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
-                  <CalendarOff size={15} className={`shrink-0 mt-0.5 ${leaveBalance.remaining <= 0 ? "text-red-500" : "text-emerald-600"}`} />
+              {leaveBalance && leaveType === "Yıllık İzin" && (
+                <div className={`rounded-xl p-3 flex items-start gap-2.5 border ${leaveBalance.remaining <= 0 ? "bg-amber-50 border-amber-200" : "bg-emerald-50 border-emerald-200"}`}>
+                  <CalendarOff size={15} className={`shrink-0 mt-0.5 ${leaveBalance.remaining <= 0 ? "text-amber-600" : "text-emerald-600"}`} />
                   <div className="text-xs">
-                    <p className={`font-bold ${leaveBalance.remaining <= 0 ? "text-red-700" : "text-emerald-800"}`}>
+                    <p className={`font-bold ${leaveBalance.remaining <= 0 ? "text-amber-800" : "text-emerald-800"}`}>
                       Kalan yıllık iznin: {leaveBalance.remaining} gün
                     </p>
                     <p className="text-slate-500 mt-0.5">
@@ -977,25 +999,11 @@ export default function PortalRequests() {
                 </div>
               )}
 
-              {/* Politika özeti */}
-              {leavePolicy && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
-                  <p className="text-xs font-bold text-slate-500">Şube İzin Kuralları</p>
-                  <div className="flex flex-wrap gap-2 mt-1.5">
-                    <StatusPill tone={leavePolicy.require_reason ? "attention" : "positive"}>
-                      {leavePolicy.require_reason ? "Mazeret zorunlu" : "Mazeret isteğe bağlı"}
-                    </StatusPill>
-                    <StatusPill tone={leavePolicy.allow_multi_day ? "info" : "neutral"}>
-                      {leavePolicy.allow_multi_day ? `Çoklu gün (en fazla ${leavePolicy.max_days_per_request})` : "Yalnızca tek gün"}
-                    </StatusPill>
-                  </div>
-                </div>
-              )}
-
+              {/* Şube kuralları ayrı kutuda gösterilmez: mazeret zorunluysa not alanı söyler, tek gün ise tek tarih alanı çıkar */}
               <div>
                 <label className="text-xs font-bold text-slate-400 mb-1.5 block">İzin Türü</label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {LEAVE_TYPES.map(t => (
+                  {LEAVE_TYPES.filter(t => leaveOther || MAIN_LEAVE_TYPES.includes(t) || leaveType === t).map(t => (
                     <button
                       key={t}
                       onClick={() => setLeaveType(t)}
@@ -1010,7 +1018,13 @@ export default function PortalRequests() {
                     </button>
                   ))}
                 </div>
+                {!leaveOther && <button type="button" onClick={() => setLeaveOther(true)} className="mt-2 text-xs font-semibold text-forest-700 hover:underline">Diğer izin türleri (doğum, süt, evlilik)</button>}
               </div>
+              {(overtimeMe?.comp_time_balance_hours ?? 0) > 0 && (
+                <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                  Ayrıca <b>{overtimeMe.comp_time_balance_hours} saat</b> fazla mesai karşılığı serbest zamanın var; müdürünle planlayabilirsin.
+                </p>
+              )}
 
               {/* Tarih alanları — çoklu gün kapalıysa bitiş = başlangıç */}
               <div className={leavePolicy?.allow_multi_day === false ? "" : "grid grid-cols-2 gap-3"}>
@@ -1059,7 +1073,7 @@ export default function PortalRequests() {
               </div>
 
               <button
-                disabled={!leaveStart || !leaveEnd || loading || (leavePolicy?.require_reason && !leaveNote.trim())}
+                disabled={!leaveType || !leaveStart || !leaveEnd || loading || (leavePolicy?.require_reason && !leaveNote.trim())}
                 onClick={submitLeave}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
@@ -1278,7 +1292,7 @@ function NextBtn({ disabled, onClick }: { disabled: boolean; onClick: () => void
     <button
       disabled={disabled}
       onClick={onClick}
-      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-40"
+      className="w-full flex-1 flex items-center justify-center gap-1.5 min-h-[48px] bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-40"
     >
       Devam <ChevronRight size={15} />
     </button>

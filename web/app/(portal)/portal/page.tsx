@@ -382,7 +382,10 @@ export default function PortalDashboard() {
                   Sonraki: <span className="font-bold text-forest-100">{formatDateTR(addDays(nextWeekFirst.week_start, Number(nextWeekFirst.day)))}, {nextWeekFirst.start_time}</span>
                 </p>
               ) : (
-                <p className="text-forest-200/60 text-sm">Bu hafta başka {words.shift} yok.</p>
+                // Asıl soru "sonraki vardiyam ne zaman": plan yoksa bunu söyle
+                <p className="text-forest-200/70 text-sm">
+                  {nextWeekPublished ? `Bu hafta ve gelecek hafta ${words.shift} yok.` : "Gelecek haftanın planı henüz yayınlanmadı. Yayınlanınca bildirim gelir."}
+                </p>
               )}
             </div>
           )}
@@ -560,21 +563,22 @@ export default function PortalDashboard() {
 
       {/* ── Kısayollar: alt menüden çıkarılan sayfalar + acil durum ──────── */}
       <div className="flex flex-wrap gap-2">
-        {availEnabled === true && (
+        {/* Uygunluk uyarı kutusu çıkıyorsa kısayol tekrar etmez */}
+        {availEnabled === true && !(nextWeekAvail === false && !nextWeekPublished) && (
           <Link href="/portal/availability"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
             <Clock size={13} /> Uygunluk
           </Link>
         )}
         {openShiftsEnabled && (
           <Link href="/portal/open-shifts"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
             <Megaphone size={13} /> {words.OpenShifts}
           </Link>
         )}
         <button
           onClick={() => setEmergencyOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
         >
           <AlertCircle size={13} /> Acil durum
         </button>
@@ -618,19 +622,19 @@ export default function PortalDashboard() {
             <AlertCircle size={18} className="text-ember-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-ember-800">Gelecek hafta uygunluğun eksik</p>
-            <p className="text-xs text-ember-500 mt-0.5">Müdürün planlama yapabilmesi için gir.</p>
+            <p className="text-sm font-bold text-ember-800">Gelecek haftan için uygunluğunu gir</p>
+            <p className="text-xs text-ember-600 mt-0.5">Gelemeyeceğin günleri işaretle; hepsi uygunsa da bir kez kaydet.</p>
           </div>
           <Link href="/portal/availability"
-            className="text-xs font-bold text-ember-700 bg-white border border-ember-200 px-3 py-2 rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">
-            Gir →
+            className="text-xs font-bold text-ember-700 bg-white border border-ember-200 px-4 min-h-[44px] inline-flex items-center rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">
+            Aç
           </Link>
         </div>
       )}
 
       {/* Yaklaşan vardiyalar ayrı liste olarak gösterilmez: üstteki "Bu Hafta" şeridi ve Vardiyalarım aynı bilgiyi verir */}
-      {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
-      <div>
+      {/* ── Son Bildirimler (boşken gizli: zil ikonu aynı işi yapıyor) ───── */}
+      {(dataLoading || notifs.length > 0) && <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-slate-900 text-base">Bildirimler</h3>
           <Link href="/portal/notifications" className="text-xs font-bold text-primary flex items-center gap-0.5">
@@ -664,7 +668,7 @@ export default function PortalDashboard() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
     </Page>
   );

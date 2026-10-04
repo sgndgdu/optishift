@@ -213,13 +213,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">
-            <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+            <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2.5 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (
                 <CountBadge size="sm" className="absolute top-1 right-1">{notifUnread}</CountBadge>
               )}
             </Link>
-            <Link href="/portal/settings" aria-label="Hesabım" title="Hesabım" className={cn("p-2 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
+            <Link href="/portal/settings" aria-label="Hesabım" title="Hesabım" className={cn("p-2.5 rounded-xl transition-colors", pathname === "/portal/settings" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <UserCircle size={22} />
             </Link>
           </div>

@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, UserX, ArrowLeftRight, FileEdit } from "lucide-react";
+import { Sheet } from "@/components/ui/Sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePortalAuth } from "@/hooks/useAuth";
@@ -26,6 +27,17 @@ export default function PortalCalendar() {
   // Vardiya kimliği (s-sabah) yerine şubedeki adı (Sabah Postası) gösterilir
   const [shiftNames, setShiftNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  // Vardiyaya dokununca açılan seçenekler (rakiplerde ana yol bu): hangi talepler açık şubenin kuralından
+  const [picked, setPicked] = useState<{ id: number; label: string; past: boolean } | null>(null);
+  const [reqFlags, setReqFlags] = useState({ giveaway: true, swap: true, edit: true });
+  useEffect(() => {
+    if (!user?.location_id) return;
+    fetch(`/api/locations?id=${user.location_id}`).then(r => r.json()).then(d => {
+      const loc = Array.isArray(d) ? d[0] : d;
+      const r = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : (loc?.rules ?? {});
+      setReqFlags({ giveaway: r.open_shifts_enabled !== false, swap: r.swap_requests_enabled !== false, edit: r.edit_requests_enabled !== false });
+    }).catch(() => {});
+  }, [user?.location_id]);
 
   const weekStart = getWeekStart(weekOffset);
 
@@ -91,7 +103,7 @@ export default function PortalCalendar() {
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(prev => prev - 1)}
-            className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-10 w-10"
+            className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-11 w-11"
           >
             <ChevronLeft size={20} strokeWidth={2.5} />
           </Button>
@@ -102,7 +114,7 @@ export default function PortalCalendar() {
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(prev => prev + 1)}
-            className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-10 w-10"
+            className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-11 w-11"
           >
             <ChevronRight size={20} strokeWidth={2.5} />
           </Button>
@@ -120,6 +132,8 @@ export default function PortalCalendar() {
         // Sadece vardiyası olan günler; boş günler tek satırda. Geçmiş günler soluk, bugün vurgulu.
         (() => {
           const today = businessToday();
+          // Saat düzeltme son 2 hafta için de istenebilir; geçmiş vardiyada sadece o seçenek çıkar
+          const fixFrom = addDays(today, -14);
           const workDays = [0, 1, 2, 3, 4, 5, 6].filter(d => shifts.some((x: any) => x.day === d) || onCalls.some((x: any) => x.day === d));
           const offDays = [0, 1, 2, 3, 4, 5, 6].filter(d => !workDays.includes(d));
           if (workDays.length === 0) {
@@ -141,7 +155,10 @@ export default function PortalCalendar() {
                 const isToday = date === today;
                 const isPast = date < today;
                 return (
-                  <div key={d} className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${isToday ? "border-primary/40 bg-primary/5" : "border-slate-100 bg-white"} ${isPast ? "opacity-50" : ""}`}>
+                  <div key={d}
+                    role={shift && date >= fixFrom ? "button" : undefined} tabIndex={shift && date >= fixFrom ? 0 : undefined}
+                    onClick={shift && date >= fixFrom ? () => setPicked({ id: shift.id, past: isPast, label: `${DAYS[d]} ${shift.start_time}–${shift.end_time}` }) : undefined}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${isToday ? "border-primary/40 bg-primary/5" : "border-slate-100 bg-white"} ${isPast ? "opacity-50" : ""} ${shift && date >= fixFrom ? "cursor-pointer active:bg-slate-50" : ""}`}>
                     <div className={`w-12 shrink-0 text-center rounded-xl py-1.5 ${isToday ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>
                       <p className="text-xs font-bold uppercase">{DAY_SHORT[d]}</p>
                       <p className="text-sm font-bold leading-none mt-0.5">{Number(date.slice(8))}</p>
@@ -163,15 +180,7 @@ export default function PortalCalendar() {
                         </p>
                       )}
                     </div>
-                    {shift && !isPast && (
-                      <button
-                        className="shrink-0 w-10 h-10 rounded-xl border border-slate-200 text-slate-400 hover:text-primary hover:border-primary/30 flex items-center justify-center"
-                        title="Değişiklik iste" aria-label="Değişiklik iste"
-                        onClick={() => router.push("/portal/requests")}
-                      >
-                        <RefreshCcw size={16} />
-                      </button>
-                    )}
+                    {shift && !isPast && <ChevronRight size={18} className="shrink-0 text-slate-300" aria-hidden />}
                   </div>
                 );
               })}
@@ -235,6 +244,27 @@ export default function PortalCalendar() {
             })
           )}
         </div>
+      )}
+      {picked && (
+        <Sheet open onClose={() => setPicked(null)} title={picked.label} description="Bu vardiya için ne yapmak istiyorsun?">
+          <div className="space-y-2">
+            {[
+              ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", Icon: UserX }] : []),
+              ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşına takas teklif et", Icon: ArrowLeftRight }] : []),
+              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Müdürden saat düzeltme iste", Icon: FileEdit }] : []),
+            ].map(o => (
+              <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}
+                className="w-full flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3.5 text-left hover:bg-slate-50 min-h-[56px]">
+                <o.Icon size={18} className="text-forest-600 shrink-0" />
+                <span>
+                  <span className="block text-sm font-bold text-slate-800">{o.label}</span>
+                  <span className="block text-xs text-slate-500">{o.hint}</span>
+                </span>
+              </button>
+            ))}
+            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Bu şubede vardiya talepleri kapalı. Müdürünle konuş.</p>}
+          </div>
+        </Sheet>
       )}
     </Page>
   );
