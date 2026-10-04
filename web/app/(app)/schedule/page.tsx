@@ -813,6 +813,16 @@ function SchedulePageInner() {
   // "sil + yeniden yaz" yapınca kopya taslak satırlar oluşuyordu (yayında kopyalar taslak kalıyordu)
   // Kuyruktaki otomatik kayıt, veriyi kuyruğa girdiği anda değil çalıştığı anda en güncel halinden alır
   // (yoksa uzun süren bir kayıt beklerken eski render'ın verisi en son yazılıp icapları siliyordu)
+  // İhtiyaç tablosu kayıtları sıralı gider ve her biri gönderildiği andaki EN GÜNCEL tabloyu yazar: hızlı art arda
+  // girişte geç dönen eski kayıt yenisinin üstüne yazıyordu (pub testi 2026-10-04). Plan oluşturma bunları bekler.
+  const demandSaveChain = useRef<Promise<void>>(Promise.resolve());
+  const latestDemandRef = useRef({ flat: demandMatrix, depts: deptDemandMatrix });
+  useEffect(() => { latestDemandRef.current = { flat: demandMatrix, depts: deptDemandMatrix }; }, [demandMatrix, deptDemandMatrix]);
+  const queueDemandSave = (send: () => Promise<unknown>) => {
+    const run = demandSaveChain.current.then(send).then(() => undefined);
+    demandSaveChain.current = run.catch(() => undefined);
+    return run;
+  };
   const saveChainRef = useRef<Promise<boolean>>(Promise.resolve(true));
   const latestPlanRef = useRef<{ cellMap: CellMap; onCallMap: Record<string, { defId: string; pinned?: boolean }> }>({ cellMap: {}, onCallMap: {} });
   useEffect(() => { latestPlanRef.current = { cellMap, onCallMap }; }, [cellMap, onCallMap]);
@@ -1411,6 +1421,7 @@ function SchedulePageInner() {
       absent: sc.absentPid ? [{ personnel_id: sc.absentPid, days: sc.absentDays }] : [],
       extra_staff: sc.extra, demand_change_pct: sc.pct,
     } : { absent: [], extra_staff: 0, demand_change_pct: 0 };
+    await demandSaveChain.current; // ihtiyaç tablosunun bekleyen kayıtları motordan önce yazılsın
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1556,6 +1567,7 @@ function SchedulePageInner() {
     const before = { ...cellMap };
     setChangedCount(null);
     try {
+      await demandSaveChain.current; // ihtiyaç tablosunun bekleyen kayıtları motordan önce yazılsın
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1774,14 +1786,15 @@ function SchedulePageInner() {
     }
   };
 
-  const handleDemandSave = async (silent = false, matrix: Record<string, Record<number, number>> = demandMatrix) => {
+  const handleDemandSave = async (silent = false, matrix?: Record<string, Record<number, number>>) => {
     if (!activeLocationId) return;
+    const locId = activeLocationId;
     try {
-      await fetch(`/api/locations?id=${activeLocationId}`, {
+      await queueDemandSave(() => fetch(`/api/locations?id=${locId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_matrix: matrix }),
-      });
+        body: JSON.stringify({ demand_matrix: matrix ?? latestDemandRef.current.flat }),
+      }));
       if (!silent) showToast("Personel ihtiyacı kaydedildi.", "success");
     } catch {
       if (!silent) showToast("Personel ihtiyacı kaydedilemedi.", "error");
@@ -1883,13 +1896,12 @@ function SchedulePageInner() {
   };
 
   const handleDeptDemandSave = async (deptId: string, override?: Record<string, Record<number, number>>) => {
-    const matrix = override ?? deptDemandMatrix[deptId] ?? {};
     try {
-      await fetch(`/api/departments?id=${deptId}`, {
+      await queueDemandSave(() => fetch(`/api/departments?id=${deptId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_matrix: matrix }),
-      });
+        body: JSON.stringify({ demand_matrix: override ?? latestDemandRef.current.depts[deptId] ?? {} }),
+      }));
     } catch { /* sessiz hata */ }
   };
 
