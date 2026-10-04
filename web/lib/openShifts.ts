@@ -104,6 +104,14 @@ export async function claimOpenShift(
     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'scheduled', 'published', ?)
   `).run(claimedBy, os.location_id, week_start, dayIdx, shiftId, os.start_time, os.end_time, now);
 
+  // Ödünç (başka şubeden üstlenen): şube kişinin çalıştığı şubelere eklenir, yoksa o şubenin planında satırı görünmez
+  const who = await db.prepare(`SELECT assigned_location_ids FROM personnel WHERE id = ?`).get(claimedBy) as any;
+  let assigned: string[] = [];
+  try { assigned = JSON.parse(who?.assigned_location_ids || "[]"); } catch { assigned = []; }
+  if (!assigned.includes(os.location_id)) {
+    await db.prepare(`UPDATE personnel SET assigned_location_ids = ? WHERE id = ?`).run(JSON.stringify([...assigned, os.location_id]), claimedBy);
+  }
+
   // Kahraman bonusu (düz puan, hero_bonus_multiplier kolonunda tutulur) puan formülünde uygulanır —
   // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
   await rescoreWeek(orgId, os.location_id, week_start);
@@ -153,36 +161,49 @@ export async function publishOpenShift(
     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(o.org_id, o.location_id, o.date, o.start_time, o.end_time, o.note, heroPoints, now, o.releasedBy ?? null, o.sourceAssignmentId ?? null);
 
-  let targets: { id: string; name?: string }[] = [];
-  if (notify === "all") {
-    targets = (await db.prepare(
-      `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
-    ).all(o.location_id) as any[]).filter(p => p.id !== o.releasedBy);
-  } else if (notify === "top") {
+  let targets: { id: string; name?: string; away?: boolean }[] = [];
+  if (notify === "all" || notify === "top") {
     const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });
-    targets = candidates.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
-    if (targets.length === 0) targets = candidates.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+    if (notify === "all") {
+      // Şubede çalışan herkes (paylaşılan personel dahil: ana şubesi başka olsa da bu şubeye atanmış olanlar)
+      targets = (await db.prepare(
+        `SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`
+      ).all(`%"${o.location_id}"%`) as any[]).filter(p => p.id !== o.releasedBy);
+    } else {
+      const local = candidates.filter(c => !c.other_branch);
+      targets = local.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+      if (targets.length === 0) targets = local.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
+    }
+    // Ödünç (2026-10-04): diğer şubelerden en uygun 3 kişiye de davet gider; portalda ilanı görüp üstlenebilir
+    targets.push(...candidates.filter(c => c.other_branch && c.warnings.length === 0).slice(0, 3)
+      .map(c => ({ id: c.personnel_id, name: c.name, away: true })));
   }
   const dateLabel = formatDateTR(o.date);
+  const branchName = (await db.prepare(`SELECT name FROM locations WHERE id = ?`).get(o.location_id) as any)?.name ?? "";
+  const osId = result.lastInsertRowid ?? null;
   const insertNotif = await db.prepare(`
-    INSERT INTO notifications (personnel_id, type, title, message, created_at)
-    VALUES (?, 'open_shift', ?, ?, ?)
+    INSERT INTO notifications (personnel_id, type, title, message, link, created_at)
+    VALUES (?, 'open_shift', ?, ?, ?, ?)
   `);
   // Bildirimler paralel: sırayla gönderilince kalabalık şubede ilan saniyelerce sürüyordu
   await Promise.allSettled(targets.map(async p => {
+    const link = p.away && osId ? `/portal/open-shifts?invite=${osId}` : "/portal/open-shifts";
     await insertNotif.run(
       p.id,
-      notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
-      notify === "top"
+      p.away ? `${branchName} şubesinde yardım aranıyor · ${dateLabel}` : notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
+      p.away
+        ? `${branchName} şubesinde ${o.start_time}–${o.end_time} vardiyası boş ve o gün boşsun. İstersen üstlenebilirsin; üstlenene +${heroPoints} puan.`
+        : notify === "top"
         ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`
         : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`,
+      link,
       now,
     );
     await sendPushToPersonnel(p.id, o.org_id, {
-      title: `Açık Vardiya · ${dateLabel}`,
-      body: `${o.start_time}–${o.end_time} saatleri için gönüllü aranıyor. Kabul edersen +${heroPoints} puan bonus!`,
-      url: "/portal/open-shifts",
+      title: p.away ? `${branchName} şubesinde yardım aranıyor` : `Açık Vardiya · ${dateLabel}`,
+      body: `${dateLabel} ${o.start_time}–${o.end_time}: gönüllü aranıyor. Üstlenene +${heroPoints} puan.`,
+      url: link,
     });
   }));
-  return { id: result.lastInsertRowid ?? null, notified: targets.map(p => p.name ?? p.id) };
+  return { id: osId, notified: targets.map(p => (p.away ? `${p.name ?? p.id} (başka şube)` : p.name ?? p.id)) };
 }

@@ -7,7 +7,7 @@
  * manager_permissions'ın kendisini müdür hiçbir zaman değiştiremez.
  */
 export type LockCategory = "budget" | "rules" | "features";
-export type ManagerPermission = LockCategory | "personnel_delete" | "publish_edit";
+export type ManagerPermission = LockCategory | "personnel_delete" | "publish_edit" | "cross_branch";
 export type ManagerPermissions = Record<ManagerPermission, boolean>;
 
 export const MANAGER_PERMISSION_LIST: { key: ManagerPermission; label: string; description: string }[] = [
@@ -16,6 +16,7 @@ export const MANAGER_PERMISSION_LIST: { key: ManagerPermission; label: string; d
   { key: "features", label: "Ek özellikler", description: "Mesajlaşma, açık vardiya, bahşiş, ortak tablet gibi modülleri açıp kapatma." },
   { key: "personnel_delete", label: "Personel silme", description: "Personeli pasife alma ve hesabını silme." },
   { key: "publish_edit", label: "Yayınlanmış planı onaysız değiştirme", description: "Kapalıysa yayınlanmış haftayı düzenlemek için işletme sahibinin onayı gerekir." },
+  { key: "cross_branch", label: "Şubeler arası personel", description: "Kendi çalışanını başka şubelerde de çalıştırma ve şube rotasyonu (hangi hafta hangi şube) belirleme." },
 ];
 
 export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {

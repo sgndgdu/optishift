@@ -70,6 +70,10 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     working.flatMap(p => { const items = pick(p); return items && items.length ? [{ text: line(p.name, items), personId: p.id, day: firstDay(items) }] : []; });
 
   // ── Acil: yasal ya da kesin sorunlar ─────────────────────────────────────
+  // Paylaşılan personel: aynı gün iki şubede (otomatik plan bunu yapmaz; elle ya da eşzamanlı planlamada olabilir)
+  const twoBranches = per(p => p.elsewhereSameDay, (n, xs) => `${n}: ${xs.map(x => `${DAY_SHORT[x.day]} ${x.branch}`).join(", ")}`);
+  add("other-branch", "critical", `${twoBranches.length} kişi aynı gün başka şubede de vardiyada`, twoBranches);
+
   const onLeave = per(p => p.onLeaveDays, (n, d) => `${n}: ${dayList(d)}`);
   add("on-leave", "critical", `${onLeave.length} kişi izinli olduğu gün vardiyada`, onLeave);
 

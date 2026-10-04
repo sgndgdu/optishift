@@ -146,6 +146,8 @@ export const personnel = pgTable("personnel", {
   leave_adjustment_days: integer("leave_adjustment_days").default(0), // yıllık izin elle düzeltme (±gün) — kalan izin TÜRETİLİR (lib/leave.ts), asla doğrudan yazılmaz
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
   schedulable: boolean("schedulable").notNull().default(true), // false = vardiya planına girmez (vardiya yapmayan yönetici)
+  // Planlı şube değiştirme (lib/branchRotation): {"every_weeks":2,"order":["loc-a","loc-b"],"anchor":"2026-10-05"}; null = yok
+  branch_rotation: text("branch_rotation"),
   prev_score: doublePrecision("prev_score").default(0), // kümülatif adalet puanı (additive, decay YOK — bkz. lib/fairness.ts)
   fairness_z_score: doublePrecision("fairness_z_score").default(0), // artık percentile (0-100, yüksek=az yüklü) — eski z-score değil
   hero_count: integer("hero_count").default(0),

@@ -19,6 +19,31 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
+  // Çalışan portalı (?mine=1): çalıştığı TÜM şubelerin açık ilanları + davet edildiği başka şube ilanı (?invite=<id>)
+  if (searchParams.get("mine") === "1" && auth.personnel_id) {
+    const db0 = getDB();
+    try {
+      const me = await db0.prepare("SELECT assigned_location_ids, primary_location_id FROM personnel WHERE id = ? AND org_id = ?").get(auth.personnel_id, auth.org_id) as any;
+      let locs: string[] = [];
+      try { locs = JSON.parse(me?.assigned_location_ids || "[]"); } catch { locs = []; }
+      if (me?.primary_location_id && !locs.includes(me.primary_location_id)) locs.push(me.primary_location_id);
+      const today = businessToday();
+      const rows: any[] = locs.length ? await db0.prepare(`
+        SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
+        WHERE os.org_id = ? AND os.status = 'open' AND os.date >= ? AND os.location_id IN (${locs.map(() => "?").join(",")})
+        ORDER BY os.date ASC, os.start_time ASC`).all(auth.org_id, today, ...locs) as any[] : [];
+      const invite = Number(searchParams.get("invite"));
+      if (invite && !rows.some(r => Number(r.id) === invite)) {
+        const inv = await db0.prepare(`
+          SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
+          WHERE os.id = ? AND os.org_id = ? AND os.status = 'open' AND os.date >= ?`).get(invite, auth.org_id, today) as any;
+        if (inv) rows.unshift({ ...inv, invited: true });
+      }
+      return NextResponse.json(rows.map(r => ({ ...r, other_branch: r.location_id !== me?.primary_location_id })));
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
   const location_id = searchParams.get("location_id");
   if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   const status = searchParams.get("status");
@@ -223,6 +248,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // Şube müdürü başka şubenin çalışanını doğrudan atayamaz (kullanıcı kararı): ilan ona duyurulur, kendisi üstlenir
+    if (claimed_by && assigned_by_manager && auth.role === "manager") {
+      const target = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(claimed_by, auth.org_id) as any;
+      if (!String(target?.assigned_location_ids ?? "").includes(`"${auth.location_id}"`)) {
+        return NextResponse.json({ error: "Başka şubenin çalışanını sadece işletme sahibi ya da bölge müdürü atar. İlan bu kişiye duyuruldu, kendisi üstlenebilir." }, { status: 403 });
+      }
+    }
     if (claimed_by) {
       // Personel sadece kendisi adına üstlenebilir; "müdür ataması" bayrağını da kullanamaz
       if (auth.role === "employee" && (claimed_by !== auth.personnel_id || assigned_by_manager)) {

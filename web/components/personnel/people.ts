@@ -41,6 +41,12 @@ export type MergedPerson = {
   schedulable: boolean;
   /** Ekipten çıkarılmış (personnel.status = inactive). */
   inactive: boolean;
+  /** Çalıştığı şubeler (ana şube dahil) */
+  assigned_location_ids: string[];
+  /** Planlı şube rotasyonu (lib/branchRotation), ham */
+  branch_rotation: unknown;
+  /** Ana departman + diğer şubelerdeki departmanlar */
+  assigned_department_ids: string[];
 };
 
 const toMerged = (acc: any | undefined, p: any | undefined): MergedPerson => ({
@@ -65,6 +71,9 @@ const toMerged = (acc: any | undefined, p: any | undefined): MergedPerson => ({
   kiosk_pin_set: !!p?.kiosk_pin_set,
   schedulable: !!p && p.schedulable !== false,
   inactive: !!p && p.status === "inactive",
+  assigned_location_ids: Array.isArray(p?.assigned_location_ids) ? p.assigned_location_ids : (p?.primary_location_id ? [p.primary_location_id] : []),
+  branch_rotation: p?.branch_rotation ?? null,
+  assigned_department_ids: Array.isArray(p?.assigned_department_ids) ? p.assigned_department_ids : [],
 });
 
 /**

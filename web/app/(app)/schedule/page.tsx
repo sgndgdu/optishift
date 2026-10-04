@@ -1,5 +1,6 @@
 "use client";
 import { effectiveWeeklyLimit } from "@/lib/legal";
+import { departmentInBranch, plannedInBranch } from "@/lib/branchRotation";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense } from "react";
@@ -163,6 +164,8 @@ function scheduleSnapshot(a: {
   cellMap: CellMap; onCallMap: Record<string, { defId: string }>; shiftDefs: ShiftDefinition[];
   /** Aynı gündeki ek vardiyalar (takas/açık vardiyadan; tabloda salt okunur) */
   extraCells?: Record<string, CellData[]>;
+  /** Kişilerin başka şubedeki vardiyaları */
+  elsewhere?: { personnel_id: string; day: number; start_time: string; end_time: string; location_name: string }[];
   demandMatrix: Record<string, Record<number, number>>;
   deptDemandMatrix: Record<string, Record<string, Record<number, number>>>;
   availMap: AvailMap; personnel: any[]; locRules: FairnessRules; clopeningMinRest: number;
@@ -193,7 +196,11 @@ function scheduleSnapshot(a: {
       personnel_id: key.slice(0, lastDash), day: Number(key.slice(lastDash + 1)), shift_id: def.id,
       start_time: def.start, end_time: def.end, publication_status: "draft", kind: "on_call" as "regular" | "on_call",
     }] : [];
-  }));
+  })).concat((a.elsewhere ?? []).map(e => ({
+    personnel_id: e.personnel_id, day: Number(e.day), shift_id: "elsewhere",
+    start_time: e.start_time, end_time: e.end_time, publication_status: "published", kind: "regular" as "regular" | "on_call",
+    elsewhere: e.location_name,
+  })));
   // Departman varsa talep departman tablolarının toplamıdır (bkz. CLAUDE.md §3.B)
   const matrices = Object.keys(a.deptDemandMatrix).length > 0 ? Object.values(a.deptDemandMatrix) : [a.demandMatrix];
   const demand: Record<string, Record<string, number>> = {};
@@ -286,6 +293,8 @@ function SchedulePageInner() {
   const [cellMap, setCellMap]                     = useState<CellMap>({});
   // Aynı kişi-gün için ek vardiyalar (takas/açık vardiya/çakışma); tablo tek hücre düzenler, bunlar salt okunur gösterilir
   const [extraCells, setExtraCells]               = useState<Record<string, CellData[]>>({});
+  // Paylaşılan personel: aynı haftada başka şubelerdeki vardiyalar (tabloda gri, değiştirilemez; Plan Kontrolü saate katar)
+  const [elsewhere, setElsewhere] = useState<{ personnel_id: string; day: number; start_time: string; end_time: string; location_name: string }[]>([]);
   const [forceAssignMap, setForceAssignMap]       = useState<Record<string, { status: string; multiplier: number }>>({});
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
@@ -315,7 +324,7 @@ function SchedulePageInner() {
   const [callSummary, setCallSummary]             = useState<string | null>(null);
   // "Gelemiyor" (hastalık/acil) penceresi: yayınlanmış vardiya için akıllı yedek (lib/openShiftCandidates)
   const [absence, setAbsence] = useState<{ assignmentId: number; personId: string; title: string } | null>(null);
-  const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[] }[] | null>(null);
+  const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string }[] | null>(null);
   const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
   const [absenceBusy, setAbsenceBusy] = useState(false);
   // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
@@ -704,7 +713,12 @@ function SchedulePageInner() {
 
         // Vardiya yapmayan yönetici (personnel.schedulable = false) satır olarak görünmez; o hafta elle vardiyası varsa görünür
         const assignedIds = new Set<string>(Array.isArray(sData) ? sData.map((x: any) => x.personnel_id) : []);
-        setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active" && (p.schedulable !== false || assignedIds.has(p.id))) : []);
+        // Şube rotasyonunda bu hafta başka şubede olan kişi de satır olarak görünmez (lib/branchRotation)
+        // Paylaşılan personel tabloda bu şubedeki departmanının altında görünür (lib/branchRotation departmentInBranch)
+        const branchDeptIds = new Set<string>(deptArr.map((d: any) => d.id));
+        setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active"
+          && ((p.schedulable !== false && plannedInBranch(p.branch_rotation, activeLocationId, weekStart)) || assignedIds.has(p.id)))
+          .map((p: any) => ({ ...p, department_id: departmentInBranch(p, branchDeptIds) })) : []);
 
         const newAvailMap: AvailMap = {};
         if (aData.personnel) {
@@ -919,6 +933,16 @@ function SchedulePageInner() {
       .catch(() => {});
     return () => { stale = true; };
   }, [activeLocationId, weekStart]);
+
+  // Paylaşılan personelin başka şubelerdeki vardiyaları (hafta/şube değişince)
+  useEffect(() => {
+    if (!activeLocationId || !weekStart) return;
+    let stale = false;
+    fetch(`/api/shifts/elsewhere?location_id=${activeLocationId}&week_start=${weekStart}`)
+      .then(r => r.json()).then(d => { if (!stale) setElsewhere(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!stale) setElsewhere([]); });
+    return () => { stale = true; };
+  }, [activeLocationId, weekStart, reloadTick]);
 
   // Sihirbazı aç: yayınlanmış haftada "mevcut planı koru" varsayılan açık
   const openWizard = () => {
@@ -2133,7 +2157,7 @@ function SchedulePageInner() {
   // yayın öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
   // Kişi × 7 gün: her render'da hesaplamak ucuz
   const weekSnapshot = scheduleSnapshot({ cellMap, onCallMap, extraCells, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
-    clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart });
+    clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart, elsewhere });
 
   const weekBudgets: WeekBudgets = {
     unreliable: reliabilityNotes,
@@ -3260,6 +3284,16 @@ loading ? (
                             );
                           }) : null;
 
+                          // Başka şubedeki vardiya: gri, sadece bilgi (o şubenin planında değiştirilir)
+                          const away = elsewhere.filter(e => e.personnel_id === p.id && Number(e.day) === day);
+                          const awayChip = away.length > 0 ? away.map((e, ai) => (
+                            <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var; orada değiştirilir`}
+                              className="mt-0.5 mx-auto w-full max-w-[84px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
+                              <div className="text-[10px] font-bold text-slate-600 truncate">{e.location_name}</div>
+                              <div className="text-[9px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
+                            </div>
+                          )) : null;
+
                           if ((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek)) {
                             const cellIsNight = cell ? isNightCell(cell) : false;
                             return (
@@ -3283,7 +3317,7 @@ loading ? (
                                     <span className="text-slate-200 text-xs">—</span>
                                   </div>
                                 ) : null}
-                                {extraChip}
+                                {extraChip}{awayChip}
                                 {onCallChip}
                               </td>
                             );
@@ -3361,7 +3395,7 @@ loading ? (
                                   <Plus size={13} />
                                 </button>
                               )}
-                              {extraChip}
+                              {extraChip}{awayChip}
                               {onCallChip}
                             </DroppableCell>
                           );
@@ -3525,21 +3559,27 @@ loading ? (
                 ) : (
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold text-slate-500">Önerilen yedekler</p>
-                    {absenceCands.slice(0, 5).map((c, i) => (
-                      <div key={c.personnel_id} className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
+                    {[...absenceCands.filter(c => !c.other_branch).slice(0, 5), ...absenceCands.filter(c => c.other_branch)].map((c, i, arr) => (
+                      <Fragment key={c.personnel_id}>
+                      {c.other_branch && !arr[i - 1]?.other_branch && <p className="text-[11px] font-semibold text-slate-500 pt-1">Diğer şubelerden</p>}
+                      <div className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-slate-400 w-4">{i + 1}</span>
-                          <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
-                          <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
+                          <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</span>
+                          {/* Başka şubenin çalışanını sadece patron/bölge müdürü atar; şube müdürü ilanla duyurur */}
+                          {(!c.other_branch || viewerRole === "admin" || viewerRole === "supervisor") ? (
+                            <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
+                              className="text-xs font-bold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
+                          ) : <span className="text-[10px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />ona da duyurulur</span>}
                         </div>
                         {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[11px] text-slate-500 ml-6">✓ {r}</p>)}
                         {c.warnings.map(w => <p key={w} className="text-[11px] text-amber-700 ml-6">! {w}</p>)}
                       </div>
+                      </Fragment>
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Teklifte ilk kabul eden vardiyayı alır ve Kahraman Bonusu kazanır. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
+                <p className="text-xs text-slate-500">Teklifte ilk kabul eden vardiyayı alır ve ek puan kazanır; diğer şubelerden uygun kişilere de duyurulur. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
               </div>
             </Sheet>
           )}

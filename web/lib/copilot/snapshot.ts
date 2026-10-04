@@ -50,6 +50,8 @@ export interface CopilotInput {
     start_time: string | null; end_time: string | null; publication_status: string | null;
     /** İcap nöbeti kapsamaya sayılır, kişinin çalışma saatine/dinlenmesine sayılmaz */
     kind?: "regular" | "on_call";
+    /** Kişinin BAŞKA şubedeki vardiyası (şube adı): saate, dinlenmeye ve yorgunluğa sayılır; bu şubenin kapsamasına sayılmaz */
+    elsewhere?: string;
   }[];
   /** Onaylı izinler. */
   leaves: { personnel_id: string; start_date: string; end_date: string; type: string }[];
@@ -59,7 +61,7 @@ export interface CopilotInput {
   availabilityWindows?: Record<string, ({ start: string; end: string } | null)[]>;
 }
 
-export interface PersonShift { day: number; shiftId: string; shiftName: string; start: string; end: string; hours: number; night: boolean; /** Direksiyon süresi (saat), vardiya tanımından */ driving: number }
+export interface PersonShift { day: number; shiftId: string; shiftName: string; start: string; end: string; hours: number; night: boolean; /** Direksiyon süresi (saat), vardiya tanımından */ driving: number; /** Başka şubedeki vardiya (şube adı) */ elsewhere?: string }
 
 export interface PersonWeek {
   id: string;
@@ -67,6 +69,8 @@ export interface PersonWeek {
   roles: string[];
   /** Bu kişi için geçerli haftalık üst sınır (kişiye özel sınır ve denkleştirme dahil). */
   maxHours: number;
+  /** Aynı gün hem bu şubede hem başka şubede vardiyası olan günler */
+  elsewhereSameDay: { day: number; branch: string }[];
   nightRestriction: string | null;
   workedNightLastWeek: boolean;
   /** Uygunluk girmiş mi? */
@@ -178,8 +182,8 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
         const end = a.end_time || def?.end || "17:00";
         const { startMin, endMin } = shiftSpan(start, end);
         return {
-          day: a.day, shiftId: a.shift_id, shiftName: def?.name ?? "Özel", start, end, driving: def?.driving_hours ?? 0,
-          hours: (endMin - startMin) / 60, night: isNight(def, start, end),
+          day: a.day, shiftId: a.shift_id, shiftName: a.elsewhere ?? def?.name ?? "Özel", start, end, driving: def?.driving_hours ?? 0,
+          hours: (endMin - startMin) / 60, night: isNight(def, start, end), ...(a.elsewhere ? { elsewhere: a.elsewhere } : {}),
         };
       })
       .sort((a, b) => a.day - b.day || toMin(a.start) - toMin(b.start));
@@ -204,7 +208,8 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
     const personMax = effectiveWeeklyLimit(p.maxWeeklyHours, input.rules.maxWeeklyHours);
     const maxHours = input.rules.balancingPeriodWeeks >= 2 && personMax >= input.rules.maxWeeklyHours ? 66 : personMax;
 
-    const workDays = new Set(shifts.map(s => s.day));
+    // İzin/uygunluk kontrolleri bu şubedeki günlere bakar (başka şubedeki vardiya o şubenin işi)
+    const workDays = new Set(shifts.filter(s => !s.elsewhere).map(s => s.day));
     let longest = 0, run = 0;
     for (let d = 0; d < 7; d++) { run = workDays.has(d) ? run + 1 : 0; longest = Math.max(longest, run); }
 
@@ -225,6 +230,8 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
     return {
       id: p.id, name: p.name, roles: p.roles,
       maxHours,
+      // Aynı gün hem bu şubede hem başka şubede vardiya (paylaşılan personel çakışması)
+      elsewhereSameDay: shifts.filter(x => x.elsewhere && shifts.some(y => !y.elsewhere && y.day === x.day)).map(x => ({ day: x.day, branch: x.elsewhere! })),
       nightRestriction: p.nightRestriction ?? null,
       workedNightLastWeek: !!p.workedNightLastWeek,
       hasAvailability: !!input.availability[p.id],
@@ -275,8 +282,10 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
     }
   }
 
-  const statuses = input.assignments.map(a => a.publication_status ?? "published");
-  const status: WeekSnapshot["status"] = input.assignments.length === 0
+  // Başka şubedeki vardiyalar bu şubenin plan durumunu ve vardiya sayısını etkilemez
+  const local = input.assignments.filter(a => !a.elsewhere);
+  const statuses = local.map(a => a.publication_status ?? "published");
+  const status: WeekSnapshot["status"] = local.length === 0
     ? "empty" : statuses.includes("published") ? "published" : "draft";
 
   const staffed = people.length || 1;
@@ -288,7 +297,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
     hasDemand,
     people,
     coverage,
-    totalShifts: input.assignments.length,
+    totalShifts: local.length,
     totalHours: round1(people.reduce((s, p) => s + p.hours, 0)),
     avgHours: round1(working.reduce((s, p) => s + p.hours, 0) / (working.length || 1)),
     avgHard: people.reduce((s, p) => s + p.hardShifts, 0) / staffed,

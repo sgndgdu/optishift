@@ -9,6 +9,8 @@ import { industryFromRules, applyCertificationShield, type PersonDocument } from
 import { weekStates } from "@/lib/workCycle";
 import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
 import { isSenior } from "@/lib/seniority";
+import { departmentInBranch, plannedInBranch } from "@/lib/branchRotation";
+import { effectiveWeeklyLimit } from "@/lib/legal";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -120,11 +122,13 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     }
 
     // Aktif ve planlanabilir personeli çek (vardiya yapmayan yönetici: personnel.schedulable = false, kişinin kartından)
-    const personnelRows = (await db
+    const allPersonnelRows = (await db
       .prepare(
         `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active' AND schedulable IS NOT FALSE`
       )
       .all(`%"${branchId}"%`)) as any[];
+    // Şube rotasyonu (lib/branchRotation): rotasyonu olan kişi o hafta sadece sırası gelen şubeye yazılır
+    const personnelRows = allPersonnelRows.filter((p: any) => plannedInBranch(p.branch_rotation, branchId, week_start));
 
     // Uygunluk verilerini çek
     const personnelIds = personnelRows.map((p: any) => p.id);
@@ -181,6 +185,9 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // Kişinin departmanı da bir görev sayılır: vardiya tanımındaki "Zorunlu görev" departman adıyla da seçilebilir
     // (eskiden departman ayrıca Roller listesinde işaretleniyordu; günlük rol kotaları 2026-10-04'te kaldırıldı)
     const deptNameById = new Map<string, string>(departmentRows.map((d: any) => [d.id, d.name]));
+    // Paylaşılan personel: her şubede o şubenin departmanı (lib/branchRotation departmentInBranch)
+    const branchDeptIds = new Set<string>(departmentRows.map((d: any) => d.id));
+    for (const p of personnelRows as any[]) p.department_id = departmentInBranch(p, branchDeptIds);
     let personnelData = personnelRows.map((p: any) => {
       // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
       const role_level = isSenior(p.hire_date, todayForSeniority) ? "primary" : "secondary";
@@ -253,6 +260,33 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         if (dayDate >= leaveStart && dayDate <= leaveEnd) {
           availabilityData[pid][d] = "unavailable";
         }
+      }
+    }
+
+    // Paylaşılan personel (kullanıcı kararı 2026-10-04): kişinin AYNI haftada başka şubelerdeki vardiyaları
+    // (taslak dahil). O gün bu şubede planlanmaz; süresi haftalık sınırından düşülür (saat şubeler arasında toplanır).
+    const otherBranchMinutes: Record<string, number> = {};
+    if (personnelIds.length > 0) {
+      try {
+        const ph = personnelIds.map((_: any, i: number) => `$${i + 3}`).join(",");
+        const rows = (await db.prepare(
+          `SELECT personnel_id, day, start_time, end_time FROM shift_assignments
+           WHERE week_start = $1 AND location_id <> $2 AND COALESCE(kind, 'regular') = 'regular' AND personnel_id IN (${ph})`
+        ).all(week_start, branchId, ...personnelIds)) as any[];
+        for (const r of rows) {
+          const d = Number(r.day);
+          if (!(d >= 0 && d <= 6)) continue;
+          if (!availabilityData[r.personnel_id]) availabilityData[r.personnel_id] = {};
+          availabilityData[r.personnel_id][d] = "unavailable";
+          const [sh, sm] = String(r.start_time ?? "").split(":").map(Number);
+          const [eh, em] = String(r.end_time ?? "").split(":").map(Number);
+          if ([sh, sm, eh, em].some(Number.isNaN)) continue;
+          let dur = (eh * 60 + em) - (sh * 60 + sm);
+          if (dur <= 0) dur += 1440;
+          otherBranchMinutes[r.personnel_id] = (otherBranchMinutes[r.personnel_id] ?? 0) + dur;
+        }
+      } catch (e) {
+        console.error("[generate] diğer şube vardiyaları okunamadı:", e);
       }
     }
 
@@ -682,6 +716,12 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         for (const d of pastDays) availabilityData[p.id][d] = "unavailable";
       }
       for (const d of pastDays) if (!closedDays.includes(d)) closedDays.push(d);
+    }
+
+    // Başka şubedeki saatler haftalık sınırdan düşülür (şube sınırı üst sınır kuralıyla, lib/legal)
+    for (const p of personnelData as any[]) {
+      const used = otherBranchMinutes[p.id];
+      if (used) p.max_weekly_hours = Math.max(0, Math.floor(effectiveWeeklyLimit(p.max_weekly_hours, ruleMaxWeeklyHours) - used / 60));
     }
 
     const enginePayload = {

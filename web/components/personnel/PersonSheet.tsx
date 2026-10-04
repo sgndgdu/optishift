@@ -16,10 +16,11 @@ import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/r
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
 import { branchRoles } from "@/lib/roles";
+import { parseBranchRotation, rotationBranchForWeek } from "@/lib/branchRotation";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { isSenior } from "@/lib/seniority";
 import { formatScore, scoreVsAverageText } from "@/lib/fairness";
-import { businessToday } from "@/lib/date";
+import { businessToday, getWeekStart } from "@/lib/date";
 
 type Loc = { id: string; name: string; rules?: Record<string, unknown> | null };
 type Doc = { id: number; doc_type: string; expiry_date: string; note: string | null };
@@ -109,6 +110,39 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   }, [ep.personnelId, complianceTrackingEnabled]);
 
   const kioskModeEnabled = isModuleOn(rules, "kiosk_mode_enabled");
+  // Şubeler arası (lib/branchRotation): çalıştığı şubeler + planlı rotasyon. Patron ve bölge müdürü her zaman,
+  // şube müdürü "Şubeler arası personel" izniyle (departman şefi hariç) değiştirir.
+  const canCrossBranch = viewerRole === "admin" || viewerRole === "supervisor"
+    || (viewerRole === "manager" && !parseAccess(viewer.access as string | null | undefined)?.department_id && can("cross_branch"));
+  const [orgBranches, setOrgBranches] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/locations?names=1").then(r => r.json()).then(d => { if (alive && Array.isArray(d)) setOrgBranches(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const initialRot = parseBranchRotation(ep.branch_rotation);
+  const [branchIds, setBranchIds] = useState<string[]>(ep.assigned_location_ids);
+  const [rotOn, setRotOn] = useState(!!initialRot);
+  const [rotEvery, setRotEvery] = useState(initialRot?.every_weeks ?? 1);
+  const [rotAnchor] = useState(initialRot?.anchor ?? getWeekStart(0));
+  // Diğer şubelerdeki departman: departmanlı şubede plan departman bazında yapılır, kişinin orada bir departmanı olmalı
+  const [branchDeptLists, setBranchDeptLists] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [branchDept, setBranchDept] = useState<Record<string, string>>({});
+  const otherBranchKey = branchIds.filter(id => id !== ep.location_id).join(",");
+  useEffect(() => {
+    let alive = true;
+    for (const loc of otherBranchKey ? otherBranchKey.split(",") : []) {
+      if (branchDeptLists[loc]) continue;
+      fetch(`/api/departments?location_id=${loc}&names=1`).then(r => r.json()).then((d: { id: string; name: string }[]) => {
+        if (!alive || !Array.isArray(d)) return;
+        setBranchDeptLists(prev => ({ ...prev, [loc]: d }));
+        const mine = d.find(x => ep.assigned_department_ids.includes(x.id));
+        if (mine) setBranchDept(prev => (prev[loc] ? prev : { ...prev, [loc]: mine.id }));
+      }).catch(() => {});
+    }
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherBranchKey]);
   // Birlikte çalışamaz çiftleri (personnel_conflicts): kişinin kartında tanımlanır, anında kaydedilir
   const conflictsEnabled = isModuleOn(rules, "personnel_conflicts_enabled");
   const [pairs, setPairs] = useState<{ id: number; otherId: string; otherName: string }[]>([]);
@@ -191,6 +225,17 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         if (acc && mgrAccess) {
           const err = await saveManagerAccess(acc, mgrAccess);
           if (err) { setEditError(err); return; }
+        }
+      }
+      if (ep.personnelId && canCrossBranch && orgBranches.length > 1) {
+        const rotation = rotOn && branchIds.length >= 2 ? { every_weeks: rotEvery, order: branchIds, anchor: rotAnchor } : null;
+        const deptsChanged = Object.entries(branchDept).some(([loc, d]) => d && !ep.assigned_department_ids.includes(d) && branchIds.includes(loc));
+        const changed = JSON.stringify(branchIds) !== JSON.stringify(ep.assigned_location_ids)
+          || JSON.stringify(rotation) !== JSON.stringify(initialRot) || deptsChanged;
+        if (changed) {
+          const r = await patch(`/api/personnel?id=${ep.personnelId}`, { assigned_location_ids: branchIds, branch_rotation: rotation, branch_department_ids: branchDept });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { setEditError(d.error ?? "Şubeler kaydedilemedi"); return; }
         }
       }
       if (ep.personnelId) {
@@ -589,6 +634,68 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
                 </div>
               )}
+              {orgBranches.length > 1 && (() => {
+                const name = (id: string) => orgBranches.find(b => b.id === id)?.name ?? id;
+                const primary = ep.location_id;
+                const rot = rotOn && branchIds.length >= 2 ? { every_weeks: rotEvery, order: branchIds, anchor: rotAnchor } : null;
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Şubeler</label>
+                    <p className="text-xs text-slate-400 mb-2">Birden çok şubede çalışabilir. Planlar çakışmaz: bir şubede vardiyası olan gün diğerinde yazılmaz, haftalık saati şubeler arasında toplanır.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {orgBranches.map(b => {
+                        const on = branchIds.includes(b.id);
+                        const isPrimary = b.id === primary;
+                        return (
+                          <button key={b.id} type="button" disabled={!canCrossBranch || isPrimary}
+                            onClick={() => setBranchIds(ids => on ? ids.filter(x => x !== b.id) : [...ids, b.id])}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors disabled:cursor-default ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                            {on && <Check size={10} className="inline mr-1" />}{b.name}{isPrimary && <span className="font-normal opacity-80"> (ana)</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Departmanlı diğer şubelerde kişinin departmanı (yoksa o şubede otomatik plana alınmaz) */}
+                    {branchIds.filter(id => id !== primary && (branchDeptLists[id]?.length ?? 0) > 0).map(id => (
+                      <div key={id} className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-slate-600 shrink-0">{name(id)} departmanı</span>
+                        <select value={branchDept[id] ?? ""} disabled={!canCrossBranch}
+                          onChange={e => setBranchDept(prev => ({ ...prev, [id]: e.target.value }))}
+                          className={`flex-1 min-w-0 border rounded-lg px-2 py-1.5 text-sm bg-white ${branchDept[id] ? "border-slate-200" : "border-amber-300"}`}>
+                          <option value="">Seçilmedi (orada otomatik plana alınmaz)</option>
+                          {branchDeptLists[id].map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                    {branchIds.length >= 2 && (
+                      <div className="mt-3 rounded-xl border border-slate-200 px-3 py-2.5 space-y-2">
+                        <label className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-medium text-slate-800">Şube rotasyonu</span>
+                          <input type="checkbox" disabled={!canCrossBranch} checked={rotOn} onChange={e => setRotOn(e.target.checked)} className="h-5 w-5 accent-forest-600" />
+                        </label>
+                        {!rotOn && <p className="text-xs text-slate-500">Kapalı: her hafta seçili şubelerin hepsinde planlanabilir.</p>}
+                        {rotOn && (
+                          <>
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <span>Her</span>
+                              <select value={rotEvery} disabled={!canCrossBranch} onChange={e => setRotEvery(Number(e.target.value))}
+                                className="border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white">
+                                {[1, 2, 3, 4, 8].map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                              <span>haftada bir sıradaki şubeye geçer: {branchIds.map(name).join(" → ")}</span>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              Bu hafta: <b>{name(rotationBranchForWeek(rot, getWeekStart(0)) ?? "")}</b> · Gelecek hafta: <b>{name(rotationBranchForWeek(rot, getWeekStart(1)) ?? "")}</b>.
+                              Sırayı değiştirmek için şubeleri istediğin sırada seç.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {!canCrossBranch && <p className="text-xs text-slate-400 mt-1">Şubeleri işletme sahibi ya da bölge müdürü değiştirir.</p>}
+                  </div>
+                );
+              })()}
               {conflictsEnabled && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Birlikte çalışamaz</label>

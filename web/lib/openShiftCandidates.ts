@@ -27,6 +27,8 @@ export interface Candidate {
   warnings: string[];
   reasons: string[];
   role_match: boolean;
+  /** Başka şubenin çalışanı (ödünç): ana şubesinin adı. Kendi şubesindekiler önce sıralanır. */
+  other_branch?: string;
 }
 
 const toMin = (t?: string | null) => {
@@ -48,25 +50,29 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   const osDurationH = (osEnd - osStart) / 60;
   const osIsNight = osStart >= 22 * 60 || osEnd > 24 * 60;
 
-  // Plana giren herkes aday (vardiya yapan yönetici dahil, personnel.schedulable)
+  // Plana giren herkes aday (vardiya yapan yönetici dahil, personnel.schedulable). Şubeler arası (2026-10-04):
+  // işletmenin diğer şubelerindeki çalışanlar da "ödünç" aday olur; kendi şubesindekiler önce gelir.
+  const locRow = await db.prepare(`SELECT org_id, rules FROM locations WHERE id = ?`).get(slot.location_id) as any;
   const people = await db.prepare(`
-    SELECT id, name, prev_score, max_weekly_hours, night_restriction, weekly_off_day, user_access_level, roles
-    FROM personnel
-    WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE
-  `).all(`%"${slot.location_id}"%`) as any[];
+    SELECT p.id, p.name, p.prev_score, p.max_weekly_hours, p.night_restriction, p.weekly_off_day, p.user_access_level, p.roles,
+           p.assigned_location_ids, l.name AS home_name
+    FROM personnel p LEFT JOIN locations l ON l.id = p.primary_location_id
+    WHERE p.org_id = ? AND p.status = 'active' AND p.schedulable IS NOT FALSE
+  `).all(locRow?.org_id ?? "") as any[];
+  const isLocal = (p: any) => String(p.assigned_location_ids ?? "").includes(`"${slot.location_id}"`);
   const eligible = people.filter(p => p.id !== slot.excludePersonnelId);
-  const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(slot.location_id) as any;
   let ruleMax = 45;
   try {
     const r = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules || "{}") : (locRow?.rules ?? {});
     if (typeof r.max_weekly_hours === "number") ruleMax = r.max_weekly_hours;
   } catch { /* varsayılan */ }
 
-  // O haftanın normal vardiyaları (gün çakışması, saat toplamı, dinlenme)
+  // O haftanın normal vardiyaları TÜM şubelerde (gün çakışması, saat toplamı, dinlenme şubeler arası)
   const asgs = await db.prepare(`
-    SELECT personnel_id, day, start_time, end_time FROM shift_assignments
-    WHERE location_id = ? AND week_start = ? AND COALESCE(kind, 'regular') = 'regular'
-  `).all(slot.location_id, week_start) as any[];
+    SELECT sa.personnel_id, sa.day, sa.start_time, sa.end_time FROM shift_assignments sa
+    JOIN personnel p ON p.id = sa.personnel_id
+    WHERE p.org_id = ? AND sa.week_start = ? AND COALESCE(sa.kind, 'regular') = 'regular'
+  `).all(locRow?.org_id ?? "", week_start) as any[];
   const byPerson: Record<string, any[]> = {};
   for (const a of asgs) (byPerson[a.personnel_id] ??= []).push(a);
 
@@ -154,15 +160,22 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     const matched = required.filter(r => myRoles.includes(r));
     if (matched.length) reasons.unshift(`Gerekli görev: ${matched.join(", ")}`);
 
-    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0 });
+    const local = isLocal(p);
+    if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
+    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0,
+      ...(local ? {} : { other_branch: p.home_name ?? "Başka şube" }) });
   }
 
   candidates.sort((a, b) =>
+    (Number(!!a.other_branch) - Number(!!b.other_branch)) ||
     (a.warnings.length - b.warnings.length) ||
     (Number(b.role_match) - Number(a.role_match)) ||
     (a.prev_score - b.prev_score));
   // Adalet sırası gerekçesi: uyarısızlar arasında en az yük taşıyanlar
-  candidates.filter(c => c.warnings.length === 0).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az yük)`));
+  candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az yük)`));
 
-  return { candidates, is_night: osIsNight };
+  // Diğer şubelerden en fazla 5 uyarısız aday (liste uzamasın)
+  const local = candidates.filter(c => !c.other_branch);
+  const away = candidates.filter(c => c.other_branch && c.warnings.length === 0).slice(0, 5);
+  return { candidates: [...local, ...away], is_night: osIsNight };
 }

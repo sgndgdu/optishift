@@ -2,6 +2,7 @@
 import { getPlan, limitMessage } from "@/lib/plans";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import { defaultWeeklyHours } from "@/lib/legal";
+import { parseBranchRotation } from "@/lib/branchRotation";
 import crypto from "crypto";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
@@ -285,8 +286,57 @@ export async function PATCH(req: NextRequest) {
         const dept = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(deptId, existing.primary_location_id);
         if (!dept) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
       }
+      // Diğer şubelerdeki departmanlar (paylaşılan personel) korunur; sadece bu şubenin departmanı değişir
+      const curD = await db.prepare("SELECT assigned_department_ids FROM personnel WHERE id = ?").get(id) as any;
+      let prevIds: string[] = [];
+      try { prevIds = JSON.parse(curD?.assigned_department_ids || "[]"); } catch { prevIds = []; }
+      const otherBranch = prevIds.length
+        ? (await db.prepare(`SELECT id FROM departments WHERE id IN (${prevIds.map(() => "?").join(",")}) AND location_id <> ?`).all(...prevIds, existing.primary_location_id) as { id: string }[]).map(d => d.id)
+        : [];
       await db.prepare("UPDATE personnel SET department_id=?, assigned_department_ids=? WHERE id=?")
-        .run(deptId, JSON.stringify(deptId ? [deptId] : []), id);
+        .run(deptId, JSON.stringify([...(deptId ? [deptId] : []), ...otherBranch]), id);
+    }
+
+    // Şubeler arası (kullanıcı kararı 2026-10-04): çalıştığı şubeler + planlı şube rotasyonu.
+    // Patron ve bölge müdürü (kendi şubeleri) her zaman; şube müdürü "Şubeler arası personel" izniyle.
+    if (body.assigned_location_ids !== undefined || body.branch_rotation !== undefined || body.branch_department_ids !== undefined) {
+      const allowed = auth.role === "admin" || auth.role === "supervisor"
+        || (auth.role === "manager" && !departmentScope(auth) && await hasLocationPermission(db, auth, existing.primary_location_id, "cross_branch"));
+      if (!allowed) return NextResponse.json({ error: "Şubeler arası personel iznin yok. İşletme sahibi açabilir." }, { status: 403 });
+      const orgLocs = (await db.prepare("SELECT id FROM locations WHERE org_id = ?").all(auth.org_id) as { id: string }[]).map(l => l.id);
+      const cur = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ?").get(id) as any;
+      let assigned: string[] = (() => { try { return JSON.parse(cur?.assigned_location_ids || "[]"); } catch { return []; } })();
+      if (body.assigned_location_ids !== undefined) {
+        const want = Array.isArray(body.assigned_location_ids) ? [...new Set<string>(body.assigned_location_ids.map(String))] : [];
+        if (want.some(l => !orgLocs.includes(l))) return NextResponse.json({ error: "Geçersiz şube" }, { status: 400 });
+        // Bölge müdürü sadece kendi şubelerini ekleyip çıkarabilir
+        if (auth.role === "supervisor" && auth.managed_location_ids?.length) {
+          const changed = [...want.filter(l => !assigned.includes(l)), ...assigned.filter(l => !want.includes(l))];
+          if (changed.some(l => !auth.managed_location_ids!.includes(l))) return NextResponse.json({ error: "Sadece sorumlu olduğun şubeleri değiştirebilirsin" }, { status: 403 });
+        }
+        if (!want.includes(existing.primary_location_id)) want.unshift(existing.primary_location_id);
+        assigned = want;
+        await db.prepare("UPDATE personnel SET assigned_location_ids = ? WHERE id = ?").run(JSON.stringify(assigned), id);
+      }
+      // Diğer şubelerdeki departman ({şubeId: departmanId}): assigned_department_ids = ana departman + bunlar
+      if (body.branch_department_ids && typeof body.branch_department_ids === "object") {
+        const cur2 = await db.prepare("SELECT department_id FROM personnel WHERE id = ?").get(id) as any;
+        const extra: string[] = [];
+        for (const [loc, dept] of Object.entries(body.branch_department_ids as Record<string, unknown>)) {
+          if (!dept || typeof dept !== "string" || !assigned.includes(loc) || loc === existing.primary_location_id) continue;
+          const ok = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(dept, loc);
+          if (!ok) return NextResponse.json({ error: "Departman o şubede bulunamadı" }, { status: 400 });
+          extra.push(dept);
+        }
+        const all = [...new Set([...(cur2?.department_id ? [cur2.department_id] : []), ...extra])];
+        await db.prepare("UPDATE personnel SET assigned_department_ids = ? WHERE id = ?").run(JSON.stringify(all), id);
+      }
+      if (body.branch_rotation !== undefined) {
+        const rot = body.branch_rotation === null ? null : parseBranchRotation(body.branch_rotation);
+        if (body.branch_rotation !== null && !rot) return NextResponse.json({ error: "Rotasyon için en az iki şube ve geçerli bir sıklık seçin" }, { status: 400 });
+        if (rot && rot.order.some(l => !assigned.includes(l))) return NextResponse.json({ error: "Rotasyondaki şubeler kişinin çalıştığı şubeler arasında olmalı" }, { status: 400 });
+        await db.prepare("UPDATE personnel SET branch_rotation = ? WHERE id = ?").run(rot ? JSON.stringify(rot) : null, id);
+      }
     }
 
     // weekly_off_day: undefined → dokunma, null → temizle, 0-6 → gün ata

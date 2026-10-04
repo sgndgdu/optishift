@@ -33,6 +33,12 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
+  // ?names=1: sadece ad (kişi kartında başka şubedeki departmanı seçmek için; şube müdürüne de açık)
+  if (searchParams.get("names") === "1" && location_id && auth.role !== "employee") {
+    if (!(await locationBelongsToOrg(location_id, auth.org_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    const list = await db.select({ id: departments.id, name: departments.name }).from(departments).where(eq(departments.location_id, location_id));
+    return NextResponse.json(list);
+  }
   if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (!location_id) return NextResponse.json({ error: "location_id gerekli" }, { status: 400 });
   if (!(await locationBelongsToOrg(location_id, auth.org_id)))

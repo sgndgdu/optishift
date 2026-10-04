@@ -261,15 +261,17 @@ export default function OpenShiftsPage() {
                         <li key={c.personnel_id} className="flex items-center gap-3 px-3 py-2.5">
                           <Avatar name={c.name} />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
+                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</p>
                             <p className={`text-xs truncate ${c.warnings.length > 0 ? "text-amber-700" : "text-slate-500"}`}>
                               {c.warnings.length > 0 ? c.warnings.join(" · ") : `${Math.round(c.prev_score)} puan`}
                             </p>
                           </div>
+                          {(!c.other_branch || user?.role === "admin" || user?.role === "supervisor") ? (
                           <button disabled={assigning === selected.id} onClick={() => handleAssign(selected, c)}
                             className="shrink-0 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                             {assigning === selected.id ? "Atanıyor…" : "Ata"}
                           </button>
+                          ) : <span className="shrink-0 text-[10px] text-slate-400 text-right leading-tight">İlan ona<br />duyuruldu</span>}
                         </li>
                       ))}
                     </List>

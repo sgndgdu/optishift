@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
 
   const db = getDB();
   try {
+    // Sadece şube adları (?names=1): kişi kartında "Çalıştığı şubeler" seçimi için; ayar/kural içermez
+    if (searchParams.get("names") === "1" && auth.role !== "employee") {
+      const list = await db.prepare("SELECT id, name FROM locations WHERE org_id = ? ORDER BY name").all(auth.org_id);
+      return NextResponse.json(list);
+    }
     let rows;
     // Manager sadece kendi şubesini görebilir
     if (auth.role === "manager" && auth.location_id) {

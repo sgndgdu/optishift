@@ -27,7 +27,9 @@ export default function PortalOpenShiftsPage() {
     if (!user?.location_id) { setLoading(false); return; }
     setLoading(true);
     try {
-      const shiftsData = await fetch(`/api/open-shifts?location_id=${user.location_id}&status=open`).then(r => r.json());
+      // Çalıştığı tüm şubeler + bildirimdeki davet (?invite=<id>, başka şubeden yardım isteği)
+      const invite = new URLSearchParams(window.location.search).get("invite");
+      const shiftsData = await fetch(`/api/open-shifts?mine=1${invite ? `&invite=${encodeURIComponent(invite)}` : ""}`).then(r => r.json());
       setShifts(Array.isArray(shiftsData) ? shiftsData : []);
     } finally {
       setLoading(false);
@@ -105,7 +107,9 @@ export default function PortalOpenShiftsPage() {
           }
           return (
             <div key={s.id} className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {s.other_branch && <StatusPill tone="info">{s.location_name} şubesi</StatusPill>}
+                {s.invited && <StatusPill tone="brand">Sana özel davet</StatusPill>}
                 {s.hero_bonus_multiplier > 0 && (
                   <StatusPill tone="attention">
                     <Star size={9} /> +{s.hero_bonus_multiplier} puan
