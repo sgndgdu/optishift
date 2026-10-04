@@ -684,7 +684,9 @@ function SchedulePageInner() {
           setCurrentRevision(null);
         }
 
-        setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active") : []);
+        // Vardiya yapmayan yönetici (personnel.schedulable = false) satır olarak görünmez; o hafta elle vardiyası varsa görünür
+        const assignedIds = new Set<string>(Array.isArray(sData) ? sData.map((x: any) => x.personnel_id) : []);
+        setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active" && (p.schedulable !== false || assignedIds.has(p.id))) : []);
 
         const newAvailMap: AvailMap = {};
         if (aData.personnel) {

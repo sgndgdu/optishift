@@ -399,7 +399,6 @@ export default function SettingsPage() {
   const [maxOnCallPerWeek, setMaxOnCallPerWeek]                   = useState(3);
   const [noNightToMorning, setNoNightToMorning]                   = useState(false);
   const [implicitPrefsEnabled, setImplicitPrefsEnabled]           = useState(true);
-  const [includeManagersInSchedule, setIncludeManagersInSchedule] = useState(false);
   const [maxPreferredNotDays, setMaxPreferredNotDays]             = useState(1);
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
   const [maxWeeklyHours, setMaxWeeklyHours]                       = useState(45);
@@ -571,7 +570,6 @@ export default function SettingsPage() {
           setMaxOnCallPerWeek(loc.rules?.max_on_call_per_week ?? 3);
           setNoNightToMorning(!!loc.rules?.no_night_to_morning);
           setImplicitPrefsEnabled(loc.rules?.implicit_preferences_enabled !== false);
-          setIncludeManagersInSchedule(!!loc.rules?.include_managers_in_schedule);
           if (typeof loc.rules?.max_preferred_not_days === "number")    setMaxPreferredNotDays(loc.rules.max_preferred_not_days);
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
           if (typeof loc.rules?.max_weekly_hours === "number")          setMaxWeeklyHours(loc.rules.max_weekly_hours);
@@ -712,7 +710,6 @@ export default function SettingsPage() {
             maxOnCallPerWeek: loc.rules?.max_on_call_per_week ?? 3,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
             implicitPrefsEnabled: loc.rules?.implicit_preferences_enabled !== false,
-            includeManagersInSchedule: !!loc.rules?.include_managers_in_schedule,
             maxPreferredNotDays: typeof loc.rules?.max_preferred_not_days === "number" ? loc.rules.max_preferred_not_days : 1,
             clopeningMinRestHours: typeof loc.rules?.clopening_min_rest_hours === "number" ? loc.rules.clopening_min_rest_hours : 13,
             maxWeeklyHours: typeof loc.rules?.max_weekly_hours === "number" ? loc.rules.max_weekly_hours : 45,
@@ -799,7 +796,7 @@ export default function SettingsPage() {
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
       zone_quotas: zoneQuotas,
-      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
+      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
       hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -819,7 +816,7 @@ export default function SettingsPage() {
     setIsDirty(current !== savedSnapshot.current);
   }, [
     locationData, zoneQuotas,
-    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
+    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
     hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -963,7 +960,6 @@ export default function SettingsPage() {
             max_on_call_per_week:         maxOnCallPerWeek,
             no_night_to_morning:          noNightToMorning,
             implicit_preferences_enabled: implicitPrefsEnabled,
-            include_managers_in_schedule: includeManagersInSchedule,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
             max_weekly_hours:             maxWeeklyHours,
@@ -1049,7 +1045,7 @@ export default function SettingsPage() {
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
         zone_quotas: zoneQuotas,
-        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled, includeManagersInSchedule,
+        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
         hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
@@ -1843,11 +1839,6 @@ export default function SettingsPage() {
                     label="Geçmişten Tercih Öğrenme"
                     description="Kişi uygunluk girmeyi unutsa da son haftalarda sürekli istemediği günlerden ve sık takasa verdiği vardiyalardan kaçınılır. Esnektir; açık girilen tercihten zayıftır, gerekirse yine yazılır."
                     right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Müdürü Planlamaya Dahil Et"
-                    description="Otomatik oluşturma müdür ve admin rolündeki kişilere de vardiya atar."
-                    right={<Toggle on={includeManagersInSchedule} onToggle={() => setIncludeManagersInSchedule(v => !v)} />}
                   />
                   <RuleRow
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"

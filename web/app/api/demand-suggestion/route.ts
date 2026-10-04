@@ -40,12 +40,9 @@ export async function GET(req: NextRequest) {
     const hours = parse(loc.operating_hours, {});
     const closedDays = [0, 1, 2, 3, 4, 5, 6].filter(d => hours?.[d]?.isOpen === false);
 
-    // /api/generate ile aynı kişi kümesi: şubenin aktif personeli, yönetici hesapları hariç (ayar açık değilse)
-    let people = await db.prepare(`SELECT user_access_level FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`)
+    // /api/generate ile aynı kişi kümesi: şubenin aktif ve planlanabilir personeli
+    const people = await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`)
       .all(`%"${location_id}"%`) as any[];
-    if (!rules.include_managers_in_schedule) {
-      people = people.filter(p => !["manager", "admin", "supervisor"].includes(p.user_access_level));
-    }
 
     const holidays = [0, 1, 2, 3, 4, 5, 6].flatMap(d => {
       const h = getHolidaysForDate(addDays(week_start, d))[0];

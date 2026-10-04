@@ -155,7 +155,7 @@ export async function publishOpenShift(
   let targets: { id: string; name?: string }[] = [];
   if (notify === "all") {
     targets = (await db.prepare(
-      `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
+      `SELECT id FROM personnel WHERE primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
     ).all(o.location_id) as any[]).filter(p => p.id !== o.releasedBy);
   } else if (notify === "top") {
     const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });

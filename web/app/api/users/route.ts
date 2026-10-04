@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { defaultWeeklyHours } from "@/lib/legal";
+import { getPlan, limitMessage } from "@/lib/plans";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -177,11 +178,12 @@ export async function POST(req: NextRequest) {
     // Personnel kaydı da oluştur (employee rolü için)
     let personnelId: string | null = existing?.id ?? null;
     if (isEmployee && !existing) {
+      const newRoles: string[] = Array.isArray(body.roles) ? body.roles.filter((r: unknown) => typeof r === "string" && r.trim()) : [];
       const employeeId = `EMP-${Math.floor(10000 + Math.random() * 90000)}`;
       personnelId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       await db.prepare(`
         INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, department_id, assigned_department_ids, user_access_level, name, employee_id, phone, email, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'employee', ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, 'employee', ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, 0, 0, 14, ?, '{}', '[]', '[]', '[]', ?, ?)
       `).run(
         personnelId, auth.org_id,
         primaryLocId ?? "",
@@ -189,9 +191,11 @@ export async function POST(req: NextRequest) {
         effDeptIds[0] ?? null,
         JSON.stringify(effDeptIds),
         name.trim(), employeeId, phone?.trim() ?? "", email?.trim()?.toLowerCase() ?? null,
-        title?.trim() ?? "Personel",
+        // Ayrı unvan alanı yok: ilk görev (rol) unvan olarak görünür
+        newRoles[0] ?? (title?.trim() || null),
         employment_type ?? "full_time",
         max_weekly_hours ? Number(max_weekly_hours) : defaultWeeklyHours(employment_type),
+        JSON.stringify(newRoles),
         now, now
       );
     }
@@ -287,7 +291,37 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Yetki değişikliğini şube müdürü ya da işletme sahibi yapar" }, { status: 403 });
     }
 
-    // Ekipten birini yönetici / departman şefi yap: hesap, geçmiş ve plandaki yeri korunur (personel kaydı kalır)
+    // Yönetici vardiyaya da girsin mi (kişinin kartındaki "Vardiya planına dahil"). Çalışan kaydı yoksa
+    // ilk açılışta oluşturulur; kapatınca kayıt kalır, sadece plana girmez (personnel.schedulable).
+    if (body.schedulable !== undefined) {
+      if (!canChangeRoles) return NextResponse.json({ error: "Bu değişikliği şube müdürü ya da işletme sahibi yapar" }, { status: 403 });
+      if (target.role !== "manager" && target.role !== "admin") {
+        return NextResponse.json({ error: "Bu ayar yöneticiler içindir" }, { status: 400 });
+      }
+      const on = body.schedulable === true;
+      if (target.personnel_id) {
+        await db.prepare("UPDATE personnel SET schedulable = ?, status = 'active', updated_at = ? WHERE id = ? AND org_id = ?").run(on, now, target.personnel_id, auth.org_id);
+      } else if (on) {
+        const locId = target.location_id;
+        if (!locId || managerOutsideBranch(auth, locId)) return NextResponse.json({ error: "Önce kişinin şubesi seçilmeli" }, { status: 400 });
+        const org = await db.prepare("SELECT plan FROM organizations WHERE id = ?").get(auth.org_id) as any;
+        const maxPersonnel = getPlan(org?.plan).maxPersonnel;
+        if (maxPersonnel !== null) {
+          const cnt = ((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any).cnt;
+          if (cnt >= maxPersonnel) return NextResponse.json({ error: limitMessage("personnel"), upgrade: true }, { status: 402 });
+        }
+        const personnelId = `P-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+        await db.prepare(`
+          INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, department_id, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, schedulable, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'full_time', 'active', ?, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', true, ?, ?)
+        `).run(personnelId, auth.org_id, locId, JSON.stringify([locId]), target.department_id ?? null, target.role, target.name, `EMP-${Math.floor(Math.random() * 90000) + 10000}`,
+          target.email ?? null, target.phone ?? "", defaultWeeklyHours("full_time"), now, now);
+        await db.prepare("UPDATE users SET personnel_id = ? WHERE id = ?").run(personnelId, id);
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    // Ekipten birini yönetici / departman şefi yap: hesap ve geçmiş korunur (personel kaydı kalır)
     if (body.make_manager !== undefined) {
       if (target.role !== "employee" || !target.personnel_id) {
         return NextResponse.json({ error: "Sadece ekipteki bir çalışan yönetici yapılabilir" }, { status: 400 });
@@ -309,7 +343,8 @@ export async function PATCH(req: NextRequest) {
       const title = typeof mm.display_title === "string" && mm.display_title.trim() ? mm.display_title.trim() : (deptId ? "Şef" : "Yönetici");
       await db.prepare("UPDATE users SET role = 'manager', location_id = ?, department_id = COALESCE(?, department_id), display_title = ?, permissions = ?, managed_location_ids = NULL WHERE id = ?")
         .run(locId, deptId, title, permissions, id);
-      await db.prepare("UPDATE personnel SET user_access_level = 'manager' WHERE id = ?").run(target.personnel_id);
+      // Yönetici varsayılan olarak vardiya yazılmaz (kullanıcı kararı); kartındaki anahtarla plana alınır
+      await db.prepare("UPDATE personnel SET user_access_level = 'manager', schedulable = false WHERE id = ?").run(target.personnel_id);
       if (deptId && p?.department_id !== deptId) {
         // Şef kendi departmanının ekibinde görünsün
         await db.prepare("UPDATE personnel SET department_id = ?, assigned_department_ids = ? WHERE id = ?").run(deptId, JSON.stringify([deptId]), target.personnel_id);
@@ -324,7 +359,8 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Bu yöneticinin ekipte çalışan kaydı yok; hesabı silinebilir" }, { status: 400 });
       }
       await db.prepare("UPDATE users SET role = 'employee', permissions = NULL, display_title = NULL, managed_location_ids = NULL WHERE id = ?").run(id);
-      await db.prepare("UPDATE personnel SET user_access_level = 'employee' WHERE id = ?").run(target.personnel_id);
+      // Çalışan her zaman plandadır (vardiya dışı kalma sadece yöneticiler için)
+      await db.prepare("UPDATE personnel SET user_access_level = 'employee', schedulable = true WHERE id = ?").run(target.personnel_id);
       await db.prepare("UPDATE departments SET manager_id = NULL WHERE manager_id = ?").run(id);
       return NextResponse.json({ success: true });
     }

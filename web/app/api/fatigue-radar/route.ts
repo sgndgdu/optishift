@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     };
 
     const personnelRows = await db.prepare(
-      `SELECT id, name FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`
+      `SELECT id, name FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`
     ).all(`%"${location_id}"%`) as any[];
     if (personnelRows.length === 0) return NextResponse.json({ enabled: true, at_risk: [] });
 

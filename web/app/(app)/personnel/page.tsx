@@ -10,13 +10,13 @@ import { useRouter } from "next/navigation";
 import {
   Plus, Search, Trash2, Check, Copy,
   Link, Upload, Loader2, RefreshCw, UserCog,
-  ChevronDown,
+  ChevronDown, X,
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument, type DocumentSpec } from "@/lib/templates";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { BranchPermissionsSheet, ManagerAccessEditor, ManagerAddSheet, accessSummary, canEditManager, type Mgr } from "@/components/personnel/ManagersCard";
+import { BranchPermissionsSheet, ManagerAccessFields, ManagerAddSheet, accessSummary, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
 import { isBranchManager, parseAccess } from "@/lib/userAccess";
 
 const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
@@ -24,7 +24,7 @@ import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListEmpty, ListItem, ListSection } from "@/components/ui/List";
-import { DetailRow, Sheet, sheetDangerClass, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { Sheet, sheetDangerClass, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 
 type MergedPerson = {
   /** Giriş hesabı; hızlı eklenen personelde yoktur (portala giremez). */
@@ -57,6 +57,8 @@ type MergedPerson = {
   annual_leave_days_total: number | null;
   leave_adjustment_days: number | null;
   kiosk_pin_set: boolean;
+  /** Vardiya planına girer mi (personnel.schedulable). Çalışan kaydı olmayan yöneticide false. */
+  schedulable: boolean;
 };
 
 // Yöneticiler ayrı kartta (components/personnel/ManagersCard) eklenir; bu form sadece çalışan ekler
@@ -96,7 +98,7 @@ export default function PersonnelPage() {
 
   // Add form
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", roles: [] as string[], employment_type: "full_time", max_weekly_hours: 45 });
   const [selLocIds, setSelLocIds] = useState<string[]>([]);
   const [selDeptIds, setSelDeptIds] = useState<string[]>([]);
   const [singleLocId, setSingleLocId] = useState("");
@@ -113,10 +115,12 @@ export default function PersonnelPage() {
 
   // Edit modal
   const [editingPerson, setEditingPerson] = useState<MergedPerson | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", title: "", employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0, department_id: null as string | null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", schedulable: true, employment_type: "full_time", weekly_off_day: null as number | null, max_weekly_hours: 45, min_weekly_hours: 0, roles: [] as string[], crew_id: null as string | null, hourly_wage: null as number | null, night_restriction: null as string | null, hire_date: "" as string, annual_leave_days_total: 14, leave_adjustment_days: 0, department_id: null as string | null });
   const [crewList, setCrewList] = useState<{ id: string; name: string; color: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
+  // Yöneticinin yetkisi kişi kartında düzenlenir, kartın tek "Kaydet"iyle kaydedilir
+  const [mgrAccess, setMgrAccess] = useState<ManagerAccessValue | null>(null);
 
   // Belgeler (Modül 5 — Belge/Sertifika Uyumluluğu)
   const [personnelDocs, setPersonnelDocs] = useState<{ id: number; doc_type: string; expiry_date: string; note: string | null }[]>([]);
@@ -177,12 +181,14 @@ export default function PersonnelPage() {
         annual_leave_days_total: p?.annual_leave_days_total ?? null,
         leave_adjustment_days: p?.leave_adjustment_days ?? null,
         kiosk_pin_set: !!p?.kiosk_pin_set,
+        schedulable: !!p && p.schedulable !== false,
       });
       const staff: any[] = Array.isArray(personnelList) ? personnelList.filter((p: any) => p.status !== "inactive") : [];
-      const staffIds = new Set(staff.map(p => p.id));
+      // Ekipten çıkarılan (pasif) kişinin hesabı da listeye ayrıca eklenmez
+      const knownIds = new Set((Array.isArray(personnelList) ? personnelList : []).map((p: any) => p.id));
       const merged: MergedPerson[] = [
         ...staff.map(p => toMerged(userByPersonnel.get(p.id), p)),
-        ...userList.filter(acc => !acc.personnel_id || !staffIds.has(acc.personnel_id))
+        ...userList.filter(acc => !acc.personnel_id || !knownIds.has(acc.personnel_id))
           .filter(acc => acc.id === u.id || acc.location_id === u.location_id)
           .map(acc => toMerged(acc, undefined)),
       ];
@@ -244,7 +250,7 @@ export default function PersonnelPage() {
   };
 
   const resetAddForm = () => {
-    setAddForm({ name: "", email: "", phone: "", title: "", employment_type: "full_time", max_weekly_hours: 45 });
+    setAddForm({ name: "", email: "", phone: "", roles: [], employment_type: "full_time", max_weekly_hours: 45 });
     // Şube panelindeyiz: form o şube seçili açılır
     const here = authUser?.location_id || (locations.length === 1 ? locations[0].id : "");
     setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setAddError("");
@@ -263,11 +269,11 @@ export default function PersonnelPage() {
         name: addForm.name.trim(), email: addForm.email.trim() || undefined,
         phone: addForm.phone.trim() || undefined, role: rd.role,
         display_title: rd.display_title || undefined,
+        roles: addForm.roles.length ? addForm.roles : undefined,
       };
       if (useMultiSelect) {
         body.location_ids = selLocIds; body.department_ids = selDeptIds;
         if (isEmployee) {
-          body.title = addForm.title.trim() || undefined;
           body.employment_type = addForm.employment_type;
           body.max_weekly_hours = addForm.max_weekly_hours;
         }
@@ -348,16 +354,16 @@ export default function PersonnelPage() {
     showToast(status === "active" ? "Hesap onaylandı" : "Hesap reddedildi");
   };
 
-  const handleDelete = async (person: MergedPerson) => {
-    if (!person.userId) return;
-    await fetch(`/api/users?id=${person.userId}`, { method: "DELETE" });
-    fetchData(authUser);
-  };
-
+  // Kişi kartı (kişiye dokununca) ve iki adımlı silme
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const userOf = (p: MergedPerson) => (p.userId ? rawUsers.find(u => u.id === p.userId) ?? null : null);
   const openEdit = (p: MergedPerson) => {
     setEditingPerson(p);
-    setEditForm({ name: p.name, phone: p.phone ?? "", title: p.title ?? "", employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0, department_id: p.department_id ?? null });
+    setEditForm({ name: p.name, phone: p.phone ?? "", schedulable: p.schedulable, employment_type: p.employment_type ?? "full_time", weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0, roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null, hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0, department_id: p.department_id ?? null });
     setEditError("");
+    setConfirmDeleteKey(null);
+    const acc = userOf(p);
+    setMgrAccess(acc && (acc.role === "manager" || acc.role === "supervisor") ? initialManagerAccess(acc) : null);
     setPersonnelDocs([]);
     setNewDocType(""); setNewDocExpiry(""); setDocError("");
     if (p.personnelId) fetchPersonnelDocs(p.personnelId);
@@ -440,22 +446,45 @@ export default function PersonnelPage() {
 
   const handleEdit = async () => {
     if (!editingPerson) return;
-    if (editForm.min_weekly_hours > editForm.max_weekly_hours) { setEditError("Min haftalık saat, max haftalık saatten büyük olamaz."); return; }
+    const p = editingPerson;
+    if (p.personnelId && editForm.min_weekly_hours > editForm.max_weekly_hours) { setEditError("Haftalık en az saat, en fazla saatten büyük olamaz."); return; }
     setEditLoading(true); setEditError("");
+    const patch = (url: string, body: unknown) => fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     try {
-      if (editingPerson.userId) {
-        await fetch(`/api/users?id=${editingPerson.userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editForm.name, phone: editForm.phone }) });
+      if (p.userId) {
+        await patch(`/api/users?id=${p.userId}`, { name: editForm.name, phone: editForm.phone });
+        // Yönetici vardiyaya da girsin mi: çalışan kaydı yoksa sunucu açar
+        if (editForm.schedulable !== p.schedulable && (p.role === "manager" || p.role === "admin")) {
+          const r = await patch(`/api/users?id=${p.userId}`, { schedulable: editForm.schedulable });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { setEditError(d.error ?? "Plan ayarı kaydedilemedi"); setEditLoading(false); return; }
+        }
+        const acc = userOf(p);
+        if (acc && mgrAccess) {
+          const err = await saveManagerAccess(acc, mgrAccess);
+          if (err) { setEditError(err); setEditLoading(false); return; }
+        }
       }
-      if (editingPerson.personnelId) {
+      if (p.personnelId) {
         // Hesabı olmayan personelde ad ve telefon yalnızca personel kaydında tutulur
-        const nameFields = editingPerson.userId ? {} : { name: editForm.name, phone: editForm.phone };
-        const res = await fetch(`/api/personnel?id=${editingPerson.personnelId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...nameFields, title: editForm.title, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days, ...(editDepts.length > 0 ? { department_id: editForm.department_id } : {}) }) });
+        const nameFields = p.userId ? {} : { name: editForm.name, phone: editForm.phone };
+        const res = await patch(`/api/personnel?id=${p.personnelId}`, { ...nameFields, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day, max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles, crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction, hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total, leave_adjustment_days: editForm.leave_adjustment_days, ...(editDepts.length > 0 ? { department_id: editForm.department_id } : {}) });
         const data = await res.json();
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); setEditLoading(false); return; }
       }
-      setEditingPerson(null); fetchData(authUser); showToast("Bilgiler güncellendi");
+      setEditingPerson(null); fetchData(authUser); showToast("Kaydedildi");
     } catch { setEditError("Sunucu hatası"); }
     setEditLoading(false);
+  };
+
+  /** Kartın tek silme işlemi: ekipteki kişi pasife alınır (girişi kapanır), çalışan kaydı olmayan yöneticinin hesabı silinir. */
+  const handleRemove = async (p: MergedPerson) => {
+    const r = p.personnelId
+      ? await fetch(`/api/personnel?id=${p.personnelId}`, { method: "DELETE" })
+      : await fetch(`/api/users?id=${p.userId}`, { method: "DELETE" });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { setEditError(d.error ?? "Yapılamadı"); return; }
+    setEditingPerson(null); fetchData(authUser); showToast(p.personnelId ? "Ekipten çıkarıldı" : "Hesap silindi");
   };
 
   // Yönetici/şef ekleme ve yetki düzenleme: patron, bölge yöneticisi, şube müdürü (kendi şefleri)
@@ -463,11 +492,6 @@ export default function PersonnelPage() {
   const canManageManagers = authUser?.role === "admin" || authUser?.role === "supervisor" || branchMgr;
   const managerLocations = (authUser?.role === "manager" ? locations.filter(l => l.id === authUser?.location_id) : locations).map(l => ({ id: l.id, name: l.name }));
 
-  // Ayrıntı paneli (kişiye dokununca) ve iki adımlı silme
-  const [detailKey, setDetailKey] = useState<string | null>(null);
-  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
-  const detailPerson = detailKey ? persons.find(p => (p.personnelId ?? p.userId) === detailKey) ?? null : null;
-  const userOf = (p: MergedPerson) => (p.userId ? rawUsers.find(u => u.id === p.userId) ?? null : null);
   const managerSummary = (p: MergedPerson) => {
     const u = userOf(p);
     return u ? accessSummary(u, id => editDepts.find(d => d.id === id)?.name) : null;
@@ -662,7 +686,7 @@ export default function PersonnelPage() {
                   title={p.name}
                   subtitle={sub || undefined}
                   trailing={pill && <StatusPill tone={pill.tone}>{pill.label}</StatusPill>}
-                  onClick={() => setDetailKey(p.personnelId ?? p.userId)}
+                  onClick={() => openEdit(p)}
                 />
               );
             };
@@ -681,66 +705,6 @@ export default function PersonnelPage() {
           })()}
         </List>
       )}
-
-      {/* Kişi ayrıntısı: iletişim, Adalet Puanı ve tüm işlemler burada */}
-      {detailPerson && (() => {
-        const p = detailPerson;
-        const isPending = p.approval_status === "pending";
-        const canDelete = !!p.userId && p.userId !== authUser?.id && p.role !== "admin"
-          && (authUser?.role === "admin" || (authUser?.role === "supervisor" && p.role !== "supervisor") || (p.role === "employee" && can("personnel_delete")));
-        const crew = p.crew_id ? crewList.find(c => c.id === p.crew_id) : null;
-        const close = () => { setDetailKey(null); setConfirmDeleteKey(null); };
-        return (
-          <Sheet open onClose={close}
-            title={<span className="flex items-center gap-3"><Avatar name={p.name} size="md" tone={p.role === "employee" ? "neutral" : "brand"} />{p.name}</span>}
-            footer={<>
-              {canDelete && (confirmDeleteKey === p.userId
-                ? <button onClick={async () => { await handleDelete(p); close(); }} className="mr-auto px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">Evet, sil</button>
-                : <button onClick={() => setConfirmDeleteKey(p.userId)} className={`mr-auto ${sheetDangerClass}`}>Hesabı sil</button>)}
-              {p.userId
-                ? <button onClick={() => handleGenerateInvite(p)} disabled={inviteLinkLoading === p.userId} className={sheetSecondaryClass}>Giriş bağlantısı</button>
-                : p.personnelId && <button onClick={() => handleOpenAccount(p)} disabled={openingAccountId === p.personnelId} className={sheetSecondaryClass}>{openingAccountId === p.personnelId ? "Açılıyor…" : "Hesap aç"}</button>}
-              <button onClick={() => { close(); openEdit(p); }} className={sheetPrimaryClass}>Düzenle</button>
-            </>}
-          >
-            {isPending && (authUser?.role === "admin" || authUser?.role === "supervisor") && (
-              <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
-                <span className="flex-1 text-sm text-amber-900">Hesap onay bekliyor.</span>
-                <button onClick={async () => { await handleApprove(p, "rejected"); close(); }} className="text-sm font-semibold text-red-700 px-2">Reddet</button>
-                <button onClick={async () => { await handleApprove(p, "active"); close(); }} className="text-sm font-bold text-white bg-emerald-600 rounded-lg px-3 py-1.5">Onayla</button>
-              </div>
-            )}
-            <DetailRow label="Rol">{roleBadge(p).label}</DetailRow>
-            {p.title && p.role === "employee" && <DetailRow label="Unvan">{p.title}</DetailRow>}
-            {p.department_id && <DetailRow label="Departman">{editDepts.find(d => d.id === p.department_id)?.name ?? "-"}</DetailRow>}
-            {p.personnelId && p.role === "employee" && !p.department_id && editDepts.length > 0 && (
-              <DetailRow label="Departman"><span className="text-amber-700">Seçilmemiş, otomatik plana alınmaz</span></DetailRow>
-            )}
-            <DetailRow label="Kullanıcı adı">{p.userId ? p.username : "Giriş hesabı yok"}</DetailRow>
-            {p.userId && p.is_temp_password && <DetailRow label="Durum"><span className="text-amber-700">Henüz uygulamaya girmedi</span></DetailRow>}
-            {p.phone && <DetailRow label="Telefon"><a href={`tel:${p.phone}`} className="text-forest-700">{p.phone}</a></DetailRow>}
-            {p.email && <DetailRow label="E-posta">{p.email}</DetailRow>}
-            {p.personnelId && p.role === "employee" && <DetailRow label="Adalet Puanı">{p.prev_score}</DetailRow>}
-            {p.hero_count > 0 && <DetailRow label="Açık vardiya üstlenme">{p.hero_count} kez</DetailRow>}
-            {crew && <DetailRow label="Vardiya grubu">{crew.name}</DetailRow>}
-            {(p.ytd_overtime_hours ?? 0) > 0 && <DetailRow label="Bu yıl fazla mesai">{p.ytd_overtime_hours} saat</DetailRow>}
-            {(() => {
-              const u = userOf(p);
-              if (!u || (u.role !== "manager" && u.role !== "supervisor")) return null;
-              return (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <p className="text-base font-bold text-slate-900 mb-3">Yönetim yetkisi</p>
-                  <p className="text-sm text-slate-600 mb-3">{accessSummary(u, id => editDepts.find(d => d.id === id)?.name)}</p>
-                  {canEditManager(authUser?.role ?? "", branchMgr, u) && (
-                    <ManagerAccessEditor key={u.id} m={u} locations={managerLocations} viewerRole={authUser?.role ?? ""} branchManager={branchMgr}
-                      onDone={() => { close(); fetchData(authUser); }} />
-                  )}
-                </div>
-              );
-            })()}
-          </Sheet>
-        );
-      })()}
 
       {canManageManagers && (
         <ManagerAddSheet open={showManagerAdd} onClose={() => setShowManagerAdd(false)} locations={managerLocations}
@@ -767,14 +731,27 @@ export default function PersonnelPage() {
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
+              {branchIndustry && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {branchIndustry.roles.map(role => {
+                      const selected = addForm.roles.includes(role.label);
+                      return (
+                        <button key={role.id} type="button"
+                          onClick={() => setAddForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                          {selected && <Check size={10} className="inline mr-1" />}{role.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {isEmployee && (
                 <details className="rounded-xl border border-slate-200 px-3 py-2">
                   <summary className="cursor-pointer text-sm font-semibold text-slate-600">Diğer bilgiler (isteğe bağlı)</summary>
                   <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
-                      <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                    </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">E-posta</label>
                       <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="ornek@mail.com" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
@@ -851,28 +828,81 @@ export default function PersonnelPage() {
       </Sheet>
 
       {/* EDIT MODAL */}
-      {editingPerson && (
-        <Sheet open onClose={() => setEditingPerson(null)} title={`${editingPerson.name} · Düzenle`}
+      {editingPerson && (() => {
+        const ep = editingPerson;
+        const acc = userOf(ep);
+        const viewerRole = authUser?.role ?? "";
+        const isMgr = ep.role === "manager" || ep.role === "supervisor";
+        const canEditAccess = !!acc && isMgr && canEditManager(viewerRole, branchMgr, acc);
+        const canRoles = viewerRole === "admin" || viewerRole === "supervisor" || branchMgr;
+        // Vardiyaya girme anahtarı sadece yöneticide (çalışan her zaman plandadır)
+        const canToggleShift = canRoles && !!ep.userId
+          && (ep.role === "admin" ? viewerRole === "admin" : ep.role === "manager" && (viewerRole !== "manager" || ep.userId === authUser?.id || canEditAccess));
+        const canRemove = (!!ep.userId || !!ep.personnelId) && ep.userId !== authUser?.id && ep.role !== "admin"
+          && (viewerRole === "admin" || (viewerRole === "supervisor" && ep.role !== "supervisor") || (ep.role === "employee" && can("personnel_delete")));
+        const removeKey = ep.personnelId ?? ep.userId;
+        // Çalışma bilgileri sadece plana giren kişide anlamlı
+        const showWork = !!ep.personnelId && (ep.role === "employee" || editForm.schedulable);
+        const sectionTitle = "text-sm font-bold text-slate-900";
+        return (
+        <Sheet open onClose={() => setEditingPerson(null)}
+          title={<span className="flex items-center gap-3"><Avatar name={ep.name} size="md" tone={ep.role === "employee" ? "neutral" : "brand"} />{ep.name}</span>}
+          description={[roleBadge(ep).label, ep.role === "employee" ? ep.title : null].filter(Boolean).join(" · ")}
           footer={<>
-            <button onClick={() => setEditingPerson(null)} className={sheetSecondaryClass}>Vazgeç</button>
+            {canRemove && (confirmDeleteKey === removeKey
+              ? <button onClick={() => handleRemove(ep)} className="mr-auto px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">{ep.personnelId ? "Evet, ekipten çıkar" : "Evet, hesabı sil"}</button>
+              : <button onClick={() => setConfirmDeleteKey(removeKey)} className={`mr-auto ${sheetDangerClass}`}>{ep.personnelId ? "Ekipten çıkar" : "Hesabı sil"}</button>)}
             <button onClick={handleEdit} disabled={editLoading} className={sheetPrimaryClass}>{editLoading ? "Kaydediliyor…" : "Kaydet"}</button>
           </>}>
             <div className="space-y-4">
+              {ep.approval_status === "pending" && (viewerRole === "admin" || viewerRole === "supervisor") && (
+                <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+                  <span className="flex-1 text-sm text-amber-900">Hesap onay bekliyor.</span>
+                  <button onClick={async () => { await handleApprove(ep, "rejected"); setEditingPerson(null); }} className="text-sm font-semibold text-red-700 px-2">Reddet</button>
+                  <button onClick={async () => { await handleApprove(ep, "active"); setEditingPerson(null); }} className="text-sm font-bold text-white bg-emerald-600 rounded-lg px-3 py-1.5">Onayla</button>
+                </div>
+              )}
+              {ep.personnelId && ep.role === "employee" && (
+                <p className="text-xs text-slate-500">
+                  {[`Adalet Puanı ${ep.prev_score}`, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya üstlendi` : null,
+                    (ep.ytd_overtime_hours ?? 0) > 0 ? `bu yıl ${ep.ytd_overtime_hours} saat fazla mesai` : null].filter(Boolean).join(" · ")}
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Ad Soyad</label>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Unvan</label>
-                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Barista..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Telefon</label>
+                  <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Telefon</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 532 ..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
+              {/* Giriş: hesabın durumu ve tek işlemi aynı satırda */}
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5">
+                <div className="flex-1 min-w-0 text-sm">
+                  {ep.userId ? (
+                    <>
+                      <p className="text-slate-700 truncate">Kullanıcı adı: <span className="font-semibold">{ep.username}</span></p>
+                      {ep.is_temp_password && <p className="text-xs text-amber-700">Henüz uygulamaya girmedi</p>}
+                      {ep.email && <p className="text-xs text-slate-500 truncate">{ep.email}</p>}
+                    </>
+                  ) : <p className="text-slate-600">Giriş hesabı yok</p>}
+                </div>
+                {ep.userId
+                  ? <button onClick={() => handleGenerateInvite(ep)} disabled={inviteLinkLoading === ep.userId} className="shrink-0 text-sm font-semibold text-forest-700 hover:underline disabled:opacity-50">Giriş bağlantısı</button>
+                  : ep.personnelId && <button onClick={() => handleOpenAccount(ep)} disabled={openingAccountId === ep.personnelId} className="shrink-0 text-sm font-semibold text-forest-700 hover:underline disabled:opacity-50">{openingAccountId === ep.personnelId ? "Açılıyor…" : "Hesap aç"}</button>}
               </div>
-              {editingPerson.personnelId && editDepts.length > 0 && (
+              {canToggleShift && (
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 px-3 py-2.5 cursor-pointer">
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium text-slate-800">Vardiya planına dahil</span>
+                    <span className="block text-xs text-slate-500">Açıksa bu kişiye de vardiya yazılır{!ep.personnelId ? "; çalışma bilgileri kaydettikten sonra burada çıkar" : ""}.</span>
+                  </span>
+                  <input type="checkbox" checked={editForm.schedulable} onChange={e => setEditForm(f => ({ ...f, schedulable: e.target.checked }))} className="mt-1 h-5 w-5 accent-forest-600" />
+                </label>
+              )}
+              {showWork && editDepts.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Departman</label>
                   <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
@@ -882,8 +912,36 @@ export default function PersonnelPage() {
                   </select>
                 </div>
               )}
-              {editingPerson.personnelId && (
+              {showWork && (
                 <>
+                  {/* Görevler: sadece sektör rolleri. Departman ayrı alanda seçilir ve motor onu da rol sayar
+                      (lib/generatePlan); unvan ayrıca yazılmaz, kişinin altında ilk görev görünür. */}
+                  {(branchIndustry || editForm.roles.length > 0) && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler</label>
+                      <p className="text-xs text-slate-400 mb-2">Ne iş yapabildiği. Otomatik plan &quot;her vardiyada en az 1 aşçı&quot; gibi koşulları buna bakarak karşılar.</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(branchIndustry?.roles ?? []).map(role => {
+                          const selected = editForm.roles.includes(role.label);
+                          return (
+                            <button key={role.id} type="button"
+                              onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                              {selected && <Check size={10} className="inline mr-1" />}{role.label}
+                            </button>
+                          );
+                        })}
+                        {/* Listede olmayan eski kayıtlar (ör. içe aktarmadan gelen): dokununca kaldırılır */}
+                        {editForm.roles.filter(r => !roleLabels.has(r)).map(r => (
+                          <button key={r} type="button" title="Kaldırmak için dokunun"
+                            onClick={() => setEditForm(f => ({ ...f, roles: f.roles.filter(x => x !== r) }))}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200 hover:border-red-300">
+                            {r} <X size={10} className="inline ml-0.5" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <details className="rounded-xl border border-slate-200 px-3 py-2">
                   <summary className="cursor-pointer text-sm font-semibold text-slate-700">Çalışma düzeni ve ücret</summary>
                   <div className="space-y-4 mt-3">
@@ -971,7 +1029,8 @@ export default function PersonnelPage() {
                   </details>
                   {crewList.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Vardiya Grubu</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Vardiya Grubu</label>
+                      <p className="text-xs text-slate-400 mb-2">A/B/C gibi dönüşümlü çalışan grup: aynı gruptakiler aynı vardiyaya yazılır. Gruplar Ayarlar › Vardiya Grupları ve Rotasyon&apos;da.</p>
                       <select
                         value={editForm.crew_id ?? ""}
                         onChange={e => setEditForm(f => ({ ...f, crew_id: e.target.value || null }))}
@@ -982,32 +1041,6 @@ export default function PersonnelPage() {
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                    </div>
-                  )}
-                  {/* Roller TEK listede: sektör rolleri + çalışabildiği departmanlar (eski ayrı "Bölge / Zon Ataması";
-                      ikisi de personnel.roles'a yazılır, motor ve alan kotaları buradan okur) */}
-                  {(branchIndustry || editDepts.length > 0) && (
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 mb-1 block">Roller</label>
-                      <p className="text-xs text-slate-400 mb-2">Otomatik planlama &quot;her vardiyada en az 1 aşçı&quot; gibi zorunlulukları ve departman kotalarını bu listeye bakarak karşılar.</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          ...(branchIndustry?.roles.map(r => ({ key: r.id, label: r.label, hint: "" })) ?? []),
-                          ...editDepts.filter(d => !roleLabels.has(d.name)).map(d => ({ key: `dept-${d.id}`, label: d.name, hint: " (departman)" })),
-                        ].map(role => {
-                          const selected = editForm.roles.includes(role.label);
-                          return (
-                            <button key={role.key} type="button"
-                              onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                              {selected && <Check size={10} className="inline mr-1" />}{role.label}{role.hint && <span className="font-normal opacity-70">{role.hint}</span>}
-                            </button>
-                          );
-                        })}
-                        {editForm.roles.filter(r => !roleLabels.has(r) && !editDepts.some(d => d.name === r)).map(r => (
-                          <span key={r} className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200">{r}</span>
-                        ))}
-                      </div>
                     </div>
                   )}
                   {complianceTrackingEnabled && (
@@ -1090,10 +1123,25 @@ export default function PersonnelPage() {
                   )}
                 </>
               )}
+              {acc && isMgr && (
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className={sectionTitle}>Yönetim yetkisi</p>
+                    {canEditAccess && acc.personnel_id && (
+                      <button type="button" onClick={async () => { if (await demoteManager(acc)) { setEditingPerson(null); fetchData(authUser); showToast("Artık çalışan"); } }}
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-800 hover:underline">Yöneticilikten al</button>
+                    )}
+                  </div>
+                  {canEditAccess && mgrAccess
+                    ? <ManagerAccessFields m={acc} value={mgrAccess} onChange={setMgrAccess} locations={managerLocations} viewerRole={viewerRole} />
+                    : <p className="text-sm text-slate-600">{accessSummary(acc, id => editDepts.find(d => d.id === id)?.name)}</p>}
+                </div>
+              )}
               {editError && <p className="text-sm text-red-600">{editError}</p>}
             </div>
         </Sheet>
-      )}
+        );
+      })()}
 
       {/* Excel/CSV ile toplu aktarım (components/personnel/BulkImportModal) */}
       {showBulkModal && authUser?.location_id && (

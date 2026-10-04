@@ -70,11 +70,11 @@ export async function sendAvailabilityReminders(params: {
   let personnel: any[];
   if (location_id) {
     personnel = await db
-      .prepare(`SELECT id FROM personnel WHERE org_id = ? AND primary_location_id = ? AND status = 'active'`)
+      .prepare(`SELECT id FROM personnel WHERE org_id = ? AND primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
       .all(org_id, location_id) as any[];
   } else {
     personnel = await db
-      .prepare(`SELECT id FROM personnel WHERE org_id = ? AND status = 'active'`)
+      .prepare(`SELECT id FROM personnel WHERE org_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
       .all(org_id) as any[];
   }
 

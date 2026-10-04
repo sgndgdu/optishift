@@ -211,7 +211,7 @@ async function main() {
   await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
             VALUES ('u-em-admin', 'egemetal.admin', 'admin@egemetal.demo', ${hash}, 'admin', ${ORG}, ${LOC}, ${"Kemal Aydın"}, ${"Fabrika Müdürü"}, 'active')`;
   await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
-            VALUES ('u-em-mudur', 'egemetal.mudur', 'mudur@egemetal.demo', ${hash}, 'manager', ${ORG}, ${LOC}, ${"Vardiya Amiri Serdar Koç"}, ${"Şube Müdürü"}, 'active')`;
+            VALUES ('u-em-mudur', 'egemetal.mudur', 'mudur@egemetal.demo', ${hash}, 'manager', ${ORG}, ${LOC}, ${"Serdar Koç"}, ${"Şube Müdürü"}, 'active')`;
   const firstP = PEOPLE[0];
   await sql`INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, approval_status)
             VALUES ('u-em-personel', ${firstP.id}, 'egemetal.personel', 'personel@egemetal.demo', ${hash}, 'employee', ${ORG}, ${LOC}, ${firstP.name}, 'active')`;

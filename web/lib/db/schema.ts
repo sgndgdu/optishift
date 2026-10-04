@@ -145,6 +145,7 @@ export const personnel = pgTable("personnel", {
   night_restriction: text("night_restriction"), // gece çalışma yasağı nedeni: 'pregnant' | 'nursing' | 'under18' | 'medical' | null = yok — motor gece vardiyasına atamaz
   leave_adjustment_days: integer("leave_adjustment_days").default(0), // yıllık izin elle düzeltme (±gün) — kalan izin TÜRETİLİR (lib/leave.ts), asla doğrudan yazılmaz
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
+  schedulable: boolean("schedulable").notNull().default(true), // false = vardiya planına girmez (vardiya yapmayan yönetici)
   prev_score: doublePrecision("prev_score").default(0), // kümülatif adalet puanı (additive, decay YOK — bkz. lib/fairness.ts)
   fairness_z_score: doublePrecision("fairness_z_score").default(0), // artık percentile (0-100, yüksek=az yüklü) — eski z-score değil
   hero_count: integer("hero_count").default(0),

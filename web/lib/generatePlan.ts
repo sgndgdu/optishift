@@ -142,29 +142,12 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       }
     }
 
-    // Aktif personeli çek
-    let personnelRows = (await db
+    // Aktif ve planlanabilir personeli çek (vardiya yapmayan yönetici: personnel.schedulable = false, kişinin kartından)
+    const personnelRows = (await db
       .prepare(
-        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active'`
+        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active' AND schedulable IS NOT FALSE`
       )
       .all(`%"${branchId}"%`)) as any[];
-
-    // Müdür/admin varsayılan olarak otomatik planlamaya dahil edilmez
-    let includeManagersInSchedule = false;
-    if (locationRow?.rules) {
-      try {
-        includeManagersInSchedule = !!JSON.parse(locationRow.rules)
-          ?.include_managers_in_schedule;
-      } catch {
-        /* ignore */
-      }
-    }
-    if (!includeManagersInSchedule) {
-      personnelRows = personnelRows.filter(
-        (p: any) =>
-          !["manager", "admin", "supervisor"].includes(p.user_access_level)
-      );
-    }
 
     // Uygunluk verilerini çek
     const personnelIds = personnelRows.map((p: any) => p.id);
@@ -218,13 +201,16 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
 
     // Personel verisini formatla
     const todayForSeniority = businessToday();
+    // Kişinin departmanı da bir rol sayılır: "Günlük Rol Kotaları" departman adıyla da seçilebiliyor
+    // (eskiden departman ayrıca Roller listesinde işaretleniyordu)
+    const deptNameById = new Map<string, string>(departmentRows.map((d: any) => [d.id, d.name]));
     let personnelData = personnelRows.map((p: any) => {
       // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
       const role_level = isSenior(p.hire_date, todayForSeniority) ? "primary" : "secondary";
       return {
         id: p.id,
         name: p.name,
-        skills: JSON.parse(p.roles || "[]"),
+        skills: [...new Set<string>([...JSON.parse(p.roles || "[]"), ...(p.department_id && deptNameById.has(p.department_id) ? [deptNameById.get(p.department_id)!] : [])])],
         night_restriction: p.night_restriction ?? null,
         department_id: p.department_id ?? null,
         prev_score: prevScores[p.id] ?? 0,

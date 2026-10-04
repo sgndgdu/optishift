@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     // Get all personnel for this location
     const personnel = await db.prepare(
-      `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND status = 'active'`
+      `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
     ).all(location_id) as any[];
 
     // Get their availability for this week

@@ -2,8 +2,8 @@
 /**
  * Yöneticiler: rol sistemi kullanıcıya üç rol olarak görünür (İşletme Sahibi / Yönetici / Çalışan).
  * Yönetici eklerken rol değil KAPSAM sorulur: tek şube seçilirse şube yöneticisi (users.role = manager),
- * birden çok şube seçilirse bölge yöneticisi (role = supervisor, managed_location_ids). Unvan serbest
- * yazılan bir etikettir (display_title), yetkiyi değiştirmez. Kapsam değişikliği PATCH scope_location_ids.
+ * birden çok şube seçilirse bölge yöneticisi (role = supervisor, managed_location_ids). Ayrı unvan alanı yok:
+ * display_title kapsamdan türetilir (managerTitle). Kapsam değişikliği PATCH scope_location_ids.
  * Hiç yönetici eklenmezse her şey işletme sahibine gelir.
  */
 
@@ -32,6 +32,10 @@ const parseIds = (raw: string | null): string[] => {
 
 /** Yöneticinin sorumlu olduğu şubeler (bölge yöneticisinde boş liste = işletmenin tüm şubeleri). */
 const scopeOf = (m: Mgr): string[] => (m.role === "supervisor" ? parseIds(m.managed_location_ids) : m.location_id ? [m.location_id] : []);
+
+/** Yöneticinin unvanı kapsamından gelir (elle yazılan unvan yok): Şef / Bölge Müdürü / Şube Müdürü. */
+export const managerTitle = (chef: boolean, branchCount: number): string =>
+  chef ? "Şef" : branchCount > 1 ? "Bölge Müdürü" : "Şube Müdürü";
 
 const MODE_HINTS: Record<AccessMode, string> = {
   view: "Planı, ekibi ve raporları görür; hiçbir şeyi değiştiremez.",
@@ -99,7 +103,7 @@ export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: strin
 }
 
 /**
- * Yönetici / şef ekleme penceresi: ekipten biri (hesabı, geçmişi ve plandaki yeri korunur) ya da yeni kişi.
+ * Yönetici / şef ekleme penceresi: ekipten biri (hesabı ve geçmişi korunur) ya da yeni kişi.
  * Şube müdürü sadece kendi şubesine departman şefi atar.
  */
 export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchManager = false, onDone }: {
@@ -109,7 +113,6 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   const multiBranch = locations.length > 1 && !branchManager;
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [title, setTitle] = useState("");
   const [pickedMulti, setPicked] = useState<string[]>([]);
   // Tek şubede seçim yok: şube o an hesaplanır (sayfa açılırken şubeler henüz yüklenmemiş olabilir)
   const picked = multiBranch ? pickedMulti : locations.slice(0, 1).map(l => l.id);
@@ -144,7 +147,7 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   const pickDept = (v: string) => { setDeptId(v); setMode(v ? "prepare" : "publish"); };
 
   const reset = () => {
-    setName(""); setPhone(""); setTitle(""); setDeptId(""); setMode("publish"); setPickedEmp(""); setError(""); setInvite(null);
+    setName(""); setPhone(""); setDeptId(""); setMode("publish"); setPickedEmp(""); setError(""); setInvite(null);
     setPicked([]);
   };
   const close = () => { reset(); onClose(); };
@@ -157,10 +160,10 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
     if (branchManager && !deptId) return setError("Hangi departmanın şefi olacağını seçin.");
     setBusy(true);
     try {
-      const unvan = title.trim() || (deptId ? "Şef" : "Yönetici");
+      const unvan = managerTitle(!!deptId, picked.length);
       const dept = picked.length === 1 && depts.length ? deptId : "";
       if (source === "team") {
-        // Var olan çalışan: hesabı, geçmişi ve plandaki yeri korunur. Giriş hesabı yoksa önce açılır.
+        // Var olan çalışan: hesabı ve geçmişi korunur. Giriş hesabı yoksa önce açılır.
         const person = teamChoices.find(t => t.personnelId === pickedEmp);
         if (!person) return setError("Kişi bulunamadı.");
         let userId = person.userId;
@@ -239,10 +242,6 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
               </div>
             )}
           </div>
-          <div>
-            <span className={label}>Unvan <span className="font-normal text-slate-400">(isteğe bağlı)</span></span>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Müdür, Müdür Yardımcısı, Şef..." className={field} />
-          </div>
           {depts.length > 0 && (
             <div>
               <span className={label}>{branchManager ? "Hangi departmanın şefi?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
@@ -256,6 +255,7 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
             <span className={label}>Ne yapabilir?</span>
             <ModePicker value={mode} onChange={setMode} chef={!!deptId} />
           </div>
+          <p className="text-xs text-slate-500">Yöneticiye vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında &quot;Vardiya planına dahil&quot;i açın.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}
@@ -263,37 +263,81 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   );
 }
 
+/** Yöneticinin düzenlenebilir yetkisi: ne yapabilir + (patron, çok şubede) hangi şubeler. */
+export type ManagerAccessValue = { mode: AccessMode; ids: string[] };
+
+export const initialManagerAccess = (m: Mgr): ManagerAccessValue => ({ mode: parseAccess(m.permissions)?.mode ?? "publish", ids: scopeOf(m) });
+
+const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every(id => b.includes(id));
+
+export const managerAccessDirty = (m: Mgr, v: ManagerAccessValue): boolean => {
+  const cur = initialManagerAccess(m);
+  return cur.mode !== v.mode || !sameIds(cur.ids, v.ids);
+};
+
+/** Değişen yetkiyi kaydeder; hata metni ya da null döner. Değişiklik kişinin bir sonraki girişinde geçerli olur. */
+export async function saveManagerAccess(m: Mgr, v: ManagerAccessValue): Promise<string | null> {
+  if (!managerAccessDirty(m, v)) return null;
+  const cur = parseAccess(m.permissions);
+  const body: Record<string, unknown> = {};
+  if (v.mode !== (cur?.mode ?? "publish")) body.access = { mode: v.mode, department_id: cur?.department_id ?? undefined };
+  if (!sameIds(scopeOf(m), v.ids)) {
+    if (!v.ids.length) return "En az bir şube seçin.";
+    body.scope_location_ids = v.ids;
+    body.display_title = managerTitle(!!cur?.department_id, v.ids.length);
+  }
+  const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (r.ok) return null;
+  const d = await r.json().catch(() => ({}));
+  return d.error || "Yetki kaydedilemedi.";
+}
+
+/** Yetki alanları (kayıt düğmesi yok): kişi kartı tek "Kaydet" ile saveManagerAccess çağırır. */
+export function ManagerAccessFields({ m, value, onChange, locations, viewerRole }: {
+  m: Mgr; value: ManagerAccessValue; onChange: (v: ManagerAccessValue) => void; locations: Loc[]; viewerRole: string;
+}) {
+  const multiBranch = locations.length > 1 && viewerRole === "admin";
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className={label}>Ne yapabilir?</span>
+        <ModePicker value={value.mode} onChange={mode => onChange({ ...value, mode })} chef={!!parseAccess(m.permissions)?.department_id} />
+      </div>
+      {multiBranch && (
+        <div>
+          <span className={label}>Şubeler</span>
+          <BranchPicker locations={locations} value={value.ids} onChange={ids => onChange({ ...value, ids })} />
+        </div>
+      )}
+      <p className="text-xs text-slate-500">Yetki değişikliği, kişinin bir sonraki girişinde geçerli olur.</p>
+    </div>
+  );
+}
+
+/** Yöneticiyi çalışana döndürür (ekipteki kaydı varsa). */
+export async function demoteManager(m: Mgr): Promise<boolean> {
+  const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ make_employee: true }) });
+  return r.ok;
+}
+
 /**
- * Yöneticinin yetkisini düzenleme (kişi ayrıntısının içinde): unvan, ne yapabilir, şubeler (patron),
- * yöneticilikten alma / hesabı silme. Değişiklik kişinin bir sonraki girişinde geçerli olur.
+ * Tüm Personel'deki yönetici penceresi: yetki alanları + yöneticilikten alma / hesabı silme + kaydet.
+ * (Şubenin Ekip sayfasında aynı alanlar kişi kartının içindedir.)
  */
 export function ManagerAccessEditor({ m, locations, viewerRole, branchManager = false, onDone }: {
   m: Mgr; locations: Loc[]; viewerRole: string; branchManager?: boolean; onDone?: () => void;
 }) {
-  const isOwner = viewerRole === "admin";
-  const multiBranch = locations.length > 1 && isOwner;
-  const isChef = !!parseAccess(m.permissions)?.department_id;
-  const [title, setTitle] = useState(m.display_title ?? "");
-  const [mode, setMode] = useState<AccessMode>(parseAccess(m.permissions)?.mode ?? "publish");
-  const [ids, setIds] = useState<string[]>(scopeOf(m));
+  const [value, setValue] = useState<ManagerAccessValue>(() => initialManagerAccess(m));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const save = async () => {
-    setBusy(true);
+    setBusy(true); setError("");
     try {
-      const cur = parseAccess(m.permissions);
-      const body: Record<string, unknown> = { display_title: title.trim() || "Yönetici" };
-      if (mode !== (cur?.mode ?? "publish")) body.access = { mode, department_id: cur?.department_id ?? undefined };
-      const before = scopeOf(m);
-      if (multiBranch && ids.length && (ids.length !== before.length || ids.some(id => !before.includes(id)))) body.scope_location_ids = ids;
-      const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (r.ok) onDone?.();
+      const err = await saveManagerAccess(m, value);
+      if (err) setError(err); else onDone?.();
     } finally { setBusy(false); }
-  };
-  const demote = async () => {
-    const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ make_employee: true }) });
-    if (r.ok) onDone?.();
   };
   const remove = async () => {
     const r = await fetch(`/api/users?id=${m.id}`, { method: "DELETE" });
@@ -302,30 +346,17 @@ export function ManagerAccessEditor({ m, locations, viewerRole, branchManager = 
 
   return (
     <div className="space-y-4">
-      <div>
-        <span className={label}>Unvan</span>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Yönetici" className={field} />
-      </div>
-      <div>
-        <span className={label}>Ne yapabilir?</span>
-        <ModePicker value={mode} onChange={setMode} chef={isChef} />
-      </div>
-      {multiBranch && (
-        <div>
-          <span className={label}>Şubeler</span>
-          <BranchPicker locations={locations} value={ids} onChange={setIds} />
-        </div>
-      )}
-      <p className="text-xs text-slate-500">Değişiklik, kişinin bir sonraki girişinde geçerli olur.</p>
+      <ManagerAccessFields m={m} value={value} onChange={setValue} locations={locations} viewerRole={viewerRole} />
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {m.personnel_id ? (
-          <button onClick={demote} className={sheetSecondaryClass}>Yöneticilikten al</button>
+          <button onClick={async () => { if (await demoteManager(m)) onDone?.(); }} className={sheetSecondaryClass}>Yöneticilikten al</button>
         ) : !branchManager && (
           confirmDelete
             ? <button onClick={remove} className="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">Evet, hesabı sil</button>
             : <button onClick={() => setConfirmDelete(true)} className={sheetDangerClass}>Hesabı sil</button>
         )}
-        <button onClick={save} disabled={busy || (multiBranch && !ids.length)} className={`ml-auto ${sheetPrimaryClass}`}>{busy ? "Kaydediliyor…" : "Yetkiyi kaydet"}</button>
+        <button onClick={save} disabled={busy || !managerAccessDirty(m, value)} className={`ml-auto ${sheetPrimaryClass}`}>{busy ? "Kaydediliyor…" : "Kaydet"}</button>
       </div>
     </div>
   );

@@ -111,7 +111,10 @@ export async function POST(req: NextRequest) {
   const db = getDB();
   try {
     const body = await req.json();
-    const { location_id, name, email, phone, title, employment_type, role, temp_password } = body;
+    const { location_id, name, email, phone, employment_type, role, temp_password } = body;
+    // Ayrı unvan alanı yok: kişinin altında ilk görevi (rolü) yazar
+    const roles: string[] = Array.isArray(body.roles) ? body.roles.filter((r: unknown) => typeof r === "string" && r.trim()) : [];
+    const title = roles[0] ?? (typeof body.title === "string" && body.title.trim() ? body.title.trim() : null);
 
     if (!location_id || !name) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
@@ -166,8 +169,8 @@ export async function POST(req: NextRequest) {
 
     await db.prepare(`
       INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, email, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
-    `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title ?? "Personel", employment_type ?? "full_time", defaultWeeklyHours(employment_type), now, now);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, 0, 0, 14, ?, '{}', '[]', '[]', '[]', ?, ?)
+    `).run(personnelId, auth.org_id, location_id, JSON.stringify([location_id]), role ?? "employee", name, employeeId, email?.toLowerCase() || null, phone ?? "", title, employment_type ?? "full_time", defaultWeeklyHours(employment_type), JSON.stringify(roles), now, now);
 
     await db.prepare(`
       INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, is_temp_password, approval_status, created_by, created_at)
@@ -232,7 +235,9 @@ export async function PATCH(req: NextRequest) {
     }
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
-    const { name, phone, title, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
+    const { name, phone, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
+    // Ayrı unvan alanı yok: görevler değişince unvan ilk görev olur (görev yoksa eski unvan kalır)
+    const title = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : body.title;
     // Ücret ve pasife alma müdür izinlerine bağlı (lib/ruleLocks); izin yoksa müdürün gönderdiği değer yok sayılır
     const wageOk = await hasLocationPermission(db, auth, existing.primary_location_id, "budget");
     const deleteOk = await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete");

@@ -49,7 +49,7 @@ async function decide(db: any, locId: string, row: any, rules: any, at: Date) {
   const [cnt, deptRows, staff] = await Promise.all([
     db.prepare(`SELECT COUNT(*) AS n FROM shift_assignments WHERE location_id = ? AND week_start = ?`).get(locId, nextWeek),
     db.prepare(`SELECT demand_matrix FROM departments WHERE location_id = ?`).all(locId),
-    db.prepare(`SELECT COUNT(*) AS n FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'`).get(`%"${locId}"%`),
+    db.prepare(`SELECT COUNT(*) AS n FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`).get(`%"${locId}"%`),
   ]) as any[];
   const defs = await loadLocDefs(db, locId);
   const hasDemand = (deptRows as any[]).length > 0
