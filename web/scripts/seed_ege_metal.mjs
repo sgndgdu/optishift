@@ -35,11 +35,13 @@ const SHIFT_DEFS = [
   { id: "s-aksam", name: "Akşam", start: "14:00", end: "22:00", base_points: 5 },
   {
     id: "s-gece", name: "Gece", start: "22:00", end: "05:30", base_points: 8, is_night: true,
-    required_skills: [{ skill: "bakımcı", count: 1 }],
+    required_skills: [{ skill: "Bakımcı", count: 1 }],
   },
 ];
 
 const RULES = {
+  // Şubenin kendi görevleri (lib/roles; Ayarlar › Görevler)
+  custom_roles: ["Pres Operatörü", "Forklift Operatörü", "Montaj Operatörü", "Bakımcı", "Kalite Kontrol", "Depocu"],
   max_weekly_hours: 45,
   min_rest_hours: 11,
   skills_match: "warn",
@@ -116,7 +118,7 @@ for (const crew of ["crew-em-a", "crew-em-b", "crew-em-c"]) {
   for (let k = 0; k < 5; k++) {
     PEOPLE.push(person({
       dept: "dept-em-pres", crew,
-      skills: k === 0 ? ["pres-operatörü", "forklift"] : ["pres-operatörü"],
+      skills: k === 0 ? ["Pres Operatörü", "Forklift Operatörü"] : ["Pres Operatörü"],
       title: k === 0 ? "Kıdemli Pres Operatörü" : "Pres Operatörü",
       wage: k === 0 ? 135 : 110,
       extra: crew === "crew-em-a" && k === 1 ? { ytd_overtime_hours: 250 } : {},
@@ -130,22 +132,22 @@ for (const crew of ["crew-em-a", "crew-em-b", "crew-em-c"]) {
     let title = "Montaj Operatörü";
     if (crew === "crew-em-b" && k === 2) { extra.night_restriction = "pregnant"; }
     if (crew === "crew-em-a" && k === 5) { extra.night_restriction = "under18"; title = "Çırak (MESEM)"; }
-    PEOPLE.push(person({ dept: "dept-em-montaj", crew, skills: ["montaj"], title, wage: 100, extra }));
+    PEOPLE.push(person({ dept: "dept-em-montaj", crew, skills: ["Montaj Operatörü"], title, wage: 100, extra }));
   }
 }
 // Bakım 6 (2'şer) — gece zorunlu yetkinliğin kaynağı
 for (const crew of ["crew-em-a", "crew-em-b", "crew-em-c"]) {
   for (let k = 0; k < 2; k++) {
-    PEOPLE.push(person({ dept: "dept-em-bakim", crew, skills: ["bakımcı"], title: k === 0 ? "Bakım Ustası" : "Bakım Teknisyeni", wage: 150 }));
+    PEOPLE.push(person({ dept: "dept-em-bakim", crew, skills: ["Bakımcı"], title: k === 0 ? "Bakım Ustası" : "Bakım Teknisyeni", wage: 150 }));
   }
 }
 // Kalite 5 (ekipsiz, gündüz ağırlıklı)
 for (let k = 0; k < 5; k++) {
-  PEOPLE.push(person({ dept: "dept-em-kalite", crew: null, skills: ["kalite-kontrol"], title: "Kalite Kontrol Uzmanı", wage: 125 }));
+  PEOPLE.push(person({ dept: "dept-em-kalite", crew: null, skills: ["Kalite Kontrol"], title: "Kalite Kontrol Uzmanı", wage: 125 }));
 }
 // Depo 4 (ekipsiz)
 for (let k = 0; k < 4; k++) {
-  PEOPLE.push(person({ dept: "dept-em-depo", crew: null, skills: ["forklift", "depo"], title: "Depo Görevlisi", wage: 95 }));
+  PEOPLE.push(person({ dept: "dept-em-depo", crew: null, skills: ["Forklift Operatörü", "Depocu"], title: "Depo Görevlisi", wage: 95 }));
 }
 
 async function main() {

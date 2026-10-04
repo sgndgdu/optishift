@@ -17,6 +17,7 @@ import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
 import { applySkillRecommendation, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
+import { branchRoles } from "@/lib/roles";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
@@ -464,7 +465,6 @@ export default function SettingsPage() {
 
   // Sosyal Kurallar — Birlikte Çalışamaz çiftleri
   const [conflictPairs, setConflictPairs] = useState<any[]>([]);
-  const [conflictPersonnel, setConflictPersonnel] = useState<{ id: string; name: string }[]>([]);
   // Çalışma döngüsü (rules.work_cycle): aktif personel, anında kaydedilir
   const [cyclePersonnel, setCyclePersonnel] = useState<{ id: string; name: string }[]>([]);
   const [cycleSaving, setCycleSaving] = useState(false);
@@ -472,9 +472,6 @@ export default function SettingsPage() {
   const [savedWorkCycle, setSavedWorkCycle] = useState<WorkCycleConfig | null | undefined>(undefined);
   // Aktif personelin rolleri: önerilen zorunlu rolü uygulamadan önce rol sahibi var mı diye bakılır
   const [personnelRoles, setPersonnelRoles] = useState<string[][]>([]);
-  const [newConflictA, setNewConflictA]   = useState("");
-  const [newConflictB, setNewConflictB]   = useState("");
-  const [conflictError, setConflictError] = useState("");
   const [editingCrewId, setEditingCrewId] = useState<string | null>(null);
   const [editingCrewName, setEditingCrewName] = useState("");
 
@@ -653,7 +650,6 @@ export default function SettingsPage() {
             if (pRes.ok) {
               const pData = await pRes.json();
               if (Array.isArray(pData)) {
-                setConflictPersonnel(pData.map((p: any) => ({ id: p.id, name: p.name })));
                 setCyclePersonnel((pData as { id: string; name: string; status?: string }[]).filter(p => p.status === "active")
                   .map(p => ({ id: p.id, name: p.name }))
                   .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")));
@@ -1122,6 +1118,8 @@ export default function SettingsPage() {
   // Anında kaydedilir (departmanlar gibi); kaydetme barından bağımsızdır. Taze rules
   // üzerine yazılır, sonra sayfa yeniden yüklenir; kaydedilmemiş değişiklik varken kapalıdır.
   const savedIndustry = industryFromRules(locationData?.rules);
+  const [roleDeleting, setRoleDeleting] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState("");
   const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
   const [industryDraft, setIndustryDraft] = useState<{ industry: string; variant: string } | null>(null);
   const [industrySaving, setIndustrySaving] = useState(false);
@@ -1299,6 +1297,42 @@ export default function SettingsPage() {
                 )}
               </div>
 
+
+              {/* Görevler (lib/roles): hazır görevler işletme türünden; şubenin eklediği görevler kişi kartındaki
+                  "+ Yeni görev" ile eklenir, burada listelenir ve silinir (tek yer). */}
+              {(() => {
+                const roles = branchRoles(locationData?.rules);
+                return (
+                  <div>
+                    <SectionLabel>Görevler</SectionLabel>
+                    <p className="text-xs text-slate-400 mb-3">Kişilerin yapabildiği işler. Listede olmayan bir görevi kişinin kartında (Ekip) &quot;+ Yeni görev&quot; ile ekleyin.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {roles.industry.map(r => (
+                        <span key={r} className="px-2.5 py-1 rounded-lg text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">{r}</span>
+                      ))}
+                      {roles.custom.map(r => (
+                        <span key={r} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-forest-200">
+                          {r}
+                          <button type="button" title="Görevi sil" disabled={roleDeleting === r}
+                            onClick={async () => {
+                              if (!locationData?.id || !confirm(`"${r}" görevi silinsin mi? Kişilerin kartından da kalkar.`)) return;
+                              setRoleDeleting(r); setRoleError("");
+                              try {
+                                const res = await fetch(`/api/locations/roles?location_id=${locationData.id}&label=${encodeURIComponent(r)}`, { method: "DELETE" });
+                                const d = await res.json().catch(() => ({}));
+                                if (!res.ok) { setRoleError(d.error ?? "Silinemedi"); return; }
+                                setLocationData(prev => prev ? { ...prev, rules: { ...(prev.rules ?? {}), custom_roles: d.roles?.custom ?? [] } } : prev);
+                              } finally { setRoleDeleting(null); }
+                            }}
+                            className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                        </span>
+                      ))}
+                      {roles.all.length === 0 && <p className="text-xs text-slate-400">Henüz görev yok.</p>}
+                    </div>
+                    {roleError && <p className="text-xs text-red-600 mt-2">{roleError}</p>}
+                  </div>
+                );
+              })()}
 
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>
@@ -1578,7 +1612,7 @@ export default function SettingsPage() {
                         skills={shift.required_skills ?? []}
                         // Roller TEK liste: Ekip'teki Roller (sektör rolleri + departmanlar + kişilerde işaretli olanlar)
                         knownSkills={[...new Set([
-                          ...(savedIndustry?.roles.map(r => r.label) ?? []),
+                          ...branchRoles(locationData?.rules).all,
                           ...departments.map(d => d.name),
                           ...personnelRoles.flat(),
                           ...(locationData.shift_definitions ?? []).flatMap((sd: ShiftDefinition) => (sd.required_skills ?? []).map(rs => rs.skill)),
@@ -2446,66 +2480,11 @@ export default function SettingsPage() {
                 <FeatureCard icon={UserX} title="Birlikte Çalışamaz"
                   description="Seçtiğiniz iki kişi hiçbir gün aynı vardiyaya yazılmaz."
                   on={personnelConflictsEnabled} onToggle={() => setPersonnelConflictsEnabled(v => !v)}>
-                  <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                    <select
-                      value={newConflictA}
-                      onChange={e => setNewConflictA(e.target.value)}
-                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
-                    >
-                      <option value="">Birinci kişi</option>
-                      {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                    <select
-                      value={newConflictB}
-                      onChange={e => setNewConflictB(e.target.value)}
-                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
-                    >
-                      <option value="">İkinci kişi</option>
-                      {conflictPersonnel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                    <button
-                      onClick={async () => {
-                        setConflictError("");
-                        if (!newConflictA || !newConflictB) { setConflictError("İki kişi de seçilmeli"); return; }
-                        if (newConflictA === newConflictB) { setConflictError("Aynı kişi seçilemez"); return; }
-                        const res = await fetch("/api/personnel-conflicts", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ location_id: selectedLocationId, personnel_id_a: newConflictA, personnel_id_b: newConflictB }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) { setConflictError(data.error ?? "Eklenemedi"); return; }
-                        const nameA = conflictPersonnel.find(p => p.id === newConflictA)?.name ?? "";
-                        const nameB = conflictPersonnel.find(p => p.id === newConflictB)?.name ?? "";
-                        setConflictPairs(prev => [{ id: data.id, personnel_id_a: newConflictA, personnel_id_b: newConflictB, personnel_a_name: nameA, personnel_b_name: nameB }, ...prev]);
-                        setNewConflictA(""); setNewConflictB("");
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-bold hover:bg-forest-800 transition-colors shrink-0"
-                    >
-                      Ekle
-                    </button>
-                  </div>
-                  {conflictError && <p className="text-xs text-red-600 mb-3">{conflictError}</p>}
-                  {conflictPairs.length === 0 ? (
-                    <p className="text-sm text-slate-400">Henüz tanımlı çift yok.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {conflictPairs.map(pair => (
-                        <div key={pair.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-                          <span className="text-sm font-semibold text-slate-700">{pair.personnel_a_name} <span className="text-slate-400 font-normal">↔</span> {pair.personnel_b_name}</span>
-                          <button
-                            onClick={async () => {
-                              await fetch(`/api/personnel-conflicts?id=${pair.id}`, { method: "DELETE" });
-                              setConflictPairs(prev => prev.filter(p => p.id !== pair.id));
-                            }}
-                            className="text-xs font-bold text-red-500 hover:text-red-700"
-                          >
-                            Kaldır
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Çiftler kişinin kartında tanımlanır (PersonSheet "Birlikte çalışamaz"); burada sadece aç/kapat ve özet */}
+                  <p className="text-sm text-slate-600">
+                    Çiftleri kişinin kartında (Ekip) &quot;Birlikte çalışamaz&quot; bölümünden ekleyin.
+                    {conflictPairs.length > 0 ? ` Şu an ${conflictPairs.length} çift tanımlı.` : " Henüz tanımlı çift yok."}
+                  </p>
                 </FeatureCard>
                   ),
                   fatigue: (

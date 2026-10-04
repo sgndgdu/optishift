@@ -15,6 +15,7 @@ import { isBranchManager, parseAccess } from "@/lib/userAccess";
 import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
+import { branchRoles } from "@/lib/roles";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { isSenior } from "@/lib/seniority";
 import { businessToday } from "@/lib/date";
@@ -110,11 +111,58 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   }, [ep.personnelId, complianceTrackingEnabled]);
 
   const kioskModeEnabled = isModuleOn(rules, "kiosk_mode_enabled");
+  // Birlikte çalışamaz çiftleri (personnel_conflicts): kişinin kartında tanımlanır, anında kaydedilir
+  const conflictsEnabled = isModuleOn(rules, "personnel_conflicts_enabled");
+  const [pairs, setPairs] = useState<{ id: number; otherId: string; otherName: string }[]>([]);
+  const [teammates, setTeammates] = useState<{ id: string; name: string }[]>([]);
+  const [newPairWith, setNewPairWith] = useState("");
+  const [pairError, setPairError] = useState("");
+  const loadPairs = async (locId: string, pid: string) => {
+    const [pc, pp] = await Promise.all([
+      fetch(`/api/personnel-conflicts?location_id=${locId}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/personnel?location_id=${locId}`).then(r => r.json()).catch(() => []),
+    ]);
+    setPairs((Array.isArray(pc) ? pc : []).filter((x: { personnel_id_a: string; personnel_id_b: string }) => x.personnel_id_a === pid || x.personnel_id_b === pid)
+      .map((x: { id: number; personnel_id_a: string; personnel_a_name: string; personnel_id_b: string; personnel_b_name: string }) =>
+        x.personnel_id_a === pid ? { id: x.id, otherId: x.personnel_id_b, otherName: x.personnel_b_name } : { id: x.id, otherId: x.personnel_id_a, otherName: x.personnel_a_name }));
+    setTeammates((Array.isArray(pp) ? pp : []).filter((x: { id: string; status?: string }) => x.id !== pid && x.status !== "inactive")
+      .map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })).sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")));
+  };
+  useEffect(() => {
+    if (conflictsEnabled && ep.personnelId && branchId) void Promise.resolve().then(() => loadPairs(branchId, ep.personnelId!));
+  }, [conflictsEnabled, ep.personnelId, branchId]);
+  const addPair = async () => {
+    if (!newPairWith || !ep.personnelId || !branchId) return;
+    setPairError("");
+    const r = await fetch("/api/personnel-conflicts", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location_id: branchId, personnel_id_a: ep.personnelId, personnel_id_b: newPairWith }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { setPairError(d.error ?? "Eklenemedi"); return; }
+    setNewPairWith(""); loadPairs(branchId, ep.personnelId);
+  };
+  const removePair = async (id: number) => {
+    await fetch(`/api/personnel-conflicts?id=${id}`, { method: "DELETE" });
+    setPairs(prev => prev.filter(x => x.id !== id));
+  };
   const branchWeeklyMax = typeof rules.max_weekly_hours === "number" ? rules.max_weekly_hours : 45;
   const autoLeaveOn = rules.auto_leave_entitlement_enabled === true;
   // Şubenin işletme türü (lib/templates): görev listesi ve belge kataloğu buradan gelir
   const branchIndustry = industryFromRules(rules);
-  const roleLabels = new Set(branchIndustry?.roles.map(r => r.label) ?? []);
+  // Şubenin görev listesi (lib/roles); kartta yeni eklenen görev hemen listeye girer
+  const [extraRoles, setExtraRoles] = useState<string[]>([]);
+  const roleList = [...new Set([...branchRoles(rules).all, ...extraRoles])];
+  const [addingRole, setAddingRole] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [roleError, setRoleError] = useState("");
+  const addRole = async () => {
+    setRoleError("");
+    const r = await fetch("/api/locations/roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: branchId, label: newRole }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { setRoleError(d.error ?? "Görev eklenemedi"); return; }
+    setExtraRoles(prev => (prev.includes(d.label) ? prev : [...prev, d.label]));
+    setEditForm(f => ({ ...f, roles: f.roles.includes(d.label) ? f.roles : [...f.roles, d.label] }));
+    setAddingRole(false); setNewRole("");
+  };
   const todayISO = new Date().toISOString().split("T")[0];
   // Seçili görevlerin gerektirdiği belgeler ve bu kişideki durumu (geçerli / süresi dolmuş / girilmemiş)
   const requiredDocStates = (() => {
@@ -340,34 +388,50 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
           )}
           {showWork && (
             <>
-              {/* Görevler: sadece sektör rolleri. Departman ayrı alanda seçilir ve motor onu da rol sayar
-                  (lib/generatePlan); unvan ayrıca yazılmaz, kişinin altında ilk görev görünür. */}
-              {(branchIndustry || editForm.roles.length > 0) && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler</label>
-                  <p className="text-xs text-slate-400 mb-2">Ne iş yapabildiği. Otomatik plan &quot;her vardiyada en az 1 aşçı&quot; gibi koşulları buna bakarak karşılar.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(branchIndustry?.roles ?? []).map(role => {
-                      const selected = editForm.roles.includes(role.label);
-                      return (
-                        <button key={role.id} type="button"
-                          onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                          {selected && <Check size={10} className="inline mr-1" />}{role.label}
-                        </button>
-                      );
-                    })}
-                    {/* Listede olmayan eski kayıtlar (ör. içe aktarmadan gelen): dokununca kaldırılır */}
-                    {editForm.roles.filter(r => !roleLabels.has(r)).map(r => (
-                      <button key={r} type="button" title="Kaldırmak için dokunun"
-                        onClick={() => setEditForm(f => ({ ...f, roles: f.roles.filter(x => x !== r) }))}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200 hover:border-red-300">
-                        {r} <X size={10} className="inline ml-0.5" />
+              {/* Görevler: şubenin görev listesi (lib/roles: işletme türünün hazırları + şubenin eklediği). Departman ayrı
+                  alanda seçilir ve motor onu da görev sayar (lib/generatePlan); unvan ayrıca yazılmaz, ilk görev görünür. */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler</label>
+                <p className="text-xs text-slate-400 mb-2">Ne iş yapabildiği. Otomatik plan &quot;her vardiyada en az 1 aşçı&quot; gibi koşulları buna bakarak karşılar.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {roleList.map(label => {
+                    const selected = editForm.roles.includes(label);
+                    return (
+                      <button key={label} type="button"
+                        onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== label) : [...f.roles, label] }))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                        {selected && <Check size={10} className="inline mr-1" />}{label}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
+                  {/* Listede olmayan eski kayıtlar (ör. içe aktarmadan gelen): dokununca kaldırılır */}
+                  {editForm.roles.filter(r => !roleList.includes(r)).map(r => (
+                    <button key={r} type="button" title="Kaldırmak için dokunun"
+                      onClick={() => setEditForm(f => ({ ...f, roles: f.roles.filter(x => x !== r) }))}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200 hover:border-red-300">
+                      {r} <X size={10} className="inline ml-0.5" />
+                    </button>
+                  ))}
+                  {!addingRole && branchId && (
+                    <button type="button" onClick={() => { setAddingRole(true); setNewRole(""); setRoleError(""); }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold border border-dashed border-slate-300 text-forest-700 hover:border-forest-400">
+                      + Yeni görev
+                    </button>
+                  )}
                 </div>
-              )}
+                {addingRole && (
+                  <div className="mt-2 flex gap-2">
+                    <input autoFocus value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Görev adı (örn. Pres Operatörü)"
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void addRole(); } if (e.key === "Escape") setAddingRole(false); }}
+                      className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-forest-400" />
+                    <button type="button" onClick={() => void addRole()} disabled={newRole.trim().length < 2}
+                      className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                    <button type="button" onClick={() => setAddingRole(false)} className="shrink-0 px-2 text-xs font-semibold text-slate-500">Vazgeç</button>
+                  </div>
+                )}
+                {addingRole && <p className="text-xs text-slate-400 mt-1">Görev şubenin listesine eklenir; herkesin kartında seçilebilir. Ayarlar › Temel › Görevler&apos;den silinir.</p>}
+                {roleError && <p className="text-xs text-red-600 mt-1">{roleError}</p>}
+              </div>
               <details className="rounded-xl border border-slate-200 px-3 py-2">
               <summary className="cursor-pointer text-sm font-semibold text-slate-700">Çalışma düzeni ve ücret</summary>
               <div className="space-y-4 mt-3">
@@ -523,6 +587,32 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                     <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
                   </div>
                   {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
+                </div>
+              )}
+              {conflictsEnabled && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Birlikte çalışamaz</label>
+                  <p className="text-xs text-slate-400 mb-2">Seçilen kişiyle hiçbir gün aynı vardiyaya yazılmaz. Değişiklik anında kaydedilir.</p>
+                  {pairs.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {pairs.map(x => (
+                        <span key={x.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-slate-50 text-slate-700 border-slate-200">
+                          {x.otherName}
+                          <button type="button" title="Kaldır" onClick={() => removePair(x.id)} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <select value={newPairWith} onChange={e => setNewPairWith(e.target.value)}
+                      className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:border-forest-400">
+                      <option value="">Kişi seçin…</option>
+                      {teammates.filter(t => !pairs.some(x => x.otherId === t.id)).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button type="button" onClick={addPair} disabled={!newPairWith}
+                      className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                  </div>
+                  {pairError && <p className="text-xs text-red-600 mt-1">{pairError}</p>}
                 </div>
               )}
               {kioskModeEnabled && (

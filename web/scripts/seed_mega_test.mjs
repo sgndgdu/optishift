@@ -197,7 +197,8 @@ function makePerson(loc, dept, k) {
     employment_type: employmentType,
     hourly_wage: randInt(dept.wage[0], dept.wage[1]),
     max_weekly_hours: employmentType === "part_time" ? 28 : 45,
-    roles: [dept.role],
+    // Görev = departman (motor kişinin departmanını görev sayar); ayrı slug görev yazılmaz
+    roles: [],
     night_restriction: null,
     hire_date: isoDateNDaysAgo(randInt(120, 1600)),
     kiosk: false,

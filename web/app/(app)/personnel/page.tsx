@@ -10,7 +10,7 @@ import {
   Link, Upload, Loader2, RefreshCw, UserCog,
   ChevronDown,
 } from "lucide-react";
-import { industryFromRules } from "@/lib/templates";
+import { branchRoles } from "@/lib/roles";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import { BranchPermissionsSheet, ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
@@ -271,7 +271,7 @@ export default function PersonnelPage() {
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   // Şubenin işletme türü (lib/templates): ekleme formundaki görev listesi buradan gelir
-  const branchIndustry = industryFromRules(locations.find(l => l.id === authUser?.location_id)?.rules);
+  const addRoles = branchRoles(locations.find(l => l.id === authUser?.location_id)?.rules).all;
 
   if (!mounted) return <Page />;
 
@@ -422,17 +422,17 @@ export default function PersonnelPage() {
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
-              {branchIndustry && (
+              {addRoles.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
                   <div className="flex flex-wrap gap-1.5">
-                    {branchIndustry.roles.map(role => {
-                      const selected = addForm.roles.includes(role.label);
+                    {addRoles.map(label => {
+                      const selected = addForm.roles.includes(label);
                       return (
-                        <button key={role.id} type="button"
-                          onClick={() => setAddForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== role.label) : [...f.roles, role.label] }))}
+                        <button key={label} type="button"
+                          onClick={() => setAddForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== label) : [...f.roles, label] }))}
                           className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                          {selected && <Check size={10} className="inline mr-1" />}{role.label}
+                          {selected && <Check size={10} className="inline mr-1" />}{label}
                         </button>
                       );
                     })}
