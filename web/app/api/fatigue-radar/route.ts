@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     let rules: any = {};
     try { rules = JSON.parse(loc.rules || "{}"); } catch { /* boş kalsın */ }
     if (rules.fatigue_radar_enabled !== true) {
-      return NextResponse.json({ error: "Kaza Risk Radarı bu şubede kapalı" }, { status: 403 });
+      return NextResponse.json({ error: "Yorgunluk uyarısı bu şubede kapalı" }, { status: 403 });
     }
 
     let shiftDefs: { id: string; is_night?: boolean }[] = [];

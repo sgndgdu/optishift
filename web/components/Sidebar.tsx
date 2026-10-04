@@ -84,7 +84,7 @@ const NAV = [
   { href: "/personnel",    label: "Ekip",                   icon: Users,           group: "main" },
   { href: "/requests",     label: "Onaylar",                icon: ClipboardList,   group: "main" },
   { href: "/reports",      label: "Raporlar",               icon: BarChart2,       group: "more" },
-  { href: "/chat",         label: "Mesajlaşma",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
+  { href: "/chat",         label: "Mesajlar",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
   { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
   { href: "/overtime",     label: "Fazla Mesai",            icon: Timer,           group: "more", module: "overtime_tracking_enabled" },
   { href: "/tip-pools",    label: "Bahşiş Havuzu",          icon: Wallet,          group: "more", module: "tip_pooling_enabled" },
@@ -101,10 +101,10 @@ const CHEF_HIDDEN = new Set<string>(["/requests", "/open-shifts", "/overtime", "
 // Şube seçicinin en üstündeki "Tüm Şubeler" bu kapsama geçer; bir şube seçmek şube kapsamına döner.
 const NAV_ALL = [
   { href: "/supervisor",           label: "Genel Bakış",       icon: LayoutDashboard, group: "main", exact: true },
-  { href: "/supervisor/personnel", label: "Tüm Personel",      icon: Users,           group: "main" },
+  { href: "/supervisor/personnel", label: "Ekip",              icon: Users,           group: "main" },
   { href: "/supervisor/reports",   label: "Raporlar",          icon: BarChart2,       group: "main" },
-  { href: "/supervisor/chat",      label: "Mesajlaşma",        icon: MessageSquare,   group: "main" },
-  { href: "/supervisor/settings",  label: "İşletme Ayarları",  icon: Settings,        group: "footer" },
+  { href: "/supervisor/chat",      label: "Mesajlar",        icon: MessageSquare,   group: "main" },
+  { href: "/supervisor/settings",  label: "Ayarlar",           icon: Settings,        group: "footer" },
 ] as const;
 
 const MORE_OPEN_KEY = "optishift_nav_more_open";
@@ -431,7 +431,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 "text-xs font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "manager" || user?.role === "supervisor" ? (user?.display_title || "Yönetici") : "Çalışan"}
+                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : user?.role === "manager" ? (user?.display_title || "Şube Müdürü") : "Çalışan"}
               </p>
             </div>
           </div>

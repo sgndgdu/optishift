@@ -124,7 +124,13 @@ function SupervisorPersonnelInner() {
 
   return (
     <Page className="animate-in fade-in duration-500">
-      <PageHeader title="Tüm Personel" description={`Tüm şubelerin ekibi · ${persons.filter(p => !p.inactive).length} kişi`} actions={
+      <PageHeader title="Ekip" description={(() => {
+        // Genel Bakış "Personel" sayısıyla aynı taban: çalışanlar ayrı, yöneticiler ayrı
+        const act = persons.filter(p => !p.inactive);
+        const staff = act.filter(p => p.role === "employee").length;
+        const mgrs = act.length - staff;
+        return `Tüm şubeler · ${staff} çalışan${mgrs ? ` · ${mgrs} yönetici` : ""}`;
+      })()} actions={
         <div className="relative">
           <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
             <Plus size={16} /> Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
@@ -187,7 +193,7 @@ function SupervisorPersonnelInner() {
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
           managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id]) : null; }}
           managementAction={isOwnerRole(user?.role) ? (
-            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Müdür yetkileri</button>
+            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Yönetici izinleri</button>
           ) : undefined}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}
           emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Çalışan ekle</button>} />
@@ -198,6 +204,10 @@ function SupervisorPersonnelInner() {
           viewer={{ id: user?.id, role: user?.role ?? "", location_id: null, access: user?.access }}
           branch={locations.find(l => l.id === openPerson.location_id) ?? null}
           managerLocations={managerLocations}
+          teamAvgScore={(() => {
+            const team = persons.filter(x => x.personnelId && x.role === "employee" && !x.inactive && x.location_id === openPerson.location_id);
+            return team.length ? team.reduce((a, x) => a + x.prev_score, 0) / team.length : 0;
+          })()}
           onClose={() => setOpenKey(null)}
           onChanged={msg => { setOpenKey(null); fetchPeople(); showToast(msg); }}
           onInvite={setInviteLinks} />

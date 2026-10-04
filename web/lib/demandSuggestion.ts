@@ -1,5 +1,5 @@
 /**
- * Personel İhtiyacı tablosu önerisi (Haftayı Oluştur 1. adım).
+ * Personel İhtiyacı tablosu önerisi (Planı Oluştur 1. adım).
  *
  * Boş tablo, ilk kullanımdaki en büyük sorundu: müdür "kaç kişi" sorusuna cevap vermeden
  * plan istiyor. Burada koddan bir öneri çıkar, müdür tek tıkla uygular ya da düzeltir:

@@ -83,7 +83,7 @@ export function enabledHighlights(industry: IndustryProfile): string[] {
     tip_pooling_enabled: "Bahşiş Havuzu",
     task_management_enabled: "Görev Listeleri",
     handover_log_enabled: `Dijital ${titleCaseTr(industry.nudges.terms.handover)} Defteri`,
-    fatigue_radar_enabled: "Kaza Risk Radarı",
+    fatigue_radar_enabled: "Yorgunluk Uyarısı",
     compliance_tracking_enabled: "Belge ve Sertifika Takibi",
     kiosk_mode_enabled: "Ortak Tablet",
     forecasting_enabled: "Yoğunluk Tahmini",

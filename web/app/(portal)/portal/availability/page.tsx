@@ -20,7 +20,7 @@ const CUSTOM_DEFAULT = { start: "08:00", end: "22:00" };
 
 const S = {
   available:    { label: "Uygunum", short: "Uygun",  icon: <Check size={13}/>,       bg: "bg-emerald-500", text: "text-white", light: "bg-emerald-50", ltext: "text-emerald-700", border: "border-emerald-400", fill: "bg-emerald-400", dot: "bg-emerald-400", thumb: "" },
-  preferred_not:{ label: "Esnek",    short: "Esnek",   icon: <AlertCircle size={13}/>, bg: "bg-amber-400",   text: "text-white", light: "bg-amber-50",   ltext: "text-amber-700",   border: "border-amber-400",   fill: "bg-amber-400",   dot: "bg-amber-400",   thumb: "avail-amber" },
+  preferred_not:{ label: "Tercih etmem", short: "Tercih etmem",   icon: <AlertCircle size={13}/>, bg: "bg-amber-400",   text: "text-white", light: "bg-amber-50",   ltext: "text-amber-700",   border: "border-amber-400",   fill: "bg-amber-400",   dot: "bg-amber-400",   thumb: "avail-amber" },
   unavailable:  { label: "Gelemem",  short: "Gelemem", icon: <X size={13}/>,           bg: "bg-rose-500",    text: "text-white", light: "bg-rose-50",    ltext: "text-rose-600",    border: "border-rose-400",    fill: "bg-rose-400",    dot: "bg-rose-400",    thumb: "" },
 } as const;
 
@@ -316,7 +316,7 @@ export default function PortalAvailability() {
     if (s === "preferred_not") {
       const usedYellow = days.filter((d, j) => j !== i && d.status === "preferred_not").length;
       if (usedYellow >= maxYellow) {
-        setYellowWarn(`Haftada en fazla ${maxYellow} gün "Esnek" seçebilirsin. Gelemeyeceğin günler için "Gelemem"i kullan.`);
+        setYellowWarn(`Haftada en fazla ${maxYellow} gün "Tercih etmem" seçebilirsin. Gelemeyeceğin günler için "Gelemem"i kullan.`);
         setTimeout(() => setYellowWarn(null), 4000);
         return;
       }
@@ -390,7 +390,7 @@ export default function PortalAvailability() {
           <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
             <CalendarCheck size={22} className="text-forest-500" />
           </div>
-          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürünüz planlıyor</p>
+          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürün planlıyor</p>
           <p className="text-sm text-slate-500 max-w-xs">
             Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>
@@ -483,7 +483,7 @@ export default function PortalAvailability() {
               <Copy size={13} /> Geçen haftanın aynısı
             </button>
             <span className="text-xs text-slate-400 font-medium text-right">
-              Esnek hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span>
+              &quot;Tercih etmem&quot; hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span>
             </span>
           </div>
           {copyMsg && <p className="text-xs font-semibold text-forest-700 px-1">{copyMsg}</p>}

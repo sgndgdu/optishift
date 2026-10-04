@@ -294,7 +294,8 @@ export default function DashboardPage() {
     certifications: { enabled: isModuleOn(rules, "compliance_tracking_enabled"), ...certAttention },
     // Şubenin sektörü seçiliyse maddeler sektörün diliyle ve önceliğiyle gelir
     nudges: industryFromRules(rules)?.nudges ?? null,
-    industrySelected: industryFromRules(rules) !== null,
+    // Geri alınamaz, işletme düzeyinde karar: görev sadece işletme sahibine çıkar (müdür ve bölge müdürüne değil)
+    industrySelected: user?.role === "admin" ? industryFromRules(rules) !== null : undefined,
     autopilot: autopilot?.enabled ? {
       drafted: autopilot.last_draft_week === getNextWeekStart(),
       upcoming: autopilot.upcoming,
@@ -474,7 +475,7 @@ export default function DashboardPage() {
                           className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                           title="Yerine kim geçebilir? Uygun yedekler önerilir"
                         >
-                          Gelemiyor
+                          Yerine bul
                         </button>
                       )}
                       {!isCheckedIn && !isCheckedOut && late && openShiftsEnabled && !autoOpenOnLate && (

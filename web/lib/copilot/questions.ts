@@ -145,7 +145,7 @@ export const QUESTIONS: CopilotQuestion[] = [
       const warn = [
         p.onLeaveDays.length ? `İzinli olduğu gün vardiyada: ${dayList(p.onLeaveDays)}` : "",
         p.unavailableDays.length ? `"Gelemem" dediği gün vardiyada: ${dayList(p.unavailableDays)}` : "",
-        p.preferredNotDays.length ? `"Esnek" işaretlediği gün vardiyada: ${dayList(p.preferredNotDays)}` : "",
+        p.preferredNotDays.length ? `"Tercih etmem" dediği gün vardiyada: ${dayList(p.preferredNotDays)}` : "",
         p.hours > snap.rules.maxWeeklyHours ? `Haftalık ${snap.rules.maxWeeklyHours} saat sınırını aşıyor` : "",
         p.minRestHours !== null && p.minRestHours < snap.rules.minRestHours ? `En kısa dinlenme ${fmtHours(p.minRestHours)}` : "",
       ].filter(Boolean);

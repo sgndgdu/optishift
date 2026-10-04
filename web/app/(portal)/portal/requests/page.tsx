@@ -221,12 +221,14 @@ export default function PortalRequests() {
     if (activeTab !== "new" || newType !== "edit" || !user) return;
     (async () => {
       const weeks = await Promise.all(
-        [0, 1].map(w =>
+        // Saat hatası çoğu zaman geçmiş vardiyada olur (çıkışı unutmak gibi): son 2 hafta da listelenir
+        [-2, -1, 0, 1].map(w =>
           fetch(`/api/shifts?personnel_id=${user.personnel_id || ""}&week_start=${libGetWeekStart(w)}`)
             .then(r => r.json()).catch(() => [])
         )
       );
-      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && isUpcoming(s)));
+      const from = addDays(businessToday(), -14);
+      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && addDays(s.week_start, Number(s.day ?? 0)) >= from));
     })();
   }, [activeTab, newType, user]);
 
@@ -287,7 +289,7 @@ export default function PortalRequests() {
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
-        showToast(err.error || "Pazar yerine bırakılamadı.", "error");
+        showToast(err.error || "Vardiya bırakılamadı.", "error");
       }
     } finally { setLoading(false); }
   }
@@ -336,7 +338,7 @@ export default function PortalRequests() {
         }),
       });
       if (r.ok) {
-        showToast("Düzenleme talebi gönderildi!");
+        showToast("Saat düzeltme isteği gönderildi.");
         setEditShift(null); setEditReason("");
         setActiveTab("sent"); setNewType(null);
         await loadData();
@@ -354,7 +356,7 @@ export default function PortalRequests() {
       showToast("Bu şubede izin talebi için mazeret zorunludur.", "error"); return;
     }
     if (leavePolicy && !leavePolicy.allow_multi_day && leaveStart !== leaveEnd) {
-      showToast("Bu şubede yalnızca tek günlük izin talep edebilirsiniz.", "error"); return;
+      showToast("Bu şubede sadece tek günlük izin isteyebilirsin.", "error"); return;
     }
     setLoading(true);
     try {
@@ -521,10 +523,10 @@ export default function PortalRequests() {
             <Empty text="Henüz bir talebin yok. İzin istemek ya da gelemeyeceğin bir günü bildirmek için “Yeni talep”e dokun." />
           )}
           {myListings.length > 0 && (
-            <Section title="Açık İlanlarım" icon={<Megaphone size={14} />}>
+            <Section title="Bıraktığım vardiyalar" icon={<Megaphone size={14} />}>
               {myListings.map((o: any) => (
                 <RequestCard key={o.id}
-                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşın"} üstlendi` : "Herkese açık ilan"}
+                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşın"} üstlendi` : "Ekip görüyor, henüz üstlenen yok"}
                   sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri üstlenene kadar vardiya sende" : ""}`}
                   status={o.status}
                   canCancel={o.status === "open"}
@@ -550,10 +552,10 @@ export default function PortalRequests() {
           )}
 
           {editReqs.length > 0 && (
-          <Section title="Saat Düzeltme Talepleri" icon={<FileEdit size={14} />}>
+          <Section title="Saat düzeltme" icon={<FileEdit size={14} />}>
             {editReqs.map(e => (
                 <RequestCard key={e.id}
-                  title="Vardiya düzenleme"
+                  title="Saat düzeltme"
                   sub={shiftLabel({ week_start: e.week_start, day: e.day, start_time: e.start_time, end_time: e.end_time })}
                   status={e.status}
                   note={e.reason}
@@ -746,7 +748,7 @@ export default function PortalRequests() {
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
               ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", icon: UserX }] : []),
               ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına takas teklif et", icon: ArrowLeftRight }] : []),
-              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Müdürden düzeltme iste", icon: FileEdit }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Müdürden saat düzeltme iste (son 2 hafta da olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
@@ -820,7 +822,7 @@ export default function PortalRequests() {
                 {swapStep === 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas etmek istediğin vardiyayı seç:</p>
-                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan bulunmuyor. Müdürünüzün vardiya planını yayınlamasını bekleyin.</p>}
+                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Müdürün planı yayınlayınca burada görünür.</p>}
                     {myShifts.map(s => (
                       <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
                     ))}
@@ -883,7 +885,7 @@ export default function PortalRequests() {
                         value={swapNote}
                         onChange={e => setSwapNote(e.target.value)}
                         rows={2}
-                        placeholder="Arkadaşınıza bir not..."
+                        placeholder="Arkadaşına bir not..."
                         className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                       />
                     </div>
@@ -908,7 +910,7 @@ export default function PortalRequests() {
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğin vardiyayı seç:</p>
-                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan bulunmuyor. Müdürünüzün vardiya planını yayınlamasını bekleyin.</p>}
+                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan yok. Müdürün planı yayınlayınca burada görünür.</p>}
                 <div className="space-y-2">
                   {myShifts.map(s => (
                     <ShiftOption key={s.id} shift={s} names={shiftNames} selected={editShift?.id === s.id} onSelect={() => setEditShift(s)} />
@@ -923,7 +925,7 @@ export default function PortalRequests() {
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
                       rows={3}
-                      placeholder="Yöneticinize açıklama yazın..."
+                      placeholder="Müdürüne kısa bir açıklama yaz..."
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
@@ -1049,7 +1051,7 @@ export default function PortalRequests() {
                   value={leaveNote}
                   onChange={e => setLeaveNote(e.target.value)}
                   rows={2}
-                  placeholder={leavePolicy?.require_reason ? "Zorunlu: mazeret giriniz..." : "Yöneticinize not..."}
+                  placeholder={leavePolicy?.require_reason ? "Zorunlu: nedenini yaz..." : "Müdürüne not..."}
                   className={`w-full text-sm bg-slate-50 border rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none ${
                     leavePolicy?.require_reason && !leaveNote.trim() ? "border-red-200" : "border-slate-200"
                   }`}

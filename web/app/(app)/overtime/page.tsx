@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { trNum } from "@/lib/format";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useManagerAuth } from "@/hooks/useAuth";
@@ -369,7 +370,7 @@ function recordCost(r: any, wage?: number) {
 
 function recordSubtitle(r: any, wage?: number) {
   const cost = recordCost(r, wage);
-  return [`${r.overtime_hours} sa mesai`, cost !== null ? `≈ ₺${cost.toLocaleString("tr-TR")}` : null, r.week_start ? weekLabel(r.week_start) : null]
+  return [`${trNum(r.overtime_hours)} sa mesai`, cost !== null ? `≈ ₺${cost.toLocaleString("tr-TR")}` : null, r.week_start ? weekLabel(r.week_start) : null]
     .filter(Boolean).join(" · ");
 }
 

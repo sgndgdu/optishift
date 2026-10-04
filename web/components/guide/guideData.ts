@@ -47,7 +47,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: LayoutDashboard,
         paragraphs: [
           "Ana Sayfa size tablo değil, yapmanız gereken işlerin listesini gösterir: onay bekleyen talepler, henüz hazırlanmamış ya da yayınlanmamış gelecek hafta planı, uygunluk girmeyen personel, dolmamış açık vardiyalar gibi. Her maddenin yanında tek bir düğme vardır, tıklayınca doğrudan ilgili sayfaya gidersiniz. Liste boşsa “Her şey yolunda” yazar.",
-          "Maddeler aciliyete göre sıralanır: “Acil” (örneğin vardiyasına gelmeyen biri ya da hafta sonuna gelinmiş ama gelecek haftanın planı hazır değil), “Bugün” ve “Bu hafta”. Açık olmayan özellikler (örneğin Kaza Risk Radarı) listede hiç görünmez.",
+          "Maddeler aciliyete göre sıralanır: “Acil” (örneğin vardiyasına gelmeyen biri ya da hafta sonuna gelinmiş ama gelecek haftanın planı hazır değil), “Bugün” ve “Bu hafta”. Açık olmayan özellikler (örneğin Yorgunluk Uyarısı) listede hiç görünmez.",
           "Listenin altındaki “Bugün Vardiyada” bölümü o günün canlı durumunu gösterir: kim geldi, kim bekleniyor, kim geç kaldı. Planlanan saatten 30 dakika sonra hâlâ giriş yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
         ],
       },
@@ -61,7 +61,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         steps: [
           "Personel İhtiyacı: Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin (“Pazartesi sabah: 2 kişi” gibi). Önceki haftanın rakamları öneri olarak otomatik gelir, siz sadece değişeni değiştirirsiniz.",
           "Uygunluk toplama (isteğe bağlı): Personelinizden o haftanın uygunluğunu isterseniz tek tıkla “Uygunluk İste” bildirimi gönderirsiniz. Bu adımı hiç kullanmak istemiyorsanız Ayarlar’dan tamamen kapatabilir, planlamayı kendiniz yaparsınız.",
-          "Otomatik Oluştur: Girdiğiniz kapasite ihtiyacını, personelin uygunluğunu, yasal dinlenme kurallarını ve kimin son haftalarda daha çok/az çalıştığını (adalet puanı) birlikte gözeten bir taslak plan üretilir.",
+          "Planı Oluştur: Girdiğiniz personel ihtiyacını, personelin uygunluğunu, yasal dinlenme kurallarını ve kimin son haftalarda daha çok/az çalıştığını (adalet puanı) birlikte gözeten bir taslak plan üretilir.",
           "Elle düzenleme: Herhangi bir hücreye tıklayıp değiştirebilirsiniz. Her hücrenin altında “kaç kişi atandı / kaç kişi gerekiyordu” sayacı canlı güncellenir: kırmızı eksik, yeşil tam, mavi fazla demektir.",
           "Yayınla: Hazır olduğunuzda “Yayınla”ya basarsınız. Sistem son bir kez kural ihlali tarar (11 saat dinlenmeyen biri var mı, haftalık limiti aşan biri var mı gibi) ve varsa size gösterir; siz yine de devam edip etmeyeceğinize karar verirsiniz. Yayınlanan plan o anda personelin telefonuna düşer.",
         ],
@@ -195,7 +195,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         ],
         steps: [
           "Uygun (yeşil): gelirim.",
-          "Esnek (sarı): mümkünse çalışmam ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
+          "Tercih etmem (sarı): mümkünse çalışmam ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
           "Gelemem (kırmızı): kesinlikle gelemem (resmi izin, sınav vb.). Bu güne asla vardiya yazılmaz.",
         ],
       },

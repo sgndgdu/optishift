@@ -66,12 +66,15 @@ export async function GET(req: NextRequest) {
 
     const parsed = (rows as any[]).map((p) => {
       const { kiosk_pin, ...rest } = p;
+      const roles = JSON.parse(p.roles || "[]");
       return {
         ...rest,
+        // Ayrı unvan yok (2026-10-04): her ekran kişinin ilk görevini gösterir; eski serbest unvan gösterilmez
+        title: Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : null,
         kiosk_pin_set: !!kiosk_pin, // ham bcrypt hash client'a asla dönmez
         assigned_location_ids: JSON.parse(p.assigned_location_ids || "[]"),
         assigned_department_ids: JSON.parse(p.assigned_department_ids || "[]"),
-        roles: JSON.parse(p.roles || "[]"),
+        roles,
         role_levels: JSON.parse(p.role_levels || "{}"),
         preferred_shift_ids: JSON.parse(p.preferred_shift_ids || "[]"),
         preferred_days: JSON.parse(p.preferred_days || "[]"),

@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { trNum } from "@/lib/format";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet } from "lucide-react";
@@ -198,8 +199,8 @@ function WorkHoursReport() {
       {rows.length > 0 && (
         <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3`}>
           <StatCard label="Personel" value={rows.length} icon={Users} />
-          <StatCard label="Toplam çalışma" value={`${totalHours} sa`} icon={Clock} />
-          <StatCard label="Fazla mesai" value={`${totalOvertime} sa`} icon={TrendingUp} tone={totalOvertime > 0 ? "attention" : "neutral"} />
+          <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} sa`} icon={Clock} />
+          <StatCard label="Fazla mesai" value={`${trNum(totalOvertime)} sa`} icon={TrendingUp} tone={totalOvertime > 0 ? "attention" : "neutral"} />
           {hasCost && (
             <StatCard label="Mesai maliyeti" value={`₺${totalOvertimeCost.toLocaleString("tr-TR")}`} icon={Wallet}
               tone={totalOvertimeCost > 0 ? "danger" : "neutral"} hint="Saat × ücret × 1,5" />
@@ -242,11 +243,11 @@ function WorkHoursReport() {
                   </td>
                   <td className="hidden sm:table-cell px-5 py-3 text-slate-500">{row.title || "—"}</td>
                   <td className="hidden sm:table-cell px-5 py-3 text-right text-slate-700">{row.shift_count}</td>
-                  <td className="px-3 sm:px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{row.total_hours} sa</td>
+                  <td className="px-3 sm:px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{trNum(row.total_hours)} sa</td>
                   <td className="px-3 sm:px-5 py-3 text-right whitespace-nowrap">
                     {row.overtime_hours > 0 ? (
                       <StatusPill tone="attention">
-                        +{row.overtime_hours} sa
+                        +{trNum(row.overtime_hours)} sa
                       </StatusPill>
                     ) : (
                       <span className="text-slate-400">—</span>
@@ -265,8 +266,8 @@ function WorkHoursReport() {
                 <td className="px-3 sm:px-5 py-3 font-bold text-slate-900">Toplam <span className="font-normal text-slate-400">({rows.length} kişi)</span></td>
                 <td className="hidden sm:table-cell" />
                 <td className="hidden sm:table-cell px-5 py-3 text-right font-bold text-slate-900">{totalShifts}</td>
-                <td className="px-3 sm:px-5 py-3 text-right font-bold text-slate-900 whitespace-nowrap">{totalHours} sa</td>
-                <td className="px-3 sm:px-5 py-3 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${totalOvertime} sa` : "—"}</td>
+                <td className="px-3 sm:px-5 py-3 text-right font-bold text-slate-900 whitespace-nowrap">{trNum(totalHours)} sa</td>
+                <td className="px-3 sm:px-5 py-3 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${trNum(totalOvertime)} sa` : "—"}</td>
                 {hasCost && <td className="px-3 sm:px-5 py-3 text-right font-bold text-red-700 whitespace-nowrap">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
               </tr>
             </tfoot>

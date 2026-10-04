@@ -18,6 +18,7 @@ import { industryFromRules, matchDocument } from "@/lib/templates";
 import { branchRoles } from "@/lib/roles";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { isSenior } from "@/lib/seniority";
+import { formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { businessToday } from "@/lib/date";
 
 type Loc = { id: string; name: string; rules?: Record<string, unknown> | null };
@@ -40,7 +41,7 @@ const formOf = (p: MergedPerson) => ({
   department_id: p.department_id ?? null,
 });
 
-export default function PersonSheet({ person, account, viewer, branch, managerLocations, onClose, onChanged, onInvite }: {
+export default function PersonSheet({ person, account, viewer, branch, managerLocations, teamAvgScore, onClose, onChanged, onInvite }: {
   person: MergedPerson;
   /** Kişinin giriş hesabı (yetki alanları için); hesabı yoksa null. */
   account: Mgr | null;
@@ -49,6 +50,8 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   branch: Loc | null;
   /** Yönetici yetkisinde seçilebilecek şubeler. */
   managerLocations: Loc[];
+  /** Şubenin aktif çalışanlarının ortalama Adalet Puanı (puanın yanındaki açıklama için) */
+  teamAvgScore?: number;
   onClose: () => void;
   /** Kayıt sonrası: liste yenilenir, kart kapanır, mesaj gösterilir. */
   onChanged: (message: string) => void;
@@ -314,6 +317,24 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
     && (ep.role === "admin" ? viewerRole === "admin" : ep.role === "manager" && (viewerRole !== "manager" || ep.userId === viewer.id || canEditAccess));
   const canRemove = (!!ep.userId || !!ep.personnelId) && ep.userId !== viewer.id && ep.role !== "admin"
     && (viewerRole === "admin" || (viewerRole === "supervisor" && ep.role !== "supervisor") || (ep.role === "employee" && can("personnel_delete")));
+  // Kendinden üst ya da eş roldeki kişi (bölge müdürünün gözünden patron gibi): sadece okunur.
+  // Sunucu da reddeder (PATCH /api/users rank kontrolü); eskiden form açık kalıp kaydette hata veriyordu.
+  const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
+  const readOnly = !!ep.userId && ep.userId !== viewer.id && viewerRole !== "admin" && !canEditAccess
+    && (RANK[ep.role] ?? 0) >= (RANK[viewerRole] ?? 0);
+  if (readOnly) {
+    return (
+      <Sheet open onClose={onClose}
+        title={<span className="flex items-center gap-3"><Avatar name={ep.name} size="md" tone="brand" />{ep.name}</span>}
+        description={roleBadge(ep).label}>
+        <div className="space-y-2 text-sm text-slate-700">
+          {ep.phone && <p>Telefon: <a href={`tel:${ep.phone}`} className="text-forest-700">{ep.phone}</a></p>}
+          {ep.email && <p>E-posta: {ep.email}</p>}
+          <p className="text-xs text-slate-500 pt-2">{ep.role === "admin" ? "İşletme sahibinin bilgilerini sadece kendisi değiştirir." : "Bu kişinin bilgilerini işletme sahibi değiştirir."}</p>
+        </div>
+      </Sheet>
+    );
+  }
   // Çalışma bilgileri sadece plana giren kişide anlamlı
   const showWork = !!ep.personnelId && (ep.role === "employee" || editForm.schedulable);
   const sectionTitle = "text-sm font-bold text-slate-900";
@@ -338,7 +359,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
           )}
           {ep.personnelId && ep.role === "employee" && (
             <p className="text-xs text-slate-500">
-              {[`Adalet Puanı ${ep.prev_score}`, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya üstlendi` : null,
+              {[`Adalet Puanı ${formatScore(ep.prev_score)} (${scoreVsAverageText(ep.prev_score, teamAvgScore ?? 0)})`, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya üstlendi` : null,
                 (ep.ytd_overtime_hours ?? 0) > 0 ? `bu yıl ${ep.ytd_overtime_hours} saat fazla mesai` : null].filter(Boolean).join(" · ")}
             </p>
           )}

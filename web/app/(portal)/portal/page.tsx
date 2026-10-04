@@ -403,7 +403,7 @@ export default function PortalDashboard() {
             {todayShift && isCheckedIn && (
               <button onClick={() => { if (!handoverEnabled && !handoverLogEnabled) { handleCheckOut(todayShift.id); return; } setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
                 className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
-                <StopCircle size={15} /> {checkInLoading ? "…" : "Çıkış Yap"}
+                <StopCircle size={15} /> {checkInLoading ? "…" : "Vardiyayı Bitir"}
               </button>
             )}
             {/* Uygunluk kapalıysa yok; eksikse aşağıdaki uyarı zaten aynı yere götürüyor */}

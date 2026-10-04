@@ -240,7 +240,7 @@ export const shiftAssignments = pgTable("shift_assignments", {
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
   pinned: boolean("pinned").default(false),
-  kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // müdür elle düzeltti: Haftayı Oluştur bu hücreye dokunmaz (taslakta)
+  kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // müdür elle düzeltti: Planı Oluştur bu hücreye dokunmaz (taslakta)
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
   force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // artık düz bonus PUANI (çarpan değil) — rules.force_bonus_points snapshot
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(

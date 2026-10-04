@@ -58,12 +58,12 @@ test("2) Rastgele şube — Otomatik Oluştur (OR-Tools) çöküyor mu", async (
   // asıl GELECEK haftada — bir hafta ileri git (ChevronRight, tek kullanım yeri).
   await page.locator("button:has(svg.lucide-chevron-right)").first().click();
 
-  // Boş hafta → "Haftayı Oluştur" sihirbazı: Kaç kişi? → Kontrol → Oluştur
+  // Boş hafta → "Planı Oluştur" sihirbazı: Kaç kişi? → Kontrol → Oluştur
   // Deploy sonrası ilk açılışta sayfa hydrate olmadan gelen tıklama boşa gidebiliyor:
   // pencere açılana kadar tıklamayı yeniden dene
-  const wizard = page.getByRole("dialog", { name: "Haftayı Oluştur" });
+  const wizard = page.getByRole("dialog", { name: "Planı Oluştur" });
   await expect(async () => {
-    await page.getByRole("button", { name: /Haftayı Oluştur/ }).click();
+    await page.getByRole("button", { name: /Planı Oluştur/ }).click();
     await expect(wizard).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 30_000 });
   await wizard.getByRole("button", { name: /İleri/ }).click();
@@ -157,11 +157,9 @@ test("4) Devir-Teslim Defteri — okunmamış not check-in'i engelliyor", async 
   console.log(`[INFO] Onay sonrası check-in → HTTP ${ackResponse.status()}`);
   expect(ackResponse.status(), "onaylandıktan sonra check-in başarısız olmamalı").toBe(200);
 
-  // Check-in gerçekten gerçekleşti mi — vardiya check-out butonu görünmeli.
-  // Not: sağ üstteki hesap/oturum kapatma ikonunun da title="Çıkış Yap" olması
-  // getByRole name eşleşmesini iki elemente çıkarıyor (strict-mode ihlali) —
-  // bu yüzden gerçek vardiya butonunu CSS sınıfıyla ayırt ediyoruz.
-  await expect(page.locator("button.bg-amber-400", { hasText: "Çıkış Yap" })).toBeVisible({ timeout: 10_000 });
+  // Check-in gerçekten gerçekleşti mi: vardiyayı bitirme düğmesi görünmeli
+  // (2026-10-04: "Çıkış Yap" oturum kapatmayla karışıyordu, adı "Vardiyayı Bitir" oldu)
+  await expect(page.getByRole("button", { name: /Vardiyayı Bitir/ })).toBeVisible({ timeout: 10_000 });
 });
 
 test("5) Kaza Risk Radarı — dashboard kartı ve schedule risk ikonu", async ({ page }) => {
@@ -170,7 +168,7 @@ test("5) Kaza Risk Radarı — dashboard kartı ve schedule risk ikonu", async (
   await login(page, FABRIKA_MANAGER_USERNAME, PASSWORD);
   await page.waitForURL("**/dashboard", { timeout: 20_000 });
 
-  await expect(page.getByText("Kaza Risk Radarı")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Yorgunluk uyarısı/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(FATIGUE_TEST_PERSON_NAME).first()).toBeVisible();
   // Organik veride başka personel de eşiği aşmış olabilir (birden fazla eşleşme
   // strict-mode'u ihlal eder) — burada asıl doğrulanan, fixture kişisinin ayrı

@@ -64,7 +64,7 @@ describe("buildInbox", () => {
     const draft = buildInbox({ ...base, nextWeek: "draft" })[0];
     expect(none.title).toContain("hazır değil");
     expect(draft.title).toContain("taslakta");
-    expect(none.action).toMatchObject({ href: "/schedule?week=next" });
+    expect(none.action).toMatchObject({ href: "/schedule?week=next&wizard=1" });
     expect(draft.action).toMatchObject({ href: "/schedule?week=next" });
   });
 
@@ -87,7 +87,7 @@ describe("buildInbox", () => {
   it("yorgunluk: kritik varsa kritik, sadece uyarı varsa bu hafta", () => {
     const crit = buildInbox({ ...base, fatigue: { enabled: true, critical: 1, warning: 2 } })[0];
     expect(crit.severity).toBe("critical");
-    expect(crit.title).toBe("Kaza Risk Radarı: 1 kritik, 2 uyarı");
+    expect(crit.title).toBe("Yorgunluk uyarısı: 1 kritik, 2 uyarı");
     const warn = buildInbox({ ...base, fatigue: { enabled: true, critical: 0, warning: 2 } })[0];
     expect(warn.severity).toBe("week");
   });

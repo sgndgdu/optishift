@@ -7,7 +7,7 @@ export default function SupervisorChatPage() {
   return (
     <ChatView
       storageKey="optishift_supervisor_user"
-      title="Mesajlaşma"
+      title="Mesajlar"
       description="Şube grupları ve müdürlerle mesajlaşın."
       allowedRoles={["supervisor", "admin"]}
       groupLabel={g => ({ name: g.name, label: "Şube Grubu" })}

@@ -196,7 +196,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <button
               onClick={handleLogout}
               className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors shrink-0"
-              title="Çıkış Yap"
+              title="Oturumu kapat"
             >
               <LogOut size={14} />
             </button>

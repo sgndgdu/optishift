@@ -19,7 +19,7 @@ import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules } from "@/lib/fairness";
+import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
@@ -149,7 +149,7 @@ const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: s
 };
 
 
-// pinned: müdür elle düzeltti; Haftayı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
+// pinned: müdür elle düzeltti; Planı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
 type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean; id?: number };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
@@ -250,6 +250,8 @@ interface Popover {
   y: number;
   startMin: number;
   endMin: number;
+  /** Saat kaydırıcısı açık mı (tanımlı vardiyaya uymayan özel saat) */
+  custom?: boolean;
 }
 
 // useSearchParams (Ana Sayfa'dan ?week=next) Suspense sınırı ister
@@ -270,6 +272,8 @@ function SchedulePageInner() {
     const w = searchParams.get("week");
     if (w === "next") return 1;
     if (w === "this") return 0;
+    // Raporlardan gelen bağlantı: aynı hafta (bu haftaya göre kaç hafta ileri/geri)
+    if (w && /^-?\d{1,2}$/.test(w)) return Number(w);
     return (new Date().getDay() + 6) % 7 >= 3 ? 1 : 0;
   });
   const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);
@@ -326,12 +330,12 @@ function SchedulePageInner() {
   const [scnBusy, setScnBusy]                     = useState(false);
   type ScnSide = { error?: string; snap?: WeekSnapshot; problems?: Insight[]; extraShifts?: number; cost?: number };
   const [scnResult, setScnResult]                 = useState<{ base: ScnSide; scn: ScnSide } | null>(null);
-  const [keepPinned, setKeepPinned]               = useState(true); // Haftayı Oluştur: elle düzeltilenleri koru
+  const [keepPinned, setKeepPinned]               = useState(true); // Planı Oluştur: elle düzeltilenleri koru
   // En az değişiklik: mevcut planı olabildiğince koru (yayınlanmış haftada varsayılan açık; sihirbaz açılınca ayarlanır)
   const [minimizeChanges, setMinimizeChanges]     = useState(false);
   const [changedCount, setChangedCount]           = useState<number | null>(null);
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
-  const [wizardOpen, setWizardOpen]               = useState(false); // "Haftayı Oluştur" sihirbazı (components/schedule/GenerateWizard)
+  const [wizardOpen, setWizardOpen]               = useState(false); // "Planı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
@@ -766,7 +770,7 @@ function SchedulePageInner() {
     return () => { stale = true; };
   }, [activeLocationId, weekOffset, reloadTick, chefDept]);
 
-  // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Haftayı Oluştur aynı yolu kullanır)
+  // Haftanın draft satırlarını DB ile senkronlar (otomatik kayıt ve Planı Oluştur aynı yolu kullanır)
   const onCallRows = (oc: Record<string, { defId: string; pinned?: boolean }>) =>
     Object.entries(oc).flatMap(([key, v]) => {
       const def = shiftDefs.find(d => d.id === v.defId);
@@ -1143,8 +1147,10 @@ function SchedulePageInner() {
       const target = e.target as HTMLElement;
       if (!target.closest("[data-actions-menu]")) setActionsOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setActionsOpen(false); };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", onKey); };
   }, [actionsOpen]);
 
   // Popover klavye kısayolları — cellMap'i closure içinde okur (popover açıkken stale değil)
@@ -1252,13 +1258,20 @@ function SchedulePageInner() {
     if (y + popoverHeight > window.innerHeight - 16) {
       y = Math.max(8, rect.top - popoverHeight - 6);
     }
+    // Boş hücre şubenin ilk vardiyasıyla açılır (eskiden 09:00-17:00 geliyordu, hiçbir vardiyaya uymuyordu)
+    const firstDef = shiftDefs.find(d => !d.on_call);
+    let defStart = 9 * 60, defEnd = 17 * 60;
+    if (firstDef) { defStart = hhmmToMin(firstDef.start); defEnd = hhmmToMin(firstDef.end); if (defEnd <= defStart) defEnd += 1440; }
+    const startMin = existing?.startMin ?? defStart;
+    const endMin = existing?.endMin ?? defEnd;
     setPopover({
       personnelId,
       day,
       x,
       y,
-      startMin: existing?.startMin ?? 9 * 60,
-      endMin:   existing?.endMin   ?? 17 * 60,
+      startMin,
+      endMin,
+      custom: !shiftDefs.length || (!!existing && !matchShiftDef(startMin, endMin, shiftDefs)),
     });
   };
 
@@ -1286,6 +1299,17 @@ function SchedulePageInner() {
       .then(d => setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []))
       .catch(() => setAbsenceCands([]));
   };
+
+  // Ana Sayfa'daki "Planı Oluştur" (?wizard=1): hafta ve ekip yüklenince sihirbaz doğrudan açılır, bir kez
+  const wizardFromUrl = useRef(false);
+  useEffect(() => {
+    if (wizardFromUrl.current || loading || !activeLocationId || personnel.length === 0) return;
+    if (searchParams.get("wizard") !== "1") return;
+    wizardFromUrl.current = true;
+    const t = setTimeout(() => openWizard(), 0);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, activeLocationId, personnel.length]);
 
   // Ana Sayfa'dan "Gelemiyor" (?gelemiyor=<atama>&p=<kişi>&t=<başlık>): pencere doğrudan açılır, bir kez
   const absenceFromUrl = useRef(false);
@@ -1745,9 +1769,9 @@ function SchedulePageInner() {
       if (r.ok) {
         setDemandTemplates(next);
         setTplName("");
-        showToast(`"${name}" şablonu kaydedildi.`);
-      } else showToast("Şablon kaydedilemedi.", "error");
-    } catch { showToast("Şablon kaydedilemedi.", "error"); }
+        showToast(`"${name}" tablosu kaydedildi.`);
+      } else showToast("Tablo kaydedilemedi.", "error");
+    } catch { showToast("Tablo kaydedilemedi.", "error"); }
     finally { setTplBusy(false); }
   };
 
@@ -1774,11 +1798,11 @@ function SchedulePageInner() {
           body: JSON.stringify({ demand_matrix: t.flat }),
         });
       } else {
-        showToast("Bu şablon mevcut yapıyla uyumlu değil (departman düzeni değişmiş).", "error");
+        showToast("Bu kayıtlı tablo mevcut yapıyla uyumlu değil (departman düzeni değişmiş).", "error");
         return;
       }
-      showToast(`"${name}" şablonu uygulandı, Otomatik Oluştur bu talebi kullanır.`);
-    } catch { showToast("Şablon uygulanamadı.", "error"); }
+      showToast(`"${name}" tablosu uygulandı, Planı Oluştur bu sayıları kullanır.`);
+    } catch { showToast("Tablo uygulanamadı.", "error"); }
     finally { setTplBusy(false); }
   };
 
@@ -1902,7 +1926,7 @@ function SchedulePageInner() {
 
   // Satır hızlı işlemleri: tüm uygun günleri doldur / temizle
   const fillPersonRow = (personId: string) => {
-    if (!shiftDefs.length) { showToast("Önce vardiya şablonu tanımlayın.", "error"); return; }
+    if (!shiftDefs.length) { showToast("Önce Ayarlar'dan vardiya tanımlayın.", "error"); return; }
     const def = shiftDefs[0];
     const ds = hhmmToMin(def.start);
     let de = hhmmToMin(def.end);
@@ -2038,7 +2062,6 @@ function SchedulePageInner() {
   const isoDates = getWeekIsoDates(weekStart);
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
-  const popoverPoints = popover ? cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs) : 0;
   const hasExisting   = popover ? !!cellMap[`${popover.personnelId}-${popover.day}`] : false;
   const popoverHours  = popover ? Math.round((popover.endMin - popover.startMin) / 60 * 10) / 10 : 0;
 
@@ -2082,7 +2105,7 @@ function SchedulePageInner() {
     if (dayAvail?.status === 'unavailable') {
       popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle uygun değil (kırmızı)' });
     } else if (dayAvail?.status === 'preferred_not') {
-      popoverWarnings.push({ type: 'warn', msg: 'Bu gün esnek: mümkünse çalışmak istemiyor' });
+      popoverWarnings.push({ type: 'warn', msg: 'Bu günü "tercih etmem" dedi: mümkünse çalışmak istemiyor' });
     } else if (!pAvail && availCollectionEnabled) {
       popoverWarnings.push({ type: 'warn', msg: 'Uygunluk bilgisi girilmemiş' });
     }
@@ -2315,7 +2338,7 @@ function SchedulePageInner() {
 loading ? (
               <div className="p-4 space-y-2 border-t border-slate-100">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}</div>
             ) : shiftDefs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya şablonu tanımlı değil. Yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
+              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya tanımlı değil. Yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
             ) : (
               <div className="overflow-x-auto">
                 {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
@@ -2398,7 +2421,7 @@ loading ? (
                 {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
                 {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
-                  <span className="text-[10px] font-bold text-slate-400 shrink-0">Şablonlar</span>
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">Kayıtlı tablolar</span>
                   {Object.keys(demandTemplates).length === 0 && (
                     <span className="text-[11px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
                   )}
@@ -2407,14 +2430,14 @@ loading ? (
                       <button
                         onClick={() => handleTemplateApply(name)}
                         disabled={tplBusy}
-                        title="Bu şablonu Personel İhtiyacı tablosuna uygula"
+                        title="Bu kayıtlı tabloyu uygula"
                         className="text-[11px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
                       >
                         {name}
                       </button>
                       <button
                         onClick={() => handleTemplateDelete(name)}
-                        title="Şablonu sil"
+                        title="Kayıtlı tabloyu sil"
                         className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
                       >
                         <X size={10} />
@@ -2426,7 +2449,7 @@ loading ? (
                       value={tplName}
                       onChange={e => setTplName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") handleTemplateSave(); }}
-                      placeholder="Şablon adı…"
+                      placeholder="Tablo adı (örn. Bayram haftası)…"
                       className="w-32 text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-forest-400"
                     />
                     <button
@@ -2597,7 +2620,7 @@ loading ? (
                 {Object.keys(demandTemplates).length === 0 && !tplOpen && (
                   <button onClick={() => setTplOpen(true)}
                     className="px-5 py-2.5 text-[11px] font-bold text-forest-600 hover:text-forest-800 transition-colors">
-                    Bu tabloyu şablon olarak kaydet
+                    Bu tabloyu kaydet (sonra tek dokunuşla uygula)
                   </button>
                 )}
               </div>
@@ -2751,12 +2774,14 @@ loading ? (
                 >
                   <MoreHorizontal size={15} /> İşlemler
                 </button>
+                {actionsOpen && <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" aria-hidden />}
                 {actionsOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-64 max-h-[70vh] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
+                  // Telefonda alttan açılan liste (üstteki düğmeye hizalı menü dar ekranda soldan taşıyordu)
+                  <div className="fixed inset-x-0 bottom-0 z-50 max-h-[75vh] overflow-y-auto bg-white border-t border-slate-200 rounded-t-2xl shadow-2xl pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-64 sm:max-h-[70vh] sm:border sm:rounded-xl sm:shadow-lg sm:z-40 sm:py-1.5 sm:pb-1.5">
                     {cellCount > 0 && !(isPublishedWeek && !editUnlocked) && (
                       <button onClick={() => { setActionsOpen(false); openWizard(); }} disabled={generating}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Zap size={13} className="text-forest-500" /> Yeniden Oluştur
+                        <Zap size={13} className="text-forest-500" /> Planı Yeniden Oluştur
                       </button>
                     )}
                     <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
@@ -2779,10 +2804,10 @@ loading ? (
                     </a>
                     <div className="my-1 border-t border-slate-100" />
                     <button onClick={undo} disabled={!canUndo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300">Ctrl+Z</span>
+                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300 hidden sm:inline">Ctrl+Z</span>
                     </button>
                     <button onClick={redo} disabled={!canRedo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300">Ctrl+Y</span>
+                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300 hidden sm:inline">Ctrl+Y</span>
                     </button>
                     <div className="my-1 border-t border-slate-100" />
                     {/* Seyrek kullanılanlar: varsayılan kapalı */}
@@ -2800,7 +2825,7 @@ loading ? (
                       )}
                       <button onClick={() => { setActionsOpen(false); setAddEventModal({ date: weekStart, dayLabel: "Bu Hafta", initScope: "week" }); setNewEventScope("week"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                        <CalendarPlus size={13} className="text-emerald-500" /> Haftalık Not Ekle
+                        <CalendarPlus size={13} className="text-emerald-500" /> Not ekle
                       </button>
                       <Link href="/schedule/archive" onClick={() => setActionsOpen(false)}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
@@ -2812,7 +2837,7 @@ loading ? (
                 )}
               </div>
 
-              {/* Birincil aksiyon: boş hafta → Haftayı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
+              {/* Birincil aksiyon: boş hafta → Planı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
               {viewOnly ? (
                 <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Sadece görüntüleme</span>
               ) : !canPublish && isPublishedWeek ? (
@@ -2825,7 +2850,7 @@ loading ? (
               ) : cellCount === 0 && !isPublishedWeek ? (
                 <button onClick={() => openWizard()} disabled={generating || loading}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
-                  <Sparkles size={14} /> Haftayı Oluştur
+                  <Sparkles size={14} /> Planı Oluştur
                 </button>
               ) : !canPublish ? (
                 chefDept && cellCount > 0 ? (
@@ -3051,7 +3076,7 @@ loading ? (
                           ))}
                           <button
                             onClick={() => { setAddEventModal({ date: isoDate, dayLabel: `${DAYS[i]} ${dates[i]}` }); setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventEndDate(""); }}
-                            className="mt-0.5 text-[9px] text-slate-200 hover:text-forest-400 transition-colors block w-full text-center" title="Etkinlik ekle"
+                            className="mt-0.5 text-[9px] text-slate-200 hover:text-forest-400 transition-colors block w-full text-center" title="Not ekle" aria-label="Not ekle"
                           >
                             <CalendarPlus size={9} className="inline" />
                           </button>
@@ -3247,7 +3272,7 @@ loading ? (
                                 <DraggableShift id={cellKey} disabled={false}>
                                   <div
                                     onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                    title={cell.pinned ? "Elle düzenlendi: Haftayı Oluştur bu vardiyayı korur" : undefined}
+                                    title={cell.pinned ? "Elle düzenlendi: Planı Oluştur bu vardiyayı korur" : undefined}
                                     className={cn(
                                       "relative mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
                                       forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : cellIsNight ? "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
@@ -3339,7 +3364,7 @@ loading ? (
             </div>
           )}
 
-          {/* ── Haftayı Oluştur sihirbazı ── */}
+          {/* ── Planı Oluştur sihirbazı ── */}
           {wizardOpen && (
             <GenerateWizard
               weekLabel={weekLabel}
@@ -3446,7 +3471,7 @@ loading ? (
                             ))}
                           </div>
                         ) : <p className="text-xs text-emerald-700">Senaryoda kural sorunu görünmüyor.</p>}
-                        <p className="text-[11px] text-slate-400">İki sütun da aynı motorla baştan kuruldu; mevcut planınız değişmedi. Uygulamak isterseniz ilgili değişikliği yapıp Haftayı Oluştur&apos;u çalıştırın.</p>
+                        <p className="text-[11px] text-slate-400">İki sütun da aynı motorla baştan kuruldu; mevcut planınız değişmedi. Uygulamak isterseniz ilgili değişikliği yapıp Planı Oluştur&apos;u çalıştırın.</p>
                       </div>
                     );
                   })()}
@@ -3600,8 +3625,8 @@ loading ? (
                     <span className="flex items-center gap-1">
                       {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} h.sonu</span>}
                       {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
-                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} esnek gün ataması (puanla telafi edilir)`}>{prfn}!</span>}
-                      <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5">{Math.round(s.score * 10) / 10}</span>
+                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn}!</span>}
+                      <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.score, avgScore)}>{formatScore(s.score)}</span>
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -3614,8 +3639,8 @@ loading ? (
           )}
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
-          <p>Puan = birikimli puan + bu haftanın canlı puanı (saat × zorluk + zor vardiya/bonus puanları).</p>
-          <p>Zor gün (hafta sonu / esnek gün) +{locRules.hard_shift_points ?? 4} puan. Kesin puan yayında hesaplanır.</p>
+          <p>Puan, kişinin son haftalarda ne kadar ve ne kadar zor çalıştığını gösterir. Yüksek = daha çok yük aldı; otomatik plan önce puanı düşük olana vardiya verir.</p>
+          <p>Kırmızı çubuk ortalamanın belirgin üstü, mavi altı. Kesin puan yayında hesaplanır.</p>
         </div>
       </div>
 
@@ -3637,7 +3662,7 @@ loading ? (
           {shiftDefs.length === 0 && (
             <div className="mb-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
               <BookOpen size={13} className="text-amber-500 shrink-0" />
-              <p className="text-[11px] text-amber-700">Şablon yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
+              <p className="text-[11px] text-amber-700">Tanımlı vardiya yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
             </div>
           )}
           {hasExisting && (() => {
@@ -3670,7 +3695,7 @@ loading ? (
           })()}
           {shiftDefs.some(d => !d.on_call) && (
             <div className="mb-3">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Şablondan seç</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Vardiya</p>
               <div className="flex flex-wrap gap-1.5">
                 {shiftDefs.filter(d => !d.on_call).map(def => {
                   const ds = hhmmToMin(def.start);
@@ -3690,13 +3715,18 @@ loading ? (
               </div>
             </div>
           )}
-          <TimeRangeSlider
-            startMin={popover.startMin} endMin={popover.endMin} step={15} trackMin={0} trackMax={1800}
-            onChange={(s, e) => setPopover(prev => prev ? { ...prev, startMin: s, endMin: e } : null)}
-          />
+          {popover.custom ? (
+            <TimeRangeSlider
+              startMin={popover.startMin} endMin={popover.endMin} step={15} trackMin={0} trackMax={1800}
+              onChange={(s, e) => setPopover(prev => prev ? { ...prev, startMin: s, endMin: e } : null)}
+            />
+          ) : (
+            <button type="button" onClick={() => setPopover(prev => prev ? { ...prev, custom: true } : null)}
+              className="text-xs font-semibold text-forest-700 hover:underline">Özel saat ayarla</button>
+          )}
           <div className="mt-3 flex items-center justify-between">
             <span className="text-sm font-bold text-slate-800">{minToHHMM(popover.startMin)} – {minToHHMM(popover.endMin, popover.endMin >= 1440)}</span>
-            <span className="text-xs text-slate-500 tabular-nums">{popoverHours} saat · {popoverPoints} puan</span>
+            <span className="text-xs text-slate-500 tabular-nums">{popoverHours} saat</span>
           </div>
           {(() => {
             const matchedDef = matchShiftDef(popover.startMin, popover.endMin, shiftDefs);
@@ -3710,7 +3740,7 @@ loading ? (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {isWknd && <StatusPill tone="attention">Hf. sonu</StatusPill>}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
-                {isPrfN && <StatusPill tone="attention">Esnek gün</StatusPill>}
+                {isPrfN && <StatusPill tone="attention">Tercih etmem</StatusPill>}
                 <span className="text-[10px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
               </div>
             );
@@ -3893,7 +3923,7 @@ loading ? (
 
       {/* ── Etkinlik ekleme modalı ── */}
       {addEventModal && (
-        <Sheet open onClose={() => setAddEventModal(null)} title="Etkinlik ekle"
+        <Sheet open onClose={() => setAddEventModal(null)} title="Not ekle"
           footer={<>
             <button onClick={() => setAddEventModal(null)} className={sheetSecondaryClass}>Vazgeç</button>
             <button onClick={saveEvent} disabled={!newEventTitle.trim() || eventSaving} className={sheetPrimaryClass}>{eventSaving ? "Kaydediliyor…" : "Kaydet"}</button>

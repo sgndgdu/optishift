@@ -17,7 +17,7 @@ interface QuickSetupProps {
   shiftDefsCount: number;
   personnelCount: number;
   demandFilled: boolean;
-  /** Personel ihtiyacı tablosu Haftayı Oluştur sihirbazının 1. adımında */
+  /** Personel ihtiyacı tablosu Planı Oluştur sihirbazının 1. adımında */
   onOpenDemand: () => void;
 }
 

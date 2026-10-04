@@ -340,8 +340,10 @@ async function insertPersonnel(kioskHash) {
 async function insertUsers(pwHash) {
   await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
             VALUES ('u-mega-admin', 'mega.admin', 'admin@megatest.demo', ${pwHash}, 'admin', ${ORG}, ${KAFE.id}, ${"Genel Müdür"}, ${"Admin"}, 'active')`;
-  await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)
-            VALUES ('u-mega-supervisor', 'mega.supervisor', 'supervisor@megatest.demo', ${pwHash}, 'supervisor', ${ORG}, NULL, ${"Bölge Direktörü"}, ${"Bölge Müdürü"}, 'active')`;
+  // Bölge müdürü gerçekçi olsun diye 5 şubenin 3'üne atanır (boş liste = tüm şubeler; UX denetimi kısıtlı görünümü test edemiyordu)
+  await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status, managed_location_ids)
+            VALUES ('u-mega-supervisor', 'mega.supervisor', 'supervisor@megatest.demo', ${pwHash}, 'supervisor', ${ORG}, NULL, ${"Bölge Direktörü"}, ${"Bölge Müdürü"}, 'active',
+                    ${JSON.stringify(["loc-mega-kafe", "loc-mega-otel", "loc-mega-fabrika"])})`;
   for (const loc of LOCATIONS) {
     const uid = `u-mega-mgr-${loc.sector}`;
     await sql`INSERT INTO users (id, username, email, password_hash, role, org_id, location_id, name, display_title, approval_status)

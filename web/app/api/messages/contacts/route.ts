@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       WHERE org_id = ? AND id != ? AND COALESCE(approval_status, 'active') = 'active'
       ORDER BY name
     `).all(auth.org_id, auth.id) as { id: string; name: string; role: string; display_title: string | null; location_id: string | null }[];
-    const roleLabel: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Yönetici", manager: "Yönetici", employee: "Çalışan" };
+    const roleLabel: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Bölge Müdürü", manager: "Yönetici", employee: "Çalışan" };
     const people = users
       // Kapsamdaki şubelerin kişileri + patron (her zaman ulaşılabilir) + bölge müdürleri
       .filter(u => u.role === "admin" || u.role === "supervisor" || scope === null || (u.location_id && scope.includes(u.location_id)))

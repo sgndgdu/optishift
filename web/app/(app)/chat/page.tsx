@@ -6,7 +6,7 @@ export default function ManagerChatPage() {
   return (
     <ChatView
       storageKey="optishift_manager_user"
-      title="Mesajlaşma"
+      title="Mesajlar"
       description="Ekibinizle ve yöneticilerle mesajlaşın."
       groupLabel={g => ({ name: g.name, label: "Şube Grubu" })}
       personLabel={p => ({ label: p.label ?? "", accent: p.role === "admin" || p.role === "supervisor" })}

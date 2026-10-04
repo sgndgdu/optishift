@@ -1,10 +1,13 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { trNum } from "@/lib/format";
+import { effectiveWeeklyLimit } from "@/lib/legal";
+import { formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { useEffect, useState, useCallback } from "react";
 import { useSupervisorAuth } from "@/hooks/useAuth";
 import { getWeekStart } from "@/lib/date";
-import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, ShieldCheck, RefreshCw, Scale } from "lucide-react";
+import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, ShieldCheck, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty, ListSection } from "@/components/ui/List";
@@ -85,7 +88,12 @@ export default function SupervisorReports() {
             fetch(`/api/shifts?location_id=${loc.id}&week_start=${weekStart}`).then(r => r.json()).catch(() => []),
           ]);
 
-          const personnelList: any[] = Array.isArray(personnelRes) ? personnelRes : [];
+          const personnelList: any[] = (Array.isArray(personnelRes) ? personnelRes : []).filter((p: any) => p.status !== "inactive");
+          let branchMax = 45;
+          try {
+            const r = typeof loc.rules === "string" ? JSON.parse(loc.rules) : (loc.rules ?? {});
+            if (typeof r.max_weekly_hours === "number") branchMax = r.max_weekly_hours;
+          } catch { /* varsayılan */ }
           const shiftList: any[]     = Array.isArray(shiftsRes)    ? shiftsRes    : [];
 
           // Build hours-per-person map
@@ -101,7 +109,8 @@ export default function SupervisorReports() {
             title: p.title,
             prev_score: p.prev_score ?? 0,
             weekly_hours: Math.round((hoursMap[p.id] ?? 0) * 10) / 10,
-            max_weekly_hours: p.max_weekly_hours ?? 45,
+            // Tek kural (lib/legal): şube sınırı üst sınır, kişinin değeri sadece daha düşükse
+            max_weekly_hours: effectiveWeeklyLimit(p.max_weekly_hours, branchMax),
           }));
 
           const complianceFlags: ComplianceFlag[] = personnelRows
@@ -135,14 +144,13 @@ export default function SupervisorReports() {
   const totalHours      = Math.round(branches.reduce((a, b) => a + b.total_hours, 0) * 10) / 10;
   const totalPersonnel  = branches.reduce((a, b) => a + b.personnel_count, 0);
   const totalFlags      = branches.reduce((a, b) => a + b.compliance_flags.length, 0);
-  const allPersonnel    = branches.flatMap(b => b.personnel.map(p => ({ ...p, branch: b.name })));
-  const avgScore        = allPersonnel.length
-    ? Math.round(allPersonnel.reduce((a, p) => a + p.prev_score, 0) / allPersonnel.length * 10) / 10
-    : 0;
+  const overCount       = branches.reduce((a, b) => a + b.compliance_flags.filter(f => f.hours > f.max_weekly_hours).length, 0);
+  const nearCount       = totalFlags - overCount;
 
   if (!mounted) return <div className="h-screen" />;
 
-  const planHref = (id: string) => `/supervisor/schedule?location_id=${id}`;
+  // Satıra dokununca şubenin AYNI haftası açılır (eskiden şubenin varsayılan haftası açılıyordu)
+  const planHref = (id: string) => `/supervisor/schedule?location_id=${id}&week=${weekOffset}`;
 
   return (
     <Page>
@@ -174,15 +182,15 @@ export default function SupervisorReports() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Şube" value={branches.length} icon={Building2} />
         <StatCard label="Personel" value={totalPersonnel} icon={Users} />
-        <StatCard label="Toplam saat" value={`${totalHours} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
-        <StatCard label="Yasal uyumluluk" value={totalFlags > 0 ? `${totalFlags} uyarı` : "Temiz"}
-          icon={totalFlags > 0 ? AlertTriangle : ShieldCheck} tone={totalFlags > 0 ? "danger" : "positive"}
+        <StatCard label="Toplam saat" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
+        <StatCard label="Haftalık sınır" value={totalFlags === 0 ? "Sorun yok" : [overCount ? `${overCount} aştı` : null, nearCount ? `${nearCount} yaklaştı` : null].filter(Boolean).join(" · ")}
+          icon={totalFlags > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : totalFlags > 0 ? "attention" : "positive"}
           onClick={totalFlags > 0 ? () => setActiveTab("compliance") : undefined} />
       </div>
 
       <Tabs fill value={activeTab} onChange={setActiveTab} items={[
         { id: "summary",    label: "Şubeler" },
-        { id: "compliance", label: "Uyumluluk", count: totalFlags },
+        { id: "compliance", label: "Haftalık sınır", count: totalFlags },
         { id: "fairness",   label: "Adalet" },
       ] as const} />
 
@@ -194,18 +202,18 @@ export default function SupervisorReports() {
             <ListItem key={b.id} href={planHref(b.id)}
               leading={<Avatar name={b.name} tone="brand" />}
               title={b.name}
-              subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${b.total_hours} sa`}
+              subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${trNum(b.total_hours)} sa`}
               trailing={b.compliance_flags.length > 0
-                ? <StatusPill tone="danger">{b.compliance_flags.length} uyarı</StatusPill>
-                : <StatusPill tone="positive">Uyumlu</StatusPill>}
+                ? <StatusPill tone={b.compliance_flags.some(f => f.hours > f.max_weekly_hours) ? "danger" : "attention"}>{b.compliance_flags.length} kişi sınırda</StatusPill>
+                : undefined}
             />
           ))}
         </List>
       ) : activeTab === "compliance" ? (
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Haftalık çalışma sınırının %90&apos;ına yaklaşan ya da aşan kişiler.</p>
+          <p className="text-xs text-slate-500">Bu hafta çalışma sınırını aşan (kırmızı) ya da %90&apos;ına yaklaşan (sarı) kişiler. Sınır, şubenin haftalık sınırıdır; yarı zamanlıda kişinin kendi sınırı.</p>
           <List>
-            {totalFlags === 0 ? <ListEmpty>Bu hafta hiçbir şubede uyarı yok.</ListEmpty>
+            {totalFlags === 0 ? <ListEmpty>Bu hafta kimse sınıra yaklaşmadı.</ListEmpty>
               : branches.filter(b => b.compliance_flags.length > 0).flatMap(b => [
                 <ListSection key={`h-${b.id}`} title={b.name} count={b.compliance_flags.length} />,
                 ...b.compliance_flags.map((flag, i) => {
@@ -214,8 +222,8 @@ export default function SupervisorReports() {
                     <ListItem key={`${b.id}-${i}`} href={`/supervisor/personnel?location_id=${b.id}`}
                       leading={<Avatar name={flag.name} />}
                       title={flag.name}
-                      subtitle={`Sınır ${flag.max_weekly_hours} sa`}
-                      trailing={<StatusPill tone={over ? "danger" : "attention"}>{flag.hours} sa</StatusPill>}
+                      subtitle={`${trNum(flag.hours)} sa çalışıyor · sınır ${trNum(flag.max_weekly_hours)} sa`}
+                      trailing={<StatusPill tone={over ? "danger" : "attention"}>{over ? "Aştı" : "Yaklaştı"}</StatusPill>}
                     />
                   );
                 }),
@@ -224,14 +232,12 @@ export default function SupervisorReports() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <StatCard label="Ortalama" value={avgScore} icon={Scale} />
-            <StatCard label="En yüksek" value={allPersonnel.length ? Math.max(...allPersonnel.map(p => p.prev_score)) : "—"} icon={TrendingUp} />
-            <StatCard label="En düşük" value={allPersonnel.length ? Math.min(...allPersonnel.map(p => p.prev_score)) : "—"} icon={TrendingDown} />
-          </div>
+          {/* Puanlar şube içinde karşılaştırılır (şubeler arası puan kıyası anlamsız: vardiya zorlukları farklı) */}
+          <p className="text-xs text-slate-500">Adalet Puanı kişinin son haftalarda ne kadar ve ne kadar zor çalıştığını gösterir. Her kişi kendi şubesinin ortalamasıyla karşılaştırılır.</p>
           <List>
             {branches.flatMap(b => {
               const max = Math.max(...b.personnel.map(x => x.prev_score), 1);
+              const branchAvg = b.personnel.length ? b.personnel.reduce((a, x) => a + x.prev_score, 0) / b.personnel.length : 0;
               return [
                 <ListSection key={`h-${b.id}`} title={b.name} count={b.personnel.length} />,
                 ...(b.personnel.length === 0
@@ -245,7 +251,10 @@ export default function SupervisorReports() {
                           <span className="block h-full bg-forest-400 rounded-full" style={{ width: `${Math.round((p.prev_score / max) * 100)}%` }} />
                         </span>
                       }
-                      trailing={<span className="text-sm font-semibold text-slate-700 tabular-nums">{p.prev_score}</span>}
+                      trailing={<span className="text-right">
+                        <span className="block text-sm font-semibold text-slate-700 tabular-nums">{formatScore(p.prev_score)}</span>
+                        <span className="block text-[11px] text-slate-400">{scoreVsAverageText(p.prev_score, branchAvg)}</span>
+                      </span>}
                     />
                   ))),
               ];

@@ -199,7 +199,7 @@ export default function OpenShiftsPage() {
       leading={<DateBadge date={s.date} />}
       title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
       subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} üstlendi`
-        : s.note || (s.hero_bonus_multiplier > 0 ? `+${s.hero_bonus_multiplier} kahraman puanı` : "Bonus yok")}
+        : s.note || (s.hero_bonus_multiplier > 0 ? `Üstlenene +${s.hero_bonus_multiplier} puan` : "Bonus yok")}
       trailing={<StatusBadge status={s.status} expired={s.status === "open" && s.date < todayISO} />}
     />
   );
@@ -207,7 +207,7 @@ export default function OpenShiftsPage() {
 
   return (
     <Page width="narrow">
-      <PageHeader title="Açık Vardiyalar" description="İlan et, personel kahraman bonusuyla üstlensin." actions={
+      <PageHeader title="Açık Vardiyalar" description="Boş kalan vardiyayı ilan et, gönüllü biri üstlensin." actions={
         <button onClick={() => setShowForm(true)} className={pageActionClass}>
           <Plus size={16} /> Yeni İlan
         </button>
@@ -240,7 +240,7 @@ export default function OpenShiftsPage() {
           <div className="space-y-5">
             <div>
               <DetailRow label="Durum"><StatusBadge status={selected.status} /></DetailRow>
-              <DetailRow label="Kahraman bonusu">{selected.hero_bonus_multiplier > 0 ? `+${selected.hero_bonus_multiplier} puan` : "Yok"}</DetailRow>
+              <DetailRow label="Üstlenene ek puan">{selected.hero_bonus_multiplier > 0 ? `+${selected.hero_bonus_multiplier} puan` : "Yok"}</DetailRow>
               {selected.note && <DetailRow label="Not">{selected.note}</DetailRow>}
               {selected.status === "claimed" && selected.claimed_by_name && (
                 <DetailRow label="Üstlenen"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
@@ -305,7 +305,7 @@ export default function OpenShiftsPage() {
             </label>
           </div>
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-slate-600">Kahraman bonusu</span>
+            <span className="text-xs font-semibold text-slate-600">Üstlenene ek puan</span>
             <div className="flex gap-2">
               {Array.from(new Set([0, 3, defaultBonus, 10])).sort((a, b) => a - b).map(b => (
                 <button key={b} type="button" onClick={() => setBonus(b)}

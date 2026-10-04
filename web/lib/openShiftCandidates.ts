@@ -112,7 +112,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
     const warnings: string[] = [];
     const reasons: string[] = [];
-    if (dayStatus(p.id) === "preferred_not") warnings.push("Bu gün esnek: mümkünse çalışmak istemiyor");
+    if (dayStatus(p.id) === "preferred_not") warnings.push("Bu günü \"tercih etmem\" dedi: mümkünse çalışmak istemiyor");
     else if (availByPerson[p.id]) reasons.push("Bu gün için uygun olduğunu girmiş");
 
     let weekMin = 0;

@@ -29,7 +29,7 @@ export function buildInsights(snap: WeekSnapshot, budgets: WeekBudgets = {}): In
   if (snap.status === "empty") {
     list.push({
       id: "empty", severity: "info", title: "Bu hafta için henüz plan yok",
-      lines: ["Haftayı Oluştur ile otomatik plan hazırlayabilirsiniz."],
+      lines: ["Planı Oluştur ile otomatik plan hazırlayabilirsiniz."],
     });
     return list.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]);
   }

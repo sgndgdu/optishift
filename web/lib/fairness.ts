@@ -357,3 +357,19 @@ export function fairnessLabel(percentile: number): { text: string; level: "low" 
   if (percentile >= 20) return { text: "Ortalamanın üstü yük", level: "ok" };
   return { text: "Çok yüklü, yük azaltılmalı", level: "high" };
 }
+
+/**
+ * Adalet Puanı'nın yanındaki açıklama (kullanıcı kararı 2026-10-04: sayı kalır, yanına anlamı yazılır):
+ * "ortalamanın %12 üstü" / "%8 altı" / "ekip ortalamasında" (±%5 içinde).
+ */
+export function scoreVsAverageText(score: number, teamAvg: number): string {
+  if (!(teamAvg > 0)) return "ekip ortalamasında";
+  const pct = Math.round(((score - teamAvg) / teamAvg) * 100);
+  if (Math.abs(pct) < 5) return "ekip ortalamasında";
+  return pct > 0 ? `ortalamanın %${pct} üstü` : `ortalamanın %${-pct} altı`;
+}
+
+/** Puanı Türkçe biçimde yazar (331,6). */
+export function formatScore(score: number): string {
+  return (Math.round(score * 10) / 10).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
+}

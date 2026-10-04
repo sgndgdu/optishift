@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDateTR } from "@/lib/date";
+import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
@@ -1243,8 +1245,11 @@ export default function SettingsPage() {
                     <p className="text-xs text-slate-500 mb-3">
                       Bu şube için henüz seçilmedi. Görev listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır. Bir kez seçilir, sonra değişmez.
                     </p>
+                    {/* Geri alınamaz, işletme düzeyinde karar: sadece işletme sahibi seçer */}
+                    {viewerRole === "admin" ? (
                     <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
                       onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
+                    ) : <p className="text-xs text-slate-500">İşletme türünü işletme sahibi seçer.</p>}
                     {industryChanged && (
                       <div className="flex flex-wrap items-center gap-2 mt-3">
                         <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty}
@@ -1265,7 +1270,7 @@ export default function SettingsPage() {
                             <p className="text-xs text-slate-500">{r.reason}</p>
                             {r.status === "no-holders" && (
                               <p className="text-xs text-amber-700 mt-0.5">
-                                {r.holders === 0 ? "Ekipte bu görev kimsede işaretli değil." : `Bu görev sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından rolü işaretleyin, yoksa bu vardiya hiç açılamaz.
+                                {r.holders === 0 ? "Ekipte bu görev kimsede işaretli değil." : `Bu görev sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından kişilerde bu görevi işaretleyin, yoksa bu vardiya hiç açılamaz.
                               </p>
                             )}
                             {r.status === "thin" && (
@@ -1692,8 +1697,8 @@ export default function SettingsPage() {
                   />
                   {availabilityCollectionEnabled && (
                     <RuleRow
-                      label="Haftalık Esnek Gün Hakkı"
-                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">Esnek</span> (mümkünse çalışmam, gerekirse gelirim) olarak işaretleyebilir. Esnek güne atamanın puan karşılığı Adalet Puanı bölümündedir.</>}
+                      label='Haftalık "Tercih Etmem" Hakkı'
+                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">Tercih etmem</span> (mümkünse çalışmam, gerekirse gelirim) olarak işaretleyebilir. Bu günlere atamanın puan karşılığı Adalet Puanı bölümündedir.</>}
                       right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
                     />
                   )}
@@ -1999,14 +2004,14 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Hangi günler?"
-                    description="Esnek gün: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
+                    description="Tercih etmem: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
                     right={
                       <div className="flex items-center gap-4">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
                         </label>
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Esnek gün
+                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Tercih etmem
                         </label>
                       </div>
                     }
@@ -2015,7 +2020,7 @@ export default function SettingsPage() {
                 {/* 2. BONUS PUANLARI */}
                 <SectionCard title="Bonus Puanları">
                   <RuleRow
-                    label="⭐ Kahraman Bonusu"
+                    label="Açık Vardiyayı Üstlenene Ek Puan"
                     description="Açık vardiyayı gönüllü üstlenen personele düz puan bonusu. 0 = kapalı."
                     right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
                   />
@@ -2447,7 +2452,7 @@ export default function SettingsPage() {
               };
               const card = {
                   chat: (
-                <FeatureCard icon={MessageSquare} title="Mesajlaşma"
+                <FeatureCard icon={MessageSquare} title="Mesajlar"
                   description="Müdür ve personel arasında şube içi sohbet."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
                   ),
@@ -2488,7 +2493,7 @@ export default function SettingsPage() {
                 </FeatureCard>
                   ),
                   fatigue: (
-                <FeatureCard icon={AlertTriangle} title="Kaza Risk Radarı"
+                <FeatureCard icon={AlertTriangle} title="Yorgunluk Uyarısı"
                   description="Üst üste gece, kapanıştan açılışa ya da yüksek mesai yapanları Ana Sayfa'da ve planda uyarır."
                   on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />
                   ),
@@ -2519,8 +2524,8 @@ export default function SettingsPage() {
                         <div className="space-y-1 max-h-40 overflow-y-auto">
                           {salesData.slice(0, 14).map(s => (
                             <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs bg-slate-50 border border-slate-200">
-                              <span className="flex-1 font-semibold text-slate-700">{s.date}</span>
-                              <span className="text-slate-500">{s.revenue != null ? `₺${s.revenue}` : s.footfall != null ? `${s.footfall} kişi` : ""}</span>
+                              <span className="flex-1 font-semibold text-slate-700">{formatDateTR(s.date)}</span>
+                              <span className="text-slate-500">{s.revenue != null ? `₺${trNum(s.revenue, 0)}` : s.footfall != null ? `${trNum(s.footfall, 0)} kişi` : ""}</span>
                               <button onClick={() => handleDeleteSalesData(s.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
                             </div>
                           ))}

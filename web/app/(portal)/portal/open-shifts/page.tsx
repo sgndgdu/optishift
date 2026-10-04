@@ -46,7 +46,7 @@ export default function PortalOpenShiftsPage() {
         body: JSON.stringify({ id: shift.id, claimed_by: user.personnel_id, claimed_by_name: user.name }),
       });
       const data = await r.json().catch(() => ({}));
-      if (r.ok) { showToast("Vardiyayı üstlendin, kahraman bonusu kazandın!"); await load(); }
+      if (r.ok) { showToast("Vardiyayı üstlendin. Teşekkürler!"); await load(); }
       else { showToast(violationText(data, "Üstlenilemedi")); }
     } finally { setBusyId(null); }
   }
@@ -69,7 +69,7 @@ export default function PortalOpenShiftsPage() {
 
   return (
     <Page>
-      <PageHeader title={words.OpenShifts} description="Üstlen, kahraman bonusu kazan." />
+      <PageHeader title={words.OpenShifts} description="Boştaki vardiyalar. Üstlenmek istediğine dokun." />
 
       {loading && <p className="text-sm text-slate-400 text-center py-8">Yükleniyor…</p>}
 
@@ -108,7 +108,7 @@ export default function PortalOpenShiftsPage() {
               <div className="flex items-center gap-2">
                 {s.hero_bonus_multiplier > 0 && (
                   <StatusPill tone="attention">
-                    <Star size={9} /> +{s.hero_bonus_multiplier} Kahraman
+                    <Star size={9} /> +{s.hero_bonus_multiplier} puan
                   </StatusPill>
                 )}
               </div>

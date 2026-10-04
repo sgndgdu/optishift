@@ -154,7 +154,7 @@ export default function FairnessReport() {
           </a>
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2">
-          <DetailRow label="Zor gün (hafta sonu, esnek gün)">+{rules.hard_shift_points ?? 4}</DetailRow>
+          <DetailRow label="Zor gün (hafta sonu, tercih etmem günü)">+{rules.hard_shift_points ?? 4}</DetailRow>
           <DetailRow label="Açık vardiyayı üstlenme">+{rules.hero_bonus_points ?? 6}</DetailRow>
           <DetailRow label="İzinliyken zorunlu atama">+{rules.force_bonus_points ?? 5}</DetailRow>
           <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
@@ -257,7 +257,7 @@ function CurrentView({
                         <th className="pr-3 pb-1 font-semibold text-right">Saat</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Hf.sonu</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Gece</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Esnek</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Tercih etmem</th>
                         <th className="pb-1 font-semibold text-right">Kap→Açl</th>
                       </tr>
                     </thead>
@@ -370,7 +370,7 @@ function HistoryView({
                   `${e.week_start}: ${Math.round(val * 10) / 10}p`,
                   e.weekend_shifts  ? `Hafta sonu: ${e.weekend_shifts}` : "",
                   e.night_shifts    ? `Gece: ${e.night_shifts}` : "",
-                  e.pref_not_shifts ? `Esnek gün: ${e.pref_not_shifts}` : "",
+                  e.pref_not_shifts ? `Tercih etmem günü: ${e.pref_not_shifts}` : "",
                   e.clopening_count ? `Kapanış→Açılış: ${e.clopening_count}` : "",
                 ].filter(Boolean).join(" | ");
                 return (
@@ -402,7 +402,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
     <section className="space-y-3">
       <div>
         <h2 className="text-base font-bold text-slate-900">Açık vardiya üstlenenler</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Her üstlenme kahraman bonusu kazandırır</p>
+        <p className="text-xs text-slate-500 mt-0.5">Her üstlenme ek puan kazandırır</p>
       </div>
       <List>
         {loading ? <ListEmpty>Yükleniyor…</ListEmpty>

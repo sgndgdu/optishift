@@ -17,7 +17,7 @@ const BRANCH = [
 ];
 const ALL = [
   { href: "/supervisor",           label: "Genel Bakış", icon: LayoutDashboard, exact: true },
-  { href: "/supervisor/personnel", label: "Personel",    icon: Users },
+  { href: "/supervisor/personnel", label: "Ekip",    icon: Users },
   { href: "/supervisor/reports",   label: "Raporlar",    icon: BarChart2 },
   { href: "/supervisor/chat",      label: "Mesajlar",    icon: MessageSquare },
 ];

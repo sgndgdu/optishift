@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       SELECT
         sa.personnel_id,
         p.name AS personnel_name,
-        p.title,
+        CASE WHEN p.roles LIKE '[%' THEN (p.roles::json->>0) END AS title, -- görev = ilk rol (ayrı unvan yok)
         p.hourly_wage,
         sa.start_time,
         sa.end_time,
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
         AND COALESCE(sa.kind, 'regular') = 'regular'
       UNION ALL
       -- İcapta çağrılınca çalışılan saat: çalışma süresine ve mesaiye sayılır, vardiya sayısına sayılmaz
-      SELECT c.personnel_id, p.name, p.title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
+      SELECT c.personnel_id, p.name, CASE WHEN p.roles LIKE '[%' THEN (p.roles::json->>0) END AS title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
       FROM on_call_callouts c
       JOIN personnel p ON c.personnel_id = p.id
       WHERE c.location_id = ? AND c.week_start >= ? AND c.week_start <= ?

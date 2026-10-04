@@ -15,7 +15,8 @@ function Redirect() {
       const loc = params.get("location_id");
       if (user && loc) openBranchPanel(user, loc);
     } catch { /* oturum yoksa /schedule girişe yönlendirir */ }
-    router.replace("/schedule");
+    const week = params.get("week");
+    router.replace(week ? `/schedule?week=${encodeURIComponent(week)}` : "/schedule");
   }, [params, router]);
   return <div className="p-8 text-slate-500">Plan açılıyor...</div>;
 }

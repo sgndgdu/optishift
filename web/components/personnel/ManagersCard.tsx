@@ -361,7 +361,7 @@ export function BranchPermissionsSheet({ open, onClose, locations }: { open: boo
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Müdür yetkileri" description="Şube müdürü bunları değiştirebilir mi?"
+    <Sheet open={open} onClose={onClose} title="Yönetici izinleri" description="Şube müdürü bunları değiştirebilir mi?"
       footer={<>
         <button onClick={onClose} className={sheetSecondaryClass}>Vazgeç</button>
         <button onClick={save} disabled={saving || !perms} className={sheetPrimaryClass}>{saving ? "Kaydediliyor…" : "Kaydet"}</button>

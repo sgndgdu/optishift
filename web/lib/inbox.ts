@@ -99,7 +99,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
     items.push({
       id: "fatigue",
       severity: fatigue.critical > 0 ? "critical" : "week",
-      title: `Kaza Risk Radarı: ${parts}`,
+      title: `Yorgunluk uyarısı: ${parts}`,
       detail: "Üst üste gece, kapanıştan açılışa ya da yüksek mesai.",
       action: { label: "Kimler?", kind: "expand" },
     });
@@ -180,14 +180,14 @@ export function buildInbox(input: InboxInput): InboxItem[] {
             severity: "week",
             title: `Gelecek haftanın planı ${ap.dayName} sabahı otomatik hazırlanacak`,
             detail: "Size sadece kontrol edip yayınlamak kalır. İsterseniz şimdi de oluşturabilirsiniz.",
-            action: { label: "Şimdi Oluştur", href: "/schedule?week=next" },
+            action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
           }
         : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı henüz hazır değil",
           detail: "Personel plan yapabilsin diye erken yayınlayın.",
-          action: { label: "Planı Oluştur", href: "/schedule?week=next" },
+          action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
         })
       : ap?.drafted
       ? {

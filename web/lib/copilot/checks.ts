@@ -165,10 +165,10 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   }
 
   const prefNot = per(p => p.preferredNotDays, (n, d) => `${n}: ${dayList(d)}`);
-  add("preferred-not", "warning", `${prefNot.length} kişi "Esnek" işaretlediği gün vardiyada`, prefNot);
+  add("preferred-not", "warning", `${prefNot.length} kişi "Tercih etmem" dediği gün vardiyada`, prefNot);
 
   const outsideFlex = per(p => p.outsideWindowFlexibleDays, (n, d) => `${n}: ${dayList(d)}`);
-  add("outside-window-flexible", "warning", `${outsideFlex.length} kişi "Esnek" gününde verdiği saatlerin dışında`, outsideFlex);
+  add("outside-window-flexible", "warning", `${outsideFlex.length} kişi "Tercih etmem" gününde verdiği saatlerin dışında`, outsideFlex);
 
   // Adalet: zaten çok yüklü olan ortalamadan belirgin fazla zor vardiya almış, az yüklüler daha az almış
   const heavy = working.filter(p => p.loadRatio > 1.2 && p.hardShifts >= 2 && p.hardShifts >= snap.avgHard + 1);

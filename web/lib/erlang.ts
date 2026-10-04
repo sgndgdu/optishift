@@ -1,6 +1,6 @@
 /**
  * Çağrı merkezi ihtiyaç hesabı (Erlang C) ve saatlik ihtiyacın vardiyalara dağıtımı.
- * Saf fonksiyonlar; arayüz: Haftayı Oluştur 1. adım, "Çağrı yoğunluğundan hesapla".
+ * Saf fonksiyonlar; arayüz: Planı Oluştur 1. adım, "Çağrı yoğunluğundan hesapla".
  *
  * Akış: günlük çağrı × saatlik yoğunluk eğrisi → saatlik çağrı → Erlang C ile hizmet
  * seviyesini tutturan en az temsilci → mola/izin payıyla yukarı yuvarla → her saati

@@ -114,10 +114,10 @@ export async function claimOpenShift(
   `).run(
     claimedBy,
     "hero_bonus",
-    opts.assignedByManager ? "📋 Açık Vardiyaya Atandın" : "🦸 Kahraman Bonusu Kazandın!",
+    opts.assignedByManager ? "📋 Açık Vardiyaya Atandın" : "✅ Vardiyayı üstlendin",
     opts.assignedByManager
-      ? `Müdürün seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ekstra kahraman puanı kazanacaksın.`
-      : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Bu vardiya için ekstra kahraman puanı kazandın.`,
+      ? `Müdürün seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsın, sonraki planlarda yükün hafifler.`
+      : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Teşekkürler! Ek puan aldın, sonraki planlarda yükün hafifler.`,
     now,
   );
 
@@ -174,8 +174,8 @@ export async function publishOpenShift(
       p.id,
       notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
       notify === "top"
-        ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; kabul edersen +${heroPoints} puan Kahraman Bonusu.`
-        : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Kabul edersen +${heroPoints} puan Kahraman Bonusu kazanırsın!`,
+        ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`
+        : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`,
       now,
     );
     await sendPushToPersonnel(p.id, o.org_id, {

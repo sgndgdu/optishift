@@ -34,7 +34,7 @@ export default function PortalSettingsPage() {
         <button
           onClick={() => { localStorage.removeItem("optishift_portal_user"); router.push("/login"); }}
           className="flex items-center justify-center gap-2 py-3 rounded-xl border border-red-200 bg-white text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
-          <LogOut size={16} /> Çıkış Yap
+          <LogOut size={16} /> Oturumu kapat
         </button>
       </div>
     </Page>

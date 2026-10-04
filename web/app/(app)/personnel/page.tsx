@@ -278,7 +278,12 @@ export default function PersonnelPage() {
   return (
     <Page width="narrow">
       {/* Header */}
-      <PageHeader title="Ekip" description={`${persons.filter(p => !p.inactive).length} kişi`} actions={
+      <PageHeader title="Ekip" description={(() => {
+        const act = persons.filter(p => !p.inactive);
+        const staff = act.filter(p => p.role === "employee").length;
+        const mgrs = act.length - staff;
+        return `${staff} çalışan${mgrs ? ` · ${mgrs} yönetici` : ""}`;
+      })()} actions={
         /* Kişi eklemenin üç yolu tek düğmede */
         <div className="relative">
           <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
@@ -389,7 +394,7 @@ export default function PersonnelPage() {
           hasDepts={() => editDepts.length > 0}
           managerSummary={managerSummary}
           managementAction={isOwnerRole(authUser?.role) && authUser?.location_id ? (
-            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Müdür yetkileri</button>
+            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Yönetici izinleri</button>
           ) : undefined}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
           emptyAction={!search && (
@@ -524,6 +529,10 @@ export default function PersonnelPage() {
           viewer={{ id: authUser?.id, role: authUser?.role ?? "", location_id: authUser?.location_id, access: authUser?.access }}
           branch={locations.find(l => l.id === (openPerson.location_id ?? authUser?.location_id)) ?? locations.find(l => l.id === authUser?.location_id) ?? null}
           managerLocations={managerLocations}
+          teamAvgScore={(() => {
+            const team = persons.filter(x => x.personnelId && x.role === "employee" && !x.inactive && x.location_id === openPerson.location_id);
+            return team.length ? team.reduce((a, x) => a + x.prev_score, 0) / team.length : 0;
+          })()}
           onClose={() => setOpenKey(null)}
           onChanged={msg => { setOpenKey(null); fetchData(authUser); showToast(msg); }}
           onInvite={setInviteLinks} />

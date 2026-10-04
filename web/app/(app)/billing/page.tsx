@@ -13,7 +13,7 @@ import { PLANS, SALES_EMAIL, getPlan, type PlanId } from "@/lib/plans";
 
 // Ad, fiyat ve sınırlar lib/plans'tan (tek kaynak); burada sadece görünüm
 const PLAN_STYLE: Record<PlanId, { color: string; dark: boolean; cta: string }> = {
-  free:       { color: "border-slate-200", dark: false, cta: "Mevcut Plan" },
+  free:       { color: "border-slate-200", dark: false, cta: "" },
   pro:        { color: "border-primary",   dark: true,  cta: "Pro'ya Geç" },
   enterprise: { color: "border-slate-300", dark: false, cta: "İletişime Geç" },
 };
@@ -163,6 +163,8 @@ function BillingContent() {
                   ))}
                 </ul>
 
+                {/* Mevcut pakette üstteki rozet yeter; ücretsize geçiş düğmesi yok (paket düşürme destekle) */}
+                {!isCurrent && plan.id !== "free" && (
                 <button
                   onClick={() => handleCheckout(plan.id)}
                   disabled={isCurrent || checkoutLoading === plan.id}
@@ -184,6 +186,7 @@ function BillingContent() {
                     <><Sparkles size={15} /> {plan.cta}</>
                   ) : plan.cta}
                 </button>
+                )}
               </div>
             </div>
           );
