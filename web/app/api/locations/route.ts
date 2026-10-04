@@ -136,10 +136,6 @@ export async function PATCH(req: NextRequest) {
       updates.push("leave_policy = ?");
       values.push(typeof body.leave_policy === "string" ? body.leave_policy : JSON.stringify(body.leave_policy));
     }
-    if (body.rotation_template !== undefined) {
-      updates.push("rotation_template = ?");
-      values.push(typeof body.rotation_template === "string" ? body.rotation_template : JSON.stringify(body.rotation_template));
-    }
     if (body.task_templates !== undefined) {
       updates.push("task_templates = ?");
       values.push(typeof body.task_templates === "string" ? body.task_templates : JSON.stringify(body.task_templates));

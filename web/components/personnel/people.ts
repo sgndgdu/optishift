@@ -29,7 +29,6 @@ export type MergedPerson = {
   min_weekly_hours: number | null;
   /** Kişinin şubesi (çalışan kaydında ana şube, yoksa hesabın şubesi). */
   location_id: string | null;
-  crew_id: string | null;
   department_id: string | null;
   ytd_overtime_hours: number | null;
   hourly_wage: number | null;
@@ -56,7 +55,6 @@ const toMerged = (acc: any | undefined, p: any | undefined): MergedPerson => ({
   roles: Array.isArray(p?.roles) ? p.roles : [],
   weekly_off_day: p?.weekly_off_day ?? null, max_weekly_hours: p?.max_weekly_hours ?? null,
   min_weekly_hours: p?.min_weekly_hours ?? null, location_id: p?.primary_location_id ?? acc?.location_id ?? null,
-  crew_id: p?.crew_id ?? null,
   department_id: p?.department_id ?? null,
   ytd_overtime_hours: p?.ytd_overtime_hours ?? null,
   hourly_wage: p?.hourly_wage ?? null,

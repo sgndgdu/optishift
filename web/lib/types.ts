@@ -16,16 +16,6 @@ export interface DailyHours {
   close: string;
 }
 
-// ─── Ekip (Crew) — Fabrika Modülü ────────────────────────────────────────────
-export interface Crew {
-  id: string;
-  org_id: string;
-  location_id: string;
-  name: string;
-  color: string;           // #hex badge rengi
-  shift_preference?: string; // tercih edilen shift_def_id
-  created_at?: number;
-}
 
 // ─── Personnel Conflict (Sosyal Kurallar — Birlikte Çalışamaz) ───────────────
 export interface PersonnelConflict {
@@ -57,15 +47,6 @@ export interface WebauthnCredential {
 }
 
 // ─── Rotasyon Şablonu — Fabrika Modülü ───────────────────────────────────────
-export interface RotationTemplate {
-  enabled: boolean;
-  type: "3-shift" | "continental" | "4x10" | "custom";
-  cycle_weeks: number;          // döngü uzunluğu (hafta)
-  reference_week: string;       // döngünün başlangıç haftası (ISO Pazartesi)
-  // crew_id → haftaya göre (0-based) atanan shift_def_id listesi
-  // Örn: { "crew-a": ["shift-1", "shift-2", "shift-3"] }
-  pattern: Record<string, string[]>;
-}
 
 // ─── Fazla Mesai Kaydı — Fabrika Modülü ──────────────────────────────────────
 export interface OvertimeRecord {
@@ -102,7 +83,6 @@ export interface Location {
   rules?: Partial<ScheduleRules> & Record<string, unknown>;
   // Kapasite matrisi: shiftDefId → { day(0-6) → gerekli kişi sayısı }
   demand_matrix?: Record<string, Record<number, number>>;
-  rotation_template?: RotationTemplate;
   task_templates?: Record<string, string[]>; // {shiftDefId veya "*": ["Kasa Sayımı", ...]}
   latitude?: number;
   longitude?: number;
@@ -212,7 +192,6 @@ export interface ScheduleRules {
   weekly_labor_budget_try?: number;    // haftalık planlanan işçilik maliyeti üst sınırı (₺, 0/undefined = limitsiz)
   overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
   // Fabrika modülü — ekip/rotasyon
-  crew_same_shift_hard?: boolean;      // true → aynı ekip üyeleri kesinlikle aynı vardiyaya
   // Gece koruması (Postalar Yönetmeliği)
   consecutive_night_weeks_enabled?: boolean; // true → geçen hafta gece çalışan bu hafta gece vardiyası alamaz (m.8)
   // Denkleştirme dönemi (İş K. m.63): N haftalık pencerede ortalama max_weekly_hours garantisi;
@@ -320,7 +299,6 @@ export interface Personnel {
   max_weekly_hours: number;
   min_weekly_hours?: number; // part-time alt sınır garantisi, 0/undefined = kapalı
   overtime_approved: boolean;
-  crew_id?: string;              // crews tablosuna referans (fabrika modülü)
   ytd_overtime_hours?: number;   // yılbaşından bu yana fazla mesai saati
   hourly_wage?: number | null;   // saatlik brüt ücret (₺) — mesai maliyeti hesabı için
   night_restriction?: NightRestriction | null; // gece çalışma yasağı — motor gece vardiyasına atamaz

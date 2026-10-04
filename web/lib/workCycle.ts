@@ -1,9 +1,8 @@
 /**
- * Çalışma döngüsü (rotasyon deseni): kişi başı tekrar eden çalış/dinlen günleri.
+ * Çalışma döngüsü: kişi başı tekrar eden çalış/dinlen günleri ("rotasyon" artık şubeler arası anlamında).
  * rules.work_cycle = { pattern, anchor (Pazartesi, YYYY-MM-DD), offsets: {personelId: kaydırma} }.
  * Motor: "O" günü kişiye hiç vardiya yazılmaz; "D" sadece gündüz, "N" sadece gece vardiyası;
- * "W"/"D"/"N" günlerinde çalıştırmayı tercih eder (esnek). Ekip rotasyonundan (hangi ekip
- * hangi vardiyada, rotation_template) bağımsızdır.
+ * "W"/"D"/"N" günlerinde çalıştırmayı tercih eder (esnek).
  */
 
 export type DayState = "W" | "D" | "N" | "O";

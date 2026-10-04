@@ -103,19 +103,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       }
     }
 
-    // Ekipleri çek (fabrika modülü)
-    let crewRows: any[] = [];
-    try {
-      crewRows = (await db
-        .prepare(
-          `SELECT * FROM crews WHERE location_id = $1 AND org_id = $2`
-        )
-        .all(branchId, orgIdIn)) as any[];
-    } catch {
-      /* crews tablosu yoksa atla */
-    }
-    void crewRows; // kullanılmayabilir, ileride eklenebilir
-
     // Departmanları çek (departman bazlı kapasite matrisi için).
     // /api/departments (frontend'in kullandığı, kanıtlanmış çalışan yol) ile aynı
     // Drizzle sorgusu kullanılıyor — buradaki raw SQL uyumluluk katmanı üzerinden
@@ -130,16 +117,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         .where(eq(departmentsTable.location_id, branchId));
     } catch (err) {
       console.error("[/api/generate] departments sorgusu başarısız:", err);
-    }
-
-    // Rotasyon şablonunu parse et
-    let rotationTemplate: any = null;
-    if (locationRow?.rotation_template) {
-      try {
-        rotationTemplate = JSON.parse(locationRow.rotation_template);
-      } catch {
-        /* ignore */
-      }
     }
 
     // Aktif ve planlanabilir personeli çek (vardiya yapmayan yönetici: personnel.schedulable = false, kişinin kartından)
@@ -222,7 +199,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
         org_id: p.org_id,
         role_level,
-        crew_id: p.crew_id ?? null,
         ytd_overtime_hours: ytdFresh[p.id] ?? p.ytd_overtime_hours ?? 0,
       };
     });
@@ -346,7 +322,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     let overtimeTrackingEnabled = true;
     let personnelConflictsEnabled = true;
     let complianceTrackingEnabled = false; // varsayılan kapalı — ileri seviye modül
-    let crewSameShiftHard = false;
     let consecutiveNightWeeksEnabled = false;
     let balancingPeriodWeeks = 0;
     let ruleMaxWeeklyHours = 45;
@@ -379,8 +354,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         if (pr?.overtime_tracking_enabled === false) overtimeTrackingEnabled = false;
         if (pr?.personnel_conflicts_enabled === false) personnelConflictsEnabled = false;
         if (pr?.compliance_tracking_enabled === true) complianceTrackingEnabled = true;
-        if (typeof pr?.crew_same_shift_hard === "boolean")
-          crewSameShiftHard = pr.crew_same_shift_hard;
         if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
           consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;
         if (typeof pr?.balancing_period_weeks === "number")
@@ -478,34 +451,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       } catch (e) {
         console.error("[generate] uyumluluk filtreleme hatası:", e);
       }
-    }
-
-    // Rotasyon şablonu
-    const crewRotation: Record<string, string> = {};
-    if (rotationTemplate?.enabled && rotationTemplate?.pattern && week_start) {
-      const refDate = new Date(
-        rotationTemplate.reference_week + "T00:00:00Z"
-      );
-      const curDate = new Date(week_start + "T00:00:00Z");
-      const weeksElapsed = Math.floor(
-        (curDate.getTime() - refDate.getTime()) / (7 * 24 * 3600 * 1000)
-      );
-      const cycleWeeks = rotationTemplate.cycle_weeks || 1;
-      const weekOffset = ((weeksElapsed % cycleWeeks) + cycleWeeks) % cycleWeeks;
-      for (const [crewId, shiftPattern] of Object.entries(
-        rotationTemplate.pattern as Record<string, string[]>
-      )) {
-        if (Array.isArray(shiftPattern) && shiftPattern[weekOffset] != null) {
-          crewRotation[crewId] = shiftPattern[weekOffset];
-        }
-      }
-    }
-
-    // Personel→ekip haritası
-    const personnelCrews: Record<string, string> = {};
-    for (const p of personnelData) {
-      if ((p as any).crew_id)
-        personnelCrews[(p as any).id] = (p as any).crew_id;
     }
 
     // Denkleştirme dönemi (İş K. m.63): son N-1 haftanın yayınlanmış saatlerine göre
@@ -700,7 +645,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             id: `SCN-${i}`, name: `Yeni personel ${i}`, skills: [], night_restriction: null, department_id: null,
             prev_score: avgScore, cumulative_burden: avgScore, employment_type: "full_time",
             max_weekly_hours: ruleMaxWeeklyHours, hourly_wage: 0, min_weekly_hours: 0, branch_ids: [branchId],
-            org_id: orgIdIn, role_level: "secondary", crew_id: null, ytd_overtime_hours: 0,
+            org_id: orgIdIn, role_level: "secondary", ytd_overtime_hours: 0,
           });
         }
       }
@@ -764,9 +709,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       max_consecutive_days: maxConsecutiveDays,
       no_night_to_morning: noNightToMorning,
       preferred_not_multiplier: preferredNotMultiplier,
-      crew_rotation: crewRotation,
-      personnel_crews: personnelCrews,
-      crew_same_shift_hard: crewSameShiftHard,
       night_restricted_ids: nightRestrictedIds,
       conflict_pairs: conflictPairs,
       prev_week_night_ids: prevWeekNightIds,

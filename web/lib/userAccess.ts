@@ -85,7 +85,6 @@ const CHEF_BLOCKED: { prefix: string; methods: string[] }[] = [
   { prefix: "/api/overtime", methods: ["PATCH"] },
   { prefix: "/api/schedule/edit-requests", methods: ["PATCH"] },
   { prefix: "/api/open-shifts", methods: ["POST", "PATCH", "DELETE"] },
-  { prefix: "/api/crews", methods: ["POST", "PATCH", "DELETE"] },
   { prefix: "/api/personnel-conflicts", methods: ["POST", "PATCH", "DELETE"] },
   { prefix: "/api/payroll-periods", methods: ["POST", "PATCH", "DELETE"] },
   { prefix: "/api/score-adjustments", methods: ["POST", "PATCH", "DELETE"] },

@@ -58,7 +58,6 @@ export default function PortalDashboard() {
   const [nextWeekPublished, setNextWeekPublished] = useState(false);
   const [nextWeekFirst, setNextWeekFirst] = useState<any | null>(null);
   const [dataLoading,   setDataLoading]   = useState(true);
-  const [crewName,      setCrewName]      = useState<string | null>(null);
   const [checkInLoading,setCheckInLoading]= useState(false);
   const [checkInError,  setCheckInError]  = useState("");
   const [elapsed,       setElapsed]       = useState("");
@@ -101,15 +100,7 @@ export default function PortalDashboard() {
       setOnCalls(rows.filter((s: any) => s.kind === "on_call"));
       setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
-      // Ekip adını yükle
       const pData = Array.isArray(personnelData) ? personnelData[0] : personnelData;
-      if (pData?.crew_id && pData?.primary_location_id) {
-        try {
-          const crewData = await fetch(`/api/crews?location_id=${pData.primary_location_id}`).then(r => r.json());
-          const myCrew = Array.isArray(crewData) ? crewData.find((c: any) => c.id === pData.crew_id) : null;
-          setCrewName(myCrew?.name ?? null);
-        } catch { /* ignore */ }
-      }
       // Bahşiş Havuzu (rules.tip_pooling_enabled) — modül kapalıysa 403 döner, kart sessizce gizlenir
       if (pData?.primary_location_id) {
         try {
@@ -317,11 +308,6 @@ export default function PortalDashboard() {
                 {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
                 {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? `${words.Shift} bitti` : "Bugün"}
               </div>
-              {crewName && (
-                <div className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20 text-white/80">
-                  {crewName}
-                </div>
-              )}
             </div>
             {todayShift && (
               <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${

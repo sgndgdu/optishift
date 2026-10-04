@@ -9,7 +9,7 @@ import {
   Save, Plus, X, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown,
   MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer, Wallet,
 } from "lucide-react";
-import type { Location, ShiftDefinition, Department, Crew, RotationTemplate } from "@/lib/types";
+import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import { isOwnerRole, LOCK_NOTE, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
@@ -31,10 +31,6 @@ import { StatusPill } from "@/components/ui/StatusPill";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
-const CREW_COLORS = [
-  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
-  "#8b5cf6", "#f97316", "#14b8a6", "#ef4444", "#84cc16",
-];
 
 type TabKey = "basic" | "advanced" | "features" | "account";
 
@@ -53,7 +49,7 @@ const LEGACY_TABS: Record<string, { tab: TabKey; group?: string }> = {
   rules:    { tab: "advanced", group: "planning" },
   fairness: { tab: "advanced", group: "fairness" },
   zones:    { tab: "basic" },
-  crews:    { tab: "advanced", group: "crews" },
+  crews:    { tab: "advanced", group: "cycle" },
   location: { tab: "basic" },
 };
 
@@ -457,13 +453,7 @@ export default function SettingsPage() {
   const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
   const [handoverNotesEnabled, setHandoverNotesEnabled]           = useState(true);
   const [autoLeaveEntitlement, setAutoLeaveEntitlement]           = useState(false);
-  const [crewSameShiftHard, setCrewSameShiftHard]                 = useState(false);
 
-  // Ekip (Crew) yönetimi
-  const [crews, setCrews]                 = useState<Crew[]>([]);
-  const [crewsLoading, setCrewsLoading]   = useState(false);
-  const [newCrewName, setNewCrewName]     = useState("");
-  const [newCrewColor, setNewCrewColor]   = useState(CREW_COLORS[0]);
 
   // Sosyal Kurallar — Birlikte Çalışamaz çiftleri
   const [conflictPairs, setConflictPairs] = useState<any[]>([]);
@@ -474,17 +464,7 @@ export default function SettingsPage() {
   const [savedWorkCycle, setSavedWorkCycle] = useState<WorkCycleConfig | null | undefined>(undefined);
   // Aktif personelin rolleri: önerilen zorunlu rolü uygulamadan önce rol sahibi var mı diye bakılır
   const [personnelRoles, setPersonnelRoles] = useState<string[][]>([]);
-  const [editingCrewId, setEditingCrewId] = useState<string | null>(null);
-  const [editingCrewName, setEditingCrewName] = useState("");
 
-  // Rotasyon şablonu
-  const [rotationEnabled, setRotationEnabled]       = useState(false);
-  // "Kişi döngüsü" seçildi ama desen henüz seçilmedi (desen seçilince workCycle'a anında kaydedilir)
-  const [cycleChosen, setCycleChosen]               = useState(false);
-  const [rotationType, setRotationType]             = useState<RotationTemplate["type"]>("3-shift");
-  const [cycleWeeks, setCycleWeeks]                 = useState(3);
-  const [referenceWeek, setReferenceWeek]           = useState("");
-  const [rotationPattern, setRotationPattern]       = useState<Record<string, string[]>>({}); // crew_id → shift_def_id[]
 
   const savedSnapshot = useRef<string>("");
   const [isDirty, setIsDirty] = useState(false);
@@ -612,32 +592,11 @@ export default function SettingsPage() {
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
           if (typeof loc.rules?.weekly_labor_budget_try === "number")     setWeeklyLaborBudgetTry(loc.rules.weekly_labor_budget_try);
-          if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
           setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
           setHandoverNotesEnabled(loc.rules?.handover_notes_enabled !== false);
           setAutoLeaveEntitlement(loc.rules?.auto_leave_entitlement_enabled === true);
-
-          // Rotasyon şablonu
-          if (typeof loc.rotation_template === "string") {
-            try { loc.rotation_template = JSON.parse(loc.rotation_template); } catch { loc.rotation_template = undefined; }
-          }
-          if (loc.rotation_template) {
-            const rt = loc.rotation_template as RotationTemplate;
-            setRotationEnabled(!!rt.enabled);
-            setRotationType(rt.type ?? "3-shift");
-            setCycleWeeks(rt.cycle_weeks ?? 3);
-            setReferenceWeek(rt.reference_week ?? "");
-            setRotationPattern(rt.pattern ?? {});
-          }
-
-          // Ekipleri yükle
-          try {
-            setCrewsLoading(true);
-            const cres = await fetch(`/api/crews?location_id=${finalId}`);
-            if (cres.ok) { const cdata = await cres.json(); if (Array.isArray(cdata)) setCrews(cdata); }
-          } catch { /* ignore */ } finally { setCrewsLoading(false); }
 
           // Sosyal kurallar: birlikte çalışamaz çiftleri + personel listesi
           try {
@@ -741,17 +700,11 @@ export default function SettingsPage() {
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
             weeklyLaborBudgetTry: typeof loc.rules?.weekly_labor_budget_try === "number" ? loc.rules.weekly_labor_budget_try : 0,
-            crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
             handoverNotesEnabled: loc.rules?.handover_notes_enabled !== false,
             autoLeaveEntitlement: loc.rules?.auto_leave_entitlement_enabled === true,
-            rotationEnabled: !!loc.rotation_template?.enabled,
-            rotationType: loc.rotation_template?.type ?? "3-shift",
-            cycleWeeks: loc.rotation_template?.cycle_weeks ?? 3,
-            referenceWeek: loc.rotation_template?.reference_week ?? "",
-            rotationPattern: loc.rotation_template?.pattern ?? {},
           });
           setIsDirty(false);
         }
@@ -784,8 +737,7 @@ export default function SettingsPage() {
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       locationLat, locationLon,
       changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
-      rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     });
     setIsDirty(current !== savedSnapshot.current);
   }, [
@@ -803,8 +755,7 @@ export default function SettingsPage() {
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
     locationLat, locationLon,
     changeCompensationEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
-    rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
   ]);
 
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
@@ -981,19 +932,11 @@ export default function SettingsPage() {
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             overtime_fair_distribution:         overtimeFairDistribution,
             weekly_labor_budget_try:            weeklyLaborBudgetTry,
-            crew_same_shift_hard:               crewSameShiftHard,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
             balancing_period_weeks:             balancingPeriodWeeks,
             night_legal_warning_enabled:        nightLegalWarning,
             handover_notes_enabled:             handoverNotesEnabled,
             auto_leave_entitlement_enabled:     autoLeaveEntitlement,
-          },
-          rotation_template: {
-            enabled:        rotationEnabled,
-            type:           rotationType,
-            cycle_weeks:    cycleWeeks,
-            reference_week: referenceWeek,
-            pattern:        rotationPattern,
           },
           latitude:  finalLat ? parseFloat(finalLat) : null,
           longitude: finalLon ? parseFloat(finalLon) : null,
@@ -1018,9 +961,8 @@ export default function SettingsPage() {
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
-        rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
-      });
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+        });
       setIsDirty(false);
       showToast("ok", "Ayarlar kaydedildi");
     } catch {
@@ -2071,153 +2013,17 @@ export default function SettingsPage() {
                 </SectionCard>
                 </LockArea>
               </SettingsGroup>
-              <SettingsGroup id="crews" title="Vardiya Grupları ve Rotasyon" description="A/B/C grupları ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
-                <p className="text-sm text-slate-500">
-                  Vardiya grupları, birlikte çalışan kişileri bir arada tutar. Fabrikadaki A/B/C postaları gibi dönüşümlü gruplar kurun.
-                </p>
-
-                {/* Ekip Ekle */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-slate-400">Yeni Grup</p>
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Grup Adı</label>
-                      <input
-                        value={newCrewName}
-                        onChange={e => setNewCrewName(e.target.value)}
-                        placeholder="A Ekibi, Sabah Grubu…"
-                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-48 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Renk</label>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {CREW_COLORS.map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => setNewCrewColor(c)}
-                            style={{ backgroundColor: c }}
-                            className={`w-6 h-6 rounded-full border-2 transition-transform ${newCrewColor === c ? "border-slate-700 scale-110" : "border-transparent"}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      disabled={!newCrewName.trim()}
-                      onClick={async () => {
-                        if (!newCrewName.trim() || !selectedLocationId) return;
-                        try {
-                          const res = await fetch("/api/crews", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }),
-                          });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setCrews(prev => [...prev, { id: data.id, org_id: "", location_id: selectedLocationId, name: newCrewName.trim(), color: newCrewColor }]);
-                            setNewCrewName("");
-                          }
-                        } catch { /* ignore */ }
-                      }}
-                      className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                    >
-                      <Plus size={14} /> Ekle
-                    </button>
-                  </div>
-                </div>
-
-                {/* Ekip Listesi */}
-                {crewsLoading ? (
-                  <p className="text-sm text-slate-400">Yükleniyor…</p>
-                ) : crews.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-8">Henüz grup oluşturulmamış.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {crews.map(crew => (
-                      <div key={crew.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                        <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
-                        {editingCrewId === crew.id ? (
-                          <input
-                            value={editingCrewName}
-                            onChange={e => setEditingCrewName(e.target.value)}
-                            autoFocus
-                            className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
-                          />
-                        ) : (
-                          <span className="flex-1 text-sm font-medium text-slate-800">{crew.name}</span>
-                        )}
-                        {(crew as any).member_count !== undefined && (
-                          <StatusPill tone="neutral">{(crew as any).member_count} üye</StatusPill>
-                        )}
-                        {editingCrewId === crew.id ? (
-                          <>
-                            <button onClick={async () => {
-                              await fetch("/api/crews", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: crew.id, name: editingCrewName }) });
-                              setCrews(prev => prev.map(c => c.id === crew.id ? { ...c, name: editingCrewName } : c));
-                              setEditingCrewId(null);
-                            }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={14} /></button>
-                            <button onClick={() => setEditingCrewId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={14} /></button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => { setEditingCrewId(crew.id); setEditingCrewName(crew.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><Pencil size={13} /></button>
-                            <button onClick={async () => {
-                              if (!confirm(`"${crew.name}" grubunu silmek istediğinize emin misiniz? Üyelerin grup ataması kaldırılır.`)) return;
-                              await fetch(`/api/crews?id=${crew.id}`, { method: "DELETE" });
-                              setCrews(prev => prev.filter(c => c.id !== crew.id));
-                              // Rotasyon şablonundan da kaldır
-                              setRotationPattern(prev => { const next = { ...prev }; delete next[crew.id]; return next; });
-                            }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-  <SectionCard title="Grup Kuralı">
-    <RuleRow
-                    label="Gruptakiler Hep Aynı Vardiyada"
-                    description="Açıksa aynı grubun üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa grup ayrılabilir."
-                    right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
-                  />
-  </SectionCard>
-
-                {/* Dönüşümlü çalışma TEK seçim: grup rotasyonu (gruplar haftalık vardiya değiştirir) YA DA kişi döngüsü
-                    (çalış/dinlen deseni). İkisi birlikte kullanılmıyordu ve iki ayrı kart kafa karıştırıyordu. */}
-                {(() => {
-                  const rotMode: "none" | "rotation" | "cycle" = workCycle?.pattern || cycleChosen ? "cycle" : rotationEnabled ? "rotation" : "none";
-                  const pick = (m: "none" | "rotation" | "cycle") => {
-                    setRotationEnabled(m === "rotation");
-                    setCycleChosen(m === "cycle");
-                    if (m !== "cycle" && workCycle?.pattern) saveWorkCycle("");
-                  };
-                  const opts: { id: "none" | "rotation" | "cycle"; label: string; hint: string }[] = [
-                    { id: "none", label: "Yok", hint: "Planlama her hafta herkesi serbestçe yerleştirir." },
-                    { id: "rotation", label: "Grup rotasyonu", hint: "A/B/C grupları haftadan haftaya vardiya değiştirir (sabah → akşam → gece)." },
-                    { id: "cycle", label: "Kişi döngüsü", hint: "Herkese tekrar eden bir çalış/dinlen deseni verilir (ör. 4 gün çalış, 4 gün dinlen)." },
-                  ];
-                  return (
-                <SectionCard title="Dönüşümlü çalışma">
-                  <div className="p-4 space-y-2">
-                    {opts.map(o => (
-                      <label key={o.id} className={cn("flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer", rotMode === o.id ? "border-forest-300 bg-forest-50/50" : "border-slate-200")}>
-                        <input type="radio" name="rotation-mode" checked={rotMode === o.id} onChange={() => pick(o.id)} className="mt-1 accent-forest-600" />
-                        <span>
-                          <span className="block text-sm font-semibold text-slate-800">{o.label}</span>
-                          <span className="block text-xs text-slate-500">{o.hint}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  {rotMode === "cycle" && (
-                  <div className="p-4 pt-0 space-y-3">
+              {/* Postalar (A/B/C vardiya grupları) ve vardiya rotasyonu 2026-10-04'te kaldırıldı (kullanıcı kararı);
+                  kişi başı çalış/dinlen döngüsü kalır. "Rotasyon" artık şubeler arası (kişinin kartında). */}
+              <SettingsGroup id="cycle" title="Çalışma Döngüsü" description="Çalış / dinlen deseni (örn. 4 gün çalış, 4 gün dinlen)" open={!!openGroups["cycle"]} onToggle={toggleGroup}>
+                <SectionCard title="Çalışma döngüsü">
+                  <div className="p-4 space-y-3">
                     <p className="text-xs text-slate-500">Kişiler desene eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Planlama boş günlerde kimseyi yazmaz, gündüz/gece günlerinde sadece o vardiyayı verir. Değişiklik anında kaydedilir.</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <select value={workCycle?.pattern ?? ""} disabled={cycleSaving}
                         onChange={e => saveWorkCycle(e.target.value)}
                         className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
-                        <option value="">Desen seçin…</option>
+                        <option value="">Döngü yok</option>
                         {Object.entries(WORK_CYCLES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
                       </select>
                       {workCycle?.pattern && (
@@ -2257,112 +2063,7 @@ export default function SettingsPage() {
                       </>
                     )}
                   </div>
-                  )}
-                  {rotMode === "rotation" && (
-                    <>
-                      <RuleRow wide
-                        label="Rotasyon Tipi"
-                        description="3-vardiyalı, Continental veya özel döngü."
-                        right={
-                          <select
-                            value={rotationType}
-                            onChange={e => {
-                              const t = e.target.value as RotationTemplate["type"];
-                              setRotationType(t);
-                              if (t === "3-shift") setCycleWeeks(3);
-                              else if (t === "continental") setCycleWeeks(4);
-                              else if (t === "4x10") setCycleWeeks(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                          >
-                            <option value="3-shift">3 Vardiyalı (Sabah / Öğleden Sonra / Gece)</option>
-                            <option value="continental">Continental (2 çalış – 2 dinlen – 3 çalış)</option>
-                            <option value="4x10">4×10 Saat (Cuma serbest)</option>
-                            <option value="custom">Özel</option>
-                          </select>
-                        }
-                      />
-                      <RuleRow
-                        label="Döngü Uzunluğu"
-                        description="Kaç hafta sonra rotasyon başa döner."
-                        right={<NumberInput value={cycleWeeks} onChange={setCycleWeeks} min={1} max={12} suffix="hafta" />}
-                      />
-                      <RuleRow
-                        label="Başlangıç Haftası"
-                        description="Döngünün 0. haftasının Pazartesi tarihi. Bu haftadan itibaren hangi grup 0. pozisyonda sayılır."
-                        right={
-                          <input
-                            type="date"
-                            value={referenceWeek}
-                            onChange={e => setReferenceWeek(e.target.value)}
-                            className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                          />
-                        }
-                      />
-                    </>
-                  )}
                 </SectionCard>
-                  );
-                })()}
-
-                {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                    <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                      <h3 className="text-xs font-bold text-slate-400">Grup · Vardiya Ataması (Hafta Bazında)</h3>
-                    </div>
-                    <div className="p-5 overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr>
-                            <th className="text-left text-xs text-slate-400 font-medium pb-3 pr-4 w-32">Grup</th>
-                            {Array.from({ length: cycleWeeks }, (_, i) => (
-                              <th key={i} className="text-center text-xs text-slate-400 font-medium pb-3 px-2 min-w-[120px]">Hafta {i + 1}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {crews.map(crew => (
-                            <tr key={crew.id}>
-                              <td className="pr-4 py-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: crew.color }} />
-                                  <span className="font-medium text-slate-700 text-xs">{crew.name}</span>
-                                </div>
-                              </td>
-                              {Array.from({ length: cycleWeeks }, (_, weekIdx) => (
-                                <td key={weekIdx} className="px-2 py-2">
-                                  <select
-                                    value={(rotationPattern[crew.id] ?? [])[weekIdx] ?? ""}
-                                    onChange={e => {
-                                      setRotationPattern(prev => {
-                                        const arr = [...(prev[crew.id] ?? Array(cycleWeeks).fill(""))];
-                                        while (arr.length < cycleWeeks) arr.push("");
-                                        arr[weekIdx] = e.target.value;
-                                        return { ...prev, [crew.id]: arr };
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-forest-500"
-                                  >
-                                    <option value="">— İzin / Serbest —</option>
-                                    {locationData.shift_definitions.map(sd => (
-                                      <option key={sd.id} value={sd.id}>{sd.name} ({sd.start}–{sd.end})</option>
-                                    ))}
-                                  </select>
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {rotationEnabled && crews.length === 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                    Grup rotasyonu için önce yukarıdan bir grup oluşturun.
-                  </div>
-                )}
               </SettingsGroup>
               </div>
             </div>

@@ -36,7 +36,7 @@ export type Viewer = { id: string; role: string; location_id?: string | null; ac
 const formOf = (p: MergedPerson) => ({
   name: p.name, phone: p.phone ?? "", schedulable: p.schedulable, employment_type: p.employment_type ?? "full_time",
   weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0,
-  roles: p.roles ?? [], crew_id: p.crew_id ?? null, hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null,
+  roles: p.roles ?? [], hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null,
   hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0,
   department_id: p.department_id ?? null,
 });
@@ -74,7 +74,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [inviteLoading, setInviteLoading] = useState(false);
   const [openingAccount, setOpeningAccount] = useState(false);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
-  const [crews, setCrews] = useState<{ id: string; name: string }[]>([]);
   const [personnelDocs, setPersonnelDocs] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [newDocType, setNewDocType] = useState("");
@@ -89,13 +88,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   useEffect(() => {
     if (!branchId) return;
     let alive = true;
-    Promise.all([
-      fetch(`/api/departments?location_id=${branchId}`).then(r => r.json()).catch(() => []),
-      fetch(`/api/crews?location_id=${branchId}`).then(r => r.json()).catch(() => []),
-    ]).then(([d, c]) => {
+    fetch(`/api/departments?location_id=${branchId}`).then(r => r.json()).catch(() => []).then(d => {
       if (!alive) return;
       setDepts(Array.isArray(d) ? d.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) : []);
-      setCrews(Array.isArray(c) ? c.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) : []);
     });
     return () => { alive = false; };
   }, [branchId]);
@@ -204,7 +199,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         const res = await patch(`/api/personnel?id=${ep.personnelId}`, {
           ...nameFields, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day,
           max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles,
-          crew_id: editForm.crew_id, hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction,
+ hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction,
           hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total,
           leave_adjustment_days: editForm.leave_adjustment_days, ...(depts.length > 0 ? { department_id: editForm.department_id } : {}),
         });
@@ -542,22 +537,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               </p>
               </div>
               </details>
-              {crews.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vardiya Grubu</label>
-                  <p className="text-xs text-slate-400 mb-2">A/B/C gibi dönüşümlü çalışan grup: aynı gruptakiler aynı vardiyaya yazılır. Gruplar Ayarlar › Vardiya Grupları ve Rotasyon&apos;da.</p>
-                  <select
-                    value={editForm.crew_id ?? ""}
-                    onChange={e => setEditForm(f => ({ ...f, crew_id: e.target.value || null }))}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400"
-                  >
-                    <option value="">Grup yok</option>
-                    {crews.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
               {complianceTrackingEnabled && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Belgeler</label>

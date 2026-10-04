@@ -180,16 +180,12 @@ async function main() {
   await sql`INSERT INTO locations (id, org_id, name, shift_definitions, rules, rotation_template, zone_quotas)
             VALUES (${LOC}, ${ORG}, ${"Torbalı Fabrikası"},
                     ${JSON.stringify(SHIFT_DEFS)}, ${JSON.stringify(RULES)},
-                    ${JSON.stringify(ROTATION)}, ${"{}"})`;
+                    ${null}, ${"{}"})`; // vardiya rotasyonu kaldırıldı (2026-10-04)
 
   // ── Departmanlar (talep matrisleriyle) + Ekipler ───────────────────────────
   for (const d of DEPTS) {
     await sql`INSERT INTO departments (id, location_id, name, demand_matrix)
               VALUES (${d.id}, ${LOC}, ${d.name}, ${JSON.stringify(d.demand)})`;
-  }
-  for (const c of CREWS) {
-    await sql`INSERT INTO crews (id, org_id, location_id, name, color, created_at)
-              VALUES (${c.id}, ${ORG}, ${LOC}, ${c.name}, ${c.color}, ${now})`;
   }
 
   // ── Personel ───────────────────────────────────────────────────────────────
@@ -202,7 +198,7 @@ async function main() {
       ) VALUES (
         ${p.id}, ${ORG}, ${LOC}, ${JSON.stringify([LOC])}, ${p.department_id},
         'employee', ${p.name}, ${p.employee_id}, ${p.title}, 'full_time', 'active',
-        ${JSON.stringify(p.roles)}, ${"{}"}, 45, true, ${p.crew_id},
+        ${JSON.stringify(p.roles)}, ${"{}"}, 45, true, ${null},
         ${p.ytd_overtime_hours}, ${p.hourly_wage}, ${p.night_restriction}, 0
       )`;
   }

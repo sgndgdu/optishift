@@ -238,7 +238,7 @@ export async function PATCH(req: NextRequest) {
     }
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
-    const { name, phone, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, crew_id, night_restriction } = body;
+    const { name, phone, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, night_restriction } = body;
     // Ayrı unvan alanı yok: görevler değişince unvan ilk görev olur (görev yoksa eski unvan kalır)
     const title = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : body.title;
     // Ücret ve pasife alma müdür izinlerine bağlı (lib/ruleLocks); izin yoksa müdürün gönderdiği değer yok sayılır
@@ -296,10 +296,6 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // crew_id: undefined → dokunma, null → ekipten çıkar, string → ekip ata
-    if (crew_id !== undefined) {
-      await db.prepare("UPDATE personnel SET crew_id=? WHERE id=?").run(crew_id ?? null, id);
-    }
 
     // Yıllık izin alanları: sabit yıllık hak + elle düzeltme günü (kalan izin türetilir, doğrudan yazılmaz)
     if (body.annual_leave_days_total !== undefined) {
