@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSupervisorAuth } from "@/hooks/useAuth";
-import { Building2, Users, Plus, Layers } from "lucide-react";
+import { Building2, Plus, CalendarX, Inbox } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass, sheetDangerClass } from "@/components/ui/Sheet";
@@ -13,8 +13,6 @@ import Link from "next/link";
 import NewBranchWizard from "@/components/NewBranchWizard";
 import { getPlan } from "@/lib/plans";
 
-import { formatPublishLead } from "@/lib/publishLead";
-import { getWeekStart } from "@/lib/date";
 import { openBranchPanel } from "@/lib/sessionRouting";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -22,11 +20,7 @@ import { CountBadge, StatusPill } from "@/components/ui/StatusPill";
 type Location = {
   id: string;
   name: string;
-  dept_count: number;
   personnel_count: number;
-  publish_lead: number | null;
-  /** Gelecek haftanın planı yayınlandı mı (ortalama 3 hafta birikmeden de durum gösterilir) */
-  next_published: boolean;
 };
 
 type EditRequest = {
@@ -46,6 +40,8 @@ export default function SupervisorDashboard() {
   const { user, mounted } = useSupervisorAuth();
   const [org, setOrg]           = useState<any>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  // Şube başına tek bakış durumu (/api/branches/status): gelecek hafta planı, bugün, bekleyen onay
+  const [status, setStatus] = useState<Record<string, { next_week: "published" | "draft" | "none"; today: number; pending: number }>>({});
   // Ham şube kayıtları (Yeni Şube sihirbazı işletme türünü buradan önerir)
   const [rawLocations, setRawLocations] = useState<any[]>([]);
   // Şube eklemenin TEK yeri burası (Ayarlar'daki kopya kaldırıldı); ?new=1 ile açık gelir
@@ -111,32 +107,35 @@ export default function SupervisorDashboard() {
       // Her şube için departman + personel sayısını paralel çek
       const enriched = await Promise.all(
         locs.map(async (loc) => {
-          const [depts, pers, pubStats] = await Promise.all([
-            fetch(`/api/departments?location_id=${loc.id}`).then(r => r.json()).catch(() => []),
-            fetch(`/api/personnel?location_id=${loc.id}`).then(r => r.json()).catch(() => []),
-            fetch(`/api/schedule/publish-stats?location_id=${loc.id}`).then(r => r.json()).catch(() => null),
-          ]);
+          // Durum bilgisi /api/branches/status'tan (tek istek); burada sadece çalışan sayısı
+          const pers = await fetch(`/api/personnel?location_id=${loc.id}`).then(r => r.json()).catch(() => []);
           return {
             id: loc.id,
             name: loc.name,
-            dept_count: Array.isArray(depts) ? depts.length : 0,
-            personnel_count: Array.isArray(pers) ? pers.filter((p: any) => p.status === "active").length : 0,
-            publish_lead: typeof pubStats?.avg_lead_days === "number" ? pubStats.avg_lead_days : null,
-            next_published: Array.isArray(pubStats?.weeks) && pubStats.weeks.some((w: { week_start: string }) => w.week_start === getWeekStart(1)),
+            personnel_count: Array.isArray(pers) ? pers.filter((p: any) => p.status === "active" && p.schedulable !== false).length : 0,
           };
         })
       );
       setLocations(enriched);
+      const st = await fetch("/api/branches/status").then(r => r.json()).catch(() => ({}));
+      if (st && typeof st === "object" && !st.error) setStatus(st);
     } catch {}
     setLoading(false);
   };
 
   if (!mounted) return <div className="space-y-8" />;
 
-  const totalDepts      = locations.reduce((s, l) => s + l.dept_count, 0);
+  // Sorunlu şubeler üstte: plan yok > taslak > onay bekleyen > hazır
+  const problemScore = (id: string) => {
+    const st = status[id];
+    if (!st) return 0;
+    return (st.next_week === "none" ? 4 : st.next_week === "draft" ? 2 : 0) + (st.pending > 0 ? 1 : 0);
+  };
+  const sortedLocations = [...locations].sort((a, b) => problemScore(b.id) - problemScore(a.id));
+  const notReady = Object.values(status).filter(x => x.next_week !== "published").length;
+  const pendingTotal = Object.values(status).reduce((a, x) => a + x.pending, 0);
   const locName = (id: string) => locations.find(l => l.id === id)?.name ?? id;
   const openReq = editRequests.find(r => r.id === openReqId) ?? null;
-  const totalPersonnel  = locations.reduce((s, l) => s + l.personnel_count, 0);
 
   return (
     <Page className="animate-in fade-in duration-500">
@@ -152,16 +151,15 @@ export default function SupervisorDashboard() {
         )} />
 
       {/* Özet sayılar */}
-      <div className={`grid gap-3 sm:gap-4 ${totalDepts > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+      {/* Özet: "neresi yanıyor?" sorusunun cevabı (eskiden şube/departman/personel sayısıydı) */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
-          { label: "Şube",       value: locations.length, icon: Building2, href: "/supervisor" },
-          // Departman bilinçli olarak isteğe bağlı: hiç yoksa "0" kutusu gösterilmez
-          ...(totalDepts > 0 ? [{ label: "Departman", value: totalDepts, icon: Layers }] : []),
-          { label: "Personel",   value: totalPersonnel,    icon: Users,     href: "/supervisor/personnel" },
-        ].map(({ label, value, icon, href }: { label: string; value: number; icon: typeof Users; href?: string }) => (
-          <StatCard key={label} label={label} icon={icon} tone="neutral"
-            value={loading ? <span className="inline-block h-7 w-10 bg-slate-100 rounded-md animate-pulse" /> : value}
-            onClick={href ? () => router.push(href) : undefined} />
+          { label: "Şube", value: locations.length, icon: Building2, tone: "neutral" as const },
+          { label: "Planı hazır değil", value: notReady, icon: CalendarX, tone: notReady > 0 ? "attention" as const : "positive" as const },
+          { label: "Onay bekliyor", value: pendingTotal, icon: Inbox, tone: pendingTotal > 0 ? "attention" as const : "neutral" as const },
+        ].map(({ label, value, icon, tone }) => (
+          <StatCard key={label} label={label} icon={icon} tone={tone}
+            value={loading ? <span className="inline-block h-7 w-10 bg-slate-100 rounded-md animate-pulse" /> : value} />
         ))}
       </div>
 
@@ -212,11 +210,11 @@ export default function SupervisorDashboard() {
             )}>
               {user?.role === "admin" ? "Henüz şube yok." : "Size henüz şube atanmadı. İşletme sahibinden isteyin."}
             </ListEmpty>
-          ) : locations.map(loc => {
-            const lead = loc.publish_lead === null && loc.next_published
-              ? { short: "hazır", tone: "good" as const, sentence: "Gelecek haftanın planı yayınlandı" }
-              : formatPublishLead(loc.publish_lead);
-            const tone = lead.tone === "good" ? "positive" : lead.tone === "ok" ? "attention" : lead.tone === "late" ? "danger" : "neutral";
+          ) : sortedLocations.map(loc => {
+            const st = status[loc.id];
+            const plan = st?.next_week === "published" ? { label: "Gelecek hafta hazır", tone: "positive" as const }
+              : st?.next_week === "draft" ? { label: "Taslakta", tone: "attention" as const }
+              : st ? { label: "Gelecek hafta planı yok", tone: "danger" as const } : null;
             const canEnter = user?.role === "admin" || user?.role === "supervisor";
             return (
               <ListItem key={loc.id}
@@ -224,8 +222,12 @@ export default function SupervisorDashboard() {
                 onClick={() => { if (canEnter) { openBranchPanel(user, loc.id); router.push("/dashboard"); } else router.push(`/supervisor/schedule?location_id=${loc.id}`); }}
                 leading={<Avatar name={loc.name} tone="brand" />}
                 title={loc.name}
-                subtitle={[`${loc.personnel_count} kişi`, lead.tone !== "none" && lead.tone !== "late" ? `plan yayını: ${lead.short}` : null].filter(Boolean).join(" · ")}
-                trailing={lead.tone === "late" ? <span title={lead.sentence ?? undefined}><StatusPill tone={tone}>Geç yayın</StatusPill></span> : undefined}
+                subtitle={[
+                  st ? `Bugün ${st.today} kişi vardiyada` : null,
+                  st && st.pending > 0 ? `${st.pending} onay bekliyor` : null,
+                  `${loc.personnel_count} çalışan`,
+                ].filter(Boolean).join(" · ")}
+                trailing={plan ? <StatusPill tone={plan.tone}>{plan.label}</StatusPill> : undefined}
               />
             );
           })}

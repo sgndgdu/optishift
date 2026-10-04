@@ -8,6 +8,7 @@ import type { WeekSnapshot } from "./snapshot";
 import { findProblems, fmtHours, nameList, type Insight, type WeekBudgets } from "./checks";
 
 export { fmtHours, dayList, nameList, findProblems } from "./checks";
+export type { InsightTarget } from "./checks";
 export type { Insight, InsightSeverity, WeekBudgets } from "./checks";
 
 const ORDER = { critical: 0, warning: 1, info: 2 } as const;

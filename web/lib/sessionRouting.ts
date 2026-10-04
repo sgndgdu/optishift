@@ -48,7 +48,9 @@ export async function routeAfterLogin(data: LoginData, push: (href: string) => v
     return;
   }
 
-  if (data.role === "admin" && !data.location_id) {
+  // İşletme sahibi: şube sayısına göre (hesabın bir şubeye bağlı olması fark etmez). 2+ şubede önce
+  // Tüm Şubeler (Genel Bakış) açılır; eskiden şubeye bağlı patron doğrudan o şubenin paneline düşüyordu.
+  if (data.role === "admin") {
     localStorage.removeItem(PORTAL);
     localStorage.removeItem(MANAGER);
     localStorage.setItem(SUPERVISOR, JSON.stringify(data));

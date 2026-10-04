@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { Building2, MapPin } from "lucide-react";
 
 export default function OwnerBranchBanner() {
   const router = useRouter();
@@ -30,8 +30,9 @@ export default function OwnerBranchBanner() {
   if (!info?.name) return null;
   return (
     <div className="flex items-center justify-between gap-3 bg-ember-50 border-b border-ember-100 px-4 py-2 text-xs">
-      <span className="text-ember-800 font-semibold truncate">
-        <span className="font-bold">{info.name}</span> şubesinde çalışıyorsunuz
+      {/* Kısa: telefonda "… şubesinde çalışıyorsunuz" cümlesi şube adını kesiyordu */}
+      <span className="inline-flex items-center gap-1.5 text-ember-800 font-bold truncate min-w-0">
+        <MapPin size={13} className="shrink-0" /><span className="truncate">{info.name}</span>
       </span>
       <button
         onClick={() => {
@@ -45,7 +46,7 @@ export default function OwnerBranchBanner() {
         }}
         className="shrink-0 inline-flex items-center gap-1 font-bold text-ember-700 hover:underline"
       >
-        <Building2 size={13} /> Tüm Şubeler ({info.count})
+        <Building2 size={13} /> Tüm Şubeler
       </button>
     </div>
   );

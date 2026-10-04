@@ -12,12 +12,18 @@ import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_DRIVING_MAX_HOURS, DAILY_MAX_NET_HO
 
 export type InsightSeverity = "critical" | "warning" | "info";
 
+/** Plan tablosunda bir sorunun yeri: kişinin satırı ve (varsa) gün. */
+export interface InsightTarget { personId?: string; day?: number }
+type Line = string | ({ text: string } & InsightTarget);
+
 export interface Insight {
   id: string;
   severity: InsightSeverity;
   title: string;
   /** Madde altındaki satırlar (kişi ya da gün bazında). */
   lines: string[];
+  /** Satırla aynı sırada: satıra dokununca plan tablosunda gidilecek kişi/gün (yoksa null). */
+  targets?: (InsightTarget | null)[];
   /** Sayfanın bağlayacağı eylem. */
   action?: "remind-availability" | "open-demand";
 }
@@ -50,11 +56,18 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   const { rules } = snap;
   const working = snap.people.filter(p => p.shifts.length > 0);
   const out: Insight[] = [];
-  const add = (id: string, severity: InsightSeverity, title: string, lines: string[]) => {
-    if (lines.length > 0) out.push({ id, severity, title, lines });
+  const add = (id: string, severity: InsightSeverity, title: string, lines: Line[]) => {
+    if (lines.length === 0) return;
+    const targets = lines.map(l => (typeof l === "string" ? null : (l.personId || l.day !== undefined ? { personId: l.personId, day: l.day } : null)));
+    out.push({ id, severity, title, lines: lines.map(l => (typeof l === "string" ? l : l.text)), ...(targets.some(Boolean) ? { targets } : {}) });
   };
-  const per = <T,>(pick: (p: (typeof working)[number]) => T[] | null, line: (name: string, items: T[]) => string) =>
-    working.flatMap(p => { const items = pick(p); return items && items.length ? [line(p.name, items)] : []; });
+  // Kişi bazlı satır: hedef kişinin satırı ve sorunlu ilk gün (gün listesi, vardiya ya da dinlenme aralığı)
+  const firstDay = (items: unknown[]): number | undefined => {
+    const x = items[0] as number | { day?: number; toDay?: number };
+    return typeof x === "number" ? x : x?.day ?? x?.toDay;
+  };
+  const per = <T,>(pick: (p: (typeof working)[number]) => T[] | null, line: (name: string, items: T[]) => string): Line[] =>
+    working.flatMap(p => { const items = pick(p); return items && items.length ? [{ text: line(p.name, items), personId: p.id, day: firstDay(items) }] : []; });
 
   // ── Acil: yasal ya da kesin sorunlar ─────────────────────────────────────
   const onLeave = per(p => p.onLeaveDays, (n, d) => `${n}: ${dayList(d)}`);
@@ -68,7 +81,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
 
   const over = working.filter(p => p.hours > p.maxHours);
   add("over-hours", "critical", `${over.length} kişi haftalık çalışma sınırını aşıyor`,
-    over.map(p => `${p.name}: ${fmtHours(p.hours)}, sınır ${fmtHours(p.maxHours)}${p.maxHours === 66 ? " (denkleştirmede tek hafta tavanı)" : ""}`));
+    over.map(p => ({ text: `${p.name}: ${fmtHours(p.hours)}, sınır ${fmtHours(p.maxHours)}${p.maxHours === 66 ? " (denkleştirmede tek hafta tavanı)" : ""}`, personId: p.id })));
 
   const shortRest = per(p => p.restGaps.filter(g => g.hours < rules.minRestHours),
     (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}`);
@@ -77,7 +90,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   // İş K. m.46: 7 günde en az 24 saat kesintisiz hafta tatili
   const noWeeklyRest = working.filter(p => p.longestRestHours < WEEKLY_REST_HOURS);
   add("weekly-rest", "critical", `${noWeeklyRest.length} kişiye haftada 24 saat kesintisiz dinlenme kalmıyor`,
-    noWeeklyRest.map(p => `${p.name}: en uzun dinlenme ${fmtHours(p.longestRestHours)} (İş Kanunu m.46 hafta tatili)`));
+    noWeeklyRest.map(p => ({ text: `${p.name}: en uzun dinlenme ${fmtHours(p.longestRestHours)} (İş Kanunu m.46 hafta tatili)`, personId: p.id })));
 
   // İş K. m.63: günlük çalışma 11 saati aşamaz (m.68 asgari mola düşülerek)
   const longDays = per(p => p.shifts.filter(x => netWorkHours(x.hours) > DAILY_MAX_NET_HOURS),
@@ -99,22 +112,22 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
 
   const restricted = working.filter(p => p.nights > 0 && p.nightRestriction);
   add("night-restriction", "critical", `${restricted.length} kişi gece çalışma engeline rağmen gece vardiyasında`,
-    restricted.map(p => `${p.name}: ${NIGHT_RESTRICTION[p.nightRestriction!] ?? p.nightRestriction}. İş Kanunu m.73 gereği gece çalıştırılamaz`));
+    restricted.map(p => ({ text: `${p.name}: ${NIGHT_RESTRICTION[p.nightRestriction!] ?? p.nightRestriction}. İş Kanunu m.73 gereği gece çalıştırılamaz`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
 
   const nightWeeks = working.filter(p => p.nights > 0 && p.workedNightLastWeek && !p.nightRestriction);
   add("night-weeks", "critical", `${nightWeeks.length} kişi arka arkaya ikinci hafta gece çalışıyor`,
-    nightWeeks.map(p => `${p.name}: geçen hafta da gece çalıştı (Postalar Yönetmeliği m.8)`));
+    nightWeeks.map(p => ({ text: `${p.name}: geçen hafta da gece çalıştı (Postalar Yönetmeliği m.8)`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
 
   // Geçmiş günler değiştirilemez: kapsama uyarıları sadece bugün ve sonrası için
   const upcoming = snap.coverage.filter(c => !c.past);
   const skillGaps = upcoming.filter(c => c.missingSkills.length > 0);
   add("skill-gap", "critical", `${skillGaps.length} vardiyada zorunlu görev eksik`,
-    skillGaps.map(c => `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.missingSkills.map(m => `${m.need} ${m.skill} gerekli, ${m.have} var`).join("; ")}`));
+    skillGaps.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.missingSkills.map(m => `${m.need} ${m.skill} gerekli, ${m.have} var`).join("; ")}`, day: c.day })));
 
   const short = upcoming.filter(c => c.demand !== null && c.assigned < c.demand);
   add("understaffed", "critical",
     `${short.length} vardiyada toplam ${short.reduce((s, c) => s + (c.demand! - c.assigned), 0)} kişi eksik`,
-    short.map(c => `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}`));
+    short.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}`, day: c.day })));
 
   if (rules.nightLegalWarning) {
     const long = [...new Set(working.flatMap(p => p.shifts.filter(s => s.night && s.hours > 7.5).map(s => s.hours)))];

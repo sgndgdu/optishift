@@ -13,7 +13,7 @@
 import { useState, type ReactNode } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ClipboardCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QUESTIONS, answerQuestion, type Answer, type Insight, type WeekSnapshot } from "@/lib/copilot";
+import { type Insight, type InsightTarget, type WeekSnapshot } from "@/lib/copilot";
 
 export type WeekAlertTone = "danger" | "warning" | "info" | "success";
 
@@ -65,20 +65,19 @@ function AlertRow({ alert }: { alert: WeekAlert }) {
   );
 }
 
-export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
+export default function WeekCopilot({ alerts, snapshot, insights, onAction, onJump }: {
   alerts: WeekAlert[];
   /** null: vardiya tanımı ya da personel yok, Asistan gösterilmez. */
   snapshot: WeekSnapshot | null;
   insights: Insight[];
   onAction: (action: InsightAction) => void;
+  /** Satıra dokununca plan tablosunda o kişiye/güne gider. */
+  onJump?: (target: InsightTarget) => void;
 }) {
   const [open, setOpen] = useState(false);
-  // Soru saklanır, cevap her render'da güncel plandan hesaplanır
-  const [asked, setAsked] = useState<{ id: string; personId?: string } | null>(null);
 
   if (alerts.length === 0 && !snapshot) return null;
 
-  const answer: Answer | null = snapshot && asked ? answerQuestion(snapshot, asked.id, asked.personId) : null;
   const problems = insights.filter(i => i.severity !== "info");
   const critical = problems.filter(i => i.severity === "critical").length;
   const headline = !snapshot ? ""
@@ -118,7 +117,16 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
                         <p className="text-sm font-semibold text-slate-800">{i.title}</p>
                         {i.lines.length > 0 && (
                           <ul className="mt-0.5 space-y-0.5">
-                            {i.lines.slice(0, 6).map(l => <li key={l} className="text-xs text-slate-600">{l}</li>)}
+                            {i.lines.slice(0, 6).map((l, li) => {
+                              const tg = i.targets?.[li];
+                              return (
+                                <li key={l} className="text-xs text-slate-600">
+                                  {tg && onJump
+                                    ? <button type="button" onClick={() => onJump(tg)} className="text-left hover:text-forest-700 underline decoration-dotted underline-offset-2">{l}</button>
+                                    : l}
+                                </li>
+                              );
+                            })}
                             {i.lines.length > 6 && <li className="text-xs text-slate-400">ve {i.lines.length - 6} satır daha</li>}
                           </ul>
                         )}
@@ -133,39 +141,7 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction }: {
                 })}
               </ul>
 
-              {snapshot.status !== "empty" && (
-                <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-slate-500">Hazır sorular</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUESTIONS.filter(q => !q.needsPerson).map(q => (
-                      <button key={q.id} onClick={() => setAsked({ id: q.id })}
-                        className={cn("px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors",
-                          asked?.id === q.id ? "bg-forest-700 text-white border-forest-700" : "bg-white text-slate-700 border-slate-200 hover:border-forest-300 hover:bg-forest-50")}>
-                        {q.label}
-                      </button>
-                    ))}
-                    <select value={asked?.id === "person" ? asked.personId : ""} aria-label="Bir kişinin haftası"
-                      onChange={e => setAsked(e.target.value ? { id: "person", personId: e.target.value } : null)}
-                      className={cn("px-3 py-1.5 rounded-full text-xs font-semibold border bg-white",
-                        asked?.id === "person" ? "border-forest-700 text-forest-800" : "border-slate-200 text-slate-700")}>
-                      <option value="">Bir kişinin haftası…</option>
-                      {[...snapshot.people].sort((a, b) => a.name.localeCompare(b.name, "tr")).map(p =>
-                        <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-
-                  {answer && (
-                    <div className="rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-3">
-                      <p className="text-sm font-bold text-slate-800">{answer.title}</p>
-                      {answer.lines.length > 0 && (
-                        <ul className="mt-1 space-y-0.5">
-                          {answer.lines.map(l => <li key={l} className="text-xs text-slate-600">{l}</li>)}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Hazır sorular buradan kaldırıldı: aynı işi İşletme Asistanı yapıyor; bu kart sadece uyarı listesi */}
             </div>
           )}
         </>

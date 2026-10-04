@@ -315,7 +315,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
 
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8">
-        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" ? "Görünüm" : "Aktif Şube"}</p>
+        <p className="text-xs font-bold text-slate-400 mb-2">Şube</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}

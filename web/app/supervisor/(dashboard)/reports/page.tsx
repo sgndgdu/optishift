@@ -7,7 +7,7 @@ import { formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { useEffect, useState, useCallback } from "react";
 import { useSupervisorAuth } from "@/hooks/useAuth";
 import { getWeekStart } from "@/lib/date";
-import { Building2, Users, Clock, AlertTriangle, ChevronLeft, ChevronRight, ShieldCheck, RefreshCw } from "lucide-react";
+import { Clock, AlertTriangle, ChevronLeft, ChevronRight, ShieldCheck, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty, ListSection } from "@/components/ui/List";
@@ -142,7 +142,6 @@ export default function SupervisorReports() {
   // ── derived totals ───────────────────────────────────────────────────────
   const totalShifts     = branches.reduce((a, b) => a + b.scheduled_shifts, 0);
   const totalHours      = Math.round(branches.reduce((a, b) => a + b.total_hours, 0) * 10) / 10;
-  const totalPersonnel  = branches.reduce((a, b) => a + b.personnel_count, 0);
   const totalFlags      = branches.reduce((a, b) => a + b.compliance_flags.length, 0);
   const overCount       = branches.reduce((a, b) => a + b.compliance_flags.filter(f => f.hours > f.max_weekly_hours).length, 0);
   const nearCount       = totalFlags - overCount;
@@ -179,9 +178,8 @@ export default function SupervisorReports() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Şube" value={branches.length} icon={Building2} />
-        <StatCard label="Personel" value={totalPersonnel} icon={Users} />
+      {/* Şube/personel sayıları Genel Bakış'ta; burada sadece rapor sayıları */}
+      <div className="grid grid-cols-2 gap-3">
         <StatCard label="Toplam saat" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
         <StatCard label="Haftalık sınır" value={totalFlags === 0 ? "Sorun yok" : [overCount ? `${overCount} aştı` : null, nearCount ? `${nearCount} yaklaştı` : null].filter(Boolean).join(" · ")}
           icon={totalFlags > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : totalFlags > 0 ? "attention" : "positive"}

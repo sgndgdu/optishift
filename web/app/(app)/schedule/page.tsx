@@ -14,7 +14,7 @@ import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
-import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type DayState, type Insight, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
+import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type DayState, type Insight, type InsightTarget, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
@@ -381,6 +381,19 @@ function SchedulePageInner() {
   });
   // Telefonda tablo tek gün gösterir; varsayılan bugün
   const [mobileDay, setMobileDay] = useState(() => (weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0));
+  // Plan Kontrolü / yayın uyarısından "oraya git": kişinin satırına kaydırır, hücreyi kısa süre vurgular
+  const [flash, setFlash] = useState<InsightTarget | null>(null);
+  const jumpTo = (t: InsightTarget) => {
+    if (t.day !== undefined) setMobileDay(t.day);
+    setFlash(t);
+    setTimeout(() => {
+      const el = t.personId
+        ? document.querySelector(`[data-person-row="${t.personId}"]`)
+        : document.querySelector("[data-schedule-grid]");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    setTimeout(() => setFlash(null), 3000);
+  };
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void } | null>(null);
@@ -2913,6 +2926,7 @@ loading ? (
             snapshot={!loading && shiftDefs.length > 0 && personnel.length > 0 ? weekSnapshot : null}
             insights={weekInsights}
             onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
+            onJump={jumpTo}
           />
           {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
             <QuickSetup
@@ -3000,7 +3014,10 @@ loading ? (
                     <li key={pr.id}>
                       <p className={cn("text-xs font-bold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
                       <ul className="text-xs text-red-700 space-y-0.5 list-disc list-inside">
-                        {pr.lines.slice(0, 5).map(l => <li key={l}>{l}</li>)}
+                        {pr.lines.slice(0, 5).map((l, li) => {
+                          const tg = pr.targets?.[li];
+                          return <li key={l}>{tg ? <button type="button" onClick={() => { setViolationModal(null); jumpTo(tg); }} className="underline decoration-dotted text-left">{l}</button> : l}</li>;
+                        })}
                         {pr.lines.length > 5 && <li className="list-none text-red-500">ve {pr.lines.length - 5} satır daha</li>}
                       </ul>
                     </li>
@@ -3010,7 +3027,12 @@ loading ? (
               </div>
               <div className="flex gap-2 shrink-0 sm:flex-col w-full sm:w-auto">
                 <button onClick={violationModal.onConfirm} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors whitespace-nowrap">Yine de Yayınla</button>
-                <button onClick={() => setViolationModal(null)} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap">Düzelt</button>
+                <button onClick={() => {
+                  // İlk düzeltilebilir soruna götürür (eskiden sadece pencereyi kapatıyordu)
+                  const first = violationModal.problems.flatMap(pr => pr.targets ?? []).find(Boolean);
+                  setViolationModal(null);
+                  if (first) jumpTo(first);
+                }} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap">Düzelt</button>
               </div>
             </div>
           )}
@@ -3040,7 +3062,7 @@ loading ? (
                 })}
               </div>
             )}
-            <div className="overflow-x-auto relative">
+            <div className="overflow-x-auto relative" data-schedule-grid>
               <table className="w-full sm:min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
@@ -3145,7 +3167,7 @@ loading ? (
                     const scoreBarWidth = maxScore > 0 ? `${Math.min(100, (score / maxScore) * 100)}%` : "0%";
 
                     return (
-                      <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
+                      <tr key={p.id} data-person-row={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
                         <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-2 sm:px-3 py-2 h-14">
                           <div className="flex items-center gap-2">
                             <div className="hidden sm:flex w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-bold flex items-center justify-center shrink-0">
@@ -3197,6 +3219,8 @@ loading ? (
                           const tdClass = cn(
                             "py-1 px-1 h-14 align-middle",
                             isWeekend && "bg-forest-50/20",
+                            // Plan Kontrolü'nden "oraya git": hücre kısa süre vurgulanır
+                            flash && flash.personId === p.id && (flash.day === undefined || flash.day === day) && "ring-2 ring-inset ring-amber-400 bg-amber-50",
                             mobileDay !== day && "hidden sm:table-cell",
                           );
                           const ocCallMin = oc?.id ? callouts.filter(c => c.assignment_id === oc.id)
