@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { sortDepartments } from "@/lib/departments";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import { isCategoryLocked, LOCK_NOTE, type LockCategory } from "@/lib/ruleLocks";
 import { hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
@@ -374,6 +375,9 @@ export default function SettingsPage() {
 
   // Departman yönetimi — anında DB'ye kaydedilir (/api/departments)
   const [newDeptName, setNewDeptName] = useState("");
+  // Alt departman ekleme: hangi departmanın altına (lib/departments, tek kat)
+  const [subParentId, setSubParentId] = useState<string | null>(null);
+  const [newSubName, setNewSubName] = useState("");
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editingDeptName, setEditingDeptName] = useState("");
   const [deptError, setDeptError] = useState<string | null>(null);
@@ -971,20 +975,20 @@ export default function SettingsPage() {
   };
 
   // ── Departman CRUD — anında DB'ye yazılır, handleSave'den bağımsız ──
-  const handleAddDepartment = async () => {
-    const name = newDeptName.trim();
+  const handleAddDepartment = async (parentId: string | null = null) => {
+    const name = (parentId ? newSubName : newDeptName).trim();
     if (!name || !selectedLocationId) return;
     setDeptError(null);
     try {
       const res = await fetch("/api/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id: selectedLocationId, name }),
+        body: JSON.stringify({ location_id: selectedLocationId, name, parent_id: parentId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Sunucu hatası");
       setDepartments(prev => [...prev, data]);
-      setNewDeptName("");
+      if (parentId) { setNewSubName(""); setSubParentId(null); } else setNewDeptName("");
     } catch (err) {
       setDeptError(err instanceof Error && err.message ? err.message : "Departman eklenemedi.");
     }
@@ -1020,7 +1024,8 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`/api/departments?id=${dept.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
-      setDepartments(prev => prev.filter(d => d.id !== dept.id));
+      // Alt departmanları üst düzeye çıkar (sunucu da aynısını yapar)
+      setDepartments(prev => prev.filter(d => d.id !== dept.id).map(d => (d.parent_id === dept.id ? { ...d, parent_id: null } : d)));
     } catch {
       setDeptError("Departman silinemedi.");
     }
@@ -1266,7 +1271,9 @@ export default function SettingsPage() {
                   <SectionLabel>Departmanlar</SectionLabel>
                   <p className="text-xs text-slate-400 mb-3">
                     İsteğe bağlı. Kasa, mutfak, hat gibi bölümler eklerseniz kişiler bir departmana atanır ve kaç kişi
-                    gerektiği her departman için ayrı girilir. Küçük işletmede gerekmez. Değişiklikler anında kaydedilir.
+                    gerektiği her departman için ayrı girilir. Bir departmanı alt departmanlara da bölebilirsiniz
+                    (Salon › Teras gibi): kişiler alt departmanlara atanır, departmanın şefi hepsini yönetir.
+                    Küçük işletmede gerekmez. Değişiklikler anında kaydedilir.
                   </p>
 
                   {deptError && (
@@ -1284,7 +1291,7 @@ export default function SettingsPage() {
                     />
                     <button
                       disabled={!newDeptName.trim()}
-                      onClick={handleAddDepartment}
+                      onClick={() => handleAddDepartment()}
                       className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
                     >
                       <Plus size={14} /> Ekle
@@ -1298,9 +1305,10 @@ export default function SettingsPage() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {departments.map(dept => (
-                        <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                          <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
+                      {sortDepartments(departments).map(dept => (
+                        <Fragment key={dept.id}>
+                        <div className={cn("flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3", dept.parent_id && "ml-6")}>
+                          <div className={cn("rounded-full shrink-0", dept.parent_id ? "w-2 h-2 bg-forest-300" : "w-2.5 h-2.5 bg-forest-400")} />
                           {editingDeptId === dept.id ? (
                             <input
                               value={editingDeptName}
@@ -1329,11 +1337,32 @@ export default function SettingsPage() {
                             </>
                           ) : (
                             <>
+                              {!dept.parent_id && (
+                                <button onClick={() => { setSubParentId(subParentId === dept.id ? null : dept.id); setNewSubName(""); }}
+                                  className="px-2 py-1 text-xs font-semibold text-forest-700 hover:bg-forest-50 rounded-lg shrink-0">+ Alt departman</button>
+                              )}
                               <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
                               <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
                             </>
                           )}
                         </div>
+                        {subParentId === dept.id && (
+                          <div className="ml-6 flex items-center gap-2">
+                            <input
+                              value={newSubName}
+                              onChange={e => setNewSubName(e.target.value)}
+                              onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(dept.id); if (e.key === "Escape") setSubParentId(null); }}
+                              autoFocus
+                              placeholder={`${dept.name} altında yeni bölüm`}
+                              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
+                            />
+                            <button disabled={!newSubName.trim()} onClick={() => handleAddDepartment(dept.id)}
+                              className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0">
+                              <Plus size={14} /> Ekle
+                            </button>
+                          </div>
+                        )}
+                        </Fragment>
                       ))}
                     </div>
                   )}

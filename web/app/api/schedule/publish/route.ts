@@ -4,7 +4,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { canPublishPlan, departmentScope } from "@/lib/userAccess";
-import { canManageLocation } from "@/lib/access";
+import { canManageLocation, chefDepartmentIds } from "@/lib/access";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
 import { deriveOvertimeForWeek } from "@/lib/overtime";
@@ -68,9 +68,10 @@ export async function POST(req: NextRequest) {
     // ── 7. Bildirimler ────────────────────────────────────────────────────────
     // Departman şefi kendi departmanını yayınlar: bildirim sadece kendi ekibine
     const chefDept = departmentScope(auth);
+    const chefFamily = await chefDepartmentIds(db, auth);
     const activePersonnel = (await db.prepare(`
       SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'
-    `).all(`%"${location_id}"%`) as any[]).filter((p: any) => !chefDept || p.department_id === chefDept);
+    `).all(`%"${location_id}"%`) as any[]).filter((p: any) => !chefFamily || chefFamily.includes(p.department_id));
 
     // Kişi başı bildirimler paralel: sırayla gidince yayın kalabalık şubede ~11 sn sürüyordu (Test 3)
     let sentCount = 0;

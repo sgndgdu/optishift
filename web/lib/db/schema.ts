@@ -58,6 +58,7 @@ export const departments = pgTable("departments", {
   name: text("name").notNull(),
   demand_matrix: text("demand_matrix"), // JSON: {shiftDefId: {day(0-6): count}}
   manager_id: text("manager_id"), // user_id — departman müdürü
+  parent_id: text("parent_id"), // alt departmansa bağlı olduğu departman (tek kat; lib/departments)
 });
 
 // ─── Users (Portal Login) ─────────────────────────────────────────────────────

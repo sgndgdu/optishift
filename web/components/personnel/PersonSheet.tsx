@@ -16,6 +16,7 @@ import { LOCK_NOTE } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
 import { branchRoles } from "@/lib/roles";
+import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments, type DeptLite } from "@/lib/departments";
 import { parseBranchRotation, rotationBranchForWeek } from "@/lib/branchRotation";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { isSenior } from "@/lib/seniority";
@@ -74,7 +75,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [openingAccount, setOpeningAccount] = useState(false);
-  const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [depts, setDepts] = useState<DeptLite[]>([]);
   const [personnelDocs, setPersonnelDocs] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [newDocType, setNewDocType] = useState("");
@@ -91,7 +92,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
     let alive = true;
     fetch(`/api/departments?location_id=${branchId}`).then(r => r.json()).catch(() => []).then(d => {
       if (!alive) return;
-      setDepts(Array.isArray(d) ? d.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) : []);
+      setDepts(Array.isArray(d) ? d.map((x: DeptLite) => ({ id: x.id, name: x.name, parent_id: x.parent_id ?? null })) : []);
     });
     return () => { alive = false; };
   }, [branchId]);
@@ -125,14 +126,14 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [rotEvery, setRotEvery] = useState(initialRot?.every_weeks ?? 1);
   const [rotAnchor] = useState(initialRot?.anchor ?? getWeekStart(0));
   // Diğer şubelerdeki departman: departmanlı şubede plan departman bazında yapılır, kişinin orada bir departmanı olmalı
-  const [branchDeptLists, setBranchDeptLists] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [branchDeptLists, setBranchDeptLists] = useState<Record<string, DeptLite[]>>({});
   const [branchDept, setBranchDept] = useState<Record<string, string>>({});
   const otherBranchKey = branchIds.filter(id => id !== ep.location_id).join(",");
   useEffect(() => {
     let alive = true;
     for (const loc of otherBranchKey ? otherBranchKey.split(",") : []) {
       if (branchDeptLists[loc]) continue;
-      fetch(`/api/departments?location_id=${loc}&names=1`).then(r => r.json()).then((d: { id: string; name: string }[]) => {
+      fetch(`/api/departments?location_id=${loc}&names=1`).then(r => r.json()).then((d: DeptLite[]) => {
         if (!alive || !Array.isArray(d)) return;
         setBranchDeptLists(prev => ({ ...prev, [loc]: d }));
         const mine = d.find(x => ep.assigned_department_ids.includes(x.id));
@@ -444,7 +445,10 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
                 className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${editForm.department_id ? "border-slate-200" : "border-amber-300"}`}>
                 <option value="">Seçilmedi (otomatik plana alınmaz)</option>
-                {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {/* Kişi en alttaki departmana bağlanır (lib/departments); eskiden üst departmana bağlıysa o da görünür */}
+                {sortDepartments(depts).filter(d => !hasSubDepartments(depts, d.id) || d.id === editForm.department_id).map(d => (
+                  <option key={d.id} value={d.id}>{departmentLabel(depts, d)}{hasSubDepartments(depts, d.id) ? " (alt departman seçin)" : ""}</option>
+                ))}
               </select>
             </div>
           )}
@@ -664,7 +668,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                           onChange={e => setBranchDept(prev => ({ ...prev, [id]: e.target.value }))}
                           className={`flex-1 min-w-0 border rounded-lg px-2 py-1.5 text-sm bg-white ${branchDept[id] ? "border-slate-200" : "border-amber-300"}`}>
                           <option value="">Seçilmedi (orada otomatik plana alınmaz)</option>
-                          {branchDeptLists[id].map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          {leafDepartments(sortDepartments(branchDeptLists[id])).map(d => <option key={d.id} value={d.id}>{departmentLabel(branchDeptLists[id], d)}</option>)}
                         </select>
                       </div>
                     ))}

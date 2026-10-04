@@ -5,8 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
-import { departmentScope } from "@/lib/userAccess";
-import { managerOutsideBranch } from "@/lib/access";
+import { chefDepartmentIds, departmentInScope, managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import { MAX_IMPORT_ROWS, checkRows, unknownDepartments, type ImportRow } from "@/lib/personnelImport";
 
@@ -87,10 +86,10 @@ export async function POST(req: NextRequest) {
       room = Math.max(0, maxPersonnel - Number(cnt));
     }
 
-    // Departman şefinin eklediği herkes şefin departmanına girer
-    const chefDept = departmentScope(auth);
+    // Departman şefinin eklediği herkes şefin kapsamındaki departmana (satırdaki alt departman ya da şefin departmanı) girer
+    const chefFam = await chefDepartmentIds(db, auth);
     for (const p of checked) {
-      if (chefDept) p.departmentId = chefDept;
+      if (chefFam) p.departmentId = departmentInScope(chefFam, p.departmentId);
       if (p.status === "skip") { skipped.push({ line: p.line, name: p.name, reason: p.notes[0] ?? "Atlandı" }); continue; }
       if (results.length >= room) { skipped.push({ line: p.line, name: p.name, reason: limitMessage("personnel") }); continue; }
       if (p.email) {

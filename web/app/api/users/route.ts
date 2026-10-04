@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
-import { canManageAccount, managerOutsideBranch } from "@/lib/access";
+import { canManageAccount, chefDepartmentIds, departmentInScope, managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import {
   accountLevel, ALL_PERMS, canDelegate, capPerms, departmentScope, hasPerm, normalizeAccess, parseAccess, permError, type UserAccess,
@@ -97,7 +97,8 @@ export async function POST(req: NextRequest) {
       if (!existing) return NextResponse.json({ error: "Personel bulunamadı" }, { status: 404 });
       const taken = await db.prepare(`SELECT id FROM users WHERE personnel_id = ?`).get(existing.id);
       if (taken) return NextResponse.json({ error: "Bu kişinin zaten bir hesabı var" }, { status: 409 });
-      if (departmentScope(auth) && existing.department_id !== departmentScope(auth)) {
+      const fam = await chefDepartmentIds(db, auth);
+      if (fam && !fam.includes(existing.department_id)) {
         return NextResponse.json({ error: "Sadece kendi departmanınızdaki kişiye hesap açabilirsiniz" }, { status: 403 });
       }
       name = name?.trim() ? name : existing.name;
@@ -134,9 +135,10 @@ export async function POST(req: NextRequest) {
       : Array.isArray(location_ids) && location_ids.length
       ? location_ids
       : (location_id ? [location_id] : []);
-    const chefDept = departmentScope(auth);
-    const effDeptIds: string[] = chefDept && !existing
-      ? [chefDept]
+    // Departman şefi: seçilen departman kapsamındaysa o (alt departman), değilse şefin kendi departmanı
+    const chefFam = await chefDepartmentIds(db, auth);
+    const effDeptIds: string[] = chefFam && !existing
+      ? [departmentInScope(chefFam, department_id ?? department_ids?.[0])!]
       : existing
       ? [existing.department_id].filter(Boolean)
       : Array.isArray(department_ids) && department_ids.length
@@ -358,8 +360,9 @@ export async function PATCH(req: NextRequest) {
         .run(locId, deptId, title, permissions, id);
       // Yönetici varsayılan olarak vardiya yazılmaz (kullanıcı kararı); kartındaki anahtarla plana alınır
       await db.prepare("UPDATE personnel SET user_access_level = 'manager', schedulable = false WHERE id = ?").run(target.personnel_id);
-      if (deptId && p?.department_id !== deptId) {
-        // Şef kendi departmanının ekibinde görünsün
+      // Şef kendi departmanının ekibinde görünsün: zaten departmanında ya da alt departmanındaysa yeri korunur
+      const fam = deptId ? (await db.prepare("SELECT id FROM departments WHERE id = ? OR parent_id = ?").all(deptId, deptId) as { id: string }[]).map(r => r.id) : [];
+      if (deptId && !fam.includes(p?.department_id)) {
         await db.prepare("UPDATE personnel SET department_id = ?, assigned_department_ids = ? WHERE id = ?").run(deptId, JSON.stringify([deptId]), target.personnel_id);
       }
       return NextResponse.json({ success: true });

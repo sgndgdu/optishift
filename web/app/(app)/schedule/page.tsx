@@ -38,6 +38,7 @@ import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { canPublishPlan, departmentScope, hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
+import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments } from "@/lib/departments";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -551,8 +552,8 @@ function SchedulePageInner() {
         const deptData = await deptRes.json();
         if (stale) return;
         const deptArr = Array.isArray(deptData) ? deptData : [];
-        // Departman şefi sadece kendi departmanının ihtiyaç satırını görür (lib/userAccess)
-        const visibleDepts = chefDept ? deptArr.filter((d: any) => d.id === chefDept) : deptArr;
+        // Departman şefi sadece kendi departmanının ve alt departmanlarının satırlarını görür (lib/userAccess, lib/departments)
+        const visibleDepts = chefDept ? deptArr.filter((d: any) => d.id === chefDept || d.parent_id === chefDept) : deptArr;
         setDepartments(visibleDepts);
 
         // Per-departman kapasite matrislerini yükle
@@ -2082,8 +2083,11 @@ function SchedulePageInner() {
   // önce girilmiş eski/artık lokasyon-geneli matris "hayalet" talep olarak görünürdü —
   // hem UI'da hem /api/generate'e giden payload'da bu tutarsızlığa yol açıyordu.
   const hasDeptDemand = departments.length > 0;
+  // Alt departmanlar (lib/departments): ihtiyaç en alttaki departmanlarda; alt departmanı olanın kendi tablosu sayılmaz
+  const demandDepts = leafDepartments(sortDepartments(departments));
+  const groupDeptIds = new Set<string>(departments.filter(d => hasSubDepartments(departments, d.id)).map(d => d.id));
   const effectiveDemandMatrix: Record<string, Record<number, number>> = hasDeptDemand
-    ? Object.values(deptDemandMatrix).reduce<Record<string, Record<number, number>>>((acc, matrix) => {
+    ? Object.entries(deptDemandMatrix).filter(([id]) => !groupDeptIds.has(id)).map(([, m]) => m).reduce<Record<string, Record<number, number>>>((acc, matrix) => {
         for (const [defId, days] of Object.entries(matrix)) {
           if (!acc[defId]) acc[defId] = {};
           for (const [day, count] of Object.entries(days)) {
@@ -2187,8 +2191,9 @@ function SchedulePageInner() {
 
     if (hasDeptDemand) {
       for (const [deptId, matrix] of Object.entries(deptDemandMatrix)) {
+        if (hasSubDepartments(departments, deptId)) continue;
         const members = personnel.filter(p => (p.department_id || '__none__') === deptId);
-        const deptName = departments.find(d => d.id === deptId)?.name || deptId;
+        const deptName = departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId;
         const dayTotals = sumDayTotals(matrix);
         for (const [dayStr, total] of Object.entries(dayTotals)) {
           const d = parseInt(dayStr);
@@ -2285,10 +2290,12 @@ function SchedulePageInner() {
       if (!byDept[key]) byDept[key] = [];
       byDept[key].push(p);
     }
-    for (const dept of departments) {
+    for (const dept of sortDepartments(departments)) {
       const ppl = byDept[dept.id] || [];
       if (personnelFilter && ppl.length === 0) continue;
-      tableRows.push({ kind: 'header', dept: { id: dept.id, name: dept.name } });
+      // Alt departmanı olan ve kendisinde kimse olmayan departman başlık olarak çizilmez (alt departmanlar adıyla gelir)
+      if (groupDeptIds.has(dept.id) && ppl.length === 0) continue;
+      tableRows.push({ kind: 'header', dept: { id: dept.id, name: departmentLabel(departments, dept) } });
       for (const p of ppl) tableRows.push({ kind: 'person', person: p });
     }
     const none = byDept['__none__'] || [];
@@ -2573,7 +2580,7 @@ loading ? (
                         </tr>
                       ))
                     ) : (
-                      departments.map(dept => {
+                      demandDepts.map(dept => {
                         const deptHeadcount = personnel.filter(p => p.department_id === dept.id).length;
                         return (
                         <Fragment key={dept.id}>
@@ -2581,7 +2588,7 @@ loading ? (
                             <td colSpan={8} className="px-5 py-2">
                               <div className="flex items-center gap-2">
                                 <div className="w-0.5 h-4 rounded-full bg-forest-400 shrink-0" />
-                                <span className="text-xs font-bold text-slate-700">{dept.name}</span>
+                                <span className="text-xs font-bold text-slate-700">{departmentLabel(departments, dept)}</span>
                                 <span className="text-[10px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
                               </div>
                             </td>
@@ -2664,7 +2671,8 @@ loading ? (
   );
 
   // Departmanlı şubede departmanı seçilmemiş kişi otomatik plana alınmaz (lib/generatePlan)
-  const noDeptPeople = departments.length > 0 ? personnel.filter((p: { department_id?: string | null }) => !p.department_id) : [];
+  // Alt departmanı olan departmana doğrudan bağlı kişi de alt departman seçilene kadar plana alınmaz
+  const noDeptPeople = departments.length > 0 ? personnel.filter((p: { department_id?: string | null }) => !p.department_id || groupDeptIds.has(p.department_id)) : [];
 
   // Haftanın uyarıları tek şeritte (components/schedule/WeekAlerts)
   const weekAlerts: WeekAlert[] = [

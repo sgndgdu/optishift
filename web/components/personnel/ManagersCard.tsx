@@ -13,12 +13,13 @@ import { useEffect, useState } from "react";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import { List } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { departmentLabel, hasSubDepartments, sortDepartments } from "@/lib/departments";
 import {
   accountLevel, ALL_PERMS, canDelegate, CHEF_PERMS, parseAccess, PERM_LIST, userPerms, type Perm, type UserAccess,
 } from "@/lib/userAccess";
 
 type Loc = { id: string; name: string };
-type Dept = { id: string; name: string };
+type Dept = { id: string; name: string; parent_id?: string | null };
 export type Mgr = {
   id: string; name: string; username: string; role: string; display_title: string | null;
   location_id: string | null; department_id: string | null; managed_location_ids: string | null;
@@ -169,7 +170,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
   useEffect(() => {
     if (!open || !singlePick) return;
     fetch(`/api/departments?location_id=${singlePick}`).then(r => r.json())
-      .then(d => setDeptState({ loc: singlePick, list: Array.isArray(d) ? d.map((x: Dept) => ({ id: x.id, name: x.name })) : [] }))
+      .then(d => setDeptState({ loc: singlePick, list: Array.isArray(d) ? d.map((x: Dept) => ({ id: x.id, name: x.name, parent_id: x.parent_id ?? null })) : [] }))
       .catch(() => setDeptState({ loc: singlePick, list: [] }));
     fetch(`/api/personnel?location_id=${singlePick}`).then(r => r.json())
       .then(d => setTeamState({
@@ -286,7 +287,8 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
               <span className={label}>{branchManager ? "Hangi departmanın şefi?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
               <select value={deptId} onChange={e => pickDept(e.target.value)} className={field}>
                 <option value="">{branchManager ? "Departman seçin…" : "Şubenin tamamı"}</option>
-                {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {/* Departmanın şefi alt departmanlarını da yönetir (lib/departments) */}
+                {sortDepartments(depts).map(d => <option key={d.id} value={d.id}>{departmentLabel(depts, d)}{hasSubDepartments(depts, d.id) ? " (alt departmanlarıyla)" : ""}</option>)}
               </select>
             </div>
           )}

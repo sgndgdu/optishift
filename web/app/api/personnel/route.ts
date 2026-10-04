@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
 import { departmentScope, hasPerm, permError } from "@/lib/userAccess";
-import { managerOutsideBranch, inDepartmentScope } from "@/lib/access";
+import { chefDepartmentIds, departmentInScope, managerOutsideBranch, inDepartmentScope } from "@/lib/access";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -86,9 +86,9 @@ export async function GET(req: NextRequest) {
     const scoped = auth.role === "supervisor" && auth.managed_location_ids?.length
       ? parsed.filter((p: any) => auth.managed_location_ids!.some(l => p.primary_location_id === l || p.assigned_location_ids.includes(l)))
       : parsed;
-    // Departman şefi (lib/userAccess) sadece kendi departmanının ekibini görür
-    const chefDept = auth.role !== "employee" ? departmentScope(auth) : null;
-    const visible = chefDept ? scoped.filter((p: any) => p.department_id === chefDept) : scoped;
+    // Departman şefi (lib/userAccess) sadece kendi departmanının ve alt departmanlarının ekibini görür
+    const chefFamily = auth.role !== "employee" ? await chefDepartmentIds(db, auth) : null;
+    const visible = chefFamily ? scoped.filter((p: any) => chefFamily.includes(p.department_id)) : scoped;
     // Personel arkadaşlarının sadece adını ve unvanını görür (ücret, telefon, not, puan gibi alanlar yöneticiler için)
     if (auth.role === "employee") {
       return NextResponse.json(visible.map((p: any) => p.id === auth.personnel_id ? p : {
@@ -180,9 +180,9 @@ export async function POST(req: NextRequest) {
       INSERT INTO users (id, personnel_id, username, email, password_hash, role, org_id, location_id, name, is_temp_password, approval_status, created_by, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)
     `).run(userId, personnelId, username, email?.toLowerCase() || null, passwordHash, role ?? "employee", auth.org_id, location_id, name, approvalStatus, auth.id, now);
-    // Departman şefinin eklediği kişi şefin departmanına girer
-    const chefDept = departmentScope(auth);
-    if (chefDept) {
+    // Departman şefinin eklediği kişi şefin kapsamındaki seçilen departmana (yoksa şefin departmanına) girer
+    const chefDept = departmentInScope(await chefDepartmentIds(db, auth), body.department_id);
+    if (departmentScope(auth) && chefDept) {
       await db.prepare("UPDATE personnel SET department_id = ?, assigned_department_ids = ? WHERE id = ?").run(chefDept, JSON.stringify([chefDept]), personnelId);
       await db.prepare("UPDATE users SET department_id = ? WHERE id = ?").run(chefDept, userId);
     }
@@ -234,7 +234,8 @@ export async function PATCH(req: NextRequest) {
     if (body.user_access_level !== undefined && body.user_access_level !== existing.user_access_level) {
       return NextResponse.json({ error: "Rol değişikliği Ekip › Yöneticiler kartından yapılır" }, { status: 400 });
     }
-    if (departmentScope(auth) && body.department_id !== undefined && body.department_id !== departmentScope(auth)) {
+    const chefFamily = await chefDepartmentIds(db, auth);
+    if (chefFamily && body.department_id !== undefined && !chefFamily.includes(body.department_id)) {
       return NextResponse.json({ error: "Personeli başka departmana sadece şube yöneticisi taşıyabilir" }, { status: 403 });
     }
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı

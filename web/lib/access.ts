@@ -102,25 +102,41 @@ export async function canAccessChatGroup(db: any, auth: AuthUser, groupId: strin
 }
 
 /**
- * Departman şefinin (lib/userAccess departmentScope) şubedeki ekibi: departmanı bu olan, şubeye bağlı personel.
+ * Departman şefinin kapsamı: kendi departmanı + alt departmanları (lib/departments). Şef değilse null (= kısıt yok).
+ */
+export async function chefDepartmentIds(db: any, auth: AuthUser): Promise<string[] | null> {
+  const dept = departmentScope(auth);
+  if (!dept) return null;
+  const rows = await db.prepare("SELECT id FROM departments WHERE id = ? OR parent_id = ?").all(dept, dept) as { id: string }[];
+  return [dept, ...rows.map(r => r.id).filter(id => id !== dept)];
+}
+
+/**
+ * Departman şefinin şubedeki ekibi: departmanı kapsamında (kendi ya da alt departmanı) olan, şubeye bağlı personel.
  * Şef değilse null (= kısıt yok).
  */
 export async function departmentPersonnelIds(db: any, auth: AuthUser, locationId: string): Promise<string[] | null> {
-  const dept = departmentScope(auth);
-  if (!dept) return null;
+  const family = await chefDepartmentIds(db, auth);
+  if (!family) return null;
   const rows = await db.prepare(
-    `SELECT id FROM personnel WHERE org_id = ? AND department_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?)`
-  ).all(auth.org_id, dept, locationId, `%"${locationId}"%`) as { id: string }[];
+    `SELECT id FROM personnel WHERE org_id = ? AND department_id IN (${family.map(() => "?").join(",")}) AND (primary_location_id = ? OR assigned_location_ids LIKE ?)`
+  ).all(auth.org_id, ...family, locationId, `%"${locationId}"%`) as { id: string }[];
   return rows.map(r => r.id);
 }
 
-/** Departman şefi bu kişiye dokunabilir mi (kişi şefin departmanında mı)? Şef değilse true. */
+/** Departman şefi bu kişiye dokunabilir mi (kişi şefin kapsamındaki bir departmanda mı)? Şef değilse true. */
 export async function inDepartmentScope(db: any, auth: AuthUser, personnelId: string | null | undefined): Promise<boolean> {
-  const dept = departmentScope(auth);
-  if (!dept) return true;
+  const family = await chefDepartmentIds(db, auth);
+  if (!family) return true;
   if (!personnelId) return false;
   const row = await db.prepare("SELECT department_id FROM personnel WHERE id = ? AND org_id = ?").get(personnelId, auth.org_id) as { department_id?: string } | undefined;
-  return row?.department_id === dept;
+  return !!row?.department_id && family.includes(row.department_id);
+}
+
+/** Şefin seçtiği departman kapsamında mı; değilse şefin kendi departmanı (şef değilse istenen aynen). */
+export function departmentInScope(family: string[] | null, wanted: string | null | undefined): string | null {
+  if (!family) return wanted ?? null;
+  return wanted && family.includes(wanted) ? wanted : family[0];
 }
 
 /**

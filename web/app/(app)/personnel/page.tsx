@@ -18,6 +18,7 @@ import { List } from "@/components/ui/List";
 import PersonSheet from "@/components/personnel/PersonSheet";
 import { createInvite, mergePeople, personKey, type MergedPerson } from "@/components/personnel/people";
 import { canDelegate, parseAccess } from "@/lib/userAccess";
+import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 
@@ -142,9 +143,11 @@ export default function PersonnelPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [singleLocId]);
 
-  const allSelectedDepts = useMultiSelect
-    ? selLocIds.flatMap(locId => deptCache[locId] ?? [])
-    : singleLocId ? (deptCache[singleLocId] ?? []) : [];
+  // Kişi en alttaki departmana bağlanır (lib/departments): alt departmanı olan departman seçilmez
+  const allSelectedDepts = (useMultiSelect
+    ? selLocIds.flatMap(locId => leafDepartments(sortDepartments(deptCache[locId] ?? [])))
+    : singleLocId ? leafDepartments(sortDepartments(deptCache[singleLocId] ?? [])) : [])
+    .map(d => ({ ...d, label: departmentLabel(Object.values(deptCache).flat(), d) }));
 
   const toggleLoc = (id: string) => {
     setSelLocIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -388,7 +391,7 @@ export default function PersonnelPage() {
         </List>
       ) : (
         <PeopleList people={filtered} onOpen={p => setOpenKey(personKey(p))}
-          deptName={p => (p.department_id ? editDepts.find(d => d.id === p.department_id)?.name ?? null : null)}
+          deptName={p => (p.department_id ? departmentLabel(editDepts, editDepts.find(d => d.id === p.department_id)) || null : null)}
           hasDepts={() => editDepts.length > 0}
           managerSummary={managerSummary}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
@@ -501,7 +504,7 @@ export default function PersonnelPage() {
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     {allSelectedDepts.length === 0 ? <span className="text-xs text-slate-400">Seçili şubeler için departman bulunamadı</span> : allSelectedDepts.map(d => (
                       <button key={d.id} type="button" onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                        {selDeptIds.includes(d.id) && <Check size={10} />}{d.name}
+                        {selDeptIds.includes(d.id) && <Check size={10} />}{d.label}
                       </button>
                     ))}
                   </div>

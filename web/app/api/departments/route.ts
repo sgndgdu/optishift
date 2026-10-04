@@ -4,7 +4,8 @@ import { departments, locations, users, personnel } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { departmentScope, hasPerm, permError } from "@/lib/userAccess";
-import { managerOutsideBranch } from "@/lib/access";
+import { chefDepartmentIds, managerOutsideBranch } from "@/lib/access";
+import { getDB } from "@/lib/db/client";
 
 // Departmanın bağlı olduğu lokasyonun bu org'a ait olduğunu doğrular
 async function locationBelongsToOrg(location_id: string, org_id: string) {
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   // ?names=1: sadece ad (kişi kartında başka şubedeki departmanı seçmek için; şube müdürüne de açık)
   if (searchParams.get("names") === "1" && location_id && auth.role !== "employee") {
     if (!(await locationBelongsToOrg(location_id, auth.org_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
-    const list = await db.select({ id: departments.id, name: departments.name }).from(departments).where(eq(departments.location_id, location_id));
+    const list = await db.select({ id: departments.id, name: departments.name, parent_id: departments.parent_id }).from(departments).where(eq(departments.location_id, location_id));
     return NextResponse.json(list);
   }
   if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
@@ -77,6 +78,13 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { location_id, name } = body;
+  // Alt departman (lib/departments): bağlı olduğu departman aynı şubede ve kendisi alt departman olmamalı (tek kat)
+  const parent_id: string | null = typeof body.parent_id === "string" && body.parent_id ? body.parent_id : null;
+  if (parent_id) {
+    const [parent] = await db.select({ location_id: departments.location_id, parent_id: departments.parent_id }).from(departments).where(eq(departments.id, parent_id)).limit(1);
+    if (!parent || parent.location_id !== location_id) return NextResponse.json({ error: "Bağlı olduğu departman bu şubede bulunamadı" }, { status: 400 });
+    if (parent.parent_id) return NextResponse.json({ error: "Alt departmanın altına departman eklenemez" }, { status: 400 });
+  }
   if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (!location_id || !name?.trim())
     return NextResponse.json({ error: "location_id ve name gerekli" }, { status: 400 });
@@ -84,8 +92,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
   const id = `D-${Date.now()}`;
-  await db.insert(departments).values({ id, location_id, name: name.trim() });
-  return NextResponse.json({ id, location_id, name: name.trim(), manager: null, personnel_count: 0 });
+  await db.insert(departments).values({ id, location_id, name: name.trim(), parent_id });
+  return NextResponse.json({ id, location_id, name: name.trim(), parent_id, manager: null, personnel_count: 0 });
 }
 
 // PATCH /api/departments?id=X — departman adı veya demand_matrix güncelle
@@ -100,9 +108,10 @@ export async function PATCH(req: NextRequest) {
   const dept = await getDeptInOrg(id, auth.org_id);
   if (!dept) return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
   if (managerOutsideBranch(auth, dept.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
-  // Departman şefi sadece kendi departmanının ihtiyaç tablosunu değiştirir (adını değil)
+  // Departman şefi sadece kendi departmanının ve alt departmanlarının ihtiyaç tablosunu değiştirir (adını değil)
+  const chefFamily = await chefDepartmentIds(getDB(), auth);
   const chefDept = departmentScope(auth);
-  if (chefDept && chefDept !== id) return NextResponse.json({ error: "Sadece kendi departmanınızı düzenleyebilirsiniz" }, { status: 403 });
+  if (chefFamily && !chefFamily.includes(id)) return NextResponse.json({ error: "Sadece kendi departmanınızı düzenleyebilirsiniz" }, { status: 403 });
 
   const body = await req.json();
   if (chefDept) delete body.name;
@@ -134,7 +143,8 @@ export async function DELETE(req: NextRequest) {
   if (!dept) return NextResponse.json({ error: "Departman bulunamadı" }, { status: 404 });
   if (managerOutsideBranch(auth, dept.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
-  // Silinen departmana bağlı personel/kullanıcı departmansız kalır (kayıt silinmez)
+  // Alt departmanları üst düzeye çıkar (silinmez); silinen departmana bağlı personel/kullanıcı departmansız kalır
+  await db.update(departments).set({ parent_id: null }).where(eq(departments.parent_id, id));
   await db.update(personnel).set({ department_id: null }).where(eq(personnel.department_id, id));
   await db.update(users).set({ department_id: null }).where(eq(users.department_id, id));
   await db.delete(departments).where(eq(departments.id, id));

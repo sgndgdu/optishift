@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, businessToday } from "@/lib/date";
+import { departmentRoleNames, hasSubDepartments } from "@/lib/departments";
 import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
@@ -97,7 +98,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
             // Departman şefinin planında şube geneli "en az N yetkinlikli" kuralı uygulanmaz: yetkinlikli kişi
             // çoğu zaman başka departmandadır; kuralı şube yöneticisi yayın kontrolünde görür.
-            required_skills: !body?.only_department_id && Array.isArray(d.required_skills) ? d.required_skills : [],
+            required_skills: !body?.only_department_ids?.length && Array.isArray(d.required_skills) ? d.required_skills : [],
           }));
         }
       } catch {
@@ -184,7 +185,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     const todayForSeniority = businessToday();
     // Kişinin departmanı da bir görev sayılır: vardiya tanımındaki "Zorunlu görev" departman adıyla da seçilebilir
     // (eskiden departman ayrıca Roller listesinde işaretleniyordu; günlük rol kotaları 2026-10-04'te kaldırıldı)
-    const deptNameById = new Map<string, string>(departmentRows.map((d: any) => [d.id, d.name]));
     // Paylaşılan personel: her şubede o şubenin departmanı (lib/branchRotation departmentInBranch)
     const branchDeptIds = new Set<string>(departmentRows.map((d: any) => d.id));
     for (const p of personnelRows as any[]) p.department_id = departmentInBranch(p, branchDeptIds);
@@ -194,7 +194,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       return {
         id: p.id,
         name: p.name,
-        skills: [...new Set<string>([...JSON.parse(p.roles || "[]"), ...(p.department_id && deptNameById.has(p.department_id) ? [deptNameById.get(p.department_id)!] : [])])],
+        // Alt departmandaki kişide üst departmanın adı da görev sayılır (lib/departments)
+        skills: [...new Set<string>([...JSON.parse(p.roles || "[]"), ...departmentRoleNames(departmentRows, p.department_id)])],
         night_restriction: p.night_restriction ?? null,
         department_id: p.department_id ?? null,
         prev_score: prevScores[p.id] ?? 0,
@@ -306,14 +307,18 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // Kullanıcı kararı (2026-10-03): otomatik plana alınmaz, ekranda uyarılır.
     // Departman şefi (lib/userAccess): sadece kendi departmanının ekibi ve ihtiyacı planlanır;
     // diğer departmanlara dokunulmaz (değer route'ta oturumdan gelir, istemciden değil).
-    const onlyDept: string | null = typeof body?.only_department_id === "string" && body.only_department_id ? body.only_department_id : null;
-    const excludedNoDepartment = departmentRows.length > 0 && !onlyDept
-      ? personnelData.filter((p) => !p.department_id).map((p) => ({ id: p.id, name: p.name }))
+    // Departman şefinin kapsamı: kendi departmanı + alt departmanları (route oturumdan hesaplar, lib/access)
+    const onlyDepts: string[] | null = Array.isArray(body?.only_department_ids) && body.only_department_ids.length ? body.only_department_ids : null;
+    // Alt departmanı olan departmana doğrudan bağlı kişi de departmansız sayılır: ihtiyaç alt departmanlarda (lib/departments)
+    const groupDeptIds = new Set<string>(departmentRows.filter((d: any) => hasSubDepartments(departmentRows, d.id)).map((d: any) => d.id));
+    const noDept = (p: { department_id: string | null }) => !p.department_id || groupDeptIds.has(p.department_id);
+    const excludedNoDepartment = departmentRows.length > 0
+      ? personnelData.filter((p) => noDept(p) && (!onlyDepts || (p.department_id && onlyDepts.includes(p.department_id)))).map((p) => ({ id: p.id, name: p.name }))
       : [];
-    if (departmentRows.length > 0) personnelData = personnelData.filter((p) => !!p.department_id);
-    if (onlyDept) {
-      personnelData = personnelData.filter((p) => p.department_id === onlyDept);
-      departmentRows = departmentRows.filter((d: any) => d.id === onlyDept);
+    if (departmentRows.length > 0) personnelData = personnelData.filter((p) => !noDept(p));
+    if (onlyDepts) {
+      personnelData = personnelData.filter((p) => !!p.department_id && onlyDepts.includes(p.department_id));
+      departmentRows = departmentRows.filter((d: any) => onlyDepts.includes(d.id));
     }
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
     if (locationRow?.demand_matrix && !hasDepartments) {
@@ -333,7 +338,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     const departmentNamesPayload: Record<string, string> = {};
     for (const dept of departmentRows) {
       departmentNamesPayload[dept.id] = dept.name ?? dept.id;
-      if (!dept?.demand_matrix) continue;
+      // Alt departmanı olanın kendi tablosu gitmez (eski "hayalet talep" olmasın; ihtiyaç alt departmanlarda)
+      if (!dept?.demand_matrix || groupDeptIds.has(dept.id)) continue;
       try {
         const parsed = JSON.parse(dept.demand_matrix);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {

@@ -108,6 +108,7 @@ export interface Department {
   location_id: string;
   name: string;
   demand_matrix?: Record<string, Record<number, number>>; // shiftDefId → {day(0-6) → count}
+  parent_id?: string | null; // alt departmansa bağlı olduğu departman (lib/departments)
 }
 
 export interface Role {
