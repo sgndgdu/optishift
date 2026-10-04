@@ -155,8 +155,8 @@ export default function SupervisorDashboard() {
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: "Şube", value: locations.length, icon: Building2, tone: "neutral" as const },
-          { label: "Planı hazır değil", value: notReady, icon: CalendarX, tone: notReady > 0 ? "attention" as const : "positive" as const },
-          { label: "Onay bekliyor", value: pendingTotal, icon: Inbox, tone: pendingTotal > 0 ? "attention" as const : "neutral" as const },
+          { label: "Plan eksik", value: notReady, icon: CalendarX, tone: notReady > 0 ? "attention" as const : "positive" as const },
+          { label: "Onay", value: pendingTotal, icon: Inbox, tone: pendingTotal > 0 ? "attention" as const : "neutral" as const },
         ].map(({ label, value, icon, tone }) => (
           <StatCard key={label} label={label} icon={icon} tone={tone}
             value={loading ? <span className="inline-block h-7 w-10 bg-slate-100 rounded-md animate-pulse" /> : value} />
@@ -212,9 +212,9 @@ export default function SupervisorDashboard() {
             </ListEmpty>
           ) : sortedLocations.map(loc => {
             const st = status[loc.id];
-            const plan = st?.next_week === "published" ? { label: "Gelecek hafta hazır", tone: "positive" as const }
-              : st?.next_week === "draft" ? { label: "Taslakta", tone: "attention" as const }
-              : st ? { label: "Gelecek hafta planı yok", tone: "danger" as const } : null;
+            const plan = st?.next_week === "published" ? { label: "Hazır", tone: "positive" as const }
+              : st?.next_week === "draft" ? { label: "Taslak", tone: "attention" as const }
+              : st ? { label: "Plan yok", tone: "danger" as const } : null;
             const canEnter = user?.role === "admin" || user?.role === "supervisor";
             return (
               <ListItem key={loc.id}
@@ -232,7 +232,7 @@ export default function SupervisorDashboard() {
             );
           })}
         </List>
-        {locations.length > 0 && <p className="text-xs text-slate-500">Şubeye dokununca o şubenin paneline girersiniz.</p>}
+        {locations.length > 0 && <p className="text-xs text-slate-500">Rozet gelecek haftanın planını gösterir (Hazır / Taslak / Plan yok). Şubeye dokununca o şubenin paneline girersiniz.</p>}
       </section>
       {showAddBranch && !loading && (
         <NewBranchWizard
