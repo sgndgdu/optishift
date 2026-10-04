@@ -121,7 +121,7 @@ export default function PortalCalendar() {
         </CardContent>
       </Card>
 
-      <Tabs fill value={tab} onChange={setTab} items={[{ id: "mine", label: "Benim" }, { id: "all", label: "Tüm Şube" }] as const} />
+      <Tabs fill value={tab} onChange={setTab} items={[{ id: "mine", label: "Benim" }, { id: "all", label: "Tüm Ekip" }] as const} />
 
       {loading ? (
         <div className="animate-pulse space-y-4 pt-4">
