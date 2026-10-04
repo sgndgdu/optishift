@@ -14,7 +14,7 @@ import {
 import { violationText } from "@/lib/ruleViolations";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
-import { CountBadge, StatusPill } from "@/components/ui/StatusPill";
+import { CountBadge } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
 import { Sheet, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 
@@ -126,7 +126,8 @@ export default function PortalRequests() {
   const [leaveEnd, setLeaveEnd]       = useState("");
   const [leaveNote, setLeaveNote]     = useState("");
   // leave policy (lokasyondan çekilir)
-  const [leavePolicy, setLeavePolicy] = useState<{ require_reason: boolean; allow_multi_day: boolean; max_days_per_request: number } | null>(null);
+  // İzin kuralları kaldırıldı (2026-10-04): çok günlü izin serbest, açıklama isteğe bağlı
+  const leavePolicy = null as { require_reason: boolean; allow_multi_day: boolean; max_days_per_request: number } | null;
   const [weeklyOffDay, setWeeklyOffDay] = useState<number | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<any>(null); // /api/leave-requests/balance — kalan yıllık izin
 
@@ -148,8 +149,6 @@ export default function PortalRequests() {
         const loc = Array.isArray(data) ? data[0] : data;
         if (!loc) return;
         try {
-          const lp = typeof loc.leave_policy === "string" ? JSON.parse(loc.leave_policy) : loc.leave_policy;
-          if (lp) setLeavePolicy(lp);
         } catch { /* geçersiz JSON → atla */ }
         try {
           const rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : loc.rules;

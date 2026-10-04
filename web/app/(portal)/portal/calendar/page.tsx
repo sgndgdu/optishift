@@ -176,7 +176,7 @@ export default function PortalCalendar() {
                       {onCall && (
                         <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
                           title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
-                          İcap · {onCall.start_time}–{onCall.end_time}
+                          Nöbet · {onCall.start_time}–{onCall.end_time}
                         </p>
                       )}
                     </div>

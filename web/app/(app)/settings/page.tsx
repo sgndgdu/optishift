@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import { isOwnerRole, LOCK_NOTE, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
 import { departmentScope, isViewOnly, parseAccess } from "@/lib/userAccess";
-import AccountTab from "@/components/AccountTab";
+import BranchAccountTab from "@/components/BranchAccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
@@ -52,7 +52,7 @@ const LEGACY_TABS: Record<string, { tab: TabKey; group?: string }> = {
   requests: { tab: "advanced", group: "requests" },
   rules:    { tab: "advanced", group: "planning" },
   fairness: { tab: "advanced", group: "fairness" },
-  zones:    { tab: "advanced", group: "zones" },
+  zones:    { tab: "basic" },
   crews:    { tab: "advanced", group: "crews" },
   location: { tab: "basic" },
 };
@@ -505,9 +505,6 @@ export default function SettingsPage() {
   };
 
   // İzin politikası
-  const [leaveRequireReason, setLeaveRequireReason] = useState(false);
-  const [leaveAllowMultiDay, setLeaveAllowMultiDay] = useState(false);
-  const [leaveMaxDays, setLeaveMaxDays]             = useState(1);
 
   // Konum (hava durumu için) — lat/lon DB'de, kullanıcı şehir adı veya GPS butonu ile ayarlar
   const [locationLat, setLocationLat]       = useState("");
@@ -679,10 +676,6 @@ export default function SettingsPage() {
               })
               .catch(() => setWeatherLabel(`${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`));
           }
-          const lp = loc.leave_policy || {};
-          setLeaveRequireReason(!!lp.require_reason);
-          setLeaveAllowMultiDay(!!lp.allow_multi_day);
-          setLeaveMaxDays(lp.max_days_per_request ?? 1);
 
           let depts: Department[] = [];
           try {
@@ -741,9 +734,6 @@ export default function SettingsPage() {
             maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
             fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 4,
             clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
-            leaveRequireReason: !!(lp?.require_reason),
-            leaveAllowMultiDay: !!(lp?.allow_multi_day),
-            leaveMaxDays: lp?.max_days_per_request ?? 1,
             locationLat: lat,
             locationLon: lon,
             changeCompensationEnabled: loc.rules?.change_compensation_enabled !== false,
@@ -792,7 +782,7 @@ export default function SettingsPage() {
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
-      leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+      locationLat, locationLon,
       changeCompensationEnabled,
       overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
@@ -811,7 +801,7 @@ export default function SettingsPage() {
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
-    leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
+    locationLat, locationLon,
     changeCompensationEnabled,
     overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
@@ -936,7 +926,8 @@ export default function SettingsPage() {
             max_consecutive_days:         maxConsecutiveDays,
             max_on_call_per_week:         maxOnCallPerWeek,
             no_night_to_morning:          noNightToMorning,
-            implicit_preferences_enabled: implicitPrefsEnabled,
+            // Ayarı kaldırıldı (2026-10-04): her zaman açık, varsayılan yeter
+            implicit_preferences_enabled: true,
             max_preferred_not_days:       maxPreferredNotDays,
             clopening_min_rest_hours:     clopeningMinRestHours,
             max_weekly_hours:             maxWeeklyHours,
@@ -947,7 +938,7 @@ export default function SettingsPage() {
             hard_shift_preferred_not:           hardShiftPreferredNot,
             hero_bonus_points:                  heroBonusPoints,
             force_bonus_points:                 forceBonusPoints,
-            clopening_enabled:                  clopeningEnabled,
+            clopening_enabled:                  true, // "Mümkünse en az dinlenme" ayarı kaldırıldı: varsayılan 13 saat, hep açık
             swap_requests_enabled:              swapRequestsEnabled,
             availability_collection_enabled:    availabilityCollectionEnabled,
             availability_reminder: {
@@ -997,11 +988,6 @@ export default function SettingsPage() {
             handover_notes_enabled:             handoverNotesEnabled,
             auto_leave_entitlement_enabled:     autoLeaveEntitlement,
           },
-          leave_policy: {
-            require_reason:       leaveRequireReason,
-            allow_multi_day:      leaveAllowMultiDay,
-            max_days_per_request: leaveAllowMultiDay ? leaveMaxDays : 1,
-          },
           rotation_template: {
             enabled:        rotationEnabled,
             type:           rotationType,
@@ -1029,7 +1015,6 @@ export default function SettingsPage() {
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
-        leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
@@ -1099,11 +1084,6 @@ export default function SettingsPage() {
       setDeptError("Departman silinemedi.");
     }
   };
-
-  const pointsColor = (v: number) =>
-    v <= 3 ? "text-emerald-600" : v <= 6 ? "text-amber-600" : v <= 8 ? "text-orange-600" : "text-red-600";
-  const pointsAccent = (v: number) =>
-    v <= 3 ? "accent-emerald-600" : v <= 6 ? "accent-amber-600" : v <= 8 ? "accent-orange-600" : "accent-red-600";
 
   // Vardiya süresi (saat) — gece geçişini destekler; yasal gece sınırı (7,5s) uyarısında kullanılır
   const shiftDurationHours = (shift: { start?: string; end?: string }) => {
@@ -1206,7 +1186,7 @@ export default function SettingsPage() {
         <Page width="narrow">
           <PageHeader title="Şube Ayarları" />
           <TabBar />
-          <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
+          <BranchAccountTab viewerRole={viewerRole} />
         </Page>
       );
     }
@@ -1338,6 +1318,85 @@ export default function SettingsPage() {
                   </div>
                 );
               })()}
+
+
+                {/* Departmanlar Temel'de (2026-10-04): kafe/fabrikada plan tablosunun ana yapısı; anında kaydedilir */}
+                <div>
+                  <SectionLabel>Departmanlar</SectionLabel>
+                  <p className="text-xs text-slate-400 mb-3">
+                    İsteğe bağlı. Kasa, mutfak, hat gibi bölümler eklerseniz kişiler bir departmana atanır ve kaç kişi
+                    gerektiği her departman için ayrı girilir. Küçük işletmede gerekmez. Değişiklikler anında kaydedilir.
+                  </p>
+
+                  {deptError && (
+                    <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{deptError}</div>
+                  )}
+
+                  {/* Yeni departman */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      value={newDeptName}
+                      onChange={e => setNewDeptName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
+                      placeholder="Yeni departman adı (örn: Kasa)"
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
+                    />
+                    <button
+                      disabled={!newDeptName.trim()}
+                      onClick={handleAddDepartment}
+                      className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+                    >
+                      <Plus size={14} /> Ekle
+                    </button>
+                  </div>
+
+                  {/* Departman listesi */}
+                  {departments.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
+                      Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {departments.map(dept => (
+                        <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                          <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
+                          {editingDeptId === dept.id ? (
+                            <input
+                              value={editingDeptName}
+                              onChange={e => setEditingDeptName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleRenameDepartment(dept.id);
+                                if (e.key === "Escape") setEditingDeptId(null);
+                              }}
+                              autoFocus
+                              className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
+                            />
+                          ) : (
+                            <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
+                          )}
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {(dept as any).personnel_count !== undefined && (
+                            <StatusPill tone="neutral" className="shrink-0">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {(dept as any).personnel_count} personel
+                            </StatusPill>
+                          )}
+                          {editingDeptId === dept.id ? (
+                            <>
+                              <button onClick={() => handleRenameDepartment(dept.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0" title="Kaydet"><Check size={14} /></button>
+                              <button onClick={() => setEditingDeptId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="Vazgeç"><X size={14} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
+                              <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>
@@ -1493,9 +1552,11 @@ export default function SettingsPage() {
                         >
                           <Moon size={10} /> Gece
                         </button>
+                        {/* Nöbet (icap) sadece sağlık, fabrika ve güvenlikte anlamlı; başka sektörde sadece zaten açıksa görünür */}
+                        {(["healthcare", "manufacturing", "security"].includes(savedIndustry?.key ?? "") || shift.on_call) && (
                         <button
                           type="button"
-                          title="İcap nöbeti: evden çağrılabilir bekleme. Çalışma saatine sayılmaz, aynı gün normal vardiyayla birlikte verilebilir."
+                          title="Nöbet: evden beklenir, çağrılırsa gelir. Çalışma saatine sayılmaz, aynı gün normal vardiyayla birlikte verilebilir."
                           onClick={() => {
                             const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
                               i === idx ? { ...s, on_call: !s.on_call } : s
@@ -1509,8 +1570,9 @@ export default function SettingsPage() {
                               : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
                           )}
                         >
-                          <PhoneCall size={10} /> İcap
+                          <PhoneCall size={10} /> Nöbet
                         </button>
+                        )}
                         <button
                           onClick={() => {
                             const next = locationData.shift_definitions.filter((_: ShiftDefinition, i: number) => i !== idx);
@@ -1539,9 +1601,9 @@ export default function SettingsPage() {
                       </div>
                       {shift.on_call && (
                         <div className="flex flex-wrap items-center gap-2 text-xs text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
-                          <span className="flex-1 min-w-[180px]">İcap: evden beklenir, çalışma saatine ve mesaiye sayılmaz. Çağrılınca çalışılan saat Vardiya Planı&apos;ndan girilir.</span>
+                          <span className="flex-1 min-w-[180px]">Nöbet: evden beklenir, çalışma saatine ve mesaiye sayılmaz. Çağrılınca çalışılan saat Vardiya Planı&apos;ndan girilir.</span>
                           <label className="flex items-center gap-1 font-semibold">
-                            İcap ücreti
+                            Nöbet ücreti
                             <input type="number" min={0} step={50} value={shift.on_call_pay ?? ""} placeholder="0"
                               onChange={e => {
                                 const v = e.target.value === "" ? undefined : Math.max(0, Number(e.target.value));
@@ -1587,28 +1649,26 @@ export default function SettingsPage() {
                         </p>
                       )}
 
-                      {/* Zorluk slider */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-400">Zorluk ağırlığı</span>
-                          <span className={cn("text-sm font-bold", pointsColor(shift.base_points))}>{shift.base_points}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={1}
-                          max={10}
-                          step={1}
-                          value={shift.base_points}
-                          onChange={e => {
-                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                              i === idx ? { ...s, base_points: Number(e.target.value) } : s
+                      {/* Zorluk: sayı yerine üç seçenek (Kolay 3 / Orta 5 / Zor 8); eski ara değerler en yakın seçeneğe düşer */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 shrink-0">Zorluk</span>
+                        <div className="grid grid-cols-3 gap-1.5 flex-1">
+                          {([["Kolay", 3], ["Orta", 5], ["Zor", 8]] as const).map(([lbl, val]) => {
+                            const level = shift.base_points <= 3 ? 3 : shift.base_points >= 7 ? 8 : 5;
+                            return (
+                              <button key={lbl} type="button"
+                                onClick={() => {
+                                  const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                                    i === idx ? { ...s, base_points: val } : s
+                                  );
+                                  setLocationData({ ...locationData, shift_definitions: next });
+                                }}
+                                className={cn("py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                                  level === val ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                                {lbl}
+                              </button>
                             );
-                            setLocationData({ ...locationData, shift_definitions: next });
-                          }}
-                          className={cn("w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-200", pointsAccent(shift.base_points))}
-                        />
-                        <div className="flex justify-between text-xs text-slate-300 px-0.5">
-                          <span>Kolay</span><span>Orta</span><span>Zor</span>
+                          })}
                         </div>
                       </div>
 
@@ -1751,31 +1811,6 @@ export default function SettingsPage() {
                     description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken personel kartındaki sabit gün geçerlidir."
                     right={<Toggle on={autoLeaveEntitlement} onToggle={() => setAutoLeaveEntitlement(v => !v)} />}
                   />
-                  <RuleRow
-                    label="İzin İçin Mazeret Zorunlu"
-                    description="Personel izin talebi oluştururken mazeret girmeden gönderemez."
-                    right={<Toggle on={leaveRequireReason} onToggle={() => setLeaveRequireReason(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Çoklu Gün İzin Talebi"
-                    description={
-                      <span>
-                        Personel birden fazla günü kapsayan izin talebi oluşturabilir.
-                        {leaveAllowMultiDay && (
-                          <span className="flex items-center gap-2 mt-2">
-                            <span>Tek talep için max:</span>
-                            <input
-                              type="number" min={2} max={30} value={leaveMaxDays}
-                              onChange={e => setLeaveMaxDays(Math.min(30, Math.max(2, parseInt(e.target.value) || 2)))}
-                              className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                            />
-                            <span>gün</span>
-                          </span>
-                        )}
-                      </span>
-                    }
-                    right={<Toggle on={leaveAllowMultiDay} onToggle={() => setLeaveAllowMultiDay(v => !v)} />}
-                  />
                 </SectionCard>
               </div>
               </SettingsGroup>
@@ -1803,8 +1838,8 @@ export default function SettingsPage() {
                   />
                   {(locationData?.shift_definitions ?? []).some((d: ShiftDefinition) => d.on_call) && (
                     <RuleRow
-                      lock="rules" label="Haftalık İcap Sınırı"
-                      description="Bir kişiye haftada en fazla bu kadar icap nöbeti yazılır. İcaplar ayrıca Adalet Puanı'yla dengeli dağıtılır."
+                      lock="rules" label="Haftalık Nöbet Sınırı"
+                      description="Bir kişiye haftada en fazla bu kadar nöbet yazılır. Nöbetler ayrıca Adalet Puanı'yla dengeli dağıtılır."
                       right={<NumberInput value={maxOnCallPerWeek} onChange={setMaxOnCallPerWeek} min={0} max={7} suffix="icap" />}
                     />
                   )}
@@ -1815,18 +1850,6 @@ export default function SettingsPage() {
                     lock="rules" label="En Az Dinlenme Süresi"
                     description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
                     right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Mümkünse En Az Dinlenme"
-                    description="Plan, iki vardiya arasında bundan az dinlenme kalan geçişlerden (geç kapanıştan erken açılışa) kaçınır ve yayınlamadan önce uyarır. Gerekirse yine yazar."
-                    right={
-                      <div className="flex items-center gap-2">
-                        <div className={clopeningEnabled ? "" : "opacity-40 pointer-events-none"}>
-                          <NumberInput value={clopeningMinRestHours} onChange={setClopeningMinRestHours} min={11} max={24} suffix="saat" />
-                        </div>
-                        <Toggle on={clopeningEnabled} onToggle={() => setClopeningEnabled(v => !v)} />
-                      </div>
-                    }
                   />
                   <RuleRow
                     lock="rules" label="Gececi→Sabahçı Yasağı"
@@ -1851,11 +1874,6 @@ export default function SettingsPage() {
                     label="Kıdemli Personel Kuralı"
                     description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Geçmişten Tercih Öğrenme"
-                    description="Kişi uygunluk girmeyi unutsa da son haftalarda sürekli istemediği günlerden ve sık takasa verdiği vardiyalardan kaçınılır. Esnektir; açık girilen tercihten zayıftır, gerekirse yine yazılır."
-                    right={<Toggle on={implicitPrefsEnabled} onToggle={() => setImplicitPrefsEnabled(v => !v)} />}
                   />
                   <RuleRow
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
@@ -2052,88 +2070,6 @@ export default function SettingsPage() {
                   />
                 </SectionCard>
                 </LockArea>
-              </SettingsGroup>
-              <SettingsGroup id="zones" title="Departmanlar" description="Kasa, mutfak, hat gibi bölümler" open={!!openGroups["zones"]} onToggle={toggleGroup}>
-
-                {/* 1. Departmanlar — anında DB'ye kaydedilir */}
-                <div>
-                  <SectionLabel>Departmanlar</SectionLabel>
-                  <p className="text-xs text-slate-400 mb-3">
-                    Departmanlar (Kasa, Mutfak, Hat-A…) planlamanın çalıştığı operasyonel birimlerdir: personel bir
-                    departmana atanır, personel ihtiyacı departman bazında girilir ve otomatik oluşturma talebi departman
-                    içinde karşılar. Değişiklikler anında kaydedilir.
-                  </p>
-
-                  {deptError && (
-                    <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{deptError}</div>
-                  )}
-
-                  {/* Yeni departman */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      value={newDeptName}
-                      onChange={e => setNewDeptName(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleAddDepartment(); }}
-                      placeholder="Yeni departman adı (örn: Kasa)"
-                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20"
-                    />
-                    <button
-                      disabled={!newDeptName.trim()}
-                      onClick={handleAddDepartment}
-                      className="flex items-center gap-1.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
-                    >
-                      <Plus size={14} /> Ekle
-                    </button>
-                  </div>
-
-                  {/* Departman listesi */}
-                  {departments.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
-                      Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {departments.map(dept => (
-                        <div key={dept.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
-                          <div className="w-2.5 h-2.5 rounded-full bg-forest-400 shrink-0" />
-                          {editingDeptId === dept.id ? (
-                            <input
-                              value={editingDeptName}
-                              onChange={e => setEditingDeptName(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter") handleRenameDepartment(dept.id);
-                                if (e.key === "Escape") setEditingDeptId(null);
-                              }}
-                              autoFocus
-                              className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
-                            />
-                          ) : (
-                            <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
-                          )}
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {(dept as any).personnel_count !== undefined && (
-                            <StatusPill tone="neutral" className="shrink-0">
-                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                              {(dept as any).personnel_count} personel
-                            </StatusPill>
-                          )}
-                          {editingDeptId === dept.id ? (
-                            <>
-                              <button onClick={() => handleRenameDepartment(dept.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0" title="Kaydet"><Check size={14} /></button>
-                              <button onClick={() => setEditingDeptId(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="Vazgeç"><X size={14} /></button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
-                              <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
               </SettingsGroup>
               <SettingsGroup id="crews" title="Vardiya Grupları ve Rotasyon" description="A/B/C grupları ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
                 <p className="text-sm text-slate-500">
@@ -2623,7 +2559,7 @@ export default function SettingsPage() {
 
           {/* ─── HESABIM ─── */}
           {activeTab === "account" && (
-            <AccountTab storageKey="optishift_manager_user" allowNameEdit={true} />
+            <BranchAccountTab viewerRole={viewerRole} />
           )}
 
       </div>

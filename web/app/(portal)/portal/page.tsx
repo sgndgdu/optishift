@@ -336,8 +336,8 @@ export default function PortalDashboard() {
 
           {todayOnCall && !dataLoading && (
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-bold text-violet-50"
-              title="İcap: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
-              Bugün icaptasın · {todayOnCall.start_time}–{todayOnCall.end_time}
+              title="Nöbet: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+              Bugün nöbetçisin · {todayOnCall.start_time}–{todayOnCall.end_time}
             </div>
           )}
           {/* content */}

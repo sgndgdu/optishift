@@ -527,7 +527,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">İzin Düzeltme (±)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Devreden / ek izin (gün)</label>
                   <input type="number" min={-30} max={60} value={editForm.leave_adjustment_days} onChange={e => setEditForm(f => ({ ...f, leave_adjustment_days: Number(e.target.value) || 0 }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
@@ -538,7 +538,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                 {autoLeaveOn && editForm.hire_date
                   ? "Yıllık izin hakkı işe giriş tarihinden hesaplanır (İş K. m.53)."
                   : "Yıllık izin hakkı buradaki sabit günden hesaplanır."}
-                {" "}Düzeltme geçmiş dönem devri gibi elle eklemeler içindir.
+                {" "}Devreden / ek izin: önceki yıldan kalan ya da elle eklenen günler (eksi de olabilir).
               </p>
               </div>
               </details>

@@ -3232,13 +3232,13 @@ loading ? (
                                 ? (oc?.id ? () => { setCalloutForm({ start: "", end: "", note: "" }); setCalloutModal({ assignmentId: oc.id!, title: `${p.name} · ${DAYS[day]} · ${ocDef.name}` }); } : undefined)
                                 : (e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                               title={readOnlyWeek
-                                ? "İcap nöbeti: çağrıldıysa çalıştığı saati girmek için tıklayın"
-                                : `İcap nöbeti ${ocDef.start}–${ocDef.end}: evden, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
+                                ? "Nöbet: çağrıldıysa çalıştığı saati girmek için tıklayın"
+                                : `Nöbet ${ocDef.start}–${ocDef.end}: evden, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
                               className="mt-0.5 mx-auto w-full max-w-[84px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
                             >
                               {ocCallMin > 0
-                                ? `İcap · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} s çağrıldı`
-                                : `İcap · ${ocDef.name}`}
+                                ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} s çağrıldı`
+                                : `Nöbet · ${ocDef.name}`}
                             </div>
                           ) : null;
 
@@ -3546,7 +3546,7 @@ loading ? (
 
           {/* ── İcap çağrısı (yayınlanmış hafta) ── */}
           {calloutModal && (
-            <Sheet open onClose={() => setCalloutModal(null)} title="İcap çağrısı" description={calloutModal.title}
+            <Sheet open onClose={() => setCalloutModal(null)} title="Nöbet çağrısı" description={calloutModal.title}
               footer={<>
                 <button onClick={() => setCalloutModal(null)} className={sheetSecondaryClass}>Kapat</button>
                 <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end} className={sheetPrimaryClass}>Çağrıyı kaydet</button>
@@ -3814,7 +3814,7 @@ loading ? (
           )}
           {shiftDefs.some(d => d.on_call) && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">İcap nöbeti (evden, çağrılırsa gelir)</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Nöbet (evden, çağrılırsa gelir)</p>
               <div className="flex flex-wrap gap-1.5">
                 {[null, ...shiftDefs.filter(d => d.on_call)].map(def => {
                   const current = onCallMap[`${popover!.personnelId}-${popover!.day}`]?.defId ?? null;

@@ -85,33 +85,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (locRow?.leave_policy) {
-        let policy: any = {};
-        try { policy = JSON.parse(locRow.leave_policy); } catch { /* geçersiz JSON → atla */ }
-
-        // Mazeret zorunluluğu
-        if (policy.require_reason && !note?.trim()) {
-          return NextResponse.json({ error: "Bu şubede izin talebi için mazeret zorunludur." }, { status: 422 });
-        }
-
-        // Çoklu gün yasağı
-        if (!policy.allow_multi_day && start_date !== end_date) {
-          return NextResponse.json({ error: "Bu şubede birden fazla gün izin talep edilemez." }, { status: 422 });
-        }
-
-        // Maksimum gün kontrolü
-        if (policy.allow_multi_day && policy.max_days_per_request) {
-          const start = new Date(start_date);
-          const end = new Date(end_date);
-          const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-          if (dayCount > policy.max_days_per_request) {
-            return NextResponse.json(
-              { error: `Bu şubede tek bir talep için en fazla ${policy.max_days_per_request} gün izin alınabilir.` },
-              { status: 422 }
-            );
-          }
-        }
-      }
+      // İzin kuralları (mazeret zorunlu / tek gün / gün sınırı) 2026-10-04'te kaldırıldı: ayarlar sayfası
+      // kayıtta farkında olmadan "sadece tek gün" yazıyordu. Çok günlü izin serbest, açıklama isteğe bağlı.
     }
 
     const now = Math.floor(Date.now() / 1000);

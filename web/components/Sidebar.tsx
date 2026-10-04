@@ -63,7 +63,7 @@ function usePendingApprovals(orgId: string | undefined) {
   return count;
 }
 import {
-  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, CreditCard, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2,
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -91,7 +91,6 @@ const NAV = [
   { href: "/handovers",    label: "Devir-Teslim", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
   { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
-  { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing", adminOnly: true },
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
 
