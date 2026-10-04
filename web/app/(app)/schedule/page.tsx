@@ -1,5 +1,6 @@
 "use client";
 import { effectiveWeeklyLimit } from "@/lib/legal";
+import { trNum } from "@/lib/format";
 import { departmentInBranch, plannedInBranch } from "@/lib/branchRotation";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -954,14 +955,15 @@ function SchedulePageInner() {
     return () => { stale = true; };
   }, [activeLocationId, weekStart, reloadTick]);
 
-  // Sihirbazı aç: yayınlanmış haftada "mevcut planı koru" varsayılan açık
+  // Sihirbazı aç: yayınlanmış haftada ve şeflerin onaya gönderdiği planlar varken "mevcut planı koru" varsayılan açık
+  // (pub testi: sahip sadece şefsiz departmanı planlamak isterken şeflerin planları silinip yeniden yazılıyordu)
   const openWizard = () => {
     if (personnel.length === 0) {
       showToast("Önce personel ekleyin: Hızlı Kurulum'daki 'Personel ekle' adımından başlayabilirsiniz.", "info");
       return;
     }
     setDemandAutoFilled(false);
-    setMinimizeChanges(dbShiftCount > 0 && !isDraftWeek);
+    setMinimizeChanges(dbShiftCount > 0 && (!isDraftWeek || (!chefDept && deptStatus.some(d => d.submitted))));
     setChangedCount(null);
     setWizardOpen(true);
   };
@@ -2201,9 +2203,35 @@ function SchedulePageInner() {
       return totals;
     };
 
+    // Haftalık saat: istenen vardiyaların toplam saati, ekibin haftalık sınırlarının toplamını aşarsa motor plan
+    // bulamaz (motor brüt saati sayar, lib/legal effectiveWeeklyLimit). Pub testi: kontrol "karşılanabilir" deyip
+    // motor nedensiz "plan bulunamadı" diyordu.
+    const ruleMax = Number((locRules as Record<string, unknown>).max_weekly_hours ?? 45) || 45;
+    const defHours = (defId: string) => {
+      const def = shiftDefs.find(d => d.id === defId);
+      if (!def || def.on_call) return 0;
+      const [sh, sm] = def.start.split(":").map(Number); const [eh, em] = def.end.split(":").map(Number);
+      let mins = eh * 60 + em - (sh * 60 + sm); if (mins <= 0) mins += 24 * 60;
+      return mins / 60;
+    };
+    const weeklyCheck = (matrix: Record<string, Record<number, number>>, members: any[], label: string) => {
+      let need = 0, shiftsNeeded = 0;
+      for (const [defId, days] of Object.entries(matrix)) for (const c of Object.values(days)) { need += (Number(c) || 0) * defHours(defId); shiftsNeeded += Number(c) || 0; }
+      if (need <= 0 || members.length === 0) return;
+      const cap = members.reduce((a, p) => a + effectiveWeeklyLimit(p.max_weekly_hours, ruleMax), 0);
+      if (need > cap) {
+        warnings.push(`${label}haftada ${trNum(need)} saatlik vardiya isteniyor, ${members.length} kişi haftalık sınırla en fazla ${trNum(cap)} saat çalışabilir. Kişi ekleyin ya da sayıları azaltın.`);
+      } else if (need > cap * 0.95) {
+        warnings.push(`${label}haftada ${trNum(need)} saatlik vardiya isteniyor, ${members.length} kişinin haftalık sınırı toplam ${trNum(cap)} saat. Sınıra çok yakın: vardiya süreleri farklı olduğu için plan bulunamayabilir.`);
+      } else if (shiftsNeeded > members.length * 6) {
+        warnings.push(`${label}haftada ${shiftsNeeded} vardiya isteniyor, ${members.length} kişi haftada en fazla 6 gün çalışabilir (${members.length * 6} vardiya).`);
+      }
+    };
+
     if (hasDeptDemand) {
       for (const [deptId, matrix] of Object.entries(deptDemandMatrix)) {
         if (hasSubDepartments(departments, deptId)) continue;
+        weeklyCheck(matrix, personnel.filter(p => p.department_id === deptId), `${departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId}: `);
         const members = personnel.filter(p => (p.department_id || '__none__') === deptId);
         const deptName = departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId;
         const dayTotals = sumDayTotals(matrix);
@@ -2217,6 +2245,7 @@ function SchedulePageInner() {
         }
       }
     } else if (Object.keys(demandMatrix).length > 0) {
+      weeklyCheck(demandMatrix, personnel, "");
       const dayTotals = sumDayTotals(demandMatrix);
       for (const [dayStr, total] of Object.entries(dayTotals)) {
         const d = parseInt(dayStr);
@@ -2260,7 +2289,7 @@ function SchedulePageInner() {
       }
     }
     return warnings;
-  }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap, shiftDefs]);
+  }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap, shiftDefs, locRules, chefDept]);
 
   // Kapasite Planı hücrelerinde "bu gün en fazla kaç kişi girilebilir" ipucu için —
   // departman verilmezse lokasyon geneli, verilirse sadece o departmanın personeli sayılır.
@@ -2931,19 +2960,37 @@ loading ? (
           </div>
 
           {/* ── Departman planları: şeflerin onaya gönderdiği bölümler (yönetici görür) ── */}
-          {!loading && !chefDept && !isPublishedWeek && deptStatus.some(d => d.chef_name) && (
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-bold text-slate-700">Departman planları:</span>
-              {deptStatus.filter(d => d.chef_name).map(d => (
-                <StatusPill key={d.department_id} tone={d.submitted ? "positive" : "attention"}>
-                  {d.department_name} {d.submitted ? "hazır ✓" : `bekleniyor (${d.chef_name})`}
-                </StatusPill>
-              ))}
-              {deptStatus.filter(d => d.chef_name).every(d => d.submitted) && (
-                <span className="text-xs font-semibold text-emerald-700">Hepsi hazır. Kontrol edip yayınlayabilirsiniz.</span>
-              )}
-            </div>
-          )}
+          {!loading && !chefDept && !isPublishedWeek && deptStatus.some(d => d.chef_name) && (() => {
+            // Şefi olmayan departmanların planı yöneticide: boşsa "Hepsi hazır" denmez (pub testi: Kasa boş kalıyordu)
+            const chefOf = (id: string) => {
+              const parent = departments.find(x => x.id === id)?.parent_id;
+              return deptStatus.some(s => s.chef_name && (s.department_id === id || s.department_id === parent));
+            };
+            const ownDepts = demandDepts.filter(d => !chefOf(d.id));
+            const plannedIds = new Set(Object.keys(cellMap).map(k => personnel.find(p => p.id === k.slice(0, k.lastIndexOf("-")))?.department_id));
+            const chefsReady = deptStatus.filter(d => d.chef_name).every(d => d.submitted);
+            const ownReady = ownDepts.every(d => plannedIds.has(d.id));
+            return (
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-bold text-slate-700">Departman planları:</span>
+                {deptStatus.filter(d => d.chef_name).map(d => (
+                  <StatusPill key={d.department_id} tone={d.submitted ? "positive" : "attention"}>
+                    {d.department_name} {d.submitted ? "hazır ✓" : `bekleniyor (${d.chef_name})`}
+                  </StatusPill>
+                ))}
+                {ownDepts.map(d => (
+                  <StatusPill key={d.id} tone={plannedIds.has(d.id) ? "positive" : "attention"}>
+                    {departmentLabel(departments, d)} {plannedIds.has(d.id) ? "planlı ✓" : "boş (şefi yok, sizde)"}
+                  </StatusPill>
+                ))}
+                {chefsReady && ownReady ? (
+                  <span className="text-xs font-semibold text-emerald-700">Hepsi hazır. Kontrol edip yayınlayabilirsiniz.</span>
+                ) : chefsReady && (
+                  <span className="text-xs text-slate-500">Şefi olmayan bölümleri Planı Oluştur ile ekleyin: şeflerin planları korunur.</span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Otomatik pilotun hazırladığı taslak: müdüre kalan iş kontrol + Yayınla ── */}
           {!loading && autopilotDraftWeek === weekStart && !isPublishedWeek && cellCount > 0 && (

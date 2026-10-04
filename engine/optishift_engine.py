@@ -45,6 +45,8 @@ CLOSED_DAYS: set = set()
 # Adalet farkının bir vardiyalık artışından (~500-1700) belirgin büyük: motor önce
 # her vardiyayı en az 1 kişiyle açar, sonra adaleti dengeler. Personel yetmezse plan yine çıkar.
 EMPTY_SHIFT_PENALTY = 5000
+# Üst üste 3 gece (her 3 günlük pencere için): bir vardiyalık adalet farkı düzeyinde, boş vardiya cezasından küçük
+NIGHT_STREAK_PENALTY = 800
 
 # Müdürün elle yaptığı ve korunan (pinned) hücreler: yeniden oluşturmada dokunulmaz.
 # {(personnel_id, day, "regular"|"on_call"): shift_idx | None} — None: tanımlı vardiyaya uymayan özel saat,
@@ -805,6 +807,19 @@ def build_model():
                     model.add(shifts[(p, d, s1)] + shifts[(p, d + 1, s2)] - 1 <= b)
                     clopening_penalties.append(b)
 
+    # ── Üst üste 3 gece (Soft) ──────────────────────────────────────────────
+    # Plan Kontrolü (web/lib/copilot/checks.ts "night-streak") ve Kaza Risk Radarı üst üste 3 geceyi uyarır;
+    # motor da kaçınır (pub testi 2026-10-04: motorun yazdığı planı kendi kontrolümüz uyarıyordu).
+    # Ağırlık bir vardiyalık adalet farkı düzeyinde: başka yol varsa kaçınır, ihtiyaç zorlarsa yazar.
+    night_streak_penalties = []
+    night_regular = [s for s in _regular_idxs() if _is_night_shift(s)]
+    if night_regular:
+        for p in range(num_p):
+            for d in range(NUM_DAYS - 2):
+                streak = model.new_bool_var(f"night_streak_p{p}_d{d}")
+                model.add(sum(shifts[(p, dd, s)] for dd in (d, d + 1, d + 2) for s in night_regular) - 2 <= streak)
+                night_streak_penalties.append(streak)
+
     # ── FABRİKA: Adil Mesai Dağılımı (Soft) ─────────────────────────────────
     # YTD mesai saati yüksek olanın overtime bölgesine girmesi soft cezalandırılır.
     # Eşiğin üzerindeki her olası gün için: ytd fazlaysa ceza ağırlığı artar.
@@ -966,6 +981,7 @@ def build_model():
         + sum(senior_violation_penalties) * 50
         + sum(min_hours_shortfalls) * 5
         + sum(clopening_penalties) * int(RULES.get("clopening_penalty_weight", 30))
+        + sum(night_streak_penalties) * NIGHT_STREAK_PENALTY
         + ot_penalty_term
         + sum(empty_shift_penalties) * EMPTY_SHIFT_PENALTY
         + sum(pattern_misses) * PATTERN_MISS_PENALTY
@@ -1109,8 +1125,45 @@ def diagnose_infeasibility() -> str | None:
                         f"\"{req['skill']}\" yetkinlikli kişi gerekli ama o gün yalnızca {len(pool)} uygun kişi var."
                     )
 
+    # Haftalık saat: istenen vardiyaların toplam saati ekibin haftalık sınırlarına sığıyor mu (pub testi 2026-10-04:
+    # günlük sayılar tutarken haftalık saat sığmıyordu, mesaj nedensizdi). %95 üstü "sınırda" sayılır: vardiya
+    # süreleri farklıyken kâğıt üstünde sığan plan da bulunamayabilir.
+    if not problems:
+        def _dur_min(s_idx):
+            if s_idx >= len(SHIFTS) or _is_on_call(s_idx):
+                return 0
+            a, b = _shift_minutes(SHIFTS[s_idx])
+            return b - a
+
+        def _cap_min(ids):
+            rule = int(RULES["max_weekly_hours"]) * 60
+            by_id = {p["id"]: p for p in PERSONNEL}
+            return sum(min(rule, int(by_id[i].get("max_weekly_hours", RULES["max_weekly_hours"]) or 0) * 60) for i in ids)
+
+        def _weekly(matrix, ids, label):
+            need = sum(cnt * _dur_min(s) for s, dc in matrix.items() for cnt in dc.values())
+            cap = _cap_min(ids)
+            if need <= 0 or not ids:
+                return
+            if need > cap * 0.95:
+                problems.append(
+                    f"{label}haftada {need / 60:.0f} saatlik vardiya isteniyor, {len(ids)} kişinin haftalık sınırı toplam "
+                    f"{cap / 60:.0f} saat{'' if need > cap else ' (sınıra çok yakın; vardiya süreleri farklı olduğu için sığmıyor)'}. "
+                    f"Kişi ekleyin ya da sayıları azaltın."
+                )
+
+        if DEMAND_MATRIX:
+            _weekly(DEMAND_MATRIX, all_ids, "")
+        if DEPARTMENT_DEMAND_MATRIX:
+            members_by_dept: dict = {}
+            for person in PERSONNEL:
+                if person.get("department_id"):
+                    members_by_dept.setdefault(person["department_id"], []).append(person["id"])
+            for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
+                _weekly(shift_day_map, members_by_dept.get(dept_id, []), f"{DEPARTMENT_NAMES.get(dept_id, dept_id)}: ")
+
     if problems:
-        header = "Kapasite planı bazı günler için mevcut personel sayısından fazla kişi istiyor:\n"
+        header = "Personel ihtiyacı mevcut ekiple karşılanamıyor:\n"
         return header + "\n".join(f"• {p}" for p in problems[:6])
     return None
 

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getPlan, limitMessage } from "@/lib/plans";
+import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Store, CalendarClock, ArrowRight, Plus, Trash2, CheckCircle2 } from "lucide-react";
@@ -272,11 +273,10 @@ export default function OnboardingWizard() {
                       <input type="time" value={s.end}
                         onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
                         className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400 font-bold whitespace-nowrap">Zorluk {s.base_points}</span>
-                        <input type="range" min={1} max={10} value={s.base_points}
-                          onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: +e.target.value } : x))}
-                          className="w-14 accent-primary" />
+                      <div className="flex items-center gap-1 w-full md:w-auto">
+                        {/* Zorluk: Ayarlar'la aynı seçici (components/ui/DifficultyPicker) */}
+                        <DifficultyPicker className="flex-1 md:w-56" value={s.base_points}
+                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: v } : x))} />
                         <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))} aria-label="Vardiyayı kaldır" title="Vardiyayı kaldır"
                           className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                           <Trash2 size={12} />
@@ -293,7 +293,7 @@ export default function OnboardingWizard() {
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Puan değeri, vardiyanın zorluğudur. Vardiyalar bu yüke göre adil dağıtılır. Emin değilseniz olduğu gibi bırakın.
+                  Zorluk, vardiyaların adil dağıtılmasında kullanılır. Emin değilseniz olduğu gibi bırakın.
                 </p>
               </WizardStep>
             )}

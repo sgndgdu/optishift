@@ -407,7 +407,7 @@ export default function RegisterPage() {
               <div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hesabınız Oluşturuldu!</h2>
                 <p className="text-slate-500 mt-3 font-medium leading-relaxed">
-                  <strong>{form.org_name}</strong> hazır. Şimdi işletme türünüzü seçip şubenizi kuralım.
+                  <strong>{form.org_name}</strong> hazır. Şimdi işletme türünüzü seçip kurulumu tamamlayalım.
                 </p>
               </div>
               {promoResult?.applied && (

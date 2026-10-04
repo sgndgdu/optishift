@@ -12,6 +12,7 @@ import {
 import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { sortDepartments } from "@/lib/departments";
+import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
 import { isCategoryLocked, LOCK_NOTE, type LockCategory } from "@/lib/ruleLocks";
 import { hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
@@ -1307,7 +1308,7 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       {sortDepartments(departments).map(dept => (
                         <Fragment key={dept.id}>
-                        <div className={cn("flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3", dept.parent_id && "ml-6")}>
+                        <div className={cn("flex items-center gap-2 sm:gap-3 bg-white border border-slate-200 rounded-xl px-3 sm:px-4 py-3", dept.parent_id && "ml-5 sm:ml-6")}>
                           <div className={cn("rounded-full shrink-0", dept.parent_id ? "w-2 h-2 bg-forest-300" : "w-2.5 h-2.5 bg-forest-400")} />
                           {editingDeptId === dept.id ? (
                             <input
@@ -1321,11 +1322,11 @@ export default function SettingsPage() {
                               className="flex-1 px-2 py-1 text-sm border border-forest-400 rounded-lg outline-none"
                             />
                           ) : (
-                            <span className="flex-1 font-semibold text-slate-800 text-sm">{dept.name}</span>
+                            <span className="flex-1 min-w-0 truncate font-semibold text-slate-800 text-sm">{dept.name}</span>
                           )}
                           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {(dept as any).personnel_count !== undefined && (
-                            <StatusPill tone="neutral" className="shrink-0">
+                            <StatusPill tone="neutral" className="shrink-0 hidden sm:inline-flex">
                               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {(dept as any).personnel_count} personel
                             </StatusPill>
@@ -1339,7 +1340,9 @@ export default function SettingsPage() {
                             <>
                               {!dept.parent_id && (
                                 <button onClick={() => { setSubParentId(subParentId === dept.id ? null : dept.id); setNewSubName(""); }}
-                                  className="px-2 py-1 text-xs font-semibold text-forest-700 hover:bg-forest-50 rounded-lg shrink-0">+ Alt departman</button>
+                                  className="px-2 py-1 text-xs font-semibold text-forest-700 hover:bg-forest-50 rounded-lg shrink-0">
+                                  <span className="sm:hidden">+ Alt</span><span className="hidden sm:inline">+ Alt departman</span>
+                                </button>
                               )}
                               <button onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0" title="İsmi düzenle"><Pencil size={13} /></button>
                               <button onClick={() => handleDeleteDepartment(dept)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0" title="Sil"><X size={13} /></button>
@@ -1347,7 +1350,7 @@ export default function SettingsPage() {
                           )}
                         </div>
                         {subParentId === dept.id && (
-                          <div className="ml-6 flex items-center gap-2">
+                          <div className="ml-5 sm:ml-6 flex items-center gap-2">
                             <input
                               value={newSubName}
                               onChange={e => setNewSubName(e.target.value)}
@@ -1619,28 +1622,13 @@ export default function SettingsPage() {
                         </p>
                       )}
 
-                      {/* Zorluk: sayı yerine üç seçenek (Kolay 3 / Orta 5 / Zor 8); eski ara değerler en yakın seçeneğe düşer */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400 shrink-0">Zorluk</span>
-                        <div className="grid grid-cols-3 gap-1.5 flex-1">
-                          {([["Kolay", 3], ["Orta", 5], ["Zor", 8]] as const).map(([lbl, val]) => {
-                            const level = shift.base_points <= 3 ? 3 : shift.base_points >= 7 ? 8 : 5;
-                            return (
-                              <button key={lbl} type="button"
-                                onClick={() => {
-                                  const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                                    i === idx ? { ...s, base_points: val } : s
-                                  );
-                                  setLocationData({ ...locationData, shift_definitions: next });
-                                }}
-                                className={cn("py-1.5 rounded-lg text-xs font-semibold border transition-colors",
-                                  level === val ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
-                                {lbl}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      {/* Zorluk: tek seçici (components/ui/DifficultyPicker) */}
+                      <DifficultyPicker value={shift.base_points} onChange={val => {
+                        const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                          i === idx ? { ...s, base_points: val } : s
+                        );
+                        setLocationData({ ...locationData, shift_definitions: next });
+                      }} />
 
                       {/* Zorunlu yetkinlik karması — "gece vardiyasında en az 1 bakımcı" gibi */}
                       <RequiredSkillsEditor

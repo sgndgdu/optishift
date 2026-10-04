@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   // ?names=1: sadece ad (kişi kartında başka şubedeki departmanı seçmek için; şube müdürüne de açık)
   if (searchParams.get("names") === "1" && location_id && auth.role !== "employee") {
     if (!(await locationBelongsToOrg(location_id, auth.org_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
-    const list = await db.select({ id: departments.id, name: departments.name, parent_id: departments.parent_id }).from(departments).where(eq(departments.location_id, location_id));
+    const list = await db.select({ id: departments.id, name: departments.name, parent_id: departments.parent_id }).from(departments).where(eq(departments.location_id, location_id)).orderBy(departments.id);
     return NextResponse.json(list);
   }
   if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
   if (!(await locationBelongsToOrg(location_id, auth.org_id)))
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
 
-  const depts = await db.select().from(departments).where(eq(departments.location_id, location_id));
+  // Eklenme sırası (kimlik "D-<zaman>"): sıra her açılışta değişmesin (pub testi)
+  const depts = await db.select().from(departments).where(eq(departments.location_id, location_id)).orderBy(departments.id);
 
   // Her departman için şef kullanıcısını ve personel sayısını çek
   const enriched = await Promise.all(

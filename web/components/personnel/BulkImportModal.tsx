@@ -11,6 +11,7 @@ import { Check, Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import InviteLinkList from "@/components/personnel/InviteLinkList";
 import { checkRows, parseDelimited, rowsFromTable, unknownDepartments, type ImportRow } from "@/lib/personnelImport";
+import { getPlan } from "@/lib/plans";
 
 interface Result { name: string; username: string; temp_password: string; invite_token: string }
 
@@ -31,6 +32,17 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ results: Result[]; skipped: { line: number; name: string; reason: string }[]; createdDepartments: string[]} | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // Paket kişi sınırı (lib/plans): kaç kişilik yer kaldı; null = sınırsız
+  const [room, setRoom] = useState<number | null>(null);
+  useEffect(() => {
+    let stale = false;
+    fetch("/api/organizations").then(r => (r.ok ? r.json() : null)).then(o => {
+      if (stale || !o) return;
+      const max = getPlan(o.plan).maxPersonnel;
+      setRoom(max === null ? null : Math.max(0, max - Number(o.personnel_count ?? 0)));
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, []);
 
   useEffect(() => {
     let stale = false;
@@ -75,7 +87,10 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   };
 
   const checked = rows ? checkRows(rows, { departments, existing, createDepartments: createDepts }) : [];
-  const okCount = checked.filter(r => r.status === "ok").length;
+  const okRows = checked.filter(r => r.status === "ok").length;
+  // Paket sınırını aşan satırlar eklenmez: önizleme bunu baştan söyler (pub testi: "18 eklenecek" deyip 10 ekliyordu)
+  const overLimit = room !== null && okRows > room ? okRows - room : 0;
+  const okCount = okRows - overLimit;
   const unknownDepts = rows ? unknownDepartments(rows, departments) : [];
 
   const submit = async () => {
@@ -181,6 +196,12 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
               {checked.length - okCount > 0 && <span className="text-amber-700 font-semibold">{checked.length - okCount} atlanacak</span>}
               <button onClick={() => { setRows(null); setError(""); }} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-700">Başka dosya</button>
             </div>
+            {overLimit > 0 && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                Paketinizde {room} kişilik yer kaldı: listenin ilk {room} kişisi eklenir, son {overLimit} kişi eklenmez.
+                Hepsini eklemek için Ayarlar › Paketi yönet&apos;ten paketinizi yükseltin.
+              </p>
+            )}
             {unknownDepts.length > 0 && (
               <label className="flex items-start gap-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-3 cursor-pointer">
                 <input type="checkbox" checked={createDepts} onChange={e => setCreateDepts(e.target.checked)} className="mt-0.5 accent-forest-600" />

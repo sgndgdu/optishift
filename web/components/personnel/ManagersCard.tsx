@@ -286,7 +286,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
             <div>
               <span className={label}>{branchManager ? "Hangi departmanın şefi?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
               <select value={deptId} onChange={e => pickDept(e.target.value)} className={field}>
-                <option value="">{branchManager ? "Departman seçin…" : "Şubenin tamamı"}</option>
+                <option value="">{branchManager ? "Departman seçin…" : "Tüm departmanlar"}</option>
                 {/* Departmanın şefi alt departmanlarını da yönetir (lib/departments) */}
                 {sortDepartments(depts).map(d => <option key={d.id} value={d.id}>{departmentLabel(depts, d)}{hasSubDepartments(depts, d.id) ? " (alt departmanlarıyla)" : ""}</option>)}
               </select>

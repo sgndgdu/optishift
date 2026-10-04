@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
       `SELECT id, name, plan, connected_erp, erp_mapped_fields FROM organizations WHERE id = ?`
     ).get(auth.org_id) as any;
     if (!org) return NextResponse.json({ error: "İşletme bulunamadı" }, { status: 404 });
+    // Paket kişi sınırı için (lib/plans): işletmedeki aktif kişi sayısı (Excel önizlemesi uyarır)
+    org.personnel_count = Number(((await db.prepare("SELECT COUNT(*) as cnt FROM personnel WHERE org_id = ? AND status != 'inactive'").get(auth.org_id)) as any)?.cnt ?? 0);
     if (typeof org.erp_mapped_fields === "string") {
       try { org.erp_mapped_fields = JSON.parse(org.erp_mapped_fields); } catch { org.erp_mapped_fields = null; }
     }
