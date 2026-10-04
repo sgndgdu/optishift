@@ -209,7 +209,6 @@ export interface ScheduleRules {
   // Fabrika modülü — fazla mesai
   overtime_threshold_hours?: number;   // haftalık eşik: bu saatin üzeri mesai sayılır (varsayılan 45)
   max_ytd_overtime_hours?: number;     // yıllık fazla mesai üst sınırı (İş Kanunu: 270 saat)
-  weekly_overtime_budget_hours?: number; // tüm personelin haftalık toplam mesai bütçesi (0/undefined = limitsiz)
   weekly_labor_budget_try?: number;    // haftalık planlanan işçilik maliyeti üst sınırı (₺, 0/undefined = limitsiz)
   overtime_fair_distribution?: boolean; // adil mesai dağılımı — az mesai yapana öncelik
   // Fabrika modülü — ekip/rotasyon

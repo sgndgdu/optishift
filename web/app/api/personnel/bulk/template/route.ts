@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     "• Dosyayı OptiShift › Ekip › Toplu Yükle ekranına yükleyin; eklemeden önce önizleme görürsünüz.",
     "",
     departments.length ? `Bu şubenin departmanları: ${departments.join(", ")}` : "Bu şubede departman tanımlı değil; Departman sütununu boş bırakabilirsiniz.",
-    roles.length ? `İşletme türünüze önerilen roller: ${roles.join(", ")}` : "",
+    roles.length ? `İşletme türünüze önerilen görevler: ${roles.join(", ")}` : "",
   ];
   lines.forEach((t, i) => { const c = info.getCell(`A${i + 1}`); c.value = t; if (i === 0) c.font = { bold: true, size: 13 }; });
 

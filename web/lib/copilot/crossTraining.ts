@@ -59,7 +59,7 @@ export function crossTrainingInsight(snap: WeekSnapshot, shiftDefs: ShiftDefinit
   return {
     id: "cross-training",
     severity: "info",
-    title: list.length === 1 ? `"${list[0].role}" rolünde darboğaz var` : `${list.length} rolde darboğaz var`,
+    title: list.length === 1 ? `"${list[0].role}" görevinde darboğaz var` : `${list.length} görevde darboğaz var`,
     lines: list.map(b =>
       `${b.role}: haftada ${b.needShifts} vardiyada gerekiyor, ${b.holders} kişide var` +
       (b.gaps ? `; bu hafta ${b.gaps} vardiyada eksik` : "") +

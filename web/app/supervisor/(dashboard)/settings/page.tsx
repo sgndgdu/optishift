@@ -3,11 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 import AccountTab from "@/components/AccountTab";
-import NewBranchWizard from "@/components/NewBranchWizard";
-import { Avatar } from "@/components/ui/Avatar";
-import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { DetailRow } from "@/components/ui/Sheet";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { getPlan } from "@/lib/plans";
@@ -22,18 +18,13 @@ export default function SupervisorSettingsPage() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Yeni şube sihirbazı (components/NewBranchWizard); ?new=1 ile açık gelir
-  const [showAddBranch, setShowAddBranch] = useState(false);
-
-
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem("optishift_supervisor_user");
       const parsed = stored ? JSON.parse(stored) : null;
       if (parsed) setUser(parsed);
-      // Genel Bakış'taki "Şube Ekle" → ?new=1 (istemci geçişinde adres effect'te günceldir)
-      if (parsed?.role === "admin" && new URLSearchParams(window.location.search).get("new") === "1") setShowAddBranch(true);
+      // Eski bağlantılar: şube ekleme artık Genel Bakış'ta
+      if (new URLSearchParams(window.location.search).get("new") === "1") { window.location.replace("/supervisor?new=1"); return; }
       setMounted(true);
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,36 +67,9 @@ export default function SupervisorSettingsPage() {
           {loading ? <p className="py-3 text-sm text-slate-500">Yükleniyor…</p> : <>
             <DetailRow label="İşletme adı">{org?.name ?? "—"}</DetailRow>
             <DetailRow label="Paket"><StatusPill tone="brand">{planInfo.name}</StatusPill></DetailRow>
-            <DetailRow label="Şube sayısı">{locations.length}</DetailRow>
+            <DetailRow label="Şube sayısı">{locations.length} <a href="/supervisor" className="ml-2 text-xs font-semibold text-forest-700 hover:underline">Şubeler</a></DetailRow>
           </>}
         </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-slate-900">Şubeler</h2>
-          {user.role === "admin" && (
-            <button onClick={() => setShowAddBranch(true)}
-              className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              <Plus size={15} /> Şube ekle
-            </button>
-          )}
-        </div>
-        <List>
-          {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : locations.length === 0 ? <ListEmpty>Henüz şube yok.</ListEmpty>
-            : locations.map(loc => (
-              <ListItem key={loc.id} leading={<Avatar name={loc.name} tone="brand" />} title={loc.name} />
-            ))}
-        </List>
-        {/* Yeni Şube sihirbazı */}
-        {showAddBranch && !loading && (
-          <NewBranchWizard
-            existing={locations}
-            planLimited={planInfo.maxLocations !== null && locations.length >= planInfo.maxLocations}
-            // Liste sihirbaz kapanınca yenilenir: açıkken yenilenirse (loading) sihirbaz baştan başlar
-            onClose={() => { setShowAddBranch(false); loadData(); }}
-          />
-        )}
       </section>
 
       <section className="space-y-3">

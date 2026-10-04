@@ -27,7 +27,8 @@ function shiftDur(s: any): number {
 }
 
 function elapsedLabel(checkInAt: number): string {
-  const diff = Date.now() - checkInAt * 1000;
+  // Giriş saati cihaz saatinden ileride görünebilir (saat farkı): sayaç eksiye düşmez
+  const diff = Math.max(0, Date.now() - checkInAt * 1000);
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   return h > 0 ? `${h}s ${m}dk` : `${m} dakika`;
@@ -627,40 +628,7 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Yaklaşan Vardiyalar ──────────────────────────────────────────── */}
-      {!dataLoading && upcomingShifts.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-slate-900 text-base">Yaklaşan {words.Shifts}</h3>
-            <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">
-              Tümü <ChevronRight size={13} />
-            </Link>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
-            {upcomingShifts.slice(0, 3).map((s, idx) => {
-              const dur = shiftDur(s);
-              const isT = s.day === todayIdx;
-              return (
-                <Link key={s.id ?? idx} href="/portal/calendar" className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    isT ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
-                  }`}>
-                    <span className="text-xs font-bold">{SHORT[s.day]}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold ${isT ? "text-primary" : "text-slate-800"}`}>
-                      {DAY_NAMES[s.day]}{isT ? " · Bugün" : ""}
-                    </p>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">{s.start_time} – {s.end_time}</p>
-                  </div>
-                  <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">{dur}s</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+      {/* Yaklaşan vardiyalar ayrı liste olarak gösterilmez: üstteki "Bu Hafta" şeridi ve Vardiyalarım aynı bilgiyi verir */}
       {/* ── Son Bildirimler ──────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">

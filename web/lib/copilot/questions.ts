@@ -64,7 +64,7 @@ export const QUESTIONS: CopilotQuestion[] = [
       const short = snap.coverage.filter(c => c.demand !== null && c.assigned < c.demand);
       const skill = snap.coverage.filter(c => c.missingSkills.length > 0);
       if (short.length === 0 && skill.length === 0) {
-        return { title: "Eksik gün yok", lines: ["Her vardiya ihtiyaç kadar dolu ve zorunlu roller karşılanmış."] };
+        return { title: "Eksik gün yok", lines: ["Her vardiya ihtiyaç kadar dolu ve zorunlu görevler karşılanmış."] };
       }
       return {
         title: "Eksik vardiyalar",

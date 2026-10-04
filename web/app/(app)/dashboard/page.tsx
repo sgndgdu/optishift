@@ -306,7 +306,7 @@ export default function DashboardPage() {
   const summary = [
     { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi vardiyada` : "Bugün planlı vardiya yok" },
     { icon: CheckCircle2, text: `${activeCount} aktif personel` },
-    ...(isModuleOn(rules, "publish_lead_kpi_enabled") && publishLead !== null
+    ...(publishLead !== null
       ? [{ icon: CalendarCheck, text: formatPublishLead(publishLead).sentence! }]
       : []),
   ];

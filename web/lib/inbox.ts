@@ -222,7 +222,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "certifications",
       severity: "critical",
       title: `${cert.expired} kişinin belgesinin süresi doldu`,
-      detail: "Bu belgeyi gerektiren rollere otomatik planlamada atanmazlar.",
+      detail: "Bu belgeyi gerektiren görevlere otomatik planlamada atanmazlar.",
       action: { label: "Ekibe Git", href: "/personnel" },
     });
   } else if (cert?.enabled && cert.expiring > 0) {
@@ -249,7 +249,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "industry",
       severity: "week",
       title: "İşletme türünüzü seçin",
-      detail: "Rol listesi, belge kontrolü ve öneriler işletmenize göre gelsin.",
+      detail: "Görev listesi, belge kontrolü ve öneriler işletmenize göre gelsin.",
       action: { label: "Seç", href: "/settings" },
     });
   }

@@ -13,7 +13,7 @@
 
 import type { ShiftDefinition } from "@/lib/types";
 import { addDays } from "@/lib/date";
-import { longestWeeklyRestHours } from "@/lib/legal";
+import { effectiveWeeklyLimit, longestWeeklyRestHours } from "@/lib/legal";
 
 export type DayState = "available" | "partial" | "preferred_not" | "unavailable";
 
@@ -201,7 +201,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
     for (let d = 0; d < 7; d++) { nightRun = nightDays.has(d) ? nightRun + 1 : 0; nightStreak = Math.max(nightStreak, nightRun); }
 
     // Denkleştirme açıkken tam zamanlı personel tek haftada yasal 66 saate kadar esneyebilir
-    const personMax = p.maxWeeklyHours ?? input.rules.maxWeeklyHours;
+    const personMax = effectiveWeeklyLimit(p.maxWeeklyHours, input.rules.maxWeeklyHours);
     const maxHours = input.rules.balancingPeriodWeeks >= 2 && personMax >= input.rules.maxWeeklyHours ? 66 : personMax;
 
     const workDays = new Set(shifts.map(s => s.day));

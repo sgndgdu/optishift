@@ -7,6 +7,7 @@
  */
 
 import { loadReliability } from "@/lib/reliabilityData";
+import { effectiveWeeklyLimit } from "@/lib/legal";
 import { RELIABILITY_WEEKS, isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 
 export interface SlotInput {
@@ -47,13 +48,19 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   const osDurationH = (osEnd - osStart) / 60;
   const osIsNight = osStart >= 22 * 60 || osEnd > 24 * 60;
 
+  // Plana giren herkes aday (vardiya yapan yönetici dahil, personnel.schedulable)
   const people = await db.prepare(`
     SELECT id, name, prev_score, max_weekly_hours, night_restriction, weekly_off_day, user_access_level, roles
     FROM personnel
-    WHERE assigned_location_ids LIKE ? AND status = 'active'
+    WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE
   `).all(`%"${slot.location_id}"%`) as any[];
-  const eligible = people.filter(p =>
-    !["manager", "admin", "supervisor"].includes(p.user_access_level) && p.id !== slot.excludePersonnelId);
+  const eligible = people.filter(p => p.id !== slot.excludePersonnelId);
+  const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(slot.location_id) as any;
+  let ruleMax = 45;
+  try {
+    const r = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules || "{}") : (locRow?.rules ?? {});
+    if (typeof r.max_weekly_hours === "number") ruleMax = r.max_weekly_hours;
+  } catch { /* varsayılan */ }
 
   // O haftanın normal vardiyaları (gün çakışması, saat toplamı, dinlenme)
   const asgs = await db.prepare(`
@@ -115,7 +122,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (e <= s) e += 1440;
       weekMin += e - s;
     }
-    const maxH = p.max_weekly_hours ?? 45;
+    const maxH = effectiveWeeklyLimit(p.max_weekly_hours, ruleMax);
     const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
     if (newTotalH > maxH) warnings.push(`Haftalık ${newTotalH}s olur (limit ${maxH}s)`);
     else reasons.push(`Bu hafta ${Math.round(weekMin / 6) / 10} saat çalışıyor, sınırı aşmaz`);
@@ -145,7 +152,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
     const myRoles = rolesOf(p);
     const matched = required.filter(r => myRoles.includes(r));
-    if (matched.length) reasons.unshift(`Gerekli rol: ${matched.join(", ")}`);
+    if (matched.length) reasons.unshift(`Gerekli görev: ${matched.join(", ")}`);
 
     candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0 });
   }

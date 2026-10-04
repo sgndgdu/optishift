@@ -233,7 +233,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                         <p className="text-xs font-bold text-slate-500 mb-1.5">Önerilen kural</p>
                         {recs.map(r => (
                           <p key={r.shiftId + r.skill} className="text-sm text-slate-700">
-                            <strong>{shifts.find(s => s.id === r.shiftId)?.name ?? r.shiftId}</strong> vardiyasında en az {r.count} {r.skill}. <span className="text-slate-500">{r.reason} Ekipte rolü işaretledikten sonra Ayarlar &rsaquo; İşletme Türü&apos;nden tek tıkla ekleyebilirsiniz.</span>
+                            <strong>{shifts.find(s => s.id === r.shiftId)?.name ?? r.shiftId}</strong> vardiyasında en az {r.count} {r.skill}. <span className="text-slate-500">{r.reason} Ekipte görevi işaretledikten sonra Ayarlar &rsaquo; İşletme Türü&apos;nden tek tıkla ekleyebilirsiniz.</span>
                           </p>
                         ))}
                       </div>

@@ -25,8 +25,6 @@ export interface Insight {
 export interface WeekBudgets {
   /** Haftalık işçilik maliyeti (₺) ve bütçesi; bütçe 0 ise kontrol yok. */
   labor?: { total: number; budget: number };
-  /** Kişi başı fazla mesai eşiği ve haftalık toplam fazla mesai bütçesi (saat); bütçe 0 ise kontrol yok. */
-  overtime?: { thresholdHours: number; budgetHours: number };
   /** Güvenilirliği düşük personel → kısa not (lib/reliability; giriş verisi yoksa boş) */
   unreliable?: Record<string, string>;
 }
@@ -110,7 +108,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   // Geçmiş günler değiştirilemez: kapsama uyarıları sadece bugün ve sonrası için
   const upcoming = snap.coverage.filter(c => !c.past);
   const skillGaps = upcoming.filter(c => c.missingSkills.length > 0);
-  add("skill-gap", "critical", `${skillGaps.length} vardiyada zorunlu rol eksik`,
+  add("skill-gap", "critical", `${skillGaps.length} vardiyada zorunlu görev eksik`,
     skillGaps.map(c => `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.missingSkills.map(m => `${m.need} ${m.skill} gerekli, ${m.have} var`).join("; ")}`));
 
   const short = upcoming.filter(c => c.demand !== null && c.assigned < c.demand);
@@ -127,13 +125,6 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   if (budgets.labor && budgets.labor.budget > 0 && budgets.labor.total > budgets.labor.budget) {
     add("labor-budget", "critical", "Haftalık işçilik maliyeti bütçeyi aşıyor",
       [`₺${budgets.labor.total.toLocaleString("tr-TR")} planlandı, bütçe ₺${budgets.labor.budget.toLocaleString("tr-TR")}`]);
-  }
-  if (budgets.overtime && budgets.overtime.budgetHours > 0) {
-    const totalOT = working.reduce((s, p) => s + Math.max(0, p.hours - budgets.overtime!.thresholdHours), 0);
-    if (totalOT > budgets.overtime.budgetHours) {
-      add("overtime-budget", "critical", "Haftalık fazla mesai bütçesi aşılıyor",
-        [`Toplam ${fmtHours(Math.round(totalOT * 10) / 10)} fazla mesai, bütçe ${fmtHours(budgets.overtime.budgetHours)}`]);
-    }
   }
 
   // ── Uyarı: kapsama, yük, yorgunluk, tercih, adalet ───────────────────────

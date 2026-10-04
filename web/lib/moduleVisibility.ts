@@ -23,7 +23,6 @@ export const MODULE_DEFAULTS = {
   swap_requests_enabled:           true,
   edit_requests_enabled:           true,
   availability_collection_enabled: true,
-  publish_lead_kpi_enabled:        true,
   night_legal_warning_enabled:     true,
   handover_notes_enabled:          true,
   // Ek özellikler (varsayılan kapalı, müdür açar)

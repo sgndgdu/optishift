@@ -291,13 +291,13 @@ function RequiredSkillsEditor({
     return (
       <button type="button" onClick={() => setOpen(true)}
         className="text-xs font-semibold text-slate-400 hover:text-forest-700 pt-1 border-t border-slate-100 w-full text-left">
-        + Zorunlu rol ekle <span className="font-normal text-slate-300">(örn. her gece en az 1 bakımcı)</span>
+        + Zorunlu görev ekle <span className="font-normal text-slate-300">(örn. her gece en az 1 bakımcı)</span>
       </button>
     );
   }
   return (
     <div className="space-y-1.5 pt-1 border-t border-slate-100">
-      <span className="text-xs text-slate-400">Zorunlu rol <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
+      <span className="text-xs text-slate-400">Zorunlu görev <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
       {skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {skills.map((rs, i) => (
@@ -320,7 +320,7 @@ function RequiredSkillsEditor({
           onChange={e => setNewSkill(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           list="known-skills-list"
-          placeholder="Rol (örn. bakımcı)"
+          placeholder="Görev (örn. bakımcı)"
           className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
         />
         <datalist id="known-skills-list">
@@ -391,7 +391,6 @@ export default function SettingsPage() {
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [locationData, setLocationData] = useState<Location | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [zoneQuotas, setZoneQuotas] = useState<{ zone: string; min: number }[]>([]);
 
   // Kural toggle'ları
   const [ensureSeniorPerShift, setEnsureSeniorPerShift]           = useState(false);
@@ -440,9 +439,7 @@ export default function SettingsPage() {
   const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
   const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
-  const [prePublishCheckEnabled, setPrePublishCheckEnabled]       = useState(true);
   const [changeCompensationEnabled, setChangeCompensationEnabled] = useState(true);
-  const [publishLeadKpiEnabled, setPublishLeadKpiEnabled]         = useState(true);
   const [maxBreakDurationMin, setMaxBreakDurationMin]             = useState(15);
   const [fairnessWindowWeeks, setFairnessWindowWeeks]             = useState(4);
   const [clopeningPenaltyWeight, setClopeningPenaltyWeight]       = useState(30);
@@ -451,7 +448,6 @@ export default function SettingsPage() {
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
-  const [weeklyOvertimeBudgetHours, setWeeklyOvertimeBudgetHours] = useState(0); // 0 = limitsiz
   const [weeklyLaborBudgetTry, setWeeklyLaborBudgetTry]           = useState(0); // 0 = limitsiz (₺)
   const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
@@ -484,6 +480,8 @@ export default function SettingsPage() {
 
   // Rotasyon şablonu
   const [rotationEnabled, setRotationEnabled]       = useState(false);
+  // "Kişi döngüsü" seçildi ama desen henüz seçilmedi (desen seçilince workCycle'a anında kaydedilir)
+  const [cycleChosen, setCycleChosen]               = useState(false);
   const [rotationType, setRotationType]             = useState<RotationTemplate["type"]>("3-shift");
   const [cycleWeeks, setCycleWeeks]                 = useState(3);
   const [referenceWeek, setReferenceWeek]           = useState("");
@@ -557,13 +555,10 @@ export default function SettingsPage() {
           setTaskTemplates(loadedTaskTemplates);
           if (typeof loc.operating_hours === "string")   { try { loc.operating_hours   = JSON.parse(loc.operating_hours);   } catch { loc.operating_hours = {};   } }
           if (!loc.operating_hours) loc.operating_hours = {};
-          if (typeof loc.zone_quotas === "string")       { try { loc.zone_quotas       = JSON.parse(loc.zone_quotas);       } catch { loc.zone_quotas = {};       } }
-          if (!loc.zone_quotas) loc.zone_quotas = {};
           if (typeof loc.rules === "string")             { try { loc.rules             = JSON.parse(loc.rules);             } catch { loc.rules = {};             } }
           setLocationData(loc);
           setSavedWorkCycle(undefined);
 
-          setZoneQuotas(Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })));
 
           setEnsureSeniorPerShift(!!loc.rules?.ensure_senior_per_shift);
           setMaxConsecutiveDays(loc.rules?.max_consecutive_days ?? 6);
@@ -613,16 +608,13 @@ export default function SettingsPage() {
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
           if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
           if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
-          setPrePublishCheckEnabled(loc.rules?.pre_publish_check !== false);
           setChangeCompensationEnabled(loc.rules?.change_compensation_enabled !== false);
-          setPublishLeadKpiEnabled(loc.rules?.publish_lead_kpi_enabled !== false);
           if (typeof loc.rules?.max_break_duration_min === "number")    setMaxBreakDurationMin(loc.rules.max_break_duration_min);
           if (typeof loc.rules?.fairness_window_weeks === "number")     setFairnessWindowWeeks(loc.rules.fairness_window_weeks);
           if (typeof loc.rules?.clopening_penalty_weight === "number")  setClopeningPenaltyWeight(loc.rules.clopening_penalty_weight);
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
-          if (typeof loc.rules?.weekly_overtime_budget_hours === "number") setWeeklyOvertimeBudgetHours(loc.rules.weekly_overtime_budget_hours);
           if (typeof loc.rules?.weekly_labor_budget_try === "number")     setWeeklyLaborBudgetTry(loc.rules.weekly_labor_budget_try);
           if (typeof loc.rules?.crew_same_shift_hard === "boolean")     setCrewSameShiftHard(loc.rules.crew_same_shift_hard);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
@@ -704,7 +696,6 @@ export default function SettingsPage() {
           savedSnapshot.current = JSON.stringify({
             shift_definitions: loc.shift_definitions ?? [],
             operating_hours: loc.operating_hours ?? {},
-            zone_quotas: Object.entries(loc.zone_quotas as Record<string, number>).map(([zone, min]) => ({ zone, min: Number(min) })),
             ensureSeniorPerShift: !!loc.rules?.ensure_senior_per_shift,
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
             maxOnCallPerWeek: loc.rules?.max_on_call_per_week ?? 3,
@@ -749,8 +740,6 @@ export default function SettingsPage() {
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
             lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
             maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
-            prePublishCheckEnabled: loc.rules?.pre_publish_check !== false,
-            publishLeadKpiEnabled: loc.rules?.publish_lead_kpi_enabled !== false,
             maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
             fairnessWindowWeeks: typeof loc.rules?.fairness_window_weeks === "number" ? loc.rules.fairness_window_weeks : 4,
             clopeningPenaltyWeight: typeof loc.rules?.clopening_penalty_weight === "number" ? loc.rules.clopening_penalty_weight : 30,
@@ -763,7 +752,6 @@ export default function SettingsPage() {
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
-            weeklyOvertimeBudgetHours: typeof loc.rules?.weekly_overtime_budget_hours === "number" ? loc.rules.weekly_overtime_budget_hours : 0,
             weeklyLaborBudgetTry: typeof loc.rules?.weekly_labor_budget_try === "number" ? loc.rules.weekly_labor_budget_try : 0,
             crewSameShiftHard: typeof loc.rules?.crew_same_shift_hard === "boolean" ? loc.rules.crew_same_shift_hard : false,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
@@ -795,7 +783,6 @@ export default function SettingsPage() {
     const current = JSON.stringify({
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
-      zone_quotas: zoneQuotas,
       ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
@@ -805,17 +792,16 @@ export default function SettingsPage() {
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
-      maxConcurrentBreaks, prePublishCheckEnabled,
-      publishLeadKpiEnabled,
+      maxConcurrentBreaks,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
       changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
       rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
     });
     setIsDirty(current !== savedSnapshot.current);
   }, [
-    locationData, zoneQuotas,
+    locationData,
     ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
@@ -825,12 +811,11 @@ export default function SettingsPage() {
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
-    maxConcurrentBreaks, prePublishCheckEnabled,
-    publishLeadKpiEnabled,
+    maxConcurrentBreaks,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
     leaveRequireReason, leaveAllowMultiDay, leaveMaxDays, locationLat, locationLon,
     changeCompensationEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
   ]);
 
@@ -925,11 +910,6 @@ export default function SettingsPage() {
         setLocationCityInput("");
       }
     }
-    const quotasObj: Record<string, number> = {};
-    for (const { zone, min } of zoneQuotas) {
-      const t = zone.trim();
-      if (t) quotasObj[t] = Math.max(0, Math.floor(min));
-    }
 
     // Kaydetme anında taze rules çek: sayfa açıkken sunucunun yazdığı anahtarlar
     // (örn. availability_reminder.last_sent_week) bayat kopyayla ezilmesin.
@@ -949,7 +929,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           shift_definitions: locationData.shift_definitions,
           operating_hours:   locationData.operating_hours,
-          zone_quotas:       quotasObj,
           task_templates:    taskTemplates,
           rules: {
             // Önce mevcut rules yayılır: bu sayfanın state'inde temsil edilmeyen
@@ -1005,16 +984,13 @@ export default function SettingsPage() {
             auto_open_shift_on_late:            autoOpenShiftOnLate,
             late_threshold_min:                 lateThresholdMin,
             max_concurrent_breaks:              maxConcurrentBreaks,
-            pre_publish_check:                  prePublishCheckEnabled,
             change_compensation_enabled:        changeCompensationEnabled,
-            publish_lead_kpi_enabled:           publishLeadKpiEnabled,
             max_break_duration_min:             maxBreakDurationMin,
             fairness_window_weeks:              fairnessWindowWeeks,
             clopening_penalty_weight:           clopeningPenaltyWeight,
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             overtime_fair_distribution:         overtimeFairDistribution,
-            weekly_overtime_budget_hours:       weeklyOvertimeBudgetHours,
             weekly_labor_budget_try:            weeklyLaborBudgetTry,
             crew_same_shift_hard:               crewSameShiftHard,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
@@ -1044,7 +1020,6 @@ export default function SettingsPage() {
       savedSnapshot.current = JSON.stringify({
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
-        zone_quotas: zoneQuotas,
         ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
@@ -1054,14 +1029,13 @@ export default function SettingsPage() {
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
-        maxConcurrentBreaks, prePublishCheckEnabled,
-        publishLeadKpiEnabled,
+        maxConcurrentBreaks,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
         leaveRequireReason, leaveAllowMultiDay, leaveMaxDays,
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyOvertimeBudgetHours, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, crewSameShiftHard, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         rotationEnabled, rotationType, cycleWeeks, referenceWeek, rotationPattern,
       });
       setIsDirty(false);
@@ -1262,14 +1236,14 @@ export default function SettingsPage() {
                       <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Şube açılırken seçildi; roller, belge kontrolü ve öneriler buna göre çalışır. Yanlış seçildiyse{" "}
+                      Şube açılırken seçildi; görevler, belge kontrolü ve öneriler buna göre çalışır. Yanlış seçildiyse{" "}
                       <a href={`mailto:${SALES_EMAIL}?subject=${encodeURIComponent("İşletme türü düzeltme")}`} className="font-semibold text-forest-700 hover:underline">bize yazın</a>.
                     </p>
                   </>
                 ) : (
                   <>
                     <p className="text-xs text-slate-500 mb-3">
-                      Bu şube için henüz seçilmedi. Rol listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır. Bir kez seçilir, sonra değişmez.
+                      Bu şube için henüz seçilmedi. Görev listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır. Bir kez seçilir, sonra değişmez.
                     </p>
                     <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
                       onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
@@ -1285,7 +1259,7 @@ export default function SettingsPage() {
                 )}
                 {savedIndustry && !industryChanged && skillRecs.length > 0 && (
                     <div className="mt-3 rounded-xl border border-slate-200 p-3 space-y-2.5">
-                      <p className="text-xs font-bold text-slate-500">Önerilen zorunlu roller</p>
+                      <p className="text-xs font-bold text-slate-500">Önerilen zorunlu görevler</p>
                       {skillRecs.map(r => (
                         <div key={r.shiftId + r.skill} className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
                           <div className="flex-1 min-w-[220px]">
@@ -1293,11 +1267,11 @@ export default function SettingsPage() {
                             <p className="text-xs text-slate-500">{r.reason}</p>
                             {r.status === "no-holders" && (
                               <p className="text-xs text-amber-700 mt-0.5">
-                                {r.holders === 0 ? "Ekipte bu rol kimsede işaretli değil." : `Bu rol sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından rolü işaretleyin, yoksa bu vardiya hiç açılamaz.
+                                {r.holders === 0 ? "Ekipte bu görev kimsede işaretli değil." : `Bu görev sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından rolü işaretleyin, yoksa bu vardiya hiç açılamaz.
                               </p>
                             )}
                             {r.status === "thin" && (
-                              <p className="text-xs text-amber-700 mt-0.5">Bu rol {r.holders} kişide var. İzin günlerinde vardiya açılamayabilir.</p>
+                              <p className="text-xs text-amber-700 mt-0.5">Bu görev {r.holders} kişide var. İzin günlerinde vardiya açılamayabilir.</p>
                             )}
                           </div>
                           <button
@@ -1607,7 +1581,6 @@ export default function SettingsPage() {
                           ...(savedIndustry?.roles.map(r => r.label) ?? []),
                           ...departments.map(d => d.name),
                           ...personnelRoles.flat(),
-                          ...zoneQuotas.map(z => z.zone),
                           ...(locationData.shift_definitions ?? []).flatMap((sd: ShiftDefinition) => (sd.required_skills ?? []).map(rs => rs.skill)),
                         ])].filter(Boolean)}
                         onChange={next => {
@@ -1771,8 +1744,13 @@ export default function SettingsPage() {
                 <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
-                    description="Personelin haftada çalışabileceği yasal üst sınır. Bu saati aşan vardiya yazılmaz."
+                    description="Şubede kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartına sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
+                  />
+                  <RuleRow
+                    lock="rules" label="Fazla Mesai Başlangıcı"
+                    description="Haftada bu saati aşan çalışma fazla mesai sayılır (raporlar, mesai kayıtları, maliyet ×1,5). Genelde en fazla çalışmaya eşit ya da daha düşüktür."
+                    right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat" />}
                   />
                   <RuleRow
                     lock="rules" label="Denkleştirme Dönemi"
@@ -1844,16 +1822,6 @@ export default function SettingsPage() {
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
                     description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
-                  />
-                  <RuleRow
-                    label="Yayın Öncesi İhlal Kontrolü"
-                    description="'Yayınla' butonuna basılmadan önce kural ihlalleri taranır ve onay modalı gösterilir."
-                    right={<Toggle on={prePublishCheckEnabled} onToggle={() => setPrePublishCheckEnabled(v => !v)} />}
-                  />
-                  <RuleRow
-                    label="Erken Yayın Göstergesi"
-                    description="Ana Sayfa'nın özet satırında planların ortalama kaç gün önceden yayınlandığı gösterilir."
-                    right={<Toggle on={publishLeadKpiEnabled} onToggle={() => setPublishLeadKpiEnabled(v => !v)} />}
                   />
                 </SectionCard>
               </SettingsGroup>
@@ -2046,7 +2014,7 @@ export default function SettingsPage() {
                 </SectionCard>
                 </LockArea>
               </SettingsGroup>
-              <SettingsGroup id="zones" title="Departmanlar ve Rol Kotaları" description="Kasa, mutfak, hat gibi bölümler ve günlük rol kotaları" open={!!openGroups["zones"]} onToggle={toggleGroup}>
+              <SettingsGroup id="zones" title="Departmanlar" description="Kasa, mutfak, hat gibi bölümler" open={!!openGroups["zones"]} onToggle={toggleGroup}>
 
                 {/* 1. Departmanlar — anında DB'ye kaydedilir */}
                 <div>
@@ -2127,53 +2095,6 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                <hr className="border-slate-100" />
-
-                {/* 2. Günlük rol kotaları: kota adı Ekip'teki Roller listesinden seçilir (eski serbest "alan" adı kimseyle eşleşmeyebiliyordu) */}
-                <div>
-                  <div className="mb-3">
-                    <SectionLabel>Günlük Rol Kotaları</SectionLabel>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      &ldquo;Her gün en az N kasiyer&rdquo; gibi koşullar. Rol, Ekip sayfasında kişinin Roller listesinde işaretlenir; her planda garanti edilir.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {zoneQuotas.map((entry, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                        <select
-                          value={entry.zone}
-                          onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], zone: e.target.value }; setZoneQuotas(n); }}
-                          className="flex-1 min-w-0 text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 font-medium outline-none focus:border-forest-500"
-                        >
-                          <option value="">Rol seçin</option>
-                          {[...new Set([
-                            ...(savedIndustry?.roles.map(r => r.label) ?? []),
-                            ...departments.map(d => d.name),
-                            ...personnelRoles.flat(),
-                            ...(entry.zone ? [entry.zone] : []),
-                          ])].filter(Boolean).map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                        <span className="text-xs text-slate-400 shrink-0">min</span>
-                        <input
-                          type="number" min={0} max={99}
-                          value={entry.min}
-                          onChange={e => { const n = [...zoneQuotas]; n[idx] = { ...n[idx], min: Number(e.target.value) }; setZoneQuotas(n); }}
-                          className="w-16 text-sm text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-forest-500 font-bold"
-                        />
-                        <span className="text-xs text-slate-400 shrink-0">kişi/gün</span>
-                        <button onClick={() => setZoneQuotas(zoneQuotas.filter((_, i) => i !== idx))} className="p-1 text-slate-300 hover:text-red-400 transition-colors">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => setZoneQuotas([...zoneQuotas, { zone: "", min: 1 }])}
-                      className="w-full border border-dashed border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:text-forest-600 hover:border-forest-300 hover:bg-forest-50/30 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Plus size={14} /> Kota Ekle
-                    </button>
-                  </div>
-                </div>
               </SettingsGroup>
               <SettingsGroup id="crews" title="Vardiya Grupları ve Rotasyon" description="A/B/C grupları ve dönüşümlü vardiya planı" open={!!openGroups["crews"]} onToggle={toggleGroup}>
                 <p className="text-sm text-slate-500">
@@ -2267,7 +2188,7 @@ export default function SettingsPage() {
                           <>
                             <button onClick={() => { setEditingCrewId(crew.id); setEditingCrewName(crew.name); }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><Pencil size={13} /></button>
                             <button onClick={async () => {
-                              if (!confirm(`"${crew.name}" ekibini silmek istediğinize emin misiniz? Üyelerden ekip ataması kaldırılır.`)) return;
+                              if (!confirm(`"${crew.name}" grubunu silmek istediğinize emin misiniz? Üyelerin grup ataması kaldırılır.`)) return;
                               await fetch(`/api/crews?id=${crew.id}`, { method: "DELETE" });
                               setCrews(prev => prev.filter(c => c.id !== crew.id));
                               // Rotasyon şablonundan da kaldır
@@ -2281,32 +2202,59 @@ export default function SettingsPage() {
                 )}
   <SectionCard title="Grup Kuralı">
     <RuleRow
-                    label="Grup Aynı Vardiyada · Kesin Kural"
+                    label="Gruptakiler Hep Aynı Vardiyada"
                     description="Açıksa aynı grubun üyeleri kesinlikle aynı vardiyaya atanır. Kapalıysa tercih olarak dikkate alınır, zorunlu kalınırsa grup ayrılabilir."
                     right={<Toggle on={crewSameShiftHard} onToggle={() => setCrewSameShiftHard(v => !v)} />}
                   />
   </SectionCard>
 
-                <SectionCard title="Çalışma Döngüsü (çalış / dinlen)">
-                  <div className="p-4 space-y-3">
-                    <p className="text-xs text-slate-500">Her kişiye tekrar eden bir çalışma deseni verilir; kişiler desene eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Planlama boş günlerde kimseyi yazmaz, gündüz/gece günlerinde sadece o vardiyayı verir. Değişiklik anında kaydedilir.</p>
+                {/* Dönüşümlü çalışma TEK seçim: grup rotasyonu (gruplar haftalık vardiya değiştirir) YA DA kişi döngüsü
+                    (çalış/dinlen deseni). İkisi birlikte kullanılmıyordu ve iki ayrı kart kafa karıştırıyordu. */}
+                {(() => {
+                  const rotMode: "none" | "rotation" | "cycle" = workCycle?.pattern || cycleChosen ? "cycle" : rotationEnabled ? "rotation" : "none";
+                  const pick = (m: "none" | "rotation" | "cycle") => {
+                    setRotationEnabled(m === "rotation");
+                    setCycleChosen(m === "cycle");
+                    if (m !== "cycle" && workCycle?.pattern) saveWorkCycle("");
+                  };
+                  const opts: { id: "none" | "rotation" | "cycle"; label: string; hint: string }[] = [
+                    { id: "none", label: "Yok", hint: "Planlama her hafta herkesi serbestçe yerleştirir." },
+                    { id: "rotation", label: "Grup rotasyonu", hint: "A/B/C grupları haftadan haftaya vardiya değiştirir (sabah → akşam → gece)." },
+                    { id: "cycle", label: "Kişi döngüsü", hint: "Herkese tekrar eden bir çalış/dinlen deseni verilir (ör. 4 gün çalış, 4 gün dinlen)." },
+                  ];
+                  return (
+                <SectionCard title="Dönüşümlü çalışma">
+                  <div className="p-4 space-y-2">
+                    {opts.map(o => (
+                      <label key={o.id} className={cn("flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer", rotMode === o.id ? "border-forest-300 bg-forest-50/50" : "border-slate-200")}>
+                        <input type="radio" name="rotation-mode" checked={rotMode === o.id} onChange={() => pick(o.id)} className="mt-1 accent-forest-600" />
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-800">{o.label}</span>
+                          <span className="block text-xs text-slate-500">{o.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {rotMode === "cycle" && (
+                  <div className="p-4 pt-0 space-y-3">
+                    <p className="text-xs text-slate-500">Kişiler desene eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Planlama boş günlerde kimseyi yazmaz, gündüz/gece günlerinde sadece o vardiyayı verir. Değişiklik anında kaydedilir.</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <select value={workCycle?.pattern ?? ""} disabled={cycleSaving}
                         onChange={e => saveWorkCycle(e.target.value)}
                         className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
-                        <option value="">Döngü yok</option>
+                        <option value="">Desen seçin…</option>
                         {Object.entries(WORK_CYCLES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
                       </select>
                       {workCycle?.pattern && (
                         <button onClick={() => saveWorkCycle(workCycle.pattern)} disabled={cycleSaving}
                           className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
-                          Ekibe yeniden dağıt
+                          Herkesi yeniden dağıt
                         </button>
                       )}
                     </div>
                     {workCycle?.pattern && WORK_CYCLES[workCycle.pattern] && (
                       <>
-                        <p className="text-xs text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Ekibe yeniden dağıt&quot;a basın.</p>
+                        <p className="text-xs text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Herkesi yeniden dağıt&quot;a basın.</p>
                         <div className="overflow-x-auto">
                           <table className="text-xs">
                             <thead><tr><th className="text-left pr-3 font-semibold text-slate-500">Bu hafta</th>{DAY_SHORT.map(d => <th key={d} className="px-1 font-semibold text-slate-500">{d}</th>)}</tr></thead>
@@ -2334,25 +2282,10 @@ export default function SettingsPage() {
                       </>
                     )}
                   </div>
-                </SectionCard>
-
-                <div>
-                  <SectionLabel>Rotasyon</SectionLabel>
-                  <p className="text-sm text-slate-500">
-                    Döngüsel rotasyon şablonu ile her ekibin hangi haftada hangi vardiyaya gireceğini tanımlayın.
-                    Rotasyon aktifken ekip atamaları otomatik uygulanır.
-                  </p>
-                </div>
-
-                <SectionCard title="Rotasyon Ayarları">
-                  <RuleRow
-                    label="Rotasyonu Etkinleştir"
-                    description="Açıkken her grup, otomatik oluşturmada bu haftaki rotasyon vardiyasına atanır."
-                    right={<Toggle on={rotationEnabled} onToggle={() => setRotationEnabled(v => !v)} />}
-                  />
-                  {rotationEnabled && (
+                  )}
+                  {rotMode === "rotation" && (
                     <>
-                      <RuleRow
+                      <RuleRow wide
                         label="Rotasyon Tipi"
                         description="3-vardiyalı, Continental veya özel döngü."
                         right={
@@ -2394,6 +2327,8 @@ export default function SettingsPage() {
                     </>
                   )}
                 </SectionCard>
+                  );
+                })()}
 
                 {rotationEnabled && crews.length > 0 && locationData && locationData.shift_definitions.length > 0 && (
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -2450,7 +2385,7 @@ export default function SettingsPage() {
 
                 {rotationEnabled && crews.length === 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                    Rotasyon şablonu için önce yukarıdan bir ekip oluşturun.
+                    Grup rotasyonu için önce yukarıdan bir grup oluşturun.
                   </div>
                 )}
               </SettingsGroup>
@@ -2502,7 +2437,7 @@ export default function SettingsPage() {
                       className="mt-0.5 w-4 h-4 rounded accent-forest-600" />
                     <span>
                       <span className="block text-sm font-semibold text-slate-800">Notu okumadan vardiyaya giriş yapılamasın</span>
-                      <span className="block text-xs text-slate-500 mt-0.5">Okundu bilgisi kaydedilir, notlar Devir-Teslim Kayıtları sayfasında saklanır. Hastane, fabrika, güvenlik gibi işlerde önerilir.</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">Okundu bilgisi kaydedilir, notlar Devir-Teslim sayfasında saklanır. Hastane, fabrika, güvenlik gibi işlerde önerilir.</span>
                     </span>
                   </label>
                 </FeatureCard>
@@ -2651,11 +2586,6 @@ export default function SettingsPage() {
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)}>
   <div className="divide-y divide-slate-100">
                   <RuleRow
-                    lock="rules" label="Haftalık Mesai Eşiği"
-                    description="Bu saati aşan çalışma fazla mesai sayılır ve onay akışına girer. Kurallar'daki 'Haftalık En Fazla Çalışma'ten farklıdır: o üst sınırdır, bu ise mesainin başladığı eşiktir. Çoğu işletmede ikisi de 45'tir."
-                    right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat/hafta" />}
-                  />
-                  <RuleRow
                     lock="rules" label="Yıllık Fazla Mesai Sınırı"
                     description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
                     right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
@@ -2664,11 +2594,6 @@ export default function SettingsPage() {
                     lock="rules" label="Adil Mesai Dağılımı"
                     description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
                     right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="budget" label="Haftalık Mesai Bütçesi"
-                    description="Tüm personelin haftalık toplam fazla mesai saati bu sınırı aşarsa yayın öncesi ihlal uyarısı verilir. 0 = limitsiz."
-                    right={<NumberInput value={weeklyOvertimeBudgetHours} onChange={setWeeklyOvertimeBudgetHours} min={0} max={500} suffix="saat/hafta" />}
                   />
   </div>
                 </FeatureCard>

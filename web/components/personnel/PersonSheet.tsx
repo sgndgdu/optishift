@@ -110,6 +110,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   }, [ep.personnelId, complianceTrackingEnabled]);
 
   const kioskModeEnabled = isModuleOn(rules, "kiosk_mode_enabled");
+  const branchWeeklyMax = typeof rules.max_weekly_hours === "number" ? rules.max_weekly_hours : 45;
   const autoLeaveOn = rules.auto_leave_entitlement_enabled === true;
   // Şubenin işletme türü (lib/templates): görev listesi ve belge kataloğu buradan gelir
   const branchIndustry = industryFromRules(rules);
@@ -382,6 +383,10 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
+              {/* Tek kural (lib/legal effectiveWeeklyLimit): şube sınırı üst sınırdır */}
+              <p className="text-xs text-slate-400 -mt-2">
+                Şubenin sınırı {branchWeeklyMax} saat. Kişiye sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir; yüksek yazılsa da şube sınırı geçerlidir.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en az saat</label>
@@ -473,7 +478,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Belgeler</label>
                   <p className="text-xs text-slate-400 mb-2">
                     {branchIndustry
-                      ? "Bir rolün gerektirdiği belge geçersizse kişi o role atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
+                      ? "Bir görevin gerektirdiği belge geçersizse kişi o göreve atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
                       : "Süresi dolmuş zorunlu bir belgesi olan personel, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
                   </p>
                   {requiredDocStates.length > 0 && (

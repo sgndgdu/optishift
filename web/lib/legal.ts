@@ -49,3 +49,12 @@ export function longestWeeklyRestHours(spans: { start: number; end: number }[]):
   best = Math.max(best, 7 * 1440 - lastEnd);
   return best / 60;
 }
+
+/**
+ * Kişinin geçerli haftalık sınırı: şubenin sınırı (rules.max_weekly_hours) ÜST sınırdır; kişinin kendi
+ * değeri sadece daha düşükse (yarı zamanlı sözleşme gibi) geçerlidir. Motor da aynı kuralı uygular
+ * (engine: min(kural, kişi)). Tek kaynak: plan kontrolü, elle atama kontrolü ve aday sıralaması.
+ */
+export function effectiveWeeklyLimit(personMax: number | null | undefined, ruleMax: number): number {
+  return typeof personMax === "number" && personMax > 0 ? Math.min(personMax, ruleMax) : ruleMax;
+}

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
-import { formatDateTR } from "@/lib/date";
+import { businessToday, formatDateTR } from "@/lib/date";
 
 
 function getDb() {
@@ -31,7 +31,14 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     let rows: any[];
-    if (status) {
+    if (status === "open") {
+      // Tarihi geçmiş ilan üstlenilemez: listede de görünmez
+      rows = await db.prepare(`
+        SELECT open_shifts.* FROM open_shifts
+        WHERE org_id = ? AND location_id = ? AND status = 'open' AND date >= ?
+        ORDER BY date ASC, start_time ASC
+      `).all(org_id, location_id, businessToday());
+    } else if (status) {
       rows = await db.prepare(`
         SELECT open_shifts.* FROM open_shifts
         WHERE org_id = ? AND location_id = ? AND status = ?

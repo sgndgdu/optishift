@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
+import { businessToday } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
@@ -19,7 +20,8 @@ function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "2-digit", month: "long" });
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, expired }: { status: string; expired?: boolean }) {
+  if (status === "open" && expired) return <StatusPill tone="neutral">Süresi geçti</StatusPill>;
   if (status === "open") return <StatusPill tone="attention">Açık</StatusPill>;
   if (status === "claimed") return <StatusPill tone="positive">Üstlenildi</StatusPill>;
   return <StatusPill tone="neutral">İptal</StatusPill>;
@@ -76,6 +78,9 @@ export default function OpenShiftsPage() {
       setShifts(Array.isArray(data) ? data : []);
     } finally { setLoading(false); }
   }, [user]);
+
+  // İlk yükleme (2026-10-04: Teklif Pazarı kaldırılırken bu satır da silinmişti, liste hiç yüklenmiyordu)
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   // Varsayılan kahraman bonus puanını Ayarlar'daki kuraldan al (tek kaynak: rules.hero_bonus_points)
   useEffect(() => {
@@ -172,8 +177,11 @@ export default function OpenShiftsPage() {
     await load();
   }
 
-  const openShifts = shifts.filter(s => s.status === "open");
-  const pastShifts = shifts.filter(s => s.status !== "open");
+  // Tarihi geçmiş ilan üstlenilemez (sunucu da reddeder): "Geçmiş"te "Süresi geçti" olarak durur
+  const todayISO = businessToday();
+  const isLive = (s: any) => s.status === "open" && s.date >= todayISO;
+  const openShifts = shifts.filter(isLive);
+  const pastShifts = shifts.filter(s => !isLive(s));
   const selected = shifts.find(s => s.id === selectedId) ?? null;
 
   function openDetail(s: any) {
@@ -192,9 +200,7 @@ export default function OpenShiftsPage() {
       title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
       subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} üstlendi`
         : s.note || (s.hero_bonus_multiplier > 0 ? `+${s.hero_bonus_multiplier} kahraman puanı` : "Bonus yok")}
-      trailing={s.status === "open"
-        ? <StatusBadge status={s.status} />
-        : <StatusBadge status={s.status} />}
+      trailing={<StatusBadge status={s.status} expired={s.status === "open" && s.date < todayISO} />}
     />
   );
 
@@ -222,7 +228,7 @@ export default function OpenShiftsPage() {
       <Sheet open={!!selected} onClose={() => setSelectedId(null)}
         title={selected ? `${formatDate(selected.date)}` : ""}
         description={selected ? `${selected.start_time}–${selected.end_time}` : undefined}
-        footer={selected?.status === "open" ? (confirmDelete ? <>
+        footer={selected && isLive(selected) ? (confirmDelete ? <>
           <span className="mr-auto text-sm text-slate-600">İlan tamamen silinsin mi?</span>
           <button onClick={() => setConfirmDelete(false)} className={sheetSecondaryClass}>Vazgeç</button>
           <button onClick={() => { handleDelete(selected.id); setSelectedId(null); }} className={sheetDangerClass}>Sil</button>
@@ -241,7 +247,7 @@ export default function OpenShiftsPage() {
               )}
             </div>
 
-            {selected.status === "open" && (
+            {isLive(selected) && (
               <section className="space-y-2">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Uygun adaylar</h3>

@@ -10,6 +10,8 @@ import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass, sheetDangerClass } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import NewBranchWizard from "@/components/NewBranchWizard";
+import { getPlan } from "@/lib/plans";
 
 import { formatPublishLead } from "@/lib/publishLead";
 import { getWeekStart } from "@/lib/date";
@@ -44,6 +46,13 @@ export default function SupervisorDashboard() {
   const { user, mounted } = useSupervisorAuth();
   const [org, setOrg]           = useState<any>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  // Ham şube kayıtları (Yeni Şube sihirbazı işletme türünü buradan önerir)
+  const [rawLocations, setRawLocations] = useState<any[]>([]);
+  // Şube eklemenin TEK yeri burası (Ayarlar'daki kopya kaldırıldı); ?new=1 ile açık gelir
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") void Promise.resolve().then(() => setShowAddBranch(true));
+  }, []);
   const [loading, setLoading]   = useState(true);
   const [editRequests, setEditRequests] = useState<EditRequest[]>([]);
   const [reviewingId, setReviewingId]   = useState<number | null>(null);
@@ -97,6 +106,7 @@ export default function SupervisorDashboard() {
       if (!Array.isArray(locs)) { setLoading(false); return; }
       // Kurulumu yarıda bırakan sahip (hiç şube yok) ilk kuruluma döner
       if (locs.length === 0 && user.role === "admin") { router.replace("/onboarding"); return; }
+      setRawLocations(locs);
 
       // Her şube için departman + personel sayısını paralel çek
       const enriched = await Promise.all(
@@ -135,12 +145,10 @@ export default function SupervisorDashboard() {
       <PageHeader title={org?.name ?? "Genel Bakış"}
         description={<>Hoş geldiniz, <strong>{user?.name}</strong>. Tüm şubelerinizin özeti aşağıda.</>}
         actions={user?.role === "admin" && (
-          <Link href="/supervisor/settings?new=1" className="shrink-0">
-            <Button variant="outline" className="gap-2 w-full sm:w-auto">
-              <Plus size={16} />
-              Şube Ekle
-            </Button>
-          </Link>
+          <Button variant="outline" className="gap-2 w-full sm:w-auto shrink-0" onClick={() => setShowAddBranch(true)}>
+            <Plus size={16} />
+            Şube Ekle
+          </Button>
         )} />
 
       {/* Özet sayılar */}
@@ -200,13 +208,13 @@ export default function SupervisorDashboard() {
         <List>
           {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : locations.length === 0 ? (
             <ListEmpty action={user?.role === "admin" && (
-              <Link href="/supervisor/settings?new=1" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><Plus size={15} /> Şube ekle</Link>
+              <button onClick={() => setShowAddBranch(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><Plus size={15} /> Şube ekle</button>
             )}>
               {user?.role === "admin" ? "Henüz şube yok." : "Size henüz şube atanmadı. İşletme sahibinden isteyin."}
             </ListEmpty>
           ) : locations.map(loc => {
             const lead = loc.publish_lead === null && loc.next_published
-              ? { short: "Hazır", tone: "good" as const, sentence: "Gelecek haftanın planı yayınlandı" }
+              ? { short: "hazır", tone: "good" as const, sentence: "Gelecek haftanın planı yayınlandı" }
               : formatPublishLead(loc.publish_lead);
             const tone = lead.tone === "good" ? "positive" : lead.tone === "ok" ? "attention" : lead.tone === "late" ? "danger" : "neutral";
             const canEnter = user?.role === "admin" || user?.role === "supervisor";
@@ -216,7 +224,7 @@ export default function SupervisorDashboard() {
                 onClick={() => { if (canEnter) { openBranchPanel(user, loc.id); router.push("/dashboard"); } else router.push(`/supervisor/schedule?location_id=${loc.id}`); }}
                 leading={<Avatar name={loc.name} tone="brand" />}
                 title={loc.name}
-                subtitle={[`${loc.personnel_count} kişi`, lead.tone !== "none" ? `plan yayını ${lead.short.toLocaleLowerCase("tr")}` : null].filter(Boolean).join(" · ")}
+                subtitle={[`${loc.personnel_count} kişi`, lead.tone !== "none" && lead.tone !== "late" ? `plan yayını: ${lead.short}` : null].filter(Boolean).join(" · ")}
                 trailing={lead.tone === "late" ? <span title={lead.sentence ?? undefined}><StatusPill tone={tone}>Geç yayın</StatusPill></span> : undefined}
               />
             );
@@ -224,6 +232,14 @@ export default function SupervisorDashboard() {
         </List>
         {locations.length > 0 && <p className="text-xs text-slate-500">Şubeye dokununca o şubenin paneline girersiniz.</p>}
       </section>
+      {showAddBranch && !loading && (
+        <NewBranchWizard
+          existing={rawLocations}
+          planLimited={(() => { const max = getPlan(org?.plan).maxLocations; return max !== null && locations.length >= max; })()}
+          // Liste sihirbaz kapanınca yenilenir: açıkken yenilenirse (loading) sihirbaz baştan başlar
+          onClose={() => { setShowAddBranch(false); loadData(); }}
+        />
+      )}
     </Page>
   );
 }

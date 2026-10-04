@@ -88,7 +88,7 @@ const NAV = [
   { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
   { href: "/overtime",     label: "Fazla Mesai",            icon: Timer,           group: "more", module: "overtime_tracking_enabled" },
   { href: "/tip-pools",    label: "Bahşiş Havuzu",          icon: Wallet,          group: "more", module: "tip_pooling_enabled" },
-  { href: "/handovers",    label: "Devir-Teslim Kayıtları", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
+  { href: "/handovers",    label: "Devir-Teslim", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
   { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
   { href: "/billing",      label: "Faturalandırma",         icon: CreditCard,      group: "more", feature: "billing", adminOnly: true },

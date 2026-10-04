@@ -6,7 +6,7 @@
  * (Teklif Pazarı 2026-10-03 kaldırıldı; shift_bids tablosu eski kayıtlar için duruyor.)
  */
 import { rescoreWeek } from "@/lib/scoring";
-import { formatDateTR } from "@/lib/date";
+import { businessToday, formatDateTR } from "@/lib/date";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
 import { checkPersonChange } from "@/lib/assignmentCheck";
@@ -27,6 +27,7 @@ export async function claimOpenShift(
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
 
   if (os.status !== "open") return { ok: false, status: 409, error: "Bu vardiya artık açık değil" };
+  if (os.date < businessToday()) return { ok: false, status: 409, error: "Bu vardiyanın tarihi geçti" };
   // Vardiyası ilana düşen kişi kendi ilanını üstlenip kahraman bonusu alamaz (devir ilanını geri çekebilir)
   if (os.released_by && os.released_by === claimedBy) {
     return { ok: false, status: 409, error: "Kendi bıraktığın vardiyayı üstlenemezsin. İlanı geri çekebilirsin." };

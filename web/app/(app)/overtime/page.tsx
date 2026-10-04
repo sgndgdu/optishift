@@ -7,7 +7,8 @@ import { useManagerAuth } from "@/hooks/useAuth";
 import { Clock, CheckCircle2, Plus, AlertTriangle, TrendingUp, RotateCcw } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty } from "@/components/ui/List";
-import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass, sheetDangerClass } from "@/components/ui/Sheet";
+import Link from "next/link";
+import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
@@ -194,7 +195,7 @@ export default function OvertimePage() {
   return (
     <Page>
       {/* Header */}
-      <PageHeader title="Fazla Mesai" description="Haftalık eşiği aşan çalışma, onay ve yıllık sınır" actions={
+      <PageHeader title="Fazla Mesai" description="Haftalık eşiği aşan çalışma, kayıtlar ve yıllık sınır" actions={
         <button
           onClick={() => setShowForm(true)}
           className={pageActionClass}
@@ -386,6 +387,12 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   return (
     <div className="space-y-6">
       <List>
+        {/* Karar TEK yerde: Onaylar sayfası (izin, takas, düzenleme ile aynı akış). Burada sadece görünür. */}
+        {pending.length > 0 && (
+          <li className="px-4 py-2.5 text-xs text-slate-500 bg-slate-50">
+            Bekleyen kayıtlar <Link href="/requests" className="font-semibold text-forest-700 hover:underline">Onaylar</Link> sayfasında onaylanır.
+          </li>
+        )}
         {pending.length === 0 ? <ListEmpty>Onay bekleyen mesai yok.</ListEmpty> : pending.map(r => {
           return (
             <ListItem key={r.id} onClick={() => setOpenId(r.id)}
@@ -427,10 +434,9 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
         return (
           <Sheet open onClose={() => setOpenId(null)} title={open.personnel_name ?? "Mesai kaydı"}
             description={open.week_start ? `${weekLabel(open.week_start)} haftası` : undefined}
-            footer={open.status === "pending" ? <>
-              <button onClick={() => act(() => onDecision(open.id, "rejected"))} className={sheetDangerClass}>Reddet</button>
-              <button onClick={() => act(() => onDecision(open.id, "approved"))} className={sheetPrimaryClass}>Onayla</button>
-            </> : <>
+            footer={open.status === "pending" ? (
+              <Link href="/requests" className={sheetPrimaryClass}>Onaylar&apos;da karar ver</Link>
+            ) : <>
               {isCompTime && !open.comp_time_used_at && (
                 <button onClick={() => act(() => onCompTime(open.id, true))} className={sheetSecondaryClass}
                   title="Serbest zaman iznini kullandırdığını işaretle, bakiyeden düşer">İzin kullandırıldı</button>

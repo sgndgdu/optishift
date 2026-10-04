@@ -101,7 +101,6 @@ export interface IndustryRules {
   auto_open_shift_on_late: boolean;
   late_threshold_min: number;
   handover_notes_enabled: boolean;
-  pre_publish_check: boolean;
 }
 
 export interface LegalNote {

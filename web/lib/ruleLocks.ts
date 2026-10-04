@@ -20,7 +20,7 @@ export const MANAGER_PERMISSION_LIST: { key: ManagerPermission; label: string; d
 
 export const LOCKED_RULE_KEYS: Record<LockCategory, readonly string[]> = {
   // Ücret ve bütçe
-  budget: ["weekly_labor_budget_try", "weekly_overtime_budget_hours"],
+  budget: ["weekly_labor_budget_try"],
   // Çalışma kuralları: yasal sınırlar, fazla mesai, Adalet Puanı ağırlıkları
   rules: [
     "max_weekly_hours", "min_rest_hours", "max_consecutive_days", "balancing_period_weeks", "max_on_call_per_week",

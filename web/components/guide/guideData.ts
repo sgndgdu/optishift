@@ -81,7 +81,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ekip",
         icon: Users,
         paragraphs: [
-          "Personel eklerken isim, telefon ve rol yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
+          "Personel eklerken isim, telefon ve görev yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
           "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece çalışma engeli (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
         ],
       },

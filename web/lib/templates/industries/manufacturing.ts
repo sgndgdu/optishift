@@ -88,7 +88,6 @@ export const manufacturing: IndustryProfile = {
     ensure_senior_per_shift: true,
     checkin_required: true,
     auto_open_shift_on_late: false,
-    pre_publish_check: true,
   },
 
   modules: {

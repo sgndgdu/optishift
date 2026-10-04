@@ -201,8 +201,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
 
     // Personel verisini formatla
     const todayForSeniority = businessToday();
-    // Kişinin departmanı da bir rol sayılır: "Günlük Rol Kotaları" departman adıyla da seçilebiliyor
-    // (eskiden departman ayrıca Roller listesinde işaretleniyordu)
+    // Kişinin departmanı da bir görev sayılır: vardiya tanımındaki "Zorunlu görev" departman adıyla da seçilebilir
+    // (eskiden departman ayrıca Roller listesinde işaretleniyordu; günlük rol kotaları 2026-10-04'te kaldırıldı)
     const deptNameById = new Map<string, string>(departmentRows.map((d: any) => [d.id, d.name]));
     let personnelData = personnelRows.map((p: any) => {
       // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
@@ -277,19 +277,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         if (dayDate >= leaveStart && dayDate <= leaveEnd) {
           availabilityData[pid][d] = "unavailable";
         }
-      }
-    }
-
-    // Bölge kotaları
-    let zoneQuotasPayload: Record<string, number> = {};
-    if (locationRow?.zone_quotas) {
-      try {
-        const parsed = JSON.parse(locationRow.zone_quotas);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          zoneQuotasPayload = parsed;
-        }
-      } catch {
-        /* parse hatası */
       }
     }
 
@@ -770,7 +757,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       personnel: personnelData,
       availability: availabilityData,
       shifts: shiftsPayload,
-      zone_quotas: zoneQuotasPayload,
       demand_matrix: demandMatrixPayload,
       department_demand_matrix: departmentDemandMatrixPayload,
       department_names: departmentNamesPayload,

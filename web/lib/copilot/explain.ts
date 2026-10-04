@@ -45,7 +45,7 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
 
   // Rol
   const needed = (extras.requiredRoles ?? []).filter(r => p.roles.includes(r));
-  if (needed.length) out.push({ tone: "ok", text: `Vardiyanın gerektirdiği rolü taşıyor: ${needed.join(", ")}` });
+  if (needed.length) out.push({ tone: "ok", text: `Vardiyanın gerektirdiği görevi yapabiliyor: ${needed.join(", ")}` });
 
   if (extras.reliabilityNote) out.push({ tone: "warn", text: extras.reliabilityNote });
   for (const n of extras.learned ?? []) out.push({ tone: "warn", text: `Geçmişten öğrenilen: ${n}` });

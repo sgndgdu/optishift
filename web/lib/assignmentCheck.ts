@@ -5,10 +5,11 @@
  * Takas (personel kabulü + müdür onayı) ve açık vardiya üstlenme aynı fonksiyonu çağırır.
  * Kişinin değişiklik sonrası takvimine bakar: aynı gün ikinci/çakışan vardiya, iki vardiya
  * arası asgari dinlenme (rules.min_rest_hours, varsayılan 11) ve haftalık çalışma sınırı
- * (kişinin sınırı ya da rules.max_weekly_hours; denkleştirmede tek hafta tavanı 66,
+ * (lib/legal effectiveWeeklyLimit: şube sınırı üst sınır, kişinin değeri sadece daha düşükse; denkleştirmede tek hafta tavanı 66,
  * lib/copilot/snapshot ile aynı). Bulgu varsa değişiklik engellenir; müdür açıkça
  * onaylarsa (force) yine de yapılabilir.
  */
+import { effectiveWeeklyLimit } from "@/lib/legal";
 
 export interface TimedShift {
   /** Haftanın pazartesisi (YYYY-MM-DD) */
@@ -85,7 +86,7 @@ export async function loadPersonRules(db: any, personnelId: string, locationId: 
   } catch { /* varsayılan */ }
   const p = await db.prepare(`SELECT max_weekly_hours FROM personnel WHERE id = ?`).get(personnelId) as any;
   const ruleMax = typeof rules.max_weekly_hours === "number" ? rules.max_weekly_hours : 45;
-  const personMax = typeof p?.max_weekly_hours === "number" ? p.max_weekly_hours : ruleMax;
+  const personMax = effectiveWeeklyLimit(p?.max_weekly_hours, ruleMax);
   const balancing = typeof rules.balancing_period_weeks === "number" ? rules.balancing_period_weeks : 1;
   return {
     maxWeeklyHours: balancing >= 2 && personMax >= ruleMax ? 66 : personMax,

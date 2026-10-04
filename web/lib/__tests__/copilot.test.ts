@@ -280,8 +280,8 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
   it("bütçeler", () => {
     const input = base();
     input.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ali", d, "s-sabah")); // 48 saat, 3 saat fazla mesai
-    const ids = problems(input, { labor: { total: 12000, budget: 10000 }, overtime: { thresholdHours: 45, budgetHours: 2 } }).map(i => i.id);
-    expect(ids).toEqual(expect.arrayContaining(["labor-budget", "overtime-budget"]));
+    const ids = problems(input, { labor: { total: 12000, budget: 10000 } }).map(i => i.id);
+    expect(ids).toEqual(expect.arrayContaining(["labor-budget"]));
     expect(problems(input, { labor: { total: 12000, budget: 0 } }).map(i => i.id)).not.toContain("labor-budget");
   });
 
@@ -317,7 +317,7 @@ describe("neden bu kişi", () => {
     // Pzt gece 22-06, Sal sabah 08-16: 2 saat dinlenme
     input.assignments = [a("ayse", 0, "s-gece"), a("ayse", 1, "s-sabah")];
     const lines = explainAssignment(buildWeekSnapshot(input), "ayse", 1, { requiredRoles: ["Bakım Teknisyeni"] });
-    expect(lines.map(l => l.text)).toContain("Vardiyanın gerektirdiği rolü taşıyor: Bakım Teknisyeni");
+    expect(lines.map(l => l.text)).toContain("Vardiyanın gerektirdiği görevi yapabiliyor: Bakım Teknisyeni");
     const rest = lines.find(l => l.text.startsWith("Önceki vardiyasından"))!;
     expect(rest.tone).toBe("warn");
     expect(rest.text).toBe("Önceki vardiyasından 2 saat sonra başlıyor");
@@ -332,7 +332,7 @@ describe("çapraz eğitim", () => {
     // Gece 7 gün açık (Ayşe tek Bakım Teknisyeni), Ali ve Can gecede çalışıyor
     input.assignments = [0, 1, 2, 3, 4, 5, 6].map(d => a(d % 2 ? "ali" : "can", d, "s-gece"));
     const hit = crossTrainingInsight(buildWeekSnapshot(input), defs)!;
-    expect(hit.title).toBe('"Bakım Teknisyeni" rolünde darboğaz var');
+    expect(hit.title).toBe('"Bakım Teknisyeni" görevinde darboğaz var');
     expect(hit.lines[0]).toContain("haftada 7 vardiyada gerekiyor, 1 kişide var; bu hafta 7 vardiyada eksik");
     expect(hit.lines[0]).toContain("Eğitilirse fayda sağlar: Can, Ali"); // Can gecede daha çok çalışıyor
   });

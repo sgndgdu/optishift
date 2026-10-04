@@ -1,4 +1,5 @@
 "use client";
+import { effectiveWeeklyLimit } from "@/lib/legal";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense } from "react";
@@ -1629,9 +1630,8 @@ function SchedulePageInner() {
       showToast("Yayınlanacak vardiya yok. Önce vardiya ekleyin veya otomatik oluşturun.", "error");
       return;
     }
-    const prePublishCheckEnabled = (locRules as Record<string, unknown>).pre_publish_check !== false;
-    // Güvenilirlik bir kural ihlali değil, bilgi: yayını durdurmaz, sadece Plan Asistanı'nda görünür
-    const problems = prePublishCheckEnabled ? findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability") : [];
+    // Yayın öncesi kontrol her zaman (engellemez, gösterir). Güvenilirlik kural ihlali değil, bilgi: sadece Plan Kontrolü'nde
+    const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
     if (problems.length > 0) {
       setViolationModal({ problems, onConfirm: doPublish });
     } else {
@@ -2052,7 +2052,7 @@ function SchedulePageInner() {
       .filter(([k]) => k.startsWith(`${popover.personnelId}-`))
       .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0) - existHours;
     const projHours = weekBase + (popover.endMin - popover.startMin) / 60;
-    const maxH = popoverPerson.max_weekly_hours ?? 45;
+    const maxH = effectiveWeeklyLimit(popoverPerson.max_weekly_hours, (() => { const v = (locRules as Record<string, unknown>)?.max_weekly_hours; return typeof v === "number" ? v : 45; })());
     if (projHours > maxH) {
       popoverWarnings.push({ type: 'error', msg: `Haftalık limit aşılacak: ${Math.round(projHours * 10) / 10}s / ${maxH}s` });
     }
@@ -2101,11 +2101,8 @@ function SchedulePageInner() {
 
   const weekBudgets: WeekBudgets = {
     unreliable: reliabilityNotes,
+    // Tek bütçe: işçilik maliyeti (₺; mesai ×1,5 dahil). Saat bazlı mesai bütçesi kaldırıldı.
     labor: { total: laborCost.total, budget: weeklyLaborBudgetTry },
-    overtime: {
-      thresholdHours: typeof (locRules as Record<string, unknown>).overtime_threshold_hours === "number" ? (locRules as Record<string, number>).overtime_threshold_hours : 45,
-      budgetHours: typeof (locRules as Record<string, unknown>).weekly_overtime_budget_hours === "number" ? (locRules as Record<string, number>).weekly_overtime_budget_hours : 0,
-    },
   };
   const crossTraining = crossTrainingInsight(weekSnapshot, shiftDefs);
   const weekInsights = crossTraining ? [...buildInsights(weekSnapshot, weekBudgets), crossTraining] : buildInsights(weekSnapshot, weekBudgets);
@@ -2632,7 +2629,7 @@ loading ? (
     }] : []),
     ...(revokedSkills.length > 0 ? [{
       id: "revoked-skills", tone: "warning" as const,
-      title: `${new Set(revokedSkills.map(r => r.id)).size} kişi belge nedeniyle bazı rollere atanmadı`,
+      title: `${new Set(revokedSkills.map(r => r.id)).size} kişi belge nedeniyle bazı görevlere atanmadı`,
       detail: <>{revokedSkills.map(r => `${r.name}: ${r.skill} (${r.document} ${r.reason === "expired" ? "süresi dolmuş" : "girilmemiş"})`).join(" · ")}</>,
     }] : []),
     ...(noDeptPeople.length > 0 ? [{
