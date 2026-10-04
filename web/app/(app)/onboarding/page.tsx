@@ -40,6 +40,9 @@ export default function OnboardingWizard() {
   const [industry, setIndustry] = useState("hospitality");
   const [variant, setVariant] = useState("cafe");
   const [branches, setBranches] = useState<string[]>([""]);
+  // Tek şubeli işletme "şube" kavramını görmez: tek alan "İşletmenizin adı"; birden çok şube isteğe bağlı açılır
+  const [multiOpen, setMultiOpen] = useState(false);
+  const multi = multiOpen || branches.length > 1;
 
   // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
   const [shifts, setShifts] = useState<ShiftDefinition[]>(() => getVariant(getIndustry("hospitality")!, "cafe").shifts.map(d => ({ ...d })));
@@ -169,7 +172,7 @@ export default function OnboardingWizard() {
   const next = async () => {
     setError("");
     if (step === 0 && !branches.some(b => b.trim())) {
-      setError("En az bir şube adı girin.");
+      setError(multi ? "En az bir şube adı girin." : "İşletmenizin adını girin.");
       return;
     }
     if (step === 0 && freePlan && branches.filter(b => b.trim()).length > 1) {
@@ -198,11 +201,27 @@ export default function OnboardingWizard() {
             {step === 0 && (
               <WizardStep icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
-                sub="İşletme türünüzü seçin, şubenizi adlandırın. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
+                sub="İşletme türünüzü seçin, işletmenizi adlandırın. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
                 <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
 
+                {!multi ? (
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-bold text-slate-400">İşletmenizin adı</p>
+                    <input
+                      value={branches[0] ?? ""}
+                      onChange={e => updateBranch(0, e.target.value)}
+                      placeholder="Örn: Kuytu Bar"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+                    />
+                    {!freePlan && (
+                      <button onClick={() => { setMultiOpen(true); addBranch(); }} className="text-sm font-semibold text-forest-700 hover:underline">
+                        Birden çok şubem var
+                      </button>
+                    )}
+                  </div>
+                ) : (
                 <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-slate-400">Şubeler (tek şube de olabilir, sonradan da eklenebilir)</p>
+                  <p className="text-xs font-bold text-slate-400">Şubeler (sonradan da eklenebilir)</p>
                   {branches.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
@@ -230,6 +249,7 @@ export default function OnboardingWizard() {
                     </button>
                   )}
                 </div>
+                )}
               </WizardStep>
             )}
 
@@ -286,9 +306,11 @@ export default function OnboardingWizard() {
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">Her şey hazır</h2>
                   <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
-                    {readyCount > 0
+                    {readyCount > 1
                       ? <><strong>{readyCount} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}</>
-                      : <>Şubeleriniz zaten kurulu.{" "}</>}
+                      : readyCount === 1
+                      ? <>İşletmeniz vardiya şablonlarıyla birlikte kuruldu.{" "}</>
+                      : <>İşletmeniz zaten kurulu.{" "}</>}
                     {singleLocationId ? (
                       <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
                     ) : (

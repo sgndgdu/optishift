@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
 import { verifyGodToken } from "./lib/god-auth";
-import { CHEF_BLOCKED_ERROR, isChefBlocked, isViewOnly, missingPerm, permError, VIEW_ONLY_ERROR } from "./lib/userAccess";
+import { CHEF_BLOCKED_ERROR, EMPLOYEE_VIEW_HEADER, isChefBlocked, isViewOnly, missingPerm, permError, VIEW_ONLY_ERROR } from "./lib/userAccess";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
 const PUBLIC_API_PATHS = [
@@ -50,6 +50,7 @@ const SPOOFABLE_AUTH_HEADERS = [
   "x-auth-name",
   "x-auth-managed-locations",
   "x-auth-access",
+  EMPLOYEE_VIEW_HEADER,
 ];
 
 // İstemcinin bu header'ları doğrudan göndermesini engeller — route handler'lar bu
@@ -114,6 +115,19 @@ export async function proxy(req: NextRequest) {
       { error: "Geçersiz veya süresi dolmuş oturum" },
       { status: 401 }
     );
+  }
+
+  // Çalışan görünümü (lib/userAccess EMPLOYEE_VIEW_HEADER): vardiyaya giren yönetici portaldan kendi işlerini yapar.
+  // Sadece yetki düşürür: rol employee olur, maddeler ve bölge kapsamı düşer. Şube, kişinin kapsamındaysa alınır.
+  const viewLoc = req.headers.get(EMPLOYEE_VIEW_HEADER);
+  if (viewLoc !== null && user.role !== "employee" && user.personnel_id) {
+    const inScope = user.role === "admin"
+      || (user.role === "manager" && viewLoc === user.location_id)
+      || (user.role === "supervisor" && (!user.managed_location_ids?.length || user.managed_location_ids.includes(viewLoc)));
+    user.role = "employee";
+    user.location_id = inScope && viewLoc ? viewLoc : user.location_id;
+    user.managed_location_ids = null;
+    user.access = null;
   }
 
   // Doğrulanmış kullanıcı bilgisini route handler'a header üzerinden ilet.

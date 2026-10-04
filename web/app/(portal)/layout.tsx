@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, BellRing, HelpCircle, Megaphone } from "lucide-react";
+import { Home, Calendar, Clock, Inbox, MessageSquare, UserCircle, LogOut, BellRing, HelpCircle, Megaphone, LayoutDashboard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -11,6 +11,7 @@ import { Logo } from "@/components/Logo";
 import { AvailabilityEnabledContext, OpenShiftsEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
 import { CountBadge } from "@/components/ui/StatusPill";
+import { installEmployeeView, isEmployeeView, managementHome } from "@/lib/employeeView";
 
 function useChatUnread() {
   const [count, setCount] = useState(0);
@@ -73,11 +74,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const notifUnread = useNotifUnread();
 
   useEffect(() => {
+    let uninstall = () => {};
     try {
       const raw = localStorage.getItem("optishift_portal_user");
       if (raw) {
         const u = JSON.parse(raw);
         setUser(u);
+        // Vardiyaya giren yönetici kendi vardiyalarına bakıyor (lib/employeeView): istekler çalışan olarak gider.
+        // Sayfalar bu satırdan sonra açılır (mounted), ilk istekleri de çalışan görünümünde olur.
+        if (isEmployeeView(u)) uninstall = installEmployeeView(u.location_id);
         // Uygunluk toplama kapalıysa nav'dan Uygunluk linkini gizle (locations.rules)
         if (u?.location_id) {
           fetch(`/api/locations?id=${u.location_id}`)
@@ -100,6 +105,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       }
     } catch {}
     setMounted(true);
+    return () => uninstall();
   }, []);
 
   const nav = NAV
@@ -170,6 +176,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
 
+        {isEmployeeView(user) && (
+          <div className="px-1 pt-2">
+            <Link href={managementHome()} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-forest-700 hover:bg-forest-50 transition-colors">
+              <LayoutDashboard size={18} />
+              Yönetim paneline dön
+            </Link>
+          </div>
+        )}
         <div className="px-1 pt-2">
           <a
             href="/kilavuz?role=employee"
@@ -213,6 +227,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold text-slate-800">OptiShift</span>
           </Link>
           <div className="flex items-center gap-1">
+            {isEmployeeView(user) && (
+              <Link href={managementHome()} aria-label="Yönetim paneline dön" title="Yönetim paneline dön" className="p-2.5 rounded-xl text-forest-700 hover:bg-forest-50 transition-colors">
+                <LayoutDashboard size={21} />
+              </Link>
+            )}
             <Link href="/portal/notifications" aria-label="Bildirimler" title="Bildirimler" className={cn("relative p-2.5 rounded-xl transition-colors", pathname === "/portal/notifications" ? "text-primary bg-primary/8" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100")}>
               <BellRing size={21} />
               {notifUnread > 0 && (

@@ -116,6 +116,13 @@ export function accountLevel(role: string | null | undefined, access: UserAccess
 export const PAGE_PERMS: Record<string, Perm> = { "/requests": "approvals", "/tip-pools": "budget" };
 export const canSeePage = (user: WithAccess | null | undefined, href: string) => !PAGE_PERMS[href] || hasPerm(user, PAGE_PERMS[href]);
 
+/**
+ * Çalışan görünümü: vardiyaya giren yönetici kendi vardiyalarını çalışan ekranından (portal) görür ve talep açar.
+ * Portal bu başlığı (değeri: kişinin şubesi) gönderir; proxy isteği ÇALIŞAN olarak karşılar (yetki sadece düşer):
+ * rol employee, yetki maddeleri ve bölge kapsamı yok, sadece kendi kaydı. Kişi kaydı (personnel_id) yoksa yok sayılır.
+ */
+export const EMPLOYEE_VIEW_HEADER = "x-optishift-employee-view";
+
 export const VIEW_ONLY_ERROR = "Bu hesap sadece görüntüleme yetkisine sahip.";
 
 /**

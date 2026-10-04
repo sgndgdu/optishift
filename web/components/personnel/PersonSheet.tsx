@@ -491,7 +491,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                     <button type="button" onClick={() => setAddingRole(false)} className="shrink-0 px-2 text-xs font-semibold text-slate-500">Vazgeç</button>
                   </div>
                 )}
-                {addingRole && <p className="text-xs text-slate-400 mt-1">Görev şubenin listesine eklenir; herkesin kartında seçilebilir. Ayarlar › Temel › Görevler&apos;den silinir.</p>}
+                {addingRole && <p className="text-xs text-slate-400 mt-1">Görev listeye eklenir; herkesin kartında seçilebilir. Ayarlar › Temel › Görevler&apos;den silinir.</p>}
                 {roleError && <p className="text-xs text-red-600 mt-1">{roleError}</p>}
               </div>
               <details className="rounded-xl border border-slate-200 px-3 py-2">
@@ -726,7 +726,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               {kioskModeEnabled && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Ortak Tablet PIN&apos;i</label>
-                  <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açık şubelerde geçerlidir.</p>
+                  <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açıkken geçerlidir.</p>
                   {pinSet ? (
                     <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
                       <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>

@@ -97,7 +97,7 @@ export function roleBadge(p: Pick<MergedPerson, "role" | "display_title">): { la
   if (p.role === "admin") return { label: "İşletme Sahibi", tone: "accent" };
   // Yöneticinin unvanı kapsamından gelir (ManagersCard managerTitle)
   if (p.role === "supervisor") return { label: "Bölge Müdürü", tone: "brand" };
-  if (p.role === "manager") return { label: p.display_title || "Şube Müdürü", tone: "brand" };
+  if (p.role === "manager") return { label: p.display_title || "Müdür", tone: "brand" };
   return { label: "Çalışan", tone: "neutral" };
 }
 

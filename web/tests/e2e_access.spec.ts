@@ -167,3 +167,24 @@ test("bölge müdürü sadece atandığı şubeleri görür ve yönetir", async 
     await request.delete(`/api/users?id=${created.user.id}`);
   }
 });
+
+test("çalışan görünümü: vardiyaya giren yönetici portaldan sadece çalışan yetkisiyle istek yapar", async ({ request }) => {
+  const H = { "x-optishift-employee-view": "loc-mega-kafe" };
+  await login(request, "mega.admin");
+  const users = await (await request.get("/api/users")).json() as { id: string; username: string }[];
+  const mudur = users.find(u => u.username === "mega.mudur.kafe")!;
+  expect((await request.patch(`/api/users?id=${mudur.id}`, { data: { schedulable: true } })).ok()).toBeTruthy();
+  try {
+    await login(request, "mega.mudur.kafe");   // yeni oturumda kişi kaydı (personnel_id) var
+    const own = await (await request.get("/api/locations?id=loc-mega-kafe")).json();
+    // Başlıkla: çalışan gibi, şube ayarı yazamaz; taslak vardiyaları görmez
+    expect((await request.patch("/api/locations?id=loc-mega-kafe", { data: { name: own[0].name }, headers: H })).status()).toBe(403);
+    const rows = await (await request.get("/api/shifts?location_id=loc-mega-kafe&week_start=2026-10-05", { headers: H })).json() as Row[];
+    expect(rows.every(r => !r.publication_status || r.publication_status === "published")).toBe(true);
+    // Başlıksız: yönetici yetkisi aynen
+    expect((await request.patch("/api/locations?id=loc-mega-kafe", { data: { name: own[0].name } })).status()).toBe(200);
+  } finally {
+    await login(request, "mega.admin");
+    await request.patch(`/api/users?id=${mudur.id}`, { data: { schedulable: false } });
+  }
+});

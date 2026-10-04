@@ -63,13 +63,14 @@ function usePendingApprovals(orgId: string | undefined) {
   return count;
 }
 import {
-  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2,
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2, CalendarCheck,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
 import { canSeePage, departmentScope, parseAccess } from "@/lib/userAccess";
+import { openEmployeeView } from "@/lib/employeeView";
 import { CountBadge } from "@/components/ui/StatusPill";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
@@ -125,6 +126,17 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
     return !v;
   });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // Vardiyaya giren yönetici (kişi kartında "Vardiya planına dahil"): kendi vardiyaları çalışan ekranında (lib/employeeView)
+  const [ownShiftsBranch, setOwnShiftsBranch] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.personnel_id || user.role === "employee") return;
+    let alive = true;
+    fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.ok ? r.json() : []).then(rows => {
+      const p = Array.isArray(rows) ? rows[0] : null;
+      if (alive && p && p.schedulable !== false && p.status !== "inactive") setOwnShiftsBranch(p.primary_location_id ?? null);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [user?.personnel_id, user?.role]);
 
   useEffect(() => {
     let parsedUser: any = null;
@@ -315,7 +327,8 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
 
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8">
-        <p className="text-xs font-bold text-slate-400 mb-2">Şube</p>
+        {/* Tek şubeli işletme "şube" kavramını görmez */}
+        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" || locations.length > 1 ? "Şube" : "İşletme"}</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -352,7 +365,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                         scope === "all" ? "bg-primary/5 text-primary font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
                       )}
                     >
-                      <span className="flex items-center gap-2"><Building2 size={15} /> {locations.length > 1 ? "Tüm Şubeler" : "Genel Bakış ve Şube Ekle"}</span>
+                      <span className="flex items-center gap-2"><Building2 size={15} /> {locations.length > 1 ? "Tüm Şubeler" : "Yeni şube aç"}</span>
                       {scope === "all" && <Check size={16} className="text-primary shrink-0" />}
                     </button>
                   )}
@@ -403,6 +416,19 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       {/* Ayarlar: kaydırma alanının dışında, grup açıkken de hep görünür */}
       {footer.length > 0 && <div className="px-1 pt-3 mt-2 border-t border-slate-100 space-y-1.5">{footer.map(renderItem)}</div>}
 
+      {/* Kendi vardiyaları: çalışan ekranı açılır, oradan "Yönetim paneline dön" */}
+      {ownShiftsBranch && (
+        <div className="px-1 pt-2">
+          <button
+            onClick={() => { openEmployeeView(user, ownShiftsBranch); router.push("/portal/calendar"); }}
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <CalendarCheck size={18} className="text-slate-400" />
+            Vardiyalarım
+          </button>
+        </div>
+      )}
+
       {/* Yardım */}
       <div className="px-1 pt-2">
         <a
@@ -431,7 +457,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 "text-xs font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : user?.role === "manager" ? (user?.display_title || "Şube Müdürü") : "Çalışan"}
+                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : user?.role === "manager" ? (user?.display_title || "Müdür") : "Çalışan"}
               </p>
             </div>
           </div>

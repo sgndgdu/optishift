@@ -1125,7 +1125,7 @@ export default function SettingsPage() {
     if (activeTab === "account") {
       return (
         <Page width="narrow">
-          <PageHeader title="Şube Ayarları" />
+          <PageHeader title="Ayarlar" />
           <TabBar />
           <BranchAccountTab viewerRole={viewerRole} />
         </Page>
@@ -1137,7 +1137,7 @@ export default function SettingsPage() {
   return (
     <SettingsLockCtx.Provider value={isCatLocked}>
     <Page width="narrow">
-      <PageHeader title="Şube Ayarları" description={locationData.name} />
+      <PageHeader title="Ayarlar" description={locationData.name} />
 
       <TabBar />
 
@@ -1342,7 +1342,7 @@ export default function SettingsPage() {
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>
                 <SectionLabel>Çalışma Saatleri</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Şubenin her gün kaçta açılıp kaçta kapandığını belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
+                <p className="text-xs text-slate-400 mb-3">Her gün kaçta açılıp kaçta kapandığınızı belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
                 {/* Tek satır özet; 7 günlük düzenleyici "Düzenle" ile açılır */}
                 <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
                   <p className="text-sm font-semibold text-slate-700 min-w-0">{summarizeOperatingHours(locationData.operating_hours)}</p>
@@ -1393,7 +1393,7 @@ export default function SettingsPage() {
               <div className="-my-4">
                 <RuleRow
                   wide
-                  label="Şube Konumu"
+                  label="Konum"
                   description="Vardiya Planı'nda günlük hava durumu ve konum doğrulamalı vardiya girişi bunu kullanır."
                   right={
                     <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
@@ -1759,7 +1759,7 @@ export default function SettingsPage() {
                 <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
-                    description="Şubede kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartına sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir."
+                    description="Kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartına sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                   />
                   <RuleRow
@@ -1834,9 +1834,9 @@ export default function SettingsPage() {
                   <div className="py-4 space-y-2">
                     <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
                     {([
-                      { id: "phone", label: "Personel kendi telefonundan", desc: "Portaldaki vardiya kartından ya da şubeye asılan QR kodu okutarak." },
-                      { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "Şubeye belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
-                      { id: "kiosk", label: "Şubedeki ortak tabletten, PIN ile", desc: "Personel oturum açmaz, 4 haneli PIN'le girer ve çıkar." },
+                      { id: "phone", label: "Personel kendi telefonundan", desc: "Portaldaki vardiya kartından ya da işyerine asılan QR kodu okutarak." },
+                      { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "İşyerine belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
+                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Personel oturum açmaz, 4 haneli PIN'le girer ve çıkar." },
                     ] as const).map(opt => {
                       const current = kioskModeEnabled ? "kiosk" : gpsCheckinRequired ? "gps" : "phone";
                       const on = current === opt.id;
@@ -2089,7 +2089,7 @@ export default function SettingsPage() {
               const card = {
                   chat: (
                 <FeatureCard icon={MessageSquare} title="Mesajlar"
-                  description="Müdür ve personel arasında şube içi sohbet."
+                  description="Müdür ve personel arasında ekip içi sohbet."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
                   ),
                   openShifts: (

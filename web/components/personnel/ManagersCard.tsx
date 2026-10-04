@@ -41,9 +41,12 @@ const scopeOf = (m: Mgr): string[] => (m.role === "supervisor" ? parseIds(m.mana
 /** Yöneticinin maddeleri (boş alan = hepsi). */
 const permsOf = (m: Pick<Mgr, "permissions">): Perm[] => parseAccess(m.permissions)?.perms ?? ALL_PERMS;
 
-/** Yöneticinin unvanı kapsamından gelir (elle yazılan unvan yok): Şef / Bölge Müdürü / Şube Müdürü. */
-export const managerTitle = (chef: boolean, branchCount: number): string =>
-  chef ? "Şef" : branchCount > 1 ? "Bölge Müdürü" : "Şube Müdürü";
+/**
+ * Yöneticinin unvanı kapsamından gelir (elle yazılan unvan yok): Şef / Bölge Müdürü / Şube Müdürü.
+ * Tek şubeli işletmede "şube" geçmez: Müdür.
+ */
+export const managerTitle = (chef: boolean, branchCount: number, orgBranchCount = 2): string =>
+  chef ? "Şef" : branchCount > 1 ? "Bölge Müdürü" : orgBranchCount > 1 ? "Şube Müdürü" : "Müdür";
 
 /**
  * Neleri yapabilir: maddeler tek tek. Veren kişinin sahip olmadığı madde verilemez (soluk görünür).
@@ -196,7 +199,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
     if (branchManager && !deptId) return setError("Hangi departmanın şefi olacağını seçin.");
     setBusy(true);
     try {
-      const unvan = managerTitle(!!deptId, picked.length);
+      const unvan = managerTitle(!!deptId, picked.length, locations.length);
       const dept = picked.length === 1 && depts.length ? deptId : "";
       if (source === "team") {
         // Var olan çalışan: hesabı ve geçmişi korunur. Giriş hesabı yoksa önce açılır.
