@@ -3,8 +3,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { requireAuth, signToken, setCookie, parseManagedLocations } from "@/lib/auth";
-import { isBranchManager, parseAccess } from "@/lib/userAccess";
-import { inDepartmentScope, managerOutsideBranch } from "@/lib/access";
+import { parseAccess } from "@/lib/userAccess";
+import { canManageAccount } from "@/lib/access";
 
 
 function generateToken(): string {
@@ -94,16 +94,7 @@ export async function POST(req: NextRequest) {
     }
     // Giriş bağlantısı hesaba şifresiz girer: sadece kişinin üstündeki yönetici, kendi kapsamındaki kişi için üretir.
     // Patron herkes için (kendisi hariç); şube müdürü kendi şubesinin çalışanları ve şefleri; şef kendi departmanı.
-    const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
-    const targetIsChef = user.role === "manager" && !!parseAccess(user.permissions)?.department_id;
-    const branchMgrForChef = isBranchManager(auth) && targetIsChef && user.location_id === auth.location_id;
-    const allowed = user.id !== auth.id && (
-      auth.role === "admin" ||
-      branchMgrForChef ||
-      ((RANK[user.role] ?? 0) < (RANK[auth.role] ?? 0)
-        && !managerOutsideBranch(auth, user.location_id)
-        && (await inDepartmentScope(db, auth, user.personnel_id)))
-    );
+    const allowed = await canManageAccount(db, auth, user);
     if (!allowed) {
       return NextResponse.json({ error: "Bu kişi için giriş bağlantısı oluşturamazsınız" }, { status: 403 });
     }

@@ -2,7 +2,7 @@
 /**
  * Kişi kartı: bir kişinin TEK penceresi (Ekip ve Tüm Personel aynı kartı açar). Görüntüleme ve düzenleme
  * ayrı değil; tek Kaydet, tek "Ekipten çıkar". Kişinin şubesinin bağlamını (departman, vardiya grubu,
- * işletme türü, açık modüller, müdür izinleri) kendisi kurar, bu yüzden hangi panelden açıldığı fark etmez.
+ * işletme türü, açık modüller) kendisi kurar, bu yüzden hangi panelden açıldığı fark etmez.
  */
 import { useEffect, useState } from "react";
 import { Check, Trash2, X } from "lucide-react";
@@ -11,8 +11,8 @@ import { Sheet, sheetDangerClass, sheetPrimaryClass } from "@/components/ui/Shee
 import type { InviteResult } from "@/components/personnel/InviteLinkList";
 import { ManagerAccessFields, accessSummary, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
 import { createInvite, roleBadge, type MergedPerson } from "@/components/personnel/people";
-import { isBranchManager, parseAccess } from "@/lib/userAccess";
-import { hasManagerPermission, LOCK_NOTE, type ManagerPermission } from "@/lib/ruleLocks";
+import { accountLevel, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
+import { LOCK_NOTE } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
 import { branchRoles } from "@/lib/roles";
@@ -62,9 +62,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const acc = account;
   const rules = branch?.rules ?? {};
   const viewerRole = viewer.role ?? "";
-  const branchMgr = isBranchManager({ role: viewer.role, access: parseAccess(viewer.access as string | null | undefined) });
-  // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü her zaman, müdür kendi şubesinin ayarına göre
-  const can = (perm: ManagerPermission) => hasManagerPermission(viewer.role, rules, perm);
+  // Bakan kişinin yetki maddeleri (lib/userAccess): sahip hepsi, yönetici kendi seçilmiş maddeleri
+  const viewerAccess = { role: viewer.role, access: parseAccess(viewer.access) };
+  const can = (perm: Perm) => hasPerm(viewerAccess, perm);
 
   const [editForm, setEditForm] = useState(() => formOf(person));
   const [mgrAccess, setMgrAccess] = useState<ManagerAccessValue | null>(() =>
@@ -110,10 +110,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   }, [ep.personnelId, complianceTrackingEnabled]);
 
   const kioskModeEnabled = isModuleOn(rules, "kiosk_mode_enabled");
-  // Şubeler arası (lib/branchRotation): çalıştığı şubeler + planlı rotasyon. Patron ve bölge müdürü her zaman,
-  // şube müdürü "Şubeler arası personel" izniyle (departman şefi hariç) değiştirir.
-  const canCrossBranch = viewerRole === "admin" || viewerRole === "supervisor"
-    || (viewerRole === "manager" && !parseAccess(viewer.access as string | null | undefined)?.department_id && can("cross_branch"));
+  // Şubeler arası (lib/branchRotation): çalıştığı şubeler + planlı rotasyon. "Başka şubeden personel" yetkisiyle
+  // (departman şefi hariç) değiştirilir.
+  const canCrossBranch = can("cross_branch") && !viewerAccess.access?.department_id;
   const [orgBranches, setOrgBranches] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
     let alive = true;
@@ -342,7 +341,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
       <Sheet open onClose={onClose}
         title={<span className="flex items-center gap-3"><Avatar name={ep.name} size="md" />{ep.name}</span>}
         description={[roleBadge(ep).label, ep.title].filter(Boolean).join(" · ")}
-        footer={can("personnel_delete") ? <button onClick={restore} className={sheetPrimaryClass}>Ekibe geri al</button> : undefined}>
+        footer={can("team") ? <button onClick={restore} className={sheetPrimaryClass}>Ekibe geri al</button> : undefined}>
         <p className="text-sm text-slate-600">Ekipten çıkarıldı: plana alınmaz ve uygulamaya giremez. Geri alınca bilgileri ve geçmişi olduğu gibi döner.</p>
         {editError && <p className="text-sm text-red-600 mt-3">{editError}</p>}
       </Sheet>
@@ -350,18 +349,20 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   }
 
   const isMgr = ep.role === "manager" || ep.role === "supervisor";
-  const canEditAccess = !!acc && isMgr && canEditManager(viewerRole, branchMgr, acc);
-  const canRoles = viewerRole === "admin" || viewerRole === "supervisor" || branchMgr;
+  const canEditAccess = !!acc && isMgr && canEditManager(viewer, acc);
+  // Kademe (lib/userAccess accountLevel): kimse kendi kademesindeki ya da üstündeki kişiyi değiştiremez
+  const targetLevel = accountLevel(ep.role, acc ? parseAccess(acc.permissions) : null);
+  const below = viewerRole === "admin" || targetLevel < accountLevel(viewerRole, viewerAccess.access);
   // Vardiyaya girme anahtarı sadece yöneticide (çalışan her zaman plandadır)
-  const canToggleShift = canRoles && !!ep.userId
-    && (ep.role === "admin" ? viewerRole === "admin" : ep.role === "manager" && (viewerRole !== "manager" || ep.userId === viewer.id || canEditAccess));
+  const canToggleShift = !!ep.userId && can("team")
+    && (ep.role === "admin" ? viewerRole === "admin" : isMgr && (ep.userId === viewer.id || canEditAccess));
   const canRemove = (!!ep.userId || !!ep.personnelId) && ep.userId !== viewer.id && ep.role !== "admin"
-    && (viewerRole === "admin" || (viewerRole === "supervisor" && ep.role !== "supervisor") || (ep.role === "employee" && can("personnel_delete")));
-  // Kendinden üst ya da eş roldeki kişi (bölge müdürünün gözünden patron gibi): sadece okunur.
-  // Sunucu da reddeder (PATCH /api/users rank kontrolü); eskiden form açık kalıp kaydette hata veriyordu.
-  const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
-  const readOnly = !!ep.userId && ep.userId !== viewer.id && viewerRole !== "admin" && !canEditAccess
-    && (RANK[ep.role] ?? 0) >= (RANK[viewerRole] ?? 0);
+    && can("team") && below && (ep.role === "employee" || canEditAccess);
+  // Kendinden üst ya da eş kademedeki kişi (bölge müdürünün gözünden patron gibi): sadece okunur.
+  // Sunucu da reddeder (lib/access canManageAccount); eskiden form açık kalıp kaydette hata veriyordu.
+  // "Ekip" yetkisi olmayan yönetici de kartı sadece okur.
+  const isSelfCard = !!ep.userId && ep.userId === viewer.id;
+  const readOnly = !isSelfCard && (!below || !can("team"));
   if (readOnly) {
     return (
       <Sheet open onClose={onClose}
@@ -370,7 +371,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         <div className="space-y-2 text-sm text-slate-700">
           {ep.phone && <p>Telefon: <a href={`tel:${ep.phone}`} className="text-forest-700">{ep.phone}</a></p>}
           {ep.email && <p>E-posta: {ep.email}</p>}
-          <p className="text-xs text-slate-500 pt-2">{ep.role === "admin" ? "İşletme sahibinin bilgilerini sadece kendisi değiştirir." : "Bu kişinin bilgilerini işletme sahibi değiştirir."}</p>
+          <p className="text-xs text-slate-500 pt-2">{ep.role === "admin" ? "İşletme sahibinin bilgilerini sadece kendisi değiştirir." : below ? "Kişi kartını değiştirmek için \"Ekip\" yetkisi gerekir. İşletme sahibi verebilir." : "Bu kişinin bilgilerini işletme sahibi değiştirir."}</p>
         </div>
       </Sheet>
     );
@@ -390,7 +391,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         <button onClick={save} disabled={editLoading} className={sheetPrimaryClass}>{editLoading ? "Kaydediliyor…" : "Kaydet"}</button>
       </>}>
         <div className="space-y-4">
-          {ep.approval_status === "pending" && (viewerRole === "admin" || viewerRole === "supervisor") && (
+          {ep.approval_status === "pending" && can("team") && (
             <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
               <span className="flex-1 text-sm text-amber-900">Hesap onay bekliyor.</span>
               <button onClick={async () => { await approve("rejected"); }} className="text-sm font-semibold text-red-700 px-2">Reddet</button>
@@ -760,7 +761,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                 )}
               </div>
               {canEditAccess && mgrAccess
-                ? <ManagerAccessFields m={acc} value={mgrAccess} onChange={setMgrAccess} locations={managerLocations} viewerRole={viewerRole} />
+                ? <ManagerAccessFields m={acc} value={mgrAccess} onChange={setMgrAccess} locations={managerLocations} granter={viewer} />
                 : <p className="text-sm text-slate-600">{accessSummary(acc, id => depts.find(d => d.id === id)?.name)}</p>}
             </div>
           )}

@@ -15,9 +15,9 @@ import { List, ListItem } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass } from "@/components/ui/Sheet";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { openBranchPanel } from "@/lib/sessionRouting";
-import { isOwnerRole } from "@/lib/ruleLocks";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { BranchPermissionsSheet, ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
+import { ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
+import { canDelegate, parseAccess } from "@/lib/userAccess";
 import PeopleList from "@/components/personnel/PeopleList";
 import PersonSheet from "@/components/personnel/PersonSheet";
 import { mergePeople, personKey, type MergedPerson } from "@/components/personnel/people";
@@ -46,7 +46,6 @@ function SupervisorPersonnelInner() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [pickBranch, setPickBranch] = useState(false);
   const [managerAdd, setManagerAdd] = useState(false);
-  const [permsOpen, setPermsOpen] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<InviteResult[] | null>(null);
   const [toast, setToast] = useState("");
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
@@ -141,7 +140,9 @@ function SupervisorPersonnelInner() {
               <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-1.5">
                 {[
                   { icon: Plus, title: "Çalışan ekle", sub: "Şubenin Ekip sayfasında açılır", on: addEmployee },
-                  { icon: UserCog, title: "Yönetici ekle", sub: "Planı ve ekibi sizin yerinize yönetecek kişi", on: () => setManagerAdd(true) },
+                  ...(canDelegate({ role: user?.role ?? null, access: parseAccess(user?.access) }) ? [
+                    { icon: UserCog, title: "Yönetici ekle", sub: "Planı ve ekibi sizin yerinize yönetecek kişi", on: () => setManagerAdd(true) },
+                  ] : []),
                 ].map(o => (
                   <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
                     className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50">
@@ -192,9 +193,6 @@ function SupervisorPersonnelInner() {
           branchName={!selectedLocId && locations.length > 1 ? p => locName(p.location_id) : undefined}
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
           managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id]) : null; }}
-          managementAction={isOwnerRole(user?.role) ? (
-            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Yönetici izinleri</button>
-          ) : undefined}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}
           emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Çalışan ekle</button>} />
       )}
@@ -214,8 +212,7 @@ function SupervisorPersonnelInner() {
       )}
 
       <ManagerAddSheet open={managerAdd} onClose={() => setManagerAdd(false)} locations={managerLocations}
-        viewerRole={user?.role ?? ""} onDone={fetchPeople} />
-      {isOwnerRole(user?.role) && <BranchPermissionsSheet open={permsOpen} onClose={() => setPermsOpen(false)} locations={managerLocations} />}
+        granter={user ?? {}} onDone={fetchPeople} />
 
       <Sheet open={!!inviteLinks} onClose={() => setInviteLinks(null)} title="Giriş bağlantıları"
         footer={<button onClick={() => setInviteLinks(null)} className={sheetPrimaryClass}>Tamam</button>}>

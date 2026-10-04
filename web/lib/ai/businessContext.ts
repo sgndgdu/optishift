@@ -11,7 +11,7 @@ import { addDays, businessNow } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import { industryFromRules } from "@/lib/templates";
-import { hasManagerPermission } from "@/lib/ruleLocks";
+import { hasPerm } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
@@ -26,7 +26,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   const rules = J(loc.rules, {});
   const { weekStart, dayIdx, date: today } = businessNow();
   const nextWeek = addDays(weekStart, 7);
-  const wageOk = hasManagerPermission(auth.role, rules, "budget");
+  const wageOk = hasPerm(auth, "budget");
   const defs: any[] = J(loc.shift_definitions, []);
   const defName = new Map(defs.map(d => [String(d.id), d.name]));
 

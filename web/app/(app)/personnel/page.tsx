@@ -1,7 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { isOwnerRole } from "@/lib/ruleLocks";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,12 +12,12 @@ import {
 import { branchRoles } from "@/lib/roles";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { BranchPermissionsSheet, ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
+import { ManagerAddSheet, accessSummary, addsOnlyChefs, type Mgr } from "@/components/personnel/ManagersCard";
 import PeopleList from "@/components/personnel/PeopleList";
 import { List } from "@/components/ui/List";
 import PersonSheet from "@/components/personnel/PersonSheet";
 import { createInvite, mergePeople, personKey, type MergedPerson } from "@/components/personnel/people";
-import { isBranchManager, parseAccess } from "@/lib/userAccess";
+import { canDelegate, parseAccess } from "@/lib/userAccess";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 
@@ -40,7 +39,6 @@ const EMP_TYPES = [
 export default function PersonnelPage() {
   const router = useRouter();
   const [authUser, setAuthUser] = useState<any>(null);
-  const [permsOpen, setPermsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [persons, setPersons] = useState<MergedPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,9 +237,9 @@ export default function PersonnelPage() {
   }, [persons, loading]);
 
 
-  // Yönetici/şef ekleme ve yetki düzenleme: patron, bölge yöneticisi, şube müdürü (kendi şefleri)
-  const branchMgr = isBranchManager(viewerAccessOf(authUser));
-  const canManageManagers = authUser?.role === "admin" || authUser?.role === "supervisor" || branchMgr;
+  // Yönetici/şef ekleme: işletme sahibi ya da "Başkasına yetki verme" yetkisi olan (şube müdürü kademesi sadece şef atar)
+  const branchMgr = addsOnlyChefs(authUser ?? {});
+  const canManageManagers = canDelegate(viewerAccessOf(authUser));
   const managerLocations = (authUser?.role === "manager" ? locations.filter(l => l.id === authUser?.location_id) : locations).map(l => ({ id: l.id, name: l.name }));
 
   const managerSummary = (p: MergedPerson) => {
@@ -393,9 +391,6 @@ export default function PersonnelPage() {
           deptName={p => (p.department_id ? editDepts.find(d => d.id === p.department_id)?.name ?? null : null)}
           hasDepts={() => editDepts.length > 0}
           managerSummary={managerSummary}
-          managementAction={isOwnerRole(authUser?.role) && authUser?.location_id ? (
-            <button onClick={() => setPermsOpen(true)} className="text-xs font-semibold text-forest-700 hover:underline">Yönetici izinleri</button>
-          ) : undefined}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
           emptyAction={!search && (
             <button onClick={() => { resetAddForm(); setShowAddModal(true); }} className="text-sm font-semibold text-forest-700 hover:underline">Kişi ekle</button>
@@ -404,7 +399,7 @@ export default function PersonnelPage() {
 
       {canManageManagers && (
         <ManagerAddSheet open={showManagerAdd} onClose={() => setShowManagerAdd(false)} locations={managerLocations}
-          viewerRole={authUser?.role ?? ""} branchManager={branchMgr} onDone={() => fetchData(authUser)} />
+          granter={authUser ?? {}} onDone={() => fetchData(authUser)} />
       )}
 
       {/* ADD MODAL */}
@@ -545,10 +540,6 @@ export default function PersonnelPage() {
 
       {toast && (
         <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
-      )}
-      {permsOpen && authUser?.location_id && (
-        <BranchPermissionsSheet open onClose={() => setPermsOpen(false)}
-          locations={locations.filter(l => l.id === authUser.location_id).map(l => ({ id: l.id, name: l.name }))} />
       )}
     </Page>
   );

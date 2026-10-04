@@ -6,9 +6,28 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
-import { hasLocationPermission, managerOutsideBranch } from "@/lib/access";
+import { canManageAccount, managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
-import { normalizeAccess, parseAccess, departmentScope, isBranchManager } from "@/lib/userAccess";
+import {
+  accountLevel, ALL_PERMS, canDelegate, capPerms, departmentScope, hasPerm, normalizeAccess, parseAccess, permError, type UserAccess,
+} from "@/lib/userAccess";
+import type { AuthUser } from "@/lib/auth";
+
+/**
+ * Verilmek istenen yetki (istekteki access) → kaydedilecek değer. İşletme sahibi dışındakiler en fazla
+ * kendi maddelerini verir (lib/userAccess capPerms). Boş istek = tam yetki isteği.
+ */
+function grantedAccess(auth: AuthUser, raw: unknown, departmentId: string | null): string | null {
+  const want = parseAccess(raw);
+  const perms = want ? want.perms : ALL_PERMS;
+  return normalizeAccess({ perms: auth.role === "admin" ? perms : capPerms(perms, auth), department_id: departmentId });
+}
+
+/** İşletme sahibi dışındaki kişi bu kademede bir yönetici oluşturabilir / bu kademeye getirebilir mi. */
+function canGrantLevel(auth: AuthUser, role: string, access: UserAccess | null): boolean {
+  if (auth.role === "admin") return true;
+  return canDelegate(auth) && accountLevel(role, access) < accountLevel(auth.role, auth.access);
+}
 
 // GET /api/users — org kullanıcılarını listele (admin/supervisor)
 export async function GET(req: NextRequest) {
@@ -34,8 +53,8 @@ export async function GET(req: NextRequest) {
     // Manager sadece kendisini ve KENDİ ŞUBESİNİN personel hesaplarını görür (başka şubelerin
     // çalışanları ve e-postaları listelenmez). Birden çok şubeye atanmış personel de dahil.
     if (auth.role === "manager") {
-      // Şube müdürü kendi şubesinin diğer yöneticilerini (departman şefleri) de görür
-      const mgrClause = isBranchManager(auth) ? ` OR (role = 'manager' AND location_id = ?)` : "";
+      // Yetki verebilen şube müdürü kendi şubesinin diğer yöneticilerini (departman şefleri) de görür
+      const mgrClause = canDelegate(auth) && !departmentScope(auth) ? ` OR (role = 'manager' AND location_id = ?)` : "";
       query += ` AND (id = ? OR (role = 'employee' AND (location_id = ? OR personnel_id IN (
         SELECT id FROM personnel WHERE org_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?))))${mgrClause})`;
       params.push(auth.id, auth.location_id, auth.org_id, auth.location_id, `%"${auth.location_id}"%`);
@@ -88,17 +107,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ad soyad zorunlu" }, { status: 400 });
     }
 
-    // Rol yetki kontrolü: kimse kendi rolünden yüksek rol atayamaz
-    const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
-    const targetRank = RANK[role ?? "employee"] ?? 0;
-    const callerRank = RANK[auth.role] ?? 0;
-    // Şube müdürü kendi şubesine departman şefi ekleyebilir (aynı rütbe, ama sadece departman kapsamlı)
-    const branchMgrAddsChef = isBranchManager(auth) && role === "manager" && !!parseAccess(normalizeAccess(body.access))?.department_id;
-    if (targetRank >= callerRank && !branchMgrAddsChef) {
-      return NextResponse.json({ error: "Kendi rolünüzden yüksek rol atayamazsınız" }, { status: 403 });
-    }
-
     const isEmployee = !role || role === "employee";
+    if (role && !["employee", "manager", "supervisor"].includes(role)) {
+      return NextResponse.json({ error: "Geçersiz rol" }, { status: 400 });
+    }
+    // Çalışan hesabı "Ekip" yetkisiyle; yönetici "Başkasına yetki verme" ile ve sadece kendinden alt kademede
+    if (isEmployee && !hasPerm(auth, "team")) return NextResponse.json({ error: permError("team") }, { status: 403 });
+    if (!isEmployee && !canGrantLevel(auth, role, parseAccess(body.access) ?? { perms: ALL_PERMS, department_id: null })) {
+      return NextResponse.json({ error: "Bu yetkiyi veremezsiniz. Kendi kademenizin altında, en fazla kendi yetkilerinizi verebilirsiniz." }, { status: 403 });
+    }
     // Bölge müdürü: sadece patron ekler; şubeye bağlı değildir, sorumlu olduğu şubeler seçilir
     const isSupervisor = role === "supervisor";
     let managedIds: string[] = [];
@@ -157,7 +174,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Yöneticinin ne yapabileceği (lib/userAccess); departman şefinin departmanı şubeye ait olmalı
-    const permissions = isEmployee ? null : normalizeAccess(body.access);
+    const permissions = isEmployee ? null : grantedAccess(auth, body.access, parseAccess(body.access)?.department_id ?? null);
     const accessDept = parseAccess(permissions)?.department_id;
     if (accessDept) {
       const dept = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(accessDept, primaryLocId);
@@ -272,29 +289,25 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const now = Math.floor(Date.now() / 1000);
 
-    // Patron dışındakiler: sadece kendi hesabı ya da kapsamındaki, kendinden alt roldeki hesaplar
-    const RANK: Record<string, number> = { employee: 0, manager: 1, supervisor: 2, admin: 3 };
-    // Şube müdürü kendi şubesindeki departman şeflerini yönetir (yetki, unvan, çalışana döndürme)
-    const targetIsChef = target.role === "manager" && !!parseAccess(target.permissions)?.department_id;
-    const managesChef = isBranchManager(auth) && targetIsChef && target.location_id === auth.location_id;
-    if (auth.role !== "admin" && target.id !== auth.id && !managesChef) {
-      if ((RANK[target.role] ?? 0) >= (RANK[auth.role] ?? 0) || managerOutsideBranch(auth, target.location_id)) {
+    // Kimin hesabı: kendisi ya da yönetebildiği hesap (lib/access canManageAccount: alt kademe, kapsam,
+    // yöneticiyse "Başkasına yetki verme"). Çalışan hesabında ayrıca "Ekip" yetkisi.
+    const isSelf = target.id === auth.id;
+    if (auth.role !== "admin" && !isSelf) {
+      if (!(await canManageAccount(db, auth, target))) {
         return NextResponse.json({ error: "Bu hesabı değiştirme yetkiniz yok" }, { status: 403 });
       }
+      if (target.role === "employee" && !hasPerm(auth, "team")) return NextResponse.json({ error: permError("team") }, { status: 403 });
     }
-    if (managesChef && (body.scope_location_ids !== undefined || body.managed_location_ids !== undefined || body.approval_status !== undefined)) {
-      return NextResponse.json({ error: "Bu değişikliği işletme sahibi yapar" }, { status: 403 });
-    }
-    // Rol değişikliğini sadece patron, bölge yöneticisi ve şube müdürü yapar (departman şefi yapamaz)
-    const canChangeRoles = auth.role === "admin" || auth.role === "supervisor" || isBranchManager(auth);
+    // Rol ve yetki değişikliği: işletme sahibi ya da "Başkasına yetki verme" (kimse kendi yetkisini değiştiremez)
+    const canChangeRoles = auth.role === "admin" || (!isSelf && canDelegate(auth));
     if ((body.make_manager !== undefined || body.make_employee !== undefined || body.access !== undefined) && !canChangeRoles) {
-      return NextResponse.json({ error: "Yetki değişikliğini şube müdürü ya da işletme sahibi yapar" }, { status: 403 });
+      return NextResponse.json({ error: permError("delegate") }, { status: 403 });
     }
 
     // Yönetici vardiyaya da girsin mi (kişinin kartındaki "Vardiya planına dahil"). Çalışan kaydı yoksa
     // ilk açılışta oluşturulur; kapatınca kayıt kalır, sadece plana girmez (personnel.schedulable).
     if (body.schedulable !== undefined) {
-      if (!canChangeRoles) return NextResponse.json({ error: "Bu değişikliği şube müdürü ya da işletme sahibi yapar" }, { status: 403 });
+      if (auth.role !== "admin" && !hasPerm(auth, "team")) return NextResponse.json({ error: permError("team") }, { status: 403 });
       if (target.role !== "manager" && target.role !== "admin") {
         return NextResponse.json({ error: "Bu ayar yöneticiler içindir" }, { status: 400 });
       }
@@ -331,15 +344,15 @@ export async function PATCH(req: NextRequest) {
       if (!locId || managerOutsideBranch(auth, locId)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       const mm = body.make_manager ?? {};
       const deptId = typeof mm.department_id === "string" && mm.department_id ? mm.department_id : null;
-      // Şube müdürü sadece departman şefi atar (şube müdürünü işletme sahibi atar)
-      if (isBranchManager(auth) && (!deptId || locId !== auth.location_id)) {
-        return NextResponse.json({ error: "Şube müdürü sadece kendi şubesine departman şefi atayabilir" }, { status: 403 });
+      // Sadece kendinden alt kademeye: şube müdürü şef atar, bölge müdürü şube müdürü de atar
+      if (!canGrantLevel(auth, "manager", { perms: [], department_id: deptId })) {
+        return NextResponse.json({ error: "Bu yetkiyi veremezsiniz. Kendi kademenizin altında yetki verebilirsiniz." }, { status: 403 });
       }
       if (deptId) {
         const ok = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(deptId, locId);
         if (!ok) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
       }
-      const permissions = normalizeAccess({ mode: mm.mode, department_id: deptId });
+      const permissions = grantedAccess(auth, mm.perms ? { perms: mm.perms } : null, deptId);
       const title = typeof mm.display_title === "string" && mm.display_title.trim() ? mm.display_title.trim() : (deptId ? "Şef" : "Yönetici");
       await db.prepare("UPDATE users SET role = 'manager', location_id = ?, department_id = COALESCE(?, department_id), display_title = ?, permissions = ?, managed_location_ids = NULL WHERE id = ?")
         .run(locId, deptId, title, permissions, id);
@@ -394,13 +407,13 @@ export async function PATCH(req: NextRequest) {
         // Şube değiştiyse eski şubenin departman kapsamı geçersiz olur
         const cur = parseAccess(target.permissions);
         if (cur?.department_id && want[0] !== target.location_id) {
-          await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ mode: cur.mode }), id);
+          await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ perms: cur.perms }), id);
         }
       } else {
         await db.prepare("UPDATE users SET role = 'supervisor', location_id = NULL, department_id = NULL, managed_location_ids = ? WHERE id = ?").run(JSON.stringify(want), id);
         // Departman şefliği tek şubeye bağlıdır; birden çok şubeye çıkan yönetici departman kapsamını kaybeder
         const cur = parseAccess(target.permissions);
-        if (cur?.department_id) await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ mode: cur.mode }), id);
+        if (cur?.department_id) await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(normalizeAccess({ perms: cur.perms }), id);
       }
     }
 
@@ -410,11 +423,9 @@ export async function PATCH(req: NextRequest) {
       if (target.role !== "manager" && target.role !== "supervisor") {
         return NextResponse.json({ error: "Yetki sadece yöneticilere verilir" }, { status: 400 });
       }
-      if (managesChef && !parseAccess(body.access)?.department_id) {
-        return NextResponse.json({ error: "Şube müdürü şefin departmanını kaldıramaz" }, { status: 403 });
-      }
-      const permissions = normalizeAccess(body.access);
-      const dept = parseAccess(permissions)?.department_id;
+      // Departman kapsamı burada değişmez (şef kalır ya da kalmaz): sadece maddeler
+      const dept = parseAccess(target.permissions)?.department_id ?? null;
+      const permissions = grantedAccess(auth, body.access, dept);
       if (dept) {
         const ok = target.role === "manager" && target.location_id
           ? await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(dept, target.location_id)
@@ -425,8 +436,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (body.approval_status !== undefined) {
-      // Onay/red işlemi — sadece admin/supervisor yapabilir
-      if (auth.role !== "admin" && auth.role !== "supervisor") {
+      // Onay/red işlemi: işletme sahibi ya da "Ekip" yetkisi (kendi hesabını onaylayamaz)
+      if (auth.role !== "admin" && (isSelf || !hasPerm(auth, "team"))) {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
       }
       await db.prepare("UPDATE users SET approval_status = ?, approved_by = ?, approved_at = ? WHERE id = ?")
@@ -464,22 +475,13 @@ export async function DELETE(req: NextRequest) {
 
   const db = getDB();
   try {
-    const target = await db.prepare("SELECT id, role, location_id FROM users WHERE id = ? AND org_id = ?").get(id, auth.org_id) as { id: string; role: string; location_id: string | null } | undefined;
+    const target = await db.prepare("SELECT id, role, location_id, permissions, personnel_id FROM users WHERE id = ? AND org_id = ?").get(id, auth.org_id) as { id: string; role: string; location_id: string | null; permissions: string | null; personnel_id: string | null } | undefined;
     if (!target) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
     }
-    // Bölge müdürü: patronu ya da başka bölge müdürünü silemez, sadece kapsamındaki şubelerin hesaplarını
-    if (auth.role === "supervisor") {
-      if (target.role === "admin" || target.role === "supervisor" || managerOutsideBranch(auth, target.location_id)) {
-        return NextResponse.json({ error: "Bu hesabı silme izniniz yok" }, { status: 403 });
-      }
-    }
-    // Müdür: sadece kendi şubesindeki personel hesabı, "personnel_delete" izniyle (lib/ruleLocks)
-    if (auth.role === "manager") {
-      if (target.role !== "employee" || target.location_id !== auth.location_id
-          || !(await hasLocationPermission(db, auth, auth.location_id, "personnel_delete"))) {
-        return NextResponse.json({ error: "Bu hesabı silme izniniz yok" }, { status: 403 });
-      }
+    // Patron dışı: yönetebildiği hesap (lib/access canManageAccount) ve "Ekip" yetkisi
+    if (auth.role !== "admin" && (!(await canManageAccount(db, auth, target)) || !hasPerm(auth, "team"))) {
+      return NextResponse.json({ error: "Bu hesabı silme izniniz yok" }, { status: 403 });
     }
     await db.prepare("DELETE FROM users WHERE id = ?").run(id);
     return NextResponse.json({ success: true });

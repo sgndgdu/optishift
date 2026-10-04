@@ -12,8 +12,8 @@ import {
 import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
-import { isOwnerRole, LOCK_NOTE, managerPermissions, type LockCategory, type ManagerPermissions } from "@/lib/ruleLocks";
-import { departmentScope, isViewOnly, parseAccess } from "@/lib/userAccess";
+import { isCategoryLocked, LOCK_NOTE, type LockCategory } from "@/lib/ruleLocks";
+import { hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
 import BranchAccountTab from "@/components/BranchAccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
@@ -344,12 +344,12 @@ function RequiredSkillsEditor({
 
 export default function SettingsPage() {
   const [viewerRole, setViewerRole] = useState<string | null>(null);
-  // Müdür izinleri (lib/ruleLocks): patron/bölge müdürü düzenler, müdür sadece görür
-  // Müdür yetkileri burada sadece OKUNUR (kilitli alanlar); değiştirme yeri Ekip › Yönetim › Müdür yetkileri
-  const [mgrPerms, setMgrPerms] = useState<ManagerPermissions>(() => managerPermissions({}));
-  const isCatLocked = (cat: LockCategory) => viewerRole !== null && !isOwnerRole(viewerRole) && !mgrPerms[cat];
+  // Yöneticinin yetki maddeleri (lib/userAccess) kilitli alanları belirler (lib/ruleLocks isCategoryLocked);
+  // yetki kişinin kartında verilir. Sunucu da ayrıca korur.
+  const [viewerAccess, setViewerAccess] = useState<UserAccess | null>(null);
+  const isCatLocked = (cat: LockCategory) => viewerRole !== null && isCategoryLocked({ role: viewerRole, access: viewerAccess }, cat);
   // ?tab=features gibi derin linkler desteklenir (eski sekme adları LEGACY_TABS ile eşlenir)
-  // Departman şefi ve "sadece görür" yönetici (lib/userAccess) şube ayarlarını değiştiremez: sadece Hesabım
+  // "Plan ayarları" yetkisi olmayan yönetici (departman şefi dahil, lib/userAccess) şube ayarlarını değiştiremez: sadece Hesabım
   // localStorage ve adres sadece tarayıcıda var: ilk çizimden sonra okunur (sunucu çizimiyle uyuşmazlık olmasın)
   const [accountOnly, setAccountOnly] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("basic");
@@ -359,7 +359,7 @@ export default function SettingsPage() {
     try {
       const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
       const viewer = { role: u.role ?? null, access: parseAccess(u.access) };
-      only = isViewOnly(viewer) || !!departmentScope(viewer);
+      only = !hasPerm(viewer, "plan_settings");
     } catch { /* varsayılan: tam ayarlar */ }
     const fromUrl = tabFromUrl();
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -501,6 +501,7 @@ export default function SettingsPage() {
       if (userRaw) u = JSON.parse(userRaw);
       if (!u || !u.org_id) return;
       setViewerRole(u.role ?? null);
+      setViewerAccess(parseAccess(u.access));
 
       try {
         const res = await fetch(`/api/locations?org_id=${u.org_id}`);
@@ -557,7 +558,6 @@ export default function SettingsPage() {
           setAvailabilityCollectionEnabled(loc.rules?.availability_collection_enabled !== false);
           const ap = autopilotSettings(loc.rules);
           setAutopilotEnabled(ap.enabled);
-          setMgrPerms(managerPermissions(loc.rules));
           setAutopilotDay(String(ap.day));
           const ar = loc.rules?.availability_reminder;
           if (ar) {
@@ -668,7 +668,6 @@ export default function SettingsPage() {
             reminderDay: String(loc.rules?.availability_reminder?.day ?? 0),
             reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
             autopilotEnabled: autopilotSettings(loc.rules).enabled,
-            mgrPerms: managerPermissions(loc.rules),
             autopilotDay: String(autopilotSettings(loc.rules).day),
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
@@ -730,7 +729,7 @@ export default function SettingsPage() {
       hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
-      reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
+      reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
@@ -748,7 +747,7 @@ export default function SettingsPage() {
     hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
-    reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
+    reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
@@ -953,7 +952,7 @@ export default function SettingsPage() {
         hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
-        reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, mgrPerms,
+        reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,

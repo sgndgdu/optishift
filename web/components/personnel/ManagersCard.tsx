@@ -1,21 +1,21 @@
 "use client";
 /**
  * Yöneticiler: rol sistemi kullanıcıya üç rol olarak görünür (İşletme Sahibi / Yönetici / Çalışan).
- * Yönetici eklerken rol değil KAPSAM sorulur: tek şube seçilirse şube yöneticisi (users.role = manager),
- * birden çok şube seçilirse bölge yöneticisi (role = supervisor, managed_location_ids). Ayrı unvan alanı yok:
- * display_title kapsamdan türetilir (managerTitle). Kapsam değişikliği PATCH scope_location_ids.
- * Hiç yönetici eklenmezse her şey işletme sahibine gelir.
- * Yöneticiler ayrı bir listede değil, Ekip ve Tüm Personel'in ortak listesinde (PeopleList) durur;
- * yetkileri kişi kartında (PersonSheet) düzenlenir. Bu dosya ekleme penceresini, yetki alanlarını ve
- * şube bazlı müdür izinlerini tutar.
+ * Yetki verirken iki şey sorulur (kullanıcı kararı 2026-10-04): NEYİ yönetir (şubeler ya da bir departman)
+ * ve NELERİ yapabilir (lib/userAccess PERM_LIST, tek tek). Tek şube = users.role manager, birden çok şube =
+ * supervisor + managed_location_ids. Unvan kapsamdan türetilir (managerTitle). Veren en fazla kendi
+ * maddelerini verir; şefe sadece CHEF_PERMS. Hiç yönetici eklenmezse her şey işletme sahibine gelir.
+ * Yöneticiler Ekip ve Tüm Personel'in ortak listesinde (PeopleList) durur; yetkileri kişi kartında
+ * (PersonSheet) düzenlenir. Bu dosya ekleme penceresini ve yetki alanlarını tutar.
  */
 
 import { useEffect, useState } from "react";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import { List } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
-import { ACCESS_MODE_LABELS, parseAccess, type AccessMode } from "@/lib/userAccess";
-import { MANAGER_PERMISSION_LIST, PERMISSIONS_RULE_KEY, managerPermissions, type ManagerPermissions } from "@/lib/ruleLocks";
+import {
+  accountLevel, ALL_PERMS, canDelegate, CHEF_PERMS, parseAccess, PERM_LIST, userPerms, type Perm, type UserAccess,
+} from "@/lib/userAccess";
 
 type Loc = { id: string; name: string };
 type Dept = { id: string; name: string };
@@ -25,45 +25,66 @@ export type Mgr = {
   is_temp_password: boolean | null; permissions: string | null;
   personnel_id: string | null; approval_status?: string | null;
 };
+/** Yetkiyi veren kişi (oturumdaki kullanıcı). access ham ya da ayrıştırılmış olabilir. */
+export type Granter = { role?: string | null; access?: unknown };
 
 const parseIds = (raw: string | null): string[] => {
   try { const v = raw ? JSON.parse(raw) : []; return Array.isArray(v) ? v : []; } catch { return []; }
 };
 
+const granterAccess = (g: Granter): { role: string | null; access: UserAccess | null } =>
+  ({ role: g.role ?? null, access: parseAccess(g.access) });
+
 /** Yöneticinin sorumlu olduğu şubeler (bölge yöneticisinde boş liste = işletmenin tüm şubeleri). */
 const scopeOf = (m: Mgr): string[] => (m.role === "supervisor" ? parseIds(m.managed_location_ids) : m.location_id ? [m.location_id] : []);
+
+/** Yöneticinin maddeleri (boş alan = hepsi). */
+const permsOf = (m: Pick<Mgr, "permissions">): Perm[] => parseAccess(m.permissions)?.perms ?? ALL_PERMS;
 
 /** Yöneticinin unvanı kapsamından gelir (elle yazılan unvan yok): Şef / Bölge Müdürü / Şube Müdürü. */
 export const managerTitle = (chef: boolean, branchCount: number): string =>
   chef ? "Şef" : branchCount > 1 ? "Bölge Müdürü" : "Şube Müdürü";
 
-const MODE_HINTS: Record<AccessMode, string> = {
-  view: "Planı, ekibi ve raporları görür; hiçbir şeyi değiştiremez.",
-  prepare: "Planı hazırlar ve onaya gönderir; yayınlamayı başka bir yönetici yapar.",
-  publish: "Planı hazırlar ve yayınlar.",
-};
-
-const CHEF_HINTS: Record<AccessMode, string> = {
-  view: "Departmanının planını ve ekibini görür; değiştiremez.",
-  prepare: "Departmanının planını hazırlar ve şube müdürüne onaya gönderir.",
-  publish: "Departmanının planını hazırlar ve kendisi yayınlar (sadece kendi ekibi).",
-};
-
-/** Yöneticinin ne yapabileceği: sadece görür / hazırlar / hazırlar ve yayınlar. */
-function ModePicker({ value, onChange, chef }: { value: AccessMode; onChange: (m: AccessMode) => void; chef?: boolean }) {
+/**
+ * Neleri yapabilir: maddeler tek tek. Veren kişinin sahip olmadığı madde verilemez (soluk görünür).
+ * Şefe sadece kendi departmanıyla ilgili maddeler; tek şubeli işletmede "Başka şubeden personel" gizli.
+ */
+function PermPicker({ value, onChange, chef, multiBranch, granter }: {
+  value: Perm[]; onChange: (v: Perm[]) => void; chef: boolean; multiBranch: boolean; granter: Granter;
+}) {
+  const grantable = userPerms(granterAccess(granter));
+  const items = PERM_LIST.filter(p => (!chef || CHEF_PERMS.includes(p.key)) && (multiBranch || p.key !== "cross_branch"));
+  const toggle = (k: Perm) => {
+    const on = value.includes(k);
+    let next = on ? value.filter(x => x !== k) : [...value, k];
+    // Yayınlayan hazırlar da; hazırlamayan yayınlayamaz
+    if (!on && k === "publish" && !next.includes("prepare")) next = [...next, "prepare"];
+    if (on && k === "prepare") next = next.filter(x => x !== "publish");
+    onChange(next);
+  };
+  const none = items.every(p => !value.includes(p.key));
   return (
     <div className="space-y-1.5">
-      <div className="grid grid-cols-3 gap-2">
-        {(["view", "prepare", "publish"] as AccessMode[]).map(m => {
+      <List>
+        {items.map(p => {
+          const allowed = grantable.includes(p.key);
           return (
-            <button key={m} type="button" onClick={() => onChange(m)}
-              className={`px-2 py-2 rounded-lg text-xs font-semibold border transition-colors ${value === m ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
-              {ACCESS_MODE_LABELS[m]}
-            </button>
+            <li key={p.key}>
+              <label className={`flex items-start gap-3 px-4 py-3 ${allowed ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}>
+                <input type="checkbox" checked={value.includes(p.key)} disabled={!allowed} onChange={() => toggle(p.key)}
+                  className="mt-0.5 w-4 h-4 rounded accent-forest-600 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-900">{p.label}</span>
+                  <span className="block text-xs text-slate-500 mt-0.5">{allowed ? p.description : "Sizde olmayan bir yetkiyi veremezsiniz."}</span>
+                </span>
+              </label>
+            </li>
           );
         })}
-      </div>
-      <p className="text-xs text-slate-500">{chef ? CHEF_HINTS[value] : MODE_HINTS[value]}</p>
+      </List>
+      <p className="text-xs text-slate-500">
+        {none ? "Hiçbiri seçili değil: bu kişi her şeyi görür, hiçbir şeyi değiştiremez." : "Ek özellikleri açıp kapatmak sadece işletme sahibindedir."}
+      </p>
     </div>
   );
 }
@@ -89,28 +110,43 @@ const label = "block text-sm font-medium text-slate-700 mb-1.5";
 const field = "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white";
 const segBtn = (on: boolean) => `px-2 py-2 rounded-lg text-xs font-semibold border transition-colors ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`;
 
-/** Bu yöneticiyi kim düzenler: patron herkesi; şube müdürü kendi şeflerini; bölge yöneticisi şube yöneticilerini. */
-export function canEditManager(viewerRole: string, branchManager: boolean, m: Pick<Mgr, "role" | "permissions">): boolean {
-  const isChef = !!parseAccess(m.permissions)?.department_id;
-  return viewerRole === "admin" || (branchManager ? isChef : viewerRole === "supervisor" && m.role === "manager");
+/**
+ * Bu yöneticinin yetkisini değiştirebilir mi (sunucu: lib/access canManageAccount). İşletme sahibi herkesi;
+ * diğerleri "Başkasına yetki verme" ile sadece kendinden alt kademedekini (listeler zaten kapsamla süzülü).
+ */
+export function canEditManager(granter: Granter, m: Pick<Mgr, "role" | "permissions">): boolean {
+  const g = granterAccess(granter);
+  if (g.role === "admin") return true;
+  return canDelegate(g) && accountLevel(m.role, parseAccess(m.permissions)) < accountLevel(g.role, g.access);
 }
 
-/** Yöneticinin kapsamını ve yetkisini tek satırla anlatır: "Sadece Bar · Planı hazırlar". */
+/** Yetki verebilen ama sadece şef atayabilen (şube müdürü kademesi) kişi mi. */
+export const addsOnlyChefs = (granter: Granter): boolean => {
+  const g = granterAccess(granter);
+  return g.role !== "admin" && canDelegate(g) && accountLevel(g.role, g.access) === 2;
+};
+
+/** Yöneticinin kapsamını ve yetkisini tek satırla anlatır: "Sadece Bar · Tam yetki" / "· 4 yetki". */
 export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined): string {
   const a = parseAccess(m.permissions);
   const dept = a?.department_id ? (deptName?.(a.department_id) ?? "Departman") : null;
-  return [dept ? `Sadece ${dept}` : null, ACCESS_MODE_LABELS[a?.mode ?? "publish"]].filter(Boolean).join(" · ");
+  const perms = a?.perms ?? ALL_PERMS;
+  const full = dept ? CHEF_PERMS.every(p => perms.includes(p)) : perms.length === ALL_PERMS.length;
+  const what = perms.length === 0 ? "Sadece görür" : full ? "Tam yetki" : `${perms.length} yetki`;
+  return [dept ? `Sadece ${dept}` : null, what].filter(Boolean).join(" · ");
 }
 
 /**
  * Yönetici / şef ekleme penceresi: ekipten biri (hesabı ve geçmişi korunur) ya da yeni kişi.
  * Şube müdürü sadece kendi şubesine departman şefi atar.
  */
-export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchManager = false, onDone }: {
-  open: boolean; onClose: () => void; locations: Loc[]; viewerRole: string; branchManager?: boolean; onDone?: () => void;
+export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
+  open: boolean; onClose: () => void; locations: Loc[]; granter: Granter; onDone?: () => void;
 }) {
-  const isOwner = viewerRole === "admin";
+  const isOwner = granter.role === "admin";
+  const branchManager = addsOnlyChefs(granter);
   const multiBranch = locations.length > 1 && !branchManager;
+  const startPerms = () => userPerms(granterAccess(granter));
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [pickedMulti, setPicked] = useState<string[]>([]);
@@ -118,7 +154,7 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   const picked = multiBranch ? pickedMulti : locations.slice(0, 1).map(l => l.id);
   const [deptState, setDeptState] = useState<{ loc: string; list: Dept[] }>({ loc: "", list: [] });
   const [deptId, setDeptId] = useState("");
-  const [mode, setMode] = useState<AccessMode>("publish");
+  const [perms, setPerms] = useState<Perm[]>(startPerms);
   const [teamState, setTeamState] = useState<{ loc: string; list: { personnelId: string; userId: string | null; name: string }[] }>({ loc: "", list: [] });
   const [source, setSource] = useState<"team" | "new">("team");
   const [pickedEmp, setPickedEmp] = useState("");
@@ -144,10 +180,10 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   }, [open, singlePick]);
   const depts = singlePick && deptState.loc === singlePick ? deptState.list : [];
   const teamChoices = singlePick && teamState.loc === singlePick ? teamState.list : [];
-  const pickDept = (v: string) => { setDeptId(v); setMode(v ? "prepare" : "publish"); };
+  const pickDept = (v: string) => setDeptId(v);
 
   const reset = () => {
-    setName(""); setPhone(""); setDeptId(""); setMode("publish"); setPickedEmp(""); setError(""); setInvite(null);
+    setName(""); setPhone(""); setDeptId(""); setPerms(startPerms()); setPickedEmp(""); setError(""); setInvite(null);
     setPicked([]);
   };
   const close = () => { reset(); onClose(); };
@@ -177,7 +213,7 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
         }
         const r = await fetch(`/api/users?id=${userId}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ make_manager: { department_id: dept || null, mode, display_title: unvan } }),
+          body: JSON.stringify({ make_manager: { department_id: dept || null, perms, display_title: unvan } }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) return setError(d.error || "Yapılamadı.");
@@ -188,7 +224,7 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
         if (newInvite) setInvite([newInvite]); else close();
         return;
       }
-      const access = { mode, department_id: dept || undefined };
+      const access = { perms, department_id: dept || undefined };
       const body = picked.length === 1
         ? { name, phone: phone || undefined, role: "manager", display_title: unvan, location_id: picked[0], department_id: dept || undefined, access }
         : { name, phone: phone || undefined, role: "supervisor", display_title: unvan, managed_location_ids: picked, access };
@@ -252,8 +288,8 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
             </div>
           )}
           <div>
-            <span className={label}>Ne yapabilir?</span>
-            <ModePicker value={mode} onChange={setMode} chef={!!deptId} />
+            <span className={label}>Neleri yapabilir?</span>
+            <PermPicker value={perms} onChange={setPerms} chef={!!deptId} multiBranch={locations.length > 1} granter={granter} />
           </div>
           <p className="text-xs text-slate-500">Yöneticiye vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında &quot;Vardiya planına dahil&quot;i açın.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -263,16 +299,16 @@ export function ManagerAddSheet({ open, onClose, locations, viewerRole, branchMa
   );
 }
 
-/** Yöneticinin düzenlenebilir yetkisi: ne yapabilir + (patron, çok şubede) hangi şubeler. */
-export type ManagerAccessValue = { mode: AccessMode; ids: string[] };
+/** Yöneticinin düzenlenebilir yetkisi: neleri yapabilir + (patron, çok şubede) hangi şubeler. */
+export type ManagerAccessValue = { perms: Perm[]; ids: string[] };
 
-export const initialManagerAccess = (m: Mgr): ManagerAccessValue => ({ mode: parseAccess(m.permissions)?.mode ?? "publish", ids: scopeOf(m) });
+export const initialManagerAccess = (m: Mgr): ManagerAccessValue => ({ perms: permsOf(m), ids: scopeOf(m) });
 
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every(id => b.includes(id));
 
 export const managerAccessDirty = (m: Mgr, v: ManagerAccessValue): boolean => {
   const cur = initialManagerAccess(m);
-  return cur.mode !== v.mode || !sameIds(cur.ids, v.ids);
+  return !sameIds(cur.perms, v.perms) || !sameIds(cur.ids, v.ids);
 };
 
 /** Değişen yetkiyi kaydeder; hata metni ya da null döner. Değişiklik kişinin bir sonraki girişinde geçerli olur. */
@@ -280,7 +316,7 @@ export async function saveManagerAccess(m: Mgr, v: ManagerAccessValue): Promise<
   if (!managerAccessDirty(m, v)) return null;
   const cur = parseAccess(m.permissions);
   const body: Record<string, unknown> = {};
-  if (v.mode !== (cur?.mode ?? "publish")) body.access = { mode: v.mode, department_id: cur?.department_id ?? undefined };
+  if (!sameIds(permsOf(m), v.perms)) body.access = { perms: v.perms };
   if (!sameIds(scopeOf(m), v.ids)) {
     if (!v.ids.length) return "En az bir şube seçin.";
     body.scope_location_ids = v.ids;
@@ -293,22 +329,23 @@ export async function saveManagerAccess(m: Mgr, v: ManagerAccessValue): Promise<
 }
 
 /** Yetki alanları (kayıt düğmesi yok): kişi kartı tek "Kaydet" ile saveManagerAccess çağırır. */
-export function ManagerAccessFields({ m, value, onChange, locations, viewerRole }: {
-  m: Mgr; value: ManagerAccessValue; onChange: (v: ManagerAccessValue) => void; locations: Loc[]; viewerRole: string;
+export function ManagerAccessFields({ m, value, onChange, locations, granter }: {
+  m: Mgr; value: ManagerAccessValue; onChange: (v: ManagerAccessValue) => void; locations: Loc[]; granter: Granter;
 }) {
-  const multiBranch = locations.length > 1 && viewerRole === "admin";
+  const multiBranch = locations.length > 1 && granter.role === "admin";
+  const chef = !!parseAccess(m.permissions)?.department_id;
   return (
     <div className="space-y-4">
-      <div>
-        <span className={label}>Ne yapabilir?</span>
-        <ModePicker value={value.mode} onChange={mode => onChange({ ...value, mode })} chef={!!parseAccess(m.permissions)?.department_id} />
-      </div>
       {multiBranch && (
         <div>
-          <span className={label}>Şubeler</span>
+          <span className={label}>Hangi şubeleri yönetir?</span>
           <BranchPicker locations={locations} value={value.ids} onChange={ids => onChange({ ...value, ids })} />
         </div>
       )}
+      <div>
+        <span className={label}>Neleri yapabilir?</span>
+        <PermPicker value={value.perms} onChange={perms => onChange({ ...value, perms })} chef={chef} multiBranch={locations.length > 1} granter={granter} />
+      </div>
       <p className="text-xs text-slate-500">Yetki değişikliği, kişinin bir sonraki girişinde geçerli olur.</p>
     </div>
   );
@@ -318,80 +355,4 @@ export function ManagerAccessFields({ m, value, onChange, locations, viewerRole 
 export async function demoteManager(m: Mgr): Promise<boolean> {
   const r = await fetch(`/api/users?id=${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ make_employee: true }) });
   return r.ok;
-}
-
-/**
- * Şube müdürünün değiştirebileceği alanlar (rules.manager_permissions, lib/ruleLocks).
- * TEK yer burası: Ekip › Yönetim ve Tüm Personel › Yöneticiler'den açılır, sadece patron/bölge müdürü
- * değiştirir (sunucu applyRuleLocks ile ayrıca korur). Eskiden Ayarlar › Müdür Yetkileri'ndeydi.
- */
-export function BranchPermissionsSheet({ open, onClose, locations }: { open: boolean; onClose: () => void; locations: Loc[] }) {
-  const [locId, setLocId] = useState(locations[0]?.id ?? "");
-  const [perms, setPerms] = useState<ManagerPermissions | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    if (!open || !locId) return;
-    let stale = false;
-    setPerms(null); setError("");
-    fetch(`/api/locations?id=${locId}`).then(r => r.json()).then(rows => {
-      if (stale) return;
-      const raw = Array.isArray(rows) ? rows[0]?.rules : null;
-      setPerms(managerPermissions(typeof raw === "string" ? JSON.parse(raw) : raw));
-    }).catch(() => { if (!stale) setError("Yüklenemedi."); });
-    return () => { stale = true; };
-  }, [open, locId]);
-
-  const save = async () => {
-    if (!perms) return;
-    setSaving(true); setError("");
-    try {
-      // rules REPLACE edilir: taze kuralların üzerine sadece izinler yazılır
-      const rows = await fetch(`/api/locations?id=${locId}`).then(r => r.json());
-      const raw = Array.isArray(rows) ? rows[0]?.rules : null;
-      const fresh = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
-      const r = await fetch(`/api/locations?id=${locId}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rules: { ...fresh, [PERMISSIONS_RULE_KEY]: perms } }),
-      });
-      if (!r.ok) throw new Error();
-      onClose();
-    } catch { setError("Kaydedilemedi."); }
-    setSaving(false);
-  };
-
-  return (
-    <Sheet open={open} onClose={onClose} title="Yönetici izinleri" description="Şube müdürü bunları değiştirebilir mi?"
-      footer={<>
-        <button onClick={onClose} className={sheetSecondaryClass}>Vazgeç</button>
-        <button onClick={save} disabled={saving || !perms} className={sheetPrimaryClass}>{saving ? "Kaydediliyor…" : "Kaydet"}</button>
-      </>}>
-      <div className="space-y-3">
-        {locations.length > 1 && (
-          <select value={locId} onChange={e => setLocId(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400">
-            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        )}
-        {!perms ? <p className="text-sm text-slate-500">{error || "Yükleniyor…"}</p> : (
-          <List>
-            {MANAGER_PERMISSION_LIST.map(p => (
-              <li key={p.key}>
-                <label className="flex items-start gap-3 px-4 py-3 cursor-pointer">
-                  <input type="checkbox" checked={perms[p.key]} onChange={() => setPerms(cur => cur && ({ ...cur, [p.key]: !cur[p.key] }))}
-                    className="mt-0.5 w-4 h-4 rounded accent-forest-600 shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-slate-900">{p.label}</span>
-                    <span className="block text-xs text-slate-500 mt-0.5">{p.description}</span>
-                  </span>
-                </label>
-              </li>
-            ))}
-          </List>
-        )}
-        {error && perms && <p className="text-sm text-red-600">{error}</p>}
-        <p className="text-xs text-slate-500">Kapalı alanları müdür görür ama değiştiremez. Planı yayınlama yetkisi her yöneticinin kendi ayrıntısında (Ne yapabilir?).</p>
-      </div>
-    </Sheet>
-  );
 }

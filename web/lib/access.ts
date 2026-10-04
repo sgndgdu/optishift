@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AuthUser } from "@/lib/auth";
-import { hasManagerPermission, isOwnerRole, type ManagerPermission } from "@/lib/ruleLocks";
-import { departmentScope } from "@/lib/userAccess";
+import { accountLevel, departmentScope, hasPerm, parseAccess } from "@/lib/userAccess";
 
 /** Şubenin kuralları (locations.rules, JSON). Bulunamazsa {}. */
 export async function locationRules(db: any, locationId: string | null | undefined): Promise<Record<string, unknown>> {
@@ -10,12 +9,6 @@ export async function locationRules(db: any, locationId: string | null | undefin
     const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(locationId) as { rules?: string } | undefined;
     return row?.rules ? JSON.parse(row.rules) : {};
   } catch { return {}; }
-}
-
-/** Bu kullanıcı bu şubede bu müdür iznine sahip mi (lib/ruleLocks; patron/bölge müdürü her zaman). */
-export async function hasLocationPermission(db: any, auth: AuthUser, locationId: string | null | undefined, perm: ManagerPermission): Promise<boolean> {
-  if (isOwnerRole(auth.role)) return true;
-  return hasManagerPermission(auth.role, await locationRules(db, locationId), perm);
 }
 
 /**
@@ -42,13 +35,12 @@ export async function canManageLocations(db: any, auth: AuthUser, locationIds: I
 }
 
 /**
- * Yayınlanmış bir haftayı müdür, "publish_edit" izni yoksa ancak patron/supervisor onayıyla değiştirebilir
- * (schedule_edit_requests, status = 'approved', son 12 saatte onaylanmış; yayınlanınca 'completed' olur).
- * Patron ve supervisor onaysız değiştirir.
+ * Yayınlanmış bir haftayı "Planı yayınlama" yetkisi olan değiştirir; olmayan ancak yayınlayabilen birinin
+ * onayıyla (schedule_edit_requests, status = 'approved', son 12 saatte onaylanmış; yayınlanınca 'completed' olur).
  * Hafta henüz yayınlanmadıysa serbest.
  */
 export async function canEditPublishedWeek(db: any, auth: AuthUser, locationId: string, weekStart: string): Promise<boolean> {
-  if (await hasLocationPermission(db, auth, locationId, "publish_edit")) return true;
+  if (hasPerm(auth, "publish")) return true;
   const published = await db.prepare(
     `SELECT 1 FROM shift_assignments WHERE location_id = ? AND week_start = ? AND publication_status = 'published' LIMIT 1`
   ).get(locationId, weekStart);
@@ -129,4 +121,19 @@ export async function inDepartmentScope(db: any, auth: AuthUser, personnelId: st
   if (!personnelId) return false;
   const row = await db.prepare("SELECT department_id FROM personnel WHERE id = ? AND org_id = ?").get(personnelId, auth.org_id) as { department_id?: string } | undefined;
   return row?.department_id === dept;
+}
+
+/**
+ * Bu hesabı (yetkisini, kapsamını, giriş bağlantısını) yönetebilir mi: TEK KURAL.
+ * İşletme sahibi kendisi dışında herkesi. Diğerleri sadece kendinden alt kademedeki (lib/userAccess accountLevel),
+ * kapsamındaki şubede ve (şefse) kendi departmanındaki kişiyi; hedef yöneticiyse ayrıca "Başkasına yetki verme".
+ */
+export async function canManageAccount(db: any, auth: AuthUser, target: { id: string; role: string; location_id: string | null; permissions?: string | null; personnel_id?: string | null }): Promise<boolean> {
+  if (target.id === auth.id) return false;
+  if (auth.role === "admin") return true;
+  const targetLevel = accountLevel(target.role, parseAccess(target.permissions));
+  if (accountLevel(auth.role, auth.access) <= targetLevel) return false;
+  if (targetLevel > 0 && !hasPerm(auth, "delegate")) return false;
+  if (managerOutsideBranch(auth, target.location_id)) return false;
+  return inDepartmentScope(db, auth, target.personnel_id);
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
 import { verifyGodToken } from "./lib/god-auth";
-import { CHEF_BLOCKED_ERROR, isChefBlocked, isViewOnly, VIEW_ONLY_ERROR } from "./lib/userAccess";
+import { CHEF_BLOCKED_ERROR, isChefBlocked, isViewOnly, missingPerm, permError, VIEW_ONLY_ERROR } from "./lib/userAccess";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
 const PUBLIC_API_PATHS = [
@@ -128,7 +128,7 @@ export async function proxy(req: NextRequest) {
   if (user.managed_location_ids?.length) headers.set("x-auth-managed-locations", JSON.stringify(user.managed_location_ids));
   if (user.access) headers.set("x-auth-access", JSON.stringify(user.access));
 
-  // Kişi bazında yetki (lib/userAccess): "sadece görür" hesabın yazma isteklerini tek yerde kes
+  // Kişi bazında yetki (lib/userAccess): hiçbir maddesi olmayan ("sadece görür") hesabın yazma isteklerini tek yerde kes
   if (isViewOnly(user) && !["GET", "HEAD", "OPTIONS"].includes(req.method)
       && !VIEW_ONLY_WRITE_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.json({ error: VIEW_ONLY_ERROR }, { status: 403 });
@@ -136,6 +136,9 @@ export async function proxy(req: NextRequest) {
   if (isChefBlocked(user, req.method, pathname)) {
     return NextResponse.json({ error: CHEF_BLOCKED_ERROR }, { status: 403 });
   }
+  // Yöneticinin seçilmiş yetki maddeleri (lib/userAccess PERM_ROUTES): eksik maddede yazma kesilir
+  const missing = missingPerm(user, req.method, pathname);
+  if (missing) return NextResponse.json({ error: permError(missing) }, { status: 403 });
 
   return NextResponse.next({ request: { headers } });
 }

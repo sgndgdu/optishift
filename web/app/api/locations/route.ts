@@ -4,7 +4,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { canManageLocation, managerOutsideBranch } from "@/lib/access";
-import { applyRuleLocks, isOwnerRole } from "@/lib/ruleLocks";
+import { applyRuleLocks } from "@/lib/ruleLocks";
+import { hasPerm, permError } from "@/lib/userAccess";
 
 
 export async function GET(req: NextRequest) {
@@ -93,6 +94,16 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
     const body = await req.json();
+    // Kişinin yetki maddeleri (lib/userAccess): ihtiyaç tablosu plan hazırlamanın parçası, şubenin
+    // diğer alanları "Plan ayarları". Kurallar (rules) anahtar anahtar aşağıda süzülür.
+    const PREPARE_FIELDS = ["demand_matrix", "demand_templates"];
+    const SETTINGS_FIELDS = ["shift_definitions", "operating_hours", "name", "zone_quotas", "leave_policy", "task_templates", "latitude", "longitude"];
+    if (PREPARE_FIELDS.some(f => body[f] !== undefined) && !hasPerm(auth, "prepare")) {
+      return NextResponse.json({ error: permError("prepare") }, { status: 403 });
+    }
+    if (SETTINGS_FIELDS.some(f => body[f] !== undefined) && !hasPerm(auth, "plan_settings")) {
+      return NextResponse.json({ error: permError("plan_settings") }, { status: 403 });
+    }
     const updates: string[] = [];
     const values: unknown[] = [];
 
@@ -117,10 +128,8 @@ export async function PATCH(req: NextRequest) {
       const row = await db.prepare("SELECT rules FROM locations WHERE id = ?").get(id) as { rules?: string } | undefined;
       let current: Record<string, unknown> = {};
       try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }
-      // Müdür kilitli alanları (bütçe, çalışma kuralları, ek özellikler) değiştiremez: mevcut değer korunur
-      if (!isOwnerRole(auth.role)) {
-        rules = applyRuleLocks(current, rules ?? {});
-      }
+      // Yöneticinin yetkisi olmayan anahtarlar (bütçe, plan ayarları, ek özellikler) sunucuda korunur (lib/ruleLocks)
+      rules = applyRuleLocks(current, rules ?? {}, auth);
       // İşletme türü şube açılırken bir kez seçilir, sonradan değişmez (kafe bir gün fabrika olmaz).
       // Sadece hiç seçilmemiş eski şubelerde bir kez yazılabilir.
       if (current.industry && rules) {

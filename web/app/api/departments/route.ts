@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { departments, locations, users, personnel } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
-import { departmentScope } from "@/lib/userAccess";
+import { departmentScope, hasPerm, permError } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 
 // Departmanın bağlı olduğu lokasyonun bu org'a ait olduğunu doğrular
@@ -106,6 +106,9 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
   if (chefDept) delete body.name;
+  // Ad "Plan ayarları", ihtiyaç tablosu plan hazırlamanın parçası (lib/userAccess)
+  if (body.name !== undefined && !hasPerm(auth, "plan_settings")) return NextResponse.json({ error: permError("plan_settings") }, { status: 403 });
+  if (body.demand_matrix !== undefined && !hasPerm(auth, "prepare")) return NextResponse.json({ error: permError("prepare") }, { status: 403 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData: Record<string, any> = {};
   if (body.name?.trim()) updateData.name = body.name.trim();

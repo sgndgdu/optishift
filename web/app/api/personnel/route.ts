@@ -8,8 +8,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
-import { departmentScope } from "@/lib/userAccess";
-import { hasLocationPermission, managerOutsideBranch, inDepartmentScope } from "@/lib/access";
+import { departmentScope, hasPerm, permError } from "@/lib/userAccess";
+import { managerOutsideBranch, inDepartmentScope } from "@/lib/access";
 
 
 // Rol hiyerarşisi: bir rol kendisinin ve altındakilerin rollerini atayabilir
@@ -242,11 +242,10 @@ export async function PATCH(req: NextRequest) {
     const { name, phone, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, night_restriction } = body;
     // Ayrı unvan alanı yok: görevler değişince unvan ilk görev olur (görev yoksa eski unvan kalır)
     const title = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : body.title;
-    // Ücret ve pasife alma müdür izinlerine bağlı (lib/ruleLocks); izin yoksa müdürün gönderdiği değer yok sayılır
-    const wageOk = await hasLocationPermission(db, auth, existing.primary_location_id, "budget");
-    const deleteOk = await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete");
-    const hourly_wage = wageOk ? body.hourly_wage : undefined;
-    const status = !deleteOk && body.status === "inactive" ? undefined : body.status;
+    // Ücret "Ücret ve bütçe" yetkisine bağlı (lib/userAccess); yetki yoksa gönderilen değer yok sayılır.
+    // Pasife alma "Ekip" yetkisiyle (proxy bu uç noktayı zaten "Ekip"e bağlar).
+    const hourly_wage = hasPerm(auth, "budget") ? body.hourly_wage : undefined;
+    const status = !hasPerm(auth, "team") && body.status === "inactive" ? undefined : body.status;
 
     // Atanan rol, atayan kişinin rolünü aşamaz
     if (user_access_level && !canAssignRole(auth.role, user_access_level)) {
@@ -298,11 +297,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Şubeler arası (kullanıcı kararı 2026-10-04): çalıştığı şubeler + planlı şube rotasyonu.
-    // Patron ve bölge müdürü (kendi şubeleri) her zaman; şube müdürü "Şubeler arası personel" izniyle.
+    // İşletme sahibi her zaman; yönetici "Başka şubeden personel" yetkisiyle (bölge müdürü kendi şubeleri, aşağıda).
     if (body.assigned_location_ids !== undefined || body.branch_rotation !== undefined || body.branch_department_ids !== undefined) {
-      const allowed = auth.role === "admin" || auth.role === "supervisor"
-        || (auth.role === "manager" && !departmentScope(auth) && await hasLocationPermission(db, auth, existing.primary_location_id, "cross_branch"));
-      if (!allowed) return NextResponse.json({ error: "Şubeler arası personel iznin yok. İşletme sahibi açabilir." }, { status: 403 });
+      const allowed = hasPerm(auth, "cross_branch") && !departmentScope(auth);
+      if (!allowed) return NextResponse.json({ error: permError("cross_branch") }, { status: 403 });
       const orgLocs = (await db.prepare("SELECT id FROM locations WHERE org_id = ?").all(auth.org_id) as { id: string }[]).map(l => l.id);
       const cur = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ?").get(id) as any;
       let assigned: string[] = (() => { try { return JSON.parse(cur?.assigned_location_ids || "[]"); } catch { return []; } })();
@@ -419,10 +417,8 @@ export async function DELETE(req: NextRequest) {
     if (!(await inDepartmentScope(db, auth, id))) {
       return NextResponse.json({ error: "Sadece kendi departmanınızın personelini silebilirsiniz" }, { status: 403 });
     }
-    // Pasife alma (silme) müdür iznine bağlı (lib/ruleLocks)
-    if (!(await hasLocationPermission(db, auth, existing.primary_location_id, "personnel_delete"))) {
-      return NextResponse.json({ error: "Personel silme izniniz yok. İşletme sahibi açabilir." }, { status: 403 });
-    }
+    // Pasife alma (silme) "Ekip" yetkisine bağlı (lib/userAccess; proxy de keser)
+    if (!hasPerm(auth, "team")) return NextResponse.json({ error: permError("team") }, { status: 403 });
 
     const now = Math.floor(Date.now() / 1000);
     await db.prepare("UPDATE personnel SET status='inactive', updated_at=? WHERE id=?").run(now, id);

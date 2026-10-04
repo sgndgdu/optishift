@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Sadece kendi departmanınızın planını düzenleyebilirsiniz" }, { status: 403 });
       }
     }
-    // "Planı hazırlar" yetkisi (lib/userAccess): taslak yazar, yayınlayamaz ve yayınlanmış satıra dokunamaz
+    // "Planı yayınlama" yetkisi yoksa (lib/userAccess): taslak yazar, yayınlayamaz ve yayınlanmış satıra dokunamaz
     if (!canPublishPlan(auth) && valid.some((x: any) => (x.publication_status ?? "published") === "published")) {
       return NextResponse.json({ error: "Planı yayınlama yetkiniz yok. Hazırladığınız planı yöneticinize onaya gönderin." }, { status: 403 });
     }

@@ -69,7 +69,7 @@ import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
-import { departmentScope, parseAccess } from "@/lib/userAccess";
+import { canSeePage, departmentScope, parseAccess } from "@/lib/userAccess";
 import { CountBadge } from "@/components/ui/StatusPill";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
@@ -251,7 +251,8 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
     // adminOnly: sadece işletme sahibi (ör. Faturalandırma)
     .filter(item => !("adminOnly" in item && (item as any).adminOnly) || user?.role === "admin")
     // Departman şefi (lib/userAccess): onaylar ve şube geneli işler şube yöneticisinde
-    .filter(item => !departmentScope({ role: user?.role, access: parseAccess(user?.access) }) || !CHEF_HIDDEN.has(item.href));
+    .filter(item => !departmentScope({ role: user?.role, access: parseAccess(user?.access) }) || !CHEF_HIDDEN.has(item.href))
+    .filter(item => canSeePage({ role: user?.role, access: parseAccess(user?.access) }, item.href));
   const badgeOf = (href: string) =>
     href === "/chat"      ? { n: chatUnread,       tone: "danger" as const } :
     href === "/personnel" || href === "/supervisor/personnel" ? { n: pendingAccounts,  tone: "attention" as const } :

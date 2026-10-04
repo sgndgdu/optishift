@@ -68,7 +68,7 @@ export default function GenerateWizard({
   seniorViolationCount: number;
   excludedCount: number;
   onGenerate: () => Promise<void>;
-  /** Yayınlama yetkisi yoksa (lib/userAccess "Planı hazırlar") boş geçilir; düğme gizlenir. */
+  /** "Planı yayınlama" yetkisi yoksa (lib/userAccess) boş geçilir; düğme gizlenir. */
   onPublish?: () => void;
   onClose: () => void;
 }) {

@@ -17,9 +17,9 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
   /** Çok şubeli görünümde satırda şube adı. */
   branchName?: (p: MergedPerson) => string | null;
   hasDepts: (p: MergedPerson) => boolean;
-  /** Yöneticinin kapsamı/yetkisi tek satır ("Sadece Bar · Planı hazırlar"). */
+  /** Yöneticinin kapsamı/yetkisi tek satır ("Sadece Bar · Tam yetki"). */
   managerSummary?: (p: MergedPerson) => string | null;
-  /** "Yöneticiler" başlığının sağındaki bağlantı (Yönetici izinleri). */
+  /** "Yöneticiler" başlığının sağındaki bağlantı (isteğe bağlı). */
   managementAction?: React.ReactNode;
   empty: React.ReactNode;
   emptyAction?: React.ReactNode;

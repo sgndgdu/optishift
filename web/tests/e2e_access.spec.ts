@@ -1,5 +1,5 @@
-// Yetki regresyon testleri: çalışan / başka şube / başka işletme yazamaz; müdür izinleri (lib/ruleLocks)
-// patron/bölge müdürü tarafından şube bazında açılıp kapanır, kapalıyken sunucu da uygular.
+// Yetki regresyon testleri: çalışan / başka şube / başka işletme yazamaz; yöneticinin yetki maddeleri
+// (lib/userAccess) kişinin kendisinde durur, işletme sahibi tek tek verir, sunucu uygular.
 // Mega test işletmesini kullanır: önce `npm run seed:mega`.
 import { test, expect, APIRequestContext } from "@playwright/test";
 
@@ -13,12 +13,14 @@ async function readRules(request: APIRequestContext) {
   const rows = await (await request.get("/api/locations?id=loc-mega-kafe")).json() as { rules: string }[];
   return JSON.parse(rows[0].rules || "{}");
 }
-/** Bölge müdürü olarak kafenin müdür izinlerini ayarlar (undefined: varsayılana döndür). */
-async function setPerms(request: APIRequestContext, perms: Record<string, boolean> | undefined) {
-  await login(request, "mega.supervisor");
-  const cur = await readRules(request);
-  if (perms) cur.manager_permissions = perms; else delete cur.manager_permissions;
-  expect((await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: cur } })).ok()).toBeTruthy();
+const ALL = ["prepare", "publish", "approvals", "team", "plan_settings", "budget", "cross_branch", "delegate"];
+/** İşletme sahibi olarak bir yöneticinin yetki maddelerini ayarlar (undefined: tam yetki). */
+async function setPerms(request: APIRequestContext, perms: string[] | undefined, username = "mega.mudur.kafe") {
+  await login(request, "mega.admin");
+  const users = await (await request.get("/api/users")).json() as { id: string; username: string }[];
+  const u = users.find(x => x.username === username)!;
+  expect((await request.patch(`/api/users?id=${u.id}`, { data: { access: { perms: perms ?? ALL } } })).ok()).toBeTruthy();
+  return u.id;
 }
 async function publishedRow(request: APIRequestContext, ws: string) {
   const rows = await (await request.get(`/api/shifts?location_id=loc-mega-kafe&week_start=${ws}`)).json() as Row[];
@@ -53,50 +55,78 @@ test("başka işletmeye bildirim yazılamaz", async ({ request }) => {
   expect(JSON.stringify(list)).not.toContain('"title":"x"');
 });
 
-test("yayınlanmış plan: izin kapalıyken onay gerekir, onayla açılır, izin açıkken serbest", async ({ request }) => {
+test("yayınlama yetkisi yoksa yayınlanmış plan değişmez, verilince değişir", async ({ request }) => {
   const ws = "2026-09-28";
-  await setPerms(request, { publish_edit: false });
-  await login(request, "mega.mudur.kafe");
-  const pub = await publishedRow(request, ws);
-  expect((await republish(request, ws, pub)).status()).toBe(403);
+  try {
+    await setPerms(request, ALL.filter(p => p !== "publish" && p !== "delegate"));
+    await login(request, "mega.mudur.kafe");
+    const pub = await publishedRow(request, ws);
+    expect((await republish(request, ws, pub)).status()).toBe(403);
+    expect((await request.post("/api/schedule/publish", { data: { location_id: "loc-mega-kafe", week_start: ws } })).status()).toBe(403);
 
-  const req = await (await request.post("/api/schedule/edit-requests", { data: { location_id: "loc-mega-kafe", week_start: ws } })).json();
-  await login(request, "mega.admin");
-  expect((await request.patch("/api/schedule/edit-requests", { data: { id: req.id, status: "approved" } })).ok()).toBeTruthy();
-  await login(request, "mega.mudur.kafe");
-  expect([200, 409]).toContain((await republish(request, ws, pub)).status());
-  await request.patch("/api/schedule/edit-requests", { data: { id: req.id, status: "completed" } });
-  expect((await republish(request, ws, pub)).status()).toBe(403);
-
-  await setPerms(request, undefined);           // varsayılan: izinli
-  await login(request, "mega.mudur.kafe");
-  expect([200, 409]).toContain((await republish(request, ws, pub)).status());
+    await setPerms(request, undefined);
+    await login(request, "mega.mudur.kafe");
+    expect([200, 409]).toContain((await republish(request, ws, pub)).status());
+  } finally { await setPerms(request, undefined); }
 });
 
-test("izin kapalıyken müdür kilitli ayarı, ücreti değiştiremez ve silemez; açıkken yapar; izin ayarına dokunamaz", async ({ request }) => {
-  await setPerms(request, { rules: false, budget: false, personnel_delete: false });
+test("yetkisi olmayan madde: ayar korunur, ücret yazılmaz, silemez, onaylayamaz; ek özellik sadece sahipte", async ({ request }) => {
+  try {
+    await setPerms(request, ["prepare", "publish"]);
+    await login(request, "mega.mudur.kafe");
+    const before = await readRules(request);
+    await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: { ...before, max_weekly_hours: 70, chat_enabled: !(before.chat_enabled !== false) } } });
+    const after = await readRules(request);
+    expect(after.max_weekly_hours).toBe(before.max_weekly_hours);           // Plan ayarları yok: değişmedi
+    expect(after.chat_enabled).toBe(before.chat_enabled);                   // ek özellik: sadece sahip
+    expect((await request.patch("/api/locations?id=loc-mega-kafe", { data: { name: "HACK" } })).status()).toBe(403);
+
+    const people = await (await request.get("/api/personnel?location_id=loc-mega-kafe")).json() as Person[];
+    const p = people[0];
+    expect((await request.patch(`/api/personnel?id=${p.id}`, { data: { hourly_wage: 999 } })).status()).toBe(403); // Ekip yok
+    expect((await request.delete(`/api/personnel?id=${p.id}`)).status()).toBe(403);
+    expect((await request.patch("/api/leave-requests", { data: { id: "x", status: "approved" } })).status()).toBe(403); // Onaylar yok
+
+    // Ekip var, Ücret ve bütçe yok: kişi düzenlenir ama ücret yazılmaz
+    await setPerms(request, ["prepare", "team", "plan_settings"]);
+    await login(request, "mega.mudur.kafe");
+    await request.patch(`/api/personnel?id=${p.id}`, { data: { hourly_wage: 999 } });
+    const p2 = (await (await request.get("/api/personnel?location_id=loc-mega-kafe")).json() as Person[]).find(x => x.id === p.id)!;
+    expect(p2.hourly_wage).toBe(p.hourly_wage);
+    const cur = await readRules(request);
+    await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: { ...cur, max_weekly_hours: 44 } } });
+    expect((await readRules(request)).max_weekly_hours).toBe(44);           // Plan ayarları var: değişti
+    await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: cur } });
+  } finally { await setPerms(request, undefined); }
+});
+
+test("yetki verme: kimse kendi yetkisini, üst kademeyi ya da sahip olmadığı maddeyi veremez", async ({ request }) => {
+  const mudurId = await setPerms(request, ["prepare", "team", "delegate"]);
   await login(request, "mega.mudur.kafe");
-  const before = await readRules(request);
-  await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: { ...before, max_weekly_hours: 70, checkin_required: !before.checkin_required, manager_permissions: {} } } });
-  const after = await readRules(request);
-  expect(after.max_weekly_hours).toBe(before.max_weekly_hours);           // kapalı: değişmedi
-  expect(after.checkin_required).toBe(!before.checkin_required);           // serbest: değişti
-  expect(after.manager_permissions).toEqual(before.manager_permissions);   // izin ayarı korunur
-  await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: before } });
-
-  const people = await (await request.get("/api/personnel?location_id=loc-mega-kafe")).json() as Person[];
-  const p = people[0];
-  await request.patch(`/api/personnel?id=${p.id}`, { data: { hourly_wage: 999 } });
-  const p2 = (await (await request.get("/api/personnel?location_id=loc-mega-kafe")).json() as Person[]).find(x => x.id === p.id)!;
-  expect(p2.hourly_wage).toBe(p.hourly_wage);
-  expect((await request.delete(`/api/personnel?id=${p.id}`)).status()).toBe(403);
-
+  // Kendi yetkisini değiştiremez
+  expect((await request.patch(`/api/users?id=${mudurId}`, { data: { access: { perms: ALL } } })).status()).toBe(403);
+  // Şube müdürü kademesi başka şube müdürü ekleyemez, sadece şef
+  expect((await request.post("/api/users", { data: { name: "X", role: "manager", location_id: "loc-mega-kafe", access: { perms: ["prepare"] } } })).status()).toBe(403);
+  // Bölge müdürü patronun / kendi kademesinin yetkisine dokunamaz
+  await login(request, "mega.admin");
+  const users = await (await request.get("/api/users")).json() as { id: string; username: string; role: string }[];
+  const sup = users.find(u => u.username === "mega.supervisor")!;
+  const admin = users.find(u => u.role === "admin")!;
+  await login(request, "mega.supervisor");
+  expect((await request.patch(`/api/users?id=${sup.id}`, { data: { access: { perms: ALL } } })).status()).toBe(403);
+  expect((await request.patch(`/api/users?id=${admin.id}`, { data: { name: "HACK" } })).status()).toBe(403);
+  // Verilen yetki verenin maddeleriyle sınırlı: bölge müdürü (tam) şube müdürüne verir; şube müdürü yetkisizse veremez
+  await setPerms(request, ["prepare"], "mega.supervisor");
+  await login(request, "mega.supervisor");
+  expect((await request.patch(`/api/users?id=${mudurId}`, { data: { access: { perms: ALL } } })).status()).toBe(403); // delegate yok
+  await setPerms(request, ["prepare", "delegate"], "mega.supervisor");
+  await login(request, "mega.supervisor");
+  expect((await request.patch(`/api/users?id=${mudurId}`, { data: { access: { perms: ALL } } })).ok()).toBeTruthy();
+  await login(request, "mega.admin");
+  const after = (await (await request.get("/api/users")).json() as { id: string; permissions: string | null }[]).find(u => u.id === mudurId)!;
+  expect(JSON.parse(after.permissions!).perms).toEqual(["prepare", "delegate"]);   // sadece verenin maddeleri
+  await setPerms(request, undefined, "mega.supervisor");
   await setPerms(request, undefined);
-  await login(request, "mega.mudur.kafe");
-  const cur = await readRules(request);
-  await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: { ...cur, max_weekly_hours: 44 } } });
-  expect((await readRules(request)).max_weekly_hours).toBe(44);
-  await request.patch("/api/locations?id=loc-mega-kafe", { data: { rules: cur } });
 });
 
 test("personel arkadaşlarının ücretini göremez, başka şubenin grubunu okuyamaz, başka işletmeye yazamaz", async ({ request }) => {

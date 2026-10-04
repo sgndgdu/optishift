@@ -1,31 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { applyRuleLocks, hasManagerPermission, managerPermissions, LOCKED_RULE_KEYS } from "@/lib/ruleLocks";
+import { applyRuleLocks, isCategoryLocked, LOCKED_RULE_KEYS, ruleKeyPerm } from "@/lib/ruleLocks";
+import { parseAccess } from "@/lib/userAccess";
 
-describe("müdür izinleri", () => {
-  it("varsayılan: hepsine izin", () => {
-    expect(Object.values(managerPermissions({})).every(Boolean)).toBe(true);
-    expect(hasManagerPermission("manager", {}, "budget")).toBe(true);
+const mgr = (perms: string[]) => ({ role: "manager", access: parseAccess({ perms }) });
+const owner = { role: "admin", access: null };
+
+describe("ayar anahtarı → madde", () => {
+  it("bütçe, ek özellik, hazırlık ve plan ayarı", () => {
+    expect(ruleKeyPerm("weekly_labor_budget_try")).toBe("budget");
+    expect(ruleKeyPerm("chat_enabled")).toBeNull();
+    expect(ruleKeyPerm("call_forecast")).toBe("prepare");
+    expect(ruleKeyPerm("max_weekly_hours")).toBe("plan_settings");
   });
-  it("patron/bölge müdürü her zaman, personel hiçbir zaman", () => {
-    const rules = { manager_permissions: { budget: false } };
-    expect(hasManagerPermission("admin", rules, "budget")).toBe(true);
-    expect(hasManagerPermission("supervisor", rules, "budget")).toBe(true);
-    expect(hasManagerPermission("manager", rules, "budget")).toBe(false);
-    expect(hasManagerPermission("employee", {}, "budget")).toBe(false);
+  it("ayarlar ekranı kilitleri", () => {
+    expect(isCategoryLocked(owner, "features")).toBe(false);
+    expect(isCategoryLocked(mgr(["plan_settings", "budget"]), "features")).toBe(true);
+    expect(isCategoryLocked(mgr(["plan_settings"]), "rules")).toBe(false);
+    expect(isCategoryLocked(mgr(["plan_settings"]), "budget")).toBe(true);
   });
 });
 
 describe("applyRuleLocks", () => {
-  it("izin varsa müdür değiştirir", () => {
-    expect(applyRuleLocks({ max_weekly_hours: 45 }, { max_weekly_hours: 50 })).toEqual({ max_weekly_hours: 50 });
+  it("sahibe uygulanmaz", () => {
+    expect(applyRuleLocks({ chat_enabled: true }, { chat_enabled: false }, owner)).toEqual({ chat_enabled: false });
   });
-  it("izin kapalı kategoride mevcut değer korunur, diğerleri değişir", () => {
-    const cur = { manager_permissions: { rules: false }, max_weekly_hours: 45, chat_enabled: true, checkin_required: false };
-    const inc = { manager_permissions: { rules: true }, max_weekly_hours: 70, chat_enabled: false, checkin_required: true };
-    expect(applyRuleLocks(cur, inc)).toEqual({ manager_permissions: { rules: false }, max_weekly_hours: 45, chat_enabled: false, checkin_required: true });
+  it("yetkili madde değişir, yetkisiz korunur, ek özellik sadece sahipte", () => {
+    const cur = { max_weekly_hours: 45, weekly_labor_budget_try: 1000, chat_enabled: true };
+    const inc = { max_weekly_hours: 50, weekly_labor_budget_try: 9, chat_enabled: false };
+    expect(applyRuleLocks(cur, inc, mgr(["plan_settings"]))).toEqual({ max_weekly_hours: 50, weekly_labor_budget_try: 1000, chat_enabled: true });
+    expect(applyRuleLocks(cur, inc, mgr(["budget"]))).toEqual({ max_weekly_hours: 45, weekly_labor_budget_try: 9, chat_enabled: true });
   });
-  it("müdür izin ayarını hiç yazamaz", () => {
-    expect(applyRuleLocks({}, { manager_permissions: { budget: false } })).toEqual({});
+  it("gönderilmeyen anahtar silinmez, yeni anahtar yetkisizse yazılmaz", () => {
+    expect(applyRuleLocks({ max_weekly_hours: 45 }, {}, mgr([]))).toEqual({ max_weekly_hours: 45 });
+    expect(applyRuleLocks({}, { max_weekly_hours: 70 }, mgr([]))).toEqual({});
+  });
+  it("hazırlayan sadece çağrı tahminini yazar", () => {
+    expect(applyRuleLocks({ min_rest_hours: 11 }, { min_rest_hours: 8, call_forecast: { x: 1 } }, mgr(["prepare"])))
+      .toEqual({ min_rest_hours: 11, call_forecast: { x: 1 } });
+  });
+  it("eski şube izin anahtarını kimse yazamaz", () => {
+    expect(applyRuleLocks({}, { manager_permissions: { budget: false } }, mgr(["plan_settings"]))).toEqual({});
   });
   it("kilit listesi tekrarsız", () => {
     const all = Object.values(LOCKED_RULE_KEYS).flat();

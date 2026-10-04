@@ -37,8 +37,7 @@ import {
 import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
-import { hasManagerPermission } from "@/lib/ruleLocks";
-import { canPublishPlan, departmentScope, isViewOnly, parseAccess, type UserAccess } from "@/lib/userAccess";
+import { canPublishPlan, departmentScope, hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -364,18 +363,18 @@ function SchedulePageInner() {
   const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [advancedOpen, setAdvancedOpen]           = useState(false); // İşlemler › Gelişmiş
-  // Yayınlanmış haftayı onaysız açma: patron/bölge müdürü her zaman, müdür "publish_edit" izniyle (sunucu: lib/access canEditPublishedWeek)
   const [viewerRole] = useState<string | null>(() => {
     try { return JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").role ?? null; } catch { return null; }
   });
-  // Kişi bazında yetki (lib/userAccess): sadece görür / planı hazırlar (yayınlayamaz) / hazırlar ve yayınlar
+  // Kişi bazında yetki (lib/userAccess): "Planı hazırlama" yoksa plan sadece görüntülenir; "Planı yayınlama"
+  // yayınlar ve yayınlanmış haftayı değiştirir (sunucu: proxy + lib/access canEditPublishedWeek)
   const [viewerAccess] = useState<{ role: string | null; access: UserAccess | null }>(() => {
     try {
       const u = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}");
       return { role: u.role ?? null, access: parseAccess(u.access) };
     } catch { return { role: null, access: null }; }
   });
-  const viewOnly = isViewOnly(viewerAccess);
+  const viewOnly = !hasPerm(viewerAccess, "prepare");
   const chefDept = departmentScope(viewerAccess);
   const canPublish = canPublishPlan(viewerAccess);
   // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
@@ -2880,7 +2879,7 @@ loading ? (
               ) : !canPublish && isPublishedWeek ? (
                 <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Yayınlandı</span>
               ) : isPublishedWeek && !editUnlocked ? (
-                <button onClick={() => (hasManagerPermission(viewerRole, locRules, "publish_edit") ? setEditUnlocked(true) : setUnlockModal(true))}
+                <button onClick={() => setEditUnlocked(true)}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
                   <Lock size={14} /> Düzenle
                 </button>
