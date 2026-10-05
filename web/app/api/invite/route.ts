@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
     // İşten çıkan (pasife alınan) kişinin eski davet bağlantısı da çalışmaz
     if (user.approval_status === "disabled" || user.approval_status === "rejected") {
-      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen sorumlunuzla iletişime geçin." }, { status: 403 });
     }
     // Bağlantı, kişi şifresini belirleyene kadar (7 gün içinde) tekrar açılabilir: açıp kapatınca ölmez.
     // Şifre belirlenince (POST /api/auth/setup) o ana kadarki davetler kapanır (used_at). Yöneticinin sonradan

@@ -17,7 +17,7 @@ import { managerOutsideBranch } from "@/lib/access";
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const day = (d: number) => DAY_SHORT[d] ?? String(d);
 const short = (iso: string) => { const [, m, dd] = iso.split("-"); return `${Number(dd)}.${Number(m)}`; };
-const ROLE: Record<string, string> = { admin: "İşletme Sahibi", supervisor: "Yönetici (birden çok şube)", manager: "Yönetici", employee: "Çalışan" };
+const ROLE: Record<string, string> = { admin: "Hesap sahibi", supervisor: "Sorumlu (birden çok şube)", manager: "Sorumlu", employee: "Ekip üyesi" };
 const DETAIL_BRANCH_LIMIT = 8;
 const EMP: Record<string, string> = { full_time: "tam zamanlı", part_time: "yarı zamanlı" };
 
@@ -133,7 +133,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   const ots = await db.prepare(`SELECT * FROM overtime_records WHERE org_id = ? AND location_id = ? AND status = 'pending' ORDER BY week_start`).all(auth.org_id, loc.id) as any[];
   if (swaps.length || edits.length || ots.length) {
     out.push("### Bekleyen talepler");
-    for (const s of swaps) out.push(`- Takas: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "müdür onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
+    for (const s of swaps) out.push(`- Takas: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "sorumlu onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
     for (const e of edits) out.push(`- Saat düzeltme: ${e.personnel_name ?? nameOf.get(e.personnel_id)}: ${e.reason}`);
     for (const o of ots) out.push(`- Fazla mesai: ${o.personnel_name ?? nameOf.get(o.personnel_id)} ${short(o.week_start)} haftası ${o.overtime_hours} s`);
   }
@@ -187,7 +187,7 @@ export async function buildBusinessContext(db: any, auth: AuthUser, locationId: 
   const mgrs = await db.prepare(`SELECT name, role, location_id FROM users WHERE org_id = ? AND role IN ('manager','supervisor') AND COALESCE(approval_status,'active')='active'`).all(auth.org_id) as any[];
   const locName = new Map(locs.map(l => [l.id, l.name]));
   const visible = mgrs.filter(m => m.role === "supervisor" || locName.has(m.location_id));
-  if (visible.length) lines.push(`## Yöneticiler: ${visible.map(m => `${m.name} (${m.role === "supervisor" ? "Yönetici, birden çok şube" : `Yönetici, ${locName.get(m.location_id)}`})`).join(", ")}`);
+  if (visible.length) lines.push(`## Sorumlular: ${visible.map(m => `${m.name} (${m.role === "supervisor" ? "Sorumlu, birden çok şube" : `Sorumlu, ${locName.get(m.location_id)}`})`).join(", ")}`);
   if (locs.length > DETAIL_BRANCH_LIMIT) lines.push("Not: Tek bir şubenin ayrıntısı için o şubeye girip asistana sorun.");
   return lines.join("\n");
 }

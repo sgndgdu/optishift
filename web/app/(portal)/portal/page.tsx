@@ -322,7 +322,7 @@ export default function PortalDashboard() {
 
           {todayOnCall && !dataLoading && (
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-bold text-violet-50"
-              title="Nöbet: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+              title="Nöbet: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat sorumlun tarafından kaydedilir.">
               Bugün nöbetçisin · {todayOnCall.start_time}–{todayOnCall.end_time}
             </div>
           )}
@@ -572,7 +572,7 @@ export default function PortalDashboard() {
 
       <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
         title={emergencySent ? "Bildirim gönderildi" : "Acil durum bildir"}
-        description={emergencySent ? "Yöneticilerine anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Şubendeki tüm yöneticilere anında bildirim gider."}
+        description={emergencySent ? "Sorumlularına anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Şubendeki tüm sorumlulara anında bildirim gider."}
         footer={emergencySent ? (
           <button onClick={() => setEmergencyOpen(false)} className={sheetSecondaryClass}>Kapat</button>
         ) : <>

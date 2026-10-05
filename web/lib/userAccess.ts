@@ -19,7 +19,7 @@ export const PERM_LIST: { key: Perm; label: string; description: string }[] = [
   { key: "plan_settings", label: "Plan ayarları", description: "Vardiya saatleri, çalışma kuralları, açık vardiya ve Adalet Puanı." },
   { key: "budget", label: "Ücret ve bütçe", description: "Ücretler, bütçe, bahşiş ve puantaj." },
   { key: "cross_branch", label: "Başka şubeden personel", description: "Çalışanı başka şubelerde de çalıştırır, şube rotasyonu belirler." },
-  { key: "delegate", label: "Başkasına yetki verme", description: "Kendi kapsamında başkasını yönetici yapar, en fazla kendi yetkilerini verir." },
+  { key: "delegate", label: "Başkasına yetki verme", description: "Kendi kapsamında başkasını sorumlu yapar, en fazla kendi yetkilerini verir." },
 ];
 
 export const ALL_PERMS: Perm[] = PERM_LIST.map(p => p.key);
@@ -169,7 +169,7 @@ export function missingPerm(user: WithAccess | null | undefined, method: string,
 }
 
 export const permError = (perm: Perm) =>
-  `Bu işlem için "${PERM_LIST.find(p => p.key === perm)?.label}" yetkisi gerekiyor. İşletme sahibi verebilir.`;
+  `Bu işlem için "${PERM_LIST.find(p => p.key === perm)?.label}" yetkisi gerekiyor. Hesap sahibi verebilir.`;
 
 /**
  * Departman şefinin hiç yapamayacağı yazma işlemleri (proxy tek yerden keser): şube ayarları, onaylar,
@@ -198,4 +198,4 @@ export function isChefBlocked(user: WithAccess | null | undefined, method: strin
   return CHEF_BLOCKED.some(r => path.startsWith(r.prefix) && r.methods.includes(method));
 }
 
-export const CHEF_BLOCKED_ERROR = "Bu işlem şube yöneticisine ait. Departman şefi sadece kendi departmanının planını ve ekibini yönetir.";
+export const CHEF_BLOCKED_ERROR = "Bu işlem şube sorumlusuna ait. Departman sorumlusu sadece kendi departmanının planını ve ekibini yönetir.";

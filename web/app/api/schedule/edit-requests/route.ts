@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     const result = await db.prepare(`
       INSERT INTO schedule_edit_requests (org_id, location_id, week_start, requested_by, requested_by_name, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', ?)
-    `).run(auth.org_id, location_id, week_start, auth.id, auth.name ?? "Yönetici", Math.floor(Date.now() / 1000));
+    `).run(auth.org_id, location_id, week_start, auth.id, auth.name ?? "Sorumlu", Math.floor(Date.now() / 1000));
 
     const requestId = result.lastInsertRowid;
 
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
         `).run(
           sup.personnel_id,
           "Vardiya Düzenleme Onayı Gerekiyor",
-          `${auth.name ?? "Yönetici"}, ${locName} (${week_start} haftası) için yayınlanmış planı düzenlemek istiyor.`,
+          `${auth.name ?? "Sorumlu"}, ${locName} (${week_start} haftası) için yayınlanmış planı düzenlemek istiyor.`,
           "/supervisor",
           Math.floor(Date.now() / 1000),
         );

@@ -22,7 +22,7 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>
-          <strong>İşletme hesabı verileri</strong> (kayıt olan yöneticinin adı, e-postası,
+          <strong>İşletme hesabı verileri</strong> (kayıt olan hesap sahibinin adı, e-postası,
           kullanıcı adı, işletme bilgileri) bakımından veri sorumlusu <strong>OptiShift</strong>&apos;tir.
         </li>
         <li>
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
         <li><strong>Neon</strong>: veritabanı barındırma</li>
         <li><strong>Render</strong>: vardiya planlama hesaplama servisi</li>
         <li><strong>Resend</strong>: işlemsel e-posta gönderimi (ör. şifre sıfırlama)</li>
-        <li><strong>Google (Gemini)</strong>: yöneticinin İşletme Asistanı&apos;na sorduğu soru ve yanıt için gereken işletme bilgisi özeti (yalnızca asistan kullanıldığında)</li>
+        <li><strong>Google (Gemini)</strong>: sorumlunun İşletme Asistanı&apos;na sorduğu soru ve yanıt için gereken işletme bilgisi özeti (yalnızca asistan kullanıldığında)</li>
       </ul>
 
       <h2>5. Çerezler</h2>

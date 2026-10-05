@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     await db.prepare(
       `INSERT INTO schedule_publications (org_id, location_id, week_start, revision, published_by, published_by_name, published_at, snapshot)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(auth.org_id, location_id, week_start, revision, auth.id, auth.name ?? "Yönetici", Math.floor(Date.now() / 1000), snapshot);
+    ).run(auth.org_id, location_id, week_start, revision, auth.id, auth.name ?? "Sorumlu", Math.floor(Date.now() / 1000), snapshot);
     // Yayınlanan haftanın departman onay kayıtları tamamlandı
     if (chefDept) {
       await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ? AND department_id = ?").run(location_id, week_start, chefDept);

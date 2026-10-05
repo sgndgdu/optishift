@@ -27,8 +27,8 @@ export type RoleGuide = {
 export const ROLE_GUIDES: RoleGuide[] = [
   {
     key: "manager",
-    label: "Müdür / Admin",
-    shortLabel: "Müdür",
+    label: "Sorumlu",
+    shortLabel: "Sorumlu",
     description: "Vardiya oluşturma, personel yönetimi ve onaylarla ilgilenen kullanıcılar için.",
     sections: [
       {
@@ -81,7 +81,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ekip",
         icon: Users,
         paragraphs: [
-          "Personel eklerken isim, telefon ve görev yeterlidir. Bir yönetici hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst yönetici onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
+          "Personel eklerken isim, telefon ve görev yeterlidir. Bir sorumlu hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst sorumlu onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
           "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece çalışma engeli (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
         ],
       },
@@ -127,7 +127,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: BarChart2,
         paragraphs: [
           "Aylık özet raporlar ve puantaj (kimin ne zaman geldiği/gittiği, geç kalmalar, gelinmeyen günler) burada listelenir. Excel olarak dışa aktarabilirsiniz.",
-          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece işletme sahibi açabilir, şube yöneticisi açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
+          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece hesap sahibi açabilir, şube sorumlusu açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
         ],
       },
       {
@@ -143,7 +143,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ayarlar",
         icon: Settings,
         paragraphs: [
-          "Ayarlar üç ana sekmeden oluşur. Yeni başlayan bir müdürün ihtiyaç duyduğu her şey ilk sekmededir; diğerlerine sadece gerektiğinde bakarsınız.",
+          "Ayarlar üç ana sekmeden oluşur. Yeni başlayan bir sorumlunun ihtiyaç duyduğu her şey ilk sekmededir; diğerlerine sadece gerektiğinde bakarsınız.",
         ],
         steps: [
           "Temel Ayarlar: çalışma saatleriniz, vardiya tipleriniz (“sabah/akşam” gibi sabit bir kalıp yoktur, istediğiniz kadar tanımlarsınız), personel talepleri (uygunluk toplama, hatırlatma, takas ve değişiklik izinleri, izin politikası) ve şube konumu.",
@@ -175,7 +175,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Home,
         paragraphs: [
           "Sıradaki vardiyanızı, giriş/çıkış butonunu, bu haftaki toplam çalışma saatinizi, adalet puanınızı ve son bildirimlerinizi burada görürsünüz.",
-          "Gerçek bir acil durumda (kaza, sağlık sorunu vb.) sayfanın altındaki “Acil Durum Bildir” butonuyla şubenizdeki tüm yöneticilere anında bildirim gönderebilirsiniz. Bu buton sadece gerçek acil durumlar içindir, günlük mazeretler için kullanılmaz, onun için Talepler sayfasındaki izin/düzenleme akışı vardır.",
+          "Gerçek bir acil durumda (kaza, sağlık sorunu vb.) sayfanın altındaki “Acil Durum Bildir” butonuyla şubenizdeki tüm sorumlulara anında bildirim gönderebilirsiniz. Bu buton sadece gerçek acil durumlar içindir, günlük mazeretler için kullanılmaz, onun için Talepler sayfasındaki izin/düzenleme akışı vardır.",
         ],
       },
       {
@@ -183,7 +183,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Vardiyalar",
         icon: CalendarClock,
         paragraphs: [
-          "Haftalık planınızı buradan görürsünüz. Sadece yayınlanmış (kesinleşmiş) vardiyalar görünür, müdürünüz henüz taslak aşamasındaki bir planı siz göremezsiniz, o yüzden telaşlanmanıza gerek yok.",
+          "Haftalık planınızı buradan görürsünüz. Sadece yayınlanmış (kesinleşmiş) vardiyalar görünür, sorumlunuz henüz taslak aşamasındaki bir planı siz göremezsiniz, o yüzden telaşlanmanıza gerek yok.",
         ],
       },
       {
@@ -208,7 +208,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         ],
         steps: [
           "Vardiya Düzenleme: mevcut bir vardiyanızın saatinin değiştirilmesini istediğinizde kullanılır.",
-          "Vardiya Takası: bir iş arkadaşınızla vardiya değiştirmek istediğinizde, önce karşı taraf teklifi kabul eder, ardından müdür onaylar. Belirli birini seçmek istemiyorsanız “Herkese Aç (Pazar Yeri)” seçeneğiyle vardiyanızı tüm ekibe açık ilan olarak bırakabilirsiniz; isteyen ilk kişi üstlenir.",
+          "Vardiya Takası: bir iş arkadaşınızla vardiya değiştirmek istediğinizde, önce karşı taraf teklifi kabul eder, ardından sorumlu onaylar. Belirli birini seçmek istemiyorsanız “Herkese Aç (Pazar Yeri)” seçeneğiyle vardiyanızı tüm ekibe açık ilan olarak bırakabilirsiniz; isteyen ilk kişi üstlenir.",
           "İzin: yıllık izin dışında mazeret, hastalık/rapor, doğum, süt, evlilik ve ücretsiz izin türlerinden birini seçip talep oluşturursunuz; kalan yıllık izin gününüz üstte her zaman görünür.",
           "Gelen: size yapılan takas teklifleri ve onaylamanız/reddetmeniz gereken fazla mesai kayıtları burada görünür.",
         ],
@@ -218,7 +218,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Giriş / Çıkış",
         icon: ListChecks,
         paragraphs: [
-          "Vardiyanız başladığında ana sayfadaki karttan “Vardiyayı Başlat” butonuna basarsınız, bittiğinde “Çıkış Yap”a. Müdürünüz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
+          "Vardiyanız başladığında ana sayfadaki karttan “Vardiyayı Başlat” butonuna basarsınız, bittiğinde “Çıkış Yap”a. Sorumlunuz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
           "Şubenizde girişte bir QR kod asılıysa, telefon kameranızla okutmanız yeterli. Vardiyanız varsa giriş otomatik yapılır, ayrıca uygulamayı açıp butona basmanıza gerek kalmaz. Bazı işletmelerde giriş sırasında konumunuz da şubeyle karşılaştırılır (GPS doğrulama); bu açıksa şubeden çok uzaktaysanız giriş reddedilir.",
         ],
       },
@@ -227,7 +227,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Sohbet",
         icon: MessageSquare,
         paragraphs: [
-          "Ekibinizle ve müdürünüzle doğrudan yazışabilirsiniz.",
+          "Ekibinizle ve sorumlunuzla doğrudan yazışabilirsiniz.",
         ],
       },
       {
@@ -250,8 +250,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
   },
   {
     key: "supervisor",
-    label: "İşletme Sahibi",
-    shortLabel: "İşletme Sahibi",
+    label: "Hesap sahibi",
+    shortLabel: "Hesap sahibi",
     description: "Birden fazla şubeyi üst düzeyden takip eden kullanıcılar için.",
     sections: [
       {
@@ -267,7 +267,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Vardiya Planı",
         icon: CalendarClock,
         paragraphs: [
-          "Herhangi bir şubenin planını görüntüleyebilirsiniz. Bu görünüm salt okunurdur, planı oluşturmak ve düzenlemek şube müdürünün işidir, siz sadece takip edersiniz.",
+          "Herhangi bir şubenin planını görüntüleyebilirsiniz. Bu görünüm salt okunurdur, planı oluşturmak ve düzenlemek şube sorumlusunun işidir, siz sadece takip edersiniz.",
         ],
       },
       {
@@ -275,7 +275,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ekip",
         icon: Users,
         paragraphs: [
-          "İşletme genelindeki tüm personel listesini buradan görürsünüz. Şube müdürlerinin oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
+          "İşletme genelindeki tüm personel listesini buradan görürsünüz. Şube sorumlularının oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
         ],
       },
       {
@@ -291,7 +291,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Mesajlaşma",
         icon: MessageSquare,
         paragraphs: [
-          "Şube müdürleriyle doğrudan yazışabileceğiniz sohbet ekranı.",
+          "Şube sorumlularıyla doğrudan yazışabileceğiniz sohbet ekranı.",
         ],
       },
       {
@@ -317,27 +317,27 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Uygunluk girmek zorunlu mu?",
     answer:
-      "Hayır. Müdürünüz isterse uygunluk toplamayı tamamen kapatıp planı kendisi yapabilir. Açıksa, uygunluk girmemeniz “tamamen uygunum” olarak değerlendirilir; kırmızı işaretlediğiniz günlere ise kesinlikle vardiya yazılmaz.",
+      "Hayır. Sorumlunuz isterse uygunluk toplamayı tamamen kapatıp planı kendisi yapabilir. Açıksa, uygunluk girmemeniz “tamamen uygunum” olarak değerlendirilir; kırmızı işaretlediğiniz günlere ise kesinlikle vardiya yazılmaz.",
   },
   {
     question: "Vardiya takası nasıl onaylanır?",
     answer:
-      "Önce takas teklif ettiğiniz kişi teklifi kabul eder, ardından müdür son onayı verir. Her iki onay da alınmadan takas geçerli olmaz.",
+      "Önce takas teklif ettiğiniz kişi teklifi kabul eder, ardından sorumlu son onayı verir. Her iki onay da alınmadan takas geçerli olmaz.",
   },
   {
     question: "Fazla mesaiye itiraz edebilir miyim?",
     answer:
-      "Fazla mesai kaydınızı kabul ederken ücretli mi yoksa serbest zaman olarak mı kullanmak istediğinizi siz seçersiniz. Kaydı reddederseniz müdürünüz durumu tekrar değerlendirir.",
+      "Fazla mesai kaydınızı kabul ederken ücretli mi yoksa serbest zaman olarak mı kullanmak istediğinizi siz seçersiniz. Kaydı reddederseniz sorumlunuz durumu tekrar değerlendirir.",
   },
   {
     question: "Yayınlanmış bir vardiya sonradan değişebilir mi?",
     answer:
-      "Evet, müdür gerektiğinde yayınlanmış bir vardiyayı değiştirebilir. Saatin değişmesi size bir bildirim olarak düşer ve adalet puanınıza bu beklenmedik değişiklik için küçük bir telafi eklenir.",
+      "Evet, sorumlu gerektiğinde yayınlanmış bir vardiyayı değiştirebilir. Saatin değişmesi size bir bildirim olarak düşer ve adalet puanınıza bu beklenmedik değişiklik için küçük bir telafi eklenir.",
   },
   {
     question: "Bir vardiyaya gelemeyeceğimi anlarsam ne yapmalıyım?",
     answer:
-      "Mümkünse önceden bir vardiya takası veya düzenleme talebi oluşturun. Son anda haber veremezseniz müdürünüz o vardiyayı “açık vardiya” ilan edip başka birine yönlendirebilir.",
+      "Mümkünse önceden bir vardiya takası veya düzenleme talebi oluşturun. Son anda haber veremezseniz sorumlunuz o vardiyayı “açık vardiya” ilan edip başka birine yönlendirebilir.",
   },
   {
     question: "Vardiyamı belirli bir kişiye teklif etmeden bırakabilir miyim?",

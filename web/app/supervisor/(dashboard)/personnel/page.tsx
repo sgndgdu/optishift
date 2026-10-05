@@ -128,7 +128,7 @@ function SupervisorPersonnelInner() {
         const act = persons.filter(p => !p.inactive);
         const staff = act.filter(p => p.role === "employee").length;
         const mgrs = act.length - staff;
-        return `Tüm şubeler · ${staff} çalışan${mgrs ? ` · ${mgrs} yönetici` : ""}`;
+        return `Tüm şubeler · ${staff} ekip üyesi${mgrs ? ` · ${mgrs} sorumlu` : ""}`;
       })()} actions={
         <div className="relative">
           <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
@@ -139,9 +139,9 @@ function SupervisorPersonnelInner() {
               <div className="fixed inset-0 z-30" onClick={() => setAddMenuOpen(false)} />
               <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-1.5">
                 {[
-                  { icon: Plus, title: "Çalışan ekle", sub: "Şubenin Ekip sayfasında açılır", on: addEmployee },
+                  { icon: Plus, title: "Ekibe kişi ekle", sub: "Şubenin Ekip sayfasında açılır", on: addEmployee },
                   ...(canDelegate({ role: user?.role ?? null, access: parseAccess(user?.access) }) ? [
-                    { icon: UserCog, title: "Yönetici ekle", sub: "Planı ve ekibi sizin yerinize yönetecek kişi", on: () => setManagerAdd(true) },
+                    { icon: UserCog, title: "Sorumlu ekle", sub: "Planı ve ekibi sizin yerinize yönetecek kişi", on: () => setManagerAdd(true) },
                   ] : []),
                 ].map(o => (
                   <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
@@ -194,7 +194,7 @@ function SupervisorPersonnelInner() {
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
           managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; }}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}
-          emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Çalışan ekle</button>} />
+          emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Ekibe kişi ekle</button>} />
       )}
 
       {openPerson && (
@@ -220,7 +220,7 @@ function SupervisorPersonnelInner() {
       </Sheet>
 
       {/* Çalışan ekle: hangi şubenin Ekip sayfasına? */}
-      <Sheet open={pickBranch} onClose={() => setPickBranch(false)} title="Hangi şubeye?" description="Çalışan, şubenin Ekip sayfasından eklenir">
+      <Sheet open={pickBranch} onClose={() => setPickBranch(false)} title="Hangi şubeye?" description="Kişi, şubenin Ekip sayfasından eklenir">
         <List>
           {locations.map(l => (
             <ListItem key={l.id} onClick={() => goToBranch(l.id, "add=1")} leading={<Avatar name={l.name} tone="brand" />} title={l.name} />

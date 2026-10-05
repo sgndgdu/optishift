@@ -47,7 +47,7 @@ const permsOf = (m: Pick<Mgr, "permissions">): Perm[] => parseAccess(m.permissio
  * Tek şubeli işletmede "şube" geçmez: Müdür.
  */
 export const managerTitle = (chef: boolean, branchCount: number, orgBranchCount = 2): string =>
-  chef ? "Şef" : branchCount > 1 ? "Bölge Müdürü" : orgBranchCount > 1 ? "Şube Müdürü" : "Müdür";
+  chef ? "Departman sorumlusu" : branchCount > 1 ? "Bölge sorumlusu" : orgBranchCount > 1 ? "Şube sorumlusu" : "Sorumlu";
 
 /**
  * Neleri yapabilir: maddeler tek tek. Veren kişinin sahip olmadığı madde verilemez (soluk görünür).
@@ -87,7 +87,7 @@ function PermPicker({ value, onChange, chef, multiBranch, granter }: {
         })}
       </List>
       <p className="text-xs text-slate-500">
-        {none ? "Hiçbiri seçili değil: bu kişi her şeyi görür, hiçbir şeyi değiştiremez." : "Ek özellikleri açıp kapatmak sadece işletme sahibindedir."}
+        {none ? "Hiçbiri seçili değil: bu kişi her şeyi görür, hiçbir şeyi değiştiremez." : "Ek özellikleri açıp kapatmak sadece hesap sahibindedir."}
       </p>
     </div>
   );
@@ -139,7 +139,7 @@ const PERM_SHORT: Record<Perm, string> = {
 /** Yöneticinin kapsamı: departman şefiyse "Salon şefi", değilse verilen unvan (ör. "Müdür"). */
 export function scopeTitle(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined, fallback?: string): string | null {
   const a = parseAccess(m.permissions);
-  if (a?.department_id) return `${deptName?.(a.department_id) ?? "Departman"} şefi`;
+  if (a?.department_id) return `${deptName?.(a.department_id) ?? "Departman"} sorumlusu`;
   return fallback ?? null;
 }
 
@@ -209,7 +209,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
     if (source === "new" && !name.trim()) return setError("Ad soyad girin.");
     if (source === "team" && !pickedEmp) return setError("Ekipten bir kişi seçin.");
     if (!picked.length) return setError("En az bir şube seçin.");
-    if (branchManager && !deptId) return setError("Hangi departmanın şefi olacağını seçin.");
+    if (branchManager && !deptId) return setError("Hangi departmanın sorumlusu olacağını seçin.");
     setBusy(true);
     try {
       const unvan = managerTitle(!!deptId, picked.length, locations.length);
@@ -254,9 +254,9 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
 
   return (
     <Sheet open={open} onClose={close}
-      title={invite ? "Giriş bağlantısını gönderin" : branchManager ? "Şef ata" : "Yönetici ekle"}
+      title={invite ? "Giriş bağlantısını gönderin" : branchManager ? "Departman sorumlusu ata" : "Sorumlu ekle"}
       description={invite ? undefined : branchManager
-        ? "Şef sadece kendi departmanını görür ve planlar."
+        ? "Departman sorumlusu sadece kendi departmanını görür ve planlar."
         : "Planı ve ekibi sizin yerinize yönetecek kişi. Sadece seçtiğiniz şubeleri görür."}
       footer={invite
         ? <button onClick={close} className={sheetPrimaryClass}>Tamam</button>
@@ -296,7 +296,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
           </div>
           {depts.length > 0 && (
             <div>
-              <span className={label}>{branchManager ? "Hangi departmanın şefi?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
+              <span className={label}>{branchManager ? "Hangi departmanın sorumlusu?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
               <select value={deptId} onChange={e => pickDept(e.target.value)} className={field}>
                 <option value="">{branchManager ? "Departman seçin…" : "Tüm departmanlar"}</option>
                 {/* Departmanın şefi alt departmanlarını da yönetir (lib/departments) */}
@@ -308,7 +308,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
             <span className={label}>Neleri yapabilir?</span>
             <PermPicker value={perms} onChange={setPerms} chef={!!deptId} multiBranch={locations.length > 1} granter={granter} />
           </div>
-          <p className="text-xs text-slate-500">Yöneticiye vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında &quot;Vardiya planına dahil&quot;i açın.</p>
+          <p className="text-xs text-slate-500">Sorumluya vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında &quot;Vardiya planına dahil&quot;i açın.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

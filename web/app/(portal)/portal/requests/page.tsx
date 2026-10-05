@@ -492,7 +492,7 @@ export default function PortalRequests() {
     if (res.ok) {
       showToast(
         employee_status === "declined"
-          ? "Mesai reddedildi. Müdürün bilgilendirildi."
+          ? "Mesai reddedildi. Sorumlun bilgilendirildi."
           : compensation_type === "time_off"
             ? "Kabul edildi, serbest zaman (1,5 kat izin) olarak işlenecek."
             : "Kabul edildi, zamlı ücret olarak işlenecek."
@@ -683,7 +683,7 @@ export default function PortalRequests() {
                       body: JSON.stringify({ shift_id: fa.id, action }),
                     });
                     if (r.ok) {
-                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Müdürün bilgilendirildi.");
+                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Sorumlun bilgilendirildi.");
                     } else {
                       const err = await r.json().catch(() => ({}));
                       showToast(err.error || "İşlem başarısız.", "error");
@@ -764,7 +764,7 @@ export default function PortalRequests() {
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
               ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", icon: UserX }] : []),
               ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına takas teklif et", icon: ArrowLeftRight }] : []),
-              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Müdürden saat düzeltme iste (son 2 hafta da olur)", icon: FileEdit }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Sorumludan saat düzeltme iste (son 2 hafta da olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
@@ -843,7 +843,7 @@ export default function PortalRequests() {
                 {swapStep === 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas etmek istediğin vardiyayı seç:</p>
-                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Müdürün planı yayınlayınca burada görünür.</p>}
+                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
                     {myShifts.map(s => (
                       <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
                     ))}
@@ -931,7 +931,7 @@ export default function PortalRequests() {
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğin vardiyayı seç:</p>
-                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan yok. Müdürün planı yayınlayınca burada görünür.</p>}
+                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
                 <div className="space-y-2">
                   {myShifts.map(s => (
                     <ShiftOption key={s.id} shift={s} names={shiftNames} selected={editShift?.id === s.id} onSelect={() => setEditShift(s)} />
@@ -946,7 +946,7 @@ export default function PortalRequests() {
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
                       rows={3}
-                      placeholder="Müdürüne kısa bir açıklama yaz..."
+                      placeholder="Sorumluna kısa bir açıklama yaz..."
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
@@ -992,7 +992,7 @@ export default function PortalRequests() {
                         : `Yıllık hak ${leaveBalance.entitledTotal} gün · bu yıl kullanılan ${leaveBalance.usedDays} gün`}
                     </p>
                     {leaveBalance.hireDateMissing && (
-                      <p className="text-amber-700 mt-0.5">İşe giriş tarihin sistemde yok; kesin hakkını müdürün netleştirir.</p>
+                      <p className="text-amber-700 mt-0.5">İşe giriş tarihin sistemde yok; kesin hakkını sorumlun netleştirir.</p>
                     )}
                   </div>
                 </div>
@@ -1021,7 +1021,7 @@ export default function PortalRequests() {
               </div>
               {(overtimeMe?.comp_time_balance_hours ?? 0) > 0 && (
                 <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                  Ayrıca <b>{overtimeMe.comp_time_balance_hours} saat</b> fazla mesai karşılığı serbest zamanın var; müdürünle planlayabilirsin.
+                  Ayrıca <b>{overtimeMe.comp_time_balance_hours} saat</b> fazla mesai karşılığı serbest zamanın var; sorumlunla planlayabilirsin.
                 </p>
               )}
 
@@ -1064,7 +1064,7 @@ export default function PortalRequests() {
                   value={leaveNote}
                   onChange={e => setLeaveNote(e.target.value)}
                   rows={2}
-                  placeholder={leavePolicy?.require_reason ? "Zorunlu: nedenini yaz..." : "Müdürüne not..."}
+                  placeholder={leavePolicy?.require_reason ? "Zorunlu: nedenini yaz..." : "Sorumluna not..."}
                   className={`w-full text-sm bg-slate-50 border rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none ${
                     leavePolicy?.require_reason && !leaveNote.trim() ? "border-red-200" : "border-slate-200"
                   }`}
@@ -1128,7 +1128,7 @@ function Empty({ text }: { text: string }) {
 // Statüden her adımın durumunu türetir; iptal edilen taleplerde gösterilmez.
 function SwapSteps({ status }: { status: string }) {
   if (status === "cancelled") return null;
-  const STEPS = ["Teklif", "Kabul", "Müdür Onayı"];
+  const STEPS = ["Teklif", "Kabul", "Sorumlu Onayı"];
   // Her adım: done | current | failed | upcoming
   const states: ("done" | "current" | "failed" | "upcoming")[] =
     status === "pending"          ? ["done", "current", "upcoming"] :
@@ -1203,7 +1203,7 @@ function RequestCard({ title, sub, status, note, managerNote, canCancel, onCance
       </div>
       {showSwapSteps && <SwapSteps status={status} />}
       {note && <p className="text-xs text-slate-400 italic border-t border-slate-50 pt-2">"{note}"</p>}
-      {managerNote && <p className="text-xs text-slate-500 border-t border-slate-50 pt-2"><span className="font-bold">Müdür notu:</span> {managerNote}</p>}
+      {managerNote && <p className="text-xs text-slate-500 border-t border-slate-50 pt-2"><span className="font-bold">Sorumlu notu:</span> {managerNote}</p>}
     </div>
   );
 }

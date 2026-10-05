@@ -190,10 +190,10 @@ export default function SupervisorDashboard() {
         </>}>
         {openReq && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">{openReq.week_start} haftasının yayınlanmış planını değiştirmek istiyor. Onaylarsan müdür değişiklik yapıp yeniden yayınlayabilir.</p>
+            <p className="text-sm text-slate-600">{openReq.week_start} haftasının yayınlanmış planını değiştirmek istiyor. Onaylarsan sorumlu değişiklik yapıp yeniden yayınlayabilir.</p>
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Not (isteğe bağlı)</span>
-              <input type="text" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="Müdüre iletilir"
+              <input type="text" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="Sorumluya iletilir"
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </label>
             <Link href={`/supervisor/schedule?location_id=${openReq.location_id}`} className="inline-block text-sm font-semibold text-primary hover:underline">Planı gör</Link>
@@ -208,7 +208,7 @@ export default function SupervisorDashboard() {
             <ListEmpty action={user?.role === "admin" && (
               <button onClick={() => setShowAddBranch(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><Plus size={15} /> Şube ekle</button>
             )}>
-              {user?.role === "admin" ? "Henüz şube yok." : "Size henüz şube atanmadı. İşletme sahibinden isteyin."}
+              {user?.role === "admin" ? "Henüz şube yok." : "Size henüz şube atanmadı. Hesap sahibinden isteyin."}
             </ListEmpty>
           ) : sortedLocations.map(loc => {
             const st = status[loc.id];
@@ -225,7 +225,7 @@ export default function SupervisorDashboard() {
                 subtitle={[
                   st ? `Bugün ${st.today} kişi vardiyada` : null,
                   st && st.pending > 0 ? `${st.pending} onay bekliyor` : null,
-                  `${loc.personnel_count} çalışan`,
+                  `${loc.personnel_count} kişi`,
                 ].filter(Boolean).join(" · ")}
                 trailing={plan ? <StatusPill tone={plan.tone}>{plan.label}</StatusPill> : undefined}
               />

@@ -52,9 +52,9 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
 
   return (
     <List>
-      {managers.length > 0 && <ListSection title="Yöneticiler" count={managers.length} action={managementAction} />}
+      {managers.length > 0 && <ListSection title="Sorumlular" count={managers.length} action={managementAction} />}
       {managers.map(row)}
-      {staff.length > 0 && <ListSection title="Çalışanlar" count={staff.length} />}
+      {staff.length > 0 && <ListSection title="Ekip" count={staff.length} />}
       {staff.map(row)}
       {inactive.length > 0 && (
         <>

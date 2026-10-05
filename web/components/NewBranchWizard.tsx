@@ -24,7 +24,7 @@ import { StatusPill } from "@/components/ui/StatusPill";
 const STEPS = [
   { label: "Şube",       icon: Building2 },
   { label: "Vardiyalar", icon: CalendarClock },
-  { label: "Müdür",      icon: UserPlus },
+  { label: "Sorumlu",      icon: UserPlus },
 ];
 
 type ExistingBranch = { id: string; name: string; shift_definitions?: unknown; rules?: unknown };
@@ -109,7 +109,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
   };
 
   const finish = async () => {
-    if (addManager && !managerName.trim()) { setError("Müdürün adını girin ya da “Şimdilik atla” seçin."); return; }
+    if (addManager && !managerName.trim()) { setError("Sorumlunun adını girin ya da “Şimdilik atla” seçin."); return; }
     setSaving(true);
     setError("");
     const warnings: string[] = [];
@@ -167,7 +167,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
             inviteUrl: `${window.location.origin}/setup?token=${ud.inviteToken}`,
           };
         } else {
-          warnings.push(`Müdür hesabı oluşturulamadı${ud.error ? `: ${ud.error}` : ""}. Personel sayfasından ekleyebilirsiniz.`);
+          warnings.push(`Sorumlu hesabı oluşturulamadı${ud.error ? `: ${ud.error}` : ""}. Personel sayfasından ekleyebilirsiniz.`);
         }
       }
 
@@ -250,7 +250,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                     <p>Geçici şifre: <strong>{created.manager.tempPassword}</strong></p>
                     <p className="break-all text-xs">{created.manager.inviteUrl}</p>
                   </div>
-                  <p className="text-xs text-slate-500">Bu bilgileri müdüre iletin. İlk girişte kendi şifresini belirleyecek. Şifre bir daha gösterilmez.</p>
+                  <p className="text-xs text-slate-500">Bu bilgileri sorumluya iletin. İlk girişte kendi şifresini belirleyecek. Şifre bir daha gösterilmez.</p>
                   <button onClick={copyCredentials}
                     className={cn("flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors", copied ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
                     {copied ? <><Check size={13} /> Kopyalandı</> : <><Copy size={13} /> Bilgileri Kopyala</>}
@@ -333,9 +333,9 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
               {step === 2 && (
                 <WizardStep icon={<UserPlus size={24} />} color="bg-sky-100 text-sky-700"
-                  title="Şube müdürü" sub="Müdür hesabını şimdi açarsanız giriş bilgileri bir sonraki ekranda çıkar.">
+                  title="Şube sorumlusu" sub="Sorumlu hesabını şimdi açarsanız giriş bilgileri bir sonraki ekranda çıkar.">
                   <div className="grid grid-cols-2 gap-2">
-                    {[{ v: true, l: "Müdür hesabı aç" }, { v: false, l: "Şimdilik atla" }].map(o => (
+                    {[{ v: true, l: "Sorumlu hesabı aç" }, { v: false, l: "Şimdilik atla" }].map(o => (
                       <button key={String(o.v)} onClick={() => setAddManager(o.v)}
                         className={cn("px-4 py-3 rounded-xl border-2 text-sm font-bold transition-colors",
                           addManager === o.v ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-600 hover:border-slate-300")}>
@@ -355,7 +355,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500">Müdürü sonra Personel sayfasından ekleyebilirsiniz.</p>
+                    <p className="text-sm text-slate-500">Sorumluyu sonra Personel sayfasından ekleyebilirsiniz.</p>
                   )}
                 </WizardStep>
               )}

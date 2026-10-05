@@ -1176,7 +1176,7 @@ export default function SettingsPage() {
                     {viewerRole === "admin" ? (
                     <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
                       onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
-                    ) : <p className="text-xs text-slate-500">İşletme türünü işletme sahibi seçer.</p>}
+                    ) : <p className="text-xs text-slate-500">İşletme türünü hesap sahibi seçer.</p>}
                     {industryChanged && (
                       <div className="flex flex-wrap items-center gap-2 mt-3">
                         <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty}
@@ -1273,7 +1273,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-400 mb-3">
                     İsteğe bağlı. Kasa, mutfak, hat gibi bölümler eklerseniz kişiler bir departmana atanır ve kaç kişi
                     gerektiği her departman için ayrı girilir. Bir departmanı alt departmanlara da bölebilirsiniz
-                    (Salon › Teras gibi): kişiler alt departmanlara atanır, departmanın şefi hepsini yönetir.
+                    (Salon › Teras gibi): kişiler alt departmanlara atanır, departmanın sorumlusu hepsini yönetir.
                     Küçük işletmede gerekmez. Değişiklikler anında kaydedilir.
                   </p>
 
@@ -1710,7 +1710,7 @@ export default function SettingsPage() {
                 <SectionCard title="Uygunluk">
                   <RuleRow
                     label="Uygunluk Toplama"
-                    description="Kapalıysa vardiyaları müdür tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
+                    description="Kapalıysa vardiyaları sorumlu tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
                     right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
                   />
                   {availabilityCollectionEnabled && (
@@ -1749,19 +1749,19 @@ export default function SettingsPage() {
                 <SectionCard title="Vardiya Talepleri">
                   <RuleRow
                     label="Vardiya Takas Talebi"
-                    description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Müdür onayı gerekir."
+                    description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Sorumlu onayı gerekir."
                     right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
                   />
                   <RuleRow
                     label="Vardiya Değişiklik Talebi"
-                    description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için müdüre talep gönderebilir."
+                    description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için sorumluya talep gönderebilir."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
                 </SectionCard>
                 <SectionCard title="İzin Politikası">
                   <RuleRow
                     label="İzin Talepleri"
-                    description="Kapalıyken personel portalından izin talebi oluşturulamaz, müdür Onaylar sayfasında izin sekmesi görünmez."
+                    description="Kapalıyken personel portalından izin talebi oluşturulamaz, sorumlu Onaylar sayfasında izin sekmesi görünmez."
                     right={<Toggle on={leaveRequestsEnabled} onToggle={() => setLeaveRequestsEnabled(v => !v)} />}
                   />
                   <RuleRow
@@ -1922,12 +1922,12 @@ export default function SettingsPage() {
                   {FEATURES.breaks && (<>
                   <RuleRow
                     label="Eş Zamanlı Mola Limiti"
-                    description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca müdür panelinde uyarı gösterilir."
+                    description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca sorumlunun ekranında uyarı gösterilir."
                     right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
                   />
                   <RuleRow
                     label="Uzun Mola Uyarı Eşiği"
-                    description="Mola bu süreden uzun sürerse kart kırmızıya döner ve müdür panelinde 'Uzun mola!' uyarısı çıkar."
+                    description="Mola bu süreden uzun sürerse kart kırmızıya döner ve sorumlunun ekranında 'Uzun mola!' uyarısı çıkar."
                     right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
                   />
                   </>)}
@@ -2014,7 +2014,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Zorunlu Atama Bonusu"
-                    description="İzinliyken müdür tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
+                    description="İzinliyken sorumlu tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
                     right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                 </SectionCard>
@@ -2106,7 +2106,7 @@ export default function SettingsPage() {
               const card = {
                   chat: (
                 <FeatureCard icon={MessageSquare} title="Mesajlar"
-                  description="Müdür ve personel arasında ekip içi sohbet."
+                  description="Sorumlu ve personel arasında ekip içi sohbet."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
                   ),
                   openShifts: (

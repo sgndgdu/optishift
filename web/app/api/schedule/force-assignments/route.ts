@@ -159,7 +159,7 @@ export async function PATCH(req: NextRequest) {
       VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/portal/calendar', false, ?)
     `).run(
       shiftRow.personnel_id,
-      `${dateLabel}${timeStr} zorunlu atamasını reddedин. Müdürün bilgilendirildi.`,
+      `${dateLabel}${timeStr} zorunlu atamasını reddedин. Sorumlun bilgilendirildi.`,
       now,
     );
 

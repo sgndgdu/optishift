@@ -390,7 +390,7 @@ export default function PortalAvailability() {
           <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
             <CalendarCheck size={22} className="text-forest-500" />
           </div>
-          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları müdürün planlıyor</p>
+          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları sorumlun planlıyor</p>
           <p className="text-sm text-slate-500 max-w-xs">
             Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
           </p>

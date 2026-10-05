@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const org_id = auth.org_id;
     const now = Math.floor(Date.now() / 1000);
     // Manager'ın oluşturduğu hesaplar patron onayına bekler; admin/supervisor direkt aktif (tekil akışla aynı kural)
-    const approvalStatus = "active"; // yöneticinin eklediği hesap direkt aktif (onay sadece kendi kendine kayıtta)
+    const approvalStatus = "active"; // sorumlunun eklediği hesap direkt aktif (onay sadece kendi kendine kayıtta)
     const results: any[] = [];
     const skipped: { line: number; name: string; reason: string }[] = [];
 

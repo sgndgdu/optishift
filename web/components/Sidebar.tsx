@@ -70,6 +70,7 @@ import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
 import { canSeePage, departmentScope, parseAccess } from "@/lib/userAccess";
+import { titleLabel } from "@/components/personnel/people";
 import { openEmployeeView } from "@/lib/employeeView";
 import { CountBadge } from "@/components/ui/StatusPill";
 
@@ -459,7 +460,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 "text-xs font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "admin" ? "İşletme Sahibi" : user?.role === "supervisor" ? "Bölge Müdürü" : user?.role === "manager" ? (parseAccess(user?.access)?.department_id ? "Şef" : user?.display_title || "Müdür") : "Çalışan"}
+                {user?.role === "admin" ? "Hesap sahibi" : user?.role === "supervisor" ? "Bölge sorumlusu" : user?.role === "manager" ? (parseAccess(user?.access)?.department_id ? "Departman sorumlusu" : titleLabel(user?.display_title)) : "Ekip üyesi"}
               </p>
             </div>
           </div>

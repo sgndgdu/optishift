@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
   const dept = departmentScope(auth);
-  if (!dept) return NextResponse.json({ error: "Sadece departman şefi planı onaya gönderir" }, { status: 403 });
+  if (!dept) return NextResponse.json({ error: "Sadece departman sorumlusu planı onaya gönderir" }, { status: 403 });
   const { location_id, week_start } = await req.json().catch(() => ({}));
   if (!location_id || !week_start) return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
   const db = getDB();

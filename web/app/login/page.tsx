@@ -16,8 +16,8 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   invalid_request: "Google girişi başarısız oldu, lütfen tekrar deneyin.",
   invalid_state: "Oturum süresi doldu, lütfen tekrar deneyin.",
   exchange_failed: "Google ile bağlantı kurulamadı, lütfen tekrar deneyin.",
-  account_pending: "Hesabınız henüz onaylanmadı. Lütfen yöneticinizle iletişime geçin.",
-  account_rejected: "Hesabınız reddedildi. Lütfen yöneticinizle iletişime geçin.",
+  account_pending: "Hesabınız henüz onaylanmadı. Lütfen sorumlunuzla iletişime geçin.",
+  account_rejected: "Hesabınız reddedildi. Lütfen sorumlunuzla iletişime geçin.",
 };
 
 export default function LoginPage() {
@@ -238,7 +238,7 @@ export default function LoginPage() {
             Herkese Tek Kapı
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed">
-            Çalışan, yönetici ya da işletme sahibi: tek giriş sayfası, herkes kendi ekranına yönlenir.
+            Ekip, sorumlu ya da hesap sahibi: tek giriş sayfası, herkes kendi ekranına yönlenir.
             Rol ne ise o portal açılır.
           </p>
         </div>

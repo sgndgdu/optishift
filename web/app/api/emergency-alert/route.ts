@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     `).all(auth.location_id) as any[];
 
     if (recipients.length === 0) {
-      return NextResponse.json({ error: "Bu şubede bildirim alacak bir yönetici bulunamadı" }, { status: 404 });
+      return NextResponse.json({ error: "Bu şubede bildirim alacak bir sorumlu bulunamadı" }, { status: 404 });
     }
 
     for (const r of recipients) {

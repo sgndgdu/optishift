@@ -71,13 +71,13 @@ export async function POST(req: NextRequest) {
 
     // Onay bekleyen hesaplar giriş yapamaz
     if (user.approval_status === "pending") {
-      return NextResponse.json({ error: "Hesabınız henüz onaylanmadı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+      return NextResponse.json({ error: "Hesabınız henüz onaylanmadı. Lütfen sorumlunuzla iletişime geçin." }, { status: 403 });
     }
     if (user.approval_status === "rejected") {
-      return NextResponse.json({ error: "Hesabınız reddedildi. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+      return NextResponse.json({ error: "Hesabınız reddedildi. Lütfen sorumlunuzla iletişime geçin." }, { status: 403 });
     }
     if (user.approval_status === "disabled") {
-      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen yöneticinizle iletişime geçin." }, { status: 403 });
+      return NextResponse.json({ error: "Hesabınız kapatıldı. Lütfen sorumlunuzla iletişime geçin." }, { status: 403 });
     }
 
     const userData = {

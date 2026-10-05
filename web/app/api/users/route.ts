@@ -126,9 +126,9 @@ export async function POST(req: NextRequest) {
     const isSupervisor = role === "supervisor";
     let managedIds: string[] = [];
     if (isSupervisor) {
-      if (auth.role !== "admin") return NextResponse.json({ error: "Birden çok şubeli yöneticiyi sadece işletme sahibi ekler" }, { status: 403 });
+      if (auth.role !== "admin") return NextResponse.json({ error: "Birden çok şubeli sorumluyu sadece hesap sahibi ekler" }, { status: 403 });
       const want = Array.isArray(body.managed_location_ids) ? body.managed_location_ids.map(String) : [];
-      if (!want.length) return NextResponse.json({ error: "Yönetici için en az bir şube seçin" }, { status: 400 });
+      if (!want.length) return NextResponse.json({ error: "Sorumlu için en az bir şube seçin" }, { status: 400 });
       const ok = await db.prepare(`SELECT id FROM locations WHERE org_id = ? AND id IN (${want.map(() => "?").join(",")})`).all(auth.org_id, ...want) as { id: string }[];
       if (ok.length !== want.length) return NextResponse.json({ error: "Şube bulunamadı" }, { status: 400 });
       managedIds = want;
@@ -316,7 +316,7 @@ export async function PATCH(req: NextRequest) {
     if (body.schedulable !== undefined) {
       if (auth.role !== "admin" && !hasPerm(auth, "team")) return NextResponse.json({ error: permError("team") }, { status: 403 });
       if (target.role !== "manager" && target.role !== "admin") {
-        return NextResponse.json({ error: "Bu ayar yöneticiler içindir" }, { status: 400 });
+        return NextResponse.json({ error: "Bu ayar sorumlular içindir" }, { status: 400 });
       }
       const on = body.schedulable === true;
       if (target.personnel_id) {
@@ -344,7 +344,7 @@ export async function PATCH(req: NextRequest) {
     // Ekipten birini yönetici / departman şefi yap: hesap ve geçmiş korunur (personel kaydı kalır)
     if (body.make_manager !== undefined) {
       if (target.role !== "employee" || !target.personnel_id) {
-        return NextResponse.json({ error: "Sadece ekipteki bir çalışan yönetici yapılabilir" }, { status: 400 });
+        return NextResponse.json({ error: "Sadece ekipteki biri sorumlu yapılabilir" }, { status: 400 });
       }
       const p = await db.prepare("SELECT primary_location_id, department_id FROM personnel WHERE id = ? AND org_id = ?").get(target.personnel_id, auth.org_id) as any;
       const locId = p?.primary_location_id ?? target.location_id;
@@ -360,7 +360,7 @@ export async function PATCH(req: NextRequest) {
         if (!ok) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
       }
       const permissions = grantedAccess(auth, mm.perms ? { perms: mm.perms } : null, deptId);
-      const title = typeof mm.display_title === "string" && mm.display_title.trim() ? mm.display_title.trim() : (deptId ? "Şef" : "Yönetici");
+      const title = typeof mm.display_title === "string" && mm.display_title.trim() ? mm.display_title.trim() : (deptId ? "Departman sorumlusu" : "Sorumlu");
       await db.prepare("UPDATE users SET role = 'manager', location_id = ?, department_id = COALESCE(?, department_id), display_title = ?, permissions = ?, managed_location_ids = NULL WHERE id = ?")
         .run(locId, deptId, title, permissions, id);
       // Yönetici varsayılan olarak vardiya yazılmaz (kullanıcı kararı); kartındaki anahtarla plana alınır
@@ -375,9 +375,9 @@ export async function PATCH(req: NextRequest) {
 
     // Yöneticiyi çalışana döndür (ör. şef değişti): ekipteki kaydı varsa çalışan olarak devam eder
     if (body.make_employee === true) {
-      if (target.role !== "manager" && target.role !== "supervisor") return NextResponse.json({ error: "Kişi zaten çalışan" }, { status: 400 });
+      if (target.role !== "manager" && target.role !== "supervisor") return NextResponse.json({ error: "Kişi zaten ekip üyesi" }, { status: 400 });
       if (!target.personnel_id) {
-        return NextResponse.json({ error: "Bu yöneticinin ekipte çalışan kaydı yok; hesabı silinebilir" }, { status: 400 });
+        return NextResponse.json({ error: "Bu sorumlunun ekipte çalışan kaydı yok; hesabı silinebilir" }, { status: 400 });
       }
       await db.prepare("UPDATE users SET role = 'employee', permissions = NULL, display_title = NULL, managed_location_ids = NULL WHERE id = ?").run(id);
       // Çalışan her zaman plandadır (vardiya dışı kalma sadece yöneticiler için)
@@ -429,7 +429,7 @@ export async function PATCH(req: NextRequest) {
     // (yukarıdaki rütbe/kapsam kontrolü). Bir sonraki girişte geçerli olur.
     if (body.access !== undefined) {
       if (target.role !== "manager" && target.role !== "supervisor") {
-        return NextResponse.json({ error: "Yetki sadece yöneticilere verilir" }, { status: 400 });
+        return NextResponse.json({ error: "Yetki sadece sorumlulara verilir" }, { status: 400 });
       }
       // Departman kapsamı burada değişmez (şef kalır ya da kalmaz): sadece maddeler
       const dept = parseAccess(target.permissions)?.department_id ?? null;
@@ -438,7 +438,7 @@ export async function PATCH(req: NextRequest) {
         const ok = target.role === "manager" && target.location_id
           ? await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(dept, target.location_id)
           : null;
-        if (!ok) return NextResponse.json({ error: "Departman yöneticinin şubesinde bulunamadı" }, { status: 400 });
+        if (!ok) return NextResponse.json({ error: "Departman bu sorumlunun şubesinde bulunamadı" }, { status: 400 });
       }
       await db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(permissions, id);
     }

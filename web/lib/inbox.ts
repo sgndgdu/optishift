@@ -189,7 +189,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı henüz hazır değil",
-          detail: pub ? "Personel plan yapabilsin diye erken yayınlayın." : "Hazırlayıp onaya gönderin, müdür yayınlar.",
+          detail: pub ? "Personel plan yapabilsin diye erken yayınlayın." : "Hazırlayıp onaya gönderin, sorumlu yayınlar.",
           action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
         })
       : ap?.drafted
@@ -197,14 +197,14 @@ export function buildInbox(input: InboxInput): InboxItem[] {
           id: "next-week",
           severity: urgent ? "critical" : "today",
           title: "Gelecek haftanın planı otomatik hazırlandı",
-          detail: pub ? "Kontrol edin, uygunsa yayınlayın. Personel yayınlanınca görür." : "Kontrol edin, uygunsa onaya gönderin. Müdür yayınlayınca personel görür.",
+          detail: pub ? "Kontrol edin, uygunsa yayınlayın. Personel yayınlanınca görür." : "Kontrol edin, uygunsa onaya gönderin. Sorumlu yayınlayınca personel görür.",
           action: { label: pub ? "İncele ve Yayınla" : "İncele ve Onaya Gönder", href: "/schedule?week=next" },
         }
       : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı taslakta",
-          detail: pub ? "Personel yayınlanana kadar vardiyalarını göremez." : "Hazırsa onaya gönderin. Müdür yayınlayana kadar personel göremez.",
+          detail: pub ? "Personel yayınlanana kadar vardiyalarını göremez." : "Hazırsa onaya gönderin. Sorumlu yayınlayana kadar personel göremez.",
           action: { label: pub ? "Gözden Geçir ve Yayınla" : "Gözden Geçir ve Onaya Gönder", href: "/schedule?week=next" },
         });
 

@@ -65,7 +65,7 @@ export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
   if (auth.role !== "admin" && auth.role !== "supervisor") {
-    return NextResponse.json({ error: "Kilidi sadece işletme sahibi kaldırabilir" }, { status: 403 });
+    return NextResponse.json({ error: "Kilidi sadece hesap sahibi kaldırabilir" }, { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);

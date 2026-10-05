@@ -177,7 +177,7 @@ export interface ScheduleRules {
   hero_bonus_points?: number;        // açık vardiya üstlenme (kahraman) düz bonus puanı, varsayılan 6
   force_bonus_points?: number;       // izinliyken kabul edilen zorunlu atama düz bonus puanı, varsayılan 5
   fairness_window_weeks?: number;    // kümülatif puan penceresi (hafta), decay YOK — düz toplam, varsayılan 4
-  availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları müdür tek başına planlar, personelden uygunluk istenmez
+  availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları sorumlu tek başına planlar, personelden uygunluk istenmez
   checkin_required?: boolean;       // açıksa giriş yapmayan personel "geç kalan" sayılır (varsayılan false — giriş bilgi amaçlı, geç sayılmaz)
   gps_checkin_required?: boolean;   // açıksa şubeye checkin_radius_m'den uzak giriş reddedilir (varsayılan: sadece bilgilendirir, engellemez)
   checkin_radius_m?: number;        // GPS doğrulama yarıçapı (metre), varsayılan 150
@@ -204,7 +204,7 @@ export interface ScheduleRules {
   // İleri seviye modüller (hepsi varsayılan false — Ayarlar'dan açılır)
   compliance_tracking_enabled?: boolean; // açıkken: süresi dolmuş belgesi olan personel o haftaki plana hiç dahil edilmez (bkz. app/api/generate/route.ts)
   task_management_enabled?: boolean; // açıkken: yeni vardiya atanınca locations.task_templates'ten shift_tasks otomatik oluşturulur
-  tip_pooling_enabled?: boolean; // açıkken: müdür bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
+  tip_pooling_enabled?: boolean; // açıkken: sorumlu bahşiş havuzu açıp dönemi dağıtabilir, personel portalında "kazanılan prim" kartı görünür
   kiosk_mode_enabled?: boolean; // açıkken: /kiosk/{location_id} ortak tablet PIN girişiyle giriş/çıkış yapabilir (oturumsuz)
   forecasting_enabled?: boolean; // açıkken: kapasite matrisi hücrelerinde geçmiş haftalardan türetilen tahmin gösterilir
   handover_log_enabled?: boolean; // açıkken: zorunlu okuma/onaylı Devir-Teslim Defteri (shift_handovers) devrede — eski handover_notes_enabled broadcast'i bu şubede otomatik gizlenir

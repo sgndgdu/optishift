@@ -191,8 +191,8 @@ export async function POST(req: NextRequest) {
           asg.personnel_id,
           "Vardiyan ilana çevrildi",
           reason === "no_show"
-            ? `${formatDateTR(date)} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan müdürünle iletişime geç.`
-            : `${formatDateTR(date)} ${start_time}–${end_time} vardiyan müdürün tarafından açık ilana dönüştürüldü, artık takviminde değil.`,
+            ? `${formatDateTR(date)} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan sorumlunla iletişime geç.`
+            : `${formatDateTR(date)} ${start_time}–${end_time} vardiyan sorumlun tarafından açık ilana dönüştürüldü, artık takviminde değil.`,
           Math.floor(Date.now() / 1000)
         );
       }
@@ -252,7 +252,7 @@ export async function PATCH(req: NextRequest) {
     if (claimed_by && assigned_by_manager && auth.role === "manager") {
       const target = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(claimed_by, auth.org_id) as any;
       if (!String(target?.assigned_location_ids ?? "").includes(`"${auth.location_id}"`)) {
-        return NextResponse.json({ error: "Başka şubenin çalışanını sadece işletme sahibi ya da bölge müdürü atar. İlan bu kişiye duyuruldu, kendisi üstlenebilir." }, { status: 403 });
+        return NextResponse.json({ error: "Başka şubenin çalışanını sadece hesap sahibi ya da bölge sorumlusu atar. İlan bu kişiye duyuruldu, kendisi üstlenebilir." }, { status: 403 });
       }
     }
     if (claimed_by) {

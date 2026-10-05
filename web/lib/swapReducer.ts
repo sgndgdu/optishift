@@ -79,7 +79,7 @@ export function swapReducer(
               type: "NOTIFY",
               personnel_id: swap.requester_id,
               title: "Vardiya takası kabul edildi",
-              message: `${swap.target_name} takası kabul etti. Müdür onayı bekleniyor.`,
+              message: `${swap.target_name} takası kabul etti. Sorumlu onayı bekleniyor.`,
             },
             // Factor 7: akış duraklar, müdüre "onayını bekliyorum" bildirimi gider
             {
@@ -152,13 +152,13 @@ export function swapReducer(
               type: "NOTIFY",
               personnel_id: swap.requester_id,
               title: "Vardiya takası onaylandı",
-              message: "Müdürünüz vardiya takasını onayladı.",
+              message: "Sorumlunuz vardiya takasını onayladı.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
               title: "Vardiya takası onaylandı",
-              message: "Müdürünüz vardiya takasını onayladı.",
+              message: "Sorumlunuz vardiya takasını onayladı.",
             },
           ],
         };
@@ -173,13 +173,13 @@ export function swapReducer(
               type: "NOTIFY",
               personnel_id: swap.requester_id,
               title: "Vardiya takası reddedildi",
-              message: "Müdürünüz vardiya takasını reddetti.",
+              message: "Sorumlunuz vardiya takasını reddetti.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
               title: "Vardiya takası reddedildi",
-              message: "Müdürünüz vardiya takasını reddetti.",
+              message: "Sorumlunuz vardiya takasını reddetti.",
             },
           ],
         };
@@ -187,7 +187,7 @@ export function swapReducer(
 
       return {
         ok: false,
-        error: "peer_accepted durumunda yalnızca müdür onay/ret yapabilir",
+        error: "peer_accepted durumunda yalnızca sorumlu onay/ret yapabilir",
         httpStatus: 400,
       };
     }

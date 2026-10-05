@@ -66,4 +66,4 @@ export function applyRuleLocks(current: Record<string, unknown>, incoming: Recor
   return out;
 }
 
-export const LOCK_NOTE = "Bu ayarı değiştirme yetkiniz yok. İşletme sahibi verebilir.";
+export const LOCK_NOTE = "Bu ayarı değiştirme yetkiniz yok. Hesap sahibi verebilir.";

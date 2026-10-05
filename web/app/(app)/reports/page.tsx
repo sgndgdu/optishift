@@ -179,7 +179,7 @@ function WorkHoursReport() {
           <p className="text-sm font-semibold text-slate-900">{periodLock ? "Dönem kilitli" : "Dönem açık"}</p>
           <p className="text-xs text-slate-500">
             {periodLock
-              ? `${periodLock.locked_by_name ?? "Yönetici"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`
+              ? `${periodLock.locked_by_name ?? "Sorumlu"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`
               : "Puantajı onaylayınca kilitleyin, geçmiş veri değişmesin."}
           </p>
         </div>

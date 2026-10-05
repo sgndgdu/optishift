@@ -19,7 +19,7 @@ export default function TermsPage() {
         OptiShift; işletmelerin vardiya planlaması, personel uygunluğu, izin ve fazla mesai
         takibi yapmasına yardımcı olan bir yazılım hizmetidir (SaaS). Platform, matematiksel
         optimizasyon ile vardiya önerileri üretir; nihai planlama kararları her zaman işletme
-        yöneticisine aittir.
+        sorumlusuna aittir.
       </p>
 
       <h2>2. Hesap ve Sorumluluk</h2>

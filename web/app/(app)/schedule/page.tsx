@@ -302,7 +302,7 @@ function SchedulePageInner() {
   const [locRules, setLocRules]                   = useState<FairnessRules>({}); // tam rules objesi — canlı yük hesabı (cellBurden) için
   const [fatigueRiskMap, setFatigueRiskMap]       = useState<Record<string, { riskLevel: string; reasons: string[] }>>({}); // rules.fatigue_radar_enabled — personel satırındaki risk ikonu için
   const [scoredWeekBurden, setScoredWeekBurden]   = useState<Record<string, number>>({}); // bu haftanın score_history'deki yükü — çift sayım düzeltmesi
-  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa müdür tek başına planlar, uygunluk uyarıları susturulur
+  const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa sorumlu tek başına planlar, uygunluk uyarıları susturulur
   const [popover, setPopover]                     = useState<Popover | null>(null);
   const [loading, setLoading]                     = useState(false);
   const [generating, setGenerating]               = useState(false);
@@ -854,7 +854,7 @@ function SchedulePageInner() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ location_id: activeLocationId, week_start: weekStart }),
       });
-      if (r.ok) { showToast("Plan yöneticinize onaya gönderildi.", "success"); loadDeptStatus(); }
+      if (r.ok) { showToast("Plan sorumlunuza onaya gönderildi.", "success"); loadDeptStatus(); }
       else showToast((await r.json().catch(() => ({}))).error ?? "Gönderilemedi", "error");
     } finally { setSubmitting(false); }
   };
@@ -2753,7 +2753,7 @@ loading ? (
     }] : []),
     ...(isPublishedWeek && !editUnlocked && editRequestStatus === "pending" ? [{
       id: "edit-pending", tone: "info" as const,
-      title: "Düzenleme onayı patronda bekleniyor",
+      title: "Düzenleme onayı hesap sahibinde bekleniyor",
       action: { label: "Detay", onClick: () => setUnlockModal(true) },
     }] : []),
     ...(isPublishedWeek && editUnlocked && editRequestStatus === "approved" ? [{
@@ -2948,7 +2948,7 @@ loading ? (
                     </button>
                   )
                 ) : (
-                  <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl" title="Planı yayınlama yetkiniz yok">Yayını yöneticiniz yapar</span>
+                  <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl" title="Planı yayınlama yetkiniz yok">Yayını sorumlunuz yapar</span>
                 )
               ) : (
                 <button onClick={handlePublish} disabled={publishLoading}
@@ -2980,13 +2980,13 @@ loading ? (
                 ))}
                 {ownDepts.map(d => (
                   <StatusPill key={d.id} tone={plannedIds.has(d.id) ? "positive" : "attention"}>
-                    {departmentLabel(departments, d)} {plannedIds.has(d.id) ? "planlı ✓" : "boş (şefi yok, sizde)"}
+                    {departmentLabel(departments, d)} {plannedIds.has(d.id) ? "planlı ✓" : "boş (sorumlusu yok, sizde)"}
                   </StatusPill>
                 ))}
                 {chefsReady && ownReady ? (
                   <span className="text-xs font-semibold text-emerald-700">Hepsi hazır. Kontrol edip yayınlayabilirsiniz.</span>
                 ) : chefsReady && (
-                  <span className="text-xs text-slate-500">Şefi olmayan bölümleri Planı Oluştur ile ekleyin: şeflerin planları korunur.</span>
+                  <span className="text-xs text-slate-500">Sorumlusu olmayan bölümleri Planı Oluştur ile ekleyin: sorumluların planları korunur.</span>
                 )}
               </div>
             );
@@ -3003,7 +3003,7 @@ loading ? (
                 <p className="text-forest-700/80 text-xs mt-0.5">
                   {canPublish
                     ? <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Personel yayınlanınca görür.</>
-                    : <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Onaya Gönder&apos;e basın. Yöneticiniz kontrol edip yayınlar.</>}
+                    : <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Onaya Gönder&apos;e basın. Sorumlunuz kontrol edip yayınlar.</>}
                 </p>
               </div>
             </div>
@@ -3685,7 +3685,7 @@ loading ? (
           {unlockModal && (
             <Sheet open onClose={() => { if (editRequestStatus !== "pending") setUnlockModal(false); }}
               title={editRequestStatus === "pending" ? "Onay bekleniyor" : editRequestStatus === "rejected" ? "Talep reddedildi" : "Düzenleme onayı"}
-              description={editRequestStatus === "idle" || editRequestStatus === "sending" ? "İşletme sahibinin onayı gerekiyor" : undefined}
+              description={editRequestStatus === "idle" || editRequestStatus === "sending" ? "Hesap sahibinin onayı gerekiyor" : undefined}
               footer={editRequestStatus === "pending" ? (
                 <button onClick={() => setUnlockModal(false)} className={sheetSecondaryClass}>Kapat (arka planda bekler)</button>
               ) : editRequestStatus === "rejected" ? <>
@@ -3698,15 +3698,15 @@ loading ? (
                 </button>
               </>}>
               {(editRequestStatus === "idle" || editRequestStatus === "sending") && (
-                <p className="text-sm text-slate-600 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>işletme sahibine</strong> gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
+                <p className="text-sm text-slate-600 leading-relaxed">Bu hafta için yayınlanmış bir plan var. Düzenleme talebiniz <strong>hesap sahibine</strong> gönderilecek. Onayladıktan sonra düzenleyebilirsiniz.</p>
               )}
               {editRequestStatus === "pending" && (
-                <p className="text-sm text-slate-600">Talep işletme sahibine iletildi. Onayladığında düzenleme kendiliğinden açılır.</p>
+                <p className="text-sm text-slate-600">Talep hesap sahibine iletildi. Onayladığında düzenleme kendiliğinden açılır.</p>
               )}
               {editRequestStatus === "rejected" && (
                 <div className="space-y-1">
                   {editRequestNote && <p className="text-sm text-slate-700">&ldquo;{editRequestNote}&rdquo;</p>}
-                  <p className="text-sm text-slate-500">Planı düzenlemek için tekrar onay isteyin ya da işletme sahibiyle konuşun.</p>
+                  <p className="text-sm text-slate-500">Planı düzenlemek için tekrar onay isteyin ya da hesap sahibiyle konuşun.</p>
                 </div>
               )}
             </Sheet>

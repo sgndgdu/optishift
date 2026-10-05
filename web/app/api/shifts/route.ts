@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
     }
     // "Planı yayınlama" yetkisi yoksa (lib/userAccess): taslak yazar, yayınlayamaz ve yayınlanmış satıra dokunamaz
     if (!canPublishPlan(auth) && valid.some((x: any) => (x.publication_status ?? "published") === "published")) {
-      return NextResponse.json({ error: "Planı yayınlama yetkiniz yok. Hazırladığınız planı yöneticinize onaya gönderin." }, { status: 403 });
+      return NextResponse.json({ error: "Planı yayınlama yetkiniz yok. Hazırladığınız planı sorumlunuza onaya gönderin." }, { status: 403 });
     }
     const vPids = [...new Set(valid.map((x: any) => String(x.personnel_id)))] as string[];
     if (vPids.length) {
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
     for (const lw of new Set(valid.map((x: any) => `${x.location_id}|${x.week_start}`))) {
       const [l, w] = (lw as string).split("|");
       if (!(await canEditPublishedWeek(db, auth, l, w))) {
-        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için patron onayı gerekiyor" }, { status: 403 });
+        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için hesap sahibi onayı gerekiyor" }, { status: 403 });
       }
     }
     const pidList = [...new Set(valid.map((x: any) => String(x.personnel_id)))] as string[];
@@ -462,7 +462,7 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
-        `Müdürünüz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz +${fn.points} puan bonus kazanırsınız.`,
+        `Sorumlunuz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz +${fn.points} puan bonus kazanırsınız.`,
         now,
       );
     }
@@ -505,7 +505,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       if (!(await canEditPublishedWeek(db, auth, location_id, week_start))) {
-        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için patron onayı gerekiyor" }, { status: 403 });
+        return NextResponse.json({ error: "Yayınlanmış haftayı değiştirmek için hesap sahibi onayı gerekiyor" }, { status: 403 });
       }
       // Departman şefi sadece kendi ekibinin taslağını yayınlar
       const scopeIds = await departmentPersonnelIds(db, auth, location_id);

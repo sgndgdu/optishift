@@ -19,7 +19,7 @@ const LABELS: Record<"manager" | "employee", Record<string, string>> = {
     open: "Açık", claimed: "Üstlenildi",
   },
   employee: {
-    pending: "Bekliyor", peer_accepted: "Müdür Onayı Bekliyor", peer_rejected: "Karşı Taraf Reddetti",
+    pending: "Bekliyor", peer_accepted: "Sorumlu Onayı Bekliyor", peer_rejected: "Karşı Taraf Reddetti",
     cancelled: "İptal Edildi", manager_approved: "Onaylandı", manager_rejected: "Reddedildi", approved: "Onaylandı",
     open: "Üstlenen bekleniyor", claimed: "Devredildi", rejected: "Reddedildi",
   },

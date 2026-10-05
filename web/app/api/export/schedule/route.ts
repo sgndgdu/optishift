@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     weekEnd.setDate(weekEnd.getDate() + 6);
 
     const kpiRows: any[][] = [
-      [`OptiShift · Yönetici Özeti`],
+      [`OptiShift · Plan Özeti`],
       [`Şube: ${location?.name ?? location_id}`],
       [`İşletme: ${orgRow?.name ?? "—"}`],
       [`Hafta: ${weekDate.toLocaleDateString("tr-TR")} – ${weekEnd.toLocaleDateString("tr-TR")}`],
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     // ── Build workbook ───────────────────────────────────────────────────
     const wb = new ExcelJS.Workbook();
 
-    const ws1 = wb.addWorksheet("Yönetici Özeti");
+    const ws1 = wb.addWorksheet("Plan Özeti");
     ws1.columns = [{ width: 22 }, { width: 16 }, { width: 14 }, { width: 12 }, { width: 16 }, { width: 20 }, { width: 14 }];
     ws1.addRows(kpiRows);
 

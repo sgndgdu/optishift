@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   // Şube açmak sadece işletme sahibinin işi (bölge müdürü yalnız atandığı şubeleri yönetir)
   if (auth.role !== "admin") {
-    return NextResponse.json({ error: "Şube açmak için işletme sahibi olmalısınız." }, { status: 403 });
+    return NextResponse.json({ error: "Şube açmak için hesap sahibi olmalısınız." }, { status: 403 });
   }
 
   const db = getDB();

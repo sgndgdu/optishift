@@ -1357,7 +1357,7 @@ def export_excel(solver, shifts, person_scores):
     # ── SEKMİ 1: Yönetici Özeti & KPI ────────────────────────────────────
     ws1 = wb.active
     assert ws1 is not None
-    ws1.title = "Yönetici Özeti & KPI"
+    ws1.title = "Plan Özeti & KPI"
     ws1.row_dimensions[1].height = 30
     ws1.row_dimensions[3].height = 22
 

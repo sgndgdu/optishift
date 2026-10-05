@@ -93,12 +93,22 @@ export function mergePeople(users: any[], personnel: any[], includeAccount: (acc
 
 export const personKey = (p: MergedPerson) => p.personnelId ?? p.userId ?? "";
 
+/** Kayıtlı unvan → ekrandaki ad. Eski kayıtlardaki Müdür / Şef / Yönetici adları yeni adlarla gösterilir. */
+export function titleLabel(raw: string | null | undefined): string {
+  const t = (raw ?? "").trim();
+  const legacy: Record<string, string> = {
+    "": "Sorumlu", "Müdür": "Sorumlu", "Yönetici": "Sorumlu", "Şef": "Departman sorumlusu", "Departman Müdürü": "Departman sorumlusu",
+    "Şube Müdürü": "Şube sorumlusu", "Bölge Müdürü": "Bölge sorumlusu",
+  };
+  return legacy[t] ?? t;
+}
+
 export function roleBadge(p: Pick<MergedPerson, "role" | "display_title">): { label: string; tone: PillTone } {
-  if (p.role === "admin") return { label: "İşletme Sahibi", tone: "accent" };
+  if (p.role === "admin") return { label: "Hesap sahibi", tone: "accent" };
   // Yöneticinin unvanı kapsamından gelir (ManagersCard managerTitle)
-  if (p.role === "supervisor") return { label: "Bölge Müdürü", tone: "brand" };
-  if (p.role === "manager") return { label: p.display_title || "Müdür", tone: "brand" };
-  return { label: "Çalışan", tone: "neutral" };
+  if (p.role === "supervisor") return { label: "Bölge sorumlusu", tone: "brand" };
+  if (p.role === "manager") return { label: titleLabel(p.display_title), tone: "brand" };
+  return { label: "Ekip üyesi", tone: "neutral" };
 }
 
 /** Satırdaki tek durum (DESIGN.md §4): en önemlisi. `hasDepts`: kişinin şubesinde departman var mı. */

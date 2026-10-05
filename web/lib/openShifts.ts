@@ -124,7 +124,7 @@ export async function claimOpenShift(
     "hero_bonus",
     opts.assignedByManager ? "📋 Açık Vardiyaya Atandın" : "✅ Vardiyayı üstlendin",
     opts.assignedByManager
-      ? `Müdürün seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsın, sonraki planlarda yükün hafifler.`
+      ? `Sorumlun seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsın, sonraki planlarda yükün hafifler.`
       : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Teşekkürler! Ek puan aldın, sonraki planlarda yükün hafifler.`,
     now,
   );

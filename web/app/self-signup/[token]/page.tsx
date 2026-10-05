@@ -94,7 +94,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Kaydınız alındı!</h1>
           <p className="text-slate-500 text-sm mb-4">
-            Yöneticiniz hesabınızı onayladığında giriş yapabilirsiniz.
+            Sorumlunuz hesabınızı onayladığında giriş yapabilirsiniz.
           </p>
           <div className="bg-white rounded-2xl border border-slate-200 p-4">
             <p className="text-xs font-bold text-slate-400 mb-1">Kullanıcı Adınız</p>
@@ -215,7 +215,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
               {loading ? <Loader2 size={18} className="animate-spin" /> : "Kaydımı Tamamla"}
             </button>
             <p className="text-center text-xs text-slate-400">
-              Hesabınız, yöneticiniz onayladıktan sonra aktif olur.
+              Hesabınız, sorumlunuz onayladıktan sonra aktif olur.
             </p>
           </form>
         </div>

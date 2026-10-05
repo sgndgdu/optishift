@@ -44,7 +44,7 @@ export async function performCheckIn(
     return { ok: false, status: 403, error: "Erişim reddedildi" };
   }
   if (existing.kind === "on_call") {
-    return { ok: false, status: 400, error: "Nöbette giriş yapılmaz. Çağrılırsan çalıştığın saat müdürün tarafından çağrı kaydı olarak girilir." };
+    return { ok: false, status: 400, error: "Nöbette giriş yapılmaz. Çağrılırsan çalıştığın saat sorumlun tarafından çağrı kaydı olarak girilir." };
   }
   if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
     return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, giriş yapılamaz" };

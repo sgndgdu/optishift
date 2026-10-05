@@ -175,7 +175,7 @@ export default function PortalCalendar() {
                       )}
                       {onCall && (
                         <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
-                          title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat müdürün tarafından kaydedilir.">
+                          title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat sorumlun tarafından kaydedilir.">
                           Nöbet · {onCall.start_time}–{onCall.end_time}
                         </p>
                       )}
@@ -251,7 +251,7 @@ export default function PortalCalendar() {
             {[
               ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", Icon: UserX }] : []),
               ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşına takas teklif et", Icon: ArrowLeftRight }] : []),
-              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Müdürden saat düzeltme iste", Icon: FileEdit }] : []),
+              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Sorumludan saat düzeltme iste", Icon: FileEdit }] : []),
             ].map(o => (
               <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}
                 className="w-full flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3.5 text-left hover:bg-slate-50 min-h-[56px]">
@@ -262,7 +262,7 @@ export default function PortalCalendar() {
                 </span>
               </button>
             ))}
-            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Bu şubede vardiya talepleri kapalı. Müdürünle konuş.</p>}
+            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Bu şubede vardiya talepleri kapalı. Sorumlunla konuş.</p>}
           </div>
         </Sheet>
       )}

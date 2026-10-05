@@ -430,7 +430,7 @@ export default function ScheduleArchivePage() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-slate-900 truncate">{info.label}</span>
                       <span className="block text-xs text-slate-500 truncate mt-0.5">
-                        {pub.published_by_name ?? "Yönetici"} · {fmtTimestamp(pub.published_at)}
+                        {pub.published_by_name ?? "Sorumlu"} · {fmtTimestamp(pub.published_at)}
                       </span>
                     </span>
                     {hasRevisions

@@ -372,7 +372,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         <div className="space-y-2 text-sm text-slate-700">
           {ep.phone && <p>Telefon: <a href={`tel:${ep.phone}`} className="text-forest-700">{ep.phone}</a></p>}
           {ep.email && <p>E-posta: {ep.email}</p>}
-          <p className="text-xs text-slate-500 pt-2">{ep.role === "admin" ? "İşletme sahibinin bilgilerini sadece kendisi değiştirir." : below ? "Kişi kartını değiştirmek için \"Ekip\" yetkisi gerekir. İşletme sahibi verebilir." : "Bu kişinin bilgilerini işletme sahibi değiştirir."}</p>
+          <p className="text-xs text-slate-500 pt-2">{ep.role === "admin" ? "Hesap sahibinin bilgilerini sadece kendisi değiştirir." : below ? "Kişi kartını değiştirmek için \"Ekip\" yetkisi gerekir. Hesap sahibi verebilir." : "Bu kişinin bilgilerini hesap sahibi değiştirir."}</p>
         </div>
       </Sheet>
     );
@@ -700,7 +700,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                         )}
                       </div>
                     )}
-                    {!canCrossBranch && <p className="text-xs text-slate-400 mt-1">Şubeleri işletme sahibi ya da bölge müdürü değiştirir.</p>}
+                    {!canCrossBranch && <p className="text-xs text-slate-400 mt-1">Şubeleri hesap sahibi ya da bölge sorumlusu değiştirir.</p>}
                   </div>
                 );
               })()}
@@ -763,8 +763,8 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               <div className="flex items-baseline justify-between gap-3">
                 <p className={sectionTitle}>Yönetim yetkisi</p>
                 {canEditAccess && acc.personnel_id && (
-                  <button type="button" onClick={async () => { if (await demoteManager(acc)) onChanged("Artık çalışan"); }}
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 hover:underline">Yöneticilikten al</button>
+                  <button type="button" onClick={async () => { if (await demoteManager(acc)) onChanged("Artık ekip üyesi"); }}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 hover:underline">Sorumluluktan al</button>
                 )}
               </div>
               {canEditAccess && mgrAccess

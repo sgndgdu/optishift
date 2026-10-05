@@ -41,7 +41,7 @@ export const GLOSSARY: GlossaryEntry[] = [
   { avoid: "sarı gün",          use: "tercih etmem", why: "Renk adı terim değil" },
   { avoid: "esnek gün",         use: "tercih etmem", why: "'Esnek' ne olsa gelirim gibi okunuyordu (2026-10-04 kullanıcı kararı)" },
   { avoid: "Alan Kota",         use: "Zorunlu görev", why: "Günlük kotalar kaldırıldı; vardiya tanımında zorunlu görev" },
-  { avoid: "Zorunlu rol",       use: "Zorunlu görev", why: "Kişinin yaptığı iş 'görev'; 'rol' hesap türü (Çalışan / Yönetici)" },
+  { avoid: "Zorunlu rol",       use: "Zorunlu görev", why: "Kişinin yaptığı iş 'görev'; 'rol' hesap türü (Hesap sahibi / Sorumlu / Ekip üyesi)" },
   { avoid: "Organizasyon",      use: "İşletme", why: "Plaza Türkçesi" },
   { avoid: "Maksimum",          use: "en fazla / sınır", why: "Standart Türkçe karşılık" },
   { avoid: "Minimum",           use: "en az", why: "Standart Türkçe karşılık" },

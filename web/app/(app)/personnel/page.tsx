@@ -27,7 +27,7 @@ const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess
 
 // Yöneticiler "Yönetici ekle" penceresinden (ManagerAddSheet) eklenir; bu form sadece çalışan ekler
 const ROLE_DEFS = [
-  { label: "Çalışan", role: "employee", display_title: "" },
+  { label: "Ekip üyesi", role: "employee", display_title: "" },
 ];
 
 const EMP_TYPES = [
@@ -283,7 +283,7 @@ export default function PersonnelPage() {
         const act = persons.filter(p => !p.inactive);
         const staff = act.filter(p => p.role === "employee").length;
         const mgrs = act.length - staff;
-        return `${staff} çalışan${mgrs ? ` · ${mgrs} yönetici` : ""}`;
+        return `${staff} ekip üyesi${mgrs ? ` · ${mgrs} sorumlu` : ""}`;
       })()} actions={
         /* Kişi eklemenin üç yolu tek düğmede */
         <div className="relative">
@@ -299,7 +299,7 @@ export default function PersonnelPage() {
                   { icon: Upload, title: "Excel'den toplu ekle", sub: "Şablonu doldurup tüm ekibi bir kerede", on: () => setShowBulkModal(true) },
                   { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Personel kendi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
                   ...(canManageManagers ? [{
-                    icon: UserCog, title: branchMgr ? "Şef ata" : "Yönetici ekle",
+                    icon: UserCog, title: branchMgr ? "Departman sorumlusu ata" : "Sorumlu ekle",
                     sub: branchMgr ? "Bir departmanın planını yapacak kişi" : "Planı ve ekibi sizin yerinize yönetecek kişi",
                     on: () => setShowManagerAdd(true),
                   }] : []),
@@ -407,7 +407,7 @@ export default function PersonnelPage() {
 
       {/* ADD MODAL */}
       {showAddModal && (
-        <Sheet open onClose={() => { setShowAddModal(false); setAddError(""); }} title="Çalışan ekle"
+        <Sheet open onClose={() => { setShowAddModal(false); setAddError(""); }} title="Ekibe kişi ekle"
           description="Eklendikten sonra giriş bağlantısı gösterilir."
           footer={<>
             <button onClick={() => { setShowAddModal(false); setAddError(""); }} className={sheetSecondaryClass}>Vazgeç</button>

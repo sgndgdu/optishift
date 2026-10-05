@@ -57,7 +57,7 @@ export const departments = pgTable("departments", {
   location_id: text("location_id").notNull().references(() => locations.id),
   name: text("name").notNull(),
   demand_matrix: text("demand_matrix"), // JSON: {shiftDefId: {day(0-6): count}}
-  manager_id: text("manager_id"), // user_id — departman müdürü
+  manager_id: text("manager_id"), // user_id — departman sorumlusu
   parent_id: text("parent_id"), // alt departmansa bağlı olduğu departman (tek kat; lib/departments)
 });
 
@@ -146,7 +146,7 @@ export const personnel = pgTable("personnel", {
   night_restriction: text("night_restriction"), // gece çalışma yasağı nedeni: 'pregnant' | 'nursing' | 'under18' | 'medical' | null = yok — motor gece vardiyasına atamaz
   leave_adjustment_days: integer("leave_adjustment_days").default(0), // yıllık izin elle düzeltme (±gün) — kalan izin TÜRETİLİR (lib/leave.ts), asla doğrudan yazılmaz
   assigned_department_ids: text("assigned_department_ids"), // JSON array: ["dept-1", "dept-2"]
-  schedulable: boolean("schedulable").notNull().default(true), // false = vardiya planına girmez (vardiya yapmayan yönetici)
+  schedulable: boolean("schedulable").notNull().default(true), // false = vardiya planına girmez (vardiya yapmayan sorumlu)
   // Planlı şube değiştirme (lib/branchRotation): {"every_weeks":2,"order":["loc-a","loc-b"],"anchor":"2026-10-05"}; null = yok
   branch_rotation: text("branch_rotation"),
   prev_score: doublePrecision("prev_score").default(0), // kümülatif adalet puanı (additive, decay YOK — bkz. lib/fairness.ts)
@@ -243,7 +243,7 @@ export const shiftAssignments = pgTable("shift_assignments", {
   // Zorunlu atama akışı (izinli personele manuel atama)
   force_assigned: boolean("force_assigned").default(false),
   pinned: boolean("pinned").default(false),
-  kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // müdür elle düzeltti: Planı Oluştur bu hücreye dokunmaz (taslakta)
+  kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // sorumlu elle düzeltti: Planı Oluştur bu hücreye dokunmaz (taslakta)
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
   force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // artık düz bonus PUANI (çarpan değil) — rules.force_bonus_points snapshot
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
@@ -477,7 +477,7 @@ export const scheduleEditRequests = pgTable("schedule_edit_requests", {
   org_id: text("org_id").notNull(),
   location_id: text("location_id").notNull(),
   week_start: text("week_start").notNull(),
-  requested_by: text("requested_by").notNull(), // user.id (müdür)
+  requested_by: text("requested_by").notNull(), // user.id (sorumlu)
   requested_by_name: text("requested_by_name").notNull(),
   status: text("status").notNull().default("pending"), // pending | approved | rejected
   reviewed_by: text("reviewed_by"), // user.id (supervisor/admin)
