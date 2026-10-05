@@ -76,18 +76,18 @@ const LOCATIONS = [
     departments: [
       { id: "kd-als-salon", name: "Salon" },
       { id: "kd-als-teras", name: "Teras", parent: "kd-als-salon", demand: { "s-ogle": wk(1, 2, 2), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 2, 2) },
-        people: [["Deniz", "Aydın"], ["Ece", "Korkmaz"], ["Mert", "Uslu", { extra: ["kd-als-icsalon"] }], ["Selin", "Ateş", { part: true }]] },
+        people: [["Deniz", "Aydın"], ["Ece", "Korkmaz"], ["Mert", "Uslu", { extra: ["kd-als-icsalon"] }], ["Selin", "Ateş", { part: true }], ["Can", "Ertürk"], ["Duygu", "Sönmez"]] },
       { id: "kd-als-icsalon", name: "İç Salon", parent: "kd-als-salon", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(2, 2, 2) },
-        people: [["Burak", "Şen"], ["Zeynep", "Kılıç"], ["Onur", "Taş"], ["Pınar", "Yalçın", { extra: ["kd-als-teras", "kd-als-bar"] }]] },
+        people: [["Burak", "Şen"], ["Zeynep", "Kılıç"], ["Onur", "Taş"], ["Pınar", "Yalçın", { extra: ["kd-als-teras", "kd-als-bar"] }], ["Ozan", "Kurtuluş"]] },
       { id: "kd-als-mutfak", name: "Mutfak" },
       { id: "kd-als-sicak", name: "Sıcak Mutfak", parent: "kd-als-mutfak", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 2, 2) },
-        people: [["Hakan", "Usta", { chef: "kd-als-mutfak" }], ["Cem", "Doğan"], ["Fırat", "Er"], ["Gökhan", "Bal", { extra: ["kd-als-soguk"] }]] },
+        people: [["Hakan", "Usta", { chef: "kd-als-mutfak" }], ["Cem", "Doğan"], ["Fırat", "Er"], ["Gökhan", "Bal", { extra: ["kd-als-soguk"] }], ["Serkan", "Aktaş"], ["Hilal", "Ekinci"]] },
       { id: "kd-als-soguk", name: "Soğuk Mutfak", parent: "kd-als-mutfak", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(0, 1, 1), "s-aksam": wk(1, 1, 1) },
-        people: [["Leyla", "Çınar"], ["Tolga", "Sezer"], ["Nur", "Akın", { part: true }]] },
+        people: [["Leyla", "Çınar"], ["Tolga", "Sezer"], ["Nur", "Akın", { part: true }], ["Batuhan", "Yazıcı"]] },
       { id: "kd-als-bar", name: "Bar", demand: { "s-ogle": wk(0, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 2, 2) },
-        people: [["Kaan", "Yıldız"], ["Derya", "Polat", { extra: ["kd-als-kasa"] }], ["Emre", "Turan", { branches: { "loc-kordon-karsiyaka": "kd-ksk-bar" } }]] },
+        people: [["Kaan", "Yıldız"], ["Derya", "Polat", { extra: ["kd-als-kasa"] }], ["Emre", "Turan", { branches: { "loc-kordon-karsiyaka": "kd-ksk-bar" } }], ["Irmak", "Soylu"], ["Cansu", "Oral"]] },
       { id: "kd-als-kasa", name: "Kasa", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(0, 0, 0), "s-aksam": wk(1, 1, 1) },
-        people: [["Sevgi", "Arslan"], ["Yusuf", "Kaya"], ["Melis", "Güneş", { branches: { "loc-kordon-karsiyaka": "kd-ksk-kasa" }, rotation: 2 }]] },
+        people: [["Sevgi", "Arslan"], ["Yusuf", "Kaya"], ["Melis", "Güneş", { branches: { "loc-kordon-karsiyaka": "kd-ksk-kasa" }, rotation: 2 }], ["Ahmet", "Bozdağ"]] },
     ],
   },
   {
@@ -95,13 +95,13 @@ const LOCATIONS = [
     rules: {},
     departments: [
       { id: "kd-ksk-salon", name: "Salon", demand: { "s-ogle": wk(2, 2, 2), "s-ara": wk(1, 1, 1), "s-aksam": wk(2, 3, 3) },
-        people: [["Ayşe", "Demir", { chef: "kd-ksk-salon", chefPrepareOnly: true }], ["Can", "Öztürk"], ["Elif", "Koç"], ["Furkan", "Aksoy"], ["Gamze", "Erdem", { extra: ["kd-ksk-bar"] }], ["İlker", "Bulut", { part: true }]] },
+        people: [["Ayşe", "Demir", { chef: "kd-ksk-salon", chefPrepareOnly: true }], ["Can", "Öztürk"], ["Elif", "Koç"], ["Furkan", "Aksoy"], ["Gamze", "Erdem", { extra: ["kd-ksk-bar"] }], ["İlker", "Bulut", { part: true }], ["Ebru", "Kocaman"], ["Tuncay", "Ersoy"]] },
       { id: "kd-ksk-mutfak", name: "Mutfak", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(2, 2, 2) },
-        people: [["Kemal", "Aslan"], ["Lale", "Toprak"], ["Murat", "Acar"], ["Nesrin", "Uçar", { extra: ["kd-ksk-salon"] }], ["Orhan", "Güler"]] },
+        people: [["Kemal", "Aslan"], ["Lale", "Toprak"], ["Murat", "Acar"], ["Nesrin", "Uçar", { extra: ["kd-ksk-salon"] }], ["Orhan", "Güler"], ["Şule", "Başaran"], ["Erkan", "Tatlı"]] },
       { id: "kd-ksk-bar", name: "Bar", demand: { "s-ogle": wk(0, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 1, 1) },
-        people: [["Rıza", "Tekin"], ["Seda", "Bozkurt"]] },
+        people: [["Rıza", "Tekin"], ["Seda", "Bozkurt"], ["Koray", "Altun"], ["Beril", "Sarıkaya"]] },
       { id: "kd-ksk-kasa", name: "Kasa", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(0, 0, 0), "s-aksam": wk(1, 1, 1) },
-        people: [["Tuba", "Keskin"], ["Umut", "Duman", { extra: ["kd-ksk-salon"] }]] },
+        people: [["Tuba", "Keskin"], ["Umut", "Duman", { extra: ["kd-ksk-salon"] }], ["Gizem", "Ay"]] },
     ],
   },
   {
@@ -109,13 +109,13 @@ const LOCATIONS = [
     rules: { night_legal_warning_enabled: true },
     departments: [
       { id: "kd-otel-resepsiyon", name: "Resepsiyon", demand: { "s-sabah": wk(1, 1, 1), "s-aksam": wk(1, 1, 1), "s-gece": wk(1, 1, 1) },
-        people: [["Bora", "Yavuz"], ["Ceren", "Vural"], ["Doruk", "Tunç", { night: false }], ["Esra", "Karaca", { extra: ["kd-otel-kahvalti"] }], ["Ferhat", "Işık"]] },
+        people: [["Bora", "Yavuz"], ["Ceren", "Vural"], ["Doruk", "Tunç", { night: false }], ["Esra", "Karaca", { extra: ["kd-otel-kahvalti"] }], ["Ferhat", "Işık"], ["Nazlı", "Ekin"], ["Hasan", "Coşkun"]] },
       { id: "kd-otel-kat", name: "Kat Hizmetleri", demand: { "s-sabah": wk(2, 3, 3), "s-aksam": wk(1, 1, 1), "s-gece": wk(0, 0, 0) },
-        people: [["Gül", "Sarı", { chef: "kd-otel-kat" }], ["Hülya", "Kurt"], ["İpek", "Şimşek"], ["Kadir", "Koç"], ["Meryem", "Aydın", { night: "pregnant" }], ["Oya", "Çelik", { part: true }]] },
+        people: [["Gül", "Sarı", { chef: "kd-otel-kat" }], ["Hülya", "Kurt"], ["İpek", "Şimşek"], ["Kadir", "Koç"], ["Meryem", "Aydın", { night: "pregnant" }], ["Oya", "Çelik", { part: true }], ["Fadime", "Öz"], ["Arda", "Tan"]] },
       { id: "kd-otel-kahvalti", name: "Kahvaltı Salonu", demand: { "s-sabah": wk(2, 2, 2), "s-aksam": wk(0, 0, 0), "s-gece": wk(0, 0, 0) },
-        people: [["Recep", "Polat"], ["Sibel", "Yılmaz"], ["Tarık", "Er", { extra: ["kd-otel-kat"] }]] },
+        people: [["Recep", "Polat"], ["Sibel", "Yılmaz"], ["Tarık", "Er", { extra: ["kd-otel-kat"] }], ["Damla", "Gür"]] },
       { id: "kd-otel-guvenlik", name: "Güvenlik", demand: { "s-sabah": wk(1, 1, 1), "s-aksam": wk(1, 1, 1), "s-gece": wk(1, 1, 1) },
-        people: [["Volkan", "Demir"], ["Yasin", "Kaplan"], ["Zafer", "Uysal"], ["Barış", "Erdoğan"]] },
+        people: [["Volkan", "Demir"], ["Yasin", "Kaplan"], ["Zafer", "Uysal"], ["Barış", "Erdoğan"], ["Levent", "Ulu"], ["Cihan", "Dere"]] },
     ],
   },
 ];
@@ -134,7 +134,7 @@ for (const loc of LOCATIONS) {
       const extra = opts.extra ?? [];
       const otherBranches = Object.entries(opts.branches ?? {});
       PEOPLE.push({
-        id: `P-KORDON-${pad(n)}`, name: `${first} ${last}`, username: `${ascii(first)}.${ascii(last)}`,
+        id: `P-KORDON-${pad(n)}`, name: `${first} ${last}`, username: `k.${ascii(first)}.${ascii(last)}`, // diğer test işletmeleriyle çakışmasın
         loc: loc.id, dept: dept.id, extra,
         locations: [loc.id, ...otherBranches.map(([l]) => l)],
         departments: [dept.id, ...extra, ...otherBranches.map(([, d]) => d)],

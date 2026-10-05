@@ -3371,7 +3371,7 @@ loading ? (
                               title={readOnlyWeek
                                 ? "Nöbet: çağrıldıysa çalıştığı saati girmek için tıklayın"
                                 : `Nöbet ${ocDef.start}–${ocDef.end}: evden, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
-                              className="mt-0.5 mx-auto w-full max-w-[84px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
+                              className="mt-0.5 mx-auto w-full max-w-[112px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
                             >
                               {ocCallMin > 0
                                 ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} s çağrıldı`
@@ -3389,7 +3389,7 @@ loading ? (
                               <div key={x.id ?? label}
                                 onClick={readOnlyWeek && x.id ? () => openAbsence(x.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${label}`) : undefined}
                                 title="Aynı gün ikinci vardiya: dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlı haftada tıklayıp başkasına verebilirsiniz."
-                                className={cn("mt-0.5 mx-auto w-full max-w-[84px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
+                                className={cn("mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
                               >
                                 <div className="text-[10px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
                                 <div className="text-[9px] text-red-500">{label}</div>
@@ -3401,7 +3401,7 @@ loading ? (
                           const away = elsewhere.filter(e => e.personnel_id === p.id && Number(e.day) === day);
                           const awayChip = away.length > 0 ? away.map((e, ai) => (
                             <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var; orada değiştirilir`}
-                              className="mt-0.5 mx-auto w-full max-w-[84px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
+                              className="mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
                               <div className="text-[10px] font-bold text-slate-600 truncate">{e.location_name}</div>
                               <div className="text-[9px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
                             </div>
@@ -3416,7 +3416,7 @@ loading ? (
                                     onClick={cell.id && !viewOnly && canPublish ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
                                     title={cell.id ? "Gelemiyorsa tıklayın: uygun yedek önerilir" : undefined}
                                     className={cn(
-                                    "mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border",
+                                    "mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border",
                                     cell.id && "cursor-pointer hover:shadow-sm",
                                     forceData ? "bg-amber-50 border-amber-200" : cellIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70"
                                   )}>
@@ -3446,7 +3446,7 @@ loading ? (
                                     onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                                     title={cell.pinned ? "Elle düzenlendi: Planı Oluştur bu vardiyayı korur" : undefined}
                                     className={cn(
-                                      "relative mx-auto w-full max-w-[84px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
+                                      "relative mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
                                       forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : cellIsNight ? "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
                                     )}
                                   >
