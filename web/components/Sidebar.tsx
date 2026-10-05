@@ -136,6 +136,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   const pendingAccounts = usePendingAccounts(user?.role === "admin" || user?.role === "supervisor");
   const pendingApprovals = usePendingApprovals(user?.org_id);
   const [locations, setLocations] = useState<any[]>([]);
+  const [orgBranchCount, setOrgBranchCount] = useState(0);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [orgName, setOrgName] = useState<string>(""); // şube kutusundaki işletme adı (/api/organizations)
   const [moreOpen, setMoreOpen] = useState(false); // "Daha Fazla" grubu, tercih localStorage'da hatırlanır
@@ -221,6 +222,11 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
         .then(data => {
           if (Array.isArray(data) && data.length > 0) setLocations(data);
         })
+        .catch(() => {});
+      // İşletmenin şube sayısı: çok şubeli işletmede tek şubenin sorumlusu da "Şube" görür, "İşletme" değil
+      fetch(`/api/locations?names=1`)
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setOrgBranchCount(data.length); })
         .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,7 +358,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8 [@media(max-height:860px)]:mb-4">
         {/* Tek şubeli işletme "şube" kavramını görmez */}
-        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" || locations.length > 1 ? "Şube" : "İşletme"}</p>
+        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" || locations.length > 1 || orgBranchCount > 1 ? "Şube" : "İşletme"}</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}

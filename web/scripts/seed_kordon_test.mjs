@@ -271,13 +271,16 @@ function planWeek(loc, weekStart, days, mode) {
           const endTs = startTs + shiftHours(sd) * 3600;
           const hard = day >= 5;
           const points = Math.round((shiftHours(sd) * (sd.base_points / 5) + (hard ? BASE_RULES.hard_shift_points : 0)) * 10) / 10;
-          const past = mode === "past";
-          const late = past && rand() < 0.1 ? randInt(5, 25) : 0;
+          // Bugün: başlamış vardiyaya giriş yapılmış (biri hariç, "geç kalan" görünsün), bitmiş olan tamamlanmış
+          const started = mode === "published" && startTs <= now && rand() < 0.85;
+          const ended = started && endTs <= now;
+          const past = mode === "past" || ended;
+          const late = (past || started) && rand() < 0.1 ? randInt(5, 25) : 0;
           ROWS.push({
             personnel_id: p.id, location_id: loc.id, week_start: weekStart, day, shift_id: sd.id, start_time: sd.start, end_time: sd.end,
-            points, status: past ? "completed" : "scheduled", publication_status: mode === "draft" ? "draft" : "published",
+            points, status: past ? "completed" : started ? "active" : "scheduled", publication_status: mode === "draft" ? "draft" : "published",
             published_at: mode === "draft" ? null : dateToTs(weekStart) - 4 * 86400,
-            check_in_at: past ? startTs + late * 60 : null, check_out_at: past ? endTs : null,
+            check_in_at: past || started ? startTs + late * 60 : null, check_out_at: past ? endTs : null,
             // Başka departmanda çalışan joker ya da başka şubedeki departmanında çalışan kişi
             department_id: d.id !== p.dept ? d.id : null, created_at: now,
           });
