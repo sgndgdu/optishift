@@ -77,7 +77,7 @@ import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { FEATURES, type FeatureKey } from "@/lib/features";
 import { isModuleOn, parseRules, type ModuleKey } from "@/lib/moduleVisibility";
-import { canSeePage, departmentScope, parseAccess } from "@/lib/userAccess";
+import { canSeePage, departmentScope, hasPerm, parseAccess } from "@/lib/userAccess";
 import { titleLabel } from "@/components/personnel/people";
 import { openEmployeeView } from "@/lib/employeeView";
 import { CountBadge } from "@/components/ui/StatusPill";
@@ -122,6 +122,17 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  // Departman sorumlusunun unvanı departman adıyla ("Salon sorumlusu"), Ekip listesiyle aynı
+  const [chefDeptName, setChefDeptName] = useState<string | null>(null);
+  useEffect(() => {
+    const dept = parseAccess(user?.access)?.department_id;
+    if (!dept || !user?.location_id) return;
+    let stale = false;
+    fetch(`/api/departments?location_id=${user.location_id}&names=1`).then(r => (r.ok ? r.json() : [])).then((list: { id: string; name: string }[]) => {
+      if (!stale) setChefDeptName(Array.isArray(list) ? list.find(d => d.id === dept)?.name ?? null : null);
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, [user?.access, user?.location_id]);
   const chatUnread = useChatUnread();
   const pendingAccounts = usePendingAccounts(user?.role === "admin" || user?.role === "supervisor");
   const pendingApprovals = usePendingApprovals(user?.org_id);
@@ -310,7 +321,9 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
 
   const main   = items.filter(i => i.group === "main");
   const more   = items.filter(i => i.group === "more");
-  const footer = items.filter(i => i.group === "footer");
+  // Plan ayarı yetkisi olmayan sorumluda Ayarlar sadece Hesabım'ı içerir: adı da öyle olsun
+  const accountOnly = user?.role === "manager" && !hasPerm({ role: user.role, access: parseAccess(user.access) }, "plan_settings");
+  const footer = items.filter(i => i.group === "footer").map(i => (accountOnly && i.href === "/settings" ? { ...i, label: "Hesabım" } : i));
   // Aktif sayfa gruptaysa grup açık görünür; kapalıyken grup içindeki okunmamış mesaj başlıkta gösterilir
   const open = moreOpen || more.some(i => pathname.startsWith(i.href));
   const hiddenUnread = more.some(i => i.href === "/chat") ? chatUnread : 0;
@@ -323,7 +336,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
           <Logo size="md" className="shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-xs font-medium text-slate-400 mt-1">{scope === "all" ? "İşletme Geneli" : "Yönetim Paneli"}</p>
+            {scope === "all" && <p className="text-xs font-medium text-slate-400 mt-1">Tüm şubeler</p>}
           </div>
         </Link>
         {onClose && (
@@ -468,7 +481,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 "text-xs font-medium tracking-wide uppercase",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
-                {user?.role === "admin" ? "Hesap sahibi" : user?.role === "supervisor" ? "Bölge sorumlusu" : user?.role === "manager" ? (parseAccess(user?.access)?.department_id ? "Departman sorumlusu" : titleLabel(user?.display_title)) : "Ekip üyesi"}
+                {user?.role === "admin" ? "Hesap sahibi" : user?.role === "supervisor" ? "Bölge sorumlusu" : user?.role === "manager" ? (parseAccess(user?.access)?.department_id ? (chefDeptName ? `${chefDeptName} sorumlusu` : "Departman sorumlusu") : titleLabel(user?.display_title)) : "Ekip üyesi"}
               </p>
             </div>
           </div>

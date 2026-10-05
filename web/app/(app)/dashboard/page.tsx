@@ -307,10 +307,11 @@ export default function DashboardPage() {
     } : undefined,
   });
 
-  const activeCount = personnel.filter(p => p.status === "active").length;
+  // Ekip sayfasıyla aynı sayı: plana giren aktif kişiler (sadece yöneten sorumlu sayılmaz)
+  const activeCount = personnel.filter(p => p.status === "active" && p.schedulable !== false).length;
   const summary = [
     { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi çalışıyor` : "Bugün kimse çalışmıyor" },
-    { icon: CheckCircle2, text: `${activeCount} aktif personel` },
+    { icon: CheckCircle2, text: `${activeCount} kişilik ekip` },
     ...(publishLead !== null
       ? [{ icon: CalendarCheck, text: formatPublishLead(publishLead).sentence! }]
       : []),

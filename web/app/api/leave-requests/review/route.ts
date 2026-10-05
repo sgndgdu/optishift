@@ -118,8 +118,8 @@ export async function PATCH(req: NextRequest) {
     `).run(
       request.personnel_id,
       isApproved ? "leave_approved" : "leave_rejected",
-      isApproved ? "İzin Talebiniz Onaylandı" : "İzin Talebiniz Reddedildi",
-      `${range} tarihli izin talebiniz ${isApproved ? "onaylandı" : "reddedildi"}.`,
+      isApproved ? "İzin talebin onaylandı" : "İzin talebin reddedildi",
+      `${range} tarihli izin talebin ${isApproved ? "onaylandı" : "reddedildi"}.`,
       now,
     );
 

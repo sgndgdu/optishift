@@ -56,8 +56,8 @@ export const hospitality: IndustryProfile = {
   ],
 
   roles: [
-    { id: "isletme-muduru",   label: "İşletme Müdürü",     category: "yonetim", senior: true },
-    { id: "vardiya-sorumlusu", label: "Vardiya Sorumlusu (Kaptan)", category: "yonetim", senior: true, requiredDocs: ["hijyen"] },
+    { id: "isletme-muduru",   label: "İşletme Müdürü",     category: "yonetim", senior: true, variants: ["restaurant", "hotel"] },
+    { id: "vardiya-sorumlusu", label: "Vardiya Kaptanı", category: "yonetim", senior: true, requiredDocs: ["hijyen"] },
     { id: "sef",              label: "Şef / Aşçıbaşı",     category: "operasyon", senior: true, requiredDocs: ["hijyen", "portor"] },
     { id: "asci",             label: "Aşçı",               category: "operasyon", requiredDocs: ["hijyen", "portor"] },
     { id: "komi",             label: "Komi",               category: "operasyon", requiredDocs: ["hijyen"] },

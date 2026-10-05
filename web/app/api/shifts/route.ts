@@ -462,7 +462,7 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
-        `Sorumlunuz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. İzinli olduğunuz için onaylamanız gerekiyor. Kabul ederseniz +${fn.points} puan bonus kazanırsınız.`,
+        `Sorumlun seni ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. İzinli olduğun için onayın gerekiyor. Kabul edersen +${fn.points} puan alırsın.`,
         now,
       );
     }

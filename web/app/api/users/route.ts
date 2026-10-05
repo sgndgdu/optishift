@@ -363,8 +363,8 @@ export async function PATCH(req: NextRequest) {
       const title = typeof mm.display_title === "string" && mm.display_title.trim() ? mm.display_title.trim() : (deptId ? "Departman sorumlusu" : "Sorumlu");
       await db.prepare("UPDATE users SET role = 'manager', location_id = ?, department_id = COALESCE(?, department_id), display_title = ?, permissions = ?, managed_location_ids = NULL WHERE id = ?")
         .run(locId, deptId, title, permissions, id);
-      // Yönetici varsayılan olarak vardiya yazılmaz (kullanıcı kararı); kartındaki anahtarla plana alınır
-      await db.prepare("UPDATE personnel SET user_access_level = 'manager', schedulable = false WHERE id = ?").run(target.personnel_id);
+      // Ekipten sorumlu yapılan kişi vardiyada çalışmaya devam eder (2026-10-05, kullanıcı kararı; küçük işletmede sorumlu da çalışır)
+      await db.prepare("UPDATE personnel SET user_access_level = 'manager' WHERE id = ?").run(target.personnel_id);
       // Şef kendi departmanının ekibinde görünsün: zaten departmanında ya da alt departmanındaysa yeri korunur
       const fam = deptId ? (await db.prepare("SELECT id FROM departments WHERE id = ? OR parent_id = ?").all(deptId, deptId) as { id: string }[]).map(r => r.id) : [];
       if (deptId && !fam.includes(p?.department_id)) {

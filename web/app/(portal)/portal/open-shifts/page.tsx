@@ -19,6 +19,8 @@ export default function PortalOpenShiftsPage() {
   const [shifts, setShifts]     = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [busyId, setBusyId]     = useState<number | null>(null);
+  // Üstlenmeden önce kısa onay (yanlışlıkla dokunma riski)
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const [toast, setToast]       = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
@@ -122,13 +124,25 @@ export default function PortalOpenShiftsPage() {
                 {s.note && <p className="text-xs text-slate-400 mt-1 italic">&quot;{s.note}&quot;</p>}
               </div>
 
+              {confirmId === s.id ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-800">{formatDate(s.date)} {s.start_time} – {s.end_time} senin olsun mu?</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmId(null)} disabled={busyId === s.id}
+                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50">Vazgeç</button>
+                    <button disabled={busyId === s.id} onClick={() => { setConfirmId(null); handleClaim(s); }}
+                      className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50">Evet, üstlen</button>
+                  </div>
+                </div>
+              ) : (
               <button
                 disabled={busyId === s.id}
-                onClick={() => handleClaim(s)}
+                onClick={() => setConfirmId(s.id)}
                 className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {busyId === s.id ? "Üstleniliyor…" : "Üstlen"}
               </button>
+              )}
 
             </div>
           );

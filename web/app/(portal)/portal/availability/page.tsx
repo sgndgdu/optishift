@@ -331,6 +331,17 @@ export default function PortalAvailability() {
       : d));
 
   // Geçen haftanın uygunluğunu bu haftaya kopyala (gönderilmeden önce düzenlenebilir)
+  // Geçen hafta girilmiş uygunluk yoksa "Geçen haftanın aynısı" gösterilmez (ilk hafta)
+  const [hasPrevWeek, setHasPrevWeek] = useState(false);
+  useEffect(() => {
+    if (!user?.personnel_id) return;
+    let stale = false;
+    fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${weekStart(weekOffset - 1)}`)
+      .then(r => (r.ok ? r.json() : null)).then(d => { if (!stale) setHasPrevWeek(!!d?.exists); }).catch(() => {});
+    return () => { stale = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.personnel_id, weekOffset]);
+
   const copyLastWeek = async () => {
     if (!user?.personnel_id) return;
     try {
@@ -422,7 +433,7 @@ export default function PortalAvailability() {
             <ChevronLeft size={15} />
           </button>
           <span className="text-xs font-bold text-slate-600 px-1.5 min-w-[72px] text-center">
-            {weekOffset === 0 ? "Bu Hafta" : weekOffset === 1 ? "Gel. Hafta" : `+${weekOffset} Hafta`}
+            {weekOffset === 0 ? "Bu hafta" : weekOffset === 1 ? "Gelecek hafta" : `${weekOffset} hafta sonra`}
           </span>
           <button onClick={() => setWeekOffset(o => o + 1)}
             className="p-2 rounded-xl text-slate-500 hover:bg-white transition-all">
@@ -452,12 +463,8 @@ export default function PortalAvailability() {
           <Check size={18} className="text-emerald-600 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-emerald-800">Uygunluk gönderildi</p>
-            <p className="text-xs text-emerald-600">Düzenlemek için geri al butonuna bas.</p>
+            <p className="text-xs text-emerald-600">Değiştirmek istersen aşağıdaki &quot;Düzenle&quot;ye bas.</p>
           </div>
-          <button onClick={revoke} disabled={loading}
-            className="text-xs font-bold text-emerald-700 bg-white border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-50 transition-colors shrink-0">
-            {loading ? "…" : "Geri Al"}
-          </button>
         </div>
       )}
 
@@ -478,10 +485,12 @@ export default function PortalAvailability() {
             Varsayılan olarak her gün uygunsun. Sadece gelemeyeceğin ya da tercih etmediğin günleri değiştir.
           </p>
           <div className="flex items-center justify-between gap-2 px-1">
+            {hasPrevWeek ? (
             <button onClick={copyLastWeek}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">
               <Copy size={13} /> Geçen haftanın aynısı
             </button>
+            ) : <span />}
             <span className="text-xs text-slate-400 font-medium text-right">
               &quot;Tercih etmem&quot; hakkı: <span className="font-bold text-amber-600">{days.filter(d => d.status === "preferred_not").length}/{maxYellow}</span>
             </span>
@@ -590,7 +599,7 @@ export default function PortalAvailability() {
           className="w-full bg-white border border-slate-200 text-slate-700 font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
           {loading
             ? <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-            : <><Edit2 size={17} /> Düzenlemek İçin Geri Al</>}
+            : <><Edit2 size={17} /> Düzenle</>}
         </button>
       )}
 

@@ -127,7 +127,7 @@ function SupervisorPersonnelInner() {
         // Genel Bakış "Personel" sayısıyla aynı taban: çalışanlar ayrı, yöneticiler ayrı
         const act = persons.filter(p => !p.inactive);
         const staff = act.filter(p => p.role === "employee").length;
-        const mgrs = act.length - staff;
+        const mgrs = act.filter(p => p.role === "manager" || p.role === "supervisor").length;
         return `Tüm şubeler · ${staff} ekip üyesi${mgrs ? ` · ${mgrs} sorumlu` : ""}`;
       })()} actions={
         <div className="relative">

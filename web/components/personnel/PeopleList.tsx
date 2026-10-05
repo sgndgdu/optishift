@@ -27,7 +27,9 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
   const [showInactive, setShowInactive] = useState(false);
   const active = people.filter(p => !p.inactive);
   const inactive = people.filter(p => p.inactive);
-  const managers = active.filter(p => p.role !== "employee");
+  // Hesap sahibi ayrı satırda: sorumlu sayılmaz
+  const owners = active.filter(p => p.role === "admin");
+  const managers = active.filter(p => p.role === "manager" || p.role === "supervisor");
   const staff = active.filter(p => p.role === "employee");
 
   const row = (p: MergedPerson) => {
@@ -35,7 +37,8 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
     // Yöneticide tek satır: kapsam + yetki ("Salon şefi · Plan, Ekip"); departman ve plana girip girmediği kartta
     const sub = (p.role === "employee"
       ? [p.title || null, deptName(p), branchName?.(p) ?? null, !p.userId && !p.inactive ? "Giriş hesabı yok" : null]
-      : [(p.role !== "admin" ? managerSummary?.(p) : null) ?? roleBadge(p).label, branchName?.(p) ?? null]
+      : p.role === "admin" ? [] // bölüm başlığı zaten "Hesap sahibi"
+      : [managerSummary?.(p) ?? roleBadge(p).label, branchName?.(p) ?? null]
     ).filter(Boolean).join(" · ");
     return (
       <ListItem key={personKey(p)}
@@ -52,7 +55,9 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
 
   return (
     <List>
-      {managers.length > 0 && <ListSection title="Sorumlular" count={managers.length} action={managementAction} />}
+      {owners.length > 0 && <ListSection title="Hesap sahibi" />}
+      {owners.map(row)}
+      {(managers.length > 0 || managementAction) && <ListSection title="Sorumlular" count={managers.length || undefined} action={managementAction} />}
       {managers.map(row)}
       {staff.length > 0 && <ListSection title="Ekip" count={staff.length} />}
       {staff.map(row)}

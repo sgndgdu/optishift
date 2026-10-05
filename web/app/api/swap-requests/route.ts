@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       VALUES (?, 'trade_request', 'Vardiya Takas Teklifi', ?, false, '/portal/requests', ?)
     `).run(
       target_id,
-      `${rName} sizinle vardiya takas etmek istiyor. Talepler sayfasından yanıtlayın.`,
+      `${rName} seninle vardiya değiştirmek istiyor. Talepler'den yanıtla.`,
       now
     );
     return NextResponse.json({ success: true, id: result.lastInsertRowid });

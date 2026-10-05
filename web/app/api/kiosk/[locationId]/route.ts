@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   ).get(person.id, locationId, weekStart, day) as any;
 
   if (!shift) {
-    return NextResponse.json({ error: `${person.name}: bugün için planlanmış vardiyanız yok` }, { status: 404 });
+    return NextResponse.json({ error: `${person.name}: bugün için planlanmış vardiyan yok` }, { status: 404 });
   }
 
   if (action === "checkin") {

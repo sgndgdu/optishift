@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
       }
       if (auth.role === "employee") {
         if (asg.personnel_id !== auth.personnel_id) {
-          return NextResponse.json({ error: "Sadece kendi vardiyanızı pazar yerine bırakabilirsiniz" }, { status: 403 });
+          return NextResponse.json({ error: "Sadece kendi vardiyanı bırakabilirsin" }, { status: 403 });
         }
         if (asg.publication_status !== "published") {
           return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar pazar yerine bırakılabilir" }, { status: 400 });

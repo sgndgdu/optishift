@@ -1134,7 +1134,7 @@ export default function SettingsPage() {
 
   const TabBar = () => (
     <Tabs fill value={activeTab} onChange={setActiveTab}
-      items={TABS.filter(tab => !accountOnly || tab.key === "account").map(tab => ({ id: tab.key, label: tab.short }))} />
+      items={TABS.filter(tab => (!accountOnly || tab.key === "account") && (tab.key !== "features" || viewerRole === "admin")).map(tab => ({ id: tab.key, label: tab.short }))} />
   );
 
   if (!locationData) {

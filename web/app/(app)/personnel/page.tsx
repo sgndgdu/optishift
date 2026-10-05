@@ -286,7 +286,7 @@ export default function PersonnelPage() {
       <PageHeader title="Ekip" description={(() => {
         const act = persons.filter(p => !p.inactive);
         const staff = act.filter(p => p.role === "employee").length;
-        const mgrs = act.length - staff;
+        const mgrs = act.filter(p => p.role === "manager" || p.role === "supervisor").length;
         return `${staff} ekip üyesi${mgrs ? ` · ${mgrs} sorumlu` : ""}`;
       })()} actions={
         /* Kişi eklemenin üç yolu tek düğmede */
@@ -428,7 +428,7 @@ export default function PersonnelPage() {
       {/* ADD MODAL */}
       {showAddModal && (
         <Sheet open onClose={() => { setShowAddModal(false); setAddError(""); }} title="Ekibe kişi ekle"
-          description="Eklendikten sonra giriş bağlantısı gösterilir."
+          description="Ekledikten sonra kişiye göndereceğiniz giriş bağlantısı çıkacak."
           footer={<>
             <button onClick={() => { setShowAddModal(false); setAddError(""); }} className={sheetSecondaryClass}>Vazgeç</button>
             <button onClick={handleAdd} disabled={addLoading} className={sheetPrimaryClass}>{addLoading ? "Ekleniyor…" : "Ekle"}</button>

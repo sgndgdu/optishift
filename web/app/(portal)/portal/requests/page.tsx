@@ -731,7 +731,7 @@ export default function PortalRequests() {
                         <StatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Onlarda: {shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })}
+                        Onda: {shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })}
                       </p>
                       <p className="text-xs text-slate-500">
                         Sende: {shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}
@@ -1008,9 +1008,6 @@ export default function PortalRequests() {
                         ? `${leaveBalance.seniorityYears} yıl kıdem · toplam hak ${leaveBalance.entitledTotal} gün · kullanılan ${leaveBalance.usedDays} gün`
                         : `Yıllık hak ${leaveBalance.entitledTotal} gün · bu yıl kullanılan ${leaveBalance.usedDays} gün`}
                     </p>
-                    {leaveBalance.hireDateMissing && (
-                      <p className="text-amber-700 mt-0.5">İşe giriş tarihin sistemde yok; kesin hakkını sorumlun netleştirir.</p>
-                    )}
                   </div>
                 </div>
               )}

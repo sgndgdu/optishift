@@ -147,7 +147,8 @@ export function scopeTitle(m: Pick<Mgr, "permissions">, deptName?: (id: string) 
 export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined, roleLabel?: string): string {
   const a = parseAccess(m.permissions);
   const perms = a?.perms ?? ALL_PERMS;
-  const full = a?.department_id ? CHEF_PERMS.every(p => perms.includes(p)) : perms.length === ALL_PERMS.length;
+  // Departman sorumlusunun maddeleri hep yazılır ("Tam yetki" sanki her şeyi yapabiliyormuş gibi okunuyordu)
+  const full = !a?.department_id && perms.length === ALL_PERMS.length;
   const what = perms.length === 0 ? "Sadece görür" : full ? "Tam yetki" : perms.map(p => PERM_SHORT[p]).join(", ");
   return [scopeTitle(m, deptName, roleLabel), what].filter(Boolean).join(" · ");
 }
@@ -257,7 +258,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
       title={invite ? "Giriş bağlantısını gönderin" : branchManager ? "Departman sorumlusu ata" : "Sorumlu ekle"}
       description={invite ? undefined : branchManager
         ? "Departman sorumlusu sadece kendi departmanını görür ve planlar."
-        : "Planı ve ekibi sizin yerinize yönetecek kişi. Sadece seçtiğiniz şubeleri görür."}
+        : multiBranch ? "Planı ve ekibi sizin yerinize yönetecek kişi. Sadece seçtiğiniz şubeleri görür." : "Planı ve ekibi sizin yerinize yönetecek kişi."}
       footer={invite
         ? <button onClick={close} className={sheetPrimaryClass}>Tamam</button>
         : <>
@@ -308,7 +309,9 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
             <span className={label}>Neleri yapabilir?</span>
             <PermPicker value={perms} onChange={setPerms} chef={!!deptId} multiBranch={locations.length > 1} granter={granter} />
           </div>
-          <p className="text-xs text-slate-500">Sorumluya vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında &quot;Vardiya planına dahil&quot;i açın.</p>
+          <p className="text-xs text-slate-500">{source === "team"
+            ? "Vardiyada çalışmaya devam eder. Sadece yönetecekse kişinin kartında \"Vardiya planına dahil\"i kapatın."
+            : "Yeni sorumluya vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında \"Vardiya planına dahil\"i açın."}</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

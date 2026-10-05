@@ -3014,14 +3014,15 @@ loading ? (
             };
             const ownDepts = demandDepts.filter(d => !chefOf(d.id));
             const plannedIds = new Set(Object.keys(cellMap).map(k => personnel.find(p => p.id === k.slice(0, k.lastIndexOf("-")))?.department_id));
-            const chefsReady = deptStatus.filter(d => d.chef_name).every(d => d.submitted);
+            // Sorumlusu göndermese de departman planlandıysa (ör. hesap sahibi oluşturduysa) hazır sayılır
+            const chefsReady = deptStatus.filter(d => d.chef_name).every(d => d.submitted || plannedIds.has(d.department_id));
             const ownReady = ownDepts.every(d => plannedIds.has(d.id));
             return (
               <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-bold text-slate-700">Departman planları:</span>
                 {deptStatus.filter(d => d.chef_name).map(d => (
-                  <StatusPill key={d.department_id} tone={d.submitted ? "positive" : "attention"}>
-                    {d.department_name} {d.submitted ? "hazır ✓" : `bekleniyor (${d.chef_name})`}
+                  <StatusPill key={d.department_id} tone={d.submitted || plannedIds.has(d.department_id) ? "positive" : "attention"}>
+                    {d.department_name} {d.submitted ? "hazır ✓" : plannedIds.has(d.department_id) ? "planlı ✓" : `bekleniyor (${d.chef_name})`}
                   </StatusPill>
                 ))}
                 {ownDepts.map(d => (
@@ -3799,12 +3800,13 @@ loading ? (
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{s.name}</span>
                     <span className="flex items-center gap-1">
-                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} h.sonu</span>}
-                      {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght}🌙</span>}
-                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn}!</span>}
+                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} hafta sonu</span>}
+                      {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght} gece</span>}
+                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn} istemediği gün</span>}
                       <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.score, avgScore)}>{formatScore(s.score)}</span>
                     </span>
                   </div>
+                  {s.score > 0 && avgScore > 0 && <p className="text-[10px] text-slate-400 -mt-0.5 mb-1">{scoreVsAverageText(s.score, avgScore)}</p>}
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all duration-300", fairnessBarColor(s.score, avgScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
                   </div>

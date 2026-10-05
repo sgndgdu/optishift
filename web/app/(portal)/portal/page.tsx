@@ -39,6 +39,16 @@ export default function PortalDashboard() {
   // Şubede uygunluk toplama kapalıysa uygunluk kısayolu ve "eksik" uyarısı gösterilmez
   const availEnabled = useAvailabilityEnabled();
   const openShiftsEnabled = useOpenShiftsEnabled();
+  // Açık ilan yoksa kısayol gösterilmez
+  const [openShiftCount, setOpenShiftCount] = useState(0);
+  useEffect(() => {
+    if (!openShiftsEnabled) return;
+    let stale = false;
+    fetch("/api/open-shifts?mine=1").then(r => (r.ok ? r.json() : [])).then(d => {
+      if (!stale) setOpenShiftCount(Array.isArray(d) ? d.filter((o: any) => o.status === "open").length : 0);
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, [openShiftsEnabled]);
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
@@ -556,18 +566,12 @@ export default function PortalDashboard() {
             <Clock size={13} /> Uygunluk
           </Link>
         )}
-        {openShiftsEnabled && (
+        {openShiftsEnabled && openShiftCount > 0 && (
           <Link href="/portal/open-shifts"
             className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-            <Megaphone size={13} /> {words.OpenShifts}
+            <Megaphone size={13} /> {words.OpenShifts} ({openShiftCount})
           </Link>
         )}
-        <button
-          onClick={() => setEmergencyOpen(true)}
-          className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
-        >
-          <AlertCircle size={13} /> Acil durum
-        </button>
       </div>
 
       <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
@@ -656,6 +660,13 @@ export default function PortalDashboard() {
         </div>
       </div>}
 
+      {/* Acil durum: gerçek acil durumlar için, sayfanın en altında sade bir bağlantı */}
+      <div className="flex justify-center pt-2">
+        <button onClick={() => setEmergencyOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 min-h-[44px] text-xs font-semibold text-slate-400 hover:text-red-600 transition-colors">
+          <AlertCircle size={13} /> Acil durum bildir
+        </button>
+      </div>
     </Page>
   );
 }
