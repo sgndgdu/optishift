@@ -17,6 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
+import { canPublishPlan } from "@/lib/userAccess";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
@@ -273,6 +274,7 @@ export default function DashboardPage() {
     personnelCount: personnel.length,
     lateCount: openShiftsEnabled && autoOpenOnLate ? 0 : lateShifts.length,
     nextWeek,
+    canPublish: canPublishPlan(user),
     pendingApprovals,
     pendingAccounts,
     notJoined: personnel.filter((p: any) => p.user_id && p.is_temp_password && p.status !== "inactive").length,

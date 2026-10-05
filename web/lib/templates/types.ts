@@ -58,6 +58,8 @@ export interface RoleSpec {
   requiredDocs?: string[];
   /** Kıdemli sayılır (Kıdemli Personel Kuralı için öneri). */
   senior?: boolean;
+  /** Sadece bu alt türlerde listelenir (IndustryVariant.key); yoksa sektörün tüm alt türlerinde. */
+  variants?: string[];
 }
 
 /** Sektör içindeki alt tür (örn. Yeme-İçme → Kafe / Restoran / Bar / Otel). Vardiya şablonunu belirler. */

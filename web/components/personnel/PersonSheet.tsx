@@ -9,7 +9,7 @@ import { Check, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Sheet, sheetDangerClass, sheetPrimaryClass } from "@/components/ui/Sheet";
 import type { InviteResult } from "@/components/personnel/InviteLinkList";
-import { ManagerAccessFields, accessSummary, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
+import { ManagerAccessFields, accessSummary, scopeTitle, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
 import { createInvite, roleBadge, type MergedPerson } from "@/components/personnel/people";
 import { accountLevel, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
 import { LOCK_NOTE } from "@/lib/ruleLocks";
@@ -384,7 +384,10 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   return (
     <Sheet open onClose={onClose}
       title={<span className="flex items-center gap-3"><Avatar name={ep.name} size="md" tone={ep.role === "employee" ? "neutral" : "brand"} />{ep.name}</span>}
-      description={[roleBadge(ep).label, ep.role === "employee" ? ep.title : null].filter(Boolean).join(" · ")}
+      description={[
+        ep.role === "employee" || !acc ? roleBadge(ep).label : scopeTitle(acc, id => depts.find(d => d.id === id)?.name, roleBadge(ep).label),
+        ep.role === "employee" || editForm.schedulable ? ep.title : null,
+      ].filter(Boolean).join(" · ")}
       footer={<>
         {canRemove && (confirmDelete
           ? <button onClick={() => remove()} className="mr-auto px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold">{ep.personnelId ? "Evet, ekipten çıkar" : "Evet, hesabı sil"}</button>

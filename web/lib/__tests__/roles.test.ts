@@ -11,6 +11,13 @@ describe("şube görev listesi (lib/roles)", () => {
     expect(r.all.filter(x => x === "Kaynakçı")).toHaveLength(1);
     expect(r.custom).toEqual(["Pres Operatörü"]);
   });
+  it("alt türe özgü görev sadece o alt türde listelenir", () => {
+    const bar = branchRoles({ industry: "hospitality", industry_variant: "bar" }).all;
+    expect(bar).toContain("Barmen");
+    expect(bar).not.toContain("Resepsiyonist");
+    expect(branchRoles({ industry: "hospitality", industry_variant: "hotel" }).all).toContain("Resepsiyonist");
+    expect(branchRoles({ industry: "hospitality" }).all).toContain("Resepsiyonist");
+  });
   it("bozuk veri yok sayılır, ad biçimlenir", () => {
     expect(customRoles({ custom_roles: ["", 3, " A "] as unknown as string[] })).toEqual([" A "]);
     expect(normalizeRoleLabel("  Pres   Operatörü ")).toBe("Pres Operatörü");

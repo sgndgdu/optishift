@@ -2,7 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { managerOutsideBranch } from "@/lib/access";
+import { departmentPersonnelIds, managerOutsideBranch } from "@/lib/access";
 
 
 // GET /api/availability/team?location_id=L-001&week_start=2026-06-02
@@ -30,9 +30,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all personnel for this location
-    const personnel = await db.prepare(
+    const all = await db.prepare(
       `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
     ).all(location_id) as any[];
+    // Departman şefi sadece kendi ekibini görür (Ekip ve Ana Sayfa ile aynı sayı)
+    const team = await departmentPersonnelIds(db, auth, location_id);
+    const personnel = team ? all.filter(p => team.includes(p.id)) : all;
 
     // Get their availability for this week
     const results = await Promise.all(personnel.map(async (p) => {

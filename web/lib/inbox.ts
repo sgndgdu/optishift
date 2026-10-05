@@ -35,6 +35,8 @@ export type InboxInput = {
   /** Bugün vardiyası başlamış, eşik süre geçmiş ve hâlâ girişi olmayan (ilana otomatik çevrilmeyen) kişi sayısı. */
   lateCount: number;
   nextWeek: NextWeekState;
+  /** false: yayın yetkisi yok (ör. departman şefi), plan yayınlanmaz, müdüre onaya gönderilir. Varsayılan true. */
+  canPublish?: boolean;
   pendingApprovals: number;
   pendingAccounts: number;
   /** Hesabı açılmış ama davet bağlantısıyla şifresini hiç belirlememiş (uygulamaya hiç girmemiş) kişi sayısı. */
@@ -173,20 +175,21 @@ export function buildInbox(input: InboxInput): InboxItem[] {
   if (input.nextWeek !== "published") {
     const urgent = isLateInWeek(input.now);
     const ap = input.autopilot;
+    const pub = input.canPublish !== false;
     items.push(input.nextWeek === "none"
       ? (ap?.upcoming
         ? {
             id: "next-week",
             severity: "week",
             title: `Gelecek haftanın planı ${ap.dayName} sabahı otomatik hazırlanacak`,
-            detail: "Size sadece kontrol edip yayınlamak kalır. İsterseniz şimdi de oluşturabilirsiniz.",
+            detail: pub ? "Size sadece kontrol edip yayınlamak kalır. İsterseniz şimdi de oluşturabilirsiniz." : "Size sadece kontrol edip onaya göndermek kalır. İsterseniz şimdi de oluşturabilirsiniz.",
             action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
           }
         : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı henüz hazır değil",
-          detail: "Personel plan yapabilsin diye erken yayınlayın.",
+          detail: pub ? "Personel plan yapabilsin diye erken yayınlayın." : "Hazırlayıp onaya gönderin, müdür yayınlar.",
           action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
         })
       : ap?.drafted
@@ -194,15 +197,15 @@ export function buildInbox(input: InboxInput): InboxItem[] {
           id: "next-week",
           severity: urgent ? "critical" : "today",
           title: "Gelecek haftanın planı otomatik hazırlandı",
-          detail: "Kontrol edin, uygunsa yayınlayın. Personel yayınlanınca görür.",
-          action: { label: "İncele ve Yayınla", href: "/schedule?week=next" },
+          detail: pub ? "Kontrol edin, uygunsa yayınlayın. Personel yayınlanınca görür." : "Kontrol edin, uygunsa onaya gönderin. Müdür yayınlayınca personel görür.",
+          action: { label: pub ? "İncele ve Yayınla" : "İncele ve Onaya Gönder", href: "/schedule?week=next" },
         }
       : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı taslakta",
-          detail: "Personel yayınlanana kadar vardiyalarını göremez.",
-          action: { label: "Gözden Geçir ve Yayınla", href: "/schedule?week=next" },
+          detail: pub ? "Personel yayınlanana kadar vardiyalarını göremez." : "Hazırsa onaya gönderin. Müdür yayınlayana kadar personel göremez.",
+          action: { label: pub ? "Gözden Geçir ve Yayınla" : "Gözden Geçir ve Onaya Gönder", href: "/schedule?week=next" },
         });
 
     if (input.availability.enabled && input.availability.missing > 0) {

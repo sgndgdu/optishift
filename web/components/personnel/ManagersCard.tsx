@@ -130,14 +130,26 @@ export const addsOnlyChefs = (granter: Granter): boolean => {
   return g.role !== "admin" && canDelegate(g) && accountLevel(g.role, g.access) === 2;
 };
 
-/** Yöneticinin kapsamını ve yetkisini tek satırla anlatır: "Sadece Bar · Tam yetki" / "· 4 yetki". */
-export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined): string {
+/** Yetki maddelerinin listede kısa adları. */
+const PERM_SHORT: Record<Perm, string> = {
+  prepare: "Plan", publish: "Yayın", approvals: "Onaylar", team: "Ekip",
+  plan_settings: "Plan ayarları", budget: "Bütçe", cross_branch: "Şubeler arası", delegate: "Yetki verme",
+};
+
+/** Yöneticinin kapsamı: departman şefiyse "Salon şefi", değilse verilen unvan (ör. "Müdür"). */
+export function scopeTitle(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined, fallback?: string): string | null {
   const a = parseAccess(m.permissions);
-  const dept = a?.department_id ? (deptName?.(a.department_id) ?? "Departman") : null;
+  if (a?.department_id) return `${deptName?.(a.department_id) ?? "Departman"} şefi`;
+  return fallback ?? null;
+}
+
+/** Yöneticinin kapsamını ve yetkisini tek satırla anlatır: "Salon şefi · Plan, Ekip" / "Müdür · Tam yetki". */
+export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: string) => string | undefined, roleLabel?: string): string {
+  const a = parseAccess(m.permissions);
   const perms = a?.perms ?? ALL_PERMS;
-  const full = dept ? CHEF_PERMS.every(p => perms.includes(p)) : perms.length === ALL_PERMS.length;
-  const what = perms.length === 0 ? "Sadece görür" : full ? "Tam yetki" : `${perms.length} yetki`;
-  return [dept ? `Sadece ${dept}` : null, what].filter(Boolean).join(" · ");
+  const full = a?.department_id ? CHEF_PERMS.every(p => perms.includes(p)) : perms.length === ALL_PERMS.length;
+  const what = perms.length === 0 ? "Sadece görür" : full ? "Tam yetki" : perms.map(p => PERM_SHORT[p]).join(", ");
+  return [scopeTitle(m, deptName, roleLabel), what].filter(Boolean).join(" · ");
 }
 
 /**

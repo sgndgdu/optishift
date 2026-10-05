@@ -17,7 +17,7 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
   /** Çok şubeli görünümde satırda şube adı. */
   branchName?: (p: MergedPerson) => string | null;
   hasDepts: (p: MergedPerson) => boolean;
-  /** Yöneticinin kapsamı/yetkisi tek satır ("Sadece Bar · Tam yetki"). */
+  /** Yöneticinin unvanı, kapsamı ve yetkisi tek satır ("Bar şefi · Plan, Ekip" / "Müdür · Tam yetki"). */
   managerSummary?: (p: MergedPerson) => string | null;
   /** "Yöneticiler" başlığının sağındaki bağlantı (isteğe bağlı). */
   managementAction?: React.ReactNode;
@@ -32,14 +32,11 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
 
   const row = (p: MergedPerson) => {
     const pill = rowStatus(p, hasDepts(p));
-    const sub = [
-      p.role === "employee" ? (p.title || null) : roleBadge(p).label,
-      p.role !== "employee" && p.role !== "admin" ? managerSummary?.(p) ?? null : null,
-      deptName(p),
-      branchName?.(p) ?? null,
-      p.role !== "employee" && p.schedulable ? "Vardiyaya da girer" : null,
-      !p.userId && !p.inactive ? "Giriş hesabı yok" : null,
-    ].filter(Boolean).join(" · ");
+    // Yöneticide tek satır: kapsam + yetki ("Salon şefi · Plan, Ekip"); departman ve plana girip girmediği kartta
+    const sub = (p.role === "employee"
+      ? [p.title || null, deptName(p), branchName?.(p) ?? null, !p.userId && !p.inactive ? "Giriş hesabı yok" : null]
+      : [(p.role !== "admin" ? managerSummary?.(p) : null) ?? roleBadge(p).label, branchName?.(p) ?? null]
+    ).filter(Boolean).join(" · ");
     return (
       <ListItem key={personKey(p)}
         leading={<Avatar name={p.name} tone={p.role === "employee" ? "neutral" : "brand"} />}

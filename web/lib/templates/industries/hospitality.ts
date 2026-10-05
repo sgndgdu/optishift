@@ -67,10 +67,10 @@ export const hospitality: IndustryProfile = {
     { id: "hostes",           label: "Hostes / Karşılama", category: "operasyon" },
     { id: "kasiyer",          label: "Kasiyer",            category: "operasyon" },
     { id: "bulasik",          label: "Bulaşık ve Temizlik", category: "destek", requiredDocs: ["hijyen"] },
-    { id: "kurye",            label: "Kurye",              category: "destek", requiredDocs: ["ehliyet-a2"] },
-    { id: "resepsiyon",       label: "Resepsiyonist",      category: "operasyon" },
-    { id: "kat-gorevlisi",    label: "Kat Görevlisi",      category: "operasyon" },
-    { id: "gece-muduru",      label: "Gece Müdürü", category: "yonetim", senior: true },
+    { id: "kurye",            label: "Kurye",              category: "destek", requiredDocs: ["ehliyet-a2"], variants: ["cafe", "restaurant"] },
+    { id: "resepsiyon",       label: "Resepsiyonist",      category: "operasyon", variants: ["hotel"] },
+    { id: "kat-gorevlisi",    label: "Kat Görevlisi",      category: "operasyon", variants: ["hotel"] },
+    { id: "gece-muduru",      label: "Gece Müdürü", category: "yonetim", senior: true, variants: ["hotel"] },
   ],
 
   documents: [

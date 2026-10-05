@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth";
-import { canManageAccount, chefDepartmentIds, departmentInScope, managerOutsideBranch } from "@/lib/access";
+import { canManageAccount, chefDepartmentIds, departmentInScope, departmentPersonnelIds, managerOutsideBranch } from "@/lib/access";
 import { generateTempPassword, generateUsername } from "@/lib/accountCreation";
 import {
   accountLevel, ALL_PERMS, canDelegate, capPerms, departmentScope, hasPerm, normalizeAccess, parseAccess, permError, type UserAccess,
@@ -66,6 +66,11 @@ export async function GET(req: NextRequest) {
     // Bölge müdürü: kendisi + atandığı şubelerin hesapları (patron hesapları hariç)
     if (auth.role === "supervisor" && auth.managed_location_ids?.length) {
       userList = userList.filter(u => u.id === auth.id || (u.role !== "admin" && u.location_id && auth.managed_location_ids!.includes(u.location_id)));
+    }
+    // Departman şefi sadece kendi departmanının (ve alt departmanlarının) hesaplarını görür; /api/personnel ile aynı süzgeç
+    if (auth.role === "manager" && auth.location_id) {
+      const team = await departmentPersonnelIds(db, auth, auth.location_id);
+      if (team) userList = userList.filter(u => u.id === auth.id || (u.personnel_id && team.includes(u.personnel_id)));
     }
     return NextResponse.json(userList);
   } catch (err: any) {

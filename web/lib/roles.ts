@@ -13,7 +13,11 @@ export function customRoles(rules: Record<string, unknown> | null | undefined): 
 
 /** Hazır görevler (işletme türünden) ve şubenin eklediği görevler, tekrarsız ve sıralı. */
 export function branchRoles(rules: Record<string, unknown> | null | undefined): { industry: string[]; custom: string[]; all: string[] } {
-  const industry = industryFromRules(rules)?.roles.map(r => r.label) ?? [];
+  // Alt türe özgü görevler (ör. otelde Resepsiyonist) sadece o alt türde listelenir; alt tür seçilmemişse hepsi
+  const variant = typeof rules?.industry_variant === "string" ? rules.industry_variant : null;
+  const industry = (industryFromRules(rules)?.roles ?? [])
+    .filter(r => !variant || !r.variants || r.variants.includes(variant))
+    .map(r => r.label);
   const custom = customRoles(rules).filter(r => !industry.includes(r));
   return { industry, custom, all: [...industry, ...custom] };
 }

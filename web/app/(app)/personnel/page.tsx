@@ -16,7 +16,7 @@ import { ManagerAddSheet, accessSummary, addsOnlyChefs, type Mgr } from "@/compo
 import PeopleList from "@/components/personnel/PeopleList";
 import { List } from "@/components/ui/List";
 import PersonSheet from "@/components/personnel/PersonSheet";
-import { createInvite, mergePeople, personKey, type MergedPerson } from "@/components/personnel/people";
+import { createInvite, mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
 import { canDelegate, parseAccess } from "@/lib/userAccess";
 import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
@@ -247,7 +247,7 @@ export default function PersonnelPage() {
 
   const managerSummary = (p: MergedPerson) => {
     const u = userOf(p);
-    return u ? accessSummary(u, id => editDepts.find(d => d.id === id)?.name) : null;
+    return u ? accessSummary(u, id => editDepts.find(d => d.id === id)?.name, roleBadge(p).label) : null;
   };
   // Hesabı var ama davet bağlantısıyla hiç girip şifresini belirlememiş
   const notJoined = persons.filter(p => !p.inactive && p.userId && p.is_temp_password && p.approval_status !== "pending");
@@ -267,7 +267,7 @@ export default function PersonnelPage() {
   const filtered = persons.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
-    (p.title ?? "").toLowerCase().includes(search.toLowerCase())
+    p.roles.some(r => r.toLowerCase().includes(search.toLowerCase()))
   );
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
@@ -376,7 +376,7 @@ export default function PersonnelPage() {
       {/* Search */}
       <div className="relative">
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, email veya unvan ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, e-posta veya görev ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
       </div>
 
       {/* Liste (DESIGN.md §2): satırda ad, unvan ve en önemli tek durum; ayrıntılar dokununca açılır */}

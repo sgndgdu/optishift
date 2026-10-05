@@ -20,7 +20,7 @@ import { ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel
 import { canDelegate, parseAccess } from "@/lib/userAccess";
 import PeopleList from "@/components/personnel/PeopleList";
 import PersonSheet from "@/components/personnel/PersonSheet";
-import { mergePeople, personKey, type MergedPerson } from "@/components/personnel/people";
+import { mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
 
 type Loc = { id: string; name: string; rules?: Record<string, unknown> | null };
 
@@ -192,7 +192,7 @@ function SupervisorPersonnelInner() {
           deptName={p => (p.department_id ? deptNames[p.department_id] ?? null : null)}
           branchName={!selectedLocId && locations.length > 1 ? p => locName(p.location_id) : undefined}
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
-          managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id]) : null; }}
+          managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; }}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}
           emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Çalışan ekle</button>} />
       )}
