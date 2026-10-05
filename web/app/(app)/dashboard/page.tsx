@@ -63,6 +63,8 @@ export default function DashboardPage() {
   const [pendingAccounts, setPendingAccounts] = useState(0);
   // Departman sorumlusu: hesap sahibi departmanın planını da oluşturduysa (lib/chefPlanNotice)
   const [deptPlan, setDeptPlan] = useState<{ title: string; detail: string; href?: string } | null>(null);
+  // Yayın yetkisi olan sorumlu: gelecek hafta için planını onaya gönderen departmanlar (Bekleyen İşler'de söylenir)
+  const [submittedDepts, setSubmittedDepts] = useState<string[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
   const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
@@ -102,6 +104,12 @@ export default function DashboardPage() {
       json(`/api/notifications?personnel_id=${u.personnel_id}`).then(d => {
         const n = list(d).find((x: any) => x.type === "dept_plan" && !x.is_read);
         setDeptPlan(n ? { title: n.title, detail: n.message, href: n.link ?? undefined } : null);
+      });
+    }
+    if (canPublishPlan(u) && !departmentScope(u) && u?.location_id) {
+      json(`/api/plan-submissions?location_id=${u.location_id}&week_start=${getNextWeekStart()}`).then(d => {
+        const deps = Array.isArray(d?.departments) ? d.departments : [];
+        setSubmittedDepts(deps.filter((x: any) => x.submitted).map((x: any) => x.submitted_by_name ? `${x.department_name} (${x.submitted_by_name})` : x.department_name));
       });
     }
     try {
@@ -246,6 +254,17 @@ export default function DashboardPage() {
     return now.getHours() * 60 + now.getMinutes() >= h * 60 + m + lateThresholdMin;
   };
 
+  // Vardiyanın saate göre durumu: giriş kaydı tutulmayan şubede (checkin_required kapalı) "Bekleniyor"
+  // vardiya bitse de kalıyor, bitmiş vardiyaya "Yerine bul" çıkıyordu (tam test 2026-10-05)
+  const shiftPhase = (s: any): "before" | "during" | "after" => {
+    if (!s.start_time || !s.end_time) return "before";
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const start = toMin(s.start_time); let end = toMin(s.end_time); if (end <= start) end += 1440;
+    const cur = now.getHours() * 60 + now.getMinutes();
+    return cur >= end ? "after" : cur >= start ? "during" : "before";
+  };
+  const checkinTracked = isModuleOn(rules, "checkin_required");
+
   // Gelmeyen personelin vardiyasını açık vardiyaya dönüştür: atama kişinin
   // takviminden düşer, ilan havuzuna girer, kişiye + ekibe bildirim gider.
   const convertToOpenShift = async (s: any, auto: boolean) => {
@@ -289,6 +308,7 @@ export default function DashboardPage() {
     pendingApprovals,
     pendingAccounts,
     deptPlan,
+    submittedDepts,
     notJoined: personnel.filter((p: any) => p.user_id && p.is_temp_password && p.status !== "inactive").length,
     unreadMessages: isModuleOn(rules, "chat_enabled") ? unreadMessages : 0,
     availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },
@@ -439,7 +459,9 @@ export default function DashboardPage() {
       {todayShifts.length > 0 && (() => {
         const checkedIn  = todayShifts.filter(s => s.check_in_at && !s.check_out_at);
         const checkedOut = todayShifts.filter(s => s.check_out_at);
-        const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s));
+        const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s) && (checkinTracked || shiftPhase(s) === "before"));
+        const untracked  = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "during");
+        const ended      = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "after");
         return (
           <Card id="bugun" className="stripe-card border-0 shadow-none scroll-mt-6">
             <CardHeader className="border-b border-border/40 pb-4">
@@ -447,10 +469,10 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Bugün Çalışanlar</CardTitle>
                 <div className="flex flex-wrap gap-3 ml-1">
                   {[
-                    { label: "Aktif",    value: checkedIn.length,  color: "text-emerald-600" },
+                    { label: "Aktif",    value: checkedIn.length + untracked.length,  color: "text-emerald-600" },
                     { label: "Bekliyor", value: waiting.length,    color: "text-amber-600" },
                     { label: "Geç",      value: lateShifts.length, color: "text-red-600" },
-                    { label: "Çıktı",    value: checkedOut.length, color: "text-slate-400" },
+                    { label: "Çıktı",    value: checkedOut.length + ended.length, color: "text-slate-400" },
                   ].filter(x => x.value > 0).map(({ label, value, color }) => (
                     <span key={label} className="flex items-center gap-1 text-xs text-slate-400 font-medium">
                       <span className={`text-sm font-bold ${color}`}>{value}</span> {label}
@@ -471,9 +493,12 @@ export default function DashboardPage() {
                   const isCheckedIn  = !!s.check_in_at;
                   const isCheckedOut = !!s.check_out_at;
                   const late         = isLate(s);
+                  const phase        = checkinTracked ? "before" : shiftPhase(s);
                   const status = isCheckedOut ? { label: "Çıktı", tone: "neutral" as const }
                     : isCheckedIn ? { label: "Aktif", tone: "positive" as const }
                     : late ? { label: "Gelmedi", tone: "danger" as const }
+                    : phase === "after" ? { label: "Bitti", tone: "neutral" as const }
+                    : phase === "during" ? { label: "Vardiyada", tone: "positive" as const }
                     : { label: "Bekleniyor", tone: "attention" as const };
                   return (
                     <li key={s.id} className="flex items-center gap-3 px-4 sm:px-5 py-3">
@@ -484,7 +509,7 @@ export default function DashboardPage() {
                       </div>
                       <StatusPill tone={status.tone}>{status.label}</StatusPill>
                       {/* Telefonla "gelemiyorum" haberi: yerine kim geçsin penceresini doğrudan aç */}
-                      {!isCheckedIn && !isCheckedOut && !(late && openShiftsEnabled && !autoOpenOnLate) && (
+                      {!isCheckedIn && !isCheckedOut && phase !== "after" && !(late && openShiftsEnabled && !autoOpenOnLate) && (
                         <button
                           onClick={() => router.push(`/schedule?week=this&gelemiyor=${s.id}&p=${encodeURIComponent(s.personnel_id)}&t=${encodeURIComponent(`${p?.name ?? ""} · ${s.start_time}–${s.end_time}`)}`)}
                           className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"

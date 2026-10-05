@@ -21,10 +21,20 @@ export function useManagerAuth() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(managerFallbackPath()); return; }
   }, [mounted, user, router]);
 
   return { user, mounted };
+}
+
+/** Şube paneli oturumu yoksa gidilecek yer: hesap sahibi / bölge sorumlusu şubeye girmeden şube sayfası açarsa
+ *  (yer imi, eski bağlantı) Tüm Şubeler'e döner; oturumu açıkken giriş ekranına atılıyordu (tam test 2026-10-05). */
+export function managerFallbackPath(): string {
+  try {
+    const sup = JSON.parse(localStorage.getItem("optishift_supervisor_user") || "null");
+    if (sup && (sup.role === "admin" || sup.role === "supervisor")) return "/supervisor";
+  } catch { /* yok say */ }
+  return "/login";
 }
 
 // Personel portalı için auth

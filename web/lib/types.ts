@@ -387,8 +387,8 @@ export function calcPoints(
 
 export const AVAILABILITY_LABELS: Record<Availability, string> = {
   available:     "Uygun",
-  preferred_not: "Tercih Etmiyorum",
-  unavailable:   "Kesinlikle Gelemem",
+  preferred_not: "Tercih etmem",
+  unavailable:   "Gelemem",
 };
 
 export const AVAILABILITY_COLORS: Record<Availability, string> = {

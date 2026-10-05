@@ -10,6 +10,8 @@ import { departmentPersonnelIds, managerOutsideBranch } from "@/lib/access";
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
+  // Ekip üyesi arkadaşlarının uygunluğunu ("gelemem" günleri) görmez; portal bu ucu kullanmıyor (tam test 2026-10-05)
+  if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");

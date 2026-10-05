@@ -41,14 +41,15 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
+  // İşletme oturumdan okunur (/api/organizations her rolde çalışır). Eskiden /api/admin/organizations
+  // sahip dışında 403 verip paket "Ücretsiz" görünüyordu; şube oturumu yoksa da sonsuz "Yükleniyor" kalıyordu.
   const loadOrg = useCallback(async () => {
-    if (!user) return;
     try {
-      const r = await fetch(`/api/admin/organizations?id=${user.org_id}`);
-      const data = await r.json();
-      setOrg(Array.isArray(data) ? data[0] : data);
-    } finally { setLoading(false); }
-  }, [user]);
+      const r = await fetch(`/api/organizations`);
+      const data = r.ok ? await r.json() : null;
+      setOrg(data && !data.error ? data : null);
+    } catch { setOrg(null); } finally { setLoading(false); }
+  }, []);
 
 
   useEffect(() => {
@@ -91,7 +92,7 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
       const r = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ org_id: user.org_id, plan: planId, success_url: `${window.location.origin}${returnPath}?success=1`, cancel_url: `${window.location.origin}${returnPath}?cancelled=1` }),
+        body: JSON.stringify({ org_id: org?.id ?? user?.org_id, plan: planId, success_url: `${window.location.origin}${returnPath}?success=1`, cancel_url: `${window.location.origin}${returnPath}?cancelled=1` }),
       });
       const data = await r.json();
 

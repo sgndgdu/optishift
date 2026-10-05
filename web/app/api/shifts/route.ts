@@ -86,6 +86,18 @@ export async function GET(req: NextRequest) {
       if (!loc || managerOutsideBranch(auth, location_id)) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
+      // Ekip üyesi sadece çalıştığı şubenin planını görür, giriş-çıkış gibi ayrıntılar olmadan (eskiden işletmedeki
+      // her şubenin tüm satırları geliyordu; tam test 2026-10-05)
+      if (auth.role === "employee") {
+        const me = auth.personnel_id ? await db.prepare(
+          `SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?`
+        ).get(auth.personnel_id, auth.org_id) as any : null;
+        let mine: string[] = [];
+        try { const a = Array.isArray(me?.assigned_location_ids) ? me.assigned_location_ids : JSON.parse(String(me?.assigned_location_ids ?? "[]")); mine = Array.isArray(a) ? a.map(String) : []; } catch { mine = []; }
+        if (![auth.location_id, me?.primary_location_id, ...mine].includes(location_id)) {
+          return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+        }
+      }
       rows = await db.prepare(`
         SELECT s.*, l.name as location_name
         FROM shift_assignments s
@@ -94,7 +106,13 @@ export async function GET(req: NextRequest) {
       `).all(location_id, week_start);
       // Employee: only published shifts
       if (auth.role === "employee") {
-        rows = rows.filter((r: any) => !r.publication_status || r.publication_status === "published");
+        rows = rows
+          .filter((r: any) => !r.publication_status || r.publication_status === "published")
+          .map((r: any) => r.personnel_id === auth.personnel_id ? r : ({
+            id: r.id, personnel_id: r.personnel_id, location_id: r.location_id, location_name: r.location_name,
+            week_start: r.week_start, day: r.day, shift_id: r.shift_id, start_time: r.start_time, end_time: r.end_time,
+            kind: r.kind, publication_status: r.publication_status, department_id: r.department_id,
+          }));
       }
     } else {
       rows = [];

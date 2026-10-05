@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAvailabilityEnabled } from "@/hooks/useShiftWords";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart as libGetWeekStart, formatDateTR, addDays, businessToday } from "@/lib/date";
+import { getWeekStart as libGetWeekStart, formatDateTR, addDays, businessToday, businessWallTime } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import {
   ArrowLeftRight, FileEdit, CalendarOff, CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, Send, Undo2, AlertCircle, ShieldAlert, Star, Megaphone, Plus, UserX,
@@ -42,8 +42,11 @@ function shiftLabel(row: any) {
 }
 
 // Takas/ilan sadece bugün ve sonrası için anlamlı (geçmiş vardiya takas edilmez)
-function isUpcoming(row: { week_start: string; day: number }): boolean {
-  return addDays(row.week_start, Number(row.day ?? 0)) >= businessToday();
+// Bugünün başlamış vardiyası da geçmiş sayılır (gece 23'te sabahki vardiya takasa çıkıyordu)
+function isUpcoming(row: { week_start: string; day: number; start_time?: string | null }): boolean {
+  const date = addDays(row.week_start, Number(row.day ?? 0));
+  if (date !== businessToday()) return date > businessToday();
+  return !row.start_time || businessWallTime(date, row.start_time).getTime() > Date.now();
 }
 
 // Durum rozeti: components/ui/RequestStatus (renk anlamı tüm uygulamada aynı)
@@ -559,7 +562,7 @@ export default function PortalRequests() {
             {swapsSent.map(s => (
                 <RequestCard key={s.id}
                   title={`${s.target_name ?? "—"} ile takas`}
-                  sub={`Benim: ${shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })} → Onların: ${shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}`}
+                  sub={`Benim: ${shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })} → Onun: ${shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}`}
                   status={s.status}
                   note={s.note}
                   canCancel={s.status === "pending"}

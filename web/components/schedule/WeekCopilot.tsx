@@ -81,7 +81,7 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction, onJu
   const problems = insights.filter(i => i.severity !== "info");
   const critical = problems.filter(i => i.severity === "critical").length;
   const headline = !snapshot ? ""
-    : snapshot.status === "empty" ? "Bu hafta için henüz plan yok"
+    : snapshot.status === "empty" ? "Bu haftanın planı henüz yok"
     : problems.length === 0 ? "Planda sorun görünmüyor"
     : `${problems.length} konuya dikkat${critical ? `, ${critical} tanesi acil` : ""}`;
 

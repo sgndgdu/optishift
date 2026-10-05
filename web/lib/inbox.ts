@@ -43,6 +43,8 @@ export type InboxInput = {
   notJoined?: number;
   /** Departman sorumlusu: hesap sahibi departmanın planını da oluşturdu (okunmamış bildirim) */
   deptPlan?: { title: string; detail: string; href?: string } | null;
+  /** Gelecek hafta planını onaya gönderen departmanlar ("Salon (Ayşe Demir)"); taslak maddesi bunu söyler. */
+  submittedDepts?: string[];
   /** Müdüre gelen okunmamış mesaj sayısı (Mesajlaşma modülü kapalıysa verilmez). */
   unreadMessages?: number;
   availability: { enabled: boolean; missing: number };
@@ -211,6 +213,14 @@ export function buildInbox(input: InboxInput): InboxItem[] {
           title: "Gelecek haftanın planı otomatik hazırlandı",
           detail: pub ? "Kontrol edin, uygunsa yayınlayın. Ekip yayınlanınca görür." : "Kontrol edin, uygunsa onaya gönderin. Sorumlu yayınlayınca ekip görür.",
           action: { label: pub ? "İncele ve Yayınla" : "İncele ve Onaya Gönder", href: "/schedule?week=next" },
+        }
+      : pub && (input.submittedDepts?.length ?? 0) > 0
+      ? {
+          id: "next-week",
+          severity: urgent ? "critical" : "today",
+          title: `Onaya gönderilen plan: ${input.submittedDepts!.join(", ")}`,
+          detail: "Gelecek haftanın planını kontrol edin, uygunsa yayınlayın. Ekip yayınlanınca görür.",
+          action: { label: "İncele ve Yayınla", href: "/schedule?week=next" },
         }
       : {
           id: "next-week",

@@ -75,7 +75,7 @@ const LOCATIONS = [
     rules: { tip_pooling_enabled: true },
     departments: [
       { id: "kd-als-salon", name: "Salon" },
-      { id: "kd-als-teras", name: "Teras", parent: "kd-als-salon", demand: { "s-ogle": wk(1, 2, 2), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 2, 2) },
+      { id: "kd-als-teras", name: "Teras", parent: "kd-als-salon", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(1, 2, 2) },
         people: [["Deniz", "Aydın"], ["Ece", "Korkmaz"], ["Mert", "Uslu", { extra: ["kd-als-icsalon"] }], ["Selin", "Ateş", { part: true }], ["Can", "Ertürk"], ["Duygu", "Sönmez"]] },
       { id: "kd-als-icsalon", name: "İç Salon", parent: "kd-als-salon", demand: { "s-ogle": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-aksam": wk(2, 2, 2) },
         people: [["Burak", "Şen"], ["Zeynep", "Kılıç"], ["Onur", "Taş"], ["Pınar", "Yalçın", { extra: ["kd-als-teras", "kd-als-bar"] }], ["Ozan", "Kurtuluş"]] },

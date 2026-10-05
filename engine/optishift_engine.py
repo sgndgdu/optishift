@@ -1024,6 +1024,68 @@ def build_model():
 DEPARTMENT_NAMES: dict = {}
 
 
+def _joint_department_problems(available_pool) -> list:
+    from itertools import combinations
+    depts = list(DEPARTMENT_DEMAND_MATRIX.keys())
+    if len(depts) < 2 or len(depts) > 12:
+        return []
+    in_demand = set(depts)
+    person_depts = {p["id"]: [d for d in person_departments(p) if d in in_demand] for p in PERSONNEL}
+    adj = {d: set() for d in depts}
+    for ds in person_depts.values():
+        for a in ds:
+            for b in ds:
+                if a != b:
+                    adj[a].add(b)
+    if not any(adj.values()):
+        return []
+
+    def connected(group):
+        seen, stack = {group[0]}, [group[0]]
+        while stack:
+            for n in adj[stack.pop()]:
+                if n in group and n not in seen:
+                    seen.add(n)
+                    stack.append(n)
+        return len(seen) == len(group)
+
+    def dur_min(s_idx):
+        if s_idx >= len(SHIFTS) or _is_on_call(s_idx):
+            return 0
+        a, b = _shift_minutes(SHIFTS[s_idx])
+        return b - a
+
+    rule = int(RULES["max_weekly_hours"]) * 60
+    limit = {p["id"]: min(rule, int(p.get("max_weekly_hours", RULES["max_weekly_hours"]) or 0) * 60) for p in PERSONNEL}
+    out, covered = [], set()
+    for size in range(2, len(depts) + 1):
+        for group in combinations(depts, size):
+            group = list(group)
+            if not connected(group):
+                continue
+            members = [pid for pid, ds in person_depts.items() if any(d in group for d in ds)]
+            label = " + ".join(DEPARTMENT_NAMES.get(d, d) for d in group)
+            for d in range(NUM_DAYS):
+                if d in covered:
+                    continue
+                need = sum(cnt for dep in group for dc in DEPARTMENT_DEMAND_MATRIX[dep].values()
+                           for day, cnt in dc.items() if day == d)
+                pool = available_pool(d, members)
+                if need > len(pool):
+                    covered.add(d)
+                    out.append(f"{DAYS[d]} — {label}: birlikte {need} kişi isteniyor ama bu departmanlarda o gün "
+                               f"{len(pool)} müsait kişi var (birden çok departmanda çalışan kişi aynı gün tek yere yazılır).")
+            if "hours" not in covered:
+                need = sum(cnt * dur_min(s) for dep in group for s, dc in DEPARTMENT_DEMAND_MATRIX[dep].items()
+                           for cnt in dc.values())
+                cap = sum(limit[pid] for pid in members)
+                if need > 0 and need > cap * 0.95:
+                    covered.add("hours")
+                    out.append(f"{label}: birlikte haftada {need / 60:.0f} saatlik vardiya isteniyor, bu departmanlardaki "
+                               f"{len(members)} kişinin haftalık sınırı toplam {cap / 60:.0f} saat. Kişi ekleyin ya da sayıları azaltın.")
+    return out
+
+
 def diagnose_infeasibility() -> str | None:
     """INFEASIBLE durumunda en olası nedeni tespit edip Türkçe, aksiyona dönük
     bir mesaj üretir.
@@ -1113,6 +1175,12 @@ def diagnose_infeasibility() -> str | None:
                         f"{DAYS[d]} — {dept_label}: {total} kişi isteniyor ama bu departmanda "
                         f"sadece {len(pool)} müsait personel var (toplam {len(members)} personel)."
                     )
+
+    # Joker (birden çok departmanlı) kişiler her departmanın havuzunda tek tek sayılır; departmanlar ayrı ayrı
+    # yeterli görünse de birlikte yetmeyebilir (kişi günde tek vardiya). Jokerle bağlı departman gruplarında aynı
+    # gün ve haftalık saat kontrolü, en küçük grup önce. Web'deki eşi: web/lib/jointCapacity.ts.
+    if DEPARTMENT_DEMAND_MATRIX and not problems:
+        problems.extend(_joint_department_problems(available_pool))
 
     # Gece koruması: gece vardiyası talebi, gece çalışabilecek personel sayısını aşıyor mu?
     night_idxs = {s for s in range(NUM_SHIFTS) if _is_night_shift(s)}

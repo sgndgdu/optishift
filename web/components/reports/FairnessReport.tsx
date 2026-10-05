@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { managerFallbackPath } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trophy, AlertTriangle, RefreshCw, Scale, Gauge, Ruler, ChevronRight } from "lucide-react";
@@ -10,7 +11,7 @@ import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { DetailRow } from "@/components/ui/Sheet";
 import { formatDateTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { fairnessBarColor, fairnessLabelFromAverage } from "@/lib/fairness";
+import { fairnessBarColor, fairnessLabelFromAverage, formatScore } from "@/lib/fairness";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
 
@@ -39,7 +40,7 @@ export default function FairnessReport() {
   useEffect(() => {
     const stored = localStorage.getItem("optishift_manager_user");
     const u = stored ? JSON.parse(stored) : null;
-    if (!u) { router.push("/login"); return; }
+    if (!u) { router.push(managerFallbackPath()); return; }
 
     const locId = localStorage.getItem("optishift_selected_location") || u.location_id || "";
     setLocationId(locId);
@@ -115,9 +116,9 @@ export default function FairnessReport() {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Ortalama" value={`${Math.round(avgBurden * 10) / 10}`} icon={Scale} />
-        <StatCard label="En hafif" value={<span className="block truncate">{leastLoaded ? leastLoaded.name.split(" ")[0] : "—"}</span>} icon={Gauge} tone="positive" />
-        <StatCard label="Fark" value={`${Math.round(gap * 10) / 10}`} icon={Ruler} tone={gapTone} />
+        <StatCard label="Ortalama" value={formatScore(avgBurden)} icon={Scale} />
+        <StatCard label="En hafif" value={<span className="block truncate">{leastLoaded ? leastLoaded.name : "—"}</span>} icon={Gauge} tone="positive" />
+        <StatCard label="Fark" value={formatScore(gap)} icon={Ruler} tone={gapTone} />
       </div>
 
       <section className="space-y-3">
@@ -239,7 +240,7 @@ function CurrentView({
 
             {/* Puan */}
             <div className="text-sm font-semibold text-slate-700 w-12 text-right shrink-0 tabular-nums">
-              {Math.round(burden * 10) / 10}
+              {formatScore(burden)}
             </div>
           </button>
 
@@ -265,8 +266,8 @@ function CurrentView({
                       {[...pHist].slice(-4).reverse().map((h: any) => (
                         <tr key={h.week_start} className="border-t border-slate-100">
                           <td className="pr-3 py-1">{new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}</td>
-                          <td className="pr-3 py-1 text-right font-bold">{Math.round((h.burden_score ?? 0) * 10) / 10}</td>
-                          <td className="pr-3 py-1 text-right">{Math.round((h.total_hours ?? 0) * 10) / 10}</td>
+                          <td className="pr-3 py-1 text-right font-bold">{formatScore(h.burden_score ?? 0)}</td>
+                          <td className="pr-3 py-1 text-right">{formatScore(h.total_hours ?? 0)}</td>
                           <td className="pr-3 py-1 text-right">{h.weekend_shifts ?? 0}</td>
                           <td className="pr-3 py-1 text-right">{h.night_shifts ?? 0}</td>
                           <td className="pr-3 py-1 text-right">{h.pref_not_shifts ?? 0}</td>
@@ -309,7 +310,7 @@ function CurrentView({
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-px" />
           <div>
             <p className="text-sm font-semibold text-amber-800">
-              Yük dağılımı dengesiz, {Math.round(gap * 10) / 10} puanlık fark var.
+              Yük dağılımı dengesiz, {formatScore(gap)} puanlık fark var.
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
               Bir sonraki otomatik plan bu farkı kapatmaya çalışacak.
@@ -367,7 +368,7 @@ function HistoryView({
                 const isLast = i === entries.length - 1;
                 // Hafta sonu / gece breakdown rozetleri tooltip'te
                 const tip = [
-                  `${e.week_start}: ${Math.round(val * 10) / 10}p`,
+                  `${e.week_start}: ${formatScore(val)}p`,
                   e.weekend_shifts  ? `Hafta sonu: ${e.weekend_shifts}` : "",
                   e.night_shifts    ? `Gece: ${e.night_shifts}` : "",
                   e.pref_not_shifts ? `Tercih etmem günü: ${e.pref_not_shifts}` : "",
@@ -385,7 +386,7 @@ function HistoryView({
             </div>
 
             <div className="w-14 text-right shrink-0">
-              <p className="text-sm font-bold text-slate-700 tabular-nums">{Math.round(latest * 10) / 10}p</p>
+              <p className="text-sm font-bold text-slate-700 tabular-nums">{formatScore(latest)}p</p>
               <p className={cn("text-xs font-bold", trendCls)}>{trend}</p>
             </div>
           </div>

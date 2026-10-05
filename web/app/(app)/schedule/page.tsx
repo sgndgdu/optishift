@@ -1,4 +1,5 @@
 "use client";
+import { jointShortfalls } from "@/lib/jointCapacity";
 import { effectiveWeeklyLimit } from "@/lib/legal";
 import { trNum } from "@/lib/format";
 import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
@@ -439,7 +440,7 @@ function SchedulePageInner() {
   };
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
-  const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void } | null>(null);
+  const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void; verb?: "Yayınla" | "Onaya Gönder" } | null>(null);
   const [approvedLeaves, setApprovedLeaves]       = useState<{ personnel_id: string; start_date: string; end_date: string; type: string }[]>([]); // Plan Asistanı + yayın kontrolü: izinli gün ataması
   const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
   const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
@@ -897,6 +898,12 @@ function SchedulePageInner() {
       if (r.ok) { showToast("Plan sorumlunuza onaya gönderildi.", "success"); loadDeptStatus(); }
       else showToast((await r.json().catch(() => ({}))).error ?? "Gönderilemedi", "error");
     } finally { setSubmitting(false); }
+  };
+  // Yayınla ile aynı kontrol: departman sorumlusu sorunlu planı uyarı görmeden gönderiyordu (tam test 2026-10-05)
+  const handleSubmitForApproval = () => {
+    const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
+    if (problems.length > 0) setViolationModal({ problems, verb: "Onaya Gönder", onConfirm: () => { setViolationModal(null); submitForApproval(); } });
+    else submitForApproval();
   };
   const lastSavedBodyRef = useRef<string>("");
   const saveDraftWeekNow = async (map: CellMap, oc: Record<string, { defId: string; pinned?: boolean }>): Promise<boolean> => {
@@ -1774,7 +1781,7 @@ function SchedulePageInner() {
     // Yayın öncesi kontrol her zaman (engellemez, gösterir). Güvenilirlik kural ihlali değil, bilgi: sadece Plan Kontrolü'nde
     const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
     if (problems.length > 0) {
-      setViolationModal({ problems, onConfirm: doPublish });
+      setViolationModal({ problems, onConfirm: doPublish, verb: "Yayınla" });
     } else {
       doPublish();
     }
@@ -2292,6 +2299,22 @@ function SchedulePageInner() {
           if (total > availableCount) {
             warnings.push(`${DAYS[d]} · ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} uygun kişi var (toplam ${members.length} kişi).`);
           }
+        }
+      }
+      // Joker kişiler iki departmana birden sayıldığı için departmanlar birlikte yetmeyebilir (lib/jointCapacity)
+      if (warnings.length === 0) {
+        const leafDemand = Object.fromEntries(Object.entries(deptDemandMatrix).filter(([id]) => !hasSubDepartments(departments, id)));
+        const name = (id: string) => departmentLabel(departments, departments.find(d => d.id === id)) || id;
+        for (const w of jointShortfalls(
+          leafDemand,
+          personnel.map(p => ({ id: p.id, departments: [p.department_id, ...(p.department_ids ?? [])].filter(Boolean), weeklyLimit: effectiveWeeklyLimit(p.max_weekly_hours, ruleMax) })),
+          isUnavailable,
+          defHours,
+        )) {
+          const names = w.departments.map(name).join(" + ");
+          warnings.push(w.kind === "day"
+            ? `${DAYS[w.day]} · ${names}: birlikte ${w.need} kişi isteniyor, bu departmanlarda o gün ${w.available} uygun kişi var (iki departmanda çalışan kişi aynı gün tek yere yazılır).`
+            : `${names}: birlikte haftada ${trNum(w.need)} saatlik vardiya isteniyor, bu departmanlardaki kişilerin haftalık sınırı toplam ${trNum(w.capacity)} saat.`);
         }
       }
     } else if (Object.keys(demandMatrix).length > 0) {
@@ -2994,7 +3017,7 @@ loading ? (
                   myDeptStatus?.submitted ? (
                     <span className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl">✓ Onaya gönderildi</span>
                   ) : (
-                    <button onClick={submitForApproval} disabled={submitting}
+                    <button onClick={handleSubmitForApproval} disabled={submitting}
                       className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
                       <Send size={14} /> {submitting ? "Gönderiliyor…" : "Onaya Gönder"}
                     </button>
@@ -3145,31 +3168,33 @@ loading ? (
 
           {/* ── Kural ihlali uyarı ── */}
           {violationModal && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4 flex flex-col sm:flex-row items-start gap-3">
-              <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5 hidden sm:block" />
+            (() => { const crit = violationModal.problems.some(pr => pr.severity === "critical"); const verb = violationModal.verb ?? "Yayınla"; return (
+            // Sadece "dikkat" maddeleri varsa kutu turuncu (Plan Kontrolü ile aynı renk), acil madde varsa kırmızı
+            <div className={cn("border rounded-xl px-4 py-4 flex flex-col sm:flex-row items-start gap-3", crit ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200")}>
+              <AlertCircle size={18} className={cn("shrink-0 mt-0.5 hidden sm:block", crit ? "text-red-500" : "text-amber-500")} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-red-800 mb-1 flex items-center gap-2">
-                  <AlertCircle size={16} className="text-red-500 shrink-0 sm:hidden" />
-                  Yayınlamadan önce bakın
+                <p className={cn("text-sm font-bold mb-1 flex items-center gap-2", crit ? "text-red-800" : "text-amber-800")}>
+                  <AlertCircle size={16} className={cn("shrink-0 sm:hidden", crit ? "text-red-500" : "text-amber-500")} />
+                  {verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce bakın
                 </p>
                 <ul className="space-y-2">
                   {violationModal.problems.map(pr => (
                     <li key={pr.id}>
                       <p className={cn("text-xs font-bold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
-                      <ul className="text-xs text-red-700 space-y-0.5 list-disc list-inside">
+                      <ul className={cn("text-xs space-y-0.5 list-disc list-inside", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>
                         {pr.lines.slice(0, 5).map((l, li) => {
                           const tg = pr.targets?.[li];
                           return <li key={l}>{tg ? <button type="button" onClick={() => { setViolationModal(null); jumpTo(tg); }} className="underline decoration-dotted text-left">{l}</button> : l}</li>;
                         })}
-                        {pr.lines.length > 5 && <li className="list-none text-red-500">ve {pr.lines.length - 5} satır daha</li>}
+                        {pr.lines.length > 5 && <li className="list-none opacity-80">ve {pr.lines.length - 5} satır daha</li>}
                       </ul>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-red-500 mt-2">Yayınlamadan önce düzeltmeniz önerilir.</p>
+                <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Plan engellenmez; isterseniz düzeltin."}</p>
               </div>
               <div className="flex gap-2 shrink-0 sm:flex-col w-full sm:w-auto">
-                <button onClick={violationModal.onConfirm} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors whitespace-nowrap">Yine de Yayınla</button>
+                <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
                 <button onClick={() => {
                   // İlk düzeltilebilir soruna götürür (eskiden sadece pencereyi kapatıyordu)
                   const first = violationModal.problems.flatMap(pr => pr.targets ?? []).find(Boolean);
@@ -3178,6 +3203,7 @@ loading ? (
                 }} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap">Düzelt</button>
               </div>
             </div>
+            ); })()
           )}
 
           {/* ── Personel Haftalık Planı (Grid) ── */}
@@ -3480,7 +3506,7 @@ loading ? (
                               ) : isUnavailable ? (
                                 <div className="w-full h-11 rounded-lg bg-red-50 border border-red-200 flex flex-col items-center justify-center gap-0.5" title="Kesinlikle uygun değil">
                                   <X size={12} className="text-red-400" />
-                                  <span className="text-[9px] font-bold text-red-400">Uygun Değil</span>
+                                  <span className="text-[9px] font-bold text-red-400">Gelemem</span>
                                 </div>
                               ) : isPrefNot ? (
                                 <button
@@ -3488,7 +3514,7 @@ loading ? (
                                   className="w-full h-11 rounded-lg bg-amber-50 border border-amber-300 hover:border-amber-400 hover:bg-amber-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                   title={avail?.start && avail.end ? `Tercih etmiyor, ${avail.start}–${avail.end} arası gelebilir` : "Tercih etmiyor (gerekirse gelebilir)"}
                                 >
-                                  <span className="text-[10px] font-bold text-amber-600">~ Tercih Etmiyor</span>
+                                  <span className="text-[10px] font-bold text-amber-600">~ Tercih etmem</span>
                                   {avail?.start && avail.end && (
                                     <span className="text-[9px] text-amber-400">{avail.start}–{avail.end}</span>
                                   )}

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { managerFallbackPath } from "@/hooks/useAuth";
 import { defaultWeeklyHours } from "@/lib/legal";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ export default function PersonnelPage() {
   const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
   const [selfSignupLoading, setSelfSignupLoading] = useState(false);
   const [selfSignupCopied, setSelfSignupCopied] = useState(false);
-  const [deptCache, setDeptCache] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [deptCache, setDeptCache] = useState<Record<string, { id: string; name: string; parent_id?: string | null }[]>>({});
 
   // Add form
   const [showAddModal, setShowAddModal] = useState(false);
@@ -104,7 +105,7 @@ export default function PersonnelPage() {
     try {
       const res = await fetch(`/api/departments?location_id=${locId}`);
       const data = await res.json();
-      if (Array.isArray(data)) setDeptCache(prev => ({ ...prev, [locId]: data.map((d: any) => ({ id: d.id, name: d.name })) }));
+      if (Array.isArray(data)) setDeptCache(prev => ({ ...prev, [locId]: data.map((d: any) => ({ id: d.id, name: d.name, parent_id: d.parent_id ?? null })) }));
     } catch {}
   };
 
@@ -112,10 +113,10 @@ export default function PersonnelPage() {
     try {
       const stored = localStorage.getItem("optishift_manager_user");
       const parsed = stored ? JSON.parse(stored) : null;
-      if (!parsed) { router.push("/login"); return; }
+      if (!parsed) { router.push(managerFallbackPath()); return; }
       setAuthUser(parsed);
       setMounted(true);
-    } catch { router.push("/login"); }
+    } catch { router.push(managerFallbackPath()); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

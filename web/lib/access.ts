@@ -90,6 +90,21 @@ export async function scopedLocationIds(_db: any, auth: AuthUser): Promise<strin
   return auth.location_id ? [auth.location_id] : [];
 }
 
+/** Mesajlaşma kapsamı: scopedLocationIds + ekip üyesinin çalıştığı diğer şubeler (assigned_location_ids).
+ *  İki şubede çalışan kişi ikinci şubesinin grubunu ve sorumlusunu görmüyordu (tam test 2026-10-05). */
+export async function chatLocationIds(db: any, auth: AuthUser): Promise<string[] | null> {
+  const scope = await scopedLocationIds(db, auth);
+  if (scope === null || !auth.personnel_id) return scope;
+  const row = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(auth.personnel_id, auth.org_id) as { assigned_location_ids?: unknown } | undefined;
+  let extra: string[] = [];
+  try {
+    const raw = row?.assigned_location_ids;
+    const arr = Array.isArray(raw) ? raw : JSON.parse(String(raw ?? "[]"));
+    extra = Array.isArray(arr) ? arr.map(String) : [];
+  } catch { extra = []; }
+  return [...new Set([...scope, ...extra])];
+}
+
 /** Sohbet grubu ("loc-<şube>") bu kullanıcıya açık mı? */
 export async function canAccessChatGroup(db: any, auth: AuthUser, groupId: string | null | undefined): Promise<boolean> {
   if (!groupId) return false;
@@ -97,7 +112,7 @@ export async function canAccessChatGroup(db: any, auth: AuthUser, groupId: strin
   if (!loc) return false;
   const exists = await db.prepare("SELECT 1 FROM locations WHERE id = ? AND org_id = ?").get(loc, auth.org_id);
   if (!exists) return false;
-  const scope = await scopedLocationIds(db, auth);
+  const scope = await chatLocationIds(db, auth);
   return scope === null || scope.includes(loc);
 }
 

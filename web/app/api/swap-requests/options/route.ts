@@ -2,7 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { addDays, businessToday, weekStartOf } from "@/lib/date";
+import { addDays, businessToday, businessWallTime, weekStartOf } from "@/lib/date";
 import { effectiveWeeklyLimit } from "@/lib/legal";
 import { findAssignmentProblems, type TimedShift } from "@/lib/assignmentCheck";
 
@@ -94,7 +94,8 @@ export async function GET(req: NextRequest) {
       const theirRules = personRules(m.max_weekly_hours);
       const shifts = theirs
         .filter(t => t.location_id === mine.location_id && (!t.publication_status || t.publication_status === "published")
-          && dateOf(t) >= today && weeks.includes(String(t.week_start)))
+          && dateOf(t) >= today && weeks.includes(String(t.week_start))
+          && (dateOf(t) > today || businessWallTime(today, String(t.start_time)).getTime() > Date.now()))
         .sort((a, b) => dateOf(a).localeCompare(dateOf(b)) || String(a.start_time).localeCompare(String(b.start_time)))
         .map(t => {
           const problems: string[] = [];

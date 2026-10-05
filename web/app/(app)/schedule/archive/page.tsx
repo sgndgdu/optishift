@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { managerFallbackPath } from "@/hooks/useAuth";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ArrowLeft, AlertCircle } from "lucide-react";
@@ -314,12 +315,12 @@ export default function ScheduleArchivePage() {
   // Auth + init
   useEffect(() => {
     const stored = localStorage.getItem("optishift_manager_user");
-    if (!stored) { router.replace("/login"); return; }
+    if (!stored) { router.replace(managerFallbackPath()); return; }
     try {
       const u = JSON.parse(stored);
       setLocationId(u.location_id ?? "");
       setLocationName(u.location_name ?? "");
-    } catch { router.replace("/login"); }
+    } catch { router.replace(managerFallbackPath()); }
   }, [router]);
 
   // Hafta listesini yükle

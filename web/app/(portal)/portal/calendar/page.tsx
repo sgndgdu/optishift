@@ -103,6 +103,7 @@ export default function PortalCalendar() {
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(prev => prev - 1)}
+            aria-label="Önceki hafta"
             className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-11 w-11"
           >
             <ChevronLeft size={20} strokeWidth={2.5} />
@@ -114,6 +115,7 @@ export default function PortalCalendar() {
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(prev => prev + 1)}
+            aria-label="Sonraki hafta"
             className="text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl h-11 w-11"
           >
             <ChevronRight size={20} strokeWidth={2.5} />

@@ -6,6 +6,7 @@
  * (Teklif Pazarı 2026-10-03 kaldırıldı; shift_bids tablosu eski kayıtlar için duruyor.)
  */
 import { rescoreWeek } from "@/lib/scoring";
+import { resolveShiftDef } from "@/lib/fairness";
 import { businessToday, formatDateTR } from "@/lib/date";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
@@ -96,6 +97,16 @@ export async function claimOpenShift(
       `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyanı ${claimedByName ?? "bir ekip arkadaşın"} üstlendi, artık takviminde değil.`,
       now,
     );
+  }
+
+  // Devir ilanı değilse (sorumlunun ilanı, izinden ilana çevrilen) vardiya tanımı saatten bulunur; yoksa takvimde
+  // "Vardiya" diye adsız görünüyor, plan puanlaması da tanımsız kalıyordu (tam test 2026-10-05)
+  if (shiftId === "open-shift") {
+    const loc = await db.prepare(`SELECT shift_definitions FROM locations WHERE id = ?`).get(os.location_id) as any;
+    let defs: { id: string; start: string; end: string }[] = [];
+    try { defs = typeof loc?.shift_definitions === "string" ? JSON.parse(loc.shift_definitions) : (loc?.shift_definitions ?? []); } catch { defs = []; }
+    const def = resolveShiftDef(null, os.start_time, os.end_time, Array.isArray(defs) ? defs : []);
+    if (def) shiftId = def.id;
   }
 
   // Kapılan vardiyayı kahramanın takvimine işle (yoksa vardiya hiçbir takvimde görünmez)
