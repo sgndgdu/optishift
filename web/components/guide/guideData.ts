@@ -54,8 +54,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ekip ve sorumlular",
         icon: Users,
         paragraphs: [
-          "Ekip sayfasında herkes tek listede: en üstte siz, sonra sorumlular, sonra ekip. Bir kişiye dokununca kartı açılır; görevleri, departmanı, çalışma saatleri ve izin bilgisi oradan değişir.",
-          "Bölümleriniz (departmanlar) varsa her kişinin bir departmanı olmalı; departmanı olmayan kişi otomatik plana girmez. Listede kırmızı uyarı çıkar, \"Departmanlara dağıt\" ile hepsini tek ekranda atarsınız.",
+          "Ekip sayfasında herkes tek listede: en üstte siz, sonra sorumlular, sonra ekip. Bir kişiye dokununca kartı açılır; departmanı, çalışma saatleri ve izin bilgisi oradan değişir.",
+          "Bölümleriniz (departmanlar) varsa her kişinin bir ana departmanı olmalı; departmanı olmayan kişi otomatik plana girmez. Birden çok bölümde çalışabilen kişiye kartından ek departman seçersiniz; plan onu o bölümlerin eksiğine de yazar. Listede kırmızı uyarı çıkar, \"Departmanlara dağıt\" ile hepsini tek ekranda atarsınız.",
           "Sorumlu ekle ile ekipten birine ya da yeni birine yetki verirsiniz. Neyi yönetecek (tüm işletme ya da tek bir departman) ve neleri yapabilecek (planı hazırlama, yayınlama, onaylar, ekip, plan ayarları, ücret) tek tek seçilir. Ekipten seçilen sorumlu vardiyada çalışmaya devam eder.",
         ],
       },
@@ -82,7 +82,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ayarlar",
         icon: Settings,
         paragraphs: [
-          "Temel: işletme türü, görevler, departmanlar, çalışma saatleri ve vardiyalar. İşletme türünü sadece siz değiştirebilirsiniz; vardiyalarınız etkilenmez.",
+          "Temel: işletme türü, departmanlar, çalışma saatleri ve vardiyalar. İşletme türünü sadece siz değiştirebilirsiniz; vardiyalarınız etkilenmez.",
           "Gelişmiş: haftalık çalışma sınırı, dinlenme, vardiya girişi, Adalet Puanı gibi kurallar. Çoğu işletme hiç değiştirmez.",
           "Özellikler: mesajlar, açık vardiyalar, fazla mesai takibi, bahşiş gibi isteğe bağlı özellikler. Kapalı özellik hiçbir ekranda görünmez. Sadece hesap sahibi açıp kapatır.",
         ],

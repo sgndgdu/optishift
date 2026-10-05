@@ -229,6 +229,8 @@ export const shiftAssignments = pgTable("shift_assignments", {
   day: integer("day").notNull(), // 0-6
   shift_id: text("shift_id").notNull(),
   role_id: text("role_id"),
+  // Birden çok departmanı olan kişinin bu vardiyada çalıştığı departman (null: kişinin ana departmanı)
+  department_id: text("department_id"),
   start_time: text("start_time"),
   end_time: text("end_time"),
   points: doublePrecision("points").default(0),

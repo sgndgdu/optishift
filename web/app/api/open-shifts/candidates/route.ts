@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       slot = {
         location_id: asg.location_id, date: dt.toISOString().slice(0, 10),
         start_time: asg.start_time, end_time: asg.end_time, excludePersonnelId: asg.personnel_id,
-        requiredRoles: Array.isArray(def?.required_skills) ? def.required_skills.map((r: any) => r.skill) : [],
+        requiredRoles: [], // Görevler kaldırıldı (2026-10-05)
       };
     }
     const { candidates, is_night } = await rankCandidates(db, slot);

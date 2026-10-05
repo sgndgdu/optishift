@@ -150,7 +150,6 @@ export const PERM_ROUTES: { path: string; methods: string[]; perm: Perm; exact?:
   { path: "/api/self-signup", methods: ["PATCH"], perm: "team" },
   { path: "/api/invite", methods: ["POST"], perm: "team" },
   { path: "/api/departments", methods: ["POST", "DELETE"], perm: "plan_settings" },
-  { path: "/api/locations/roles", methods: W, perm: "plan_settings" },
   { path: "/api/open-shifts", methods: W, perm: "plan_settings" },
   { path: "/api/score-adjustments", methods: W, perm: "plan_settings" },
   { path: "/api/autopilot", methods: W, perm: "plan_settings" },

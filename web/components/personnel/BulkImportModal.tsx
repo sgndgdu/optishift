@@ -153,7 +153,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
           <div className="space-y-4 overflow-y-auto">
             <div className="rounded-2xl border border-slate-200 p-4">
               <p className="text-xs font-bold text-slate-600 mb-2">1. Şablonu indirin</p>
-              <p className="text-xs text-slate-500 mb-3">Sütunlar: <strong>İsim</strong> (zorunlu), Departman, Yetenek (virgülle), Telefon, E-posta (isteğe bağlı).</p>
+              <p className="text-xs text-slate-500 mb-3">Sütunlar: <strong>İsim</strong> (zorunlu), Departman, Telefon, E-posta (isteğe bağlı).</p>
               <div className="flex flex-wrap gap-2">
                 <a href={tpl("xlsx")} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-forest-50 text-forest-700 hover:bg-forest-100"><Download size={14} /> Excel şablonu</a>
                 <a href={tpl("csv")} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><Download size={14} /> CSV şablonu</a>
@@ -180,7 +180,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
               </button>
               {showPaste && (
                 <div className="mt-2 space-y-2">
-                  <textarea value={paste} onChange={e => setPaste(e.target.value)} placeholder={"İsim\tDepartman\tYetenek\tTelefon\nAyşe Kaya\tMutfak\tAşçı\t05321112233"}
+                  <textarea value={paste} onChange={e => setPaste(e.target.value)} placeholder={"İsim\tDepartman\tTelefon\nAyşe Kaya\tMutfak\t05321112233"}
                     className="w-full min-h-[140px] border border-slate-200 rounded-xl p-3 text-xs font-mono whitespace-pre focus:outline-none focus:border-forest-400" />
                   <button onClick={usePaste} disabled={!paste.trim()} className="text-xs font-bold px-3 py-2 rounded-lg bg-slate-800 text-white disabled:opacity-40">Önizle</button>
                 </div>
@@ -216,7 +216,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                 <thead className="bg-slate-50 sticky top-0">
                   <tr className="text-left text-slate-500">
                     <th className="px-2 py-2 font-semibold">Satır</th><th className="px-2 py-2 font-semibold">İsim</th>
-                    <th className="px-2 py-2 font-semibold hidden sm:table-cell">Departman</th><th className="px-2 py-2 font-semibold hidden sm:table-cell">Yetenek</th>
+                    <th className="px-2 py-2 font-semibold hidden sm:table-cell">Departman</th>
                     <th className="px-2 py-2 font-semibold hidden md:table-cell">Telefon</th><th className="px-2 py-2 font-semibold">Durum</th>
                   </tr>
                 </thead>
@@ -226,7 +226,6 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                       <td className="px-2 py-1.5">{r.line}</td>
                       <td className="px-2 py-1.5 font-semibold text-slate-800">{r.name || "—"}</td>
                       <td className="px-2 py-1.5 hidden sm:table-cell">{r.department || "—"}</td>
-                      <td className="px-2 py-1.5 hidden sm:table-cell">{r.skills.join(", ") || "—"}</td>
                       <td className="px-2 py-1.5 hidden md:table-cell">{r.phone || "—"}</td>
                       <td className="px-2 py-1.5">
                         {r.status === "ok"

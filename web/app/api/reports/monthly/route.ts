@@ -20,7 +20,7 @@ async function buildMonthlyReportXlsx(
     [`Şube: ${locationName}`],
     [`Dönem: ${monthLabel(month)}`],
     [],
-    ["Ad Soyad", "Unvan", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)", "Mesai Maliyeti (₺, ×1,5)"],
+    ["Ad Soyad", "Departman", "Vardiya Sayısı", "Toplam Saat", "Fazla Mesai (sa)", "Mesai Maliyeti (₺, ×1,5)"],
     ...rows.map(r => [r.name, r.title, r.shift_count, r.total_hours, r.overtime_hours, r.overtime_cost ?? ""]),
     [],
     ["TOPLAM", "", rows.reduce((s, r) => s + r.shift_count, 0),
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       SELECT
         sa.personnel_id,
         p.name AS personnel_name,
-        CASE WHEN p.roles LIKE '[%' THEN (p.roles::json->>0) END AS title, -- görev = ilk rol (ayrı unvan yok)
+        (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, -- Görevler kaldırıldı: kişinin departmanı
         p.hourly_wage,
         sa.start_time,
         sa.end_time,
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
         AND COALESCE(sa.kind, 'regular') = 'regular'
       UNION ALL
       -- İcapta çağrılınca çalışılan saat: çalışma süresine ve mesaiye sayılır, vardiya sayısına sayılmaz
-      SELECT c.personnel_id, p.name, CASE WHEN p.roles LIKE '[%' THEN (p.roles::json->>0) END AS title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
+      SELECT c.personnel_id, p.name, (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
       FROM on_call_callouts c
       JOIN personnel p ON c.personnel_id = p.id
       WHERE c.location_id = ? AND c.week_start >= ? AND c.week_start <= ?

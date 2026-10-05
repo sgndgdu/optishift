@@ -169,6 +169,8 @@ export default function PortalCalendar() {
                           <p className="text-base font-bold text-slate-900 tabular-nums">{shift.start_time}–{shift.end_time}</p>
                           <p className="text-xs font-semibold text-slate-500 truncate">
                             {shift.shift_id === "custom" ? "Özel" : shiftNames[shift.shift_id] ?? words.Shift}
+                            {/* Birden çok departmanda çalışan kişi o gün hangi departmanda */}
+                            {shift.department_name && <span className="text-sky-700"> · {shift.department_name}</span>}
                             {isToday && <span className="text-primary font-bold"> · Bugün</span>}
                           </p>
                         </>

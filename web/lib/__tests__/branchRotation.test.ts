@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseBranchRotation, plannedInBranch, rotationBranchForWeek } from "@/lib/branchRotation";
+import { departmentsInBranch, parseBranchRotation, plannedInBranch, rotationBranchForWeek } from "@/lib/branchRotation";
 
 const rot = { every_weeks: 2, order: ["A", "B"], anchor: "2026-10-05" };
 
@@ -21,3 +21,17 @@ describe("şubeler arası rotasyon", () => {
     expect(parseBranchRotation("{bozuk")).toBeNull();
   });
 });
+
+describe("departmentsInBranch (çok departmanlı kişi)", () => {
+  const branch = new Set(["mutfak", "kasa", "salon"]);
+  it("ana departman başta, diğer şubenin departmanı hariç", () => {
+    expect(departmentsInBranch({ department_id: "mutfak", assigned_department_ids: ["mutfak", "kasa", "baska-sube"] }, branch)).toEqual(["mutfak", "kasa"]);
+  });
+  it("JSON metin de okunur, tekrar etmez", () => {
+    expect(departmentsInBranch({ department_id: "kasa", assigned_department_ids: '["salon","kasa","salon"]' }, branch)).toEqual(["kasa", "salon"]);
+  });
+  it("departmanı yoksa boş", () => {
+    expect(departmentsInBranch({ department_id: null, assigned_department_ids: [] }, branch)).toEqual([]);
+  });
+});
+

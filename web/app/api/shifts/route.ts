@@ -47,9 +47,10 @@ export async function GET(req: NextRequest) {
         if (!(await canActOnPersonnel(db, auth, personnel_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
       rows = await db.prepare(`
-        SELECT s.*, l.name as location_name
+        SELECT s.*, l.name as location_name, dp.name as department_name
         FROM shift_assignments s
         LEFT JOIN locations l ON s.location_id = l.id
+        LEFT JOIN departments dp ON dp.id = s.department_id
         WHERE s.personnel_id = ? AND s.week_start = ?
       `).all(personnel_id, week_start);
       if (colleagueLocation) {
@@ -267,13 +268,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Güncellemeler toplanır, döngü sonunda tek UPDATE ile yazılır
-    const pendingUpdates: { id: number; shift_id: string; start: string | null; end: string | null; pub: string }[] = [];
+    const pendingUpdates: { id: number; shift_id: string; start: string | null; end: string | null; pub: string; dept: string | null }[] = [];
     const publishedGroups = new Set<string>(); // location|week: yayından sonra artık taslak kopyalar silinir
 
     for (const shift of shifts) {
         const { personnel_id, location_id, week_start, day, shift_id, start_time, end_time } = shift;
         // İcap nöbeti ayrı satır: aynı gün normal vardiyayla birlikte olabilir, dinlenme kuralına girmez
         const kind: "regular" | "on_call" = shift.kind === "on_call" ? "on_call" : "regular";
+        // Çok departmanlı kişinin bu vardiyadaki departmanı (null: ana departmanı)
+        const deptId: string | null = typeof shift.department_id === "string" && shift.department_id ? shift.department_id : null;
 
         if (!personnel_id || !location_id || !week_start || day === undefined) {
           errors.push("Eksik veri: personnel_id, location_id, week_start, day zorunlu");
@@ -334,7 +337,7 @@ export async function POST(req: NextRequest) {
             existing.publication_status === "published" &&
             (existing.start_time !== (start_time || null) || existing.end_time !== (end_time || null));
 
-          pendingUpdates.push({ id: existing.id, shift_id: finalShiftId, start: start_time || null, end: end_time || null, pub: pubStatus });
+          pendingUpdates.push({ id: existing.id, shift_id: finalShiftId, start: start_time || null, end: end_time || null, pub: pubStatus, dept: deptId });
           if (pubStatus === "published") publishedGroups.add(`${location_id}|${week_start}`);
 
           if (timeChanged && pubStatus === "published") {
@@ -380,9 +383,9 @@ export async function POST(req: NextRequest) {
 
         // Çakışma yoksa yeni kayıt oluştur
         const result = await db.prepare(`
-          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, kind, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?)
-        `).run(personnel_id, location_id, week_start, day, finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, kind, now);
+          INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, published_at, kind, department_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?)
+        `).run(personnel_id, location_id, week_start, day, finalShiftId, start_time || null, end_time || null, pubStatus, pubStatus === "published" ? now : null, kind, deptId, now);
 
         const newId = Number(result.lastInsertRowid);
         current.set(key, { id: newId, personnel_id, location_id, week_start, day, start_time: start_time || null, end_time: end_time || null, publication_status: pubStatus, force_acceptance_status: null, kind });
@@ -396,13 +399,13 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < pendingUpdates.length; i += 500) {
       const chunk = pendingUpdates.slice(i, i + 500);
       const vals: unknown[] = [];
-      const tuples = chunk.map(u => { vals.push(u.id, u.shift_id, u.start, u.end, u.pub); return "(?::int, ?::text, ?::text, ?::text, ?::text)"; });
+      const tuples = chunk.map(u => { vals.push(u.id, u.shift_id, u.start, u.end, u.pub, u.dept); return "(?::int, ?::text, ?::text, ?::text, ?::text, ?::text)"; });
       await db.prepare(`
         UPDATE shift_assignments AS sa
         SET shift_id = v.shift_id, start_time = v.start_time, end_time = v.end_time, status = 'scheduled',
-            publication_status = v.pub,
+            publication_status = v.pub, department_id = v.dept,
             published_at = CASE WHEN v.pub = 'published' THEN COALESCE(sa.published_at, ?::bigint) ELSE sa.published_at END
-        FROM (VALUES ${tuples.join(", ")}) AS v(id, shift_id, start_time, end_time, pub)
+        FROM (VALUES ${tuples.join(", ")}) AS v(id, shift_id, start_time, end_time, pub, dept)
         WHERE sa.id = v.id
       `).run(now, ...vals);
     }

@@ -82,6 +82,28 @@ def test_department_demand_matrix_isolation():
     )
 
 
+def test_multi_department_person_counts_once():
+    """Birden çok departmanı olan kişi (department_ids) iki departmanın ihtiyacını da karşılayabilir ama
+    bir vardiyası sadece BİR departmana sayılır ve çıktıda o departman yazılır."""
+    payload = base_payload(
+        personnel=[
+            make_person("P1", "Ayşe", department_id="dept-a"),
+            make_person("P2", "Burak", department_id="dept-b"),
+            make_person("P3", "Joker", department_id="dept-a", department_ids=["dept-a", "dept-b"]),
+        ],
+        availability={pid: FULL_WEEK_AVAILABLE for pid in ("P1", "P2", "P3")},
+        # Pazartesi sabah: A'ya 1, B'ye 2 kişi. B'nin tek üyesi var, ikincisi joker olmalı.
+        department_demand_matrix={"dept-a": {"morning": {"0": 1}}, "dept-b": {"morning": {"0": 2}}},
+    )
+    result = run_engine(payload)
+    assert "error" not in result, result
+    mon = [a for a in result["assignments"] if a["day"] == 0 and a["shiftId"] == 0]
+    ids = {a["personnelId"] for a in mon}
+    assert ids == {"P1", "P2", "P3"}, mon
+    joker = next(a for a in mon if a["personnelId"] == "P3")
+    assert joker.get("department_id") == "dept-b", joker
+
+
 def test_night_restricted_personnel_never_assigned_night_shift():
     """Gebe/emziren/18 yaş altı/sağlık raporlu personel hiçbir gece vardiyasına
     atanamaz — hard constraint (Postalar Yönetmeliği)."""

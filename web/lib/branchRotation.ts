@@ -42,3 +42,15 @@ export function departmentInBranch(p: { department_id?: string | null; assigned_
   if (typeof extra === "string") { try { extra = JSON.parse(extra); } catch { extra = []; } }
   return Array.isArray(extra) ? (extra.find(d => typeof d === "string" && branchDeptIds.has(d)) ?? null) : null;
 }
+
+/**
+ * Kişinin BU şubedeki tüm departmanları, ana departman başta (departmentInBranch). Birden çok departmanı
+ * olan kişi ("joker") planda bunların hepsinin ihtiyacına yazılabilir; her vardiyası tek departmana sayılır.
+ */
+export function departmentsInBranch(p: { department_id?: string | null; assigned_department_ids?: unknown }, branchDeptIds: Set<string>): string[] {
+  const primary = departmentInBranch(p, branchDeptIds);
+  let extra: unknown = p.assigned_department_ids;
+  if (typeof extra === "string") { try { extra = JSON.parse(extra); } catch { extra = []; } }
+  const rest = Array.isArray(extra) ? extra.filter((d): d is string => typeof d === "string" && branchDeptIds.has(d)) : [];
+  return [...new Set([...(primary ? [primary] : []), ...rest])];
+}

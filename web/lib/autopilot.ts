@@ -107,7 +107,7 @@ export async function runAutopilotForLocation(loc: { id: string; org_id: string;
       if (def) rows.push({ personnel_id: a.personnelId, day: a.day, shift_id: def.id, start_time: def.start, end_time: def.end, kind: "on_call" });
       continue;
     }
-    if (a.start_time && a.end_time) rows.push({ personnel_id: a.personnelId, day: a.day, shift_id: null, start_time: a.start_time, end_time: a.end_time });
+    if (a.start_time && a.end_time) rows.push({ personnel_id: a.personnelId, day: a.day, shift_id: null, start_time: a.start_time, end_time: a.end_time, department_id: a.department_id ?? null });
   }
 
   // Motor çalışırken müdür plan yapmaya başladıysa üzerine yazma

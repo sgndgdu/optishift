@@ -37,6 +37,21 @@ DEMAND_MATRIX = {}
 # her (department, shift_idx, day) hücresi kendi personel alt kümesi içinde hard constraint olur.
 DEPARTMENT_DEMAND_MATRIX = {}
 
+# Birden çok departmanı olan kişi (personel.department_ids, ilk eleman ana departman): her vardiyası
+# departmanlarından TEK birinin ihtiyacına sayılır. {(p, d, s): {department_id: bool_var}}, build_model kurar.
+DEPT_ASSIGN: dict = {}
+# Korunan hücrenin departmanı: {(personnel_id, day): department_id}
+FIXED_DEPARTMENTS: dict = {}
+
+
+def person_departments(person) -> list:
+    """Kişinin bu şubedeki departmanları, ana departman başta (tek departmanlıda tek eleman)."""
+    ids = [str(x) for x in (person.get("department_ids") or []) if x]
+    primary = person.get("department_id")
+    if primary and str(primary) not in ids:
+        ids.insert(0, str(primary))
+    return list(dict.fromkeys(ids))
+
 # Şubenin kapalı günleri (0=Pzt … 6=Paz), çalışma saatlerinden gelir.
 # Sadece coverage-max modunda kullanılır: talep tablosu boşken kapalı güne kimse yazılmaz.
 CLOSED_DAYS: set = set()
@@ -557,7 +572,7 @@ def build_model():
         pid = person["id"]
         return (
             tuple(sorted(person.get("skills") or [])),
-            person.get("department_id"),
+            tuple(person_departments(person)),
             PERSONNEL_CREWS.get(pid),
             pid in NIGHT_RESTRICTED_IDS,
             CONSECUTIVE_NIGHT_WEEKS_ENABLED and pid in PREV_WEEK_NIGHT_IDS,
@@ -650,29 +665,40 @@ def build_model():
 
     # Departman bazlı exact coverage: DEPARTMENT_DEMAND_MATRIX[dept_id][shift_idx][day] = exact_count
     # Aynı mantık ama toplam num_p yerine sadece o departmandaki personel alt kümesi üzerinden.
+    global DEPT_ASSIGN
+    DEPT_ASSIGN = {}
     if DEPARTMENT_DEMAND_MATRIX:
+        # Tek departmanlı kişi doğrudan sayılır; çok departmanlı kişinin her vardiyası departmanlarından
+        # tam birine yazılır (DEPT_ASSIGN), böylece aynı vardiya iki departmanın ihtiyacına birden sayılmaz.
         dept_personnel: dict[str, list[int]] = {}
+        multi_dept: dict[str, list[int]] = {}
         for p_idx, person in enumerate(PERSONNEL):
-            dept_id = person.get("department_id")
-            if dept_id:
-                dept_personnel.setdefault(dept_id, []).append(p_idx)
+            depts = person_departments(person)
+            if len(depts) == 1:
+                dept_personnel.setdefault(depts[0], []).append(p_idx)
+            elif len(depts) > 1:
+                for dep in depts:
+                    multi_dept.setdefault(dep, []).append(p_idx)
+                for d in range(NUM_DAYS):
+                    fixed_dep = FIXED_DEPARTMENTS.get((person["id"], d))
+                    for s_i in range(NUM_SHIFTS):
+                        vs = {dep: model.new_bool_var(f"dept_p{p_idx}_d{d}_s{s_i}_{k}") for k, dep in enumerate(depts)}
+                        model.add(sum(vs.values()) == shifts[(p_idx, d, s_i)])
+                        if fixed_dep in vs:
+                            model.add(vs[fixed_dep] == shifts[(p_idx, d, s_i)])
+                        DEPT_ASSIGN[(p_idx, d, s_i)] = vs
 
         for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
             members = dept_personnel.get(dept_id, [])
-            if not members:
+            helpers = multi_dept.get(dept_id, [])
+            if not members and not helpers:
                 # Departmanda hiç personel yoksa kısıtı atla — aksi halde
                 # karşılanamaz bir hard constraint tüm haftayı infeasible yapar.
                 continue
             for s_idx, day_counts in shift_day_map.items():
                 for d, exact_count in day_counts.items():
-                    if exact_count > 0:
-                        model.add(
-                            sum(shifts[(p, d, s_idx)] for p in members) == exact_count
-                        )
-                    else:
-                        model.add(
-                            sum(shifts[(p, d, s_idx)] for p in members) == 0
-                        )
+                    total = sum(shifts[(p, d, s_idx)] for p in members) + sum(DEPT_ASSIGN[(p, d, s_idx)][dept_id] for p in helpers)
+                    model.add(total == (exact_count if exact_count > 0 else 0))
 
     # ── FABRİKA: Ekip Rotasyon Kısıtı ───────────────────────────────────────
     # CREW_ROTATION: {crew_id: shift_idx} — bu haftaki ekip-vardiya ataması
@@ -1070,8 +1096,7 @@ def diagnose_infeasibility() -> str | None:
     if DEPARTMENT_DEMAND_MATRIX:
         dept_personnel: dict = {}
         for person in PERSONNEL:
-            dept_id = person.get("department_id")
-            if dept_id:
+            for dept_id in person_departments(person):
                 dept_personnel.setdefault(dept_id, []).append(person["id"])
 
         for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
@@ -1157,8 +1182,8 @@ def diagnose_infeasibility() -> str | None:
         if DEPARTMENT_DEMAND_MATRIX:
             members_by_dept: dict = {}
             for person in PERSONNEL:
-                if person.get("department_id"):
-                    members_by_dept.setdefault(person["department_id"], []).append(person["id"])
+                for dept_id in person_departments(person):
+                    members_by_dept.setdefault(dept_id, []).append(person["id"])
             for dept_id, shift_day_map in DEPARTMENT_DEMAND_MATRIX.items():
                 _weekly(shift_day_map, members_by_dept.get(dept_id, []), f"{DEPARTMENT_NAMES.get(dept_id, dept_id)}: ")
 
@@ -1641,6 +1666,7 @@ def api_mode(payload: dict):
     # Korunan hücreler: [{personnel_id, day, shift_id, start_time, end_time}]
     FIXED_ASSIGNMENTS = {}
     FIXED_EXTRA_MINUTES = {}
+    FIXED_DEPARTMENTS.clear()
     shift_id_to_idx = {str(sd.get("id", i)): i for i, sd in enumerate(payload.get("shifts") or [])}
     known_ids = {p.get("id") for p in PERSONNEL}
     for fa in payload.get("fixed_assignments") or []:
@@ -1653,6 +1679,8 @@ def api_mode(payload: dict):
         s_idx = shift_id_to_idx.get(str(fa.get("shift_id")))
         kind = "on_call" if s_idx is not None and _is_on_call(s_idx) else "regular"
         FIXED_ASSIGNMENTS[(pid, day, kind)] = s_idx
+        if kind == "regular" and fa.get("department_id"):
+            FIXED_DEPARTMENTS[(pid, day)] = str(fa["department_id"])
         if kind == "regular" and s_idx is None and fa.get("start_time") and fa.get("end_time"):
             start_m, end_m = _shift_minutes({"start": fa["start_time"], "end": fa["end_time"]})
             FIXED_EXTRA_MINUTES[pid] = FIXED_EXTRA_MINUTES.get(pid, 0) + max(0, end_m - start_m)
@@ -1783,7 +1811,7 @@ def api_mode(payload: dict):
                 if solver.value(shifts[(p_idx, d, s)]):
                     dur = shift_durations_min[s] if s < len(shift_durations_min) else SHIFT_HOURS * 60
                     weekly_min += dur
-                    output["assignments"].append({
+                    row = {
                         "personnelId": person["id"],
                         "day":         d,
                         "shiftId":     s,
@@ -1791,7 +1819,13 @@ def api_mode(payload: dict):
                         "end_time":    SHIFTS[s]["end"],
                         "points":      effective_points(person["id"], d, s),
                         "kind":        "on_call" if _is_on_call(s) else "regular",
-                    })
+                    }
+                    # Çok departmanlı kişinin o vardiyada çalıştığı departman
+                    for dep, var in (DEPT_ASSIGN.get((p_idx, d, s)) or {}).items():
+                        if solver.value(var):
+                            row["department_id"] = dep
+                            break
+                    output["assignments"].append(row)
         # Mesai özeti: eşiği aşan personeli raporla
         threshold_min = int(OVERTIME_THRESHOLD_HOURS * 60)
         if weekly_min > threshold_min:

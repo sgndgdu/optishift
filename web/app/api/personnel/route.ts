@@ -70,8 +70,8 @@ export async function GET(req: NextRequest) {
       const roles = JSON.parse(p.roles || "[]");
       return {
         ...rest,
-        // Ayrı unvan yok (2026-10-04): her ekran kişinin ilk görevini gösterir; eski serbest unvan gösterilmez
-        title: Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : null,
+        // Görevler kaldırıldı (2026-10-05): ayrı unvan yok, ekranlar departmanı gösterir
+        title: null,
         kiosk_pin_set: !!kiosk_pin, // ham bcrypt hash client'a asla dönmez
         assigned_location_ids: JSON.parse(p.assigned_location_ids || "[]"),
         assigned_department_ids: JSON.parse(p.assigned_department_ids || "[]"),
@@ -215,7 +215,7 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
     // Personelin bu org'a ait olduğunu doğrula
-    const existing = await db.prepare("SELECT id, primary_location_id, user_access_level FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
+    const existing = await db.prepare("SELECT id, primary_location_id, user_access_level, department_id FROM personnel WHERE id = ? AND org_id = ?").get(id, auth.org_id) as any;
     if (!existing) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
@@ -286,15 +286,36 @@ export async function PATCH(req: NextRequest) {
         const dept = await db.prepare("SELECT id FROM departments WHERE id = ? AND location_id = ?").get(deptId, existing.primary_location_id);
         if (!dept) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
       }
-      // Diğer şubelerdeki departmanlar (paylaşılan personel) korunur; sadece bu şubenin departmanı değişir
+      // Diğer şubelerdeki departmanlar (paylaşılan personel) ve bu şubedeki ek departmanlar korunur;
+      // sadece ana departman değişir (yeni ana departman ek listeden düşer)
       const curD = await db.prepare("SELECT assigned_department_ids FROM personnel WHERE id = ?").get(id) as any;
       let prevIds: string[] = [];
       try { prevIds = JSON.parse(curD?.assigned_department_ids || "[]"); } catch { prevIds = []; }
       const otherBranch = prevIds.length
         ? (await db.prepare(`SELECT id FROM departments WHERE id IN (${prevIds.map(() => "?").join(",")}) AND location_id <> ?`).all(...prevIds, existing.primary_location_id) as { id: string }[]).map(d => d.id)
         : [];
+      const sameBranchExtras = deptId ? prevIds.filter(x => !otherBranch.includes(x) && x !== deptId && x !== existing.department_id) : [];
       await db.prepare("UPDATE personnel SET department_id=?, assigned_department_ids=? WHERE id=?")
-        .run(deptId, JSON.stringify([...(deptId ? [deptId] : []), ...otherBranch]), id);
+        .run(deptId, JSON.stringify([...new Set([...(deptId ? [deptId] : []), ...sameBranchExtras, ...otherBranch])]), id);
+    }
+
+    // Bu şubede yardım edebileceği ek departmanlar (kullanıcı kararı 2026-10-05): kişi planda bunların
+    // ihtiyacına da yazılabilir, her vardiyası tek departmana sayılır (shift_assignments.department_id).
+    if (Array.isArray(body.extra_department_ids)) {
+      const cur = await db.prepare("SELECT department_id, assigned_department_ids FROM personnel WHERE id = ?").get(id) as any;
+      if (!cur?.department_id) return NextResponse.json({ error: "Önce ana departmanı seçin" }, { status: 400 });
+      const want = [...new Set<string>(body.extra_department_ids.map(String))].filter(x => x !== cur.department_id);
+      if (want.length) {
+        const ok = await db.prepare(`SELECT id FROM departments WHERE id IN (${want.map(() => "?").join(",")}) AND location_id = ?`).all(...want, existing.primary_location_id) as { id: string }[];
+        if (ok.length !== want.length) return NextResponse.json({ error: "Departman bu şubede bulunamadı" }, { status: 400 });
+      }
+      let prev: string[] = [];
+      try { prev = JSON.parse(cur.assigned_department_ids || "[]"); } catch { prev = []; }
+      const otherBranch = prev.length
+        ? (await db.prepare(`SELECT id FROM departments WHERE id IN (${prev.map(() => "?").join(",")}) AND location_id <> ?`).all(...prev, existing.primary_location_id) as { id: string }[]).map(d => d.id)
+        : [];
+      await db.prepare("UPDATE personnel SET assigned_department_ids = ? WHERE id = ?")
+        .run(JSON.stringify([...new Set([cur.department_id, ...want, ...otherBranch])]), id);
     }
 
     // Şubeler arası (kullanıcı kararı 2026-10-04): çalıştığı şubeler + planlı şube rotasyonu.
@@ -319,7 +340,7 @@ export async function PATCH(req: NextRequest) {
       }
       // Diğer şubelerdeki departman ({şubeId: departmanId}): assigned_department_ids = ana departman + bunlar
       if (body.branch_department_ids && typeof body.branch_department_ids === "object") {
-        const cur2 = await db.prepare("SELECT department_id FROM personnel WHERE id = ?").get(id) as any;
+        const cur2 = await db.prepare("SELECT department_id, assigned_department_ids FROM personnel WHERE id = ?").get(id) as any;
         const extra: string[] = [];
         for (const [loc, dept] of Object.entries(body.branch_department_ids as Record<string, unknown>)) {
           if (!dept || typeof dept !== "string" || !assigned.includes(loc) || loc === existing.primary_location_id) continue;
@@ -327,7 +348,13 @@ export async function PATCH(req: NextRequest) {
           if (!ok) return NextResponse.json({ error: "Departman o şubede bulunamadı" }, { status: 400 });
           extra.push(dept);
         }
-        const all = [...new Set([...(cur2?.department_id ? [cur2.department_id] : []), ...extra])];
+        // Ana şubedeki ek departmanlar korunur
+        let prev2: string[] = [];
+        try { prev2 = JSON.parse(cur2?.assigned_department_ids || "[]"); } catch { prev2 = []; }
+        const homeExtras = prev2.length
+          ? (await db.prepare(`SELECT id FROM departments WHERE id IN (${prev2.map(() => "?").join(",")}) AND location_id = ?`).all(...prev2, existing.primary_location_id) as { id: string }[]).map(d => d.id)
+          : [];
+        const all = [...new Set([...(cur2?.department_id ? [cur2.department_id] : []), ...homeExtras, ...extra])];
         await db.prepare("UPDATE personnel SET assigned_department_ids = ? WHERE id = ?").run(JSON.stringify(all), id);
       }
       if (body.branch_rotation !== undefined) {

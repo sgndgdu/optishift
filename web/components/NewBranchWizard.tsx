@@ -210,7 +210,6 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
               {(() => {
                 const ind = getIndustry(created.industry)!;
-                const recs = getVariant(ind, created.variant).skillRecommendations ?? [];
                 const highlights = enabledHighlights(ind);
                 return (
                   <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
@@ -228,16 +227,6 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                         {ind.nudges.firstSteps.map(t => <li key={t} className="text-sm text-slate-700 flex gap-2"><Check size={14} className="text-forest-600 shrink-0 mt-0.5" />{t}</li>)}
                       </ul>
                     </div>
-                    {recs.length > 0 && (
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 mb-1.5">Önerilen kural</p>
-                        {recs.map(r => (
-                          <p key={r.shiftId + r.skill} className="text-sm text-slate-700">
-                            <strong>{shifts.find(s => s.id === r.shiftId)?.name ?? r.shiftId}</strong> vardiyasında en az {r.count} {r.skill}. <span className="text-slate-500">{r.reason} Ekipte görevi işaretledikten sonra Ayarlar &rsaquo; İşletme Türü&apos;nden tek tıkla ekleyebilirsiniz.</span>
-                          </p>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })()}

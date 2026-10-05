@@ -230,7 +230,7 @@ function WorkHoursReport() {
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="text-left px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Ad Soyad</th>
-                <th className="hidden sm:table-cell text-left px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Unvan</th>
+                <th className="hidden sm:table-cell text-left px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Departman</th>
                 <th className="hidden sm:table-cell text-right px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Vardiya</th>
                 <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Saat</th>
                 <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Mesai</th>
@@ -242,7 +242,7 @@ function WorkHoursReport() {
                 <tr key={row.personnel_id} className={`hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/20"}`}>
                   <td className="px-3 sm:px-5 py-3 font-medium text-slate-900">
                     {row.name}
-                    {/* Telefonda Unvan/Vardiya sütunları gizli: ismin altında kısa özet */}
+                    {/* Telefonda Departman/Vardiya sütunları gizli: ismin altında kısa özet */}
                     <span className="sm:hidden block text-xs font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
                   </td>
                   <td className="hidden sm:table-cell px-5 py-3 text-slate-500">{row.title || "—"}</td>

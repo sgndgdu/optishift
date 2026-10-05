@@ -9,6 +9,8 @@ export type DraftShiftRow = {
   end_time: string;
   pinned?: boolean;
   kind?: "regular" | "on_call";
+  /** Çok departmanlı kişinin bu vardiyadaki departmanı */
+  department_id?: string | null;
 };
 
 export async function loadLocDefs(db: any, locId: string): Promise<ShiftDef[]> {
@@ -78,14 +80,14 @@ export async function syncDraftWeek(
     const key = `${s.personnel_id}|${s.day}|${kind}`;
     if (taken.has(key)) continue; // yayınlanmış satır var ya da bu istekte zaten yazıldı
     taken.add(key);
-    tuples.push("(?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?, ?)");
+    tuples.push("(?, ?, ?, ?, ?, ?, ?, 'scheduled', 'draft', ?, ?, ?, ?)");
     values.push(s.personnel_id, location_id, week_start, s.day, finalizeShiftId(s.shift_id, s.start_time, s.end_time, locDefs),
-      s.start_time, s.end_time, s.pinned === true, kind, now);
+      s.start_time, s.end_time, s.pinned === true, kind, typeof s.department_id === "string" && s.department_id ? s.department_id : null, now);
   }
   // Tek toplu INSERT: silme ile yeniden yazma arasındaki pencere kısalır (okuyan ekran yarım plan görmez)
   if (tuples.length) {
     await db.prepare(`
-      INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, kind, created_at)
+      INSERT INTO shift_assignments (personnel_id, location_id, week_start, day, shift_id, start_time, end_time, status, publication_status, pinned, kind, department_id, created_at)
       VALUES ${tuples.join(", ")}
     `).run(...values);
   }

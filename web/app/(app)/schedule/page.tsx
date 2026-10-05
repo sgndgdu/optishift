@@ -1,7 +1,7 @@
 "use client";
 import { effectiveWeeklyLimit } from "@/lib/legal";
 import { trNum } from "@/lib/format";
-import { departmentInBranch, plannedInBranch } from "@/lib/branchRotation";
+import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense } from "react";
@@ -153,7 +153,8 @@ const EVENT_TYPE_CONFIG: Record<string, { emoji: string; color: string; label: s
 
 
 // pinned: müdür elle düzeltti; Planı Oluştur bu hücreye dokunmaz (DB: shift_assignments.pinned)
-type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean; id?: number };
+// deptId: çok departmanlı kişinin o gün çalıştığı departman (yoksa ana departmanı)
+type CellData = { startMin: number; endMin: number; points: number; pinned?: boolean; id?: number; deptId?: string };
 type CellMap  = Record<string, CellData>;
 type AvailDay = { status: string; start?: string | null; end?: string | null };
 type AvailMap = Record<string, Record<number, AvailDay>>;
@@ -261,6 +262,8 @@ interface Popover {
   endMin: number;
   /** Saat kaydırıcısı açık mı (tanımlı vardiyaya uymayan özel saat) */
   custom?: boolean;
+  /** Çok departmanlı kişide bu vardiyanın departmanı */
+  deptId?: string;
 }
 
 // useSearchParams (Ana Sayfa'dan ?week=next) Suspense sınırı ister
@@ -606,7 +609,8 @@ function SchedulePageInner() {
             const rawDefs = typeof locData[0].shift_definitions === "string"
               ? JSON.parse(locData[0].shift_definitions)
               : locData[0].shift_definitions;
-            weekDefs = Array.isArray(rawDefs) ? rawDefs : [];
+            // Görevler kaldırıldı (2026-10-05): eski kayıtlı "zorunlu görev" kuralı ekranda uyarı üretmesin
+            weekDefs = Array.isArray(rawDefs) ? rawDefs.map((d: ShiftDefinition) => ({ ...d, required_skills: [] })) : [];
           } catch { weekDefs = []; }
         }
         setShiftDefs(weekDefs);
@@ -754,7 +758,8 @@ function SchedulePageInner() {
         const branchDeptIds = new Set<string>(deptArr.map((d: any) => d.id));
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active"
           && ((p.schedulable !== false && plannedInBranch(p.branch_rotation, activeLocationId, weekStart)) || assignedIds.has(p.id)))
-          .map((p: any) => ({ ...p, department_id: departmentInBranch(p, branchDeptIds) })) : []);
+          // department_ids: bu şubedeki tüm departmanları (ana departman başta); joker birden çok departmana yazılabilir
+          .map((p: any) => ({ ...p, department_id: departmentInBranch(p, branchDeptIds), department_ids: departmentsInBranch(p, branchDeptIds) })) : []);
 
         const newAvailMap: AvailMap = {};
         if (aData.personnel) {
@@ -794,7 +799,7 @@ function SchedulePageInner() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              const cellData: CellData = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}) };
+              const cellData: CellData = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}), ...(s.department_id ? { deptId: s.department_id } : {}) };
               if (newCellMap[key]) { (newExtra[key] ??= []).push(cellData); continue; }
               newCellMap[key] = cellData;
               if (s.publication_status === "draft") hasDraft = true;
@@ -909,6 +914,7 @@ function SchedulePageInner() {
               start_time:   minToHHMM(val.startMin),
               end_time:     minToHHMM(val.endMin),
               pinned:       val.pinned === true,
+              department_id: val.deptId ?? null,
             };
           }).concat(onCallRows(oc) as never[]),
         });
@@ -1378,6 +1384,7 @@ function SchedulePageInner() {
       startMin,
       endMin,
       custom: !shiftDefs.length || (!!existing && !matchShiftDef(startMin, endMin, shiftDefs)),
+      deptId: existing?.deptId,
     });
   };
 
@@ -1391,6 +1398,7 @@ function SchedulePageInner() {
         endMin:   popover.endMin,
         points:   cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs),
         pinned:   true,
+        ...(popover.deptId ? { deptId: popover.deptId } : {}),
       },
     });
     setPopover(null);
@@ -1612,6 +1620,7 @@ function SchedulePageInner() {
         shift_id:     matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
         start_time:   minToHHMM(val.startMin),
         end_time:     minToHHMM(val.endMin),
+        department_id: val.deptId ?? null,
       };
     }), ...onCallRows(Object.fromEntries(pinnedOnCall))];
     // Mevcut plan (korunanlar hariç, onlar zaten sabit): motor gereksiz yer değiştirmeyi cezalandırır
@@ -1649,7 +1658,7 @@ function SchedulePageInner() {
           const startMin = hhmmToMin(a.start_time);
           const rawEnd   = hhmmToMin(a.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs) };
+          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs), ...(a.department_id ? { deptId: a.department_id } : {}) };
         }
       }
       // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
@@ -1957,6 +1966,7 @@ function SchedulePageInner() {
         shift_id:           matchShiftDef(val.startMin, val.endMin, shiftDefs)?.id ?? "custom",
         start_time:         minToHHMM(val.startMin),
         end_time:           minToHHMM(val.endMin),
+        department_id:      val.deptId ?? null,
         publication_status: pubStatus,
       };
     }).concat(onCallRows(onCallMap).map(r => ({ ...r, location_id: activeLocationId, week_start: weekStart, publication_status: pubStatus })) as never[]);
@@ -2116,7 +2126,8 @@ function SchedulePageInner() {
     const matchedDef = matchShiftDef(cell.startMin, cell.endMin, shiftDefs);
     if (matchedDef) {
       const person = personnel.find(p => p.id === pId);
-      const deptId = person?.department_id || '__none__';
+      // Joker başka departmana yazıldıysa o departmanın sayacına sayılır
+      const deptId = (cell.deptId && person?.department_ids?.includes(cell.deptId) ? cell.deptId : person?.department_id) || '__none__';
       if (!deptAssignedCounts[deptId]) deptAssignedCounts[deptId] = {};
       if (!deptAssignedCounts[deptId][matchedDef.id]) deptAssignedCounts[deptId][matchedDef.id] = {};
       deptAssignedCounts[deptId][matchedDef.id][day] = (deptAssignedCounts[deptId][matchedDef.id][day] || 0) + 1;
@@ -2269,8 +2280,9 @@ function SchedulePageInner() {
     if (hasDeptDemand) {
       for (const [deptId, matrix] of Object.entries(deptDemandMatrix)) {
         if (hasSubDepartments(departments, deptId)) continue;
-        weeklyCheck(matrix, personnel.filter(p => p.department_id === deptId), `${departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId}: `);
-        const members = personnel.filter(p => (p.department_id || '__none__') === deptId);
+        weeklyCheck(matrix, personnel.filter(p => p.department_id === deptId || p.department_ids?.includes(deptId)), `${departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId}: `);
+        // Bu departmanda çalışabilen herkes (ek departmanı olanlar dahil)
+        const members = personnel.filter(p => (p.department_id || '__none__') === deptId || p.department_ids?.includes(deptId));
         const deptName = departmentLabel(departments, departments.find(d => d.id === deptId)) || deptId;
         const dayTotals = sumDayTotals(matrix);
         for (const [dayStr, total] of Object.entries(dayTotals)) {
@@ -2294,45 +2306,13 @@ function SchedulePageInner() {
         }
       }
     }
-    // Zorunlu yetkinlik ön-kontrolü: talep edilen vardiyada gerekli yetkinliğe sahip
-    // yeterli uygun kişi yoksa motor çözüm bulamaz — kullanıcıyı önceden uyar
-    const parseRoles = (p: any): string[] => {
-      if (Array.isArray(p.roles)) return p.roles;
-      try { return JSON.parse(p.roles || "[]"); } catch { return []; }
-    };
-    for (const def of shiftDefs) {
-      // Departman şefi şube geneli yetkinlik kuralından sorumlu değil (lib/generatePlan de uygulamaz)
-      const reqs = chefDept ? [] : def.required_skills ?? [];
-      if (reqs.length === 0) continue;
-      const activeMatrix = hasDeptDemand
-        ? Object.values(deptDemandMatrix).reduce((acc, m) => {
-            for (const [sid, days] of Object.entries(m)) {
-              acc[sid] = acc[sid] ?? {};
-              for (const [d, c] of Object.entries(days)) acc[sid][Number(d)] = (acc[sid][Number(d)] ?? 0) + Number(c || 0);
-            }
-            return acc;
-          }, {} as Record<string, Record<number, number>>)
-        : demandMatrix;
-      const days = activeMatrix[def.id] ?? {};
-      for (const req of reqs) {
-        const skilled = personnel.filter(p => parseRoles(p).includes(req.skill));
-        for (const [dayStr, count] of Object.entries(days)) {
-          const d = parseInt(dayStr);
-          if (Number(count) <= 0) continue;
-          const availSkilled = skilled.filter(p => !isUnavailable(p.id, d)).length;
-          if (availSkilled < req.count) {
-            warnings.push(`${DAYS[d]} · ${def.name}: en az ${req.count} "${req.skill}" yetkinlikli kişi gerekli, o gün yalnızca ${availSkilled} uygun kişi var.`);
-          }
-        }
-      }
-    }
     return warnings;
   }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap, shiftDefs, locRules, chefDept]);
 
   // Kapasite Planı hücrelerinde "bu gün en fazla kaç kişi girilebilir" ipucu için —
   // departman verilmezse lokasyon geneli, verilirse sadece o departmanın personeli sayılır.
   const maxAvailableFor = (day: number, deptId?: string) => {
-    const pool = deptId ? personnel.filter(p => p.department_id === deptId) : personnel;
+    const pool = deptId ? personnel.filter(p => p.department_id === deptId || p.department_ids?.includes(deptId)) : personnel;
     return pool.filter(p => availMap[p.id]?.[day]?.status !== 'unavailable').length;
   };
 
@@ -2350,6 +2330,12 @@ function SchedulePageInner() {
     }, 0);
     return totalAvail - usedByOtherShifts;
   };
+
+  // Çok departmanlı kişinin ana departmanı dışında çalıştığı gün: kutuda o departmanın adı
+  const otherDeptName = (p: { department_id?: string | null; department_ids?: string[] }, cell: CellData): string | null =>
+    cell.deptId && cell.deptId !== p.department_id && p.department_ids?.includes(cell.deptId)
+      ? departments.find(d => d.id === cell.deptId)?.name ?? null
+      : null;
 
   // Personel filtresi
   const filteredPersonnel = personnelFilter.trim()
@@ -2441,8 +2427,11 @@ function SchedulePageInner() {
        return;
     }
 
+    // Departman başka kişiye taşınmaz: hedef kişinin o departmanı yoksa ana departmanına sayılır
+    const { deptId: srcDept, ...rest } = sourceCell;
     newMap[targetId] = {
-      ...sourceCell,
+      ...rest,
+      ...(srcDept && targetPerson?.department_ids?.includes(srcDept) ? { deptId: srcDept } : {}),
       points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs),
       pinned: true,
     };
@@ -3435,6 +3424,7 @@ loading ? (
                                     <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
+                                    {otherDeptName(p, cell) && <div className="text-[9px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
                                   </div>
                                 ) : !ocDef ? (
                                   <div className="flex items-center justify-center h-full">
@@ -3469,6 +3459,8 @@ loading ? (
                                     <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
+                                    {/* Joker başka departmana yazıldıysa o departmanın adı */}
+                                    {otherDeptName(p, cell) && <div className="text-[9px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
                                     {forceData && (
                                       <div className="text-[8px] text-amber-600 font-semibold">
                                         {forceData.status === "pending" ? "⏳" : forceData.status === "accepted" ? "✓" : "✗"}
@@ -3868,7 +3860,7 @@ loading ? (
             const lines = explainAssignment(weekSnapshot, popover!.personnelId, popover!.day, {
               pinned: !!c?.pinned,
               cycleState: weekStates(wc, popover!.personnelId, weekStart)?.[popover!.day] ?? null,
-              requiredRoles: (def?.required_skills ?? []).map(r => r.skill),
+              requiredRoles: [],
               reliabilityNote: reliabilityNotes[popover!.personnelId] ?? null,
               learned: (learnedPrefs[popover!.personnelId] ?? [])
                 .filter(l => l.day === popover!.day && (l.shiftId === null || l.shiftId === def?.id))
@@ -3982,6 +3974,24 @@ loading ? (
                 ? <><PinOff size={13} /> Korumayı kaldır (yeniden oluşturmada değişebilir)</>
                 : <><Pin size={13} /> Koru (yeniden oluşturmada değişmesin)</>}
             </button>
+          )}
+          {/* Birden çok departmanı olan kişi: bu vardiyada hangi departmanda çalışacak (sayaç o departmana sayar) */}
+          {(popoverPerson?.department_ids?.length ?? 0) > 1 && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Bu vardiyada hangi departmanda?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(popoverPerson!.department_ids as string[]).map(id => {
+                  const active = (popover!.deptId ?? popoverPerson!.department_id) === id;
+                  return (
+                    <button key={id} onClick={() => setPopover(prev => prev ? { ...prev, deptId: id === popoverPerson!.department_id ? undefined : id } : null)}
+                      className={cn("text-xs px-2.5 py-1 rounded-lg font-semibold border transition-colors",
+                        active ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:bg-forest-50")}>
+                      {departments.find(d => d.id === id)?.name ?? "Departman"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           {shiftDefs.some(d => d.on_call) && (
             <div className="mt-3 pt-3 border-t border-slate-100">

@@ -21,8 +21,7 @@ import BranchAccountTab from "@/components/BranchAccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
-import { applySkillRecommendation, getIndustry, industryFromRules, pendingSkillRecommendations } from "@/lib/templates";
-import { branchRoles } from "@/lib/roles";
+import { getIndustry, industryFromRules } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
@@ -268,83 +267,6 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-// Vardiya bazlı zorunlu yetkinlik editörü — "her gece vardiyasında en az 1 bakımcı" gibi
-// kuralları vardiya tanımına işler; otomatik planlama bunu kesin kural olarak uygular.
-function RequiredSkillsEditor({
-  skills,
-  knownSkills,
-  onChange,
-}: {
-  skills: { skill: string; count: number }[];
-  knownSkills: string[];
-  onChange: (next: { skill: string; count: number }[]) => void;
-}) {
-  const [newSkill, setNewSkill] = useState("");
-  const [newCount, setNewCount] = useState(1);
-  const [open, setOpen] = useState(false);
-  const add = () => {
-    const name = newSkill.trim();
-    if (!name || skills.some(s => s.skill === name)) return;
-    onChange([...skills, { skill: name, count: Math.max(1, newCount) }]);
-    setNewSkill("");
-    setNewCount(1);
-  };
-  if (skills.length === 0 && !open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)}
-        className="text-xs font-semibold text-slate-400 hover:text-forest-700 pt-1 border-t border-slate-100 w-full text-left">
-        + Zorunlu görev ekle <span className="font-normal text-slate-300">(örn. her vardiyada en az 1 {(knownSkills[0] ?? "aşçı").toLocaleLowerCase("tr-TR")})</span>
-      </button>
-    );
-  }
-  return (
-    <div className="space-y-1.5 pt-1 border-t border-slate-100">
-      <span className="text-xs text-slate-400">Zorunlu görev <span className="text-slate-300">(bu vardiyada mutlaka bulunmalı)</span></span>
-      {skills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {skills.map((rs, i) => (
-            <StatusPill key={i} tone="brand">
-              ≥{rs.count} {rs.skill}
-              <button
-                type="button"
-                onClick={() => onChange(skills.filter((_, j) => j !== i))}
-                className="text-forest-300 hover:text-red-500 transition-colors"
-              >
-                <X size={10} />
-              </button>
-            </StatusPill>
-          ))}
-        </div>
-      )}
-      <div className="flex items-center gap-1.5">
-        <input
-          value={newSkill}
-          onChange={e => setNewSkill(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          list="known-skills-list"
-          placeholder="Görev seçin ya da yazın"
-          className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
-        />
-        <datalist id="known-skills-list">
-          {knownSkills.map(s => <option key={s} value={s} />)}
-        </datalist>
-        <input
-          type="number" min={1} max={20} value={newCount}
-          onChange={e => setNewCount(Number(e.target.value) || 1)}
-          className="w-14 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
-        />
-        <button
-          type="button"
-          onClick={add}
-          className="text-xs font-bold px-2 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors shrink-0"
-        >
-          Ekle
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   // Yöneticinin yetki maddeleri (lib/userAccess) kilitli alanları belirler (lib/ruleLocks isCategoryLocked);
@@ -469,7 +391,6 @@ export default function SettingsPage() {
   // Anında kaydedilen döngü sayfanın genel kayıt durumuna (kaydedilmemiş değişiklik çubuğu) karışmaz
   const [savedWorkCycle, setSavedWorkCycle] = useState<WorkCycleConfig | null | undefined>(undefined);
   // Aktif personelin rolleri: önerilen zorunlu rolü uygulamadan önce rol sahibi var mı diye bakılır
-  const [personnelRoles, setPersonnelRoles] = useState<string[][]>([]);
 
 
   const savedSnapshot = useRef<string>("");
@@ -617,9 +538,6 @@ export default function SettingsPage() {
                 setCyclePersonnel((pData as { id: string; name: string; status?: string }[]).filter(p => p.status === "active")
                   .map(p => ({ id: p.id, name: p.name }))
                   .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")));
-                setPersonnelRoles((pData as { status?: string; roles?: unknown }[])
-                  .filter(p => p.status === "active")
-                  .map(p => Array.isArray(p.roles) ? p.roles as string[] : []));
               }
             }
           } catch { /* ignore */ }
@@ -1057,17 +975,11 @@ export default function SettingsPage() {
     const st = sh * 60 + sm, en = eh * 60 + em;
     return st >= 22 * 60 || (en < st && en > 0);
   });
-  const [roleDeleting, setRoleDeleting] = useState<string | null>(null);
-  const [roleError, setRoleError] = useState("");
   const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
   const [industryDraft, setIndustryDraft] = useState<{ industry: string; variant: string } | null>(null);
   const [industrySaving, setIndustrySaving] = useState(false);
   const pickedIndustry = industryDraft?.industry ?? savedIndustry?.key ?? null;
   const pickedVariant = industryDraft?.variant ?? savedVariant ?? savedIndustry?.variants[0].key ?? null;
-  // Önerilen zorunlu roller (henüz uygulanmamış olanlar), rol sahibi sayısıyla
-  const skillRecs = savedIndustry && locationData
-    ? pendingSkillRecommendations(savedIndustry, savedVariant, locationData.shift_definitions ?? [], personnelRoles)
-    : [];
   const industryChanged = !!industryDraft && (industryDraft.industry !== savedIndustry?.key || industryDraft.variant !== savedVariant);
 
   // Sadece hiç seçilmemiş (eski) şubede bir kez; sunucu da seçilmiş türü değiştirmez
@@ -1126,12 +1038,6 @@ export default function SettingsPage() {
     }
   };
 
-  const applyRecommendation = (rec: { shiftId: string; skill: string; count: number }) => {
-    if (!locationData) return;
-    setLocationData({ ...locationData, shift_definitions: applySkillRecommendation(locationData.shift_definitions ?? [], rec) });
-    showToast("ok", "Kural eklendi. Kaydetmeyi unutmayın.");
-  };
-
   const TabBar = () => (
     <Tabs fill value={activeTab} onChange={setActiveTab}
       items={TABS.filter(tab => (!accountOnly || tab.key === "account") && (tab.key !== "features" || viewerRole === "admin")).map(tab => ({ id: tab.key, label: tab.short }))} />
@@ -1173,7 +1079,7 @@ export default function SettingsPage() {
                       <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Görev listesi, belge kontrolü ve öneriler buna göre çalışır.
+                      Belge kontrolü, yasal notlar ve öneriler buna göre çalışır.
                       {viewerRole === "admin" && !industryDraft && (
                         <> <button type="button" onClick={() => setIndustryDraft({ industry: savedIndustry.key, variant: savedVariant ?? savedIndustry.variants[0].key })}
                           className="font-semibold text-forest-700 hover:underline">Değiştir</button></>
@@ -1196,7 +1102,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <p className="text-xs text-slate-500 mb-3">
-                      Henüz seçilmedi. Görev listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
+                      Henüz seçilmedi. Belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
                     </p>
                     {/* İşletme düzeyinde karar: sadece hesap sahibi seçer */}
                     {viewerRole === "admin" ? (
@@ -1213,32 +1119,6 @@ export default function SettingsPage() {
                     )}
                   </>
                 )}
-                {savedIndustry && !industryChanged && skillRecs.length > 0 && (
-                    <div className="mt-3 rounded-xl border border-slate-200 p-3 space-y-2.5">
-                      <p className="text-xs font-bold text-slate-500">Önerilen zorunlu görevler</p>
-                      {skillRecs.map(r => (
-                        <div key={r.shiftId + r.skill} className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
-                          <div className="flex-1 min-w-[220px]">
-                            <p className="text-sm text-slate-800"><strong>{r.shiftName}</strong> vardiyasında en az {r.count} {r.skill}</p>
-                            <p className="text-xs text-slate-500">{r.reason}</p>
-                            {r.status === "no-holders" && (
-                              <p className="text-xs text-amber-700 mt-0.5">
-                                {r.holders === 0 ? "Ekipte bu görev kimsede işaretli değil." : `Bu görev sadece ${r.holders} kişide işaretli.`} Önce Ekip sayfasından kişilerde bu görevi işaretleyin, yoksa bu vardiya hiç açılamaz.
-                              </p>
-                            )}
-                            {r.status === "thin" && (
-                              <p className="text-xs text-amber-700 mt-0.5">Bu görev {r.holders} kişide var. İzin günlerinde vardiya açılamayabilir.</p>
-                            )}
-                          </div>
-                          <button
-                            disabled={r.status === "no-holders"}
-                            onClick={() => applyRecommendation(r)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          >Ekle</button>
-                        </div>
-                      ))}
-                    </div>
-                )}
                 {savedIndustry && !industryChanged && (
                   <details className="mt-3 text-xs text-slate-600">
                     <summary className="cursor-pointer font-semibold text-slate-500 hover:text-slate-800">{getIndustry(savedIndustry.key)!.label} için yasal notlar ({savedIndustry.legalNotes.length})</summary>
@@ -1254,43 +1134,6 @@ export default function SettingsPage() {
                   </details>
                 )}
               </div>
-
-
-              {/* Görevler (lib/roles): hazır görevler işletme türünden; şubenin eklediği görevler kişi kartındaki
-                  "+ Yeni görev" ile eklenir, burada listelenir ve silinir (tek yer). */}
-              {(() => {
-                const roles = branchRoles(locationData?.rules);
-                return (
-                  <div>
-                    <SectionLabel>Görevler</SectionLabel>
-                    <p className="text-xs text-slate-400 mb-3">Kişilerin yapabildiği işler. Listede olmayan bir görevi kişinin kartında (Ekip) &quot;+ Yeni görev&quot; ile ekleyin.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {roles.industry.map(r => (
-                        <span key={r} className="px-2.5 py-1 rounded-lg text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">{r}</span>
-                      ))}
-                      {roles.custom.map(r => (
-                        <span key={r} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-forest-200">
-                          {r}
-                          <button type="button" title="Görevi sil" disabled={roleDeleting === r}
-                            onClick={async () => {
-                              if (!locationData?.id || !confirm(`"${r}" görevi silinsin mi? Kişilerin kartından da kalkar.`)) return;
-                              setRoleDeleting(r); setRoleError("");
-                              try {
-                                const res = await fetch(`/api/locations/roles?location_id=${locationData.id}&label=${encodeURIComponent(r)}`, { method: "DELETE" });
-                                const d = await res.json().catch(() => ({}));
-                                if (!res.ok) { setRoleError(d.error ?? "Silinemedi"); return; }
-                                setLocationData(prev => prev ? { ...prev, rules: { ...(prev.rules ?? {}), custom_roles: d.roles?.custom ?? [] } } : prev);
-                              } finally { setRoleDeleting(null); }
-                            }}
-                            className="text-slate-400 hover:text-red-500"><X size={12} /></button>
-                        </span>
-                      ))}
-                      {roles.all.length === 0 && <p className="text-xs text-slate-400">Henüz görev yok.</p>}
-                    </div>
-                    {roleError && <p className="text-xs text-red-600 mt-2">{roleError}</p>}
-                  </div>
-                );
-              })()}
 
 
                 {/* Departmanlar Temel'de (2026-10-04): kafe/fabrikada plan tablosunun ana yapısı; anında kaydedilir */}
@@ -1587,24 +1430,6 @@ export default function SettingsPage() {
                         );
                         setLocationData({ ...locationData, shift_definitions: next });
                       }} />
-
-                      {/* Zorunlu yetkinlik karması — "gece vardiyasında en az 1 bakımcı" gibi */}
-                      <RequiredSkillsEditor
-                        skills={shift.required_skills ?? []}
-                        // Roller TEK liste: Ekip'teki Roller (sektör rolleri + departmanlar + kişilerde işaretli olanlar)
-                        knownSkills={[...new Set([
-                          ...branchRoles(locationData?.rules).all,
-                          ...departments.map(d => d.name),
-                          ...personnelRoles.flat(),
-                          ...(locationData.shift_definitions ?? []).flatMap((sd: ShiftDefinition) => (sd.required_skills ?? []).map(rs => rs.skill)),
-                        ])].filter(Boolean)}
-                        onChange={next => {
-                          const nextDefs = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                            i === idx ? { ...s, required_skills: next } : s
-                          );
-                          setLocationData({ ...locationData, shift_definitions: nextDefs });
-                        }}
-                      />
                     </div>
                   ))}
 

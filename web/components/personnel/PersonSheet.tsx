@@ -15,7 +15,6 @@ import { accountLevel, canDelegate, hasPerm, parseAccess, type Perm } from "@/li
 import { LOCK_NOTE } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
-import { branchRoles } from "@/lib/roles";
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments, type DeptLite } from "@/lib/departments";
 import { parseBranchRotation, rotationBranchForWeek } from "@/lib/branchRotation";
 import { defaultWeeklyHours } from "@/lib/legal";
@@ -38,7 +37,7 @@ export type Viewer = { id: string; role: string; location_id?: string | null; ac
 const formOf = (p: MergedPerson) => ({
   name: p.name, phone: p.phone ?? "", schedulable: p.schedulable, employment_type: p.employment_type ?? "full_time",
   weekly_off_day: p.weekly_off_day ?? null, max_weekly_hours: p.max_weekly_hours ?? 45, min_weekly_hours: p.min_weekly_hours ?? 0,
-  roles: p.roles ?? [], hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null,
+  hourly_wage: p.hourly_wage ?? null, night_restriction: p.night_restriction ?? null,
   hire_date: p.hire_date ?? "", annual_leave_days_total: p.annual_leave_days_total ?? 14, leave_adjustment_days: p.leave_adjustment_days ?? 0,
   department_id: p.department_id ?? null,
 });
@@ -86,6 +85,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [kioskPinError, setKioskPinError] = useState("");
   const [kioskPinSaving, setKioskPinSaving] = useState(false);
   const [makeManagerOpen, setMakeManagerOpen] = useState(false);
+  // Ana departman dışında yardım edebileceği departmanlar (bu şube): planda onların ihtiyacına da yazılabilir
+  const initialExtraDepts = (ep.assigned_department_ids ?? []).filter(id => id !== ep.department_id);
+  const [extraDepts, setExtraDepts] = useState<string[]>(initialExtraDepts);
   // Sorumlu yapıldı: pencere kapanınca liste yenilenir (giriş bağlantısı gösteriliyorsa önce o okunur)
   const managerMade = useRef(false);
 
@@ -183,26 +185,12 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const autoLeaveOn = rules.auto_leave_entitlement_enabled === true;
   // Şubenin işletme türü (lib/templates): görev listesi ve belge kataloğu buradan gelir
   const branchIndustry = industryFromRules(rules);
-  // Şubenin görev listesi (lib/roles); kartta yeni eklenen görev hemen listeye girer
-  const [extraRoles, setExtraRoles] = useState<string[]>([]);
-  const roleList = [...new Set([...branchRoles(rules).all, ...extraRoles])];
-  const [addingRole, setAddingRole] = useState(false);
-  const [newRole, setNewRole] = useState("");
-  const [roleError, setRoleError] = useState("");
-  const addRole = async () => {
-    setRoleError("");
-    const r = await fetch("/api/locations/roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: branchId, label: newRole }) });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) { setRoleError(d.error ?? "Görev eklenemedi"); return; }
-    setExtraRoles(prev => (prev.includes(d.label) ? prev : [...prev, d.label]));
-    setEditForm(f => ({ ...f, roles: f.roles.includes(d.label) ? f.roles : [...f.roles, d.label] }));
-    setAddingRole(false); setNewRole("");
-  };
   const todayISO = new Date().toISOString().split("T")[0];
-  // Seçili görevlerin gerektirdiği belgeler ve bu kişideki durumu (geçerli / süresi dolmuş / girilmemiş)
+  // Zorunlu belgeler ve bu kişideki durumu (geçerli / süresi dolmuş / girilmemiş)
   const requiredDocStates = (() => {
     if (!branchIndustry) return [];
-    const ids = new Set(branchIndustry.roles.filter(r => editForm.roles.includes(r.label)).flatMap(r => r.requiredDocs ?? []));
+    // Görevler kaldırıldı (2026-10-05): sadece herkes için zorunlu belgeler
+    const ids = new Set<string>();
     for (const d of branchIndustry.documents) if (d.requiredForAll) ids.add(d.id);
     return branchIndustry.documents.filter(d => ids.has(d.id)).map(spec => {
       const mine = personnelDocs.filter(pd => matchDocument(branchIndustry, pd.doc_type)?.id === spec.id).map(pd => pd.expiry_date).sort();
@@ -246,13 +234,22 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
         const nameFields = ep.userId ? {} : { name: editForm.name, phone: editForm.phone };
         const res = await patch(`/api/personnel?id=${ep.personnelId}`, {
           ...nameFields, employment_type: editForm.employment_type, weekly_off_day: editForm.weekly_off_day,
-          max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours, roles: editForm.roles,
+          max_weekly_hours: editForm.max_weekly_hours, min_weekly_hours: editForm.min_weekly_hours,
  hourly_wage: editForm.hourly_wage, night_restriction: editForm.night_restriction,
           hire_date: editForm.hire_date || null, annual_leave_days_total: editForm.annual_leave_days_total,
           leave_adjustment_days: editForm.leave_adjustment_days, ...(depts.length > 0 ? { department_id: editForm.department_id } : {}),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { setEditError(data.error ?? "Güncelleme hatası"); return; }
+        // Ek departmanlar: sadece bu şubenin en alttaki departmanları, ana departman hariç
+        const branchLeafIds = new Set(leafDepartments(depts).map(d => d.id));
+        const wantExtra = editForm.department_id ? extraDepts.filter(id => branchLeafIds.has(id) && id !== editForm.department_id) : [];
+        const hadExtra = initialExtraDepts.filter(id => branchLeafIds.has(id));
+        if (depts.length > 0 && JSON.stringify([...wantExtra].sort()) !== JSON.stringify([...hadExtra].sort())) {
+          const r2 = await patch(`/api/personnel?id=${ep.personnelId}`, { extra_department_ids: wantExtra });
+          const d2 = await r2.json().catch(() => ({}));
+          if (!r2.ok) { setEditError(d2.error ?? "Departmanlar kaydedilemedi"); return; }
+        }
       }
       onChanged("Kaydedildi");
     } catch { setEditError("Sunucu hatası"); }
@@ -459,54 +456,28 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   <option key={d.id} value={d.id}>{departmentLabel(depts, d)}{hasSubDepartments(depts, d.id) ? " (alt departman seçin)" : ""}</option>
                 ))}
               </select>
+              {/* Joker: birden çok departmanda çalışabilir. Plan her vardiyasını tek departmana yazar. */}
+              {editForm.department_id && leafDepartments(sortDepartments(depts)).length > 1 && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-slate-700">Başka hangi departmanlarda çalışabilir?</p>
+                  <p className="text-xs text-slate-400 mb-2">Seçerseniz otomatik plan bu kişiyi o departmanların eksiğine de yazar. Planda ana departmanının altında görünür, başka departmana yazıldığı gün kutuda o departmanın adı yazar.</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {leafDepartments(sortDepartments(depts)).filter(d => d.id !== editForm.department_id).map(d => {
+                      const on = extraDepts.includes(d.id);
+                      return (
+                        <button key={d.id} type="button" onClick={() => setExtraDepts(v => (on ? v.filter(x => x !== d.id) : [...v, d.id]))}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                          {on && <Check size={10} className="inline mr-1" />}{departmentLabel(depts, d)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {showWork && (
             <>
-              {/* Görevler: şubenin görev listesi (lib/roles: işletme türünün hazırları + şubenin eklediği). Departman ayrı
-                  alanda seçilir ve motor onu da görev sayar (lib/generatePlan); unvan ayrıca yazılmaz, ilk görev görünür. */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler</label>
-                <p className="text-xs text-slate-400 mb-2">Ne iş yapabildiği. Otomatik plan &quot;her vardiyada en az 1 aşçı&quot; gibi koşulları buna bakarak karşılar.</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {roleList.map(label => {
-                    const selected = editForm.roles.includes(label);
-                    return (
-                      <button key={label} type="button"
-                        onClick={() => setEditForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== label) : [...f.roles, label] }))}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                        {selected && <Check size={10} className="inline mr-1" />}{label}
-                      </button>
-                    );
-                  })}
-                  {/* Listede olmayan eski kayıtlar (ör. içe aktarmadan gelen): dokununca kaldırılır */}
-                  {editForm.roles.filter(r => !roleList.includes(r)).map(r => (
-                    <button key={r} type="button" title="Kaldırmak için dokunun"
-                      onClick={() => setEditForm(f => ({ ...f, roles: f.roles.filter(x => x !== r) }))}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200 hover:border-red-300">
-                      {r} <X size={10} className="inline ml-0.5" />
-                    </button>
-                  ))}
-                  {!addingRole && branchId && (
-                    <button type="button" onClick={() => { setAddingRole(true); setNewRole(""); setRoleError(""); }}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold border border-dashed border-slate-300 text-forest-700 hover:border-forest-400">
-                      + Yeni görev
-                    </button>
-                  )}
-                </div>
-                {addingRole && (
-                  <div className="mt-2 flex gap-2">
-                    <input autoFocus value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Görev adı (örn. Pres Operatörü)"
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void addRole(); } if (e.key === "Escape") setAddingRole(false); }}
-                      className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-forest-400" />
-                    <button type="button" onClick={() => void addRole()} disabled={newRole.trim().length < 2}
-                      className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
-                    <button type="button" onClick={() => setAddingRole(false)} className="shrink-0 px-2 text-xs font-semibold text-slate-500">Vazgeç</button>
-                  </div>
-                )}
-                {addingRole && <p className="text-xs text-slate-400 mt-1">Görev listeye eklenir; herkesin kartında seçilebilir. Ayarlar › Temel › Görevler&apos;den silinir.</p>}
-                {roleError && <p className="text-xs text-red-600 mt-1">{roleError}</p>}
-              </div>
               <details className="rounded-xl border border-slate-200 px-3 py-2">
               <summary className="cursor-pointer text-sm font-semibold text-slate-700">Çalışma düzeni ve ücret</summary>
               <div className="space-y-4 mt-3">
@@ -601,7 +572,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Belgeler</label>
                   <p className="text-xs text-slate-400 mb-2">
                     {branchIndustry
-                      ? "Bir görevin gerektirdiği belge geçersizse kişi o göreve atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
+                      ? "Herkes için zorunlu bir belge geçersizse kişi o hafta plana alınmaz."
                       : "Süresi dolmuş zorunlu bir belgesi olan kişi, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
                   </p>
                   {requiredDocStates.length > 0 && (

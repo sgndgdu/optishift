@@ -49,8 +49,6 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   out.push(`### Personel (${active.length} aktif${people.length > active.length ? `, ${people.length - active.length} pasif` : ""})`);
   for (const p of active) {
     const bits = [p.title || "Personel", EMP[p.employment_type] ?? p.employment_type, `haftalık sınır ${p.max_weekly_hours ?? 45} s`];
-    const roles = J(p.roles, []);
-    if (roles.length) bits.push(`görevler: ${roles.join(", ")}`);
     if (p.weekly_off_day !== null && p.weekly_off_day !== undefined) bits.push(`sabit izin günü ${day(Number(p.weekly_off_day))}`);
     if (p.hire_date) bits.push(`işe giriş ${p.hire_date}`);
     if (p.night_restriction) bits.push("gece çalıştırılamaz");

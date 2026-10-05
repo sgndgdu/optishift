@@ -55,8 +55,8 @@ const toMerged = (acc: any | undefined, p: any | undefined): MergedPerson => ({
   email: acc?.email ?? p?.email ?? null, phone: acc?.phone ?? p?.phone ?? null,
   role: acc?.role ?? "employee", display_title: acc?.display_title ?? null,
   approval_status: acc?.approval_status ?? "active", is_temp_password: !!acc?.is_temp_password,
-  // Görev = ilk rol (ayrı unvan alanı yok; /api/personnel de aynı kuralla döner)
-  title: Array.isArray(p?.roles) && p.roles.length ? p.roles[0] : null, employment_type: p?.employment_type ?? null,
+  // Görevler kaldırıldı (2026-10-05): kişinin altında departmanı yazar, ayrı unvan yok
+  title: null, employment_type: p?.employment_type ?? null,
   prev_score: p?.prev_score ?? 0, hero_count: p?.hero_count ?? 0,
   roles: Array.isArray(p?.roles) ? p.roles : [],
   weekly_off_day: p?.weekly_off_day ?? null, max_weekly_hours: p?.max_weekly_hours ?? null,

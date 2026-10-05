@@ -320,6 +320,7 @@ export interface ShiftAssignment {
   day: number;
   shiftId: number;  // shifts dizisindeki index (0, 1, 2…)
   role_id?: string; // zone yerine role_id
+  department_id?: string; // çok departmanlı kişinin bu vardiyadaki departmanı
   start_time?: string; // override edilen başlangıç saati
   end_time?: string;   // override edilen bitiş saati
   points: number;

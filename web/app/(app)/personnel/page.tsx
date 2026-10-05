@@ -9,7 +9,6 @@ import {
   Link, Upload, Loader2, RefreshCw, UserCog,
   ChevronDown,
 } from "lucide-react";
-import { branchRoles } from "@/lib/roles";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
 import { ManagerAddSheet, accessSummary, addsOnlyChefs, type Mgr } from "@/components/personnel/ManagersCard";
@@ -58,7 +57,7 @@ export default function PersonnelPage() {
 
   // Add form
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", roles: [] as string[], employment_type: "full_time", max_weekly_hours: 45 });
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", employment_type: "full_time", max_weekly_hours: 45 });
   const [selLocIds, setSelLocIds] = useState<string[]>([]);
   const [selDeptIds, setSelDeptIds] = useState<string[]>([]);
   const [singleLocId, setSingleLocId] = useState("");
@@ -156,7 +155,7 @@ export default function PersonnelPage() {
   };
 
   const resetAddForm = () => {
-    setAddForm({ name: "", email: "", phone: "", roles: [], employment_type: "full_time", max_weekly_hours: 45 });
+    setAddForm({ name: "", email: "", phone: "", employment_type: "full_time", max_weekly_hours: 45 });
     // Şube panelindeyiz: form o şube seçili açılır
     const here = authUser?.location_id || (locations.length === 1 ? locations[0].id : "");
     setSelLocIds(here ? [here] : []); setSelDeptIds([]); setSingleLocId(here); setAddError("");
@@ -175,7 +174,6 @@ export default function PersonnelPage() {
         name: addForm.name.trim(), email: addForm.email.trim() || undefined,
         phone: addForm.phone.trim() || undefined, role: rd.role,
         display_title: rd.display_title || undefined,
-        roles: addForm.roles.length ? addForm.roles : undefined,
       };
       if (useMultiSelect) {
         body.location_ids = selLocIds; body.department_ids = selDeptIds;
@@ -266,17 +264,15 @@ export default function PersonnelPage() {
   }, [loading, persons]);
 
   const openPerson = openKey ? persons.find(p => personKey(p) === openKey) ?? null : null;
+  const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   const filtered = persons.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
-    p.roles.some(r => r.toLowerCase().includes(search.toLowerCase()))
+    [p.department_id, ...p.assigned_department_ids].some(id => (editDepts.find(d => d.id === id)?.name ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
-  const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
   // Departmanlı şubede departmanı olmayan, plana giren kişi otomatik plana alınmaz
   const noDept = editDepts.length > 0 ? persons.filter(p => !p.inactive && p.personnelId && p.schedulable && !p.department_id) : [];
-  // Şubenin işletme türü (lib/templates): ekleme formundaki görev listesi buradan gelir
-  const addRoles = branchRoles(locations.find(l => l.id === authUser?.location_id)?.rules).all;
 
   if (!mounted) return <Page />;
 
@@ -396,7 +392,7 @@ export default function PersonnelPage() {
       {/* Search */}
       <div className="relative">
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, e-posta veya görev ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="İsim, e-posta veya departman ara..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-forest-400 shadow-sm" />
       </div>
 
       {/* Liste (DESIGN.md §2): satırda ad, unvan ve en önemli tek durum; ayrıntılar dokununca açılır */}
@@ -411,7 +407,12 @@ export default function PersonnelPage() {
         </List>
       ) : (
         <PeopleList people={filtered} onOpen={p => setOpenKey(personKey(p))}
-          deptName={p => (p.department_id ? departmentLabel(editDepts, editDepts.find(d => d.id === p.department_id)) || null : null)}
+          // Ana departman + bu şubede yardım edebildiği departmanlar ("Mutfak + Kasa")
+          deptName={p => {
+            if (!p.department_id) return null;
+            const ids = [p.department_id, ...p.assigned_department_ids.filter(id => id !== p.department_id)];
+            return ids.map(id => editDepts.find(d => d.id === id)).filter(Boolean).map(d => departmentLabel(editDepts, d)).join(" + ") || null;
+          }}
           hasDepts={() => editDepts.length > 0}
           managerSummary={managerSummary}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
@@ -445,23 +446,6 @@ export default function PersonnelPage() {
                   <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="0532..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
-              {addRoles.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Görevler <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {addRoles.map(label => {
-                      const selected = addForm.roles.includes(label);
-                      return (
-                        <button key={label} type="button"
-                          onClick={() => setAddForm(f => ({ ...f, roles: selected ? f.roles.filter(r => r !== label) : [...f.roles, label] }))}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                          {selected && <Check size={10} className="inline mr-1" />}{label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               {isEmployee && (
                 <details className="rounded-xl border border-slate-200 px-3 py-2">
                   <summary className="cursor-pointer text-sm font-semibold text-slate-600">Diğer bilgiler (isteğe bağlı)</summary>

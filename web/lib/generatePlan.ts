@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, businessToday } from "@/lib/date";
 import { isModuleOn } from "@/lib/moduleVisibility";
-import { departmentRoleNames, hasSubDepartments } from "@/lib/departments";
+import { hasSubDepartments } from "@/lib/departments";
 import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
 import { eq } from "drizzle-orm";
@@ -11,7 +11,7 @@ import { industryFromRules, applyCertificationShield, type PersonDocument } from
 import { weekStates } from "@/lib/workCycle";
 import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
 import { isSenior } from "@/lib/seniority";
-import { departmentInBranch, plannedInBranch } from "@/lib/branchRotation";
+import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
 import { effectiveWeeklyLimit } from "@/lib/legal";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
@@ -99,7 +99,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
             // Departman şefinin planında şube geneli "en az N yetkinlikli" kuralı uygulanmaz: yetkinlikli kişi
             // çoğu zaman başka departmandadır; kuralı şube yöneticisi yayın kontrolünde görür.
-            required_skills: !body?.only_department_ids?.length && Array.isArray(d.required_skills) ? d.required_skills : [],
+            // Zorunlu görev kuralı Görevler'le birlikte kaldırıldı (2026-10-05): eski kayıtlı kural gizli kısıt olmasın
+            required_skills: [],
           }));
         }
       } catch {
@@ -184,21 +185,25 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
 
     // Personel verisini formatla
     const todayForSeniority = businessToday();
-    // Kişinin departmanı da bir görev sayılır: vardiya tanımındaki "Zorunlu görev" departman adıyla da seçilebilir
-    // (eskiden departman ayrıca Roller listesinde işaretleniyordu; günlük rol kotaları 2026-10-04'te kaldırıldı)
-    // Paylaşılan personel: her şubede o şubenin departmanı (lib/branchRotation departmentInBranch)
+    // Görevler 2026-10-05'te kaldırıldı (kullanıcı kararı): motor kişiyi sadece departmanlarıyla tanır.
+    // Paylaşılan personel: her şubede o şubenin departmanı (lib/branchRotation departmentInBranch).
+    // Birden çok departmanı olan kişi o departmanların hepsinin ihtiyacına yazılabilir (department_ids).
     const branchDeptIds = new Set<string>(departmentRows.map((d: any) => d.id));
-    for (const p of personnelRows as any[]) p.department_id = departmentInBranch(p, branchDeptIds);
+    const leafDeptIds = new Set<string>(departmentRows.filter((d: any) => !hasSubDepartments(departmentRows, d.id)).map((d: any) => d.id));
+    for (const p of personnelRows as any[]) {
+      p.department_ids = departmentsInBranch(p, branchDeptIds).filter(id => leafDeptIds.has(id));
+      p.department_id = departmentInBranch(p, branchDeptIds);
+    }
     let personnelData = personnelRows.map((p: any) => {
       // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
       const role_level = isSenior(p.hire_date, todayForSeniority) ? "primary" : "secondary";
       return {
         id: p.id,
         name: p.name,
-        // Alt departmandaki kişide üst departmanın adı da görev sayılır (lib/departments)
-        skills: [...new Set<string>([...JSON.parse(p.roles || "[]"), ...departmentRoleNames(departmentRows, p.department_id)])],
+        skills: [] as string[],
         night_restriction: p.night_restriction ?? null,
         department_id: p.department_id ?? null,
+        department_ids: (p.department_ids ?? []) as string[],
         prev_score: prevScores[p.id] ?? 0,
         cumulative_burden: prevScores[p.id] ?? 0,
         employment_type: p.employment_type || "full_time",
@@ -318,7 +323,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       : [];
     if (departmentRows.length > 0) personnelData = personnelData.filter((p) => !noDept(p));
     if (onlyDepts) {
-      personnelData = personnelData.filter((p) => !!p.department_id && onlyDepts.includes(p.department_id));
+      personnelData = personnelData.filter((p) => !!p.department_id && onlyDepts.includes(p.department_id))
+        .map((p) => ({ ...p, department_ids: p.department_ids.filter((id) => onlyDepts.includes(id)) }));
       departmentRows = departmentRows.filter((d: any) => onlyDepts.includes(d.id));
     }
     let demandMatrixPayload: Record<string, Record<string, number>> = {};
@@ -683,7 +689,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         const avgScore = personnelData.length ? personnelData.reduce((t: number, p: any) => t + (p.prev_score || 0), 0) / personnelData.length : 0;
         for (let i = 1; i <= extra; i++) {
           personnelData.push({
-            id: `SCN-${i}`, name: `Yeni personel ${i}`, skills: [], night_restriction: null, department_id: null,
+            id: `SCN-${i}`, name: `Yeni personel ${i}`, skills: [], night_restriction: null, department_id: null, department_ids: [],
             prev_score: avgScore, cumulative_burden: avgScore, employment_type: "full_time",
             max_weekly_hours: ruleMaxWeeklyHours, hourly_wage: 0, min_weekly_hours: 0, branch_ids: [branchId],
             org_id: orgIdIn, role_level: "secondary", ytd_overtime_hours: 0,

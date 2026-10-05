@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch shifts + personnel
     const shifts: any[] = await db.prepare(`
-      SELECT sa.*, p.name as personnel_name, p.title, p.prev_score
+      SELECT sa.*, p.name as personnel_name, (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, p.prev_score
       FROM shift_assignments sa
       LEFT JOIN personnel p ON sa.personnel_id = p.id
       WHERE sa.location_id = ? AND sa.week_start = ?
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       [`İşletme: ${orgRow?.name ?? "—"}`],
       [`Hafta: ${weekDate.toLocaleDateString("tr-TR")} – ${weekEnd.toLocaleDateString("tr-TR")}`],
       [],
-      ["Ad Soyad", "Unvan", "Toplam Vardiya", "Toplam Saat", "Haftalık Yük Puanı", "Birikimli Adalet Puanı", "Durum"],
+      ["Ad Soyad", "Departman", "Toplam Vardiya", "Toplam Saat", "Haftalık Yük Puanı", "Birikimli Adalet Puanı", "Durum"],
     ];
 
     let totalShifts = 0, totalHours = 0;
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
 
     // ── Sheet 2: Haftalık Matris ─────────────────────────────────────────
     const personnel = [...personnelMap.entries()];
-    const header = ["Ad Soyad", "Unvan", ...DAY_NAMES];
+    const header = ["Ad Soyad", "Departman", ...DAY_NAMES];
 
     const matrixRows: any[][] = [header];
     const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
       d.setDate(d.getDate() + i);
       return `${DAY_NAMES[i]}\n${d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}`;
     });
-    matrixRows[0] = ["Ad Soyad", "Unvan", ...weekDates];
+    matrixRows[0] = ["Ad Soyad", "Departman", ...weekDates];
 
     for (const [pid, p] of personnel) {
       const row: any[] = [p.name, p.title];

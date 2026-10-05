@@ -117,7 +117,7 @@ function SupervisorPersonnelInner() {
   const q = search.toLocaleLowerCase("tr");
   const filtered = persons.filter(p =>
     (!selectedLocId || p.location_id === selectedLocId) &&
-    (!q || p.name.toLocaleLowerCase("tr").includes(q) || (p.email ?? "").toLowerCase().includes(q) || (p.title ?? "").toLocaleLowerCase("tr").includes(q)));
+    (!q || p.name.toLocaleLowerCase("tr").includes(q) || (p.email ?? "").toLowerCase().includes(q) || [p.department_id, ...p.assigned_department_ids].some(id => (id ? deptNames[id] ?? "" : "").toLocaleLowerCase("tr").includes(q))));
   const openPerson = openKey ? persons.find(p => personKey(p) === openKey) ?? null : null;
   const managerLocations = locations.map(l => ({ id: l.id, name: l.name }));
 
@@ -163,7 +163,7 @@ function SupervisorPersonnelInner() {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Ad, e-posta ya da görev ara"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Ad, e-posta ya da departman ara"
             className="w-full pl-9 pr-3 min-h-[40px] bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
         {locations.length > 1 && (
@@ -189,7 +189,9 @@ function SupervisorPersonnelInner() {
         </List>
       ) : (
         <PeopleList people={filtered} onOpen={p => setOpenKey(personKey(p))}
-          deptName={p => (p.department_id ? deptNames[p.department_id] ?? null : null)}
+          deptName={p => (p.department_id
+            ? [p.department_id, ...p.assigned_department_ids.filter(id => id !== p.department_id)].map(id => deptNames[id]).filter(Boolean).join(" + ") || null
+            : null)}
           branchName={!selectedLocId && locations.length > 1 ? p => locName(p.location_id) : undefined}
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
           managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; }}
