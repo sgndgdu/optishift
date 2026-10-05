@@ -121,7 +121,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
             <Sparkles size={16} className="text-ember-500" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900">İşletme Asistanı</p>
-              <p className="text-xs text-slate-500 truncate">{scope === "all" ? "Tüm şubeler hakkında sorun" : "Bu şube hakkında sorun"}</p>
+              <p className="text-xs text-slate-500 truncate">{scope === "all" ? "Tüm şubeler hakkında sorun" : "Planınız ve ekibiniz hakkında sorun"}</p>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Kapat" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
           </div>

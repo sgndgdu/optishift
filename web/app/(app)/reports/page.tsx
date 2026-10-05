@@ -282,7 +282,7 @@ function WorkHoursReport() {
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        Fazla mesai hesabı: şube ayarlarındaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
+        Fazla mesai hesabı: ayarlardaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
       </p>
     </div>
   );

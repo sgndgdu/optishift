@@ -199,7 +199,7 @@ export interface ScheduleRules {
   // tek hafta tavanı 66 saat. 0/undefined = kapalı (haftalık katı limit geçerli)
   balancing_period_weeks?: number;
   night_legal_warning_enabled?: boolean; // varsayılan true — gece vardiyası >7,5s uyarısı (editör + yayın ihlali)
-  handover_notes_enabled?: boolean;      // varsayılan true — çıkışta devir notu modalı + sonraki vardiyaya not kartı
+  handover_notes_enabled?: boolean;      // varsayılan false (2026-10-05) — çıkışta devir notu modalı + sonraki vardiyaya not kartı
   auto_leave_entitlement_enabled?: boolean; // varsayılan false — açıkken yıllık izin hakkı kıdeme göre otomatik (İş K. m.53, kümülatif devir); kapalıyken sabit annual_leave_days_total
   // İleri seviye modüller (hepsi varsayılan false — Ayarlar'dan açılır)
   compliance_tracking_enabled?: boolean; // açıkken: süresi dolmuş belgesi olan personel o haftaki plana hiç dahil edilmez (bkz. app/api/generate/route.ts)

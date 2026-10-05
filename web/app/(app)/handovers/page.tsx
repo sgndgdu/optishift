@@ -56,7 +56,7 @@ export default function HandoversPage() {
         <PageHeader title="Devir-Teslim" />
         <List>
           <ListEmpty action={<Link href="/settings?tab=features" className="text-sm font-semibold text-primary hover:underline">Ayarlarda aç</Link>}>
-            Devir-teslim defteri bu şubede kapalı.
+            Devir-teslim defteri kapalı.
           </ListEmpty>
         </List>
       </Page>

@@ -107,7 +107,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
         <div className="text-center max-w-sm">
           <XCircle size={40} className="text-white/30 mx-auto mb-4" />
           <p className="text-white/70 font-bold">
-            {pageError || "Ortak Tablet Modu bu şubede kapalı"}
+            {pageError || "Ortak tablet girişi kapalı"}
           </p>
         </div>
       </div>

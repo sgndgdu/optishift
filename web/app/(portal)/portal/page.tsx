@@ -572,7 +572,7 @@ export default function PortalDashboard() {
 
       <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
         title={emergencySent ? "Bildirim gönderildi" : "Acil durum bildir"}
-        description={emergencySent ? "Sorumlularına anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Şubendeki tüm sorumlulara anında bildirim gider."}
+        description={emergencySent ? "Sorumlularına anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Tüm sorumlularına anında bildirim gider."}
         footer={emergencySent ? (
           <button onClick={() => setEmergencyOpen(false)} className={sheetSecondaryClass}>Kapat</button>
         ) : <>

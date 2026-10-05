@@ -14,6 +14,9 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({ name: "", email: "", username: "" });
   const [profilePassword, setProfilePassword] = useState("");
+  // Yüklenen giriş bilgisi: e-posta ya da kullanıcı adı değişince şifre sorulur
+  const [savedLogin, setSavedLogin] = useState({ email: "", username: "" });
+  const loginChanged = profile.email.trim() !== savedLogin.email || profile.username.trim() !== savedLogin.username;
   const [showProfilePw, setShowProfilePw] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -40,14 +43,17 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
     fetch("/api/auth/account")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data) setProfile({ name: data.name ?? "", email: data.email ?? "", username: data.username ?? "" });
+        if (data) {
+          const p = { name: data.name ?? "", email: data.email ?? "", username: data.username ?? "" };
+          setProfile(p); setSavedLogin({ email: p.email, username: p.username });
+        }
       })
       .finally(() => setLoading(false));
   }, [storageKey]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profilePassword) { setProfileError("Değişiklikleri kaydetmek için mevcut şifrenizi girin"); return; }
+    if (loginChanged && !profilePassword) { setProfileError("E-posta ya da kullanıcı adını değiştirmek için şifrenizi girin"); return; }
     setProfileSaving(true);
     setProfileError("");
     try {
@@ -69,6 +75,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
         }
       } catch {}
       setProfile(prev => ({ ...prev, name: data.name, email: data.email ?? prev.email, username: data.username ?? prev.username }));
+      setSavedLogin({ email: data.email ?? profile.email, username: data.username ?? profile.username });
       setProfilePassword("");
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 2500);
@@ -169,15 +176,15 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-4">
-            <label className="field-label">Şifre ile Onayla</label>
+          {loginChanged && <div className="border-t border-slate-100 pt-4">
+            <label className="field-label">Şifreniz (giriş bilgisi değişiyor)</label>
             <div className="relative">
               <input
                 type={showProfilePw ? "text" : "password"}
                 className="field-input pr-10"
                 value={profilePassword}
                 onChange={e => setProfilePassword(e.target.value)}
-                placeholder="Değişiklikleri onaylamak için şifrenizi girin"
+                placeholder="Mevcut şifreniz"
               />
               <button
                 type="button"
@@ -187,7 +194,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
                 {showProfilePw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </div>
+          </div>}
 
           {profileError && (
             <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3">

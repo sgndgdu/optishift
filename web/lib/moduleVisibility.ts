@@ -17,15 +17,16 @@ export const MODULE_DEFAULTS = {
   // Temel özellikler (varsayılan açık, müdür kapatabilir)
   chat_enabled:                    true,
   leave_requests_enabled:          true,
-  overtime_tracking_enabled:       true,
   open_shifts_enabled:             true,
-  personnel_conflicts_enabled:     true,
   swap_requests_enabled:           true,
   edit_requests_enabled:           true,
   availability_collection_enabled: true,
   night_legal_warning_enabled:     true,
-  handover_notes_enabled:          true,
-  // Ek özellikler (varsayılan kapalı, müdür açar)
+  // Ek özellikler (varsayılan kapalı, müdür açar). 2026-10-05: küçük işletmede ekranları kalabalıklaştırdığı için
+  // fazla mesai takibi, birlikte çalışamaz ve devir-teslim notu da kapalı başlar (açıkça açılmış şubeler etkilenmez).
+  overtime_tracking_enabled:       false,
+  personnel_conflicts_enabled:     false,
+  handover_notes_enabled:          false,
   compliance_tracking_enabled:     false,
   task_management_enabled:         false,
   tip_pooling_enabled:             false,

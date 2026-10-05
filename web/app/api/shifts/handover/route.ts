@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
+import { isModuleOn } from "@/lib/moduleVisibility";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { businessNow } from "@/lib/date";
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     let handoverLogEnabled = false;
     try {
       const parsedRules = JSON.parse(locRow?.rules || "{}");
-      enabled = parsedRules?.handover_notes_enabled !== false;
+      enabled = isModuleOn(parsedRules, "handover_notes_enabled");
       handoverLogEnabled = parsedRules?.handover_log_enabled === true;
     } catch { /* varsayılan açık */ }
     if (handoverLogEnabled) return NextResponse.json({ notes: [], enabled: false, handover_log_enabled: true });

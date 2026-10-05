@@ -113,7 +113,7 @@ describe("akıllı varsayılanlar", () => {
   });
 
   it("vurgulanan özellikler sadece açılanlar", () => {
-    expect(enabledHighlights(getIndustry("hospitality")!)).toContain("Bahşiş Havuzu");
+    expect(enabledHighlights(getIndustry("hospitality")!)).not.toContain("Bahşiş Havuzu"); // 2026-10-05: küçük işletmede kapalı başlar
     expect(enabledHighlights(getIndustry("healthcare")!)).toContain("Dijital Nöbet Teslimi Defteri");
     expect(enabledHighlights(getIndustry("retail")!)).not.toContain("Bahşiş Havuzu");
   });

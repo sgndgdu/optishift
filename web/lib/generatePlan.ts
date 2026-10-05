@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, businessToday } from "@/lib/date";
+import { isModuleOn } from "@/lib/moduleVisibility";
 import { departmentRoleNames, hasSubDepartments } from "@/lib/departments";
 import { getDB } from "@/lib/db/client";
 import { db as drizzleDb, departments as departmentsTable } from "@/lib/db";
@@ -391,8 +392,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
           maxYtdOvertimeHours = pr.max_ytd_overtime_hours;
         if (typeof pr?.overtime_fair_distribution === "boolean")
           overtimeFairDistribution = pr.overtime_fair_distribution;
-        if (pr?.overtime_tracking_enabled === false) overtimeTrackingEnabled = false;
-        if (pr?.personnel_conflicts_enabled === false) personnelConflictsEnabled = false;
+        overtimeTrackingEnabled = isModuleOn(pr, "overtime_tracking_enabled");
+        personnelConflictsEnabled = isModuleOn(pr, "personnel_conflicts_enabled");
         if (pr?.compliance_tracking_enabled === true) complianceTrackingEnabled = true;
         if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
           consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;

@@ -94,7 +94,7 @@ export default function PortalCalendar() {
 
   return (
     <Page>
-      <PageHeader title={tab === "mine" ? words.MyShifts : "Şube Programı"} />
+      <PageHeader title={tab === "mine" ? words.MyShifts : "Tüm Ekip"} />
 
       {/* Hafta Navigasyonu */}
       <Card className="stripe-card rounded-2xl border-0">
@@ -262,7 +262,7 @@ export default function PortalCalendar() {
                 </span>
               </button>
             ))}
-            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Bu şubede vardiya talepleri kapalı. Sorumlunla konuş.</p>}
+            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Vardiya talepleri kapalı. Sorumlunla konuş.</p>}
           </div>
         </Sheet>
       )}

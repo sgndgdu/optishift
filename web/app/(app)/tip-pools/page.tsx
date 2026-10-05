@@ -140,7 +140,7 @@ export default function TipPoolsPage() {
         <PageHeader title="Bahşiş Havuzu" />
         <List>
           <ListEmpty action={<Link href="/settings?tab=features" className="text-sm font-semibold text-primary hover:underline">Ayarlarda aç</Link>}>
-            Bahşiş havuzu bu şubede kapalı.
+            Bahşiş havuzu kapalı.
           </ListEmpty>
         </List>
       </Page>

@@ -130,9 +130,9 @@ export async function PATCH(req: NextRequest) {
       try { current = row?.rules ? JSON.parse(row.rules) : {}; } catch { current = {}; }
       // Yöneticinin yetkisi olmayan anahtarlar (bütçe, plan ayarları, ek özellikler) sunucuda korunur (lib/ruleLocks)
       rules = applyRuleLocks(current, rules ?? {}, auth);
-      // İşletme türü şube açılırken bir kez seçilir, sonradan değişmez (kafe bir gün fabrika olmaz).
-      // Sadece hiç seçilmemiş eski şubelerde bir kez yazılabilir.
-      if (current.industry && rules) {
+      // İşletme türünü sadece hesap sahibi değiştirir (2026-10-05: kurulumda yanlış seçim düzeltilebilsin;
+      // vardiyalara ve ayarlara dokunulmaz). Diğer roller seçilmiş türü değiştiremez.
+      if (current.industry && rules && auth.role !== "admin") {
         rules = { ...rules, industry: current.industry, industry_variant: current.industry_variant };
       }
       updates.push("rules = ?");

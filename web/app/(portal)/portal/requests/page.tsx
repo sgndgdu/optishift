@@ -388,10 +388,10 @@ export default function PortalRequests() {
     if (!leaveType || !leaveStart || !leaveEnd || !user?.personnel_id) return;
     // Client-side policy kontrolü
     if (leavePolicy?.require_reason && !leaveNote.trim()) {
-      showToast("Bu şubede izin talebi için mazeret zorunludur.", "error"); return;
+      showToast("İzin talebi için açıklama yazman gerekiyor.", "error"); return;
     }
     if (leavePolicy && !leavePolicy.allow_multi_day && leaveStart !== leaveEnd) {
-      showToast("Bu şubede sadece tek günlük izin isteyebilirsin.", "error"); return;
+      showToast("Sadece tek günlük izin isteyebilirsin.", "error"); return;
     }
     setLoading(true);
     try {

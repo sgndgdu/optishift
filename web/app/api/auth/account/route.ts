@@ -44,8 +44,10 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  // Profil bilgisi değişikliğinde şifre onayı gerekli
-  if (isProfileChange && !newPassword) {
+  // Şifre onayı sadece giriş bilgisi (e-posta, kullanıcı adı) değişirken gerekli; ad değişikliği şifresiz
+  const loginChange = (email !== undefined && (email || null) !== (user.email || null))
+    || (username !== undefined && username !== user.username);
+  if (loginChange && !newPassword) {
     if (!confirmPassword) return NextResponse.json({ error: "Şifre onayı gerekli" }, { status: 400 });
     const valid = await bcrypt.compare(confirmPassword, user.password_hash);
     if (!valid) return NextResponse.json({ error: "Şifre yanlış" }, { status: 400 });

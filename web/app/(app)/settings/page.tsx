@@ -3,6 +3,7 @@
 import { formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
+import { isModuleOn } from "@/lib/moduleVisibility";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
@@ -292,7 +293,7 @@ function RequiredSkillsEditor({
     return (
       <button type="button" onClick={() => setOpen(true)}
         className="text-xs font-semibold text-slate-400 hover:text-forest-700 pt-1 border-t border-slate-100 w-full text-left">
-        + Zorunlu görev ekle <span className="font-normal text-slate-300">(örn. her gece en az 1 bakımcı)</span>
+        + Zorunlu görev ekle <span className="font-normal text-slate-300">(örn. her vardiyada en az 1 {(knownSkills[0] ?? "aşçı").toLocaleLowerCase("tr-TR")})</span>
       </button>
     );
   }
@@ -321,7 +322,7 @@ function RequiredSkillsEditor({
           onChange={e => setNewSkill(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           list="known-skills-list"
-          placeholder="Görev (örn. bakımcı)"
+          placeholder="Görev seçin ya da yazın"
           className="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:border-forest-400"
         />
         <datalist id="known-skills-list">
@@ -574,9 +575,9 @@ export default function SettingsPage() {
           setCheckinRequired(!!loc.rules?.checkin_required);
           setChatEnabled(loc.rules?.chat_enabled !== false);
           setLeaveRequestsEnabled(loc.rules?.leave_requests_enabled !== false);
-          setOvertimeTrackingEnabled(loc.rules?.overtime_tracking_enabled !== false);
+          setOvertimeTrackingEnabled(isModuleOn(loc.rules, "overtime_tracking_enabled"));
           setOpenShiftsEnabled(loc.rules?.open_shifts_enabled !== false);
-          setPersonnelConflictsEnabled(loc.rules?.personnel_conflicts_enabled !== false);
+          setPersonnelConflictsEnabled(isModuleOn(loc.rules, "personnel_conflicts_enabled"));
           setComplianceTrackingEnabled(loc.rules?.compliance_tracking_enabled === true);
           setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
           setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
@@ -600,7 +601,7 @@ export default function SettingsPage() {
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
           setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
-          setHandoverNotesEnabled(loc.rules?.handover_notes_enabled !== false);
+          setHandoverNotesEnabled(isModuleOn(loc.rules, "handover_notes_enabled"));
           setAutoLeaveEntitlement(loc.rules?.auto_leave_entitlement_enabled === true);
 
           // Sosyal kurallar: birlikte çalışamaz çiftleri + personel listesi
@@ -678,9 +679,9 @@ export default function SettingsPage() {
             checkinRequired: !!loc.rules?.checkin_required,
             chatEnabled: loc.rules?.chat_enabled !== false,
             leaveRequestsEnabled: loc.rules?.leave_requests_enabled !== false,
-            overtimeTrackingEnabled: loc.rules?.overtime_tracking_enabled !== false,
+            overtimeTrackingEnabled: isModuleOn(loc.rules, "overtime_tracking_enabled"),
             openShiftsEnabled: loc.rules?.open_shifts_enabled !== false,
-            personnelConflictsEnabled: loc.rules?.personnel_conflicts_enabled !== false,
+            personnelConflictsEnabled: isModuleOn(loc.rules, "personnel_conflicts_enabled"),
             complianceTrackingEnabled: loc.rules?.compliance_tracking_enabled === true,
             taskManagementEnabled: loc.rules?.task_management_enabled === true,
             tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
@@ -707,7 +708,7 @@ export default function SettingsPage() {
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
-            handoverNotesEnabled: loc.rules?.handover_notes_enabled !== false,
+            handoverNotesEnabled: isModuleOn(loc.rules, "handover_notes_enabled"),
             autoLeaveEntitlement: loc.rules?.auto_leave_entitlement_enabled === true,
           });
           setIsDirty(false);
@@ -1047,6 +1048,15 @@ export default function SettingsPage() {
   // Anında kaydedilir (departmanlar gibi); kaydetme barından bağımsızdır. Taze rules
   // üzerine yazılır, sonra sayfa yeniden yüklenir; kaydedilmemiş değişiklik varken kapalıdır.
   const savedIndustry = industryFromRules(locationData?.rules);
+  // Vardiyalı (7/24, dönüşümlü) çalışan sektörler: çalışma döngüsü ve denkleştirme sadece bunlarda (ya da zaten ayarlıysa) görünür
+  const shiftWorkBusiness = !savedIndustry || ["manufacturing", "healthcare", "security", "logistics", "callcenter"].includes(savedIndustry.key);
+  // Gece vardiyası var mı: işaretli, 22:00 ve sonrası başlayan ya da gece yarısını geçen
+  const hasNightShift = ((locationData?.shift_definitions ?? []) as ShiftDefinition[]).some(d => {
+    if (d.is_night) return true;
+    const [sh, sm] = (d.start ?? "00:00").split(":").map(Number); const [eh, em] = (d.end ?? "00:00").split(":").map(Number);
+    const st = sh * 60 + sm, en = eh * 60 + em;
+    return st >= 22 * 60 || (en < st && en > 0);
+  });
   const [roleDeleting, setRoleDeleting] = useState<string | null>(null);
   const [roleError, setRoleError] = useState("");
   const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
@@ -1062,7 +1072,7 @@ export default function SettingsPage() {
 
   // Sadece hiç seçilmemiş (eski) şubede bir kez; sunucu da seçilmiş türü değiştirmez
   const saveIndustry = async () => {
-    if (!locationData || !industryDraft || savedIndustry) return;
+    if (!locationData || !industryDraft) return;
     setIndustrySaving(true);
     try {
       const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
@@ -1163,16 +1173,32 @@ export default function SettingsPage() {
                       <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Şube açılırken seçildi; görevler, belge kontrolü ve öneriler buna göre çalışır. Yanlış seçildiyse{" "}
-                      <a href={`mailto:${SALES_EMAIL}?subject=${encodeURIComponent("İşletme türü düzeltme")}`} className="font-semibold text-forest-700 hover:underline">bize yazın</a>.
+                      Görev listesi, belge kontrolü ve öneriler buna göre çalışır.
+                      {viewerRole === "admin" && !industryDraft && (
+                        <> <button type="button" onClick={() => setIndustryDraft({ industry: savedIndustry.key, variant: savedVariant ?? savedIndustry.variants[0].key })}
+                          className="font-semibold text-forest-700 hover:underline">Değiştir</button></>
+                      )}
                     </p>
+                    {viewerRole === "admin" && industryDraft && (
+                      <div className="mt-3 space-y-3">
+                        <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
+                          onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
+                        <p className="text-xs text-slate-500">Vardiyalarınız ve ayarlarınız değişmez; görev listesi ve öneriler yeni türe göre olur.</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty || !industryChanged}
+                            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
+                          <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
+                          {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
                     <p className="text-xs text-slate-500 mb-3">
-                      Bu şube için henüz seçilmedi. Görev listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır. Bir kez seçilir, sonra değişmez.
+                      Henüz seçilmedi. Görev listesi, belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
                     </p>
-                    {/* Geri alınamaz, işletme düzeyinde karar: sadece işletme sahibi seçer */}
+                    {/* İşletme düzeyinde karar: sadece hesap sahibi seçer */}
                     {viewerRole === "admin" ? (
                     <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
                       onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
@@ -1300,7 +1326,7 @@ export default function SettingsPage() {
                   {/* Departman listesi */}
                   {departments.length === 0 ? (
                     <p className="text-sm text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
-                      Henüz departman yok. Departmansız şubelerde personel ihtiyacı tek tablo olarak girilir.
+                      Henüz departman yok. Departman yoksa kaç kişi gerektiği tek tablo olarak girilir.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -1419,75 +1445,6 @@ export default function SettingsPage() {
                 </div>}
               </div>
 
-              {/* Şube konumu: plan ekranında hava durumu ve konum doğrulamalı giriş bunu kullanır */}
-              <div className="-my-4">
-                <RuleRow
-                  wide
-                  label="Konum"
-                  description="Vardiya Planı'nda günlük hava durumu ve konum doğrulamalı vardiya girişi bunu kullanır."
-                  right={
-                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
-                      {/* Mevcut konum göstergesi */}
-                      {weatherStatus === "found" && weatherLabel && (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">
-                          <span>📍 <span className="font-semibold">{weatherLabel}</span></span>
-                          <button
-                            onClick={() => { setLocationLat(""); setLocationLon(""); setWeatherLabel(""); setWeatherStatus("idle"); }}
-                            className="text-emerald-400 hover:text-red-400 transition-colors ml-1"
-                            title="Konumu sıfırla"
-                          >×</button>
-                        </div>
-                      )}
-                      {weatherStatus === "searching" && (
-                        <span className="text-xs text-slate-400 animate-pulse">Aranıyor...</span>
-                      )}
-                      {weatherStatus === "error" && (
-                        <span className="text-xs text-red-500">Bulunamadı, tekrar deneyin.</span>
-                      )}
-                      {/* Şehir / ilçe ara */}
-                      {weatherStatus !== "found" && (
-                        <div className="flex items-center gap-1.5 w-full">
-                          <input
-                            type="text"
-                            value={locationCityInput}
-                            onChange={e => setLocationCityInput(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && locationCityInput.trim()) {
-                                geocodeCity(locationCityInput.trim()).then(geo => {
-                                  if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
-                                });
-                              }
-                            }}
-                            placeholder="İstanbul, Kadıköy..."
-                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
-                          />
-                          <button
-                            onClick={() => {
-                              if (!locationCityInput.trim()) return;
-                              geocodeCity(locationCityInput.trim()).then(geo => {
-                                if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
-                              });
-                            }}
-                            className="px-2.5 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors shrink-0"
-                          >
-                            Ara
-                          </button>
-                        </div>
-                      )}
-                      {/* Cihaz konumu */}
-                      <button
-                        onClick={useDeviceLocation}
-                        className="flex items-center gap-1.5 text-xs text-forest-600 border border-forest-200 bg-forest-50 rounded-lg px-2.5 py-1.5 hover:bg-forest-100 transition-colors w-full justify-center font-medium"
-                      >
-                        📍 Cihaz konumumu kullan
-                      </button>
-                    </div>
-                  }
-                />
-              </div>
-
-              <hr className="border-slate-100" />
-
               {/* 2. Vardiya Tanımları */}
               <div>
                 <SectionLabel>Vardiya Tanımları</SectionLabel>
@@ -1506,6 +1463,8 @@ export default function SettingsPage() {
                           }}
                           className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-forest-500 outline-none px-1 py-0.5 text-sm"
                         />
+                        {/* Gece işareti sadece gece saatine uzanan vardiyada ya da zaten işaretliyse (kafede gürültü) */}
+                        {(shift.is_night || (shift.start ?? "") >= "20:00" || ((shift.end ?? "") < (shift.start ?? "") && (shift.end ?? "") > "00:00")) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1523,6 +1482,7 @@ export default function SettingsPage() {
                         >
                           <Moon size={10} /> Gece
                         </button>
+                        )}
                         {/* Nöbet (icap) sadece sağlık, fabrika ve güvenlikte anlamlı; başka sektörde sadece zaten açıksa görünür */}
                         {(["healthcare", "manufacturing", "security"].includes(savedIndustry?.key ?? "") || shift.on_call) && (
                         <button
@@ -1708,13 +1668,13 @@ export default function SettingsPage() {
                 <SectionCard title="Uygunluk">
                   <RuleRow
                     label="Uygunluk Toplama"
-                    description="Kapalıysa vardiyaları sorumlu tek başına planlar; personelden uygunluk istenmez ve personel portalında uygunluk girişi kapatılır."
+                    description="Kapalıysa ekipten uygunluk istenmez, planı siz yaparsınız."
                     right={<Toggle on={availabilityCollectionEnabled} onToggle={() => setAvailabilityCollectionEnabled(v => !v)} />}
                   />
                   {availabilityCollectionEnabled && (
                     <RuleRow
                       label='Haftalık "Tercih Etmem" Hakkı'
-                      description={<>Personel haftada en fazla bu kadar günü <span className="font-semibold text-amber-600">Tercih etmem</span> (mümkünse çalışmam, gerekirse gelirim) olarak işaretleyebilir. Bu günlere atamanın puan karşılığı Adalet Puanı bölümündedir.</>}
+                      description="Ekip üyesi haftada en fazla bu kadar günü &quot;Tercih etmem&quot; (gerekirse gelirim) diye işaretler."
                       right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
                     />
                   )}
@@ -1747,19 +1707,19 @@ export default function SettingsPage() {
                 <SectionCard title="Vardiya Talepleri">
                   <RuleRow
                     label="Vardiya Takas Talebi"
-                    description="Personel, başka bir çalışanla vardiya takası talebinde bulunabilir. Sorumlu onayı gerekir."
+                    description="Ekip üyeleri kendi aralarında vardiya değiştirebilir, sorumlu onaylar."
                     right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
                   />
                   <RuleRow
                     label="Vardiya Değişiklik Talebi"
-                    description="Personel, atandığı vardiyanın saatini veya gününü değiştirmek için sorumluya talep gönderebilir."
+                    description="Ekip üyesi vardiya saatinde hata varsa düzeltme ister."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
                 </SectionCard>
                 <SectionCard title="İzin Politikası">
                   <RuleRow
                     label="İzin Talepleri"
-                    description="Kapalıyken personel portalından izin talebi oluşturulamaz, sorumlu Onaylar sayfasında izin sekmesi görünmez."
+                    description="Ekip üyeleri uygulamadan izin ister, sorumlu onaylar."
                     right={<Toggle on={leaveRequestsEnabled} onToggle={() => setLeaveRequestsEnabled(v => !v)} />}
                   />
                   <RuleRow
@@ -1774,22 +1734,35 @@ export default function SettingsPage() {
                 <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
-                    description="Kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartına sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir."
+                    description="Kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartında daha düşük sınır verilebilir."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                   />
                   <RuleRow
                     lock="rules" label="Fazla Mesai Başlangıcı"
-                    description="Haftada bu saati aşan çalışma fazla mesai sayılır (raporlar, mesai kayıtları, maliyet ×1,5). Genelde en fazla çalışmaya eşit ya da daha düşüktür."
+                    description="Haftada bu saati aşan çalışma fazla mesai sayılır (maliyet ×1,5)."
                     right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat" />}
                   />
+                  {/* Fazla mesai takibi açıkken: yıllık sınır ve dağılım (Özellikler sadece aç/kapat) */}
+                  {overtimeTrackingEnabled && (<>
                   <RuleRow
-                    lock="rules" label="Denkleştirme Dönemi"
-                    description="0 = kapalı (haftalık limit katı uygulanır). 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir: dönem ortalaması haftalık limiti aşamaz, tek hafta en fazla 66 saat olabilir (İş K. m.63)."
-                    right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
+                    lock="rules" label="Yıllık Fazla Mesai Sınırı"
+                    description="Kişi başı yıllık fazla mesai üst sınırı (İş Kanunu m.41, 270 saat)."
+                    right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
                   />
                   <RuleRow
+                    lock="rules" label="Mesaiyi dengeli dağıt"
+                    description="Bu yıl çok mesai yapan kişiye ek vardiya daha zor yazılır."
+                    right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
+                  />
+                  </>)}
+                  {(shiftWorkBusiness || balancingPeriodWeeks > 0) && <RuleRow
+                    lock="rules" label="Denkleştirme Dönemi"
+                    description="0 = kapalı. 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir; bir hafta en çok 66 saat olur (İş K. m.63)."
+                    right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
+                  />}
+                  <RuleRow
                     lock="rules" label="Maks. Ardışık Çalışma"
-                    description="Personel arka arkaya en fazla bu kadar gün çalışabilir. 7 seçilse de haftada en az 1 gün izin (24 saat kesintisiz hafta tatili, İş K. m.46) her zaman korunur."
+                    description="Arka arkaya en fazla bu kadar gün çalışılır. Haftada 1 gün izin her zaman korunur."
                     right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                   />
                   {(locationData?.shift_definitions ?? []).some((d: ShiftDefinition) => d.on_call) && (
@@ -1804,15 +1777,16 @@ export default function SettingsPage() {
                 <SectionCard title="Dinlenme">
                   <RuleRow
                     lock="rules" label="En Az Dinlenme Süresi"
-                    description="İki vardiya arasında bulunması gereken en az dinlenme süresi. Kesin kuraldır, asla aşılmaz."
+                    description="İki vardiya arasında en az bu kadar dinlenme olur."
                     right={<NumberInput value={minRestHours} onChange={setMinRestHours} min={8} max={16} suffix="saat" />}
                   />
-                  <RuleRow
-                    lock="rules" label="Gececi→Sabahçı Yasağı"
-                    description="23:00 ve sonrasında biten gece vardiyasının ertesi günü öğlene kadar başlayan vardiya verilmez. Kesin kuraldır, asla aşılmaz."
+                  {(hasNightShift || noNightToMorning) && <RuleRow
+                    lock="rules" label="Geceden sonra sabah vardiyası yok"
+                    description="23:00 ve sonrasında biten vardiyanın ertesi günü öğlene kadar başlayan vardiya verilmez."
                     right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
-                  />
+                  />}
                 </SectionCard>
+                {(hasNightShift || consecutiveNightWeeks) && (
                 <SectionCard title="Gece Çalışması">
                   <RuleRow
                     lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
@@ -1825,15 +1799,16 @@ export default function SettingsPage() {
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>
+                )}
                 <SectionCard title="Plan Oluşturma ve Yayın">
                   <RuleRow
                     label="Kıdemli Personel Kuralı"
-                    description={<>Her vardiyada en az 1 <span className="font-semibold text-forest-700">kıdemli</span> personel bulunmasına çalışılır, zorunlu kalınırsa esnetilebilir. İşe girişinin üzerinden 1 yıl geçen herkes kıdemli sayılır (Ekip&apos;teki işe giriş tarihi).</>}
+                    description="Her vardiyada en az 1 kıdemli (1 yıldan uzun çalışan) bulunmaya çalışılır."
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
                   <RuleRow
                     lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
-                    description="Otomatik planlama bu bütçe içinde kalmaya çalışır (fazladan atamayı ve pahalı seçimi azaltır, zorunlu vardiyaları boş bırakmaz). Planlanan maliyet (saatlik ücret × saat, mesai × 1,5) yine de aşarsa vardiya sayfasında ve yayın öncesinde uyarılır. 0 = limitsiz."
+                    description="Otomatik plan bu bütçeyi aşmamaya çalışır, aşarsa uyarılır. Saatlik ücretler Ekip'ten. 0 = limitsiz."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                   />
                 </SectionCard>
@@ -1842,10 +1817,12 @@ export default function SettingsPage() {
                 {/* Girişle ilgili her şey TEK yerde: yöntem seçimi kiosk_mode_enabled ve gps_checkin_required'ı birlikte yazar */}
                 <SectionCard title="Vardiya Girişi">
                   <RuleRow
-                    label="Vardiya Girişi Zorunluluğu"
-                    description="Personel giriş yapmadan aktif sayılmaz. Giriş kaydı yoksa geç kalan listesine düşer."
+                    label="Vardiyaya giriş yapılsın"
+                    description="Açıkken ekip vardiyaya geldiğinde giriş yapar; giriş yapmayan geç kalan sayılır. Kapalıyken giriş, geç kalma ve QR ayarları gizlenir."
                     right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
                   />
+                  {/* Giriş kapalıyken yöntem, geç kalma ve QR anlamsız: hiçbiri çalışmaz (dashboard isLate checkin_required'a bakar) */}
+                  {checkinRequired && (<>
                   <div className="py-4 space-y-2">
                     <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
                     {([
@@ -1917,6 +1894,7 @@ export default function SettingsPage() {
                     }
                     right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
                   />
+                  </>)}
                   {FEATURES.breaks && (<>
                   <RuleRow
                     label="Eş Zamanlı Mola Limiti"
@@ -1931,10 +1909,10 @@ export default function SettingsPage() {
                   </>)}
                 </SectionCard>
 
-                {!kioskModeEnabled && (
+                {checkinRequired && !kioskModeEnabled && (
                 <SectionCard title="Giriş için QR kod">
                   <p className="text-xs text-slate-500 mb-4">
-                    Bu QR kodu şubenize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
+                    Bu QR kodu işyerinize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
                   </p>
                   <div className="flex items-center gap-6">
                     <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
@@ -1955,6 +1933,72 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
                 )}
+                {/* İşyeri konumu (2026-10-05 Temel'den taşındı): konumlu giriş ve plan ekranındaki hava durumu */}
+                <SectionCard title="İşyeri konumu">
+                <RuleRow
+                  wide
+                  label="Konum"
+                  description="Konumlu giriş ve plan ekranındaki hava durumu için."
+                  right={
+                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
+                      {/* Mevcut konum göstergesi */}
+                      {weatherStatus === "found" && weatherLabel && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg w-full justify-between">
+                          <span>📍 <span className="font-semibold">{weatherLabel}</span></span>
+                          <button
+                            onClick={() => { setLocationLat(""); setLocationLon(""); setWeatherLabel(""); setWeatherStatus("idle"); }}
+                            className="text-emerald-400 hover:text-red-400 transition-colors ml-1"
+                            title="Konumu sıfırla"
+                          >×</button>
+                        </div>
+                      )}
+                      {weatherStatus === "searching" && (
+                        <span className="text-xs text-slate-400 animate-pulse">Aranıyor...</span>
+                      )}
+                      {weatherStatus === "error" && (
+                        <span className="text-xs text-red-500">Bulunamadı, tekrar deneyin.</span>
+                      )}
+                      {/* Şehir / ilçe ara */}
+                      {weatherStatus !== "found" && (
+                        <div className="flex items-center gap-1.5 w-full">
+                          <input
+                            type="text"
+                            value={locationCityInput}
+                            onChange={e => setLocationCityInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && locationCityInput.trim()) {
+                                geocodeCity(locationCityInput.trim()).then(geo => {
+                                  if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                                });
+                              }
+                            }}
+                            placeholder="İstanbul, Kadıköy..."
+                            className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!locationCityInput.trim()) return;
+                              geocodeCity(locationCityInput.trim()).then(geo => {
+                                if (geo) { setLocationLat(String(geo.lat)); setLocationLon(String(geo.lon)); setLocationCityInput(""); }
+                              });
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors shrink-0"
+                          >
+                            Ara
+                          </button>
+                        </div>
+                      )}
+                      {/* Cihaz konumu */}
+                      <button
+                        onClick={useDeviceLocation}
+                        className="flex items-center gap-1.5 text-xs text-forest-600 border border-forest-200 bg-forest-50 rounded-lg px-2.5 py-1.5 hover:bg-forest-100 transition-colors w-full justify-center font-medium"
+                      >
+                        📍 Cihaz konumumu kullan
+                      </button>
+                    </div>
+                  }
+                />
+              </SectionCard>
               </SettingsGroup>
               <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor gün puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
                 <LockArea cat="rules">
@@ -2029,6 +2073,7 @@ export default function SettingsPage() {
               </SettingsGroup>
               {/* Postalar (A/B/C vardiya grupları) ve vardiya rotasyonu 2026-10-04'te kaldırıldı (kullanıcı kararı);
                   kişi başı çalış/dinlen döngüsü kalır. "Rotasyon" artık şubeler arası (kişinin kartında). */}
+              {(shiftWorkBusiness || !!workCycle?.pattern) && (
               <SettingsGroup id="cycle" title="Çalışma Döngüsü" description="Çalış / dinlen deseni (örn. 4 gün çalış, 4 gün dinlen)" open={!!openGroups["cycle"]} onToggle={toggleGroup}>
                 <SectionCard title="Çalışma döngüsü">
                   <div className="p-4 space-y-3">
@@ -2079,6 +2124,7 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
               </SettingsGroup>
+              )}
               </div>
             </div>
           )}
@@ -2104,7 +2150,7 @@ export default function SettingsPage() {
               const card = {
                   chat: (
                 <FeatureCard icon={MessageSquare} title="Mesajlar"
-                  description="Sorumlu ve personel arasında ekip içi sohbet."
+                  description="Ekip içi sohbet."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
                   ),
                   openShifts: (
@@ -2115,7 +2161,7 @@ export default function SettingsPage() {
                   // Devir-teslim TEK özellik: eski "Vardiya Devri Notu" (handover_notes_enabled) ile onaylı defter (handover_log_enabled) birleşti
                   handover: (
                 <FeatureCard icon={BookOpen} title="Devir-Teslim Notu"
-                  description="Personel çıkışta sonraki vardiyaya not bırakır, not sonraki vardiyanın personeline gösterilir."
+                  description="Çıkışta sonraki vardiyaya not bırakılır, sonraki vardiya okur."
                   on={handoverNotesEnabled || handoverLogEnabled}
                   onToggle={() => {
                     if (handoverNotesEnabled || handoverLogEnabled) { setHandoverNotesEnabled(false); setHandoverLogEnabled(false); }
@@ -2218,20 +2264,7 @@ export default function SettingsPage() {
                   overtime: (
                 <FeatureCard icon={Timer} title="Fazla Mesai Takibi"
                   description="Yayınlanan planlardan fazla mesai kaydı çıkarılır, onay akışına girer ve yıllık sınır izlenir."
-                  on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)}>
-  <div className="divide-y divide-slate-100">
-                  <RuleRow
-                    lock="rules" label="Yıllık Fazla Mesai Sınırı"
-                    description="İş Kanunu 41. madde, kişi başı yıllık fazla mesai üst sınırı. Varsayılan: 270 saat."
-                    right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
-                  />
-                  <RuleRow
-                    lock="rules" label="Adil Mesai Dağılımı"
-                    description="Yıllık mesai saati yüksek olan personele ek vardiya atanmasını zorlaştırır."
-                    right={<Toggle on={overtimeFairDistribution} onToggle={() => setOvertimeFairDistribution(v => !v)} />}
-                  />
-  </div>
-                </FeatureCard>
+                  on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />
                   ),
                   tips: (
                 <FeatureCard icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
@@ -2249,7 +2282,7 @@ export default function SettingsPage() {
               return (
                 <div className="space-y-6">
                   <p className="text-sm text-slate-500">
-                    İhtiyacınız olan özelliği açın. Kapalı bir özelliğin menüsü, düğmesi ve sütunu hiçbir ekranda görünmez; açtığınızda ayarları bu kartın içinde çıkar.
+                    İhtiyacınız olan özelliği açın. Kapalı özellik hiçbir ekranda görünmez.
                   </p>
                   {isCatLocked("features") && <LockNote />}
                   {GROUPS.filter(g => g.ids.some(id => fits[id])).map(g => (

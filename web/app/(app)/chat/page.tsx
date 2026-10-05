@@ -8,7 +8,7 @@ export default function ManagerChatPage() {
       storageKey="optishift_manager_user"
       title="Mesajlar"
       description="Ekibinizle ve sorumlularla mesajlaşın."
-      groupLabel={g => ({ name: g.name, label: "Şube Grubu" })}
+      groupLabel={g => ({ name: g.name, label: "Ekip Sohbeti" })}
       personLabel={p => ({ label: p.label ?? "", accent: p.role === "admin" || p.role === "supervisor" })}
     />
   );
