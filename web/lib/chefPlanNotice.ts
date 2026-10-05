@@ -22,7 +22,7 @@ export async function notifyChefsOfPlan(db: Db, opts: { orgId: string; locationI
   const names = new Map(((await db.prepare(`SELECT id, name FROM departments WHERE location_id = ?`).all(opts.locationId)) as { id: string; name: string }[]).map(d => [d.id, d.name]));
 
   const range = weekRangeTR(opts.weekStart);
-  const link = "/schedule?week=next";
+  const link = `/schedule?week=${opts.weekStart}`;
   const now = Math.floor(Date.now() / 1000);
   let sent = 0;
   for (const c of withDept) {

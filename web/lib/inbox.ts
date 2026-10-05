@@ -42,7 +42,7 @@ export type InboxInput = {
   /** Hesabı açılmış ama davet bağlantısıyla şifresini hiç belirlememiş (uygulamaya hiç girmemiş) kişi sayısı. */
   notJoined?: number;
   /** Departman sorumlusu: hesap sahibi departmanın planını da oluşturdu (okunmamış bildirim) */
-  deptPlan?: { title: string; detail: string } | null;
+  deptPlan?: { title: string; detail: string; href?: string } | null;
   /** Müdüre gelen okunmamış mesaj sayısı (Mesajlaşma modülü kapalıysa verilmez). */
   unreadMessages?: number;
   availability: { enabled: boolean; missing: number };
@@ -133,7 +133,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       severity: "today",
       title: input.deptPlan.title,
       detail: input.deptPlan.detail,
-      action: { label: "Planı Gör", href: "/schedule?week=next" },
+      action: { label: "Planı Gör", href: input.deptPlan.href || "/schedule?week=next" },
     });
   }
 

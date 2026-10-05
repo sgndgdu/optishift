@@ -283,6 +283,11 @@ function SchedulePageInner() {
     if (w === "this") return 0;
     // Raporlardan gelen bağlantı: aynı hafta (bu haftaya göre kaç hafta ileri/geri)
     if (w && /^-?\d{1,2}$/.test(w)) return Number(w);
+    // Bildirimden gelen bağlantı: haftanın tarihi (2026-10-19), bugünkü haftaya göre kaç hafta ileri
+    if (w && /^\d{4}-\d{2}-\d{2}$/.test(w)) {
+      const diff = Math.round((Date.parse(w) - Date.parse(getWeekStart(0))) / (7 * 86400000));
+      if (Number.isFinite(diff)) return diff;
+    }
     return (new Date().getDay() + 6) % 7 >= 3 ? 1 : 0;
   });
   const weekStart = useMemo(() => mounted ? getWeekStart(weekOffset) : "", [weekOffset, mounted]);

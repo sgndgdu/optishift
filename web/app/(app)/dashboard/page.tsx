@@ -62,7 +62,7 @@ export default function DashboardPage() {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingAccounts, setPendingAccounts] = useState(0);
   // Departman sorumlusu: hesap sahibi departmanın planını da oluşturduysa (lib/chefPlanNotice)
-  const [deptPlan, setDeptPlan] = useState<{ title: string; detail: string } | null>(null);
+  const [deptPlan, setDeptPlan] = useState<{ title: string; detail: string; href?: string } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
   const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
@@ -101,7 +101,7 @@ export default function DashboardPage() {
     if (departmentScope(u) && u?.personnel_id) {
       json(`/api/notifications?personnel_id=${u.personnel_id}`).then(d => {
         const n = list(d).find((x: any) => x.type === "dept_plan" && !x.is_read);
-        setDeptPlan(n ? { title: n.title, detail: n.message } : null);
+        setDeptPlan(n ? { title: n.title, detail: n.message, href: n.link ?? undefined } : null);
       });
     }
     try {
