@@ -481,7 +481,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
             <div className="truncate">
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Kullanıcı"}</p>
               <p className={cn(
-                "text-xs font-medium tracking-wide uppercase",
+                "text-xs font-medium truncate",
                 user?.role === "admin" || user?.role === "supervisor" ? "text-ember-600" : user?.role === "manager" ? "text-forest-600" : "text-slate-500"
               )}>
                 {user?.role === "admin" ? "Hesap sahibi" : user?.role === "supervisor" ? "Bölge sorumlusu" : user?.role === "manager" ? (parseAccess(user?.access)?.department_id ? (chefDeptName ? `${chefDeptName} sorumlusu` : "Departman sorumlusu") : titleLabel(user?.display_title)) : "Ekip üyesi"}
