@@ -195,7 +195,7 @@ export default function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.is_read).length;
 
   return (
-    <Page>
+    <Page width="narrow">
       <PageHeader title="Bildirimler" description={unreadCount > 0 ? `${unreadCount} okunmamış` : notifs.length ? "Tümü okundu" : undefined}
         actions={unreadCount > 0 && (
           <button onClick={markAllRead} className="text-sm text-forest-600 font-bold hover:underline">

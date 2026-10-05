@@ -133,7 +133,7 @@ export const addsOnlyChefs = (granter: Granter): boolean => {
 /** Yetki maddelerinin listede kısa adları. */
 const PERM_SHORT: Record<Perm, string> = {
   prepare: "Plan", publish: "Yayın", approvals: "Onaylar", team: "Ekip",
-  plan_settings: "Plan ayarları", budget: "Bütçe", cross_branch: "Şubeler arası", delegate: "Yetki verme",
+  plan_settings: "Plan ayarları", budget: "Ücretler", cross_branch: "Şubeler arası", delegate: "Yetki verme",
 };
 
 /** Yöneticinin kapsamı: departman şefiyse "Salon şefi", değilse verilen unvan (ör. "Müdür"). */

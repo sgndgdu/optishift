@@ -9,9 +9,13 @@ describe("isModuleOn", () => {
   });
 
   it("varsayılan kapalı özellik: sadece true açar", () => {
-    expect(isModuleOn({}, "tip_pooling_enabled")).toBe(false);
-    expect(isModuleOn({ tip_pooling_enabled: "true" }, "tip_pooling_enabled")).toBe(false);
-    expect(isModuleOn({ tip_pooling_enabled: true }, "tip_pooling_enabled")).toBe(true);
+    expect(isModuleOn({}, "fatigue_radar_enabled")).toBe(false);
+    expect(isModuleOn({ fatigue_radar_enabled: "true" }, "fatigue_radar_enabled")).toBe(false);
+    expect(isModuleOn({ fatigue_radar_enabled: true }, "fatigue_radar_enabled")).toBe(true);
+  });
+
+  it("yakında olan özellik (bahşiş) açık kaydı kalsa da kapalı", () => {
+    expect(isModuleOn({ tip_pooling_enabled: true }, "tip_pooling_enabled")).toBe(false);
   });
 
   it("rules JSON string ya da boş gelebilir", () => {

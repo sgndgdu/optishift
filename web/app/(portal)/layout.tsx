@@ -244,7 +244,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
         <div className="flex-1 overflow-auto">
           {/* Portal sayfalarının genişliği ve dolgusu TEK YERDE (components/ui/PageHeader → Page) */}
-          <div className="mx-auto w-full max-w-3xl px-4 py-5 md:px-8 md:py-8 pb-24 md:pb-8">
+          <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8 lg:px-10 pb-24 md:pb-8">
             <ShiftWordsContext.Provider value={words}>
               <AvailabilityEnabledContext.Provider value={availKnown ? availCollectionEnabled : null}>
                 <OpenShiftsEnabledContext.Provider value={openShiftsEnabled}>{children}</OpenShiftsEnabledContext.Provider>

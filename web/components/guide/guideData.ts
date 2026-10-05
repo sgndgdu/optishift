@@ -84,7 +84,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         paragraphs: [
           "Temel: işletme türü, departmanlar, çalışma saatleri ve vardiyalar. İşletme türünü sadece siz değiştirebilirsiniz; vardiyalarınız etkilenmez.",
           "Gelişmiş: haftalık çalışma sınırı, dinlenme, vardiya girişi, Adalet Puanı gibi kurallar. Çoğu işletme hiç değiştirmez.",
-          "Özellikler: mesajlar, açık vardiyalar, fazla mesai takibi, bahşiş gibi isteğe bağlı özellikler. Kapalı özellik hiçbir ekranda görünmez. Sadece hesap sahibi açıp kapatır.",
+          "Özellikler: mesajlar, açık vardiyalar, fazla mesai takibi gibi isteğe bağlı özellikler. Kapalı özellik hiçbir ekranda görünmez. Sadece hesap sahibi açıp kapatır.",
         ],
       },
     ],

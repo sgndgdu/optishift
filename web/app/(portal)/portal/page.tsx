@@ -6,17 +6,18 @@ import { useRouter } from "next/navigation";
 import {
   Clock, Calendar as CalIcon, Check, Megaphone,
   MapPin, AlertCircle, Timer, ChevronRight,
-  Zap, ClipboardList, PlayCircle, StopCircle, Wallet,
+  Zap, ClipboardList, PlayCircle, StopCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart, addWeeks, timeAgo, addDays, formatDateTR } from "@/lib/date";
+import { getWeekStart, timeAgo, addDays, formatDateTR } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
 import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import { coworkersOf } from "@/lib/coworkers";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -45,7 +46,7 @@ export default function PortalDashboard() {
     if (!openShiftsEnabled) return;
     let stale = false;
     fetch("/api/open-shifts?mine=1").then(r => (r.ok ? r.json() : [])).then(d => {
-      if (!stale) setOpenShiftCount(Array.isArray(d) ? d.filter((o: any) => o.status === "open").length : 0);
+      if (!stale) setOpenShiftCount(Array.isArray(d) ? d.filter((o: any) => o.status === "open" && !(o.problems?.length)).length : 0);
     }).catch(() => {});
     return () => { stale = true; };
   }, [openShiftsEnabled]);
@@ -62,11 +63,11 @@ export default function PortalDashboard() {
   const [pendingHandoverModal, setPendingHandoverModal] = useState<{ shiftId: number; handover: { id: number; note: string; author_name: string; created_at: number } } | null>(null);
   const [shiftTasks, setShiftTasks] = useState<any[]>([]); // rules.task_management_enabled — bugünkü vardiyanın görev listesi
   const [taskToggleBusy, setTaskToggleBusy] = useState<number | null>(null);
-  const [weeklyTipAmount, setWeeklyTipAmount] = useState<number | null>(null); // rules.tip_pooling_enabled — bu hafta kazanılan prim
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
   // Gelecek hafta: şubenin planı yayınlandı mı, ve benim ilk vardiyam (bu hafta başka vardiya yoksa kartta gösterilir)
   const [nextWeekPublished, setNextWeekPublished] = useState(false);
   const [nextWeekFirst, setNextWeekFirst] = useState<any | null>(null);
+  const [teamWeek, setTeamWeek] = useState<any[]>([]); // bu haftanın ekip vardiyaları (çalıştığı şubeler)
   const [dataLoading,   setDataLoading]   = useState(true);
   const [checkInLoading,setCheckInLoading]= useState(false);
   const [checkInError,  setCheckInError]  = useState("");
@@ -91,17 +92,19 @@ export default function PortalDashboard() {
     const ws  = getWeekStart(0);
     const nws = getWeekStart(1);
     try {
-      const [shiftData, notifData, availData, personnelData] = await Promise.all([
+      const [shiftData, notifData, availData] = await Promise.all([
         fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}&include_on_call=1`).then(r => r.json()),
         fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
-        fetch(`/api/personnel?id=${user.personnel_id}`).then(r => r.json()).catch(() => null),
       ]);
-      // Gelecek haftanın yayınlanmış planı (personel sadece yayınlanmışı görür)
-      const nextLoc = user.location_id
-        ? await fetch(`/api/shifts?location_id=${user.location_id}&week_start=${nws}`).then(r => r.json()).catch(() => [])
-        : [];
-      const nextRows = Array.isArray(nextLoc) ? nextLoc.filter((s: any) => s.kind !== "on_call") : [];
+      // Bu ve gelecek hafta, çalıştığı TÜM şubelerde yayınlanmış plan (/api/shifts/team): bugün kimle çalışıyorum,
+      // gelecek haftanın planı çıktı mı (iki şubede çalışan için ikisine de bakılır)
+      const [teamNow, teamNext] = await Promise.all([
+        fetch(`/api/shifts/team?week_start=${ws}`).then(r => r.json()).catch(() => null),
+        fetch(`/api/shifts/team?week_start=${nws}`).then(r => r.json()).catch(() => null),
+      ]);
+      setTeamWeek(Array.isArray(teamNow?.shifts) ? teamNow.shifts : []);
+      const nextRows = (Array.isArray(teamNext?.shifts) ? teamNext.shifts : []).map((s: any) => ({ ...s, week_start: nws }));
       setNextWeekPublished(nextRows.length > 0);
       setNextWeekFirst(nextRows.filter((s: any) => s.personnel_id === user.personnel_id).sort((a: any, b: any) => a.day - b.day)[0] ?? null);
       // İcap nöbeti ayrı: giriş/çıkış ve görev listesi sadece normal vardiyada
@@ -110,22 +113,6 @@ export default function PortalDashboard() {
       setOnCalls(rows.filter((s: any) => s.kind === "on_call"));
       setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
-      const pData = Array.isArray(personnelData) ? personnelData[0] : personnelData;
-      // Bahşiş Havuzu (rules.tip_pooling_enabled) — modül kapalıysa 403 döner, kart sessizce gizlenir
-      if (pData?.primary_location_id) {
-        try {
-          const tipData = await fetch(`/api/tip-pools?location_id=${pData.primary_location_id}`).then(r => r.ok ? r.json() : null);
-          if (tipData?.allocations) {
-            const weekEnd = addWeeks(ws, 1);
-            const weekTotal = tipData.allocations
-              .filter((a: any) => a.period_end >= ws && a.period_start < weekEnd)
-              .reduce((sum: number, a: any) => sum + a.amount, 0);
-            setWeeklyTipAmount(weekTotal);
-          } else {
-            setWeeklyTipAmount(null);
-          }
-        } catch { setWeeklyTipAmount(null); }
-      }
     } catch {} finally { setDataLoading(false); }
   }, [user?.personnel_id, user?.location_id]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -298,12 +285,22 @@ export default function PortalDashboard() {
   const isCheckedIn   = !!todayShift?.check_in_at && !todayShift?.check_out_at;
   const isCompleted   = !!todayShift?.check_out_at;
   const todayLabel    = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+  // Seninle çalışanlar (lib/coworkers): departman adı ekip verisinde
+  const matesOf = (sh: any) => coworkersOf(teamWeek.find(t => t.id === sh.id) ?? sh, teamWeek, user?.personnel_id);
+  const todayMates: string[] = todayShift ? matesOf(todayShift) : [];
+  const multiBranch = new Set(teamWeek.map(t => t.location_id)).size > 1 || new Set(shifts.map(s => s.location_id)).size > 1;
+  // Sağ sütun: bugünden sonraki vardiyalar (en fazla 4)
+  const nextShifts = shifts.filter(s => s.day > todayIdx).sort((a, b) => a.day - b.day).slice(0, 4);
 
   return (
     <Page className="animate-in fade-in duration-300">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <PageHeader eyebrow={todayLabel} title={`Merhaba, ${user?.name?.split(" ")[0] ?? ""} 👋`} />
+
+      {/* Geniş ekranda iki sütun: solda bugün ve hafta, sağda yapılacaklar ve bildirimler */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start">
+      <div className="space-y-6 min-w-0">
 
       {/* ── Hero: Bugün ─────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-primary via-forest-600 to-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
@@ -359,19 +356,25 @@ export default function PortalDashboard() {
                   <span className="text-sm font-bold text-emerald-200">{shiftDur(todayShift)} saat çalıştın</span>
                 </div>
               )}
-              <p className="text-forest-200/70 text-sm flex items-center gap-2">
+              <p className="text-forest-200/70 text-sm flex items-center gap-2 flex-wrap">
                 <span>{shiftDur(todayShift)} saatlik {words.shift}</span>
+                {todayShift.department_name && <><span className="opacity-40">·</span><span>{todayShift.department_name}</span></>}
                 {todayShift.location_name && (
                   <><span className="opacity-40">·</span><MapPin size={11} className="inline -mt-px" /> {todayShift.location_name}</>
                 )}
               </p>
+              {todayMates.length > 0 && (
+                <p className="text-sm text-forest-100 mt-2">
+                  <span className="text-forest-200/70">Bugün seninle:</span> {todayMates.slice(0, 5).join(", ")}{todayMates.length > 5 ? ` +${todayMates.length - 5}` : ""}
+                </p>
+              )}
             </div>
           ) : (
             <div className="mb-5">
               <div className="text-2xl font-bold mb-1 text-white/70">Bugün {words.shift} yok</div>
               {upcomingShifts.length > 0 ? (
                 <p className="text-forest-200/70 text-sm">
-                  Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}</span>
+                  Sonraki: <span className="font-bold text-forest-100">{DAY_NAMES[upcomingShifts[0].day]}, {upcomingShifts[0].start_time}{multiBranch && upcomingShifts[0].location_name ? ` · ${upcomingShifts[0].location_name}` : ""}</span>
                 </p>
               ) : nextWeekFirst ? (
                 <p className="text-forest-200/70 text-sm">
@@ -451,21 +454,6 @@ export default function PortalDashboard() {
               <span className={`text-sm font-medium ${t.is_completed ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.task_description}</span>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* ── Bu hafta kazanılan prim (rules.tip_pooling_enabled) ──────────── */}
-      {weeklyTipAmount !== null && weeklyTipAmount > 0 && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-            <Wallet size={18} className="text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-emerald-700">Bu Hafta Kazanılan Prim</p>
-            <p className="text-lg font-bold text-emerald-800">
-              {weeklyTipAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
-            </p>
-          </div>
         </div>
       )}
 
@@ -556,6 +544,36 @@ export default function PortalDashboard() {
           }
         </div>
       </div>
+
+      </div>
+      <div className="space-y-6 min-w-0">
+      {/* ── Yaklaşan vardiyalar: nerede, kimle ─────────────────────────── */}
+      {!dataLoading && nextShifts.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <span className="text-sm font-bold text-slate-800">Yaklaşan {words.shift}ların</span>
+            <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">Tümü <ChevronRight size={13} /></Link>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {nextShifts.map(s => {
+              const mates = matesOf(s);
+              return (
+                <Link key={s.id} href="/portal/calendar" className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
+                  <div className="w-11 shrink-0 text-center rounded-xl py-1 bg-slate-100 text-slate-600">
+                    <p className="text-xs font-bold">{SHORT[s.day]}</p>
+                    <p className="text-sm font-bold leading-none mt-0.5">{Number(addDays(s.week_start, Number(s.day)).slice(8))}</p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-900 tabular-nums">{s.start_time}–{s.end_time}</p>
+                    {multiBranch && s.location_name && <p className="text-xs font-semibold text-violet-700 truncate">{s.location_name}</p>}
+                    {mates.length > 0 && <p className="text-xs text-slate-500 truncate">Seninle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Kısayollar: alt menüden çıkarılan sayfalar + acil durum ──────── */}
       <div className="flex flex-wrap gap-2">
@@ -666,6 +684,8 @@ export default function PortalDashboard() {
           className="inline-flex items-center gap-1.5 px-3 min-h-[44px] text-xs font-semibold text-slate-400 hover:text-red-600 transition-colors">
           <AlertCircle size={13} /> Acil durum bildir
         </button>
+      </div>
+      </div>
       </div>
     </Page>
   );

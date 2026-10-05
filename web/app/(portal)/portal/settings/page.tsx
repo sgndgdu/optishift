@@ -20,7 +20,7 @@ export default function PortalSettingsPage() {
   if (!mounted) return null;
 
   return (
-    <Page>
+    <Page width="narrow">
       <PageHeader title="Hesabım" description="Profil, şifre ve giriş ayarları" />
       {/* Cihaz desteklemiyorsa görünmez */}
       <BiometricCard />

@@ -158,6 +158,13 @@ export function computeLeaveBalance(input: LeaveBalanceInput): LeaveBalance {
   };
 }
 
+// Eski/İngilizce kayıtlar (lib/types LeaveType) ekranda Türkçe görünsün
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  annual: "Yıllık İzin", sick: "Hastalık / Rapor", excuse: "Mazeret İzni",
+};
+/** İzin türünün ekrandaki adı: TEK KAYNAK (portal, Onaylar, bildirim, asistan) */
+export const leaveTypeLabel = (t: string | null | undefined): string => (t && LEAVE_TYPE_LABELS[t]) || t || "İzin";
+
 /** leave_requests.type hem Türkçe etiket hem eski kod değeriyle kaydedilmiş olabilir */
 export function isAnnualLeaveType(type?: string | null): boolean {
   if (!type) return false;

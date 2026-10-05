@@ -2,7 +2,7 @@
  * Şube ayarlarında (locations.rules) kim neyi değiştirir: TEK KAYNAK.
  * Yetki kişinin kendisinde (lib/userAccess, kullanıcı kararı 2026-10-04); burada sadece ayar anahtarlarının
  * hangi maddeye bağlı olduğu durur:
- * - budget: "Ücret ve bütçe"
+ * - budget: "Ücretler ve maliyet"
  * - features: ek özellikleri açıp kapatma, sadece işletme sahibi
  * - prepare: plan hazırlarken yazılan alanlar (çağrı tahmini)
  * - geri kalan her anahtar: "Plan ayarları"

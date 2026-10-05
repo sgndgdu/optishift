@@ -4,16 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { distributeTipPool } from "@/lib/tips";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 async function tipPoolingEnabled(db: ReturnType<typeof getDB>, locationId: string): Promise<boolean> {
   const loc = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(locationId) as any;
-  if (!loc?.rules) return false;
-  try {
-    const rules = JSON.parse(loc.rules);
-    return rules.tip_pooling_enabled === true;
-  } catch {
-    return false;
-  }
+  return isModuleOn(loc?.rules, "tip_pooling_enabled");
 }
 
 export async function GET(req: NextRequest) {

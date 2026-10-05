@@ -8,12 +8,13 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { addDays, businessToday, getWeekStart, weekRangeTR } from "@/lib/date";
+import { addDays, businessToday, formatDateTR, getWeekStart, weekRangeTR } from "@/lib/date";
 import { DAY_NAMES as DAYS, DAY_SHORT } from "@/lib/constants";
 
 import { useShiftWords } from "@/hooks/useShiftWords";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
+import { coworkersOf } from "@/lib/coworkers";
 export default function PortalCalendar() {
   const words = useShiftWords();
   const router = useRouter();
@@ -22,8 +23,9 @@ export default function PortalCalendar() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [shifts, setShifts] = useState<any[]>([]);
   const [onCalls, setOnCalls] = useState<any[]>([]);
-  const [allShifts, setAllShifts] = useState<any[]>([]);
-  const [personnelMap, setPersonnelMap] = useState<Record<string, string>>({});
+  // Çalıştığı tüm şubelerin yayınlanmış haftası (/api/shifts/team): kimle, nerede çalışıyorum
+  const [team, setTeam] = useState<{ locations: { id: string; name: string }[]; shifts: any[] }>({ locations: [], shifts: [] });
+  const [teamLoc, setTeamLoc] = useState<string | null>(null);
   // Vardiya kimliği (s-sabah) yerine şubedeki adı (Sabah Postası) gösterilir
   const [shiftNames, setShiftNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -46,16 +48,11 @@ export default function PortalCalendar() {
     setLoading(true);
     Promise.all([
       fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${weekStart}&include_on_call=1`).then(r => r.json()).catch(() => []),
-      user.location_id
-        ? fetch(`/api/shifts?location_id=${user.location_id}&week_start=${weekStart}`).then(r => r.json()).catch(() => [])
-        : Promise.resolve([]),
-      user.location_id
-        ? fetch(`/api/personnel?location_id=${user.location_id}`).then(r => r.json()).catch(() => [])
-        : Promise.resolve([]),
+      fetch(`/api/shifts/team?week_start=${weekStart}`).then(r => r.json()).catch(() => null),
       user.location_id
         ? fetch(`/api/locations?id=${user.location_id}`).then(r => r.json()).catch(() => [])
         : Promise.resolve([]),
-    ]).then(([mine, all, ppl, locs]) => {
+    ]).then(([mine, teamData, locs]) => {
       const defs = Array.isArray(locs) ? locs[0]?.shift_definitions : null;
       const parsed = typeof defs === "string" ? (() => { try { return JSON.parse(defs); } catch { return []; } })() : defs;
       if (Array.isArray(parsed)) setShiftNames(Object.fromEntries(parsed.map((d: any) => [d.id, d.name])));
@@ -63,10 +60,7 @@ export default function PortalCalendar() {
       const mineRows = Array.isArray(mine) ? mine : [];
       setShifts(mineRows.filter((s: any) => s.kind !== "on_call"));
       setOnCalls(mineRows.filter((s: any) => s.kind === "on_call"));
-      setAllShifts(Array.isArray(all) ? all : []);
-      const map: Record<string, string> = {};
-      if (Array.isArray(ppl)) ppl.forEach((p: any) => { map[p.id] = p.name; });
-      setPersonnelMap(map);
+      setTeam({ locations: Array.isArray(teamData?.locations) ? teamData.locations : [], shifts: Array.isArray(teamData?.shifts) ? teamData.shifts : [] });
     }).finally(() => setLoading(false));
   }, [user, weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -85,6 +79,12 @@ export default function PortalCalendar() {
 
   if (!mounted) return <div className="space-y-4" />;
 
+  const multiBranch = team.locations.length > 1;
+  const locName = (id: string) => team.locations.find(l => l.id === id)?.name ?? "";
+  // Seninle çalışanlar (lib/coworkers): departman adı ekip verisinde (ana departman dahil)
+  const coworkers = (shift: any) => coworkersOf(team.shifts.find(t => t.id === shift.id) ?? shift, team.shifts, user?.personnel_id);
+  const activeLoc = teamLoc && team.locations.some(l => l.id === teamLoc) ? teamLoc : (team.locations[0]?.id ?? null);
+
   const getWeekLabel = () => {
     if (weekOffset === -1) return "Geçen Hafta";
     if (weekOffset === 0) return "Bu Hafta";
@@ -94,7 +94,7 @@ export default function PortalCalendar() {
 
   return (
     <Page>
-      <PageHeader title={tab === "mine" ? words.MyShifts : "Tüm Ekip"} />
+      <PageHeader title={tab === "mine" ? words.MyShifts : "Ekibin Haftası"} />
 
       {/* Hafta Navigasyonu */}
       <Card className="stripe-card rounded-2xl border-0">
@@ -121,7 +121,7 @@ export default function PortalCalendar() {
         </CardContent>
       </Card>
 
-      <Tabs fill value={tab} onChange={setTab} items={[{ id: "mine", label: "Benim" }, { id: "all", label: "Tüm Ekip" }] as const} />
+      <Tabs fill value={tab} onChange={setTab} items={[{ id: "mine", label: "Benim" }, { id: "all", label: "Ekip" }] as const} />
 
       {loading ? (
         <div className="animate-pulse space-y-4 pt-4">
@@ -147,7 +147,7 @@ export default function PortalCalendar() {
             );
           }
           return (
-            <div className="space-y-2.5">
+            <div className="grid gap-2.5 lg:grid-cols-2">
               {workDays.map(d => {
                 const shift = shifts.find((x: any) => x.day === d);
                 const onCall = onCalls.find((x: any) => x.day === d);
@@ -173,6 +173,15 @@ export default function PortalCalendar() {
                             {shift.department_name && <span className="text-sky-700"> · {shift.department_name}</span>}
                             {isToday && <span className="text-primary font-bold"> · Bugün</span>}
                           </p>
+                          {/* Birden çok şubede çalışan: hangi şubede */}
+                          {multiBranch && shift.location_id && (
+                            <p className="text-xs font-semibold text-violet-700 truncate">{locName(shift.location_id) || shift.location_name}</p>
+                          )}
+                          {(() => {
+                            const mates = coworkers(shift);
+                            if (mates.length === 0) return null;
+                            return <p className="text-xs text-slate-500 truncate" title={mates.join(", ")}>Seninle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>;
+                          })()}
                         </>
                       )}
                       {onCall && (
@@ -195,56 +204,73 @@ export default function PortalCalendar() {
           );
         })()
       ) : (
-        /* ── Tüm Şube görünümü ── */
+        /* ── Ekibin haftası: çalıştığı her şube için gün gün kim, hangi saatte ── */
         <div className="space-y-4">
-          {allShifts.length === 0 ? (
-            <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-border/40">
-              <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış {words.shift} yok.</p>
+          {multiBranch && (
+            <div className="flex flex-wrap gap-2">
+              {team.locations.map(l => (
+                <button key={l.id} onClick={() => setTeamLoc(l.id)}
+                  className={`px-3.5 min-h-[40px] rounded-full border text-sm font-semibold transition-colors ${activeLoc === l.id ? "border-primary bg-primary/10 text-primary" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  {l.name}
+                </button>
+              ))}
             </div>
-          ) : (
-            DAYS.map((dayName, dayIndex) => {
-              const dayShifts = allShifts
-                .filter((s: any) => s.day === dayIndex)
-                .sort((a: any, b: any) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
-              if (dayShifts.length === 0) return null;
-
-              const dateObj = new Date(`${weekStart}T00:00:00`);
-              dateObj.setDate(dateObj.getDate() + dayIndex);
-              const dateStr = dateObj.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
-
+          )}
+          {(() => {
+            const rows = team.shifts.filter(t => t.location_id === activeLoc);
+            if (rows.length === 0) {
               return (
-                <div key={dayIndex} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-800">{dayName}</span>
-                    <span className="text-xs text-slate-400 font-medium">{dateStr}</span>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {dayShifts.map((s: any) => {
-                      const isMe = s.personnel_id === user?.personnel_id;
-                      const name = personnelMap[s.personnel_id] ?? s.personnel_id;
-                      return (
-                        <div key={s.id} className={`flex items-center justify-between px-4 py-3 ${isMe ? "bg-primary/5" : ""}`}>
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
-                              {name.charAt(0)}
-                            </div>
-                            <span className={`text-sm font-bold truncate ${isMe ? "text-primary" : "text-slate-700"}`}>
-                              {name}{isMe && <span className="text-xs font-normal text-primary/70 ml-1">(ben)</span>}
-                            </span>
-                          </div>
-                          {s.start_time && s.end_time && (
-                            <span className="text-xs font-bold text-slate-500 shrink-0 ml-2">
-                              {s.start_time}–{s.end_time}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-border/40">
+                  <p className="text-muted-foreground text-sm font-bold">Bu hafta yayınlanmış {words.shift} yok.</p>
                 </div>
               );
-            })
-          )}
+            }
+            const today = businessToday();
+            return (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {DAYS.map((dayName, dayIndex) => {
+                  const dayRows = rows.filter(t => t.day === dayIndex);
+                  if (dayRows.length === 0) return null;
+                  const date = addDays(weekStart, dayIndex);
+                  // Aynı saatteki kişiler tek grupta: "Sabah 08:00–16:00 · Ali, Ayşe"
+                  const groups = new Map<string, any[]>();
+                  for (const t of dayRows) {
+                    const key = `${t.start_time}|${t.end_time}|${t.shift_name ?? ""}`;
+                    groups.set(key, [...(groups.get(key) ?? []), t]);
+                  }
+                  const iWork = dayRows.some(t => t.personnel_id === user?.personnel_id);
+                  return (
+                    <div key={dayIndex} className={`bg-white rounded-2xl border overflow-hidden ${date === today ? "border-primary/40" : "border-slate-100"} ${date < today ? "opacity-60" : ""}`}>
+                      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-800">{dayName}{date === today && <span className="text-primary"> · Bugün</span>}</span>
+                        <span className="text-xs text-slate-400 font-medium">{iWork ? "Çalışıyorsun · " : ""}{formatDateTR(date, { weekday: false })}</span>
+                      </div>
+                      <div className="divide-y divide-slate-50">
+                        {[...groups.values()].map(g => (
+                          <div key={g[0].id} className="px-4 py-2.5">
+                            <p className="text-xs font-bold text-slate-500 tabular-nums">
+                              {g[0].shift_name ? `${g[0].shift_name} · ` : ""}{g[0].start_time}–{g[0].end_time}
+                            </p>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {g.map(t => {
+                                const isMe = t.personnel_id === user?.personnel_id;
+                                return (
+                                  <span key={t.id} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-700"}`}>
+                                    {isMe ? "Sen" : t.personnel_name}
+                                    {t.department_name && <span className={isMe ? "text-white/70" : "text-slate-400"}>· {t.department_name}</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
       {picked && (

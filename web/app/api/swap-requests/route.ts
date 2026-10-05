@@ -110,6 +110,12 @@ export async function GET(req: NextRequest) {
         WHERE sr.org_id = ? AND sr.target_id = ? AND sr.status = 'pending'
         ORDER BY sr.created_at DESC
       `).all(org_id, target_id);
+      // Teklif geldikten sonra plan değişmiş olabilir: kabul edilirse bozulacak kurallar kartta görünsün,
+      // kabul düğmesi kapanır (kullanıcı kararı 2026-10-05: çakışan teklifi kabul edemesin)
+      for (const r of rows) {
+        r.violations = await swapProblems(db, r.requester_shift_id, r.target_shift_id,
+          { requester: r.requester_name, target: "Sen" }).catch(() => []);
+      }
     } else {
       return NextResponse.json({ error: "requester_id, target_id veya location_id+status zorunlu" }, { status: 400 });
     }
@@ -159,11 +165,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Takas için önce ilanı geri çek." }, { status: 409 });
     }
 
-    // Takas aynı departman içinde (iki tarafın da departmanı varsa)
-    const depts = await db.prepare(`SELECT id, department_id FROM personnel WHERE id IN (?, ?)`).all(requester_id, target_id) as any[];
-    const dR = depts.find(d => d.id === requester_id)?.department_id;
-    const dT = depts.find(d => d.id === target_id)?.department_id;
-    if (dR && dT && dR !== dT) {
+    // Takas departman içinde: herkes alacağı vardiyanın departmanında çalışabilmeli (ana departman ya da joker)
+    const depts = await db.prepare(`SELECT id, department_id, assigned_department_ids FROM personnel WHERE id IN (?, ?)`).all(requester_id, target_id) as any[];
+    const deptSet = (pid: string) => {
+      const d = depts.find(x => x.id === pid);
+      let extra: string[] = [];
+      try { extra = JSON.parse(d?.assigned_department_ids || "[]"); } catch { extra = []; }
+      return new Set([d?.department_id, ...extra].filter(Boolean));
+    };
+    const shiftDepts = await db.prepare(`
+      SELECT sa.id, COALESCE(sa.department_id, p.department_id) AS dept FROM shift_assignments sa JOIN personnel p ON p.id = sa.personnel_id
+      WHERE sa.id IN (?, ?)`).all(requester_shift_id, target_shift_id) as any[];
+    const deptOf = (id: unknown) => shiftDepts.find(r => String(r.id) === String(id))?.dept ?? null;
+    const fits = (pid: string, dept: string | null) => { const set = deptSet(pid); return !dept || set.size === 0 || set.has(dept); };
+    if (!fits(requester_id, deptOf(target_shift_id)) || !fits(target_id, deptOf(requester_shift_id))) {
       return NextResponse.json({ error: "Sadece aynı departmandaki arkadaşınla takas edebilirsin." }, { status: 400 });
     }
 
@@ -360,7 +375,7 @@ export async function PATCH(req: NextRequest) {
             sendPushToPersonnel(mgr.personnel_id, auth.org_id, {
               title: effect.title,
               body: effect.message,
-              url: "/(app)/requests",
+              url: "/requests",
             })
           );
         }

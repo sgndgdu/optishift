@@ -243,7 +243,7 @@ export async function PATCH(req: NextRequest) {
     const { name, phone, employment_type, max_weekly_hours, min_weekly_hours, user_access_level, roles, weekly_off_day, night_restriction } = body;
     // Ayrı unvan alanı yok: görevler değişince unvan ilk görev olur (görev yoksa eski unvan kalır)
     const title = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : body.title;
-    // Ücret "Ücret ve bütçe" yetkisine bağlı (lib/userAccess); yetki yoksa gönderilen değer yok sayılır.
+    // Ücret "Ücretler ve maliyet" yetkisine bağlı (lib/userAccess); yetki yoksa gönderilen değer yok sayılır.
     // Pasife alma "Ekip" yetkisiyle (proxy bu uç noktayı zaten "Ekip"e bağlar).
     const hourly_wage = hasPerm(auth, "budget") ? body.hourly_wage : undefined;
     const status = !hasPerm(auth, "team") && body.status === "inactive" ? undefined : body.status;

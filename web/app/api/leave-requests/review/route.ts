@@ -7,11 +7,17 @@ import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@
 import { resolveShiftDef } from "@/lib/fairness";
 import { rescoreWeek } from "@/lib/scoring";
 import { publishOpenShift } from "@/lib/openShifts";
+import { rankCandidates } from "@/lib/openShiftCandidates";
+import { checkPersonChange } from "@/lib/assignmentCheck";
 
 type Conflict = {
   id: number; date: string; week_start: string; day: number; location_id: string;
   start_time: string; end_time: string; shift_name: string | null; published: boolean;
+  department_id: string | null; shift_id: string | null;
 };
+
+/** Onay kartında her vardiya için: o vardiyada kalan kişi sayısı ve yerine konabilecek en uygun 3 kişi */
+type Cover = { others: number; candidates: { personnel_id: string; name: string; note: string; ok: boolean }[] };
 
 /** İzin tarihleri arasındaki günler (YYYY-MM-DD), saat diliminden bağımsız */
 function datesBetween(startDate: string, endDate: string): string[] {
@@ -39,8 +45,8 @@ async function findConflicts(db: any, request: any): Promise<Conflict[]> {
   const weeks = [...new Set(dates.map(weekStartOf))];
   const rows = await db.prepare(`
     SELECT sa.id, sa.week_start, sa.day, sa.location_id, sa.shift_id, sa.start_time, sa.end_time, sa.publication_status,
-           l.shift_definitions
-    FROM shift_assignments sa JOIN locations l ON l.id = sa.location_id
+           COALESCE(sa.department_id, p.department_id) AS department_id, l.shift_definitions
+    FROM shift_assignments sa JOIN locations l ON l.id = sa.location_id JOIN personnel p ON p.id = sa.personnel_id
     WHERE sa.personnel_id = ? AND sa.week_start IN (${weeks.map(() => "?").join(",")})
       AND COALESCE(sa.kind, 'regular') = 'regular'
   `).all(request.personnel_id, ...weeks) as any[];
@@ -56,6 +62,7 @@ async function findConflicts(db: any, request: any): Promise<Conflict[]> {
         id: r.id, date: r.date, week_start: r.week_start, day: Number(r.day), location_id: r.location_id,
         start_time: r.start_time, end_time: r.end_time, shift_name: def?.name ?? null,
         published: r.publication_status !== "draft",
+        department_id: r.department_id ?? null, shift_id: r.shift_id ?? null,
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -73,7 +80,63 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   const request = await loadRequest(db, auth, id);
   if (!request) return NextResponse.json({ error: "Talep bulunamadı" }, { status: 404 });
-  return NextResponse.json({ conflicts: await findConflicts(db, request) });
+  const conflicts = await findConflicts(db, request);
+  const cover: Record<number, Cover> = {};
+  for (const c of conflicts) cover[c.id] = await coverFor(db, request.personnel_id, c);
+  return NextResponse.json({ conflicts: conflicts.map(c => ({ ...c, ...cover[c.id] })), team: await teamOnLeave(db, request) });
+}
+
+/**
+ * Plan henüz yoksa da sorumlu öngörebilsin: kişinin departmanında (yoksa şubede) kaç kişi var,
+ * aynı günlerde başka kimler izinli ya da izin bekliyor.
+ */
+async function teamOnLeave(db: any, request: any) {
+  const me = await db.prepare(`SELECT department_id FROM personnel WHERE id = ?`).get(request.personnel_id) as any;
+  const dept = me?.department_id ?? null;
+  const scopeSql = dept
+    ? `(p.department_id = ? OR p.assigned_department_ids LIKE ?)`
+    : `(p.primary_location_id = ? OR p.assigned_location_ids LIKE ?)`;
+  const scopeArgs = dept ? [dept, `%"${dept}"%`] : [request.p_loc, `%"${request.p_loc}"%`];
+  const size = await db.prepare(`
+    SELECT COUNT(*)::int AS n FROM personnel p
+    WHERE p.org_id = ? AND p.status = 'active' AND p.schedulable IS NOT FALSE AND ${scopeSql}`).get(request.p_org, ...scopeArgs) as any;
+  const others = await db.prepare(`
+    SELECT p.name, lr.start_date, lr.end_date, lr.status FROM leave_requests lr JOIN personnel p ON p.id = lr.personnel_id
+    WHERE p.org_id = ? AND lr.personnel_id <> ? AND lr.status IN ('approved', 'pending')
+      AND lr.start_date <= ? AND lr.end_date >= ? AND ${scopeSql}
+    ORDER BY lr.start_date`).all(request.p_org, request.personnel_id, request.end_date, request.start_date, ...scopeArgs) as any[];
+  const deptName = dept ? ((await db.prepare(`SELECT name FROM departments WHERE id = ?`).get(dept)) as any)?.name ?? null : null;
+  return {
+    scope: deptName, size: Number(size?.n ?? 0),
+    others: others.map(o => ({ name: o.name, start_date: o.start_date, end_date: o.end_date, pending: o.status === "pending" })),
+  };
+}
+
+/**
+ * Sorumlu izni onaylamadan önce görsün: o vardiyada başka kaç kişi kalıyor, yerine kim gelebilir.
+ * Adaylar açık vardiya adaylarıyla aynı kuralla (lib/openShiftCandidates): o gün boş, izinli değil, aynı departmanda
+ * çalışabilen; kural bozanlar (dinlenme, haftalık sınır) "ok: false" ile en sona.
+ */
+async function coverFor(db: any, personnelId: string, c: Conflict): Promise<Cover> {
+  const same = await db.prepare(`
+    SELECT COUNT(*)::int AS n FROM shift_assignments sa JOIN personnel p ON p.id = sa.personnel_id
+    WHERE sa.location_id = ? AND sa.week_start = ? AND sa.day = ? AND sa.personnel_id <> ?
+      AND COALESCE(sa.kind, 'regular') = 'regular' AND sa.start_time = ? AND sa.end_time = ?
+      AND (?::text IS NULL OR COALESCE(sa.department_id, p.department_id) = ?::text)
+  `).get(c.location_id, c.week_start, c.day, personnelId, c.start_time, c.end_time, c.department_id, c.department_id) as any;
+  const { candidates } = await rankCandidates(db, {
+    location_id: c.location_id, date: c.date, start_time: c.start_time, end_time: c.end_time,
+    excludePersonnelId: personnelId, departmentId: c.department_id,
+  }).catch(() => ({ candidates: [] as any[] }));
+  const local = candidates.filter((x: any) => !x.other_branch);
+  const ordered = [...local.filter((x: any) => !x.blocking), ...local.filter((x: any) => x.blocking)].slice(0, 3);
+  return {
+    others: Number(same?.n ?? 0),
+    candidates: ordered.map((x: any) => ({
+      personnel_id: x.personnel_id, name: x.name, ok: !x.blocking,
+      note: x.blocking ? x.warnings[0] ?? "" : x.warnings[0] ?? x.reasons.find((r: string) => r.startsWith("Bu hafta")) ?? "",
+    })),
+  };
 }
 
 // PATCH /api/leave-requests/review?id=X → {"status":"approved"|"rejected", "conflict_action"?: "open"|"remove"}
@@ -93,6 +156,8 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { status, reviewed_by } = body;
     const conflictAction: "open" | "remove" = body.conflict_action === "open" ? "open" : "remove";
+    // { vardiyaId: personelId }: sorumlu izinli kişinin yerine birini seçtiyse vardiya ona geçer (ilana/silmeye düşmez)
+    const replacements: Record<string, string> = body.replacements && typeof body.replacements === "object" ? body.replacements : {};
     if (!["approved", "rejected"].includes(status)) {
       return NextResponse.json({ error: "status: approved veya rejected olmalı" }, { status: 400 });
     }
@@ -123,12 +188,34 @@ export async function PATCH(req: NextRequest) {
       now,
     );
 
-    let removed = 0, opened = 0;
+    let removed = 0, opened = 0, replaced = 0;
+    const skipped: string[] = [];
     if (isApproved) {
       const today = businessToday();
       const conflicts = await findConflicts(db, request);
       const touchedWeeks = new Set<string>();
       for (const c of conflicts) {
+        const sub = replacements[String(c.id)];
+        if (sub && sub !== request.personnel_id) {
+          // Yerine gelen aynı işletmede, o gün boş ve kurallara uyuyor olmalı (açık vardiya üstlenmeyle aynı kontrol)
+          const who = await db.prepare(`SELECT id, name FROM personnel WHERE id = ? AND org_id = ? AND status = 'active'`).get(sub, auth.org_id) as any;
+          const problems = who ? await checkPersonChange(db, sub, c.location_id, {
+            add: [{ week_start: c.week_start, day: c.day, start_time: c.start_time, end_time: c.end_time }],
+          }) : ["bulunamadı"];
+          if (who && problems.length === 0) {
+            await db.prepare(`UPDATE shift_assignments SET personnel_id = ?, status = 'scheduled' WHERE id = ?`).run(sub, c.id);
+            replaced++;
+            if (c.published) {
+              touchedWeeks.add(`${c.location_id}|${c.week_start}`);
+              await db.prepare(`
+                INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
+                VALUES (?, 'schedule', ?, ?, false, '/portal/calendar', ?)
+              `).run(sub, "Sana yeni bir vardiya verildi", `${formatDateTR(c.date)} ${c.start_time}–${c.end_time} vardiyası ${request.p_name} izinli olduğu için sana verildi.`, now);
+            }
+            continue;
+          }
+          skipped.push(`${formatDateTR(c.date)}: ${who?.name ?? "seçilen kişi"} alamadı (${problems[0]})`);
+        }
         await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(c.id);
         removed++;
         if (c.published) touchedWeeks.add(`${c.location_id}|${c.week_start}`);
@@ -167,7 +254,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, status, removed, opened });
+    return NextResponse.json({ success: true, status, removed, opened, replaced, skipped });
   } catch (err) {
     console.error("Leave request review error:", err);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });

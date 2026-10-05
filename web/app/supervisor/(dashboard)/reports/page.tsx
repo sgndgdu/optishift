@@ -42,14 +42,18 @@ interface BranchReport {
   personnel_count: number;
   scheduled_shifts: number;
   total_hours: number;
-  compliance_flags: ComplianceFlag[];
   personnel: PersonnelRow[];
 }
 
-interface ComplianceFlag {
+/** Kişinin haftası: TÜM şubelerdeki saatleri toplanır (iki şubede çalışan tek kişi olarak sayılır) */
+interface WorkerWeek {
+  id: string;
   name: string;
   hours: number;
-  max_weekly_hours: number;
+  limit: number;
+  /** şube adı → saat */
+  byBranch: Record<string, number>;
+  home_location_id: string;
 }
 
 interface PersonnelRow {
@@ -68,7 +72,8 @@ export default function SupervisorReports() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading]       = useState(true);
   const [branches, setBranches]     = useState<BranchReport[]>([]);
-  const [activeTab, setActiveTab]   = useState<"summary" | "compliance" | "fairness">("summary");
+  const [workers, setWorkers]       = useState<WorkerWeek[]>([]);
+  const [activeTab, setActiveTab]   = useState<"summary" | "hours" | "fairness">("summary");
 
   // ── data loading ────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -81,6 +86,8 @@ export default function SupervisorReports() {
       const locs: any[] = await locRes.json();
       if (!Array.isArray(locs)) { setLoading(false); return; }
 
+      // Kişi bazında hafta (tüm şubeler): sınır kişinin ana şubesinin kuralıyla
+      const people: Record<string, WorkerWeek> = {};
       const reports: BranchReport[] = await Promise.all(
         locs.map(async (loc) => {
           const [personnelRes, shiftsRes] = await Promise.all([
@@ -96,11 +103,22 @@ export default function SupervisorReports() {
           } catch { /* varsayılan */ }
           const shiftList: any[]     = Array.isArray(shiftsRes)    ? shiftsRes    : [];
 
-          // Build hours-per-person map
           const hoursMap: Record<string, number> = {};
           for (const s of shiftList) {
             const h = calcHours(s.start_time, s.end_time);
             hoursMap[s.personnel_id] = (hoursMap[s.personnel_id] ?? 0) + h;
+          }
+
+          for (const p of personnelList) {
+            const w = people[p.id] ??= { id: p.id, name: p.name, hours: 0, limit: 0, byBranch: {}, home_location_id: p.primary_location_id ?? loc.id };
+            // Tek kural (lib/legal): şube sınırı üst sınır, kişinin değeri sadece daha düşükse. Ana şubenin kuralı geçerli.
+            if ((p.primary_location_id ?? loc.id) === loc.id || w.limit === 0) w.limit = effectiveWeeklyLimit(p.max_weekly_hours, branchMax);
+          }
+          for (const [pid, h] of Object.entries(hoursMap)) {
+            const w = people[pid];
+            if (!w) continue;
+            w.hours += h;
+            w.byBranch[loc.name] = (w.byBranch[loc.name] ?? 0) + h;
           }
 
           const personnelRows: PersonnelRow[] = personnelList.map((p: any) => ({
@@ -109,13 +127,8 @@ export default function SupervisorReports() {
             title: p.title,
             prev_score: p.prev_score ?? 0,
             weekly_hours: Math.round((hoursMap[p.id] ?? 0) * 10) / 10,
-            // Tek kural (lib/legal): şube sınırı üst sınır, kişinin değeri sadece daha düşükse
             max_weekly_hours: effectiveWeeklyLimit(p.max_weekly_hours, branchMax),
           }));
-
-          const complianceFlags: ComplianceFlag[] = personnelRows
-            .filter(p => p.weekly_hours > p.max_weekly_hours * 0.9)
-            .map(p => ({ name: p.name, hours: p.weekly_hours, max_weekly_hours: p.max_weekly_hours }));
 
           return {
             id: loc.id,
@@ -125,12 +138,12 @@ export default function SupervisorReports() {
             total_hours: Math.round(
               Object.values(hoursMap).reduce((a, b) => a + b, 0) * 10
             ) / 10,
-            compliance_flags: complianceFlags,
             personnel: personnelRows,
           };
         })
       );
 
+      setWorkers(Object.values(people).map(w => ({ ...w, hours: Math.round(w.hours * 10) / 10 })));
       setBranches(reports);
     } finally {
       setLoading(false);
@@ -142,9 +155,11 @@ export default function SupervisorReports() {
   // ── derived totals ───────────────────────────────────────────────────────
   const totalShifts     = branches.reduce((a, b) => a + b.scheduled_shifts, 0);
   const totalHours      = Math.round(branches.reduce((a, b) => a + b.total_hours, 0) * 10) / 10;
-  const totalFlags      = branches.reduce((a, b) => a + b.compliance_flags.length, 0);
-  const overCount       = branches.reduce((a, b) => a + b.compliance_flags.filter(f => f.hours > f.max_weekly_hours).length, 0);
-  const nearCount       = totalFlags - overCount;
+  // Sınırı aşan (kırmızı) ya da %90'ına gelen (sarı) kişiler; hiç çalışmayanlar listede yok
+  const working         = workers.filter(w => w.hours > 0).sort((a, b) => b.hours / b.limit - a.hours / a.limit);
+  const overCount       = working.filter(w => w.hours > w.limit).length;
+  const nearCount       = working.filter(w => w.hours <= w.limit && w.hours > w.limit * 0.9).length;
+  const flagsIn = (branchName: string) => working.filter(w => w.byBranch[branchName] && w.hours > w.limit * 0.9);
 
   if (!mounted) return <div className="h-screen" />;
 
@@ -181,14 +196,15 @@ export default function SupervisorReports() {
       {/* Şube/personel sayıları Genel Bakış'ta; burada sadece rapor sayıları */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Toplam saat" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
-        <StatCard label="Haftalık sınır" value={totalFlags === 0 ? "Sorun yok" : [overCount ? `${overCount} aştı` : null, nearCount ? `${nearCount} yaklaştı` : null].filter(Boolean).join(" · ")}
-          icon={totalFlags > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : totalFlags > 0 ? "attention" : "positive"}
-          onClick={totalFlags > 0 ? () => setActiveTab("compliance") : undefined} />
+        <StatCard label="Çalışma sınırı" value={overCount > 0 ? `${overCount} kişi aştı` : nearCount > 0 ? `${nearCount} kişi sınırda` : "Herkes sınırın altında"}
+          icon={overCount + nearCount > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : nearCount > 0 ? "attention" : "positive"}
+          hint={overCount > 0 && nearCount > 0 ? `${nearCount} kişi de sınırda` : `${working.length} kişi çalışıyor`}
+          onClick={() => setActiveTab("hours")} />
       </div>
 
       <Tabs fill value={activeTab} onChange={setActiveTab} items={[
         { id: "summary",    label: "Şubeler" },
-        { id: "compliance", label: "Haftalık sınır", count: totalFlags },
+        { id: "hours",      label: "Kişi saatleri", count: overCount + nearCount || undefined },
         { id: "fairness",   label: "Adalet" },
       ] as const} />
 
@@ -201,31 +217,34 @@ export default function SupervisorReports() {
               leading={<Avatar name={b.name} tone="brand" />}
               title={b.name}
               subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${trNum(b.total_hours)} sa`}
-              trailing={b.compliance_flags.length > 0
-                ? <StatusPill tone={b.compliance_flags.some(f => f.hours > f.max_weekly_hours) ? "danger" : "attention"}>{b.compliance_flags.length} kişi sınırda</StatusPill>
+              trailing={flagsIn(b.name).length > 0
+                ? <StatusPill tone={flagsIn(b.name).some(w => w.hours > w.limit) ? "danger" : "attention"}>{flagsIn(b.name).length} kişi sınırda</StatusPill>
                 : undefined}
             />
           ))}
         </List>
-      ) : activeTab === "compliance" ? (
+      ) : activeTab === "hours" ? (
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Bu hafta çalışma sınırını aşan (kırmızı) ya da %90&apos;ına yaklaşan (sarı) kişiler. Sınır, şubenin haftalık sınırıdır; yarı zamanlıda kişinin kendi sınırı.</p>
+          <p className="text-xs text-slate-500">Bu hafta kim kaç saat çalışıyor. İki şubede çalışanın saatleri toplanır. Sınır kişinin ana şubesinin haftalık sınırı (yarı zamanlıda kişinin kendi sınırı); aşan kırmızı, %90&apos;ına gelen sarı.</p>
           <List>
-            {totalFlags === 0 ? <ListEmpty>Bu hafta kimse sınıra yaklaşmadı.</ListEmpty>
-              : branches.filter(b => b.compliance_flags.length > 0).flatMap(b => [
-                <ListSection key={`h-${b.id}`} title={b.name} count={b.compliance_flags.length} />,
-                ...b.compliance_flags.map((flag, i) => {
-                  const over = flag.hours > flag.max_weekly_hours;
-                  return (
-                    <ListItem key={`${b.id}-${i}`} href={`/supervisor/personnel?location_id=${b.id}`}
-                      leading={<Avatar name={flag.name} />}
-                      title={flag.name}
-                      subtitle={`${trNum(flag.hours)} sa çalışıyor · sınır ${trNum(flag.max_weekly_hours)} sa`}
-                      trailing={<StatusPill tone={over ? "danger" : "attention"}>{over ? "Aştı" : "Yaklaştı"}</StatusPill>}
-                    />
-                  );
-                }),
-              ])}
+            {working.length === 0 ? <ListEmpty>Bu hafta plan yok.</ListEmpty>
+              : working.map(w => {
+                const over = w.hours > w.limit, near = !over && w.hours > w.limit * 0.9;
+                const branchesText = Object.keys(w.byBranch).length > 1
+                  ? Object.entries(w.byBranch).map(([n, h]) => `${n} ${trNum(Math.round(h * 10) / 10)} sa`).join(" + ")
+                  : Object.keys(w.byBranch)[0];
+                return (
+                  <ListItem key={w.id} href={`/supervisor/personnel?location_id=${w.home_location_id}`}
+                    leading={<Avatar name={w.name} />}
+                    title={w.name}
+                    subtitle={branchesText}
+                    trailing={<span className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{trNum(w.hours)} / {trNum(w.limit)} sa</span>
+                      {(over || near) && <StatusPill tone={over ? "danger" : "attention"}>{over ? "Aştı" : "Sınırda"}</StatusPill>}
+                    </span>}
+                  />
+                );
+              })}
           </List>
         </div>
       ) : (

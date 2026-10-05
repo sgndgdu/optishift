@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { leaveTypeLabel } from "@/lib/leave";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
         await rawDb.prepare(`
           INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
           VALUES (?, 'leave_request', ?, ?, false, ?)
-        `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${type} · ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
+        `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${leaveTypeLabel(type)} · ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
       }
     }
 

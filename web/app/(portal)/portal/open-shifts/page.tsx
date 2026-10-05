@@ -83,7 +83,7 @@ export default function PortalOpenShiftsPage() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 items-start">
         {shifts.map(s => {
           // Kendi devir ilanım: üstlenemem, sadece geri çekebilirim
           if (s.released_by && s.released_by === user?.personnel_id) {
@@ -108,7 +108,7 @@ export default function PortalOpenShiftsPage() {
             );
           }
           return (
-            <div key={s.id} className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
+            <div key={s.id} className={`bg-white rounded-2xl border p-5 space-y-3 ${(s.problems?.length ?? 0) > 0 ? "border-slate-200" : "border-amber-200"}`}>
               <div className="flex flex-wrap items-center gap-2">
                 {s.other_branch && <StatusPill tone="info">{s.location_name} şubesi</StatusPill>}
                 {s.invited && <StatusPill tone="brand">Sana özel davet</StatusPill>}
@@ -124,7 +124,13 @@ export default function PortalOpenShiftsPage() {
                 {s.note && <p className="text-xs text-slate-400 mt-1 italic">&quot;{s.note}&quot;</p>}
               </div>
 
-              {confirmId === s.id ? (
+              {(s.problems?.length ?? 0) > 0 ? (
+                // Üstlenemez: neden baştan yazılır, düğme yok
+                <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-600">
+                  <p className="font-bold text-slate-700">Bu vardiyayı alamazsın</p>
+                  {s.problems.map((p: string, i: number) => <p key={i}>{p}</p>)}
+                </div>
+              ) : confirmId === s.id ? (
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-slate-800">{formatDate(s.date)} {s.start_time} – {s.end_time} senin olsun mu?</p>
                   <div className="flex gap-2">

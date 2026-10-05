@@ -18,6 +18,8 @@ export interface SlotInput {
   excludePersonnelId?: string;
   /** Vardiya tanımının zorunlu rolleri (required_skills) */
   requiredRoles?: string[];
+  /** Vardiyanın departmanı: verilirse sadece bu departmanda çalışabilenler (ana ya da joker) aday olur */
+  departmentId?: string | null;
 }
 
 export interface Candidate {
@@ -29,6 +31,8 @@ export interface Candidate {
   role_match: boolean;
   /** Başka şubenin çalışanı (ödünç): ana şubesinin adı. Kendi şubesindekiler önce sıralanır. */
   other_branch?: string;
+  /** Üstlenirse çalışma kuralı bozulur (dinlenme ya da haftalık sınır): üstlenme sunucuda reddedilir */
+  blocking?: boolean;
 }
 
 const toMin = (t?: string | null) => {
@@ -55,12 +59,17 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   const locRow = await db.prepare(`SELECT org_id, rules FROM locations WHERE id = ?`).get(slot.location_id) as any;
   const people = await db.prepare(`
     SELECT p.id, p.name, p.prev_score, p.max_weekly_hours, p.night_restriction, p.weekly_off_day, p.user_access_level, p.roles,
-           p.assigned_location_ids, l.name AS home_name
+           p.assigned_location_ids, p.department_id, p.assigned_department_ids, l.name AS home_name
     FROM personnel p LEFT JOIN locations l ON l.id = p.primary_location_id
     WHERE p.org_id = ? AND p.status = 'active' AND p.schedulable IS NOT FALSE
   `).all(locRow?.org_id ?? "") as any[];
   const isLocal = (p: any) => String(p.assigned_location_ids ?? "").includes(`"${slot.location_id}"`);
-  const eligible = people.filter(p => p.id !== slot.excludePersonnelId);
+  const inDept = (p: any) => {
+    if (!slot.departmentId) return true;
+    if (p.department_id === slot.departmentId) return true;
+    return String(p.assigned_department_ids ?? "").includes(`"${slot.departmentId}"`);
+  };
+  const eligible = people.filter(p => p.id !== slot.excludePersonnelId && inDept(p));
   let ruleMax = 45;
   try {
     const r = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules || "{}") : (locRow?.rules ?? {});
@@ -118,6 +127,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
     const warnings: string[] = [];
     const reasons: string[] = [];
+    let blocking = false;
     if (dayStatus(p.id) === "preferred_not") warnings.push("Bu günü \"tercih etmem\" dedi: mümkünse çalışmak istemiyor");
     else if (availByPerson[p.id]) reasons.push("Bu gün için uygun olduğunu girmiş");
 
@@ -130,7 +140,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     }
     const maxH = effectiveWeeklyLimit(p.max_weekly_hours, ruleMax);
     const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
-    if (newTotalH > maxH) warnings.push(`Haftalık ${newTotalH}s olur (limit ${maxH}s)`);
+    if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH}s olur (limit ${maxH}s)`); blocking = true; }
     else reasons.push(`Bu hafta ${Math.round(weekMin / 6) / 10} saat çalışıyor, sınırı aşmaz`);
 
     const prevA = mine.find(a => Number(a.day) === dayIdx - 1);
@@ -139,7 +149,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (pe !== null && ps !== null) {
         const prevEnd = pe <= ps ? pe + 1440 : pe;
         const gap = (osStart + 1440) - prevEnd;
-        if (gap < 11 * 60) warnings.push(`Önceki günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`);
+        if (gap < 11 * 60) { warnings.push(`Önceki günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`); blocking = true; }
       }
     }
     const nextA = mine.find(a => Number(a.day) === dayIdx + 1);
@@ -147,7 +157,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       const ns = toMin(nextA.start_time);
       if (ns !== null) {
         const gap = (ns + 1440) - osEnd;
-        if (gap < 11 * 60) warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`);
+        if (gap < 11 * 60) { warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`); blocking = true; }
       }
     }
 
@@ -162,7 +172,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
     const local = isLocal(p);
     if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
-    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0,
+    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0, blocking,
       ...(local ? {} : { other_branch: p.home_name ?? "Başka şube" }) });
   }
 

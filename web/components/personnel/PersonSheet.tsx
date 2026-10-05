@@ -12,7 +12,6 @@ import type { InviteResult } from "@/components/personnel/InviteLinkList";
 import { ManagerAddSheet, ManagerAccessFields, accessSummary, scopeTitle, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
 import { createInvite, roleBadge, type MergedPerson } from "@/components/personnel/people";
 import { accountLevel, canDelegate, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
-import { LOCK_NOTE } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments, type DeptLite } from "@/lib/departments";
@@ -516,7 +515,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                 <p className="text-xs text-slate-400 mt-1">
                   {can("budget")
                     ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
-                    : `🔒 ${LOCK_NOTE}`}
+                    : "🔒 Ücretleri görmek ve değiştirmek için \"Ücretler ve maliyet\" yetkisi gerekir. Hesap sahibi verebilir."}
                 </p>
               </div>
               <div>

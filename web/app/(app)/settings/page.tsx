@@ -1,5 +1,6 @@
 "use client";
 
+import { ComingSoonFeature } from "@/components/feedback/ComingSoonFeature";
 import { formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
@@ -837,7 +838,7 @@ export default function SettingsPage() {
             personnel_conflicts_enabled:        personnelConflictsEnabled,
             compliance_tracking_enabled:        complianceTrackingEnabled,
             task_management_enabled:            taskManagementEnabled,
-            tip_pooling_enabled:                tipPoolingEnabled,
+            tip_pooling_enabled:                false, // Yakında: açık kalmış şubede de kayıtla kapanır
             kiosk_mode_enabled:                 kioskModeEnabled,
             forecasting_enabled:                forecastingEnabled,
             handover_log_enabled:               handoverLogEnabled,
@@ -1632,8 +1633,8 @@ export default function SettingsPage() {
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
                   <RuleRow
-                    lock="budget" label="Haftalık İşçilik Maliyeti Bütçesi"
-                    description="Otomatik plan bu bütçeyi aşmamaya çalışır, aşarsa uyarılır. Saatlik ücretler Ekip'ten. 0 = limitsiz."
+                    lock="budget" label="Haftalık personel maliyeti sınırı"
+                    description="Bir haftanın planındaki toplam ücret (çalışılan saat × saatlik ücret) bu tutarı geçmesin. Plan geçerse uyarır. Saatlik ücretler kişi kartında. 0 = sınır yok."
                     right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                   />
                 </SectionCard>
@@ -1967,7 +1968,8 @@ export default function SettingsPage() {
                   forecast: fitsIndustry("forecasting_enabled", forecastingEnabled),
                   tasks: fitsIndustry("task_management_enabled", taskManagementEnabled),
                   overtime: fitsIndustry("overtime_tracking_enabled", overtimeTrackingEnabled),
-                  tips: fitsIndustry("tip_pooling_enabled", tipPoolingEnabled),
+                  // Bahşiş dağıtımı "Yakında" (kullanıcı kararı 2026-10-05): her işletmede ayrı kartta görünür
+                  tips: true,
               };
               const card = {
                   chat: (
@@ -2089,9 +2091,12 @@ export default function SettingsPage() {
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />
                   ),
                   tips: (
-                <FeatureCard icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
-                  description="Dönemlik bahşiş tutarını gerçek çalışılan süreye göre ekibe paylaştırır."
-                  on={tipPoolingEnabled} onToggle={() => setTipPoolingEnabled(v => !v)} />
+                // Bahşiş herkese eşit dağılmıyor (pay oranları işletmeden işletmeye değişir): özellik kapandı,
+                // işletmelerin nasıl dağıttığını sorup ona göre yapılacak (kullanıcı kararı 2026-10-05)
+                <ComingSoonFeature feature="tips" icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
+                  description="Toplanan bahşişi ve primi ekibe sizin kurallarınızla paylaştırmak."
+                  question="Böyle bir özellik ister misiniz? İşletmenizde bahşiş nasıl dağıtılıyor?"
+                  placeholder="Örn: Bahşiş kutusu haftada bir açılır, mutfak ve salon ayrı pay alır, şef iki pay alır." />
                   ),
               };
               type CardId = keyof typeof fits;

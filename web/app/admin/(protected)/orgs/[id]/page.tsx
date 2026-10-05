@@ -333,8 +333,18 @@ export default function OrgDetailPage({ params }: { params: Promise<{ id: string
               >
                 <div className="w-2 h-2 rounded-full bg-ember-400 mt-1.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-200">{ev.type}</p>
-                  {ev.meta && (
+                  <p className="text-xs font-medium text-slate-200">{ev.type === "feature_interest" ? "Yakında özellik cevabı" : ev.type}</p>
+                  {ev.type === "feature_interest" ? (() => {
+                    // /api/feedback: işletmenin "Yakında" özellik sorusuna cevabı (ör. bahşiş nasıl dağıtılıyor)
+                    let m: any = ev.meta;
+                    try { if (typeof m === "string") m = JSON.parse(m); } catch { m = {}; }
+                    return (
+                      <p className="text-xs text-slate-300 mt-0.5 whitespace-pre-wrap">
+                        {m?.feature === "tips" ? "Bahşiş dağıtımı" : m?.feature}: {m?.answer === "no" ? "Gerek yok" : "İsterim"}{m?.user ? ` · ${m.user}` : ""}
+                        {m?.note ? `\n"${m.note}"` : ""}
+                      </p>
+                    );
+                  })() : ev.meta && (
                     <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">
                       {typeof ev.meta === "string" ? ev.meta : JSON.stringify(ev.meta)}
                     </p>

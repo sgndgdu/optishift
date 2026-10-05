@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { leaveTypeLabel } from "@/lib/leave";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAvailabilityEnabled } from "@/hooks/useShiftWords";
@@ -25,11 +26,6 @@ const LEAVE_TYPES = [
   "Yıllık İzin", "Mazeret İzni", "Hastalık / Rapor",
   "Doğum İzni", "Süt İzni", "Evlilik İzni", "Ücretsiz İzin",
 ];
-// Eski/İngilizce kayıtlar (lib/types LeaveType) ekranda Türkçe görünsün
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  annual: "Yıllık İzin", sick: "Hastalık / Rapor", excuse: "Mazeret İzni",
-};
-const leaveTypeLabel = (t: string | null | undefined) => (t && LEAVE_TYPE_LABELS[t]) || t || "İzin";
 
 type NewType = "leave" | "giveaway" | "swap" | "edit";
 
@@ -94,6 +90,7 @@ export default function PortalRequests() {
   const [selMate, setSelMate]         = useState<any>(null);
   const [selTheirShift, setSelTheirShift] = useState<any>(null);
   const [swapNote, setSwapNote]       = useState("");
+  const [matesLoading, setMatesLoading] = useState(false);
 
   // edit form
   const [editShift, setEditShift]     = useState<any>(null);
@@ -269,35 +266,22 @@ export default function PortalRequests() {
     }).catch(() => {});
   }, [user?.location_id]);
 
-  // ── load teammates ─────────────────────────────────────────────────────
+  // ── load teammates + their shifts (takas olursa kural bozulacak vardiyalar işaretli: /api/swap-requests/options) ──
   useEffect(() => {
-    if (swapStep !== 1 || !user) return;
-    fetch(`/api/personnel?location_id=${user.location_id}`)
+    if (swapStep !== 1 || !user || !selMyShift) return;
+    setTeammates([]); setMatesLoading(true);
+    fetch(`/api/swap-requests/options?shift_id=${selMyShift.id}`)
       .then(r => r.json())
-      .then(ppl => {
-        if (Array.isArray(ppl)) {
-          // Takas sadece aynı departmanda (garson ↔ aşçı olmaz) ve çalışan arkadaşlarla
-          const myDept = ppl.find((p: any) => p.id === user.personnel_id)?.department_id ?? null;
-          setTeammates(ppl.filter((p: any) => p.id !== user.personnel_id && p.status !== "inactive"
-            && !["manager", "admin", "supervisor"].includes(p.user_access_level)
-            && (!myDept || !p.department_id || p.department_id === myDept)));
-        }
-      }).catch(() => {});
-  }, [swapStep, user]);
+      .then(d => setTeammates(Array.isArray(d?.mates) ? d.mates : []))
+      .catch(() => {})
+      .finally(() => setMatesLoading(false));
+  }, [swapStep, user, selMyShift]);
 
-  // ── load their shifts ──────────────────────────────────────────────────
+  // Seçilen arkadaşın vardiyaları options yanıtında hazır
   useEffect(() => {
-    if (swapStep !== 2 || !selMate || !user) return;
-    (async () => {
-      const weeks = await Promise.all(
-        [0, 1, 2].map(w =>
-          fetch(`/api/shifts?personnel_id=${selMate.id}&week_start=${libGetWeekStart(w)}`)
-            .then(r => r.json()).catch(() => [])
-        )
-      );
-      setTheirShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && isUpcoming(s)));
-    })();
-  }, [swapStep, selMate, user]);
+    if (swapStep !== 2 || !selMate) return;
+    setTheirShifts(Array.isArray(selMate.shifts) ? selMate.shifts : []);
+  }, [swapStep, selMate]);
 
   // ── submit handlers ────────────────────────────────────────────────────
   async function submitMarketplace() {
@@ -518,7 +502,7 @@ export default function PortalRequests() {
   const incomingPendingCount = swapsIn.filter(s => s.status === "pending").length + forceAssigns.length + overtimePending.length;
 
   return (
-    <Page>
+    <Page width="narrow">
       {/* Header */}
       <PageHeader title="Talepler" description="İzin, takas ve vardiya bırakma" actions={activeTab !== "new" && (
           <button
@@ -741,6 +725,12 @@ export default function PortalRequests() {
                     <ArrowLeftRight size={18} className="text-primary shrink-0 mt-0.5" />
                   </div>
                   <SwapSteps status={s.status} />
+                  {isPending && (s.violations?.length ?? 0) > 0 && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700 space-y-0.5">
+                      <p className="font-bold">Bu takası kabul edemezsin:</p>
+                      {s.violations.map((v: string, i: number) => <p key={i}>{v}</p>)}
+                    </div>
+                  )}
                   {isPending && (
                     <div className="flex gap-2">
                       <button
@@ -751,7 +741,8 @@ export default function PortalRequests() {
                       </button>
                       <button
                         onClick={() => respondSwap(s.id, "peer_accepted")}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+                        disabled={(s.violations?.length ?? 0) > 0}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <CheckCircle2 size={15} /> Kabul Et
                       </button>
@@ -866,13 +857,19 @@ export default function PortalRequests() {
                 {swapStep === 1 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Kiminle değiştirmek istiyorsun?</p>
-                    {teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Ekip arkadaşı bulunamadı.</p>}
-                    {teammates.map(p => (
+                    {matesLoading && <p className="text-sm text-slate-400 text-center py-6">Yükleniyor…</p>}
+                    {!matesLoading && teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Bu vardiyayı alabilecek ekip arkadaşı yok.</p>}
+                    {teammates.map(p => {
+                      // Takas olursa kural bozulmayan en az bir vardiyası yoksa seçilemez (çakışan kişiye teklif gitmez)
+                      const none = (p.ok_count ?? 0) === 0;
+                      return (
                       <button
                         key={p.id}
+                        disabled={none}
                         onClick={() => setSelMate(p)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                          selMate?.id === p.id ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-300"
+                          none ? "border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed"
+                          : selMate?.id === p.id ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
                         <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0">
@@ -880,10 +877,15 @@ export default function PortalRequests() {
                         </div>
                         <div>
                           <p className={`text-sm font-bold ${selMate?.id === p.id ? "text-primary" : "text-slate-800"}`}>{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.title || ""}</p>
+                          <p className="text-xs text-slate-400">
+                            {none
+                              ? (p.shifts?.length ?? 0) === 0 ? "Yaklaşan vardiyası yok" : "Seninle değişebileceği vardiyası yok"
+                              : `${p.ok_count} vardiyası seninkiyle değişebilir`}
+                          </p>
                         </div>
                       </button>
-                    ))}
+                      );
+                    })}
                     <div className="flex gap-2 mt-2">
                       <BackBtn onClick={() => setSwapStep(0)} />
                       <NextBtn disabled={!selMate} onClick={() => setSwapStep(2)} />
@@ -895,9 +897,13 @@ export default function PortalRequests() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını sana versin?</p>
                     {theirShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan vardiyaları yok.</p>}
-                    {theirShifts.map(s => (
-                      <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selTheirShift?.id === s.id} onSelect={() => setSelTheirShift(s)} />
-                    ))}
+                    {theirShifts.map(s => (s.problems?.length ?? 0) > 0
+                      ? <div key={s.id} className="opacity-60 pointer-events-none">
+                          <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
+                          <p className="text-xs text-red-600 px-2 pt-1">{s.problems[0]}</p>
+                        </div>
+                      : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selTheirShift?.id === s.id} onSelect={() => setSelTheirShift(s)} />
+                    )}
                     <div className="flex gap-2 mt-2">
                       <BackBtn onClick={() => setSwapStep(1)} />
                       <NextBtn disabled={!selTheirShift} onClick={() => setSwapStep(3)} />

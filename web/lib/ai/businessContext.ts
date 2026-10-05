@@ -7,6 +7,7 @@
  * Kişisel ücret sadece ücret izni olana (lib/ruleLocks "budget") gider.
  */
 import type { AuthUser } from "@/lib/auth";
+import { leaveTypeLabel } from "@/lib/leave";
 import { addDays, businessNow } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
@@ -116,7 +117,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   `).all(auth.org_id, loc.id, today, addDays(today, 30)) as any[];
   if (leaves.length) {
     out.push("### İzinler");
-    for (const l of leaves) out.push(`- ${nameOf.get(l.personnel_id) ?? l.personnel_id}: ${l.type} ${l.start_date}→${l.end_date} (${l.days} gün, ${l.status === "pending" ? "onay bekliyor" : "onaylı"})`);
+    for (const l of leaves) out.push(`- ${nameOf.get(l.personnel_id) ?? l.personnel_id}: ${leaveTypeLabel(l.type)} ${l.start_date}→${l.end_date} (${l.days} gün, ${l.status === "pending" ? "onay bekliyor" : "onaylı"})`);
   }
 
   // Bekleyen onaylar

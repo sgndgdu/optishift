@@ -358,11 +358,11 @@ async function insertRequests() {
   }
   // İzinler: geçmişte onaylı, gelecekte bekleyen
   const leaves = [
-    [PEOPLE[1], "annual", isoDaysFromNow(9), isoDaysFromNow(11), 3, "pending"],
-    [PEOPLE[8], "excuse", isoDaysFromNow(8), isoDaysFromNow(8), 1, "pending"],
-    [PEOPLE[20], "annual", isoDaysFromNow(10), isoDaysFromNow(14), 5, "pending"],
-    [PEOPLE[30], "sick", isoDaysFromNow(-12), isoDaysFromNow(-11), 2, "approved"],
-    [PEOPLE[5], "annual", isoDaysFromNow(-25), isoDaysFromNow(-21), 5, "approved"],
+    [PEOPLE[1], "Yıllık İzin", isoDaysFromNow(9), isoDaysFromNow(11), 3, "pending"],
+    [PEOPLE[8], "Mazeret İzni", isoDaysFromNow(8), isoDaysFromNow(8), 1, "pending"],
+    [PEOPLE[20], "Yıllık İzin", isoDaysFromNow(10), isoDaysFromNow(14), 5, "pending"],
+    [PEOPLE[30], "Hastalık / Rapor", isoDaysFromNow(-12), isoDaysFromNow(-11), 2, "approved"],
+    [PEOPLE[5], "Yıllık İzin", isoDaysFromNow(-25), isoDaysFromNow(-21), 5, "approved"],
   ];
   for (const [p, type, s, e, days, status] of leaves) {
     await sql`INSERT INTO leave_requests (personnel_id, type, start_date, end_date, days, note, status, reviewed_by, reviewed_at, created_at)

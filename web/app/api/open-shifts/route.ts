@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
-import { businessToday, formatDateTR } from "@/lib/date";
+import { businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
+import { checkPersonChange } from "@/lib/assignmentCheck";
 
 
 function getDb() {
@@ -39,7 +40,22 @@ export async function GET(req: NextRequest) {
           WHERE os.id = ? AND os.org_id = ? AND os.status = 'open' AND os.date >= ?`).get(invite, auth.org_id, today) as any;
         if (inv) rows.unshift({ ...inv, invited: true });
       }
-      return NextResponse.json(rows.map(r => ({ ...r, other_branch: r.location_id !== me?.primary_location_id })));
+      // Üstlenemeyeceği ilan baştan belli olsun (kullanıcı kararı 2026-10-05): o gün vardiyası varsa ya da alırsa
+      // dinlenme/haftalık sınır bozulursa "problems" döner, portal düğmeyi kapatır. Kontrol üstlenmeyle aynı (lib/assignmentCheck).
+      const withProblems = await Promise.all(rows.map(async r => {
+        if (r.released_by === auth.personnel_id) return r;
+        const date = String(r.date);
+        const ws = weekStartOf(date), day = dayIndexOf(date);
+        const sameDay = await db0.prepare(`
+          SELECT sa.start_time, sa.end_time, l.name AS loc FROM shift_assignments sa LEFT JOIN locations l ON l.id = sa.location_id
+          WHERE sa.personnel_id = ? AND sa.week_start = ? AND sa.day = ? AND COALESCE(sa.kind, 'regular') = 'regular' LIMIT 1`).get(auth.personnel_id, ws, day) as any;
+        if (sameDay) return { ...r, problems: [`O gün zaten vardiyan var (${sameDay.start_time}–${sameDay.end_time}${sameDay.loc && r.location_name !== sameDay.loc ? `, ${sameDay.loc}` : ""})`] };
+        const problems = await checkPersonChange(db0, auth.personnel_id!, r.location_id, {
+          add: [{ week_start: ws, day, start_time: r.start_time, end_time: r.end_time }],
+        }).catch(() => []);
+        return problems.length ? { ...r, problems } : r;
+      }));
+      return NextResponse.json(withProblems.map(r => ({ ...r, other_branch: r.location_id !== me?.primary_location_id })));
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 500 });
     }

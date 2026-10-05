@@ -12,6 +12,7 @@ import {
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { formatDateTR } from "@/lib/date";
+import { isAnnualLeaveType, leaveTypeLabel } from "@/lib/leave";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
 import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
@@ -56,6 +57,8 @@ export default function ManagerRequestsPage() {
   const [leaves, setLeaves]   = useState<any[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<Record<string, any>>({}); // personnel_id → kalan yıllık izin
   const [leaveConflicts, setLeaveConflicts] = useState<Record<number, any[]>>({}); // izin id → o günlere düşen vardiyalar
+  const [leaveTeam, setLeaveTeam] = useState<Record<number, any>>({}); // izin id → departmanın o günlerdeki durumu
+  const [leaveSubs, setLeaveSubs] = useState<Record<number, Record<number, string>>>({}); // izin id → vardiya id → yerine gelecek kişi
   const [overtimes, setOvertimes] = useState<any[]>([]);
   // "all": bekleyen her şey tek akışta (varsayılan); diğerleri tür filtresi
   const [activeTab, setActiveTab] = useState<"all" | "swap" | "edit" | "leave" | "overtime">("all");
@@ -160,7 +163,7 @@ export default function ManagerRequestsPage() {
   // Bekleyen yıllık izin taleplerinin sahiplerinin bakiyelerini yükle (onay kararı için)
   useEffect(() => {
     const ids = [...new Set(
-      leaves.filter((l: any) => l.status === "pending" && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık"))
+      leaves.filter((l: any) => l.status === "pending" && isAnnualLeaveType(l.type))
         .map((l: any) => l.personnel_id)
     )].filter(Boolean);
     if (ids.length === 0) return;
@@ -181,8 +184,10 @@ export default function ManagerRequestsPage() {
       fetch(`/api/leave-requests/review?id=${id}`).then(r => r.ok ? r.json() : null).catch(() => null)
     )).then(results => {
       const map: Record<number, any[]> = {};
-      results.forEach((r, i) => { map[pendingIds[i]] = Array.isArray(r?.conflicts) ? r.conflicts : []; });
+      const team: Record<number, any> = {};
+      results.forEach((r, i) => { map[pendingIds[i]] = Array.isArray(r?.conflicts) ? r.conflicts : []; team[pendingIds[i]] = r?.team ?? null; });
       setLeaveConflicts(map);
+      setLeaveTeam(team);
     });
   }, [leaves]);
 
@@ -190,11 +195,14 @@ export default function ManagerRequestsPage() {
     const r = await fetch(`/api/leave-requests/review?id=${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, reviewed_by: user?.personnel_id, conflict_action: conflictAction }),
+      body: JSON.stringify({ status, reviewed_by: user?.personnel_id, conflict_action: conflictAction, replacements: status === "approved" ? (leaveSubs[id] ?? {}) : undefined }),
     });
     if (r.ok) {
       const d = await r.json().catch(() => ({}));
+      const subNote = (d.replaced > 0 ? ` ${d.replaced} vardiya seçtiğin kişiye verildi.` : "") + (d.skipped?.length ? ` ${d.skipped.join("; ")}.` : "");
       showToast(status === "rejected" ? "İzin reddedildi."
+        : subNote && !(d.opened > 0) && !(d.removed > 0) ? `İzin onaylandı.${subNote}`
+        : subNote ? `İzin onaylandı.${subNote} Kalan ${d.opened > 0 ? `${d.opened} vardiya ilana çevrildi` : `${d.removed} vardiya plandan çıktı`}.`
         : d.opened > 0 ? `İzin onaylandı, ${d.opened} vardiya ilana çevrildi.`
         : d.removed > 0 ? `İzin onaylandı, ${d.removed} vardiya plandan çıkarıldı.`
         : "İzin onaylandı.");
@@ -413,24 +421,24 @@ export default function ManagerRequestsPage() {
                       </Link>
                       <StatusBadge status={l.status} />
                     </div>
-                    <p className="text-xs text-slate-600 font-semibold">{l.type}</p>
+                    <p className="text-xs text-slate-600 font-semibold">{leaveTypeLabel(l.type)}</p>
                     <p className="text-xs text-slate-500">
                       {l.start_date === l.end_date
                         ? `${formatDateTR(l.start_date)} (1 gün)`
                         : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
                     </p>
-                    {pending && leaveBalances[l.personnel_id] && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                    {pending && leaveBalances[l.personnel_id] && isAnnualLeaveType(l.type) && (
                       <p className={`text-xs font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
                         Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
                         {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
                       </p>
                     )}
-                    {pending && leaveBalances[l.personnel_id]?.hireDateMissing && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                    {pending && leaveBalances[l.personnel_id]?.hireDateMissing && isAnnualLeaveType(l.type) && (
                       <p className="text-xs text-amber-700 mt-0.5">
                         İşe giriş tarihi girilmemiş, bakiye tahmini. <Link href="/personnel" className="underline font-semibold">Ekip&apos;ten ekleyin</Link>
                       </p>
                     )}
-                    {pending && leaveBalances[l.personnel_id]?.firstEligibleDate && String(l.type ?? "").toLocaleLowerCase("tr-TR").includes("yıllık") && (
+                    {pending && leaveBalances[l.personnel_id]?.firstEligibleDate && isAnnualLeaveType(l.type) && (
                       <p className="text-xs text-amber-700 mt-0.5">
                         1 yıllık kıdemi dolmadı; yıllık izin hakkı {formatDateTR(leaveBalances[l.personnel_id].firstEligibleDate, { weekday: false })} tarihinde doğar.
                       </p>
@@ -441,14 +449,58 @@ export default function ManagerRequestsPage() {
                     <span className="text-xs text-slate-400 shrink-0">{timeAgo(l.created_at)}</span>
                   )}
                 </div>
-                {pending && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-1">
-                    <p className="text-xs font-bold text-amber-800">Bu tarihlerde {leaveConflicts[l.id].length} vardiyası var, onaylanınca plandan çıkar:</p>
-                    {leaveConflicts[l.id].map((c: any) => (
-                      <p key={c.id} className="text-xs text-amber-800">
-                        {formatDateTR(c.date)} · {c.shift_name ?? "Vardiya"} {c.start_time}–{c.end_time}{c.published ? "" : " (taslak)"}
+                {pending && leaveTeam[l.id] && (() => {
+                  // Plan yokken de öngörü: departmanda kaç kişi var, aynı günlerde kim izinli
+                  const t = leaveTeam[l.id];
+                  const away = t.others.length;
+                  const left = Math.max(0, t.size - 1 - away);
+                  return (
+                    <div className={`rounded-xl px-3 py-2.5 text-xs space-y-0.5 border ${left <= 1 ? "bg-red-50 border-red-200 text-red-800" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
+                      <p className="font-semibold">
+                        {t.scope ? `${t.scope} departmanında` : "Şubede"} {t.size} kişi var.
+                        {away === 0 ? " Bu günlerde başka izinli yok." : ` Bu günlerde ${away} kişi daha izinli.`}
+                        {` İzin onaylanırsa en az ${left} kişi kalır.`}
                       </p>
-                    ))}
+                      {t.others.map((o: any, i: number) => (
+                        <p key={i}>{o.name}: {formatDateTR(o.start_date, { weekday: false })}{o.end_date !== o.start_date ? ` – ${formatDateTR(o.end_date, { weekday: false })}` : ""}{o.pending ? " (onay bekliyor)" : ""}</p>
+                      ))}
+                      {(leaveConflicts[l.id]?.length ?? 0) === 0 && <p className="text-slate-500">Bu günlerde planlanmış vardiyası yok. Plan sonra hazırlanırsa bu günlere yazılmaz.</p>}
+                    </div>
+                  );
+                })()}
+                {pending && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
+                  // Sorumlu onaylamadan önce görsün: o vardiyada kim kalıyor, yerine kim gelebilir (seçerse vardiya ona geçer)
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2.5">
+                    <p className="text-xs font-bold text-amber-800">Bu tarihlerde {leaveConflicts[l.id].length} vardiyası var. Onaylarsan plandan çıkar; istersen yerine birini seç:</p>
+                    {leaveConflicts[l.id].map((c: any) => {
+                      const picked = leaveSubs[l.id]?.[c.id] ?? "";
+                      return (
+                        <div key={c.id} className="bg-white/70 rounded-lg px-2.5 py-2 space-y-1.5">
+                          <p className="text-xs font-semibold text-slate-800">
+                            {formatDateTR(c.date)} · {c.shift_name ?? "Vardiya"} {c.start_time}–{c.end_time}{c.published ? "" : " (taslak)"}
+                          </p>
+                          <p className={`text-xs ${c.others === 0 ? "text-red-700 font-semibold" : "text-slate-500"}`}>
+                            {c.others === 0 ? "Bu vardiyada başka kimse yok." : `Bu vardiyada ${c.others} kişi daha var.`}
+                            {(c.candidates?.length ?? 0) === 0 && " O gün boş ve uygun kimse yok."}
+                          </p>
+                          {(c.candidates?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {c.candidates.map((x: any) => (
+                                <button key={x.personnel_id} type="button" disabled={!x.ok}
+                                  onClick={() => setLeaveSubs(prev => ({ ...prev, [l.id]: { ...(prev[l.id] ?? {}), [c.id]: picked === x.personnel_id ? "" : x.personnel_id } }))}
+                                  title={x.note}
+                                  className={`text-left px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+                                    picked === x.personnel_id ? "border-primary bg-primary/10 text-primary font-bold"
+                                    : x.ok ? "border-slate-200 bg-white text-slate-700 hover:border-primary/40" : "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"}`}>
+                                  <span className="block font-semibold">{picked === x.personnel_id ? "✓ " : ""}{x.name}</span>
+                                  {x.note && <span className="block text-[11px] opacity-80">{x.note}</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 {pending && (
@@ -459,7 +511,8 @@ export default function ManagerRequestsPage() {
                     >
                       <XCircle size={15} /> Reddet
                     </button>
-                    {(leaveConflicts[l.id] ?? []).some((c: any) => c.published) ? (
+                    {/* Yerine kimse seçilmeyen yayınlanmış vardiya varsa: ilana mı çevrilsin, sadece mi çıksın */}
+                    {(leaveConflicts[l.id] ?? []).some((c: any) => c.published && !leaveSubs[l.id]?.[c.id]) ? (
                       <>
                         <button
                           onClick={() => reviewLeave(l.id, "approved", undefined, "remove")}

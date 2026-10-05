@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
+import { ComingSoonFeature } from "@/components/feedback/ComingSoonFeature";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
@@ -138,11 +138,11 @@ export default function TipPoolsPage() {
     return (
       <Page width="narrow">
         <PageHeader title="Bahşiş Havuzu" />
-        <List>
-          <ListEmpty action={<Link href="/settings?tab=features" className="text-sm font-semibold text-primary hover:underline">Ayarlarda aç</Link>}>
-            Bahşiş havuzu kapalı.
-          </ListEmpty>
-        </List>
+        {/* Yakında (lib/moduleVisibility COMING_SOON): eski bağlantıyla gelen de soruyu görür */}
+        <ComingSoonFeature feature="tips" icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
+          description="Toplanan bahşişi ve primi ekibe sizin kurallarınızla paylaştırmak."
+          question="Böyle bir özellik ister misiniz? İşletmenizde bahşiş nasıl dağıtılıyor?"
+          placeholder="Örn: Bahşiş kutusu haftada bir açılır, mutfak ve salon ayrı pay alır, şef iki pay alır." />
       </Page>
     );
   }

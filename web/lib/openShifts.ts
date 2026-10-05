@@ -165,10 +165,9 @@ export async function publishOpenShift(
   if (notify === "all" || notify === "top") {
     const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });
     if (notify === "all") {
-      // Şubede çalışan herkes (paylaşılan personel dahil: ana şubesi başka olsa da bu şubeye atanmış olanlar)
-      targets = (await db.prepare(
-        `SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`
-      ).all(`%"${o.location_id}"%`) as any[]).filter(p => p.id !== o.releasedBy);
+      // Şubede çalışan ve bu vardiyayı gerçekten alabilecek herkes (paylaşılan personel dahil). O gün vardiyası olan,
+      // izinli, "gelemem" diyen ya da alırsa dinlenme/haftalık sınırı bozulacak kişiye bildirim gitmez (üstlenemezdi).
+      targets = candidates.filter(c => !c.other_branch && !c.blocking).map(c => ({ id: c.personnel_id, name: c.name }));
     } else {
       const local = candidates.filter(c => !c.other_branch);
       targets = local.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));

@@ -7,7 +7,6 @@ import AccountTab from "@/components/AccountTab";
 import { DetailRow } from "@/components/ui/Sheet";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { getPlan } from "@/lib/plans";
-import { openBranchPanel } from "@/lib/sessionRouting";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 
 export default function SupervisorSettingsPage() {
@@ -67,11 +66,7 @@ export default function SupervisorSettingsPage() {
         <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2">
           {loading ? <p className="py-3 text-sm text-slate-500">Yükleniyor…</p> : <>
             <DetailRow label="İşletme adı">{org?.name ?? "—"}</DetailRow>
-            {user.role === "admin" && <DetailRow label="Paket"><StatusPill tone="brand">{planInfo.name}</StatusPill> <button type="button" onClick={() => {
-                // Ödeme sayfası şube panelinde: önce bir şubenin oturumu hazırlanır (yoksa giriş sayfasına düşerdi)
-                if (locations[0]) openBranchPanel(user, locations[0].id);
-                window.location.href = "/billing";
-              }} className="ml-2 text-xs font-semibold text-forest-700 hover:underline">Paketi yönet</button></DetailRow>}
+            {user.role === "admin" && <DetailRow label="Paket"><StatusPill tone="brand">{planInfo.name}</StatusPill> <a href="/supervisor/billing" className="ml-2 text-xs font-semibold text-forest-700 hover:underline">Paketi yönet</a></DetailRow>}
             <DetailRow label="Şube sayısı">{locations.length} <a href="/supervisor" className="ml-2 text-xs font-semibold text-forest-700 hover:underline">Şubeler</a></DetailRow>
           </>}
         </div>
