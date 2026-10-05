@@ -392,6 +392,18 @@ function SchedulePageInner() {
   const viewOnly = !hasPerm(viewerAccess, "prepare");
   const chefDept = departmentScope(viewerAccess);
   const canPublish = canPublishPlan(viewerAccess);
+  // Departman sorumlusu planı açınca "departman planı hazırlandı" bildirimi okundu sayılır (Ana Sayfa maddesi kalkar)
+  useEffect(() => {
+    if (!chefDept) return;
+    let pid: string | null = null;
+    try { pid = JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").personnel_id ?? null; } catch { pid = null; }
+    if (!pid) return;
+    fetch(`/api/notifications?personnel_id=${pid}`).then(r => (r.ok ? r.json() : [])).then((list: any[]) => {
+      for (const n of Array.isArray(list) ? list : []) {
+        if (n.type === "dept_plan" && !n.is_read) fetch(`/api/notifications?id=${n.id}&personnel_id=${pid}`, { method: "PUT" }).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [chefDept]);
   // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
   const [autopilotDraftWeek, setAutopilotDraftWeek] = useState<string | null>(null);
   // İsim altındaki Adalet Puanı çubuğu varsayılan gizli (Adalet panelinden açılır, tarayıcıda hatırlanır)

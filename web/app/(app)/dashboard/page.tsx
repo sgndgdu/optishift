@@ -61,6 +61,8 @@ export default function DashboardPage() {
   const [nextWeek, setNextWeek] = useState<NextWeekState>("published");
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingAccounts, setPendingAccounts] = useState(0);
+  // Departman sorumlusu: hesap sahibi departmanın planını da oluşturduysa (lib/chefPlanNotice)
+  const [deptPlan, setDeptPlan] = useState<{ title: string; detail: string } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
   const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
@@ -95,6 +97,13 @@ export default function DashboardPage() {
     setLoading(true);
     const json = (url: string) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
     const list = (d: any) => (Array.isArray(d) ? d : []);
+    // Departman sorumlusu: okunmamış "departman planı hazırlandı" bildirimi Bekleyen İşler'de gösterilir
+    if (departmentScope(u) && u?.personnel_id) {
+      json(`/api/notifications?personnel_id=${u.personnel_id}`).then(d => {
+        const n = list(d).find((x: any) => x.type === "dept_plan" && !x.is_read);
+        setDeptPlan(n ? { title: n.title, detail: n.message } : null);
+      });
+    }
     try {
       const loc = u.location_id;
       const weekStart = getTodayWeekStart();
@@ -279,6 +288,7 @@ export default function DashboardPage() {
     canPublish: canPublishPlan(user),
     pendingApprovals,
     pendingAccounts,
+    deptPlan,
     notJoined: personnel.filter((p: any) => p.user_id && p.is_temp_password && p.status !== "inactive").length,
     unreadMessages: isModuleOn(rules, "chat_enabled") ? unreadMessages : 0,
     availability: { enabled: isModuleOn(rules, "availability_collection_enabled"), missing: availMissing },

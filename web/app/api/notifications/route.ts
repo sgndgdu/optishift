@@ -68,12 +68,18 @@ export async function POST(req: NextRequest) {
 
 // PUT: Bildirimi okundu olarak işaretle
 export async function PUT(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const personnel_id = searchParams.get("personnel_id");
 
   if (!personnel_id) {
     return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
+  }
+  // Herkes sadece kendi bildirimlerini okundu yapar
+  if (auth.personnel_id !== personnel_id) {
+    return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 
   if (id) {
