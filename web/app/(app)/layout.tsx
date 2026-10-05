@@ -52,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <OwnerBranchBanner />
         <div className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-7xl p-4 md:p-8 lg:p-10 pb-24 lg:pb-10">
+          <div className="mx-auto max-w-7xl p-4 md:p-8 lg:p-10 pb-40 lg:pb-24">
             {children}
           </div>
         </div>

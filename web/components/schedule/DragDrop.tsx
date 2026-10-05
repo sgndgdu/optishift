@@ -40,8 +40,9 @@ export function DraggableShift({ id, children, disabled }: { id: string, childre
       {...listeners}
       {...attributes}
       className={cn(
-        "relative z-50",
-        isDragging ? "opacity-75 drop-shadow-md scale-105" : "",
+        // Sadece sürüklenirken üst katmana çıkar; yoksa Asistan düğmesinin ve açılır pencerelerin üstüne biniyordu
+        "relative",
+        isDragging ? "z-50 opacity-75 drop-shadow-md scale-105" : "",
         !disabled ? "cursor-grab active:cursor-grabbing" : ""
       )}
       onClick={e => e.stopPropagation()} // Prevent triggering cell click when starting drag

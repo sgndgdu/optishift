@@ -153,12 +153,16 @@ export function accessSummary(m: Pick<Mgr, "permissions">, deptName?: (id: strin
   return [scopeTitle(m, deptName, roleLabel), what].filter(Boolean).join(" · ");
 }
 
+/** Kişi kartından "Sorumlu yap": kişi önceden seçili gelir, "Kim?" sorulmaz. */
+export type ManagerPreset = { personnelId: string; locationId: string; name: string };
+
 /**
  * Yönetici / şef ekleme penceresi: ekipten biri (hesabı ve geçmişi korunur) ya da yeni kişi.
+ * Ekip listesi seçili şubelerin (seçim yoksa hepsinin) çalışanlarından gelir.
  * Şube müdürü sadece kendi şubesine departman şefi atar.
  */
-export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
-  open: boolean; onClose: () => void; locations: Loc[]; granter: Granter; onDone?: () => void;
+export function ManagerAddSheet({ open, onClose, locations, granter, onDone, preset }: {
+  open: boolean; onClose: () => void; locations: Loc[]; granter: Granter; onDone?: () => void; preset?: ManagerPreset;
 }) {
   const isOwner = granter.role === "admin";
   const branchManager = addsOnlyChefs(granter);
@@ -166,15 +170,16 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
   const startPerms = () => userPerms(granterAccess(granter));
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [pickedMulti, setPicked] = useState<string[]>([]);
+  const [pickedMulti, setPicked] = useState<string[]>(() => (preset ? [preset.locationId] : []));
   // Tek şubede seçim yok: şube o an hesaplanır (sayfa açılırken şubeler henüz yüklenmemiş olabilir)
   const picked = multiBranch ? pickedMulti : locations.slice(0, 1).map(l => l.id);
   const [deptState, setDeptState] = useState<{ loc: string; list: Dept[] }>({ loc: "", list: [] });
   const [deptId, setDeptId] = useState("");
   const [perms, setPerms] = useState<Perm[]>(startPerms);
-  const [teamState, setTeamState] = useState<{ loc: string; list: { personnelId: string; userId: string | null; name: string }[] }>({ loc: "", list: [] });
+  type TeamChoice = { personnelId: string; userId: string | null; name: string; locationId: string };
+  const [teamState, setTeamState] = useState<{ loc: string; list: TeamChoice[] }>({ loc: "", list: [] });
   const [source, setSource] = useState<"team" | "new">("team");
-  const [pickedEmp, setPickedEmp] = useState("");
+  const [pickedEmp, setPickedEmp] = useState(preset?.personnelId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [invite, setInvite] = useState<InviteResult[] | null>(null);
@@ -185,23 +190,32 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
     fetch(`/api/departments?location_id=${singlePick}`).then(r => r.json())
       .then(d => setDeptState({ loc: singlePick, list: Array.isArray(d) ? d.map((x: Dept) => ({ id: x.id, name: x.name, parent_id: x.parent_id ?? null })) : [] }))
       .catch(() => setDeptState({ loc: singlePick, list: [] }));
-    fetch(`/api/personnel?location_id=${singlePick}`).then(r => r.json())
-      .then(d => setTeamState({
-        loc: singlePick,
-        list: (Array.isArray(d) ? d : [])
-          .filter((p: { status?: string; user_access_level?: string }) => p.status !== "inactive" && (p.user_access_level ?? "employee") === "employee")
-          .map((p: { id: string; user_id?: string | null; name: string }) => ({ personnelId: p.id, userId: p.user_id ?? null, name: p.name }))
-          .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "tr")),
-      }))
-      .catch(() => setTeamState({ loc: singlePick, list: [] }));
   }, [open, singlePick]);
+  // Ekipten seçilebilecekler: seçili şubelerin (henüz seçim yoksa tüm şubelerin) çalışanları
+  const teamKey = (picked.length ? picked : locations.map(l => l.id)).join(",");
+  useEffect(() => {
+    if (!open || !teamKey) return;
+    const ids = teamKey.split(",");
+    Promise.all(ids.map(id => fetch(`/api/personnel?location_id=${id}`).then(r => r.json()).catch(() => [])
+      .then((d: { id: string; user_id?: string | null; name: string; status?: string; user_access_level?: string }[]) =>
+        (Array.isArray(d) ? d : [])
+          .filter(p => p.status !== "inactive" && (p.user_access_level ?? "employee") === "employee")
+          .map(p => ({ personnelId: p.id, userId: p.user_id ?? null, name: p.name, locationId: id })))))
+      .then(lists => {
+        const seen = new Set<string>();
+        const list = lists.flat().filter(p => (seen.has(p.personnelId) ? false : (seen.add(p.personnelId), true)))
+          .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+        setTeamState({ loc: teamKey, list });
+      });
+  }, [open, teamKey]);
   const depts = singlePick && deptState.loc === singlePick ? deptState.list : [];
-  const teamChoices = singlePick && teamState.loc === singlePick ? teamState.list : [];
+  const teamChoices = teamState.loc === teamKey ? teamState.list : [];
+  const branchName = (id: string) => locations.find(l => l.id === id)?.name ?? "";
   const pickDept = (v: string) => setDeptId(v);
 
   const reset = () => {
-    setName(""); setPhone(""); setDeptId(""); setPerms(startPerms()); setPickedEmp(""); setError(""); setInvite(null);
-    setPicked([]);
+    setName(""); setPhone(""); setDeptId(""); setPerms(startPerms()); setPickedEmp(preset?.personnelId ?? ""); setError(""); setInvite(null);
+    setPicked(preset ? [preset.locationId] : []);
   };
   const close = () => { reset(); onClose(); };
 
@@ -209,12 +223,15 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
     setError("");
     if (source === "new" && !name.trim()) return setError("Ad soyad girin.");
     if (source === "team" && !pickedEmp) return setError("Ekipten bir kişi seçin.");
-    if (!picked.length) return setError("En az bir şube seçin.");
+    // Ekipten seçilen kişide şube seçilmediyse kişinin kendi şubesini yönetir
+    const ownBranch = source === "team" ? teamChoices.find(t => t.personnelId === pickedEmp)?.locationId : undefined;
+    const scope = picked.length ? picked : ownBranch ? [ownBranch] : [];
+    if (!scope.length) return setError("En az bir şube seçin.");
     if (branchManager && !deptId) return setError("Hangi departmanın sorumlusu olacağını seçin.");
     setBusy(true);
     try {
-      const unvan = managerTitle(!!deptId, picked.length, locations.length);
-      const dept = picked.length === 1 && depts.length ? deptId : "";
+      const unvan = managerTitle(!!deptId, scope.length, locations.length);
+      const dept = scope.length === 1 && depts.length ? deptId : "";
       if (source === "team") {
         // Var olan çalışan: hesabı ve geçmişi korunur. Giriş hesabı yoksa önce açılır.
         const person = teamChoices.find(t => t.personnelId === pickedEmp);
@@ -234,8 +251,8 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) return setError(d.error || "Yapılamadı.");
-        if (picked.length > 1) {
-          await fetch(`/api/users?id=${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope_location_ids: picked }) });
+        if (scope.length > 1) {
+          await fetch(`/api/users?id=${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope_location_ids: scope }) });
         }
         onDone?.();
         if (newInvite) setInvite([newInvite]); else close();
@@ -271,9 +288,12 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
           {multiBranch && (
             <div>
               <span className={label}>Hangi şubeleri yönetecek?</span>
-              <BranchPicker locations={locations} value={picked} onChange={v => { setPicked(v); setDeptId(""); setPickedEmp(""); }} single={!isOwner} />
+              <BranchPicker locations={locations} value={picked} onChange={v => { setPicked(v); setDeptId(""); }} single={!isOwner} />
             </div>
           )}
+          {preset ? (
+            <p className="text-sm text-slate-700"><span className="font-semibold">{preset.name}</span> sorumlu olacak. Vardiyada çalışmaya devam eder.</p>
+          ) : (
           <div>
             <span className={label}>Kim?</span>
             <div className="grid grid-cols-2 gap-2 mb-2">
@@ -282,12 +302,14 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
               ))}
             </div>
             {source === "team" ? (
-              singlePick ? (
+              teamChoices.length ? (
                 <select value={pickedEmp} onChange={e => setPickedEmp(e.target.value)} className={field}>
                   <option value="">Kişi seçin…</option>
-                  {teamChoices.map(e => <option key={e.personnelId} value={e.personnelId}>{e.name}{e.userId ? "" : " (hesap açılacak)"}</option>)}
+                  {teamChoices.map(e => <option key={e.personnelId} value={e.personnelId}>
+                    {e.name}{multiBranch && teamKey.includes(",") ? ` · ${branchName(e.locationId)}` : ""}{e.userId ? "" : " (hesap açılacak)"}
+                  </option>)}
                 </select>
-              ) : <p className="text-xs text-slate-500">Ekipten seçmek için önce tek bir şube seçin.</p>
+              ) : <p className="text-xs text-slate-500">{teamState.loc === teamKey ? "Ekipte seçilebilecek kimse yok. \"Yeni kişi\" ile ekleyin." : "Ekip yükleniyor…"}</p>
             ) : (
               <div className="grid sm:grid-cols-2 gap-2">
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Ad Soyad" className={field} />
@@ -295,6 +317,7 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
               </div>
             )}
           </div>
+          )}
           {depts.length > 0 && (
             <div>
               <span className={label}>{branchManager ? "Hangi departmanın sorumlusu?" : <>Sadece bir departman mı? <span className="font-normal text-slate-400">(isteğe bağlı)</span></>}</span>
@@ -309,9 +332,9 @@ export function ManagerAddSheet({ open, onClose, locations, granter, onDone }: {
             <span className={label}>Neleri yapabilir?</span>
             <PermPicker value={perms} onChange={setPerms} chef={!!deptId} multiBranch={locations.length > 1} granter={granter} />
           </div>
-          <p className="text-xs text-slate-500">{source === "team"
+          {!preset && <p className="text-xs text-slate-500">{source === "team"
             ? "Vardiyada çalışmaya devam eder. Sadece yönetecekse kişinin kartında \"Vardiya planına dahil\"i kapatın."
-            : "Yeni sorumluya vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında \"Vardiya planına dahil\"i açın."}</p>
+            : "Yeni sorumluya vardiya yazılmaz. Vardiyaya da girecekse kişinin kartında \"Vardiya planına dahil\"i açın."}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

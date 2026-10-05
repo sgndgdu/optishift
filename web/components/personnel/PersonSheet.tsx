@@ -4,14 +4,14 @@
  * ayrı değil; tek Kaydet, tek "Ekipten çıkar". Kişinin şubesinin bağlamını (departman, vardiya grubu,
  * işletme türü, açık modüller) kendisi kurar, bu yüzden hangi panelden açıldığı fark etmez.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Sheet, sheetDangerClass, sheetPrimaryClass } from "@/components/ui/Sheet";
 import type { InviteResult } from "@/components/personnel/InviteLinkList";
-import { ManagerAccessFields, accessSummary, scopeTitle, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
+import { ManagerAddSheet, ManagerAccessFields, accessSummary, scopeTitle, canEditManager, demoteManager, initialManagerAccess, saveManagerAccess, type ManagerAccessValue, type Mgr } from "@/components/personnel/ManagersCard";
 import { createInvite, roleBadge, type MergedPerson } from "@/components/personnel/people";
-import { accountLevel, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
+import { accountLevel, canDelegate, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
 import { LOCK_NOTE } from "@/lib/ruleLocks";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { industryFromRules, matchDocument } from "@/lib/templates";
@@ -85,6 +85,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [newKioskPin, setNewKioskPin] = useState("");
   const [kioskPinError, setKioskPinError] = useState("");
   const [kioskPinSaving, setKioskPinSaving] = useState(false);
+  const [makeManagerOpen, setMakeManagerOpen] = useState(false);
+  // Sorumlu yapıldı: pencere kapanınca liste yenilenir (giriş bağlantısı gösteriliyorsa önce o okunur)
+  const managerMade = useRef(false);
 
   const branchId = branch?.id ?? ep.location_id;
   useEffect(() => {
@@ -377,6 +380,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
       </Sheet>
     );
   }
+  // Ekip üyesini sorumlu yapma: hesap sahibi ya da "Başkasına yetki verme" maddesi olan sorumlu (sunucu: canManageAccount)
+  const canMakeManager = ep.role === "employee" && !!ep.personnelId && !!branchId
+    && (viewerRole === "admin" || canDelegate(viewerAccess));
   // Çalışma bilgileri sadece plana giren kişide anlamlı
   const showWork = !!ep.personnelId && (ep.role === "employee" || editForm.schedulable);
   const sectionTitle = "text-sm font-bold text-slate-900";
@@ -758,6 +764,16 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               )}
             </>
           )}
+          {canMakeManager && (
+            <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className={sectionTitle}>Sorumlu yap</p>
+                <p className="text-xs text-slate-500 mt-0.5">Planı ve ekibi sizin yerinize yönetebilsin. Neleri yapabileceğini siz seçersiniz.</p>
+              </div>
+              <button type="button" onClick={() => setMakeManagerOpen(true)}
+                className="shrink-0 px-3 py-2 rounded-xl border border-forest-200 text-forest-700 text-sm font-semibold hover:bg-forest-50">Sorumlu yap</button>
+            </div>
+          )}
           {acc && isMgr && (
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <div className="flex items-baseline justify-between gap-3">
@@ -774,6 +790,12 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
           )}
           {editError && <p className="text-sm text-red-600">{editError}</p>}
         </div>
+        {canMakeManager && makeManagerOpen && (
+          <ManagerAddSheet open onClose={() => (managerMade.current ? onChanged(`${ep.name} artık sorumlu`) : setMakeManagerOpen(false))}
+            locations={managerLocations.some(l => l.id === branchId) ? managerLocations : [...managerLocations, { id: branchId!, name: branch?.name ?? "" }]}
+            granter={viewer} preset={{ personnelId: ep.personnelId!, locationId: branchId!, name: ep.name }}
+            onDone={() => { managerMade.current = true; }} />
+        )}
     </Sheet>
   );
 }

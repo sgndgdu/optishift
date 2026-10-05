@@ -111,8 +111,9 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
     <>
       {!open && (
         <button onClick={() => setOpen(true)} aria-label="Asistan"
-          className="fixed z-40 right-4 bottom-24 lg:bottom-6 inline-flex items-center gap-2 pl-3.5 pr-4 py-3 rounded-full bg-forest-700 text-white text-sm font-bold shadow-lg shadow-forest-900/20 hover:bg-forest-800">
-          <Sparkles size={16} /> Asistan
+          className="fixed z-40 right-4 bottom-24 lg:bottom-6 inline-flex items-center gap-2 p-3.5 lg:pl-3.5 lg:pr-4 lg:py-3 rounded-full bg-forest-700 text-white text-sm font-bold shadow-lg shadow-forest-900/20 hover:bg-forest-800">
+          {/* Telefonda sadece simge: yazılı hap, satır sonundaki rozet ve düğmelerin üstüne biniyordu */}
+          <Sparkles size={16} /> <span className="hidden lg:inline">Asistan</span>
         </button>
       )}
       {open && (

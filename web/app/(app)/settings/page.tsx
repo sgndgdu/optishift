@@ -2000,29 +2000,27 @@ export default function SettingsPage() {
                 />
               </SectionCard>
               </SettingsGroup>
-              <SettingsGroup id="fairness" title="Adalet Puanı" description="Zor gün puanı, bonuslar, puan penceresi" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
+              <SettingsGroup id="fairness" title="Adalet Puanı" description="Yükün herkese eşit dağılması" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
                 <LockArea cat="rules">
 
-                {/* Açıklama banner */}
+                {/* Açıklama: puanın ne olduğu ve neye yaradığı, tek örnekle */}
                 <div className="bg-forest-50 border border-forest-100 rounded-xl p-4 flex gap-3">
                   <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-forest-800">Adalet Puanı</p>
-                    <p className="text-xs text-forest-600 mt-0.5">
-                      Kimin ne kadar yük aldığını ölçer. Bir vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndaki zorluk ayarından gelir; burada sadece ek puanlar var.
-                    </p>
+                  <div className="space-y-1.5 text-xs text-forest-700">
+                    <p className="text-sm font-semibold text-forest-800">Adalet Puanı nedir?</p>
+                    <p>Her çalışılan vardiya kişiye puan yazar. Puanı yüksek olan çok yük taşımış demektir. Otomatik plan, puanı düşük olana daha çok, yüksek olana daha az vardiya vererek yükü eşitler.</p>
+                    <p>Örnek: orta zorlukta 8 saatlik vardiya 8 puandır. Vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndan gelir. Aşağıdakiler bunun üstüne eklenen puanlardır.</p>
                   </div>
                 </div>
-                {/* 1. GÜN PUANI: vardiya zorluğu değil, çalışılan günün kendisi */}
-                <SectionCard title="Zor Gün Puanı">
+                <SectionCard title="Zor günler">
                   <RuleRow
-                    label="Zor Gün Puanı"
-                    description="Seçili günlerde çalışana eklenen puan. 0 = kapalı."
+                    label="Zor güne ek puan"
+                    description={<>Aşağıda seçili günlerde çalışan kişiye bu kadar puan eklenir. Böylece zor günler herkese sırayla düşer. Örnek: 4 yazarsanız Cumartesi 8 saat çalışan 8 yerine 12 puan alır. 0 yazarsanız kapanır.</>}
                     right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
                   />
                   <RuleRow
-                    label="Hangi günler?"
-                    description="Tercih etmem: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Ekip Talepleri bölümündedir."
+                    label="Hangi günler zor sayılsın?"
+                    description="Hafta sonu: Cumartesi ve Pazar. Tercih etmem: kişinin uygunluk girerken &quot;mümkünse çalışmam&quot; dediği gün."
                     right={
                       <div className="flex items-center gap-4">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -2035,16 +2033,17 @@ export default function SettingsPage() {
                     }
                   />
                 </SectionCard>
-                {/* 2. BONUS PUANLARI */}
-                <SectionCard title="Bonus Puanları">
+                {/* Vardiya dışı olaylarla yazılan puanlar (eski adı "Bonus Puanları") */}
+                <SectionCard title="Ekibe kolaylık sağlayana ek puan">
+                  <p className="text-xs text-slate-500 pt-4 pb-3">Bu durumlarda kişiye fazladan puan yazılır. Puanı yükselen kişi sonraki planlarda daha az yük alır, yani bu bir teşekkürdür. 0 yazarsanız kapanır.</p>
                   <RuleRow
-                    label="Açık Vardiyayı Üstlenene Ek Puan"
-                    description="Açık vardiyayı gönüllü üstlenen kişiye düz puan bonusu. 0 = kapalı."
+                    label="Boşta kalan vardiyayı üstlenince"
+                    description="Açık Vardiyalar'dan gönüllü olarak bir vardiya alan kişiye."
                     right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                   <RuleRow
-                    label="Yayın Sonrası Değişiklik Telafisi"
-                    description="Yayınlanmış bir vardiyanın saati değiştirildiğinde kişiye otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
+                    label="Yayından sonra vardiyası değişince"
+                    description="Plan yayınlandıktan sonra vardiya saati değiştirilen kişiye, düzeni bozulduğu için. Anahtar kapalıysa verilmez."
                     right={
                       <div className="flex items-center gap-2">
                         <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
@@ -2055,17 +2054,15 @@ export default function SettingsPage() {
                     }
                   />
                   <RuleRow
-                    label="Zorunlu Atama Bonusu"
-                    description="İzinliyken sorumlu tarafından atanan kişi kabul ederse düz puan bonusu. 0 = kapalı."
+                    label="İzin gününde çağrılınca"
+                    description="İzinli olduğu gün çalışmaya çağrılan ve bunu kabul eden kişiye."
                     right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                 </SectionCard>
-
-                {/* 3. GELİŞMİŞ */}
-                <SectionCard title="Gelişmiş Ayarlar">
+                <SectionCard title="Ne kadar geriye bakılsın?">
                   <RuleRow
-                    label="Adalet Penceresi"
-                    description="Birikimli adalet puanı kaç haftalık geçmişin toplamı olsun. Varsayılan 4 hafta."
+                    label="Son kaç hafta sayılsın?"
+                    description={<>Puan, son bu kadar haftanın toplamıdır; daha eski haftalar unutulur. Örnek: 4 hafta seçiliyse, son 4 haftada çok çalışan kişi sıradaki planda daha az yük alır. Kısa seçerseniz hızlı, uzun seçerseniz daha uzun dönemde dengeler.</>}
                     right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
                   />
                 </SectionCard>

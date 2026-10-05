@@ -227,13 +227,14 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   }, []);
 
   const isOwner = user?.role === "admin" || user?.role === "supervisor";
-  const goAllBranches = () => {
+  // Tek şubeli işletmede bu satır "Yeni şube aç"tır: sihirbaz doğrudan açık gelir (?new=1)
+  const goAllBranches = (openNewBranch = false) => {
     if (!localStorage.getItem("optishift_supervisor_user") && user) {
       localStorage.setItem("optishift_supervisor_user", JSON.stringify({ ...user, location_id: null }));
     }
     setIsDropdownOpen(false);
     onClose?.();
-    router.push("/supervisor");
+    router.push(openNewBranch ? "/supervisor?new=1" : "/supervisor");
   };
 
   const handleLocationChange = (locId: string) => {
@@ -300,7 +301,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
         href={href}
         onClick={onClose}
         className={cn(
-          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+          "flex items-center gap-3 px-3 py-3 [@media(max-height:860px)]:py-2 rounded-xl text-sm font-medium transition-all duration-200 group relative",
           active
             ? "bg-primary/10 text-primary"
             : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -328,9 +329,9 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   const hiddenUnread = more.some(i => i.href === "/chat") ? chatUnread : 0;
 
   return (
-    <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4">
+    <aside className="relative w-72 h-screen shrink-0 bg-white border-r border-slate-100 flex flex-col pt-8 pb-6 px-4 [@media(max-height:860px)]:pt-5 [@media(max-height:860px)]:pb-4">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-3 mb-8">
+      <div className="flex items-center gap-3 px-3 mb-8 [@media(max-height:860px)]:mb-5">
         <Link href={scope === "all" ? "/supervisor" : "/dashboard"} className="flex items-center gap-3 flex-1 group">
           <Logo size="md" className="shadow-md shadow-primary/20 group-hover:shadow-primary/30 transition-shadow" />
           <div>
@@ -349,7 +350,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       </div>
 
       {/* Location Selector (Custom Dropdown) */}
-      <div className="px-3 mb-8">
+      <div className="px-3 mb-8 [@media(max-height:860px)]:mb-4">
         {/* Tek şubeli işletme "şube" kavramını görmez */}
         <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" || locations.length > 1 ? "Şube" : "İşletme"}</p>
         <div className="relative">
@@ -382,7 +383,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 <div className="max-h-[240px] overflow-y-auto p-1.5 space-y-0.5">
                   {isOwner && (
                     <button
-                      onClick={goAllBranches}
+                      onClick={() => goAllBranches(locations.length <= 1)}
                       className={cn(
                         "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-left transition-colors border-b border-slate-100",
                         scope === "all" ? "bg-primary/5 text-primary font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
@@ -448,7 +449,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
         <div className="px-1 pt-2">
           <button
             onClick={() => { openEmployeeView(user, ownShiftsBranch); router.push("/portal/calendar"); }}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-3 [@media(max-height:860px)]:py-2 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
             <CalendarCheck size={18} className="text-slate-400" />
             Vardiyalarım
@@ -462,7 +463,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
           href={`/kilavuz?role=${scope === "all" ? "supervisor" : "manager"}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          className="flex items-center gap-3 px-3 py-3 [@media(max-height:860px)]:py-2 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
         >
           <HelpCircle size={18} className="text-slate-400" />
           Yardım
@@ -470,8 +471,8 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       </div>
 
       {/* User Profile & Logout */}
-      <div className="mt-auto px-3 pt-6">
-        <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
+      <div className="mt-auto px-3 pt-6 [@media(max-height:860px)]:pt-3">
+        <div className="bg-slate-50 rounded-2xl p-4 [@media(max-height:860px)]:p-3 flex items-center justify-between border border-slate-100">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-forest-600 uppercase">

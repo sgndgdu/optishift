@@ -162,9 +162,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 )}
                 <div className="relative shrink-0">
                   <Icon size={18} className={cn("transition-colors", isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
-                  {badge > 0 && (
-                    <CountBadge size="sm" className="absolute -top-1.5 -right-1.5">{badge}</CountBadge>
-                  )}
+                  {/* Sayı satır sonunda bir kez gösterilir (simgede de vardı, iki kez görünüyordu) */}
                 </div>
                 {label}
                 {badge > 0 && (
