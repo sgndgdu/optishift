@@ -33,6 +33,8 @@ export interface WeekBudgets {
   labor?: { total: number; budget: number };
   /** Güvenilirliği düşük personel → kısa not (lib/reliability; giriş verisi yoksa boş) */
   unreliable?: Record<string, string>;
+  /** Açık ilandaki vardiyalar (gün + vardiya): eksik sayılır ama "acil" değil, üstlenen bekleniyor */
+  listed?: { day: number; shiftId: string; count: number }[];
 }
 
 export const fmtHours = (h: number) => `${h.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
@@ -128,10 +130,17 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("skill-gap", "critical", `${skillGaps.length} vardiyada zorunlu görev eksik`,
     skillGaps.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.missingSkills.map(m => `${m.need} ${m.skill} gerekli, ${m.have} var`).join("; ")}`, day: c.day })));
 
-  const short = upcoming.filter(c => c.demand !== null && c.assigned < c.demand);
+  const listedFor = (c: { day: number; shiftId: string }) =>
+    (budgets.listed ?? []).filter(l => l.day === c.day && l.shiftId === c.shiftId).reduce((t, l) => t + l.count, 0);
+  const shortAll = upcoming.filter(c => c.demand !== null && c.assigned < c.demand);
+  // Eksiğin tamamı açık ilandaysa ayrı uyarı: sorumlunun yapacağı iş yok, üstlenen bekleniyor
+  const onListing = shortAll.filter(c => listedFor(c) >= c.demand! - c.assigned);
+  const short = shortAll.filter(c => !onListing.includes(c));
   add("understaffed", "critical",
     `${short.length} vardiyada toplam ${short.reduce((s, c) => s + (c.demand! - c.assigned), 0)} kişi eksik`,
     short.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}`, day: c.day })));
+  add("listed", "warning", `${onListing.length} vardiya açık ilanda, üstlenen bekleniyor`,
+    onListing.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}, ilan ekibe duyuruldu`, day: c.day })));
 
   if (rules.nightLegalWarning) {
     const long = [...new Set(working.flatMap(p => p.shifts.filter(s => s.night && s.hours > 7.5).map(s => s.hours)))];
@@ -160,6 +169,19 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     ]);
   }
 
+
+  // Yarım dolu ihtiyaç tablosu: sayı girilmemiş günde motor herkesi yazar, bazı vardiyalar boş kalabilir
+  if (snap.hasDemand) {
+    const gapDays = [0, 1, 2, 3, 4, 5, 6].filter(d => {
+      const day = upcoming.filter(c => c.day === d);
+      return day.length > 0 && day.every(c => (c.demand ?? 0) === 0) && day.some(c => c.assigned > 0);
+    });
+    add("demand-gap", "warning", `${gapDays.length} günde kaç kişi gerektiği girilmemiş`, gapDays.map(d => {
+      const day = upcoming.filter(c => c.day === d);
+      const empty = day.filter(c => c.assigned === 0).map(c => c.shiftName);
+      return { text: `${DAY_SHORT[d]}: ${day.reduce((t, c) => t + c.assigned, 0)} kişi yazıldı${empty.length ? `, ${empty.join(", ")} boş` : ""}. İhtiyaç tablosunda bu günü doldurun`, day: d };
+    }));
+  }
 
   const clopening = per(p => p.restGaps.filter(g => g.hours >= rules.minRestHours && g.hours < rules.clopeningMinRestHours),
     (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}${gs.length >= 2 ? ". Yorgunluk riski yüksek" : ""}`);

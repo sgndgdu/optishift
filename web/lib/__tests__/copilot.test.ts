@@ -190,6 +190,16 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(problems(input).map(i => i.id)).not.toContain("shift-unused");
   });
 
+  it("yarım dolu ihtiyaç tablosunda sayı girilmemiş gün uyarılır", () => {
+    const input = base();
+    input.assignments = [0, 1].flatMap(d => [a("ali", d, "s-sabah"), a("can", d, "s-sabah")]);
+    input.demand = { "s-sabah": { "0": 2 }, "s-aksam": { "0": 0 } };
+    const hit = problems(input).find(i => i.id === "demand-gap")!;
+    expect(hit.title).toBe("1 günde kaç kişi gerektiği girilmemiş");
+    expect(hit.lines[0]).toContain("2 kişi yazıldı");
+    expect(hit.lines[0]).toContain("boş");
+  });
+
   it("hafta tatili (m.46): 7 gün çalışan ya da 24 saat kesintisiz dinlenmesi olmayan", () => {
     const seven = base();
     seven.assignments = [0, 1, 2, 3, 4, 5, 6].map(d => a("ali", d, "s-sabah"));

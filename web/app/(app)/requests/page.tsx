@@ -95,7 +95,11 @@ export default function ManagerRequestsPage() {
         setSwapRequestsEnabled(isModuleOn(rules, "swap_requests_enabled"));
         setEditRequestsEnabled(isModuleOn(rules, "edit_requests_enabled"));
       } catch { /* geçersiz JSON → atla */ }
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      // Menüdeki Onaylar rozeti (Sidebar usePendingApprovals) karardan sonra hemen yenilensin
+      window.dispatchEvent(new Event("optishift_approvals_changed"));
+    }
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
@@ -222,6 +226,10 @@ export default function ManagerRequestsPage() {
   const visibleEdits  = showHistory ? edits  : pendingEdits;
   const visibleLeaves = showHistory ? leaves : pendingLeaves;
   const visibleOvertimes = showHistory ? overtimes : pendingOvertimes;
+  // Açık sekmenin listesi boşaldıysa (sekmeler gizlendi) "Tümü"ne dön
+  const kindCount: Record<string, number> = { swap: visibleSwaps.length, edit: visibleEdits.length, leave: visibleLeaves.length, overtime: visibleOvertimes.length };
+  const activeEmpty = activeTab !== "all" && !loading && (kindCount[activeTab] ?? 0) === 0;
+  const tab = activeEmpty ? "all" : activeTab;
 
   async function decideOvertime(id: number, status: "approved" | "rejected") {
     const res = await fetch("/api/overtime", {
@@ -258,24 +266,28 @@ export default function ManagerRequestsPage() {
         </button>
       } />
 
-      <Tabs value={activeTab} onChange={id => setActiveTab(id)} items={[
-        { id: "all", label: "Tümü", count: totalPending, icon: ClipboardList },
-        ...(swapRequestsEnabled ? [{ id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight }] as const : []),
-        ...(editRequestsEnabled ? [{ id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit }] as const : []),
-        ...(leaveRequestsEnabled ? [{ id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff }] as const : []),
-        ...(overtimeTrackingEnabled ? [{ id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer }] as const : []),
-      ] as const} />
+      {/* Sadece içinde talep olan türlerin sekmesi; tek tür varsa sekme hiç yok */}
+      {(() => {
+        const kinds = [
+          swapRequestsEnabled && visibleSwaps.length > 0 ? { id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight } : null,
+          editRequestsEnabled && visibleEdits.length > 0 ? { id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit } : null,
+          leaveRequestsEnabled && visibleLeaves.length > 0 ? { id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff } : null,
+          overtimeTrackingEnabled && visibleOvertimes.length > 0 ? { id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer } : null,
+        ].filter((k): k is NonNullable<typeof k> => k !== null);
+        if (kinds.length < 2) return null;
+        return <Tabs value={tab} onChange={id => setActiveTab(id)} items={[{ id: "all", label: "Tümü", count: totalPending, icon: ClipboardList }, ...kinds] as never} />;
+      })()}
 
       {loading && <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>}
-      {!loading && activeTab === "all" && visibleSwaps.length + visibleEdits.length + visibleLeaves.length + visibleOvertimes.length === 0 && (
+      {!loading && tab === "all" && visibleSwaps.length + visibleEdits.length + visibleLeaves.length + visibleOvertimes.length === 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl"><EmptyState text={showHistory ? "Talep yok" : "Onay bekleyen bir şey yok"} /></div>
       )}
 
       {/* ── SWAP TAB ── */}
-      {!loading && (activeTab === "swap" || (activeTab === "all" && visibleSwaps.length > 0)) && (
+      {!loading && (tab === "swap" || (tab === "all" && visibleSwaps.length > 0)) && (
         <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Takas</p>}
-          {activeTab !== "all" && visibleSwaps.length === 0 && <EmptyState text={showHistory ? "Takas talebi yok" : "Onay bekleyen takas talebi yok"} />}
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Takas</p>}
+          {tab !== "all" && visibleSwaps.length === 0 && <EmptyState text={showHistory ? "Takas talebi yok" : "Onay bekleyen takas talebi yok"} />}
           {visibleSwaps.map(s => {
             const pending = s.status === "peer_accepted";
             return (
@@ -334,10 +346,10 @@ export default function ManagerRequestsPage() {
       )}
 
       {/* ── EDIT TAB ── */}
-      {!loading && (activeTab === "edit" || (activeTab === "all" && visibleEdits.length > 0)) && (
+      {!loading && (tab === "edit" || (tab === "all" && visibleEdits.length > 0)) && (
         <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Saat düzeltme</p>}
-          {activeTab !== "all" && visibleEdits.length === 0 && <EmptyState text={showHistory ? "Düzenleme talebi yok" : "Onay bekleyen düzenleme talebi yok"} />}
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Saat düzeltme</p>}
+          {tab !== "all" && visibleEdits.length === 0 && <EmptyState text={showHistory ? "Düzenleme talebi yok" : "Onay bekleyen düzenleme talebi yok"} />}
           {visibleEdits.map(e => {
             const pending = e.status === "pending";
             return (
@@ -384,10 +396,10 @@ export default function ManagerRequestsPage() {
       )}
 
       {/* ── LEAVE TAB ── */}
-      {!loading && (activeTab === "leave" || (activeTab === "all" && visibleLeaves.length > 0)) && (
+      {!loading && (tab === "leave" || (tab === "all" && visibleLeaves.length > 0)) && (
         <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">İzin</p>}
-          {activeTab !== "all" && visibleLeaves.length === 0 && <EmptyState text={showHistory ? "İzin talebi yok" : "Bekleyen izin talebi yok"} />}
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">İzin</p>}
+          {tab !== "all" && visibleLeaves.length === 0 && <EmptyState text={showHistory ? "İzin talebi yok" : "Bekleyen izin talebi yok"} />}
           {(visibleLeaves as any[]).map((l: any) => {
             const pending = l.status === "pending";
             return (
@@ -479,10 +491,10 @@ export default function ManagerRequestsPage() {
       )}
 
       {/* ── OVERTIME TAB ── */}
-      {!loading && (activeTab === "overtime" || (activeTab === "all" && visibleOvertimes.length > 0)) && (
+      {!loading && (tab === "overtime" || (tab === "all" && visibleOvertimes.length > 0)) && (
         <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-          {activeTab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Fazla mesai</p>}
-          {activeTab !== "all" && visibleOvertimes.length === 0 && <EmptyState text={showHistory ? "Mesai kaydı yok" : "Onay bekleyen mesai kaydı yok"} />}
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Fazla mesai</p>}
+          {tab !== "all" && visibleOvertimes.length === 0 && <EmptyState text={showHistory ? "Mesai kaydı yok" : "Onay bekleyen mesai kaydı yok"} />}
           {(visibleOvertimes as any[]).map((o: any) => {
             const pending = o.status === "pending";
             const empChip = o.employee_status === "accepted"

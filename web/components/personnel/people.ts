@@ -115,8 +115,9 @@ export function roleBadge(p: Pick<MergedPerson, "role" | "display_title">): { la
 export function rowStatus(p: MergedPerson, hasDepts: boolean): { label: string; tone: PillTone } | null {
   if (p.inactive) return { label: "Ekipten çıktı", tone: "neutral" };
   if (p.approval_status === "pending") return { label: "Onay bekliyor", tone: "attention" };
+  // Departmansız kişi plana alınmaz: "henüz girmedi"den önemli
+  if (p.personnelId && p.schedulable && !p.department_id && hasDepts) return { label: "Departman seçin", tone: "danger" };
   if (p.userId && p.is_temp_password) return { label: "Henüz girmedi", tone: "attention" };
-  if (p.personnelId && p.role === "employee" && !p.department_id && hasDepts) return { label: "Departman seçin", tone: "attention" };
   return null;
 }
 

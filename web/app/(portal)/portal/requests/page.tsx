@@ -77,6 +77,7 @@ export default function PortalRequests() {
   const [leaveReqs, setLeaveReqs]     = useState<any[]>([]);
   const [forceAssigns, setForceAssigns] = useState<any[]>([]);
   const [overtimeMe, setOvertimeMe]   = useState<any>(null);
+  const [swapError, setSwapError]     = useState("");
   const [myListings, setMyListings]   = useState<any[]>([]); // "Herkese Aç" ile açtığım devir ilanları
 
   // new-form state
@@ -319,6 +320,14 @@ export default function PortalRequests() {
     } finally { setLoading(false); }
   }
 
+  // İlanda ya da takası süren vardiya ikinci bir akışa konmaz (sunucu da reddeder)
+  const shiftBusy = (s: { id: unknown }): string | null =>
+    myListings.some((o: any) => o.status === "open" && Number(o.source_assignment_id) === Number(s.id))
+      ? "Zaten ilanda"
+      : [...swapsSent, ...swapsIn].some((w: any) => ["pending", "peer_accepted"].includes(w.status)
+          && (Number(w.requester_shift_id) === Number(s.id) || Number(w.target_shift_id) === Number(s.id)))
+        ? "Takas bekliyor" : null;
+
   async function submitSwap() {
     if (!selMyShift || !selMate || !selTheirShift || !user) return;
     setLoading(true);
@@ -343,7 +352,8 @@ export default function PortalRequests() {
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
-        showToast(violationText(err, "Takas teklifi gönderilemedi."), "error");
+        // Kural hatası ekranda kalır: kişi hangi vardiyayı değiştirmesi gerektiğini okuyabilsin
+        setSwapError(violationText(err, "Takas teklifi gönderilemedi."));
       }
     } finally { setLoading(false); }
   }
@@ -473,7 +483,7 @@ export default function PortalRequests() {
   }
 
   function resetSwapWizard() {
-    setSwapStep(0); setSelMyShift(null); setSelMate(null); setSelTheirShift(null); setSwapNote("");
+    setSwapStep(0); setSelMyShift(null); setSelMate(null); setSelTheirShift(null); setSwapNote(""); setSwapError("");
   }
 
   if (!mounted) return <div className="space-y-4" />;
@@ -717,7 +727,7 @@ export default function PortalRequests() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Personel"} sana takas teklif etti</p>
+                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Bir arkadaşın"} sana takas teklif etti</p>
                         <StatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -802,11 +812,7 @@ export default function PortalRequests() {
               )}
               {myShifts.map(s => {
                 // İlanda ya da takası süren vardiya tekrar seçilemez
-                const busy = myListings.some((o: any) => o.status === "open" && Number(o.source_assignment_id) === Number(s.id))
-                  ? "Zaten ilanda"
-                  : [...swapsSent, ...swapsIn].some((w: any) => ["pending", "peer_accepted"].includes(w.status)
-                      && (Number(w.requester_shift_id) === Number(s.id) || Number(w.target_shift_id) === Number(s.id)))
-                    ? "Takas bekliyor" : null;
+                const busy = shiftBusy(s);
                 return busy
                   ? <div key={s.id} className="opacity-50 pointer-events-none relative">
                       <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
@@ -844,9 +850,15 @@ export default function PortalRequests() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-500 mb-3">Takas etmek istediğin vardiyayı seç:</p>
                     {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
-                    {myShifts.map(s => (
-                      <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />
-                    ))}
+                    {myShifts.map(s => {
+                      const busy = shiftBusy(s);
+                      return busy
+                        ? <div key={s.id} className="opacity-50 pointer-events-none relative">
+                            <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
+                          </div>
+                        : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
+                    })}
                     <NextBtn disabled={!selMyShift} onClick={() => setSwapStep(1)} />
                   </div>
                 )}
@@ -868,7 +880,7 @@ export default function PortalRequests() {
                         </div>
                         <div>
                           <p className={`text-sm font-bold ${selMate?.id === p.id ? "text-primary" : "text-slate-800"}`}>{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.title || "Personel"}</p>
+                          <p className="text-xs text-slate-400">{p.title || ""}</p>
                         </div>
                       </button>
                     ))}
@@ -910,8 +922,13 @@ export default function PortalRequests() {
                         className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                       />
                     </div>
+                    {swapError && (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+                        {swapError} <button type="button" onClick={() => { setSwapError(""); setSwapStep(2); }} className="font-bold underline">Başka vardiya seç</button>
+                      </div>
+                    )}
                     <div className="flex gap-2">
-                      <BackBtn onClick={() => setSwapStep(2)} />
+                      <BackBtn onClick={() => { setSwapError(""); setSwapStep(2); }} />
                       <button
                         disabled={loading}
                         onClick={submitSwap}

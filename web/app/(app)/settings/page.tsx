@@ -1271,10 +1271,8 @@ export default function SettingsPage() {
                 <div>
                   <SectionLabel>Departmanlar</SectionLabel>
                   <p className="text-xs text-slate-400 mb-3">
-                    İsteğe bağlı. Kasa, mutfak, hat gibi bölümler eklerseniz kişiler bir departmana atanır ve kaç kişi
-                    gerektiği her departman için ayrı girilir. Bir departmanı alt departmanlara da bölebilirsiniz
-                    (Salon › Teras gibi): kişiler alt departmanlara atanır, departmanın sorumlusu hepsini yönetir.
-                    Küçük işletmede gerekmez. Değişiklikler anında kaydedilir.
+                    İsteğe bağlı. Mutfak, salon, kasa gibi bölümler eklerseniz her birine kaç kişi gerektiğini ayrı girersiniz.
+                    Ekledikten sonra Ekip sayfasından kişileri departmanlara dağıtın; departmanı olmayan kişi otomatik plana girmez.
                   </p>
 
                   {deptError && (

@@ -35,7 +35,7 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 }
 
 export default function GenerateWizard({
-  weekLabel, demandTable, demandEmpty, demandAutoFilled, pastDayCount = 0, capacityWarnings, personnelCount,
+  weekLabel, demandTable, demandEmpty, demandAutoFilled, demandGaps = [], onFillGaps, pastDayCount = 0, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
   existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, changedCount, generating, error, generatedCount, seniorViolationCount, excludedCount,
   onGenerate, onPublish, onClose,
@@ -45,6 +45,9 @@ export default function GenerateWizard({
   demandEmpty: boolean;
   /** Tablo boştu, öneri kendiliğinden dolduruldu */
   demandAutoFilled?: boolean;
+  /** Yarım dolu tablo: sayı girilmemiş açık günler ("Mutfak: Sal, Çar") */
+  demandGaps?: string[];
+  onFillGaps?: () => void;
   /** Haftanın bugünden önceki gün sayısı: bu günler planlanmaz, mevcut vardiyaları korunur */
   pastDayCount?: number;
   capacityWarnings: string[];
@@ -107,7 +110,7 @@ export default function GenerateWizard({
           {step === 0 && (
             <WizardStep icon={<Users size={24} />} color="bg-forest-100 text-forest-700"
               title="Kaç kişi gerekli?"
-              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Bir günü yazıp “Boşları doldur” ile tüm haftaya kopyalayabilirsiniz; tablo haftadan haftaya aynı kalır.">
+              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Bir günü yazıp “Boş günleri doldur” ile tüm haftaya kopyalayabilirsiniz; tablo haftadan haftaya aynı kalır.">
               <div className="rounded-2xl border border-slate-200 overflow-hidden">{demandTable}</div>
               {demandAutoFilled && !demandEmpty && (
                 <p className="text-xs text-forest-700 font-medium">Tablo boştu, öneriyle dolduruldu. Sayıları işletmenize göre değiştirebilirsiniz.</p>
@@ -123,7 +126,7 @@ export default function GenerateWizard({
               title="Oluşturmadan önce kontrol"
               sub="Sorun varsa şimdi görün, sonradan değil.">
               <div className="space-y-2.5">
-                <CheckRow tone="ok">{personnelCount} personel planlanacak.</CheckRow>
+                <CheckRow tone="ok">{personnelCount} kişi planlanacak.</CheckRow>
                 {pastDayCount > 0 && pastDayCount < 7 && (
                   <CheckRow tone="info">Haftanın {pastDayCount} günü geçti. Sadece bugün ve sonrası planlanır; geçmiş günlerdeki vardiyalar olduğu gibi kalır.</CheckRow>
                 )}
@@ -136,10 +139,17 @@ export default function GenerateWizard({
                     </ul>
                     <p className="text-xs text-red-700 mt-1">Bu haliyle plan oluşturulamaz. Geri dönüp o günlerin sayılarını azaltın.</p>
                   </CheckRow>
+                ) : demandGaps.length > 0 ? (
+                  <CheckRow tone="danger" action={onFillGaps && (
+                    <button onClick={onFillGaps} className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-800 hover:bg-red-100">Boş günleri doldur</button>
+                  )}>
+                    <p className="font-bold text-red-800">Bazı günlere kaç kişi gerektiği girilmedi</p>
+                    <p className="text-xs text-red-700 mt-1">{demandGaps.join(" · ")}. Bu günlere herkes haftalık sınırına kadar yazılır, açılış ya da kapanış boş kalabilir.</p>
+                  </CheckRow>
                 ) : !demandEmpty ? (
-                  <CheckRow tone="ok">Personel ihtiyacı mevcut ekiple karşılanabilir görünüyor.</CheckRow>
+                  <CheckRow tone="ok">İhtiyaç mevcut ekiple karşılanabilir görünüyor.</CheckRow>
                 ) : (
-                  <CheckRow tone="warn">Personel ihtiyacı girilmedi: herkes haftalık çalışma sınırına kadar vardiyaya yazılacak.</CheckRow>
+                  <CheckRow tone="warn">Kaç kişi gerektiği girilmedi: herkes haftalık çalışma sınırına kadar vardiyaya yazılacak.</CheckRow>
                 )}
 
                 {availabilityEnabled && (noAvailCount > 0 ? (

@@ -42,6 +42,8 @@ function usePendingApprovals(orgId: string | undefined) {
     if (!orgId) return;
     const tick = () => {
       const locId = localStorage.getItem("optishift_selected_location") || "";
+      // Şube seçilmeden (kurulum sırasında) sorgu atılmaz: boş location_id sunucuda 400 döner
+      if (!locId) { setCount(0); return; }
       const list = (url: string) => fetch(url).then(r => r.json()).then(d => (Array.isArray(d) ? d : [])).catch(() => []);
       Promise.all([
         list(`/api/swap-requests?org_id=${orgId}&location_id=${locId}&status=peer_accepted`),
@@ -58,7 +60,13 @@ function usePendingApprovals(orgId: string | undefined) {
     tick();
     const id = setInterval(tick, 30_000);
     window.addEventListener("optishift_location_changed", tick);
-    return () => { clearInterval(id); window.removeEventListener("optishift_location_changed", tick); };
+    // Onaylar sayfası bir talebi karara bağlayınca rozet hemen yenilenir
+    window.addEventListener("optishift_approvals_changed", tick);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("optishift_location_changed", tick);
+      window.removeEventListener("optishift_approvals_changed", tick);
+    };
   }, [orgId]);
   return count;
 }

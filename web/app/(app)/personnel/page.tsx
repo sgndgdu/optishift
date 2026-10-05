@@ -21,6 +21,7 @@ import { canDelegate, parseAccess } from "@/lib/userAccess";
 import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
+import DepartmentAssignSheet from "@/components/personnel/DepartmentAssignSheet";
 
 const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
 
@@ -250,6 +251,7 @@ export default function PersonnelPage() {
     return u ? accessSummary(u, id => editDepts.find(d => d.id === id)?.name, roleBadge(p).label) : null;
   };
   // Hesabı var ama davet bağlantısıyla hiç girip şifresini belirlememiş
+  const [assignOpen, setAssignOpen] = useState(false);
   const notJoined = persons.filter(p => !p.inactive && p.userId && p.is_temp_password && p.approval_status !== "pending");
 
   // Ana Sayfa'daki "henüz girmedi" maddesinden gelindiyse bağlantılar hemen hazırlanır
@@ -271,6 +273,8 @@ export default function PersonnelPage() {
   );
 
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
+  // Departmanlı şubede departmanı olmayan, plana giren kişi otomatik plana alınmaz
+  const noDept = editDepts.length > 0 ? persons.filter(p => !p.inactive && p.personnelId && p.schedulable && !p.department_id) : [];
   // Şubenin işletme türü (lib/templates): ekleme formundaki görev listesi buradan gelir
   const addRoles = branchRoles(locations.find(l => l.id === authUser?.location_id)?.rules).all;
 
@@ -359,6 +363,22 @@ export default function PersonnelPage() {
         );
       })()}
 
+
+      {noDept.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-900">{noDept.length} kişinin departmanı yok</p>
+            <p className="text-xs text-red-800 mt-0.5">Departman seçilene kadar otomatik plana alınmazlar.</p>
+          </div>
+          <button onClick={() => setAssignOpen(true)}
+            className="shrink-0 flex items-center justify-center gap-2 bg-forest-700 hover:bg-forest-800 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
+            Departmanlara dağıt
+          </button>
+        </div>
+      )}
+      {assignOpen && <DepartmentAssignSheet open onClose={() => setAssignOpen(false)} depts={editDepts}
+        people={noDept.map(p => ({ personnelId: p.personnelId!, name: p.name, title: p.title }))}
+        onSaved={n => { setAssignOpen(false); fetchData(authUser); showToast(`${n} kişinin departmanı kaydedildi`); }} />}
 
       {notJoined.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">

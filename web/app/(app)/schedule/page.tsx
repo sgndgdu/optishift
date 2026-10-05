@@ -40,6 +40,7 @@ import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { canPublishPlan, departmentScope, hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments } from "@/lib/departments";
+import { demandGapDays, fillAllRows } from "@/lib/demandGaps";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -300,6 +301,8 @@ function SchedulePageInner() {
   const [availMap, setAvailMap]                   = useState<AvailMap>({});
   const [clopeningMinRest, setClopeningMinRest]   = useState(13); // bu saatin altı "clopening" (kapanış→açılış) sayılır
   const [locRules, setLocRules]                   = useState<FairnessRules>({}); // tam rules objesi — canlı yük hesabı (cellBurden) için
+  // Çalışma saatlerinde kapalı günler (0=Pzt): yarım dolu tablo uyarısı ve "boş günleri doldur" bu günleri atlar
+  const [closedDays, setClosedDays]               = useState<number[]>([]);
   const [fatigueRiskMap, setFatigueRiskMap]       = useState<Record<string, { riskLevel: string; reasons: string[] }>>({}); // rules.fatigue_radar_enabled — personel satırındaki risk ikonu için
   const [scoredWeekBurden, setScoredWeekBurden]   = useState<Record<string, number>>({}); // bu haftanın score_history'deki yükü — çift sayım düzeltmesi
   const [availCollectionEnabled, setAvailCollectionEnabled] = useState(true); // kapalıysa sorumlu tek başına planlar, uygunluk uyarıları susturulur
@@ -345,6 +348,16 @@ function SchedulePageInner() {
   const [minimizeChanges, setMinimizeChanges]     = useState(false);
   const [changedCount, setChangedCount]           = useState<number | null>(null);
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
+  // Açık ilanlar (Plan Kontrolü: ilandaki eksik "acil" sayılmaz)
+  const [openListings, setOpenListings]           = useState<{ date: string; start_time: string; end_time: string }[]>([]);
+  useEffect(() => {
+    if (!activeLocationId) return;
+    let stale = false;
+    fetch(`/api/open-shifts?location_id=${activeLocationId}&status=open`).then(r => (r.ok ? r.json() : [])).then(d => {
+      if (!stale) setOpenListings(Array.isArray(d) ? d.filter((o: any) => o.status === "open") : []);
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, [activeLocationId, weekStart, reloadTick]);
   const [wizardOpen, setWizardOpen]               = useState(false); // "Planı Oluştur" sihirbazı (components/schedule/GenerateWizard)
   const [engineScores, setEngineScores]           = useState<Record<string, number>>({}); // personnel_id → OR-Tools total score
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
@@ -617,6 +630,11 @@ function SchedulePageInner() {
         setClopeningMinRest(clopeningRest);
         setAvailCollectionEnabled(collectAvail);
         setLocRules(parsedRules);
+        try {
+          const oh = Array.isArray(locData) ? locData[0]?.operating_hours : null;
+          const hours = typeof oh === "string" ? JSON.parse(oh) : (oh ?? {});
+          setClosedDays([0, 1, 2, 3, 4, 5, 6].filter(d => hours?.[d]?.isOpen === false));
+        } catch { setClosedDays([]); }
 
         // Talep tahmini (rules.forecasting_enabled) — kapasite matrisi hücrelerinde ipucu gösterir
         if (isModuleOn(parsedRules, "forecasting_enabled")) {
@@ -1032,6 +1050,28 @@ function SchedulePageInner() {
     applyDemandSuggestion(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wizardOpen, demandSuggestion, departments.length]);
+
+  // Departmanlı şubede tablo tamamen boşsa her departman kendi kişi sayısına göre öneriyle doldurulur
+  useEffect(() => {
+    if (!wizardOpen || !activeLocationId || !weekStart || departments.length === 0 || demandAutoFilled || !demandEmpty) return;
+    let stale = false;
+    const leaves = leafDepartments(sortDepartments(departments));
+    Promise.all(leaves.map(d =>
+      fetch(`/api/demand-suggestion?location_id=${activeLocationId}&week_start=${weekStart}&department_id=${d.id}`)
+        .then(r => (r.ok ? r.json() : null)).then(x => [d.id, x?.matrix] as const).catch(() => [d.id, null] as const)))
+      .then(results => {
+        if (stale) return;
+        const filled = results.filter(([, m]) => m && Object.values(m).some(row => Object.values(row ?? {}).some(v => (v as number) > 0)));
+        if (filled.length === 0) return;
+        setDemandAutoFilled(true);
+        for (const [deptId, m] of filled) {
+          setDeptDemandMatrix(prev => ({ ...prev, [deptId]: m }));
+          handleDeptDemandSave(deptId, m);
+        }
+      });
+    return () => { stale = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardOpen, activeLocationId, weekStart, departments.length]);
 
   // ── Otomatik taslak kaydı (OPTI-024) ──────────────────────────────────────
   // Kullanıcı düzenlemesinden 1.2 sn sonra haftanın draft satırları DB ile
@@ -1872,30 +1912,6 @@ function SchedulePageInner() {
     } catch { /* sessiz */ }
   };
 
-  // İhtiyaç tablosu kısayolu: satırdaki ilk sayıyı haftanın boş günlerine kopyalar (42 kutuyu tek tek doldurmamak için)
-  const fillRow = (row: Record<number, number> | undefined): Record<number, number> | null => {
-    const first = Array.from({ length: 7 }, (_, d) => row?.[d] ?? 0).find(v => v > 0);
-    if (!first) return null;
-    return Object.fromEntries(Array.from({ length: 7 }, (_, d) => [d, (row?.[d] ?? 0) > 0 ? row![d] : first]));
-  };
-  const fillDemandRow = (defId: string) => {
-    const filled = fillRow(demandMatrix[defId]);
-    if (!filled) return;
-    const next = { ...demandMatrix, [defId]: filled };
-    setDemandMatrix(next);
-    handleDemandSave(true, next);
-  };
-  const fillDeptDemandRow = (deptId: string, defId: string) => {
-    const filled = fillRow(deptDemandMatrix[deptId]?.[defId]);
-    if (!filled) return;
-    const deptNext = { ...(deptDemandMatrix[deptId] ?? {}), [defId]: filled };
-    setDeptDemandMatrix(prev => ({ ...prev, [deptId]: deptNext }));
-    handleDeptDemandSave(deptId, deptNext);
-  };
-  const canFillRow = (row: Record<number, number> | undefined) => {
-    const vals = Array.from({ length: 7 }, (_, d) => row?.[d] ?? 0);
-    return vals.some(v => v > 0) && vals.some(v => v === 0);
-  };
 
   const handleDeptDemandSave = async (deptId: string, override?: Record<string, Record<number, number>>) => {
     try {
@@ -2178,6 +2194,11 @@ function SchedulePageInner() {
 
   const weekBudgets: WeekBudgets = {
     unreliable: reliabilityNotes,
+    listed: openListings.flatMap(o => {
+      const day = [0, 1, 2, 3, 4, 5, 6].find(d => addDays(weekStart, d) === o.date);
+      const def = shiftDefs.find(d => d.start === o.start_time?.slice(0, 5) && d.end === o.end_time?.slice(0, 5));
+      return day !== undefined && def ? [{ day, shiftId: def.id, count: 1 }] : [];
+    }),
     // Tek bütçe: işçilik maliyeti (₺; mesai ×1,5 dahil). Saat bazlı mesai bütçesi kaldırıldı.
     labor: { total: laborCost.total, budget: weeklyLaborBudgetTry },
   };
@@ -2413,6 +2434,29 @@ function SchedulePageInner() {
     pushCellMap(newMap);
   };
 
+  // Yarım dolu tablo: sayı girilmemiş açık günlerde motor herkesi yazar (lib/demandGaps)
+  const gapSkipDays = [...closedDays, ...[0, 1, 2, 3, 4, 5, 6].filter(d => addDays(weekStart, d) < businessToday())];
+  const demandGaps: string[] = (departments.length > 0
+    ? leafDepartments(sortDepartments(departments)).map(d => ({ label: `${departmentLabel(departments, d)}: `, days: demandGapDays(deptDemandMatrix[d.id], gapSkipDays) }))
+    : [{ label: "", days: demandGapDays(demandMatrix, gapSkipDays) }])
+    .filter(x => x.days.length > 0)
+    .map(x => `${x.label}${x.days.map(d => DAYS[d]).join(", ")}`);
+  const fillAllDemand = () => {
+    if (departments.length > 0) {
+      for (const d of leafDepartments(sortDepartments(departments))) {
+        const cur = deptDemandMatrix[d.id];
+        if (!cur || demandGapDays(cur, gapSkipDays).length === 0) continue;
+        const next = fillAllRows(cur, gapSkipDays);
+        setDeptDemandMatrix(prev => ({ ...prev, [d.id]: next }));
+        handleDeptDemandSave(d.id, next);
+      }
+    } else {
+      const next = fillAllRows(demandMatrix, gapSkipDays);
+      setDemandMatrix(next);
+      handleDemandSave(true, next);
+    }
+  };
+
   const demandEmpty =
     Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v)) &&
     Object.values(deptDemandMatrix).every(d => Object.values(d ?? {}).every(row => Object.values(row ?? {}).every(v => !v)));
@@ -2546,6 +2590,15 @@ loading ? (
                   </span>
                 </div>
                 )}
+                {demandGaps.length > 0 && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
+                  <div className="px-5 py-3 border-t border-b border-amber-100 bg-amber-50/70 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <p className="flex-1 min-w-0 text-xs text-amber-900">
+                      <span className="font-bold">Bazı günler boş:</span> {demandGaps.join(" · ")}. Bu günlere kaç kişi gerektiği girilmezse herkes haftalık sınırına kadar yazılır.
+                    </p>
+                    <button type="button" onClick={fillAllDemand}
+                      className="shrink-0 text-xs font-bold px-3 py-2 rounded-lg bg-forest-600 text-white hover:bg-forest-700">Boş günleri doldur</button>
+                  </div>
+                )}
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-slate-100">
@@ -2569,10 +2622,6 @@ loading ? (
                             <span className="text-sm font-semibold text-slate-700">{def.name}</span>
                             <span className="text-[10px] text-slate-400 ml-2">{def.start}–{def.end}</span>
                             <span className="text-[10px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
-                            {canFillRow(demandMatrix[def.id]) && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
-                              <button type="button" onClick={() => fillDemandRow(def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
-                                className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
-                            )}
                           </td>
                           {Array.from({ length: 7 }, (_, day) => {
                             const val = demandMatrix[def.id]?.[day] ?? 0;
@@ -2641,10 +2690,6 @@ loading ? (
                                 <td className="py-2.5 pl-8 pr-4">
                                   <span className="text-[12px] font-semibold text-slate-600">{def.name}</span>
                                   <span className="text-[10px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
-                                  {canFillRow(deptRow) && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
-                                    <button type="button" onClick={() => fillDeptDemandRow(dept.id, def.id)} title="İlk girdiğiniz sayıyı haftanın boş günlerine kopyalar"
-                                      className="ml-2 text-[10px] font-bold text-forest-600 hover:text-forest-800 hover:underline">Boşları doldur</button>
-                                  )}
                                 </td>
                                 {Array.from({ length: 7 }, (_, day) => {
                                   const val = deptRow[day] ?? 0;
@@ -2793,7 +2838,7 @@ loading ? (
             {/* Durum çipi */}
             {!loading && (
               cellCount === 0 && dbShiftCount === 0 ? (
-                <StatusPill tone="neutral">Boş hafta</StatusPill>
+                personnel.length === 0 ? null : <StatusPill tone="neutral">Plan yok</StatusPill>
               ) : isPublishedWeek && !dirty ? (
                 <StatusPill tone="positive">
                   <Check size={11} /> Yayınlandı{currentRevision !== null && currentRevision > 0 ? ` · ${currentRevision}. güncelleme` : ""}
@@ -2829,14 +2874,15 @@ loading ? (
               </span>
             )}
 
-            <div className="ml-auto flex flex-wrap items-center gap-2">
+            {/* Ekip yokken plan düğmeleri gizli: yapılacak tek iş ekip eklemek (Hızlı Kurulum) */}
+            <div className={cn("ml-auto flex flex-wrap items-center gap-2", !loading && personnel.length === 0 && "hidden")}>
               {/* Personel filtresi */}
               {personnel.length > 5 && (
                 <div className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm">
                   <Search size={13} className="text-slate-400 shrink-0" />
                   <input
                     type="text" value={personnelFilter} onChange={e => setPersonnelFilter(e.target.value)}
-                    placeholder="Personel ara…"
+                    placeholder="Kişi ara…"
                     className="w-28 text-sm text-slate-700 placeholder-slate-400 bg-transparent outline-none"
                   />
                   {personnelFilter && <button onClick={() => setPersonnelFilter('')} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>}
@@ -3018,9 +3064,9 @@ loading ? (
             onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
             onJump={jumpTo}
           />
-          {!loading && (shiftDefs.length === 0 || personnel.length === 0) && (
+          {/* Rehber üç adım bitene kadar kalır; haftada plan oluştuysa ihtiyaç tablosu bilinçli boş bırakılmış olabilir */}
+          {!loading && (shiftDefs.length === 0 || personnel.length === 0 || (dbShiftCount === 0 && demandEmpty)) && (
             <QuickSetup
-              locationId={activeLocationId}
               shiftDefsCount={shiftDefs.length}
               personnelCount={personnel.length}
               demandFilled={[demandMatrix, ...Object.values(deptDemandMatrix)].some(m => Object.values(m ?? {}).some(row => Object.values(row ?? {}).some(v => Number(v) > 0)))}
@@ -3029,7 +3075,7 @@ loading ? (
           )}
           {publishSuccess && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
-              <Check size={16} /> Vardiya programı yayınlandı! Personellere bildirim gönderildi.
+              <Check size={16} /> Plan yayınlandı, ekibe bildirim gönderildi.
             </div>
           )}
           {toast && (
@@ -3158,10 +3204,8 @@ loading ? (
                   <tr className="bg-white border-b-2 border-slate-200">
                     <th className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
                       <span className="text-[10px] font-bold text-slate-400">
-                        Personel {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
+                        Ekip {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
-                      {/* Gün başlığındaki sayı ve (açıksa) isim altındaki çubuk ne anlatıyor */}
-                      <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Gün altı: atanan / gereken kişi</span>
                       {showScores && <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal">Çubuk: Adalet Puanı</span>}
                     </th>
                     {Array.from({ length: 7 }, (_, i) => {
@@ -3186,12 +3230,6 @@ loading ? (
                               {EVENT_TYPE_CONFIG[ev.type]?.emoji} {ev.title.length > 9 ? ev.title.slice(0, 7) + "…" : ev.title}
                             </div>
                           ))}
-                          <button
-                            onClick={() => { setAddEventModal({ date: isoDate, dayLabel: `${DAYS[i]} ${dates[i]}` }); setNewEventScope("day"); setNewEventTitle(""); setNewEventType("kampanya"); setNewEventNote(""); setNewEventEndDate(""); }}
-                            className="mt-0.5 text-[9px] text-slate-200 hover:text-forest-400 transition-colors block w-full text-center" title="Not ekle" aria-label="Not ekle"
-                          >
-                            <CalendarPlus size={9} className="inline" />
-                          </button>
                           {weather[isoDate] && (
                             <div className="text-[10px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
                           )}
@@ -3212,7 +3250,7 @@ loading ? (
                       <td colSpan={8} className="py-16 text-slate-400 text-sm">
                         {/* Telefonda tablo ekrandan geniş: mesaj görünür alanda kalsın */}
                         <div className="sticky left-0 w-[calc(100vw-4rem)] sm:w-auto text-center px-4">
-                          {personnel.length === 0 ? "Henüz personel eklenmemiş. Yukarıdaki Hızlı Kurulum'dan ekleyebilirsiniz." : "Arama sonucu bulunamadı."}
+                          {personnel.length === 0 ? "Ekip eklenince kişiler burada listelenir." : "Arama sonucu bulunamadı."}
                         </div>
                       </td>
                     </tr>
@@ -3297,6 +3335,8 @@ loading ? (
                           const cell = cellMap[cellKey];
                           const avail = availMap[p.id]?.[day];
                           const isWeeklyOff = p.weekly_off_day !== null && p.weekly_off_day !== undefined && Number(p.weekly_off_day) === day;
+                          const dayIso = addDays(weekStart, day);
+                          const isOnLeave = approvedLeaves.some(l => l.personnel_id === p.id && l.start_date <= dayIso && l.end_date >= dayIso);
                           const isWeekend = day === 5 || day === 6;
                           const isUnavailable = avail?.status === 'unavailable' || isWeeklyOff;
                           const isPrefNot = avail?.status === 'preferred_not';
@@ -3418,6 +3458,10 @@ loading ? (
                                     )}
                                   </div>
                                 </DraggableShift>
+                              ) : isOnLeave ? (
+                                <div className="w-full h-11 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center" title="Onaylı izin">
+                                  <span className="text-[10px] font-bold text-sky-600">İzinli</span>
+                                </div>
                               ) : isWeeklyOff ? (
                                 <div className="w-full h-11 rounded-lg bg-amber-50 border border-amber-100 flex flex-col items-center justify-center gap-0.5">
                                   <span className="text-[9px] font-bold text-amber-400">Haftalık</span>
@@ -3495,6 +3539,8 @@ loading ? (
               demandTable={demandTableEl}
               demandEmpty={demandEmpty}
               demandAutoFilled={demandAutoFilled}
+              demandGaps={demandGaps}
+              onFillGaps={fillAllDemand}
               pastDayCount={[0, 1, 2, 3, 4, 5, 6].filter(d => addDays(weekStart, d) < businessToday()).length}
               capacityWarnings={capacityWarnings}
               personnelCount={personnel.length}

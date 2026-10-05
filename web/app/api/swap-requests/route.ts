@@ -193,6 +193,16 @@ export async function POST(req: NextRequest) {
 
     // Takas sonrası iki tarafın planı kurallara uymalı (aynı gün iki vardiya, dinlenme, haftalık sınır)
     const problems = await swapProblems(db, requester_shift_id, target_shift_id, { requester: requester_name, target: target_name });
+    // Kişi alacağı vardiyanın gününü uygunlukta "Gelemem" diye işaretlediyse takas anlamsız
+    const days = await db.prepare(`SELECT id, week_start, day FROM shift_assignments WHERE id IN (?, ?)`).all(requester_shift_id, target_shift_id) as any[];
+    const dayOf = (id: unknown) => days.find(r => String(r.id) === String(id));
+    const blocked = async (personId: string, shift: any, name: string | null) => {
+      if (!shift?.week_start || shift.day == null) return;
+      const av = await db.prepare(`SELECT * FROM availability WHERE personnel_id = ? AND week_start = ?`).get(personId, shift.week_start) as any;
+      if (av?.[`day_${shift.day}`] === "unavailable") problems.push(`${name ?? "Kişi"} bu günü uygunlukta "Gelemem" olarak işaretlemiş`);
+    };
+    await blocked(requester_id, dayOf(target_shift_id), requester_name);
+    await blocked(target_id, dayOf(requester_shift_id), target_name);
     if (problems.length > 0) {
       return NextResponse.json({ error: "Bu takas çalışma kurallarına uymuyor.", violations: problems }, { status: 409 });
     }

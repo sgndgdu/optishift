@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");
   const week_start = searchParams.get("week_start");
+  // Departmanlı şubede her departmanın kendi tablosu: kişi sayısı o departmandan, geçmiş şube geneli olduğu için kullanılmaz
+  const department_id = searchParams.get("department_id");
   if (!location_id || !week_start || !/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
     return NextResponse.json({ error: "location_id ve week_start zorunlu" }, { status: 400 });
   }
@@ -41,15 +43,18 @@ export async function GET(req: NextRequest) {
     const closedDays = [0, 1, 2, 3, 4, 5, 6].filter(d => hours?.[d]?.isOpen === false);
 
     // /api/generate ile aynı kişi kümesi: şubenin aktif ve planlanabilir personeli
-    const people = await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`)
-      .all(`%"${location_id}"%`) as any[];
+    const people = (department_id
+      ? await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND department_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
+          .all(`%"${location_id}"%`, department_id)
+      : await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`)
+          .all(`%"${location_id}"%`)) as any[];
 
     const holidays = [0, 1, 2, 3, 4, 5, 6].flatMap(d => {
       const h = getHolidaysForDate(addDays(week_start, d))[0];
       return h ? [{ day: d, name: h.name }] : [];
     });
 
-    const { matrix: history, weeks } = await computeForecastWithWeeks(location_id, week_start);
+    const { matrix: history, weeks } = department_id ? { matrix: {}, weeks: 0 } : await computeForecastWithWeeks(location_id, week_start);
     const suggestion = suggestDemand({
       shiftDefs: defs, history, historyWeeks: weeks, closedDays,
       personnelCount: people.length,
