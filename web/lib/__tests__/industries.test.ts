@@ -243,9 +243,9 @@ describe("önerilen zorunlu roller", () => {
 });
 
 describe("portal kelimeleri", () => {
-  it("sektör yoksa vardiya, sağlıkta nöbet, üretimde posta (ek uyumu)", () => {
+  it("sektör yoksa vardiya, sağlıkta nöbet, üretimde de vardiya (ek uyumu)", () => {
     expect(shiftWords(null)).toEqual({ shift: "vardiya", Shift: "Vardiya", Shifts: "Vardiyalar", MyShifts: "Vardiyalarım", openShift: "açık vardiya", OpenShifts: "Açık Vardiyalar" });
     expect(shiftWords(getIndustry("healthcare")!.nudges)).toMatchObject({ Shifts: "Nöbetler", MyShifts: "Nöbetlerim", OpenShifts: "Boş Nöbetler" });
-    expect(shiftWords(getIndustry("manufacturing")!.nudges)).toMatchObject({ Shift: "Posta", MyShifts: "Postalarım", OpenShifts: "Boş Postalar" });
+    expect(shiftWords(getIndustry("manufacturing")!.nudges)).toMatchObject({ Shift: "Vardiya", MyShifts: "Vardiyalarım", OpenShifts: "Açık Vardiyalar" });
   });
 });

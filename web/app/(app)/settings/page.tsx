@@ -1618,7 +1618,7 @@ export default function SettingsPage() {
                       )}
                       {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
                         <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
-                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir (Postalar Yönetmeliği). Saatleri kısaltmanız önerilir.
+                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir. Saatleri kısaltmanız önerilir.
                         </p>
                       )}
 
@@ -1818,12 +1818,12 @@ export default function SettingsPage() {
                 <SectionCard title="Gece Çalışması">
                   <RuleRow
                     lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
-                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (Postalar Yönetmeliği m.8). 24 saat çalışan işletmelerde açık tutulması önerilir."
+                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (yasal kural). 24 saat çalışan işletmelerde açık tutulması önerilir."
                     right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
                   />
                   <RuleRow
                     lock="rules" label="Gece 7,5 Saat Uyarısı"
-                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (Postalar Yönetmeliği). Sadece bilgilendirir, engellemez."
+                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>

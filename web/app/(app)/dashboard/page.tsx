@@ -17,7 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/inbox";
-import { canPublishPlan } from "@/lib/userAccess";
+import { canPublishPlan, departmentScope } from "@/lib/userAccess";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
@@ -123,7 +123,9 @@ export default function DashboardPage() {
       const next = list(nextShiftsData);
       setPersonnel(list(personnelData));
       // Canlı durum ve geç kalma sadece yayınlanmış vardiyalar için (taslağı personel görmedi)
-      setTodayShifts(list(shiftsData).filter((s: any) => s.day === todayIdx && isPublishedRow(s)));
+      // Departman şefi sadece kendi ekibini görür (personel listesi zaten departmanına süzülü)
+      const team = departmentScope(u) ? new Set(list(personnelData).map((p: any) => p.id)) : null;
+      setTodayShifts(list(shiftsData).filter((s: any) => s.day === todayIdx && isPublishedRow(s) && (!team || team.has(s.personnel_id))));
       // Devir ilanında vardiya hâlâ sahibinde (boşluk yok); geçmiş tarihli ilanlar da sayılmaz
       const today = businessToday();
       const gaps = list(openShiftsData)
@@ -307,7 +309,7 @@ export default function DashboardPage() {
 
   const activeCount = personnel.filter(p => p.status === "active").length;
   const summary = [
-    { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi vardiyada` : "Bugün planlı vardiya yok" },
+    { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi çalışıyor` : "Bugün kimse çalışmıyor" },
     { icon: CheckCircle2, text: `${activeCount} aktif personel` },
     ...(publishLead !== null
       ? [{ icon: CalendarCheck, text: formatPublishLead(publishLead).sentence! }]
@@ -431,7 +433,7 @@ export default function DashboardPage() {
           <Card id="bugun" className="stripe-card border-0 shadow-none scroll-mt-6">
             <CardHeader className="border-b border-border/40 pb-4">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <CardTitle className="text-base font-bold">Bugün Vardiyada</CardTitle>
+                <CardTitle className="text-base font-bold">Bugün Çalışanlar</CardTitle>
                 <div className="flex flex-wrap gap-3 ml-1">
                   {[
                     { label: "Aktif",    value: checkedIn.length,  color: "text-emerald-600" },

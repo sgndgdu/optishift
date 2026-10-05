@@ -120,7 +120,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
 
   const nightWeeks = working.filter(p => p.nights > 0 && p.workedNightLastWeek && !p.nightRestriction);
   add("night-weeks", "critical", `${nightWeeks.length} kişi arka arkaya ikinci hafta gece çalışıyor`,
-    nightWeeks.map(p => ({ text: `${p.name}: geçen hafta da gece çalıştı (Postalar Yönetmeliği m.8)`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
+    nightWeeks.map(p => ({ text: `${p.name}: geçen hafta da gece çalıştı, üst üste iki hafta gece çalışılamaz`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
 
   // Geçmiş günler değiştirilemez: kapsama uyarıları sadece bugün ve sonrası için
   const upcoming = snap.coverage.filter(c => !c.past);
@@ -136,7 +136,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   if (rules.nightLegalWarning) {
     const long = [...new Set(working.flatMap(p => p.shifts.filter(s => s.night && s.hours > 7.5).map(s => s.hours)))];
     add("long-night", "critical", "Gece vardiyası yasal 7,5 saat sınırını aşıyor",
-      long.map(h => `${fmtHours(h)} süren gece vardiyası var (Postalar Yönetmeliği)`));
+      long.map(h => `${fmtHours(h)} süren gece vardiyası var (yasal sınır 7,5 saat)`));
   }
 
   if (budgets.labor && budgets.labor.budget > 0 && budgets.labor.total > budgets.labor.budget) {
