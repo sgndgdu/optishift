@@ -236,14 +236,44 @@ async function insertPeopleAndUsers(pwHash) {
 
 // ─── Vardiya geçmişi ─────────────────────────────────────────────────────────────
 const ROWS = []; // shift_assignments
+const FILL = { need: 0, got: 0 }; // ihtiyacın ne kadarı doldu (kontrol çıktısı)
 function shiftHours(sd) {
   const [sh, sm] = sd.start.split(":").map(Number); const [eh, em] = sd.end.split(":").map(Number);
   let m = eh * 60 + em - (sh * 60 + sm); if (m <= 0) m += 1440; return m / 60;
 }
+/**
+ * Motorun kesin kurallarıyla aynı (engine/optishift_engine.py, lib/assignmentCheck): kişinin haftalık saati TÜM şubelerde
+ * toplanır ve sınırı (tam zamanlı 45, yarı zamanlı 28) geçmez, iki vardiya arası en az 11 saat, en fazla 6 gün üst üste.
+ * Eskiden vardiya SAYISI şube başına ayrı tutuluyordu: iki şubeli kişi 60+ saate, raporlar "sınırı aştı"ya çıkıyordu.
+ */
+const MIN_REST_H = BASE_RULES.min_rest_hours ?? 11;
+const MAX_CONSEC = BASE_RULES.max_consecutive_days ?? 6;
+function spanOf(weekStart, day, start, end) {
+  const s0 = dateToTs(dateForWeekDay(weekStart, day)) + Number(start.slice(0, 2)) * 3600 + Number(start.slice(3)) * 60;
+  return [s0, s0 + shiftHours({ start, end }) * 3600];
+}
+function canTake(p, weekStart, day, sd) {
+  const mine = ROWS.filter(r => r.personnel_id === p.id);
+  const weekH = mine.filter(r => r.week_start === weekStart).reduce((t, r) => t + shiftHours({ start: r.start_time, end: r.end_time }), 0);
+  if (weekH + shiftHours(sd) > (p.part ? 28 : 45) + 1e-9) return false;
+  const [a, b] = spanOf(weekStart, day, sd.start, sd.end);
+  for (const r of mine) {
+    const [x, y] = spanOf(r.week_start, r.day, r.start_time, r.end_time);
+    if (Math.abs(x - a) > 3 * 86400) continue;
+    const gap = x >= a ? x - b : a - y;
+    if (gap < MIN_REST_H * 3600) return false;
+  }
+  // Üst üste gün: bu günle birlikte en fazla MAX_CONSEC
+  const workDays = new Set(mine.map(r => Math.floor(dateToTs(dateForWeekDay(r.week_start, r.day)) / 86400)));
+  const today = Math.floor(dateToTs(dateForWeekDay(weekStart, day)) / 86400);
+  let run = 1;
+  for (let d = today - 1; workDays.has(d); d--) run++;
+  for (let d = today + 1; workDays.has(d); d++) run++;
+  return run <= MAX_CONSEC;
+}
 /** Bir şubenin bir haftası: en alttaki her departmanın ihtiyacı kendi ekibi + o departmana yardım edebilen jokerlerle dolar. */
 function planWeek(loc, weekStart, days, mode) {
   const leaf = loc.departments.filter(d => d.demand);
-  const weekCount = new Map(); // kişi → bu hafta vardiya
   const busy = new Set();      // kişi|gün (tüm şubeler)
   for (const r of ROWS) if (r.week_start === weekStart) busy.add(`${r.personnel_id}|${r.day}`);
   for (const day of days) {
@@ -255,17 +285,18 @@ function planWeek(loc, weekStart, days, mode) {
         const helpers = PEOPLE.filter(p => p.loc === loc.id && p.extra.includes(d.id));
         const pool = [...own.sort(() => rand() - 0.5), ...helpers.sort(() => rand() - 0.5)];
         let got = 0;
+        FILL.need += need;
         for (const p of pool) {
           if (got >= need) break;
           if (busy.has(`${p.id}|${day}`)) continue;
           if (sd.is_night && p.night) continue;
-          if ((weekCount.get(p.id) ?? 0) >= (p.part ? 4 : 6)) continue;
+          if (!canTake(p, weekStart, day, sd)) continue;
           if (p.rotation) {
             const k = Math.floor((dateToTs(weekStart) - dateToTs(p.rotation.anchor)) / (7 * 86400 * p.rotation.every_weeks));
             const target = p.rotation.order[((k % p.rotation.order.length) + p.rotation.order.length) % p.rotation.order.length];
             if (target !== loc.id) continue;
           }
-          busy.add(`${p.id}|${day}`); weekCount.set(p.id, (weekCount.get(p.id) ?? 0) + 1); got++;
+          busy.add(`${p.id}|${day}`); got++; FILL.got++;
           const dateStr = dateForWeekDay(weekStart, day);
           const startTs = dateToTs(dateStr) + Number(sd.start.slice(0, 2)) * 3600 + Number(sd.start.slice(3)) * 60;
           const endTs = startTs + shiftHours(sd) * 3600;
@@ -391,12 +422,27 @@ async function insertRequests() {
   console.log(`${av} uygunluk, ${leaves.length} izin, 2 takas, 1 açık vardiya, 12 bildirim.`);
 }
 
+/** Kurulan planın kural kontrolü: haftalık sınır, dinlenme, eksik kalan ihtiyaç */
+function verifyShifts() {
+  let over = 0, rest = 0, maxH = 0;
+  const byPW = new Map();
+  for (const r of ROWS) { const k = `${r.personnel_id}|${r.week_start}`; byPW.set(k, (byPW.get(k) ?? 0) + shiftHours({ start: r.start_time, end: r.end_time })); }
+  for (const [k, h] of byPW) { const p = PEOPLE.find(x => x.id === k.split("|")[0]); maxH = Math.max(maxH, h); if (h > (p.part ? 28 : 45) + 1e-9) over++; }
+  const byP = new Map();
+  for (const r of ROWS) (byP.get(r.personnel_id) ?? byP.set(r.personnel_id, []).get(r.personnel_id)).push(spanOf(r.week_start, r.day, r.start_time, r.end_time));
+  for (const spans of byP.values()) { spans.sort((a, b) => a[0] - b[0]); for (let i = 1; i < spans.length; i++) if (spans[i][0] - spans[i - 1][1] < MIN_REST_H * 3600) rest++; }
+  console.log(`Kural kontrolü: sınırı aşan kişi-hafta ${over}, 11 saatten kısa dinlenme ${rest}, en uzun hafta ${maxH} sa, dolan ihtiyaç %${Math.round(FILL.got / Math.max(1, FILL.need) * 100)}.`);
+  return over === 0 && rest === 0;
+}
+
 async function main() {
+  if (process.env.DRY === "1") { generateShifts(); verifyShifts(); console.log(`${ROWS.length} vardiya (kuru çalıştırma, veritabanına yazılmadı).`); return; }
   console.log("Kordon Grup kuruluyor...");
   await cleanup();
   await insertStructure();
   await insertPeopleAndUsers(await bcrypt.hash(PASSWORD, 10));
   generateShifts();
+  if (!verifyShifts()) throw new Error("Plan kurallara uymuyor, kurulum durdu");
   await insertShifts();
   await insertScores();
   await insertRequests();
