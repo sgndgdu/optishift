@@ -15,7 +15,7 @@ const TONE: Record<string, PillTone> = {
 const LABELS: Record<"manager" | "employee", Record<string, string>> = {
   manager: {
     pending: "Bekliyor", peer_accepted: "Onay Bekliyor", approved: "Onaylandı", manager_approved: "Onaylandı",
-    rejected: "Reddedildi", manager_rejected: "Reddedildi", peer_rejected: "Personel Reddetti", cancelled: "İptal Edildi",
+    rejected: "Reddedildi", manager_rejected: "Reddedildi", peer_rejected: "Karşı taraf reddetti", cancelled: "İptal Edildi",
     open: "Açık", claimed: "Üstlenildi",
   },
   employee: {

@@ -122,7 +122,7 @@ export async function runAutopilotForLocation(loc: { id: string; org_id: string;
   await markRun(db, loc, rules, { last_run_week: weekStart, ...(synced > 0 ? { last_draft_week: decision.targetWeek } : {}) });
   if (synced > 0) {
     await notifyManagers(db, loc, "Gelecek haftanın planı hazır",
-      "Plan taslak olarak otomatik hazırlandı. Kontrol edip yayınlayın, personel yayınlanınca görür.",
+      "Plan taslak olarak otomatik hazırlandı. Kontrol edip yayınlayın, ekip yayınlanınca görür.",
       "/schedule?week=next").catch(() => {});
   }
   return { location_id: loc.id, status: synced > 0 ? "drafted" : "empty", synced };

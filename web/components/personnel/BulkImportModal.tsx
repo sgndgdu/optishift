@@ -73,7 +73,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? "Dosya okunamadı."); return; }
       const parsed = rowsFromTable(d.table ?? []);
-      if (!parsed.length) { setError("Dosyada personel satırı bulunamadı."); return; }
+      if (!parsed.length) { setError("Dosyada kişi satırı bulunamadı."); return; }
       setRows(parsed);
     } catch { setError("Dosya okunamadı."); }
     finally { setBusy(false); }
@@ -82,7 +82,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
   const usePaste = () => {
     setError(""); setFileName("Yapıştırılan liste");
     const parsed = rowsFromTable(parseDelimited(paste));
-    if (!parsed.length) { setError("Yapıştırılan metinde personel satırı bulunamadı."); return; }
+    if (!parsed.length) { setError("Yapıştırılan metinde kişi satırı bulunamadı."); return; }
     setRows(parsed);
   };
 
@@ -136,7 +136,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
 
         {done ? (
           <div className="flex-1 overflow-y-auto space-y-3">
-            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl font-bold text-sm flex items-center gap-2"><Check size={18} /> {done.results.length} personel eklendi.</div>
+            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl font-bold text-sm flex items-center gap-2"><Check size={18} /> {done.results.length} kişi eklendi.</div>
             {done.createdDepartments.length > 0 && (
               <p className="text-xs text-slate-600">Oluşturulan departmanlar: {done.createdDepartments.join(", ")}</p>
             )}
@@ -167,7 +167,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
               <FileSpreadsheet size={28} className="mx-auto text-slate-300 mb-2" />
               <p className="text-xs font-bold text-slate-600">2. Doldurduğunuz dosyayı yükleyin</p>
               <p className="text-xs text-slate-400 mt-1">.xlsx ya da .csv · sürükleyip bırakabilirsiniz</p>
-              <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt" className="hidden" aria-label="Personel dosyası"
+              <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt" className="hidden" aria-label="Ekip dosyası"
                 onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = ""; }} />
               <button onClick={() => fileRef.current?.click()} disabled={busy}
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-50">
@@ -207,7 +207,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                 <input type="checkbox" checked={createDepts} onChange={e => setCreateDepts(e.target.checked)} className="mt-0.5 accent-forest-600" />
                 <span>
                   <strong>Şubede olmayan departmanları oluştur:</strong> {unknownDepts.join(", ")}.{" "}
-                  <span className="text-slate-500">Departman eklenince Personel İhtiyacı tablosu departman bazına geçer. İşaretlemezseniz bu kişiler departmansız eklenir.</span>
+                  <span className="text-slate-500">Departman eklenince ihtiyaç tablosu departman bazına geçer. İşaretlemezseniz bu kişiler departmansız eklenir.</span>
                 </span>
               </label>
             )}

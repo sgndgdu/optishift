@@ -57,7 +57,7 @@ export function buildInsights(snap: WeekSnapshot, budgets: WeekBudgets = {}): In
   if (!snap.hasDemand) {
     list.push({
       id: "no-demand", severity: "info", action: "open-demand",
-      title: "Personel İhtiyacı tablosu boş",
+      title: "Kaç kişi gerektiği girilmemiş",
       lines: ["Hangi gün kaç kişi gerektiğini girerseniz eksik ve fazla vardiyaları da gösterebilirim."],
     });
   }

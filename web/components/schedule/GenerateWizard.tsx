@@ -217,10 +217,10 @@ export default function GenerateWizard({
               ) : (
                 <div className="space-y-3">
                   <CheckRow tone="ok">
-                    <span className="font-bold">{generatedCount} vardiya yazıldı{changedCount !== null ? `, ${changedCount} hücre değişti` : ""}.</span> Plan taslak olarak kaydedildi, personel {onPublish ? "siz yayınlayana" : "plan yayınlanana"} kadar göremez.
+                    <span className="font-bold">{generatedCount} vardiya yazıldı{changedCount !== null ? `, ${changedCount} hücre değişti` : ""}.</span> Plan taslak olarak kaydedildi, ekip {onPublish ? "siz yayınlayana" : "plan yayınlanana"} kadar göremez.
                   </CheckRow>
                   {seniorViolationCount > 0 && (
-                    <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli personel bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>
+                    <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli kimse bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>
                   )}
                   {excludedCount > 0 && (
                     <CheckRow tone="warn">{excludedCount} kişi geçersiz belge nedeniyle plana alınmadı.</CheckRow>

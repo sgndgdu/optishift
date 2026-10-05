@@ -3,8 +3,10 @@
 import { trNum } from "@/lib/format";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet, Timer } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
+import OvertimeReport from "@/components/reports/OvertimeReport";
+import { isModuleOn } from "@/lib/moduleVisibility";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { cn } from "@/lib/utils";
@@ -172,7 +174,8 @@ function WorkHoursReport() {
         </div>
       </div>
 
-      {/* Puantaj dönem kilidi: tek satır */}
+      {/* Puantaj dönem kilidi: tek satır. Ay bitmeden (son hafta hariç) gösterilmez: yeni kullanıcıya anlamsız */}
+      {(periodLock || month < currentMonth() || new Date().getDate() >= 24) && (
       <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3">
         {periodLock ? <Lock size={16} className="shrink-0 text-slate-500" /> : <Unlock size={16} className="shrink-0 text-amber-600" />}
         <div className="min-w-0 flex-1">
@@ -195,10 +198,11 @@ function WorkHoursReport() {
           </button>
         )}
       </div>
+      )}
 
       {rows.length > 0 && (
         <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3`}>
-          <StatCard label="Personel" value={rows.length} icon={Users} />
+          <StatCard label="Kişi" value={rows.length} icon={Users} />
           <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} sa`} icon={Clock} />
           <StatCard label="Fazla mesai" value={`${trNum(totalOvertime)} sa`} icon={TrendingUp} tone={totalOvertime > 0 ? "attention" : "neutral"} />
           {hasCost && (
@@ -294,6 +298,7 @@ function WorkHoursReport() {
 const REPORT_TABS = [
   { id: "saatler", label: "Çalışma Saatleri", icon: Clock },
   { id: "adalet",  label: "Adalet Puanı",     icon: Scale },
+  { id: "mesai",   label: "Fazla Mesai",      icon: Timer },
 ] as const;
 type ReportTab = typeof REPORT_TABS[number]["id"];
 
@@ -313,6 +318,19 @@ function ReportsPageInner() {
     return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "saatler";
   });
 
+  // Fazla mesai sekmesi sadece Fazla Mesai Takibi açıkken
+  const [overtimeOn, setOvertimeOn] = useState(false);
+  useEffect(() => {
+    const loc = localStorage.getItem("optishift_selected_location") || "";
+    if (!loc) return;
+    let stale = false;
+    fetch(`/api/locations?id=${loc}`).then(res => (res.ok ? res.json() : null)).then(d => {
+      const rules = Array.isArray(d) ? d[0]?.rules : d?.rules;
+      if (!stale) setOvertimeOn(isModuleOn(rules, "overtime_tracking_enabled"));
+    }).catch(() => {});
+    return () => { stale = true; };
+  }, []);
+
   const selectTab = (key: ReportTab) => {
     setTab(key);
     const url = new URL(window.location.href);
@@ -324,9 +342,9 @@ function ReportsPageInner() {
     <Page>
       <PageHeader title="Raporlar" />
 
-      <Tabs items={REPORT_TABS} value={tab} onChange={selectTab} />
+      <Tabs items={REPORT_TABS.filter(t => t.id !== "mesai" || overtimeOn)} value={tab} onChange={selectTab} />
 
-      {tab === "saatler" ? <WorkHoursReport /> : <FairnessReport />}
+      {tab === "saatler" ? <WorkHoursReport /> : tab === "mesai" && overtimeOn ? <OvertimeReport /> : <FairnessReport />}
     </Page>
   );
 }

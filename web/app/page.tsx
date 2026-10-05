@@ -27,7 +27,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 px-2">
-            Personelinizi <strong className="text-slate-900 font-bold">yasal dinlenme sürelerine ve adalet puanına</strong> göre otomatik planlayın. Hafta sonu ve gece nöbetleri herkese eşit dağılsın.
+            Ekibinizi <strong className="text-slate-900 font-bold">yasal dinlenme sürelerine ve adalet puanına</strong> göre otomatik planlayın. Hafta sonu ve gece vardiyaları herkese eşit dağılsın.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500">
@@ -52,7 +52,7 @@ export default function LandingPage() {
           <div className="text-center mb-12 sm:mb-16 md:mb-24">
             <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">İşinizi Kolaylaştıran Özellikler</h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg font-medium px-4">
-              Kurallarınızı bir kez tanımlayın. OptiShift, kaç kişiye ihtiyacınız olduğunu, personelin uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
+              Kurallarınızı bir kez tanımlayın. OptiShift, kaç kişiye ihtiyacınız olduğunu, ekibin uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
             </p>
           </div>
 
@@ -65,7 +65,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4 relative z-10">Otomatik Planlama</h3>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-md relative z-10 font-medium">
-                Her gün için kaç kişi gerektiğini tabloya girin. OptiShift; personelin uygunluğunu, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
+                Her gün için kaç kişi gerektiğini tabloya girin. OptiShift; ekibin uygunluğunu, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
               </p>
             </div>
 
@@ -89,7 +89,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Anında Kurulum</h3>
               <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
-                Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Plan yayınlanınca personeliniz telefonundan hemen görsün.
+                Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Plan yayınlanınca ekibiniz telefonundan hemen görsün.
               </p>
             </div>
 
@@ -98,21 +98,11 @@ export default function LandingPage() {
               <div className="flex-1 relative z-10">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2 sm:mb-3">Çoklu Şube Yönetimi</h3>
                 <p className="text-slate-600 font-medium leading-relaxed text-sm sm:text-base">
-                  İster 1 şube, ister 100 şube. Tüm şubelerinizi tek bir panelden yönetin, personellerinizi şubeler arası kaydırın. 10+ şubesi olan markalar için kurumsal çözümleri inceleyin.
+                  İster 1 şube, ister 100 şube. Tüm şubelerinizi tek bir panelden yönetin, ekibinizi şubeler arasında paylaştırın. 10+ şubesi olan markalar için kurumsal çözümleri inceleyin.
                 </p>
                 <Link href="/pricing" className="inline-flex items-center gap-2 mt-4 sm:mt-6 text-primary font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
                   Kurumsal Planlar <ArrowRight size={16} />
                 </Link>
-              </div>
-              <div className="w-full md:w-auto grid grid-cols-2 gap-3 sm:gap-4 shrink-0 relative z-10">
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
-                  <div className="text-2xl sm:text-3xl font-black text-primary mb-1">Sınırsız</div>
-                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Şube</div>
-                </div>
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm text-center">
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-600 mb-1">11 sa</div>
-                  <div className="text-xs sm:text-xs text-slate-500 font-bold">Dinlenme kontrolü</div>
-                </div>
               </div>
             </div>
           </div>

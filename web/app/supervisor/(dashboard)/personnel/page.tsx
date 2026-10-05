@@ -193,7 +193,7 @@ function SupervisorPersonnelInner() {
           branchName={!selectedLocId && locations.length > 1 ? p => locName(p.location_id) : undefined}
           hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
           managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; }}
-          empty={search ? "Aramaya uyan kimse yok." : "Henüz personel yok."}
+          empty={search ? "Aramaya uyan kimse yok." : "Henüz ekip yok."}
           emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Ekibe kişi ekle</button>} />
       )}
 

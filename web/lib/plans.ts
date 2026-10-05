@@ -31,7 +31,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Tek şubeli kafeler ve butik restoranlar için, süresiz.",
     maxLocations: 1,
     maxPersonnel: 10,
-    features: ["1 şube", "10 personele kadar", "Akıllı otomatik planlama", "Personel için mobil portal"],
+    features: ["1 şube", "10 kişiye kadar", "Akıllı otomatik planlama", "Ekip için mobil uygulama"],
   },
   {
     id: "pro",
@@ -41,7 +41,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Büyüyen işletmeler ve zincir mağazalar için.",
     maxLocations: null,
     maxPersonnel: null,
-    features: ["Sınırsız şube", "Sınırsız personel", "Adalet Puanı raporları", "Anlık bildirimler", "Puantaj ve bordro raporları"],
+    features: ["Sınırsız şube", "Sınırsız kişi", "Adalet Puanı raporları", "Anlık bildirimler", "Puantaj ve bordro raporları"],
   },
   {
     id: "enterprise",
@@ -65,5 +65,5 @@ export function limitMessage(kind: "locations" | "personnel"): string {
   const free = PLANS[0];
   return kind === "locations"
     ? `${free.name} pakette ${free.maxLocations} şube açılabilir. Daha fazla şube için Pro pakete geçin.`
-    : `${free.name} pakette en fazla ${free.maxPersonnel} personel eklenebilir. Daha fazlası için Pro pakete geçin.`;
+    : `${free.name} pakette en fazla ${free.maxPersonnel} kişi eklenebilir. Daha fazlası için Pro pakete geçin.`;
 }

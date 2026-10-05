@@ -8,13 +8,13 @@ import { cn } from "@/lib/utils";
 import { ROLE_GUIDES, FAQ_ITEMS, type RoleKey } from "./guideData";
 
 function roleFromParam(value: string | null): RoleKey {
-  if (value === "employee" || value === "supervisor") return value;
-  return "manager";
+  if (value === "employee" || value === "manager") return value;
+  return "supervisor";
 }
 
 export default function GuideContent() {
   const [activeRole, setActiveRole] = useState<RoleKey>(() => {
-    if (typeof window === "undefined") return "manager";
+    if (typeof window === "undefined") return "supervisor";
     const params = new URLSearchParams(window.location.search);
     return roleFromParam(params.get("role"));
   });

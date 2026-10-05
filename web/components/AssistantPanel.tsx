@@ -129,7 +129,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {turns.length === 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-500">Personel, plan, izinler, onaylar, fazla mesai ve ayarlar hakkında sorabilirsiniz.</p>
+                <p className="text-xs text-slate-500">Ekip, plan, izinler, onaylar, fazla mesai ve ayarlar hakkında sorabilirsiniz.</p>
                 <div className="flex flex-wrap gap-1.5">
                   {examples.map(e => (
                     <button key={e} onClick={() => ask(e)} disabled={busy}

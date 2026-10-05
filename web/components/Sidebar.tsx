@@ -71,7 +71,7 @@ function usePendingApprovals(orgId: string | undefined) {
   return count;
 }
 import {
-  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, Timer, HelpCircle, Wallet, ClipboardCheck, Building2, CalendarCheck,
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, HelpCircle, Wallet, ClipboardCheck, Building2, CalendarCheck,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -83,7 +83,7 @@ import { openEmployeeView } from "@/lib/employeeView";
 import { CountBadge } from "@/components/ui/StatusPill";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
-// group: "more"  → katlanır "Daha Fazla" grubu (kapalı başlar)
+// group: "more"  → ikincil sayfalar; 4'ten fazlaysa katlanır "Daha Fazla" grubu (kapalı başlar)
 // group: "footer"→ en altta, her zaman görünür (Ayarlar)
 // feature → lib/features.ts bayrağı kapalıysa link hiç gösterilmez (build geneli)
 // module  → aktif şubede bu özellik kapalıysa link hiç gösterilmez (varsayılanlar lib/moduleVisibility.ts'te)
@@ -96,7 +96,6 @@ const NAV = [
   { href: "/reports",      label: "Raporlar",               icon: BarChart2,       group: "more" },
   { href: "/chat",         label: "Mesajlar",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
   { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
-  { href: "/overtime",     label: "Fazla Mesai",            icon: Timer,           group: "more", module: "overtime_tracking_enabled" },
   { href: "/tip-pools",    label: "Bahşiş Havuzu",          icon: Wallet,          group: "more", module: "tip_pooling_enabled" },
   { href: "/handovers",    label: "Devir-Teslim", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
@@ -419,7 +418,11 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       {/* Navigation: ana bağlantılar + katlanır grup (kaydırılabilir) */}
       <nav className="flex-1 space-y-1.5 px-1 overflow-y-auto">
         {main.map(renderItem)}
-        {more.length > 0 && (
+        {/* Az sayfa varsa (küçük işletmede çoğu özellik kapalı) katlanır grup yok: hepsi doğrudan görünür */}
+        {more.length > 0 && more.length <= 4 && (
+          <div className="pt-3 mt-2 border-t border-slate-100 space-y-1.5">{more.map(renderItem)}</div>
+        )}
+        {more.length > 4 && (
           <>
             <button
               onClick={toggleMore}

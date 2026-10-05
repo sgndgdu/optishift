@@ -167,7 +167,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
             inviteUrl: `${window.location.origin}/setup?token=${ud.inviteToken}`,
           };
         } else {
-          warnings.push(`Sorumlu hesabı oluşturulamadı${ud.error ? `: ${ud.error}` : ""}. Personel sayfasından ekleyebilirsiniz.`);
+          warnings.push(`Sorumlu hesabı oluşturulamadı${ud.error ? `: ${ud.error}` : ""}. Ekip sayfasından ekleyebilirsiniz.`);
         }
       }
 
@@ -355,7 +355,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500">Sorumluyu sonra Personel sayfasından ekleyebilirsiniz.</p>
+                    <p className="text-sm text-slate-500">Sorumluyu sonra Ekip sayfasından ekleyebilirsiniz.</p>
                   )}
                 </WizardStep>
               )}

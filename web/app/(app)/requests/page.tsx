@@ -358,7 +358,7 @@ export default function ManagerRequestsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <FileEdit size={13} className="text-blue-600 shrink-0" />
-                      <Link href="/personnel" className="text-sm font-bold text-slate-900 hover:underline hover:text-primary">{e.personnel_name ?? "Personel"}</Link>
+                      <Link href="/personnel" className="text-sm font-bold text-slate-900 hover:underline hover:text-primary">{e.personnel_name ?? "Ekip üyesi"}</Link>
                       <StatusBadge status={e.status} />
                     </div>
                     <p className="text-xs text-slate-500">
@@ -498,10 +498,10 @@ export default function ManagerRequestsPage() {
           {(visibleOvertimes as any[]).map((o: any) => {
             const pending = o.status === "pending";
             const empChip = o.employee_status === "accepted"
-              ? { label: `Personel kabul ✓ · ${o.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret"}`, tone: "positive" as PillTone }
+              ? { label: `Kişi kabul etti ✓ · ${o.compensation_type === "time_off" ? "Serbest Zaman" : "Zamlı Ücret"}`, tone: "positive" as PillTone }
               : o.employee_status === "declined"
-                ? { label: "Personel reddetti ✗", tone: "danger" as PillTone }
-                : { label: "Personel onayı bekleniyor", tone: "neutral" as PillTone };
+                ? { label: "Kişi reddetti ✗", tone: "danger" as PillTone }
+                : { label: "Kişinin onayı bekleniyor", tone: "neutral" as PillTone };
             return (
               <div key={o.id} className="px-4 py-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -540,7 +540,7 @@ export default function ManagerRequestsPage() {
             );
           })}
           <p className="text-xs text-slate-400 text-center pt-1">
-            Yıllık sınırlar, maliyet ve serbest zaman takibi için <Link href="/overtime" className="underline hover:text-slate-600">Fazla Mesai sayfası</Link>na bakın.
+            Yıllık sınırlar, maliyet ve serbest zaman takibi için <Link href="/reports?tab=mesai" className="underline hover:text-slate-600">Raporlar › Fazla Mesai</Link>&apos;ya bakın.
           </p>
         </div>
       )}

@@ -134,7 +134,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <Logo size="md" className="group-hover:shadow-md transition-shadow" />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">OptiShift</h1>
-            <p className="text-xs font-medium text-slate-400 mt-1">Personel</p>
+            <p className="text-xs font-medium text-slate-400 mt-1">Ekip</p>
           </div>
         </Link>
 
@@ -203,8 +203,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 <span className="text-sm font-bold text-forest-600 uppercase">{user?.name?.charAt(0) ?? "P"}</span>
               </div>
               <div className="truncate">
-                <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Personel"}</p>
-                <p className="text-xs text-slate-500 font-medium tracking-wide">Personel</p>
+                <p className="text-sm font-bold text-slate-800 truncate">{user?.name ?? "Ekip üyesi"}</p>
+                <p className="text-xs text-slate-500 font-medium tracking-wide">Ekip üyesi</p>
               </div>
             </div>
             <button

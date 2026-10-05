@@ -114,7 +114,7 @@ export function suggestDemand(input: SuggestionInput): DemandSuggestion {
   while (total() > weeklyCap && dec(cells())) { /* azalt */ }
 
   if (personnelCount === 0) {
-    notes.push("Henüz personel yok: önce ekibinizi ekleyin, öneri ekibe göre güncellenir.");
+    notes.push("Henüz ekip yok: önce ekibinizi ekleyin, öneri ekibe göre güncellenir.");
   } else if (reduced) {
     notes.push(`Ekibiniz (${personnelCount} kişi) haftada en fazla ${weeklyCap} vardiya karşılayabilir; öneri buna göre azaltıldı.`);
   }

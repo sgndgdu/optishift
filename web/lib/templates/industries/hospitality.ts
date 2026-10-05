@@ -22,7 +22,7 @@ export const hospitality: IndustryProfile = {
     {
       key: "restaurant",
       label: "Restoran",
-      description: "Öğle ve akşam servisi; mutfak ve salon ayrı.",
+      description: "Öğle ve akşam servisi.",
       departments: ["Mutfak", "Salon", "Bar"],
       shifts: [
         { id: "s-ogle",    name: "Öğle Servisi", start: "10:00", end: "17:00", base_points: 4 },
@@ -115,7 +115,7 @@ export const hospitality: IndustryProfile = {
     terms: { shift: "vardiya", shifts: "vardiyalar", openShift: "açık vardiya", handover: "devir-teslim", staff: "ekip" },
     inboxPriority: ["late", "open-shifts", "approvals", "next-week", "availability", "certifications", "tasks", "fatigue", "handover", "accounts", "overtime"],
     inboxCopy: {
-      "open-shifts": { title: "{n} açık vardiya henüz dolmadı", detail: "Yoğun saatte eksik kalmasın, ekibe duyurun." },
+      "open-shifts": { title: "{n} açık vardiya henüz dolmadı" },
       late: { title: "{n} kişi vardiyasına gelmedi", detail: "Servis başladı, yerine birini bulun." },
     },
     firstSteps: [

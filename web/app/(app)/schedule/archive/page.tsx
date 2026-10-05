@@ -162,7 +162,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
           <thead>
             <tr className="border-b-2 border-slate-200">
               <th className="py-3 px-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-40 sticky left-0 bg-white z-10">
-                Personel
+                Ekip
               </th>
               {columnDates.map((col, i) => (
                 <th

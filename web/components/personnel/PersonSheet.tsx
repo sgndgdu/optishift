@@ -596,7 +596,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   <p className="text-xs text-slate-400 mb-2">
                     {branchIndustry
                       ? "Bir görevin gerektirdiği belge geçersizse kişi o göreve atanmaz; herkes için zorunlu belge geçersizse o hafta plana alınmaz."
-                      : "Süresi dolmuş zorunlu bir belgesi olan personel, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
+                      : "Süresi dolmuş zorunlu bir belgesi olan kişi, Belge Takibi açıkken o haftaki otomatik plana hiç dahil edilmez."}
                   </p>
                   {requiredDocStates.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">

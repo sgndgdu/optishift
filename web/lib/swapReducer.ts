@@ -68,7 +68,7 @@ export function swapReducer(
     case "pending": {
       if (event.type === "PEER_ACCEPT") {
         if (event.by_personnel_id !== swap.target_id) {
-          return { ok: false, error: "Sadece hedef personel kabul edebilir", httpStatus: 403 };
+          return { ok: false, error: "Sadece teklif edilen kişi kabul edebilir", httpStatus: 403 };
         }
         return {
           ok: true,
@@ -94,7 +94,7 @@ export function swapReducer(
 
       if (event.type === "PEER_REJECT") {
         if (event.by_personnel_id !== swap.target_id) {
-          return { ok: false, error: "Sadece hedef personel reddedebilir", httpStatus: 403 };
+          return { ok: false, error: "Sadece teklif edilen kişi reddedebilir", httpStatus: 403 };
         }
         return {
           ok: true,

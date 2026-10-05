@@ -239,7 +239,7 @@ export default function SupervisorReports() {
               return [
                 <ListSection key={`h-${b.id}`} title={b.name} count={b.personnel.length} />,
                 ...(b.personnel.length === 0
-                  ? [<ListEmpty key={`e-${b.id}`}>Personel yok.</ListEmpty>]
+                  ? [<ListEmpty key={`e-${b.id}`}>Ekip yok.</ListEmpty>]
                   : [...b.personnel].sort((x, y) => y.prev_score - x.prev_score).map((p, i) => (
                     <ListItem key={`${b.id}-${i}`} href={`/supervisor/personnel?location_id=${b.id}`}
                       leading={<Avatar name={p.name} />}

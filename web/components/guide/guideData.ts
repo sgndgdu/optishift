@@ -1,10 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Rocket, LayoutDashboard, CalendarClock, Users, ClipboardList, Megaphone,
-  Star, Timer, BarChart2, MessageSquare, Settings, Home, Clock, Inbox,
-  BellRing, UserCircle, ListChecks,
+  BarChart2, MessageSquare, Settings, Home, Clock, Inbox, UserCircle, UserCog,
 } from "lucide-react";
 
+/**
+ * Kullanım kılavuzu (/kilavuz). Hesap türleri: Hesap sahibi / Sorumlu / Ekip üyesi (2026-10-05).
+ * Anahtarlar eski bağlantılar (?role=) kırılmasın diye korunur: supervisor = hesap sahibi, manager = sorumlu, employee = ekip üyesi.
+ */
 export type RoleKey = "manager" | "employee" | "supervisor";
 
 export type GuideSection = {
@@ -26,280 +29,177 @@ export type RoleGuide = {
 
 export const ROLE_GUIDES: RoleGuide[] = [
   {
-    key: "manager",
-    label: "Sorumlu",
-    shortLabel: "Sorumlu",
-    description: "Vardiya oluşturma, personel yönetimi ve onaylarla ilgilenen kullanıcılar için.",
+    key: "supervisor",
+    label: "Hesap sahibi",
+    shortLabel: "Hesap sahibi",
+    description: "İşletmeyi açan, ekibi ve sorumluları ekleyen, ayarları belirleyen kişi.",
     sections: [
       {
-        id: "mudur-baslarken",
+        id: "sahip-baslarken",
         title: "Başlarken",
         icon: Rocket,
         paragraphs: [
-          "Kayıt olduktan sonra kısa bir kurulum ekranı karşınıza çıkar. Önce sektörünüzü seçip en az bir şube adı girersiniz. İkinci adımda sektörünüze uygun hazır vardiya şablonları gelir (örneğin bir kafe için “Açılış” ve “Kapanış”); saatleri isterseniz değiştirebilir, isterseniz olduğu gibi bırakabilirsiniz.",
-          "Departman eklemek zorunlu değildir. Tek şubeli, tek bölümlü bir işletmeyseniz bu adımı atlayabilirsiniz, personel ihtiyacınız şube geneli için tek bir tablo olarak kalır. Birden fazla bölümünüz varsa (kasa, mutfak, teras gibi) bunları sonradan Ayarlar’dan da ekleyebilirsiniz.",
-          "Giriş ekranında “Biyometrik ile Giriş Yap” seçeneğini görüyorsanız cihazınız Face ID/Touch ID/parmak izi destekliyor demektir. Önce kullanıcı adı-şifrenizle bir kez giriş yapıp bu cihazı etkinleştirdikten sonra bir daha şifre yazmadan girebilirsiniz.",
+          "Kayıt olduktan sonra işletme türünüzü seçersiniz (kafe, restoran, mağaza, fabrika gibi). İsterseniz mutfak, salon gibi bölümlerinizi de işaretlersiniz. Ardından türünüze uygun hazır vardiya saatleri gelir; değiştirebilir ya da olduğu gibi bırakabilirsiniz.",
+          "Kurulum bitince Vardiya Planı açılır. Üstteki Hızlı Kurulum bandı üç adımda yol gösterir: vardiyalar, ekip ve her vardiyaya kaç kişi gerektiği.",
+        ],
+        steps: [
+          "Ekip sayfasından kişileri ekleyin (isim ve telefon yeter).",
+          "Her kişiye giriş bağlantısını WhatsApp ile gönderin.",
+          "Vardiya Planı'nda Planı Oluştur'a basın, kaç kişi gerektiğini girin.",
+          "Planı kontrol edip yayınlayın; ekip telefonundan görür.",
         ],
       },
       {
-        id: "mudur-panel",
-        title: "Ana Sayfa",
-        icon: LayoutDashboard,
+        id: "sahip-ekip",
+        title: "Ekip ve sorumlular",
+        icon: Users,
         paragraphs: [
-          "Ana Sayfa size tablo değil, yapmanız gereken işlerin listesini gösterir: onay bekleyen talepler, henüz hazırlanmamış ya da yayınlanmamış gelecek hafta planı, uygunluk girmeyen personel, dolmamış açık vardiyalar gibi. Her maddenin yanında tek bir düğme vardır, tıklayınca doğrudan ilgili sayfaya gidersiniz. Liste boşsa “Her şey yolunda” yazar.",
-          "Maddeler aciliyete göre sıralanır: “Acil” (örneğin vardiyasına gelmeyen biri ya da hafta sonuna gelinmiş ama gelecek haftanın planı hazır değil), “Bugün” ve “Bu hafta”. Açık olmayan özellikler (örneğin Yorgunluk Uyarısı) listede hiç görünmez.",
-          "Listenin altındaki “Bugün Vardiyada” bölümü o günün canlı durumunu gösterir: kim geldi, kim bekleniyor, kim geç kaldı. Planlanan saatten 30 dakika sonra hâlâ giriş yapmamış bir vardiya otomatik olarak “açık vardiya”ya düşer ve ekibinize haber gider. Bu davranışı istemiyorsanız Ayarlar’dan kapatıp işi elle yönetebilirsiniz.",
+          "Ekip sayfasında herkes tek listede: en üstte siz, sonra sorumlular, sonra ekip. Bir kişiye dokununca kartı açılır; görevleri, departmanı, çalışma saatleri ve izin bilgisi oradan değişir.",
+          "Bölümleriniz (departmanlar) varsa her kişinin bir departmanı olmalı; departmanı olmayan kişi otomatik plana girmez. Listede kırmızı uyarı çıkar, \"Departmanlara dağıt\" ile hepsini tek ekranda atarsınız.",
+          "Sorumlu ekle ile ekipten birine ya da yeni birine yetki verirsiniz. Neyi yönetecek (tüm işletme ya da tek bir departman) ve neleri yapabilecek (planı hazırlama, yayınlama, onaylar, ekip, plan ayarları, ücret) tek tek seçilir. Ekipten seçilen sorumlu vardiyada çalışmaya devam eder.",
         ],
       },
       {
-        id: "mudur-vardiya-plani",
+        id: "sahip-plan",
         title: "Vardiya Planı",
         icon: CalendarClock,
         paragraphs: [
-          "Bu, işin kalbi olan sayfadır. Bir haftalık planı beş adımda oluşturursunuz:",
-        ],
-        steps: [
-          "Personel İhtiyacı: Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin (“Pazartesi sabah: 2 kişi” gibi). Önceki haftanın rakamları öneri olarak otomatik gelir, siz sadece değişeni değiştirirsiniz.",
-          "Uygunluk toplama (isteğe bağlı): Personelinizden o haftanın uygunluğunu isterseniz tek tıkla “Uygunluk İste” bildirimi gönderirsiniz. Bu adımı hiç kullanmak istemiyorsanız Ayarlar’dan tamamen kapatabilir, planlamayı kendiniz yaparsınız.",
-          "Planı Oluştur: Girdiğiniz personel ihtiyacını, personelin uygunluğunu, yasal dinlenme kurallarını ve kimin son haftalarda daha çok/az çalıştığını (adalet puanı) birlikte gözeten bir taslak plan üretilir.",
-          "Elle düzenleme: Herhangi bir hücreye tıklayıp değiştirebilirsiniz. Her hücrenin altında “kaç kişi atandı / kaç kişi gerekiyordu” sayacı canlı güncellenir: kırmızı eksik, yeşil tam, mavi fazla demektir.",
-          "Yayınla: Hazır olduğunuzda “Yayınla”ya basarsınız. Sistem son bir kez kural ihlali tarar (11 saat dinlenmeyen biri var mı, haftalık limiti aşan biri var mı gibi) ve varsa size gösterir; siz yine de devam edip etmeyeceğinize karar verirsiniz. Yayınlanan plan o anda personelin telefonuna düşer.",
-        ],
-        tip: "İsterseniz yayınlamadan önce planı personele gönderip 48 saatlik bir inceleme süresi tanıyabilirsiniz. Bu adım tamamen isteğe bağlıdır, dilerseniz doğrudan yayınlayabilirsiniz.",
-      },
-      {
-        id: "mudur-maliyet",
-        title: "Canlı Maliyet Bütçesi",
-        icon: Timer,
-        paragraphs: [
-          "Vardiya Planı sayfasının üst barında, personel kartlarına girdiğiniz saatlik ücrete göre hesaplanan “bu hafta planlanan işçilik maliyeti” çipini görürsünüz (örn. ₺172.520). Fazla mesai eşiğini aşan saatler otomatik ×1,5 ile hesaba katılır.",
-          "Ayarlar → Gelişmiş Seçenekler → Planlama Kuralları’ndan isteğe bağlı bir haftalık ₺ bütçe tavanı belirleyebilirsiniz. Plan bu tavanı aşarsa çip kırmızıya döner ve “Yayınla”ya basmadan önce bir uyarı daha görürsünüz, yine de yayınlamak size kalır.",
+          "Planı Oluştur üç adımdır: kaç kişi gerekli, kontrol, oluştur. İlk seferde tablo öneriyle dolar; bir günü yazıp \"Boş günleri doldur\" ile tüm haftaya kopyalayabilirsiniz. Boş gün bırakırsanız o günlere herkes yazılır, sihirbaz bunu uyarır.",
+          "Plan önce taslaktır; ekip görmez. Kontrol edip Yayınla'ya basınca herkese bildirim gider. Plan Kontrolü kartı eksik kişi, dinlenme süresi ve haftalık sınır gibi sorunları listeler; maddeye dokununca ilgili kutuya gider.",
+          "Bir kutuya dokunarak elle vardiya ekler ya da değiştirirsiniz. Yayınlanmış bir vardiyaya dokununca \"Gelemiyor\" ile vardiyayı açık ilana çevirip yerine kişi bulabilirsiniz.",
         ],
       },
       {
-        id: "mudur-personel",
-        title: "Ekip",
-        icon: Users,
-        paragraphs: [
-          "Personel eklerken isim, telefon ve görev yeterlidir. Bir sorumlu hesabı (müdür yardımcısı gibi) oluşturduğunuzda, o kişi siz ya da bir üst sorumlu onaylayana kadar giriş yapamaz. Bekleyen hesapları bu sayfadaki “Onay Bekleyen Hesaplar” bölümünde görüp onaylarsınız.",
-          "Her personel kartında işe giriş tarihi, yıllık izin hakkı, saatlik ücret (fazla mesai ve maliyet hesaplaması için kullanılır) ve varsa gece çalışma engeli (hamilelik, 18 yaş altı gibi durumlar için) bulunur. “Kıdemli Personel” kutucuğunu işaretlediğiniz kişiler, bir vardiyada en az bir kıdemli bulunmasını şart koştuğunuz kurallarda otomatik sayılır.",
-        ],
-      },
-      {
-        id: "mudur-onaylar",
+        id: "sahip-onaylar",
         title: "Onaylar",
         icon: ClipboardList,
         paragraphs: [
-          "Personelden gelen tüm talepler dört sekmede toplanır: vardiya değişikliği talepleri, vardiya takası teklifleri, izin talepleri ve fazla mesai onayları.",
-          "Talepleri tek tek ya da toplu şekilde onaylayabilir veya reddedebilirsiniz.",
+          "İzin, takas ve saat düzeltme talepleri burada toplanır. İzin kartı o günlerdeki vardiyaları gösterir: \"Onayla, ilana çevir\" vardiyayı ekibe duyurur, \"Onayla, sadece çıkar\" plandan siler.",
         ],
       },
       {
-        id: "mudur-acik-vardiyalar",
-        title: "Açık Vardiyalar",
-        icon: Megaphone,
-        paragraphs: [
-          "Bir personel gelemediğinde veya vardiyasını devredemediğinde, o vardiyayı “açık” ilan edebilirsiniz. Sistem o gün uygun personeli sıralar (adalet puanı en düşük olan önce gelir); siz birini seçip atayabilir ya da personelin kendiliğinden üstlenmesini bekleyebilirsiniz.",
-          "Personel de kendi vardiyasını isteğe bağlı olarak “Herkese Aç (Pazar Yeri)” seçeneğiyle doğrudan bu listeye bırakabilir. Belirli bir kişiye teklif etmek yerine, isteyen ilk kişi üstlenir ve size otomatik bildirim gider.",
-        ],
-      },
-      {
-        id: "mudur-adalet-puani",
-        title: "Adalet Puanı",
-        icon: Star,
-        paragraphs: [
-          "Bu, OptiShift’in çekirdek fikridir: hafta sonu, gece ve tercih edilmeyen vardiyaların zamanla herkese dengeli dağılması için her vardiyanın bir “yükü” hesaplanır. Sürekli hafta sonu çalışan biri varsa sistem bunu fark eder ve bir sonraki planlamada dengelemeye çalışır.",
-          "Raporlar → Adalet Puanı sekmesinden kimin ne kadar yüklü olduğunu ve son haftaların dökümünü görürsünüz. Personel de kendi puanını kendi hesabından görebilir, ama başkalarının puanını göremez.",
-        ],
-      },
-      {
-        id: "mudur-fazla-mesai",
-        title: "Fazla Mesai",
-        icon: Timer,
-        paragraphs: [
-          "Yayınlanan bir vardiya haftalık eşiği (örneğin 45 saat) aşarsa otomatik olarak fazla mesai kaydı oluşur. Siz onaylar ya da reddedersiniz; personel de kendi payına düşen fazla mesaiyi kabul edip ücretli mi yoksa serbest zaman olarak mı kullanmak istediğini kendisi seçer.",
-          "Bu sayfada ayrıca aylık toplam fazla mesai maliyetini de görürsünüz (personelin saatlik ücretine göre hesaplanır).",
-        ],
-      },
-      {
-        id: "mudur-raporlar",
-        title: "Raporlar",
-        icon: BarChart2,
-        paragraphs: [
-          "Aylık özet raporlar ve puantaj (kimin ne zaman geldiği/gittiği, geç kalmalar, gelinmeyen günler) burada listelenir. Excel olarak dışa aktarabilirsiniz.",
-          "Ay kapandığında “Dönemi Kilitle” butonuna basarsanız o ayın giriş/çıkış kayıtları donar, geçmiş puantaj verisi kazara değişemez. Kilidi sadece hesap sahibi açabilir, şube sorumlusu açamaz; bu, bordro hazırlığı sonrası veriyi korumak içindir.",
-        ],
-      },
-      {
-        id: "mudur-mesajlasma",
-        title: "Mesajlaşma",
-        icon: MessageSquare,
-        paragraphs: [
-          "Ekibinizle doğrudan yazışabileceğiniz basit bir sohbet ekranıdır.",
-        ],
-      },
-      {
-        id: "mudur-ayarlar",
+        id: "sahip-ayarlar",
         title: "Ayarlar",
         icon: Settings,
         paragraphs: [
-          "Ayarlar üç ana sekmeden oluşur. Yeni başlayan bir sorumlunun ihtiyaç duyduğu her şey ilk sekmededir; diğerlerine sadece gerektiğinde bakarsınız.",
+          "Temel: işletme türü, görevler, departmanlar, çalışma saatleri ve vardiyalar. İşletme türünü sadece siz değiştirebilirsiniz; vardiyalarınız etkilenmez.",
+          "Gelişmiş: haftalık çalışma sınırı, dinlenme, vardiya girişi, Adalet Puanı gibi kurallar. Çoğu işletme hiç değiştirmez.",
+          "Özellikler: mesajlar, açık vardiyalar, fazla mesai takibi, bahşiş gibi isteğe bağlı özellikler. Kapalı özellik hiçbir ekranda görünmez. Sadece hesap sahibi açıp kapatır.",
         ],
-        steps: [
-          "Temel Ayarlar: çalışma saatleriniz, vardiya tipleriniz (“sabah/akşam” gibi sabit bir kalıp yoktur, istediğiniz kadar tanımlarsınız), personel talepleri (uygunluk toplama, hatırlatma, takas ve değişiklik izinleri, izin politikası) ve şube konumu.",
-          "Gelişmiş Seçenekler: kapalı gelen başlıklar halinde planlama kuralları (haftalık çalışma sınırı, dinlenme süresi, gece kuralları, işçilik bütçesi), vardiya girişi ve canlı durum (giriş zorunluluğu, GPS, QR kod), yayın, adalet puanı, departmanlar ve alanlar, ekipler ve rotasyon. Çoğu işletme bunları hiç değiştirmez.",
-          "Ek Özellikler: mesajlaşma, açık vardiyalar, fazla mesai takibi, ortak tablet, kaza risk radarı gibi isteğe bağlı özelliklerin kartları. Kartın anahtarını açtığınızda özellik menüde ve ekranlarda görünür, ayarları da kartın içinde açılır; kapattığınızda hiçbir iz bırakmaz.",
-          "Hesabım: kendi adınız, şifreniz ve giriş yöntemleriniz.",
+      },
+    ],
+  },
+  {
+    key: "manager",
+    label: "Sorumlu",
+    shortLabel: "Sorumlu",
+    description: "Planı ve ekibi hesap sahibi adına yöneten kişi.",
+    sections: [
+      {
+        id: "sorumlu-baslarken",
+        title: "Başlarken",
+        icon: UserCog,
+        paragraphs: [
+          "Hesap sahibi size bir giriş bağlantısı gönderir; açıp şifrenizi belirlersiniz. Ne görebileceğiniz ve neler yapabileceğiniz size verilen yetkilere bağlıdır; yetkiniz olmayan sayfalar menüde görünmez.",
+          "Bir departmanın sorumlusuysanız (örn. Salon sorumlusu) sadece o departmanın ekibini ve planını görürsünüz.",
+        ],
+      },
+      {
+        id: "sorumlu-ana",
+        title: "Ana Sayfa",
+        icon: LayoutDashboard,
+        paragraphs: [
+          "Ana Sayfa yapılacak işleri listeler: onay bekleyen talepler, hazırlanmamış ya da yayınlanmamış gelecek hafta, uygunluk girmeyenler, dolmamış açık vardiyalar. Her maddenin düğmesi sizi ilgili yere götürür.",
+        ],
+      },
+      {
+        id: "sorumlu-plan",
+        title: "Vardiya Planı",
+        icon: CalendarClock,
+        paragraphs: [
+          "Planı Oluştur ile haftanın planını hazırlarsınız. Yayınlama yetkiniz varsa planı siz yayınlarsınız; yoksa \"Onaya Gönder\" ile hesap sahibine ya da yetkili sorumluya gönderirsiniz.",
+          "Departman sorumlusu sadece kendi departmanını planlar; diğer departmanların planı korunur.",
+        ],
+      },
+      {
+        id: "sorumlu-ekip",
+        title: "Ekip ve onaylar",
+        icon: Users,
+        paragraphs: [
+          "Ekip yetkiniz varsa kişi ekler, kartlarını düzenlersiniz. Onay yetkiniz varsa izin, takas ve saat düzeltme taleplerini Onaylar'dan karara bağlarsınız.",
+        ],
+      },
+      {
+        id: "sorumlu-mesaj",
+        title: "Mesajlar ve raporlar",
+        icon: BarChart2,
+        paragraphs: [
+          "Mesajlar açıksa ekip sohbeti ve kişiye mesaj buradadır. Raporlar'da aylık çalışma saatleri, Adalet Puanı ve (açıksa) fazla mesai bulunur.",
         ],
       },
     ],
   },
   {
     key: "employee",
-    label: "Personel",
-    shortLabel: "Personel",
-    description: "Vardiyanızı görmek, uygunluk girmek ve talep oluşturmak için.",
+    label: "Ekip üyesi",
+    shortLabel: "Ekip üyesi",
+    description: "Vardiyanı görmek, uygunluk girmek ve talep oluşturmak için.",
     sections: [
       {
-        id: "personel-baslarken",
+        id: "ekip-baslarken",
         title: "Başlarken",
         icon: Rocket,
         paragraphs: [
-          "İşletmeniz size bir kullanıcı adı ve şifre tanımlar; bunlarla telefonunuzdan giriş yaparsınız. Uygulamayı tarayıcınızdan “Ana Ekrana Ekle” seçeneğiyle telefonunuza normal bir uygulama gibi de ekleyebilirsiniz.",
-          "Telefonunuz Face ID/Touch ID/parmak izi destekliyorsa ana sayfadaki “Bu cihazda hızlı giriş” kartından bir kere etkinleştirdikten sonra, bir daha kullanıcı adı-şifre yazmadan biyometrik olarak giriş yapabilirsiniz.",
+          "İşyerin sana bir giriş bağlantısı gönderir. Bağlantıyı açıp şifreni belirlersin, sonra kullanıcı adın ve şifrenle telefonundan girersin. Tarayıcının \"Ana Ekrana Ekle\" seçeneğiyle uygulama gibi telefonuna ekleyebilirsin.",
         ],
       },
       {
-        id: "personel-ozet",
-        title: "Özet (Ana Sayfa)",
+        id: "ekip-ana",
+        title: "Ana Sayfa",
         icon: Home,
         paragraphs: [
-          "Sıradaki vardiyanızı, giriş/çıkış butonunu, bu haftaki toplam çalışma saatinizi, adalet puanınızı ve son bildirimlerinizi burada görürsünüz.",
-          "Gerçek bir acil durumda (kaza, sağlık sorunu vb.) sayfanın altındaki “Acil Durum Bildir” butonuyla şubenizdeki tüm sorumlulara anında bildirim gönderebilirsiniz. Bu buton sadece gerçek acil durumlar içindir, günlük mazeretler için kullanılmaz, onun için Talepler sayfasındaki izin/düzenleme akışı vardır.",
+          "Bugünkü vardiyan, bu haftanın özeti ve son bildirimler burada. Açık ilan varsa \"Açık Vardiyalar\" kısayolu çıkar.",
         ],
       },
       {
-        id: "personel-vardiyalar",
-        title: "Vardiyalar",
+        id: "ekip-vardiyalar",
+        title: "Vardiyalarım",
         icon: CalendarClock,
         paragraphs: [
-          "Haftalık planınızı buradan görürsünüz. Sadece yayınlanmış (kesinleşmiş) vardiyalar görünür, sorumlunuz henüz taslak aşamasındaki bir planı siz göremezsiniz, o yüzden telaşlanmanıza gerek yok.",
+          "Sadece yayınlanmış plan görünür; taslak plan sana görünmez. Bir vardiyaya dokununca \"Gelemeyeceğim\", \"Biriyle değiştir\" ya da \"Saatte hata var\" seçeneklerini görürsün.",
         ],
       },
       {
-        id: "personel-musaitlik",
+        id: "ekip-uygunluk",
         title: "Uygunluk",
         icon: Clock,
         paragraphs: [
-          "İşletmeniz uygunluk topluyorsa, haftalık takviminizi üç renkle işaretlersiniz:",
-        ],
-        steps: [
-          "Uygun (yeşil): gelirim.",
-          "Tercih etmem (sarı): mümkünse çalışmam ama gerekirse gelirim (isterseniz saat aralığı da belirtebilirsiniz, örn. “09:00–17:00 arası gelebilirim”).",
-          "Gelemem (kırmızı): kesinlikle gelemem (resmi izin, sınav vb.). Bu güne asla vardiya yazılmaz.",
+          "Varsayılan olarak her gün uygunsun. Gelemeyeceğin günü \"Gelemem\", istemediğin günü \"Tercih etmem\" diye işaretleyip gönderirsin. \"Gelemem\" dediğin güne vardiya yazılmaz.",
         ],
       },
       {
-        id: "personel-talepler",
+        id: "ekip-talepler",
         title: "Talepler",
         icon: Inbox,
         paragraphs: [
-          "Bu sayfa dört bölümden oluşur:",
-        ],
-        steps: [
-          "Vardiya Düzenleme: mevcut bir vardiyanızın saatinin değiştirilmesini istediğinizde kullanılır.",
-          "Vardiya Takası: bir iş arkadaşınızla vardiya değiştirmek istediğinizde, önce karşı taraf teklifi kabul eder, ardından sorumlu onaylar. Belirli birini seçmek istemiyorsanız “Herkese Aç (Pazar Yeri)” seçeneğiyle vardiyanızı tüm ekibe açık ilan olarak bırakabilirsiniz; isteyen ilk kişi üstlenir.",
-          "İzin: yıllık izin dışında mazeret, hastalık/rapor, doğum, süt, evlilik ve ücretsiz izin türlerinden birini seçip talep oluşturursunuz; kalan yıllık izin gününüz üstte her zaman görünür.",
-          "Gelen: size yapılan takas teklifleri ve onaylamanız/reddetmeniz gereken fazla mesai kayıtları burada görünür.",
+          "İzin istemek, vardiyana gelemeyeceğini bildirmek, biriyle vardiya değiştirmek ya da saat hatası bildirmek için \"Yeni talep\"e dokun. Gelemeyeceğin vardiya ekibe duyurulur; biri üstlenene kadar sende kalır.",
+          "Takasta önce arkadaşın kabul eder, sonra sorumlun onaylar. Kurallara uymayan bir takas (ör. dinlenme süresi yetmiyorsa) gönderilemez; nedeni ekranda yazar.",
         ],
       },
       {
-        id: "personel-checkin",
-        title: "Giriş / Çıkış",
-        icon: ListChecks,
+        id: "ekip-acik",
+        title: "Açık vardiyalar",
+        icon: Megaphone,
         paragraphs: [
-          "Vardiyanız başladığında ana sayfadaki karttan “Vardiyayı Başlat” butonuna basarsınız, bittiğinde “Çıkış Yap”a. Sorumlunuz kimin geldiğini, kimin molada olduğunu bu sayede anlık olarak görür.",
-          "Şubenizde girişte bir QR kod asılıysa, telefon kameranızla okutmanız yeterli. Vardiyanız varsa giriş otomatik yapılır, ayrıca uygulamayı açıp butona basmanıza gerek kalmaz. Bazı işletmelerde giriş sırasında konumunuz da şubeyle karşılaştırılır (GPS doğrulama); bu açıksa şubeden çok uzaktaysanız giriş reddedilir.",
+          "Boşalan bir vardiyayı üstlenebilirsin; üstlenene ek puan yazılır, sonraki planlarda yükün hafifler.",
         ],
       },
       {
-        id: "personel-sohbet",
-        title: "Sohbet",
+        id: "ekip-mesaj",
+        title: "Mesajlar ve hesabım",
         icon: MessageSquare,
         paragraphs: [
-          "Ekibinizle ve sorumlunuzla doğrudan yazışabilirsiniz.",
-        ],
-      },
-      {
-        id: "personel-bildirimler",
-        title: "Bildirimler",
-        icon: BellRing,
-        paragraphs: [
-          "Yeni vardiya, talep onayı/reddi ve hatırlatma gibi bildirimleriniz burada listelenir.",
-        ],
-      },
-      {
-        id: "personel-hesabim",
-        title: "Hesabım",
-        icon: UserCircle,
-        paragraphs: [
-          "Profil bilgilerinizi görüp çıkış yapabileceğiniz sayfa. Adalet puanınızın son haftalara göre dökümünü de buradan takip edebilirsiniz, bu size neden bazı haftaların diğerlerinden daha yoğun geçtiğini gösterir.",
-        ],
-      },
-    ],
-  },
-  {
-    key: "supervisor",
-    label: "Hesap sahibi",
-    shortLabel: "Hesap sahibi",
-    description: "Birden fazla şubeyi üst düzeyden takip eden kullanıcılar için.",
-    sections: [
-      {
-        id: "supervisor-genel-bakis",
-        title: "Genel Bakış",
-        icon: LayoutDashboard,
-        paragraphs: [
-          "Bağlı olduğunuz tüm şubelerin özet kartlarını görürsünüz: kaç personel çalışıyor, o haftanın planı yayınlanmış mı, dikkat gerektiren bir uyarı var mı.",
-        ],
-      },
-      {
-        id: "supervisor-vardiya-plani",
-        title: "Vardiya Planı",
-        icon: CalendarClock,
-        paragraphs: [
-          "Herhangi bir şubenin planını görüntüleyebilirsiniz. Bu görünüm salt okunurdur, planı oluşturmak ve düzenlemek şube sorumlusunun işidir, siz sadece takip edersiniz.",
-        ],
-      },
-      {
-        id: "supervisor-personel",
-        title: "Ekip",
-        icon: Users,
-        paragraphs: [
-          "İşletme genelindeki tüm personel listesini buradan görürsünüz. Şube sorumlularının oluşturduğu ama henüz onaylanmamış hesaplar varsa, onları da bu sayfadan onaylarsınız.",
-        ],
-      },
-      {
-        id: "supervisor-raporlar",
-        title: "Raporlar",
-        icon: BarChart2,
-        paragraphs: [
-          "Şubeler arası karşılaştırmalı raporlar burada: hangi şube planını geç yayınlıyor, hangi şubede kural ihlali daha sık gibi.",
-        ],
-      },
-      {
-        id: "supervisor-mesajlasma",
-        title: "Mesajlaşma",
-        icon: MessageSquare,
-        paragraphs: [
-          "Şube sorumlularıyla doğrudan yazışabileceğiniz sohbet ekranı.",
-        ],
-      },
-      {
-        id: "supervisor-ayarlar",
-        title: "Ayarlar",
-        icon: Settings,
-        paragraphs: [
-          "İşletme genelinde geçerli olan ayarları buradan yönetirsiniz.",
+          "Mesajlar açıksa ekip sohbeti ve sorumlunla yazışma buradadır. Hesabım'dan şifreni değiştirir, telefonun destekliyorsa parmak izi ya da yüzle girişi açarsın. Gerçek bir acil durumda Ana Sayfa'nın en altındaki \"Acil durum bildir\" sorumlularına haber verir.",
         ],
       },
     ],
@@ -310,43 +210,33 @@ export type FaqItem = { question: string; answer: string };
 
 export const FAQ_ITEMS: FaqItem[] = [
   {
-    question: "Adalet puanı tam olarak neyi ölçüyor?",
+    question: "Adalet Puanı neyi ölçüyor?",
     answer:
-      "Her vardiyanın zorluğunu (hafta sonu mu, gece mi, tercih edilmeyen bir gün mü) hesaba katan bir yük puanıdır. Kim son haftalarda daha çok yorucu vardiya almışsa, sistem bir sonraki planlamada onu gözetir ve dengelemeye çalışır. Amaç, sürekli aynı kişilerin hafta sonu ya da gece çalışmasını önlemektir.",
+      "Kimin son haftalarda ne kadar ve ne kadar zor çalıştığını. Hafta sonu ve istemediğin günde çalışmak daha çok puan getirir. Puanı yüksek olana sonraki planlarda daha az yük verilir; amaç hep aynı kişilerin zor vardiyalara yazılmaması.",
   },
   {
     question: "Uygunluk girmek zorunlu mu?",
     answer:
-      "Hayır. Sorumlunuz isterse uygunluk toplamayı tamamen kapatıp planı kendisi yapabilir. Açıksa, uygunluk girmemeniz “tamamen uygunum” olarak değerlendirilir; kırmızı işaretlediğiniz günlere ise kesinlikle vardiya yazılmaz.",
+      "Hayır. Sorumlun uygunluk toplamayı kapatabilir. Açıksa ve girmezsen her gün uygun sayılırsın; \"Gelemem\" dediğin güne ise vardiya yazılmaz.",
   },
   {
     question: "Vardiya takası nasıl onaylanır?",
     answer:
-      "Önce takas teklif ettiğiniz kişi teklifi kabul eder, ardından sorumlu son onayı verir. Her iki onay da alınmadan takas geçerli olmaz.",
-  },
-  {
-    question: "Fazla mesaiye itiraz edebilir miyim?",
-    answer:
-      "Fazla mesai kaydınızı kabul ederken ücretli mi yoksa serbest zaman olarak mı kullanmak istediğinizi siz seçersiniz. Kaydı reddederseniz sorumlunuz durumu tekrar değerlendirir.",
+      "Önce teklif ettiğin kişi kabul eder, sonra sorumlu onaylar. İkisi olmadan takas geçerli olmaz.",
   },
   {
     question: "Yayınlanmış bir vardiya sonradan değişebilir mi?",
     answer:
-      "Evet, sorumlu gerektiğinde yayınlanmış bir vardiyayı değiştirebilir. Saatin değişmesi size bir bildirim olarak düşer ve adalet puanınıza bu beklenmedik değişiklik için küçük bir telafi eklenir.",
+      "Evet, sorumlu gerektiğinde değiştirebilir. Değişiklik sana bildirim olarak düşer ve Adalet Puanı'na küçük bir telafi eklenir.",
   },
   {
     question: "Bir vardiyaya gelemeyeceğimi anlarsam ne yapmalıyım?",
     answer:
-      "Mümkünse önceden bir vardiya takası veya düzenleme talebi oluşturun. Son anda haber veremezseniz sorumlunuz o vardiyayı “açık vardiya” ilan edip başka birine yönlendirebilir.",
+      "Vardiyalarım'da vardiyaya dokunup \"Gelemeyeceğim\"i seç. Vardiya ekibe duyurulur, biri üstlenince senden düşer ve sana bildirim gelir.",
   },
   {
-    question: "Vardiyamı belirli bir kişiye teklif etmeden bırakabilir miyim?",
+    question: "Departman eklediğimde neden kişiler plana girmiyor?",
     answer:
-      "Evet. Talepler → Yeni Talep → Vardiya Takası akışında “Herkese Aç (Pazar Yeri)” seçeneğini kullanırsanız vardiyanız tüm ekibe açık bir ilan olarak düşer, isteyen ilk kişi üstlenir ve size bildirim gider.",
-  },
-  {
-    question: "Biyometrik giriş güvenli mi, şifremin yerini mi alıyor?",
-    answer:
-      "Face ID/Touch ID/parmak izi bilgisi hiçbir zaman OptiShift sunucularına gitmez, sadece kendi cihazınızda kalır. Şifreniz silinmez, istediğiniz an yine kullanıcı adı-şifreyle de giriş yapabilirsiniz; biyometrik sadece ek bir hızlı giriş seçeneğidir.",
+      "Departmanlı işletmede her kişinin bir departmanı olmalı. Ekip sayfasındaki uyarıdan \"Departmanlara dağıt\" ile herkesi tek ekranda atayın.",
   },
 ];

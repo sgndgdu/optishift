@@ -409,7 +409,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
           : heroEvents.length === 0 ? <ListEmpty>Bu dönemde açık vardiya üstlenen olmadı.</ListEmpty>
           : heroEvents.map(ev => {
             const person = personnel.find(p => p.id === ev.claimed_by);
-            const name = person?.name ?? ev.claimed_by_name ?? "Personel";
+            const name = person?.name ?? ev.claimed_by_name ?? "Bir kişi";
             return (
               <ListItem key={ev.id}
                 leading={<Avatar name={name} />}

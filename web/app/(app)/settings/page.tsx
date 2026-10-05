@@ -1019,8 +1019,8 @@ export default function SettingsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const count = (dept as any).personnel_count ?? 0;
     const msg = count > 0
-      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} personelin departman ataması kaldırılır ve bu departmanın personel ihtiyacı tablosu silinir.`
-      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın personel ihtiyacı tablosu da silinir.`;
+      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} kişinin departmanı boşalır ve bu departmanın ihtiyaç tablosu silinir.`
+      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın ihtiyaç tablosu da silinir.`;
     if (!confirm(msg)) return;
     setDeptError(null);
     try {
@@ -1352,7 +1352,7 @@ export default function SettingsPage() {
                           {(dept as any).personnel_count !== undefined && (
                             <StatusPill tone="neutral" className="shrink-0 hidden sm:inline-flex">
                               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                              {(dept as any).personnel_count} personel
+                              {(dept as any).personnel_count} kişi
                             </StatusPill>
                           )}
                           {editingDeptId === dept.id ? (
@@ -1642,7 +1642,7 @@ export default function SettingsPage() {
                     description={
                       <span>
                         Gelecek haftanın planı seçtiğiniz gün sabah taslak olarak hazırlanır, size sadece kontrol edip yayınlamak kalır.
-                        Personel taslağı görmez. Siz o haftaya zaten başladıysanız dokunulmaz.
+                        Ekip taslağı görmez. Siz o haftaya zaten başladıysanız dokunulmaz.
                         {autopilotEnabled && (
                           <span className="flex flex-wrap items-center gap-2 mt-2">
                             <span>Her</span>
@@ -1663,7 +1663,7 @@ export default function SettingsPage() {
                 </SectionCard>
               </div>
               </SettingsGroup>
-              <SettingsGroup id="requests" title="Personel Talepleri" description="Uygunluk, hatırlatma, takas ve izin kuralları" open={!!openGroups["requests"]} onToggle={toggleGroup}>
+              <SettingsGroup id="requests" title="Ekip Talepleri" description="Uygunluk, hatırlatma, takas ve izin kuralları" open={!!openGroups["requests"]} onToggle={toggleGroup}>
               <div className="space-y-4">
                 <SectionCard title="Uygunluk">
                   <RuleRow
@@ -1683,7 +1683,7 @@ export default function SettingsPage() {
                       label="Otomatik Uygunluk Hatırlatması"
                       description={
                         <span>
-                          Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş personele haftada bir kez bildirim gönderilir.
+                          Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş kişilere haftada bir kez bildirim gönderilir.
                           {reminderEnabled && (
                             <span className="flex flex-wrap items-center gap-2 mt-2">
                               <span>Her</span>
@@ -1724,7 +1724,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Kıdeme Göre İzin Hak Edişi"
-                    description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken personel kartındaki sabit gün geçerlidir."
+                    description="Açıkken yıllık izin hakkı işe giriş tarihinden otomatik hesaplanır: 1-5 yıl 14, 5+ yıl 20, 15+ yıl 26 gün (İş K. m.53); kullanılmayan izin devreder. Kapalıyken kişi kartındaki sabit gün geçerlidir."
                     right={<Toggle on={autoLeaveEntitlement} onToggle={() => setAutoLeaveEntitlement(v => !v)} />}
                   />
                 </SectionCard>
@@ -1790,7 +1790,7 @@ export default function SettingsPage() {
                 <SectionCard title="Gece Çalışması">
                   <RuleRow
                     lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
-                    description="Geçen hafta gece vardiyasında çalışan personele bu hafta gece vardiyası verilmez (yasal kural). 24 saat çalışan işletmelerde açık tutulması önerilir."
+                    description="Geçen hafta gece vardiyasında çalışan kişiye bu hafta gece vardiyası verilmez (yasal kural). 24 saat çalışan işletmelerde açık tutulması önerilir."
                     right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
                   />
                   <RuleRow
@@ -1802,7 +1802,7 @@ export default function SettingsPage() {
                 )}
                 <SectionCard title="Plan Oluşturma ve Yayın">
                   <RuleRow
-                    label="Kıdemli Personel Kuralı"
+                    label="Her vardiyada kıdemli biri"
                     description="Her vardiyada en az 1 kıdemli (1 yıldan uzun çalışan) bulunmaya çalışılır."
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
                   />
@@ -1826,9 +1826,9 @@ export default function SettingsPage() {
                   <div className="py-4 space-y-2">
                     <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
                     {([
-                      { id: "phone", label: "Personel kendi telefonundan", desc: "Portaldaki vardiya kartından ya da işyerine asılan QR kodu okutarak." },
+                      { id: "phone", label: "Kendi telefonundan", desc: "Portaldaki vardiya kartından ya da işyerine asılan QR kodu okutarak." },
                       { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "İşyerine belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
-                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Personel oturum açmaz, 4 haneli PIN'le girer ve çıkar." },
+                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Oturum açılmaz, 4 haneli PIN'le girer ve çıkar." },
                     ] as const).map(opt => {
                       const current = kioskModeEnabled ? "kiosk" : gpsCheckinRequired ? "gps" : "phone";
                       const on = current === opt.id;
@@ -1878,7 +1878,7 @@ export default function SettingsPage() {
                     label="Geç Kalan → Otomatik Açık Vardiya"
                     description={
                       <span>
-                        Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş kaydı olmayan personelin vardiyası otomatik açık vardiyaya dönüşür.
+                        Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş yapmayan kişinin vardiyası otomatik açık vardiyaya dönüşür.
                         {autoOpenShiftOnLate && (
                           <span className="flex items-center gap-2 mt-2">
                             <span>Eşik:</span>
@@ -1912,7 +1912,7 @@ export default function SettingsPage() {
                 {checkinRequired && !kioskModeEnabled && (
                 <SectionCard title="Giriş için QR kod">
                   <p className="text-xs text-slate-500 mb-4">
-                    Bu QR kodu işyerinize (giriş kapısı, pano vb.) asın. Personel telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
+                    Bu QR kodu işyerinize (giriş kapısı, pano vb.) asın. Ekip telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
                   </p>
                   <div className="flex items-center gap-6">
                     <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
@@ -2022,7 +2022,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Hangi günler?"
-                    description="Tercih etmem: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Personel Talepleri bölümündedir."
+                    description="Tercih etmem: kişinin uygunlukta &quot;mümkünse çalışmam&quot; dediği gün. Haftalık hakkı Ekip Talepleri bölümündedir."
                     right={
                       <div className="flex items-center gap-4">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -2039,12 +2039,12 @@ export default function SettingsPage() {
                 <SectionCard title="Bonus Puanları">
                   <RuleRow
                     label="Açık Vardiyayı Üstlenene Ek Puan"
-                    description="Açık vardiyayı gönüllü üstlenen personele düz puan bonusu. 0 = kapalı."
+                    description="Açık vardiyayı gönüllü üstlenen kişiye düz puan bonusu. 0 = kapalı."
                     right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                   <RuleRow
                     label="Yayın Sonrası Değişiklik Telafisi"
-                    description="Yayınlanmış bir vardiyanın saati değiştirildiğinde personele otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
+                    description="Yayınlanmış bir vardiyanın saati değiştirildiğinde kişiye otomatik telafi puanı yazılır. Kapalıysa telafi puanı verilmez."
                     right={
                       <div className="flex items-center gap-2">
                         <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
@@ -2056,7 +2056,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Zorunlu Atama Bonusu"
-                    description="İzinliyken sorumlu tarafından atanan personel kabul ederse düz puan bonusu. 0 = kapalı."
+                    description="İzinliyken sorumlu tarafından atanan kişi kabul ederse düz puan bonusu. 0 = kapalı."
                     right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                 </SectionCard>
@@ -2094,7 +2094,7 @@ export default function SettingsPage() {
                     </div>
                     {workCycle?.pattern && WORK_CYCLES[workCycle.pattern] && (
                       <>
-                        <p className="text-xs text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen personel için &quot;Herkesi yeniden dağıt&quot;a basın.</p>
+                        <p className="text-xs text-slate-400">{WORK_CYCLES[workCycle.pattern].description} Yeni gelen kişiler için &quot;Herkesi yeniden dağıt&quot;a basın.</p>
                         <div className="overflow-x-auto">
                           <table className="text-xs">
                             <thead><tr><th className="text-left pr-3 font-semibold text-slate-500">Bu hafta</th>{DAY_SHORT.map(d => <th key={d} className="px-1 font-semibold text-slate-500">{d}</th>)}</tr></thead>
@@ -2201,7 +2201,7 @@ export default function SettingsPage() {
                   ),
                   forecast: (
                 <FeatureCard icon={TrendingUp} title="Satış ve Yoğunluk Tahmini"
-                  description="Personel İhtiyacı tablosunda geçmiş haftalara dayalı öneri gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
+                  description="İhtiyaç tablosunda geçmiş haftalara dayalı öneri gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
                   on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)}>
                     <div className="space-y-2">
                       <div className="flex gap-2">
@@ -2233,7 +2233,7 @@ export default function SettingsPage() {
                   ),
                   tasks: (
                 <FeatureCard icon={ListChecks} title="Görev ve Kontrol Listeleri"
-                  description="Her vardiyaya otomatik görev listesi eklenir, personel portalında işaretlenir."
+                  description="Her vardiyaya otomatik görev listesi eklenir, ekip uygulamada işaretler."
                   on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)}>
                     <div className="space-y-3">
                       <div>

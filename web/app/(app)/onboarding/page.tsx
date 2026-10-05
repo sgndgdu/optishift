@@ -5,7 +5,7 @@ import { getPlan, limitMessage } from "@/lib/plans";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Store, CalendarClock, ArrowRight, Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { Store, CalendarClock, Plus, Trash2 } from "lucide-react";
 import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
@@ -31,8 +31,6 @@ export default function OnboardingWizard() {
   const [step, setStep]       = useState(0);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
-  const [singleLocationId, setSingleLocationId] = useState<string | null>(null);
-  const [readyCount, setReadyCount] = useState(0);
   // Ücretsiz plan tek şube: sihirbaz ikinci şubeyi baştan kabul etmez (sonda hata vermek yerine)
   const [freePlan, setFreePlan] = useState(false);
 
@@ -43,6 +41,10 @@ export default function OnboardingWizard() {
   const [branches, setBranches] = useState<string[]>([""]);
   // Tek şubeli işletme "şube" kavramını görmez: tek alan "İşletmenizin adı"; birden çok şube isteğe bağlı açılır
   const [multiOpen, setMultiOpen] = useState(false);
+  // Ad kayıtta girildi: tekrar sorulmaz, isteyen "Değiştir" ile düzenler
+  const [nameEdit, setNameEdit] = useState(false);
+  // İsteğe bağlı bölümler (alt türün önerileri): seçilenler kurulumda departman olarak açılır
+  const [pickedDepts, setPickedDepts] = useState<string[]>([]);
   const multi = multiOpen || branches.length > 1;
 
   // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
@@ -64,6 +66,18 @@ export default function OnboardingWizard() {
     if (mounted && !user) router.push("/login");
   }, [mounted, user, router]);
 
+  // Kurulumu bitmiş işletme bu sayfaya tekrar düşmez (vardiyası tanımlı şube varsa)
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/locations").then(r => (r.ok ? r.json() : [])).then((locs: any[]) => {
+      if (!Array.isArray(locs)) return;
+      const done = locs.filter(l => { try { const d = typeof l.shift_definitions === "string" ? JSON.parse(l.shift_definitions) : l.shift_definitions; return Array.isArray(d) && d.length > 0; } catch { return false; } });
+      if (done.length === 0) return;
+      if (locs.length === 1) { openBranchPanel(user, locs[0].id); window.location.assign("/schedule"); }
+      else router.replace("/supervisor");
+    }).catch(() => {});
+  }, [user, router]);
+
   // Tek şubeli işletme için ad yazdırma: ilk şube işletmenin adıyla dolu gelir, isteyen değiştirir
   useEffect(() => {
     if (!user) return;
@@ -80,6 +94,7 @@ export default function OnboardingWizard() {
   const pickIndustry = (ind: string, v: string) => {
     setIndustry(ind);
     setVariant(v);
+    setPickedDepts([]);
     setShifts(getVariant(getIndustry(ind)!, v).shifts.map(d => ({ ...d })));
   };
 
@@ -157,11 +172,22 @@ export default function OnboardingWizard() {
       );
       if (results.some(ok => !ok)) throw new Error("Şube ayarları kaydedilemedi, lütfen tekrar deneyin.");
 
-      // İşletmenin tek şubesi varsa sahip doğrudan o şubenin müdür paneline geçer
+      // Seçilen bölümler yeni şubelerde departman olarak açılır (isteğe bağlı)
+      for (const id of newLocationIds) {
+        for (const name of pickedDepts) {
+          await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: id, name }) }).catch(() => null);
+        }
+      }
+
+      // Ara ekran yok: tek şube doğrudan Vardiya Planı'na (Hızlı Kurulum yol gösterir), çok şube Tüm Şubeler'e
       const allIds = [...existingByName.values(), ...newLocationIds];
-      setSingleLocationId(allIds.length === 1 ? allIds[0] : null);
-      setReadyCount(targets.length);
-      setStep(2);
+      if (allIds.length === 1) {
+        openBranchPanel(user, allIds[0]);
+        // Tam yükleme: kenar menü kurulum sırasında (şube yokken) yüklendi, yeniden okumalı
+        window.location.assign("/schedule");
+        return;
+      }
+      router.push("/supervisor");
     } catch (e: any) {
       setError(e.message ?? "Beklenmedik bir hata oluştu.");
     } finally {
@@ -192,7 +218,7 @@ export default function OnboardingWizard() {
         <AuthLogo className="mb-6" />
 
         {/* Progress bar */}
-        {step < 2 && <WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
+        {<WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
 
         {/* Kart */}
         <div className="bg-white rounded-2xl border border-slate-200">
@@ -202,18 +228,43 @@ export default function OnboardingWizard() {
             {step === 0 && (
               <WizardStep icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
-                sub="İşletme türünüzü seçin, işletmenizi adlandırın. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
+                sub="İşletme türünüzü seçin. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
                 <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
+
+                {/* İsteğe bağlı bölümler: alt türün önerileri, seçilen departman olarak açılır */}
+                {(getVariant(getIndustry(industry)!, variant).departments ?? []).length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-400">Bölümleriniz <span className="font-normal">(isteğe bağlı; her birine kaç kişi gerektiğini ayrı girersiniz)</span></p>
+                    <div className="flex flex-wrap gap-2">
+                      {(getVariant(getIndustry(industry)!, variant).departments ?? []).map(d => {
+                        const on = pickedDepts.includes(d);
+                        return (
+                          <button key={d} type="button" onClick={() => setPickedDepts(p => on ? p.filter(x => x !== d) : [...p, d])}
+                            className={`px-3 min-h-[36px] rounded-full border text-sm font-semibold transition-colors ${on ? "bg-forest-600 border-forest-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                            {on ? "✓ " : ""}{d}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {!multi ? (
                   <div className="space-y-2.5">
-                    <p className="text-xs font-bold text-slate-400">İşletmenizin adı</p>
-                    <input
-                      value={branches[0] ?? ""}
-                      onChange={e => updateBranch(0, e.target.value)}
-                      placeholder="Örn: Kuytu Bar"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
-                    />
+                    {nameEdit || !(branches[0] ?? "").trim() ? (
+                      <>
+                        <p className="text-xs font-bold text-slate-400">İşletmenizin adı</p>
+                        <input
+                          value={branches[0] ?? ""}
+                          onChange={e => updateBranch(0, e.target.value)}
+                          placeholder="Örn: Kuytu Bar"
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-600">İşletme: <span className="font-semibold text-slate-900">{branches[0]}</span>{" "}
+                        <button type="button" onClick={() => setNameEdit(true)} className="text-sm font-semibold text-forest-700 hover:underline">Değiştir</button></p>
+                    )}
                     {!freePlan && (
                       <button onClick={() => { setMultiOpen(true); addBranch(); }} className="text-sm font-semibold text-forest-700 hover:underline">
                         Birden çok şubem var
@@ -261,18 +312,21 @@ export default function OnboardingWizard() {
                 sub="Sektörünüze özel öneriler yüklendi, saatleri işletmenize göre düzenlemeniz yeterli.">
                 <div className="space-y-3">
                   {shifts.map((s, i) => (
-                    <div key={i} className="flex flex-wrap md:grid md:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-3">
+                    <div key={i} className="flex flex-wrap md:grid md:grid-cols-[1fr_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-3">
                       <input value={s.name}
                         onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                         placeholder="Vardiya adı"
-                        className="text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white" />
-                      <input type="time" value={s.start}
-                        onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
-                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
-                      <span className="text-slate-400 text-xs font-bold">→</span>
-                      <input type="time" value={s.end}
-                        onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
-                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
+                        className="w-full md:w-auto text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white" />
+                      {/* Başlangıç ve bitiş birlikte kalır (telefonda bitiş alt satıra düşmesin) */}
+                      <div className="flex items-center gap-1.5">
+                        <input type="time" value={s.start}
+                          onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
+                          className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
+                        <span className="text-slate-400 text-xs font-bold">–</span>
+                        <input type="time" value={s.end}
+                          onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
+                          className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
+                      </div>
                       <div className="flex items-center gap-1 w-full md:w-auto">
                         {/* Zorluk: Ayarlar'la aynı seçici (components/ui/DifficultyPicker) */}
                         <DifficultyPicker className="flex-1 md:w-56" value={s.base_points}
@@ -296,45 +350,6 @@ export default function OnboardingWizard() {
                   Zorluk, vardiyaların adil dağıtılmasında kullanılır. Emin değilseniz olduğu gibi bırakın.
                 </p>
               </WizardStep>
-            )}
-
-            {/* ── Adım 2: Tamamlandı ── */}
-            {step === 2 && (
-              <div className="text-center space-y-6 py-4">
-                <CheckCircle2 size={40} className="mx-auto text-emerald-600" />
-
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Her şey hazır</h2>
-                  <p className="text-slate-500 mt-3 leading-relaxed max-w-sm mx-auto">
-                    {readyCount > 1
-                      ? <><strong>{readyCount} şube</strong> vardiya şablonlarıyla birlikte kuruldu.{" "}</>
-                      : readyCount === 1
-                      ? <>İşletmeniz vardiya şablonlarıyla birlikte kuruldu.{" "}</>
-                      : <>İşletmeniz zaten kurulu.{" "}</>}
-                    {singleLocationId ? (
-                      <>Sırada personel eklemek var. Vardiya Planı sayfasındaki <strong>Hızlı Kurulum</strong> bandı size yol gösterecek.</>
-                    ) : (
-                      <>Genel bakışta her şubenin kartındaki <strong>Şubeye gir</strong> ile o şubeye geçip personel ekleyebilirsiniz.</>
-                    )}
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <button onClick={() => {
-                    if (singleLocationId) {
-                      openBranchPanel(user, singleLocationId);
-                      // Tam yükleme: kenar menü kurulum sırasında (şube yokken) yüklendi, yeniden okumalı
-                      window.location.assign("/schedule");
-                    } else {
-                      router.push("/supervisor");
-                    }
-                  }}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-colors group">
-                    {singleLocationId ? "Vardiya Planına Git" : "Yönetim Paneline Git"}
-                    <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
             )}
 
             {/* Hata */}

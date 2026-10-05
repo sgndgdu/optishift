@@ -301,7 +301,7 @@ export default function PersonnelPage() {
                 {[
                   { icon: Plus, title: "Tek kişi ekle", sub: "İsim ve telefonla hesap açılır", on: () => { resetAddForm(); setShowAddModal(true); } },
                   { icon: Upload, title: "Excel'den toplu ekle", sub: "Şablonu doldurup tüm ekibi bir kerede", on: () => setShowBulkModal(true) },
-                  { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Personel kendi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
+                  { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Kişiler kendisi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
                   ...(canManageManagers ? [{
                     icon: UserCog, title: branchMgr ? "Departman sorumlusu ata" : "Sorumlu ekle",
                     sub: branchMgr ? "Bir departmanın planını yapacak kişi" : "Planı ve ekibi sizin yerinize yönetecek kişi",
@@ -336,7 +336,7 @@ export default function PersonnelPage() {
               <p className="text-sm font-bold text-slate-800">Kayıt Linki</p>
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              Bu linki personelinizle paylaşın. Linkten kayıt olan kişiler onayınızı bekleyen bir hesap oluşturur (Onaylar sekmesinde görünür).
+              Bu bağlantıyı ekibinizle paylaşın. Linkten kayıt olan kişiler onayınızı bekleyen bir hesap oluşturur (Onaylar sekmesinde görünür).
             </p>
             {token ? (
               <div className="flex flex-wrap items-center gap-2">

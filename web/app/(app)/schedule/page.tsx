@@ -977,7 +977,7 @@ function SchedulePageInner() {
   // (pub testi: sahip sadece şefsiz departmanı planlamak isterken şeflerin planları silinip yeniden yazılıyordu)
   const openWizard = () => {
     if (personnel.length === 0) {
-      showToast("Önce personel ekleyin: Hızlı Kurulum'daki 'Personel ekle' adımından başlayabilirsiniz.", "info");
+      showToast("Önce ekibi ekleyin: Hızlı Kurulum'daki 'Ekibi ekle' adımından başlayabilirsiniz.", "info");
       return;
     }
     setDemandAutoFilled(false);
@@ -1426,7 +1426,7 @@ function SchedulePageInner() {
         body: JSON.stringify({
           convert_assignment_id: absence.assignmentId,
           reason: absenceReason === "no_show" ? "no_show" : undefined,
-          note: `${person?.name ?? "Personel"} ${reasonText}`,
+          note: `${person?.name ?? "Bir kişi"} ${reasonText}`,
           notify: mode === "assign" ? "none" : mode,
         }),
       });
@@ -1818,7 +1818,7 @@ function SchedulePageInner() {
         }),
       });
       if (!res.ok) throw new Error();
-      showToast(`${proposalModal.name} adlı personele vardiya teklifi gönderildi.`, "success");
+      showToast(`${proposalModal.name} kişisine vardiya teklifi gönderildi.`, "success");
       setProposalModal(null);
       setProposalNote("");
     } catch {
@@ -1837,9 +1837,9 @@ function SchedulePageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ demand_matrix: matrix ?? latestDemandRef.current.flat }),
       }));
-      if (!silent) showToast("Personel ihtiyacı kaydedildi.", "success");
+      if (!silent) showToast("İhtiyaç tablosu kaydedildi.", "success");
     } catch {
-      if (!silent) showToast("Personel ihtiyacı kaydedilemedi.", "error");
+      if (!silent) showToast("İhtiyaç tablosu kaydedilemedi.", "error");
     }
   };
 
@@ -2261,7 +2261,7 @@ function SchedulePageInner() {
           if (total <= 0) continue;
           const availableCount = members.filter(p => !isUnavailable(p.id, d)).length;
           if (total > availableCount) {
-            warnings.push(`${DAYS[d]} · ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} uygun personel var (toplam ${members.length} kişi).`);
+            warnings.push(`${DAYS[d]} · ${deptName}: ${total} kişi isteniyor, bu departmanda ${availableCount} uygun kişi var (toplam ${members.length} kişi).`);
           }
         }
       }
@@ -2273,7 +2273,7 @@ function SchedulePageInner() {
         if (total <= 0) continue;
         const availableCount = personnel.filter(p => !isUnavailable(p.id, d)).length;
         if (total > availableCount) {
-          warnings.push(`${DAYS[d]}: ${total} kişi isteniyor, ${availableCount} uygun personel var (toplam ${personnel.length} kişi).`);
+          warnings.push(`${DAYS[d]}: ${total} kişi isteniyor, ${availableCount} uygun kişi var (toplam ${personnel.length} kişi).`);
         }
       }
     }
@@ -2420,7 +2420,7 @@ function SchedulePageInner() {
       return;
     }
     if (targetPerson?.weekly_off_day !== null && targetPerson?.weekly_off_day !== undefined && Number(targetPerson.weekly_off_day) === targetDay) {
-       showToast("Hedef gün personelin haftalık izni, vardiya taşınamaz.", "error");
+       showToast("Hedef gün kişinin haftalık izni, vardiya taşınamaz.", "error");
        return;
     }
 
@@ -2765,7 +2765,7 @@ loading ? (
     ...(error ? [{ id: "error", tone: "danger" as const, title: error, action: { label: "Kapat", onClick: () => setError(null) } }] : []),
     ...(capacityWarnings.length > 0 ? [{
       id: "capacity", tone: "danger" as const,
-      title: "Personel ihtiyacı, mevcut personel sayısını aşıyor",
+      title: "İstenen kişi sayısı ekipten fazla",
       detail: <><ul className="list-disc list-inside space-y-0.5">{capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}</ul><p className="mt-1">Bu günlerde herkes uygun olsa bile otomatik planlama çözüm bulamaz. Sayıları azaltın.</p></>,
       action: { label: "Tabloyu Aç", onClick: () => setDemandOpen(true) },
     }] : []),
@@ -2777,7 +2777,7 @@ loading ? (
     }] : []),
     ...(seniorViolations.length > 0 ? [{
       id: "senior", tone: "warning" as const,
-      title: "Bazı vardiyalarda kıdemli personel yok",
+      title: "Bazı vardiyalarda kıdemli kimse yok",
       detail: <>{seniorViolations.map(v => `${["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} ${v.shift}`).join(", ")}</>,
     }] : []),
     ...(revokedSkills.length > 0 ? [{
@@ -2846,7 +2846,7 @@ loading ? (
               ) : isPublishedWeek && dirty ? (
                 <StatusPill tone="attention">Yayınlanmamış değişiklik</StatusPill>
               ) : (
-                <StatusPill tone="info" title="Personel taslağı göremez">Taslak</StatusPill>
+                <StatusPill tone="info" title="Ekip taslağı göremez">Taslak</StatusPill>
               )
             )}
 
@@ -2862,7 +2862,7 @@ loading ? (
               <span
                 title={
                   (laborBudgetExceeded ? `Bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")} aşıldı. ` : "") +
-                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} personelin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
+                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} kişinin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
                 }
                 className={cn(
                   "px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap flex items-center gap-1",
@@ -2917,7 +2917,7 @@ loading ? (
                     )}
                     <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "Personel İhtiyacını Gizle" : "Personel İhtiyacı Tablosu"}
+                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "İhtiyaç Tablosunu Gizle" : "Kaç Kişi Gerekli?"}
                     </button>
                     <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
@@ -3049,7 +3049,7 @@ loading ? (
                 </p>
                 <p className="text-forest-700/80 text-xs mt-0.5">
                   {canPublish
-                    ? <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Personel yayınlanınca görür.</>
+                    ? <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Ekip yayınlanınca görür.</>
                     : <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Onaya Gönder&apos;e basın. Sorumlunuz kontrol edip yayınlar.</>}
                 </p>
               </div>
@@ -3115,7 +3115,7 @@ loading ? (
           {demandOpen && !wizardOpen && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
-                <p className="flex-1 text-[11px] font-bold text-slate-500">Personel İhtiyacı · kaç kişi gerekli?</p>
+                <p className="flex-1 text-[11px] font-bold text-slate-500">Kaç kişi gerekli?</p>
                 <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
               </div>
               {demandTableEl}
@@ -3630,8 +3630,8 @@ loading ? (
                             <Row label="Vardiya / saat" a={`${b.snap.totalShifts} / ${b.snap.totalHours} s`} b={`${x.snap.totalShifts} / ${x.snap.totalHours} s`} />
                             <Row label="Eksik kişi (ihtiyaca göre)" a={String(short(b.snap))} b={String(short(x.snap))} better={cmp(short(b.snap), short(x.snap))} />
                             <Row label="Acil sorun" a={String(crit(b))} b={String(crit(x))} better={cmp(crit(b), crit(x))} />
-                            <Row label="Maliyet (ücretli personel)" a={`₺${b.cost.toLocaleString("tr-TR")}`} b={`₺${x.cost.toLocaleString("tr-TR")}`} />
-                            {scnExtra > 0 && <Row label="Yeni personelin vardiyası" a="—" b={`${x.extraShifts} vardiya`} />}
+                            <Row label="Maliyet (ücreti girilenler)" a={`₺${b.cost.toLocaleString("tr-TR")}`} b={`₺${x.cost.toLocaleString("tr-TR")}`} />
+                            {scnExtra > 0 && <Row label="Yeni kişinin vardiyası" a="—" b={`${x.extraShifts} vardiya`} />}
                           </tbody>
                         </table>
                         {x.problems.length > 0 ? (
@@ -3782,7 +3782,7 @@ loading ? (
         </label>
         <div className="flex-1 overflow-y-auto p-4">
           {personScores.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-6">Personel yok</p>
+            <p className="text-xs text-slate-400 text-center py-6">Ekip yok</p>
           ) : (
             <div className="space-y-3.5">
               {[...personScores].sort((a, b) => b.score - a.score).map(s => {

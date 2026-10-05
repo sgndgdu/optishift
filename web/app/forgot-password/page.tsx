@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 E-posta gelmiyorsa spam klasörünü kontrol edin. Hesabınızda kayıtlı e-posta
-                yoksa sorumlunuz size personel kartından yeni bir geçici şifre oluşturabilir.
+                yoksa sorumlunuz size kişi kartından yeni bir geçici şifre oluşturabilir.
               </p>
             </div>
           )}

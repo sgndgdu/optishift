@@ -57,7 +57,7 @@ export const QUESTIONS: CopilotQuestion[] = [
         const perDay = [0, 1, 2, 3, 4, 5, 6].map(d =>
           `${DAY_NAMES[d]}: ${snap.coverage.filter(c => c.day === d).reduce((s, c) => s + c.assigned, 0)} kişi`);
         return {
-          title: "Personel İhtiyacı girilmediği için eksik hesaplanamıyor",
+          title: "Kaç kişi gerektiği girilmediği için eksik hesaplanamıyor",
           lines: ["Günlere göre çalışan sayısı:", ...perDay],
         };
       }
