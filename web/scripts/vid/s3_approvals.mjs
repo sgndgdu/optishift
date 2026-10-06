@@ -1,0 +1,37 @@
+/** Sahne 3: Onaylar: kurala uymayan vardiya değişimi uyarısı, izin kartındaki ekip bilgisi, tek dokunuşla onay */
+import { open, go, login, startRec, encode, cursorStart, click, hover, zoomTo, zoomOut, wait } from "./rec.mjs";
+const D = process.env.FRAMES || "/tmp/vid_s3";
+const { b, page } = await open();
+await login(page, "vitrin.sorumlu", "vitrin123");
+await go(page, "/requests");
+await wait(page, 300);
+const rec = await startRec(page, D);
+await cursorStart(page, 1100, 700);
+await wait(page, 600);
+await zoomTo(page, page.getByText("Onaylanırsa kurallara uymuyor").first(), 1.55, 1000);
+await hover(page, page.getByText(/8 saat dinlenme/).first(), 700);
+await wait(page, 1300);
+await zoomOut(page, 800);
+await click(page, page.getByRole("button", { name: "Reddet" }).first(), 700);
+await wait(page, 600);
+const reason = page.getByPlaceholder(/Neden/);
+await click(page, reason, 500);
+await page.keyboard.type("Dinlenme süresi yetmiyor", { delay: Math.round(45 / 0.4) });
+await wait(page, 300);
+await click(page, page.locator(".fixed").getByRole("button", { name: "Reddet" }).last(), 600);
+await wait(page, 1300);
+const selin = page.getByText("Kasa departmanında").first();
+await zoomTo(page, selin, 1.5, 1000);
+await hover(page, selin, 600);
+await wait(page, 1200);
+await zoomOut(page, 800);
+const card = page.locator("div").filter({ has: page.getByText("Selin Aydın") }).filter({ has: page.getByRole("button", { name: "Onayla" }) }).last();
+await click(page, card.getByRole("button", { name: "Onayla" }), 700);
+await wait(page, 1200);
+const sure = page.locator(".fixed").getByRole("button", { name: /Onayla/ });
+if (await sure.count()) { await click(page, sure.last(), 600); await wait(page, 1200); }
+await wait(page, 600);
+console.log(await rec.stop());
+encode(D, "scripts/vid/out/approvals.mp4", { width: 1920, crf: 27 });
+await page.screenshot({ path: "/private/tmp/claude-501/-Users-sefagundogdu/665dc1f5-7c4c-4197-aac8-9b2437d936bc/scratchpad/rec/after3.jpg", type: "jpeg", quality: 40, scale: "css" });
+await b.close();
