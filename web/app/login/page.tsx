@@ -6,6 +6,7 @@ import { Lock, AtSign, Eye, EyeOff, ArrowRight, ShieldCheck, Fingerprint } from 
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { GoogleOneTap } from "@/components/GoogleOneTap";
 import { FEATURES } from "@/lib/features";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication } from "@simplewebauthn/browser";
 import { routeAfterLogin as routeAfterLoginShared, type LoginData } from "@/lib/sessionRouting";
@@ -129,6 +130,8 @@ export default function LoginPage() {
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Tekrar Hoş Geldiniz</h1>
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın, doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
+
+          {FEATURES.googleAuth && !unknownGmail && <GoogleOneTap />}
 
           {unknownGmail && (
             <div className="mb-5 bg-white border-2 border-slate-200 rounded-2xl p-4 text-sm text-slate-600 space-y-3">

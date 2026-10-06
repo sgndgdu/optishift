@@ -111,7 +111,12 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
   const data = (await res.json()) as { id_token?: string };
   if (!data.id_token) throw new Error("Google yanıtında id_token yok");
 
-  const { payload } = await jwtVerify(data.id_token, getJwks(), {
+  return (await verifyGoogleIdToken(data.id_token)).profile;
+}
+
+/** Google'ın imzaladığı id_token'ı doğrular (yönlendirmeli giriş ve tek dokunuşla giriş ortak). */
+export async function verifyGoogleIdToken(idToken: string): Promise<{ profile: GoogleProfile; nonce?: string }> {
+  const { payload } = await jwtVerify(idToken, getJwks(), {
     audience: process.env.GOOGLE_CLIENT_ID,
   });
 
@@ -123,10 +128,13 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
   }
 
   return {
-    googleId: payload.sub,
-    email: payload.email.toLowerCase(),
-    emailVerified: payload.email_verified === true,
-    name: typeof payload.name === "string" ? payload.name : payload.email,
+    profile: {
+      googleId: payload.sub,
+      email: payload.email.toLowerCase(),
+      emailVerified: payload.email_verified === true,
+      name: typeof payload.name === "string" ? payload.name : payload.email,
+    },
+    nonce: typeof payload.nonce === "string" ? payload.nonce : undefined,
   };
 }
 

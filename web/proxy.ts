@@ -13,6 +13,7 @@ const PUBLIC_API_PATHS = [
   "/api/cron/",  // Vercel Cron — kendi CRON_SECRET kontrolüyle korunur, JWT gerekmez
   "/api/auth/google/start",              // Google OAuth başlatma — henüz oturum yok
   "/api/auth/google/callback",           // Google'ın geri döndüğü nokta — henüz oturum yok
+  "/api/auth/google/onetap",             // tek dokunuşla giriş — Google imzalı id_token + imzalı nonce kendi doğrulamasını sağlar
   "/api/auth/google/complete-registration", // pending_token'ın kendisi doğrulama sağlar
   "/api/auth/forgot-password",           // oturumu olmayan kullanıcı içindir
   "/api/auth/reset-password",            // e-postadaki token'ın kendisi doğrulama sağlar
