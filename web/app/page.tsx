@@ -44,15 +44,15 @@ const STEPS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-cream text-slate-900 font-sans selection:bg-forest-200 selection:text-forest-900">
+    <div className="min-h-screen overflow-x-clip bg-cream text-slate-900 font-sans selection:bg-forest-200 selection:text-forest-900">
       <PublicHeader />
 
       {/* ─── Hero ─────────────────────────────────────────────── */}
       <section className="motion-auto relative overflow-hidden">
         <div className="m-drift pointer-events-none absolute -top-40 right-[-15%] h-[720px] w-[720px] rounded-full bg-gradient-to-br from-forest-100 via-ember-100/60 to-transparent blur-[120px]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-8 lg:pb-28 lg:pt-20">
-          <div className="max-w-xl">
-            <Link href="#nasil" className="m-up group mb-7 inline-flex max-w-full items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] text-slate-600 ring-1 ring-slate-200 transition-colors hover:ring-forest-300">
+          <div className="min-w-0 max-w-xl">
+            <Link href="#nasil" className="m-up group mb-7 flex w-fit max-w-full items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] text-slate-600 ring-1 ring-slate-200 transition-colors hover:ring-forest-300">
               <span className="rounded-full bg-forest-700 px-2.5 py-0.5 text-[11px] font-semibold text-white">Yeni</span>
               <span className="truncate">Otomatik Pilot: gelecek haftanın planı her perşembe hazır</span>
               <ArrowRight size={14} className="shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" />
@@ -84,10 +84,12 @@ export default function LandingPage() {
           </div>
 
           {/* Ürün kompozisyonu */}
-          <div className="relative mx-auto w-full max-w-[640px] lg:mr-0">
+          <div className="relative mx-auto w-full min-w-0 max-w-[640px] lg:mr-0">
             <div className="m-up relative z-10" style={{ "--d": "150ms" } as React.CSSProperties}>
               <AppWindow title={`${KAFE.location} · Vardiya Planı`}>
-                <ScheduleBoard sector={KAFE} animate />
+                {/* Telefonda 5 gün, geniş ekranda 7 gün (7 sütun dar ekrana sığmaz) */}
+                <div className="sm:hidden"><ScheduleBoard sector={KAFE} compact animate /></div>
+                <div className="hidden sm:block"><ScheduleBoard sector={KAFE} animate /></div>
               </AppWindow>
             </div>
             <div className="m-up absolute -bottom-16 left-4 z-20 hidden md:block xl:-left-6" style={{ "--d": "1100ms" } as React.CSSProperties}>

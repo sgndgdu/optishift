@@ -10,7 +10,7 @@ import { DAYS, TONE_CLASSES, type Sector } from "@/components/marketing/sectors"
 /** Pencere çerçevesi: masaüstü uygulama hissi */
 export function AppWindow({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(10,33,30,0.35)] ring-1 ring-slate-900/5 overflow-hidden", className)} aria-hidden="true">
+    <div className={cn("min-w-0 rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(10,33,30,0.35)] ring-1 ring-slate-900/5 overflow-hidden", className)} aria-hidden="true">
       <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
@@ -52,7 +52,7 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
 
       <div
         className="grid gap-1 text-[10.5px]"
-        style={{ gridTemplateColumns: `minmax(92px,1.3fr) repeat(${days.length}, minmax(0,1fr))` }}
+        style={{ gridTemplateColumns: `minmax(${compact ? 70 : 92}px,1.3fr) repeat(${days.length}, minmax(0,1fr))` }}
       >
         <div />
         {days.map((d, i) => (
@@ -92,7 +92,7 @@ function Row({ row, days, shiftByCode, delay }: {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2 py-0.5">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600">
+        <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 sm:flex">
           {row.name.split(" ").map((p) => p[0]).join("")}
         </span>
         <span className="min-w-0">
@@ -103,7 +103,7 @@ function Row({ row, days, shiftByCode, delay }: {
       {row.days.slice(0, days).map((code, i) => {
         const s = code ? shiftByCode[code] : null;
         return s ? (
-          <div key={i} className={cn("flex h-8 items-center justify-center rounded-md font-semibold", TONE_CLASSES[s.tone], delay && "m-pop")} style={delay ? ({ "--d": `${delay(i)}ms` } as React.CSSProperties) : undefined}>
+          <div key={i} className={cn("flex h-8 min-w-0 items-center justify-center overflow-hidden rounded-md px-0.5 text-[9.5px] font-semibold sm:text-[10.5px]", TONE_CLASSES[s.tone], delay && "m-pop")} style={delay ? ({ "--d": `${delay(i)}ms` } as React.CSSProperties) : undefined}>
             {s.label.length > 8 ? s.code : s.label}
           </div>
         ) : (

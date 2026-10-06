@@ -47,11 +47,11 @@ export function SectorShowcase() {
               aria-selected={on}
               onClick={() => { setActive(s.id); setAuto(false); }}
               className={cn(
-                "relative overflow-hidden flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                "relative overflow-hidden flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2.5 sm:px-3 py-2.5 text-sm font-semibold transition-colors",
                 on ? "bg-forest-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
-              <Icon size={16} />
+              <Icon size={16} className="hidden sm:block" />
               <span className="sm:hidden">{s.short}</span>
               <span className="hidden sm:inline">{s.label}</span>
               {on && auto && visible && (
@@ -64,9 +64,9 @@ export function SectorShowcase() {
 
       <div key={sector.id} className="grid items-stretch gap-6 lg:grid-cols-[1.05fr_1fr] animate-in fade-in duration-500">
         {/* Fotoğraf + plan önizlemesi */}
-        <div className="motion-auto relative min-h-[420px] overflow-hidden rounded-3xl sm:min-h-[560px]">
-          <SectorPhoto sector={sector} className="m-zoom absolute inset-0" />
-          <div className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6">
+        <div className="motion-auto relative min-w-0 overflow-hidden rounded-3xl bg-forest-900 sm:min-h-[560px]">
+          <SectorPhoto sector={sector} className="m-zoom relative h-52 sm:absolute sm:inset-0 sm:h-auto" />
+          <div className="relative -mt-14 px-3 pb-3 sm:absolute sm:inset-x-6 sm:bottom-6 sm:mt-0 sm:p-0">
             <AppWindow title={`${sector.label} · haftalık plan`}>
               <ScheduleBoard sector={sector} compact animate />
             </AppWindow>
@@ -74,7 +74,7 @@ export function SectorShowcase() {
         </div>
 
         {/* Metin */}
-        <div className="motion-auto flex flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-10">
+        <div className="motion-auto min-w-0 flex flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-10">
           <p className="m-up mb-3 text-sm font-semibold text-ember-600">{sector.label}</p>
           <h3 className="m-up font-serif text-2xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-[32px]">{sector.headline}</h3>
           <p className="m-up mt-4 text-[15px] leading-relaxed text-slate-600 sm:text-base" style={{ "--d": "120ms" } as React.CSSProperties}>{sector.pain}</p>
