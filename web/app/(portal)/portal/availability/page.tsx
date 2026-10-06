@@ -448,7 +448,7 @@ export default function PortalAvailability() {
           <CalendarCheck size={18} className="text-sky-600 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-sky-800">Bu haftanın planı yayınlandı</p>
-            <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da takas isteyebilirsin.</p>
+            <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da vardiya değiştirme isteyebilirsin.</p>
           </div>
           <Link href="/portal/requests"
             className="text-xs font-bold text-sky-700 bg-white border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-50 transition-colors shrink-0">

@@ -206,8 +206,8 @@ export default function RegisterPage() {
           ) : !registeredUser ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="mb-8">
-                <h1 className="text-[28px] font-bold text-slate-900 mb-2 tracking-tight leading-tight">Ücretsiz hesap açın</h1>
-                <p className="text-[15px] text-slate-500">Kredi kartı gerekmez. Tek bir şube ve toplam 10 kullanıcıya kadar, sonsuza dek ücretsiz.</p>
+                <h1 className="text-[28px] font-bold text-slate-900 mb-2 tracking-tight leading-tight">14 gün ücretsiz deneyin</h1>
+                <p className="text-[15px] text-slate-500">14 gün boyunca bütün özellikleri deneyin. Sonra size uygun paketle devam edin.</p>
               </div>
 
               {FEATURES.googleAuth && (
@@ -365,15 +365,11 @@ export default function RegisterPage() {
                   Şimdi işletme türünüzü seçin, vardiyalar hazır gelsin. Dilerseniz vardiyalarınızı özelleştirebilir, yeni vardiyalar ekleyebilirsiniz.
                 </p>
               </div>
-              {promoResult?.applied && (
+              {promoResult?.trial_ends_at && (
                 <div className="bg-ember-50 border border-ember-200 rounded-2xl p-4 flex items-center gap-3 text-left">
                   <Gift size={20} className="text-ember-600 shrink-0" />
                   <p className="text-sm text-ember-800 font-bold">
-                    Kampanya kodu uygulandı, Profesyonel plan{" "}
-                    {promoResult.trial_ends_at
-                      ? new Date(promoResult.trial_ends_at * 1000).toLocaleDateString("tr-TR")
-                      : ""}{" "}
-                    tarihine kadar ücretsiz.
+                    Deneme süreniz {new Date(promoResult.trial_ends_at * 1000).toLocaleDateString("tr-TR")} tarihine kadar. Bütün özellikler açık.
                   </p>
                 </div>
               )}

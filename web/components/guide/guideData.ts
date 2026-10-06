@@ -74,7 +74,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Onaylar",
         icon: ClipboardList,
         paragraphs: [
-          "İzin, takas ve saat düzeltme talepleri burada toplanır. İzin kartı o günlerdeki vardiyaları gösterir: \"Onayla, ilana çevir\" vardiyayı ekibe duyurur, \"Onayla, sadece çıkar\" plandan siler.",
+          "İzin, vardiya değiştirme ve saat düzeltme talepleri burada toplanır. İzin kartı o günlerdeki vardiyaları gösterir: \"Onayla, ilana çevir\" vardiyayı ekibe duyurur, \"Onayla, sadece çıkar\" plandan siler.",
         ],
       },
       {
@@ -126,7 +126,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ekip ve onaylar",
         icon: Users,
         paragraphs: [
-          "Ekip yetkiniz varsa kişi ekler, kartlarını düzenlersiniz. Onay yetkiniz varsa izin, takas ve saat düzeltme taleplerini Onaylar'dan karara bağlarsınız.",
+          "Ekip yetkiniz varsa kişi ekler, kartlarını düzenlersiniz. Onay yetkiniz varsa izin, vardiya değiştirme ve saat düzeltme taleplerini Onaylar'dan karara bağlarsınız.",
         ],
       },
       {
@@ -183,7 +183,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Inbox,
         paragraphs: [
           "İzin istemek, vardiyana gelemeyeceğini bildirmek, biriyle vardiya değiştirmek ya da saat hatası bildirmek için \"Yeni talep\"e dokun. Gelemeyeceğin vardiya ekibe duyurulur; biri üstlenene kadar sende kalır.",
-          "Takasta önce arkadaşın kabul eder, sonra sorumlun onaylar. Kurallara uymayan bir takas (ör. dinlenme süresi yetmiyorsa) gönderilemez; nedeni ekranda yazar.",
+          "Vardiya değiştirmede önce arkadaşın kabul eder, sonra sorumlun onaylar. Kurallara uymayan bir vardiya değiştirme isteği (ör. dinlenme süresi yetmiyorsa) gönderilemez; nedeni ekranda yazar.",
         ],
       },
       {
@@ -220,9 +220,9 @@ export const FAQ_ITEMS: FaqItem[] = [
       "Hayır. Sorumlun uygunluk toplamayı kapatabilir. Açıksa ve girmezsen her gün uygun sayılırsın; \"Gelemem\" dediğin güne ise vardiya yazılmaz.",
   },
   {
-    question: "Vardiya takası nasıl onaylanır?",
+    question: "Vardiya değiştirme nasıl onaylanır?",
     answer:
-      "Önce teklif ettiğin kişi kabul eder, sonra sorumlu onaylar. İkisi olmadan takas geçerli olmaz.",
+      "Önce teklif ettiğin kişi kabul eder, sonra sorumlu onaylar. İkisi olmadan vardiya değişmez.",
   },
   {
     question: "Yayınlanmış bir vardiya sonradan değişebilir mi?",

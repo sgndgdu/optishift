@@ -1,133 +1,117 @@
 import Link from "next/link";
 import {
-  ArrowRight, Check, Scale, ShieldCheck, ArrowLeftRight, FileSpreadsheet, Building2,
-  ListChecks, Smartphone, MessageSquare, CalendarClock, Megaphone,
+  ArrowRight, Check, Scale, FileSpreadsheet, HelpCircle, Repeat, CalendarCheck, GitCompare,
+  Smartphone, ArrowLeftRight, Megaphone, CalendarClock, Siren, Building2, Users,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 import { BRAND } from "@/lib/brand";
 import { SECTORS } from "@/components/marketing/sectors";
-import { AppWindow, ScheduleBoard, PhoneMock, Toast, FairnessCard } from "@/components/marketing/Mockups";
+import {
+  AppWindow, ScheduleBoard, PhoneMock, Toast, FairnessCard, PilotCard, WhyCard,
+  AvailabilityMini, RotationBoard, StoreBadge,
+} from "@/components/marketing/Mockups";
 import { SectorShowcase } from "@/components/marketing/SectorShowcase";
-import { SectorPhoto } from "@/components/marketing/SectorPhoto";
 import { Reveal } from "@/components/marketing/Reveal";
-import { CountUp } from "@/components/marketing/CountUp";
+import { TypedDay } from "@/components/marketing/TypedDay";
+import { AssistantDemo } from "@/components/marketing/AssistantDemo";
 
 const KAFE = SECTORS[0];
-
-const FEATURES = [
-  { icon: ShieldCheck, title: "İş Kanunu kuralları hazır", text: "İki vardiya arası en az 11 saat dinlenme, haftalık çalışma sınırı, hafta tatili ve gece çalışma süresi plan kurulurken gözetilir." },
-  { icon: Scale, title: "Adalet puanı", text: "Kim kaç hafta sonu ve kaç zor vardiya çalıştı sayılır. Zor vardiyalar sırayla döner, kimse sürekli aynı yükü taşımaz." },
-  { icon: ArrowLeftRight, title: "Takas, izin, açık vardiya", text: "Ekip takas ister, izin ister, boşta kalan vardiyayı üstlenir. Kurala uymayan değişiklik daha istek aşamasında durur." },
-  { icon: FileSpreadsheet, title: "Puantaj ve fazla mesai", text: "Çalışılan saat, geç kalma, fazla mesai ve izinler ay sonunda raporda. Excel olarak indirilir." },
-  { icon: Building2, title: "Çok şube, tek panel", text: "Bütün şubeleri tek ekranda görün. Birden çok şubede çalışan kişinin saatleri birlikte sayılır." },
-];
+const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 const STEPS = [
   {
     n: "1",
     title: "İhtiyacı bir kez girin",
-    text: "Hangi gün, hangi vardiyada kaç kişi gerektiğini tabloya yazın. Geçmiş haftalarınızdan öneri de alabilirsiniz.",
+    text: "Hangi gün, hangi vardiyada kaç kişi gerektiğini bir kez yazın. Sonraki haftalarda bu sayılarla devam edilir, dilerseniz değiştirebilirsiniz.",
   },
   {
     n: "2",
     title: "Plan saniyeler içinde hazır",
-    text: "Kimin ne zaman gelebildiği, yasal kurallar ve adalet puanı birlikte gözetilir. Beğenmediğiniz hücreyi elle değiştirin, gerisi korunur.",
+    text: "Kurallar ve ekibin iş yükleri birlikte gözetilir. Uygun olmadığını düşündüğünüz planı elle değiştirin.",
   },
   {
     n: "3",
     title: "Yayınlayın, ekip telefondan görsün",
-    text: "Yayınladığınız an herkese bildirim gider. Ekip vardiyasını, takas ve izin isteklerini telefonundan yönetir.",
+    text: "Yayınladığınız an ekibinize bildirim gider.",
   },
+];
+
+const MORE = [
+  "İş Kanunu kuralları hazır",
+  "Biri gelemezse en uygun yedek",
+  "Planı bozmadan yeniden kur",
+  "Tercihleri zamanla öğrenir",
+  "Birlikte çalışamaz",
+  "Yorgunluk ve kaza riski uyarısı",
+  "Geçmiş haftalardan ihtiyaç önerisi",
+  "Ekip sohbeti",
+  "Devir notu",
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-clip bg-cream text-slate-900 font-sans selection:bg-forest-200 selection:text-forest-900">
+    <div className="min-h-screen overflow-x-clip bg-cream font-sans text-slate-900 selection:bg-ember-200 selection:text-forest-900">
       <PublicHeader />
 
-      {/* ─── Hero ─────────────────────────────────────────────── */}
-      <section className="motion-auto relative overflow-hidden">
-        <div className="m-drift pointer-events-none absolute -top-40 right-[-15%] h-[720px] w-[720px] rounded-full bg-gradient-to-br from-forest-100 via-ember-100/60 to-transparent blur-[120px]" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-8 lg:pb-28 lg:pt-20">
+      {/* ─── Giriş ────────────────────────────────────────────── */}
+      <section className="motion-auto relative overflow-hidden bg-forest-900 text-white">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "64px 64px", maskImage: "radial-gradient(ellipse at 70% 30%, black, transparent 75%)" }}
+        />
+        <div className="m-drift pointer-events-none absolute -right-40 -top-40 h-[680px] w-[680px] rounded-full bg-ember-500/25 blur-[140px]" />
+        <div className="pointer-events-none absolute -bottom-60 -left-40 h-[560px] w-[560px] rounded-full bg-forest-500/30 blur-[140px]" />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.12fr] lg:gap-10 lg:pb-32 lg:pt-24">
           <div className="min-w-0 max-w-xl">
-            <Link href="#nasil" className="m-up group mb-7 flex w-fit max-w-full items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] text-slate-600 ring-1 ring-slate-200 transition-colors hover:ring-forest-300">
-              <span className="rounded-full bg-forest-700 px-2.5 py-0.5 text-[11px] font-semibold text-white">Yeni</span>
-              <span className="truncate">Otomatik Pilot: gelecek haftanın planı her perşembe hazır</span>
-              <ArrowRight size={14} className="shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" />
+            <Link href="#pilot" className="m-up group mb-8 flex w-fit max-w-full items-center gap-2.5 rounded-full bg-white/10 py-1 pl-1 pr-3.5 text-[13px] text-forest-100 ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/15">
+              <span className="rounded-full bg-ember-400 px-2.5 py-0.5 text-[11px] font-bold text-forest-900">Yeni</span>
+              <span className="sr-only">Otomatik Pilot: gelecek haftanın planı seçtiğiniz gün hazır</span>
+              <span aria-hidden="true" className="truncate">Otomatik Pilot: <span className="hidden sm:inline">gelecek haftanın </span>planı her <TypedDay /> hazır</span>
+              <ArrowRight size={14} className="shrink-0 text-forest-200 transition-transform group-hover:translate-x-0.5" />
             </Link>
-            <h1 className="font-serif text-[42px] font-semibold leading-[1.04] tracking-tight text-slate-900 sm:text-6xl lg:text-[68px]">
-              <span className="m-up block" style={{ "--d": "80ms" } as React.CSSProperties}>Vardiya planı,</span>
-              <span className="m-up block text-forest-700" style={{ "--d": "180ms" } as React.CSSProperties}>saniyeler içinde</span>
-              <span className="m-up block" style={{ "--d": "280ms" } as React.CSSProperties}>ve herkese adil.</span>
+            <h1 className="font-serif text-[44px] font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-[74px]">
+              <span className="m-up block" style={d(80)}>Vardiya planı,</span>
+              <span className="m-up block italic text-ember-300" style={d(180)}>saniyeler içinde</span>
+              <span className="m-up block" style={d(280)}>oluşsun.</span>
             </h1>
-            <p className="m-up mt-6 text-[17px] leading-relaxed text-slate-600 sm:text-lg" style={{ "--d": "400ms" } as React.CSSProperties}>
-              Kaç kişiye ihtiyacınız olduğunu yazın. {BRAND.name}{" "}haftanın planını İş Kanunu&apos;na uygun ve adil şekilde kursun.
-              Ekibiniz vardiyasını, takasını ve iznini telefondan görsün.
+            <p className="m-up mt-7 max-w-lg text-[17px] leading-relaxed text-forest-100/80 sm:text-lg" style={d(400)}>
+              Hangi gün, hangi vardiyada kaç kişiye ihtiyacınız olduğunu bir kez yazın. {BRAND.name} haftanın planını adil şekilde oluştursun.
             </p>
-            <div className="m-up mt-9 flex flex-col gap-3 sm:flex-row" style={{ "--d": "500ms" } as React.CSSProperties}>
-              <Link href="/register" className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-forest-700 px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-10px_rgba(20,69,61,0.7)] transition-colors hover:bg-forest-800">
-                Ücretsiz başlayın <ArrowRight size={18} />
+            <div className="m-up mt-9 flex flex-col gap-3 sm:flex-row" style={d(500)}>
+              <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ember-400 px-7 py-4 text-base font-bold text-forest-900 shadow-[0_14px_40px_-12px_rgba(232,135,58,0.8)] transition-colors hover:bg-ember-300">
+                14 gün ücretsiz deneyin <ArrowRight size={18} />
               </Link>
-              <Link href="#nasil" className="inline-flex h-13 items-center justify-center rounded-2xl bg-white px-7 py-3.5 text-base font-semibold text-slate-800 ring-1 ring-slate-200 transition-colors hover:bg-slate-50">
+              <Link href="#nasil" className="inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold text-white ring-1 ring-white/25 transition-colors hover:bg-white/10">
                 Nasıl çalışır?
               </Link>
             </div>
-            <ul className="m-up mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500" style={{ "--d": "600ms" } as React.CSSProperties}>
-              {["Kredi kartı gerekmez", "Küçük işletmeye süresiz ücretsiz", "Telefonda tam çalışır"].map((t) => (
+            <ul className="m-up mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-forest-100/70" style={d(600)}>
+              {["Bütün özellikler açık", "İş Kanunu kuralları hazır", "Telefondan da yönetilir"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
-                  <Check size={15} className="text-forest-600" strokeWidth={2.5} /> {t}
+                  <Check size={15} className="text-ember-300" strokeWidth={2.5} /> {t}
                 </li>
               ))}
             </ul>
           </div>
 
           {/* Ürün kompozisyonu */}
-          <div className="relative mx-auto w-full min-w-0 max-w-[640px] lg:mr-0">
-            <div className="m-up relative z-10" style={{ "--d": "150ms" } as React.CSSProperties}>
+          <div className="relative mx-auto w-full min-w-0 max-w-[660px] lg:mr-0">
+            <div className="m-up relative z-10" style={d(150)}>
               <AppWindow title={`${KAFE.location} · Vardiya Planı`}>
-                {/* Telefonda 5 gün, geniş ekranda 7 gün (7 sütun dar ekrana sığmaz) */}
                 <div className="sm:hidden"><ScheduleBoard sector={KAFE} compact animate /></div>
                 <div className="hidden sm:block"><ScheduleBoard sector={KAFE} animate /></div>
               </AppWindow>
             </div>
-            <div className="m-up absolute -bottom-16 left-4 z-20 hidden md:block xl:-left-6" style={{ "--d": "1100ms" } as React.CSSProperties}>
-              <div className="m-float" style={{ animationDelay: "2s" }}>
-                <PhoneMock sector={KAFE} className="scale-[0.82] origin-bottom-left" />
-              </div>
+            <div className="m-up absolute -right-6 -top-10 z-20 hidden lg:block xl:-right-12" style={d(1900)}>
+              <div className="m-float"><PilotCard /></div>
             </div>
-            <div className="m-up absolute -right-4 -top-6 z-20 hidden sm:block lg:-right-10" style={{ "--d": "2100ms" } as React.CSSProperties}>
-              <div className="m-float">
-                <Toast icon="swap" title="Takas onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
-              </div>
-            </div>
-            <div className="m-up absolute -bottom-10 -right-4 z-20 hidden lg:block lg:-right-10" style={{ "--d": "1700ms" } as React.CSSProperties}>
-              <div className="m-float" style={{ animationDelay: "3.5s" }}>
-                <FairnessCard animate />
-              </div>
+            <div className="m-up absolute -bottom-36 -left-6 z-20 hidden md:block xl:-left-14" style={d(2400)}>
+              <div className="m-float" style={{ animationDelay: "2.5s" }}><WhyCard /></div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ─── Kurallar şeridi ──────────────────────────────────── */}
-      <section className="border-y border-slate-200/70 bg-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-slate-100 sm:grid-cols-4">
-          {[
-            { k: "11 saat", v: "vardiyalar arası dinlenme" },
-            { k: "45 saat", v: "haftalık sınır, kişiye göre" },
-            { k: "7,5 saat", v: "gece çalışma süresi" },
-            { k: "1 gün", v: "hafta tatili her hafta" },
-          ].map((x) => (
-            <div key={x.k} className="bg-white px-5 py-6 text-center sm:py-8">
-              <p className="font-serif text-2xl font-semibold text-forest-700 sm:text-3xl"><CountUp value={x.k} /></p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">{x.v}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mx-auto max-w-7xl px-4 pb-5 text-center text-xs text-slate-400 sm:px-6">
-          4857 sayılı İş Kanunu&apos;nun vardiya kuralları baştan açık gelir. İşletmenize göre değiştirebilirsiniz.
-        </p>
       </section>
 
       {/* ─── Sektörler ────────────────────────────────────────── */}
@@ -135,9 +119,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-10 max-w-2xl text-center">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Sektörünüze göre</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={{ "--d": "80ms" } as React.CSSProperties}>Her işletmenin vardiyası farklı.</h2>
-            <p className="m-up mt-4 text-base text-slate-600 sm:text-lg">
-              İşletme türünüzü seçtiğinizde vardiya saatleri, departmanlar ve kurallar hazır gelir. Sonra dilediğiniz gibi değiştirirsiniz.
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Her işletmenin vardiyası farklı.</h2>
+            <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(160)}>
+              İşletme türünüzü seçin, vardiya saatleri ve kurallar hazır gelsin. Sonrasında dilediğiniz gibi değiştirebilirsiniz.
             </p>
           </Reveal>
           <Reveal threshold={0.15}><SectorShowcase /></Reveal>
@@ -149,77 +133,147 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mb-14 max-w-2xl">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Nasıl çalışır</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={{ "--d": "80ms" } as React.CSSProperties}>Pazar akşamı Excel başında oturmaya son.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Pazar akşamı Excel başında oturmaya son.</h2>
           </Reveal>
           <div className="grid gap-6 md:grid-cols-3">
             {STEPS.map((s, i) => (
               <Reveal key={s.n} className="flex">
-              <div className="m-up flex w-full flex-col rounded-3xl bg-cream p-7 ring-1 ring-slate-900/5 sm:p-8" style={{ "--d": `${i * 120}ms` } as React.CSSProperties}>
-                <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-forest-700 font-serif text-lg font-semibold text-white">{s.n}</span>
-                <h3 className="text-xl font-semibold text-slate-900">{s.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{s.text}</p>
-                <div className="mt-8 flex-1">
-                  {i === 0 && <DemandMini />}
-                  {i === 1 && <ChecksMini />}
-                  {i === 2 && (
-                    <div className="space-y-2">
-                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13-19 Ekim vardiyalarınız hazır." className="m-up w-full" style={{ "--d": "700ms" } as React.CSSProperties} />
-                      <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={{ "--d": "1300ms" } as React.CSSProperties} />
-                    </div>
-                  )}
+                <div className="m-up flex w-full flex-col rounded-3xl bg-cream p-7 ring-1 ring-slate-900/5 sm:p-8" style={d(i * 120)}>
+                  <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-forest-700 font-serif text-lg font-semibold text-white">{s.n}</span>
+                  <h3 className="text-xl font-semibold text-slate-900">{s.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{s.text}</p>
+                  <div className="mt-8 flex-1">
+                    {i === 0 && <DemandMini />}
+                    {i === 1 && <ChecksMini />}
+                    {i === 2 && (
+                      <div className="space-y-2">
+                        <Toast icon="bell" title="Yeni haftanın planı yayında" text="13-19 Ekim vardiyalarınız hazır." className="m-up w-full" style={d(700)} />
+                        <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={d(1300)} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Ekip tarafı ──────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-forest-900 py-20 text-white sm:py-28">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "56px 56px" }}
-        />
-        <div className="pointer-events-none absolute -left-40 top-0 h-[600px] w-[600px] rounded-full bg-forest-600/30 blur-[140px]" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
-          <div className="relative order-2 flex justify-center lg:order-1">
-            <Reveal className="relative h-[480px] w-full max-w-[460px]">
-              <div className="m-up absolute inset-y-0 left-0 right-20 overflow-hidden rounded-3xl">
-                <SectorPhoto sector={{ image: "/marketing/team.webp", label: "Vardiyasını telefonundan kontrol eden ekip üyesi" }} className="h-full w-full" />
-              </div>
-              <div className="m-up absolute -bottom-2 right-0 z-10" style={{ "--d": "300ms" } as React.CSSProperties}>
-                <div className="m-float">
-                  <PhoneMock sector={KAFE} className="scale-[0.86] origin-bottom-right" />
+      {/* ─── Öne çıkanlar ─────────────────────────────────────── */}
+      <section id="features" className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <Reveal className="mx-auto mb-14 max-w-2xl text-center">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Özellikler</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Planı siz yapmayın, siz karar verin.</h2>
+          </Reveal>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {/* Otomatik Pilot */}
+            <Reveal className="lg:col-span-2">
+              <div id="pilot" className="m-up relative grid h-full scroll-mt-24 overflow-hidden rounded-3xl bg-forest-800 text-white sm:grid-cols-2">
+                <div className="relative z-10 flex flex-col p-7 sm:p-9">
+                  <FeatureIcon icon={Repeat} dark />
+                  <h3 className="mt-5 font-serif text-2xl font-semibold sm:text-3xl">Otomatik Pilot</h3>
+                  <p className="mt-3 text-[15px] leading-relaxed text-forest-100/80">
+                    Her hafta seçtiğiniz gün, gelecek haftanın taslağı kendiliğinden hazırlanır. Siz bakıp yayınlarsınız, kendi kendine yayınlamaz.
+                  </p>
+                  <PilotCard className="m-up mt-8 w-full max-w-[300px] sm:mt-auto" />
+                </div>
+                <div className="relative hidden min-h-[320px] sm:block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/marketing/pilot.webp" alt="Sabah kafesinde gelecek haftanın planına bakan işletme sahibi" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-forest-800 via-forest-800/30 to-transparent" />
                 </div>
               </div>
-              <div className="m-up absolute bottom-10 -left-4 z-20 hidden sm:block" style={{ "--d": "900ms" } as React.CSSProperties}>
-                <Toast icon="bell" title="Açık vardiya: Cumartesi 15:00" text="Mert gelemiyor. Almak ister misiniz?" />
+            </Reveal>
+
+            <Bento icon={HelpCircle} title="Neden bu kişi?" text="Plandaki her isme dokunun, o vardiyaya neden onun yazıldığını görün. Ekip sorduğunda cevabınız hazır.">
+              <WhyCard className="w-full shadow-none ring-slate-900/10" />
+            </Bento>
+
+            <Bento icon={CalendarCheck} title="Uygunluk toplama" text="Ekibiniz gelemeyeceği ve tercih etmediği günleri telefondan bildirir. Plan buna göre kurulur, hatırlatmayı uygulama yapar.">
+              <AvailabilityMini />
+            </Bento>
+
+            <Bento icon={Scale} title="Adalet puanı" text="Kim kaç hafta sonu ve kaç zor vardiya çalıştı sayılır. Zor vardiyalar sırayla döner, kimse sürekli aynı yükü taşımaz.">
+              <FairnessCard animate className="w-full shadow-none ring-slate-900/10" />
+            </Bento>
+
+            <Bento icon={GitCompare} title="Ya şöyle olursa?" text="Biri izne çıksa ya da ihtiyaç artsa plan nasıl değişir? Yayınlamadan önce iki planı yan yana görün.">
+              <ScenarioMini />
+            </Bento>
+
+            <Bento icon={FileSpreadsheet} title="Puantaj ve fazla mesai" text="Çalışılan saat, geç kalma, fazla mesai ve izinler ay sonunda raporda. Excel olarak indirilir." />
+
+            <Reveal className="lg:col-span-2">
+              <div className="m-up flex h-full flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-9">
+                <p className="text-sm font-semibold text-slate-900">Ve dahası</p>
+                <ul className="mt-4 flex flex-wrap gap-2">
+                  {MORE.map((t) => (
+                    <li key={t} className="flex items-center gap-1.5 rounded-full bg-cream px-3.5 py-1.5 text-[13.5px] text-slate-700 ring-1 ring-slate-900/5">
+                      <Check size={13} strokeWidth={3} className="text-forest-600" /> {t}
+                    </li>
+                  ))}
+                  <li className="flex items-center gap-1.5 rounded-full bg-ember-50 px-3.5 py-1.5 text-[13.5px] text-ember-800 ring-1 ring-ember-200">
+                    Muhasebe programı bağlantısı · yakında
+                  </li>
+                </ul>
               </div>
             </Reveal>
           </div>
-          <Reveal className="order-1 lg:order-2">
-            <p className="m-up mb-3 text-sm font-semibold text-ember-300">Ekibiniz için</p>
-            <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">WhatsApp grubunda vardiya kovalamak yok.</h2>
-            <p className="mt-5 text-base leading-relaxed text-forest-100/75 sm:text-lg">
-              Ekip üyeleri uygulama indirmeden, telefonun tarayıcısından girer. Bağlantıyı WhatsApp ile gönderirsiniz, Google hesabıyla tek dokunuşta bağlanırlar.
+        </div>
+      </section>
+
+      {/* ─── İşletme Asistanı ─────────────────────────────────── */}
+      <section id="asistan" className="relative overflow-hidden bg-forest-900 py-20 text-white sm:py-28">
+        <div className="pointer-events-none absolute -right-40 top-10 h-[560px] w-[560px] rounded-full bg-ember-500/20 blur-[140px]" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <Reveal>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-300">Yapay zekâ</p>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl" style={d(80)}>İşletmenizi sorun, cevap hemen gelsin.</h2>
+            <p className="m-up mt-5 max-w-lg text-base leading-relaxed text-forest-100/80 sm:text-lg" style={d(160)}>
+              İşletme Asistanı planınızı, ekibinizi, izinleri ve onayları bilir. Sorunuzu yazın, saniyeler içinde cevap versin.
             </p>
-            <ul className="mt-10 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            <p className="m-up mt-4 text-sm text-forest-100/55" style={d(220)}>Asistan sadece bilgi ve öneri verir.</p>
+            <div className="m-up relative mt-10 hidden aspect-[4/3] max-w-sm overflow-hidden rounded-3xl lg:block" style={d(300)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marketing/assistant.webp" alt="Telefonundan asistana soru soran restoran sorumlusu" className="h-full w-full object-cover" loading="lazy" />
+            </div>
+          </Reveal>
+          <Reveal threshold={0.25}>
+            <div className="m-up" style={d(200)}><AssistantDemo /></div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ─── Şubeler arası personel ───────────────────────────── */}
+      <section id="subeler" className="bg-white py-20 sm:py-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
+          <Reveal className="relative">
+            <div className="m-up relative aspect-[4/3] overflow-hidden rounded-3xl bg-forest-900">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marketing/rotation.webp" alt="Başka şubeye geçen ekip üyesi" className="h-full w-full object-cover" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-forest-900/50 to-transparent" />
+            </div>
+            <RotationBoard className="m-up relative z-10 mx-auto -mt-24 w-[88%] max-w-[340px] sm:absolute sm:-bottom-10 sm:-right-4 sm:mt-0 sm:w-[320px] lg:-right-8" />
+          </Reveal>
+          <Reveal>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Çok şube</p>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Bir kişi, birden çok şube.</h2>
+            <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(160)}>
+              Ekibiniz şubeler arasında çalışabilir. Saatleri, dinlenmesi ve hafta tatili bütün şubelerde birlikte sayılır.
+            </p>
+            <ul className="mt-9 space-y-6">
               {[
-                { icon: Smartphone, t: "Vardiyasını görür", d: "Haftası, kiminle çalıştığı, sıradaki vardiyası." },
-                { icon: CalendarClock, t: "Uygunluğunu girer", d: "Gelemeyeceği günler plana kendiliğinden yansır." },
-                { icon: ArrowLeftRight, t: "Takas ve izin ister", d: "Kurala uymayan takası gönderilmeden önce uyarır." },
-                { icon: Megaphone, t: "Açık vardiyayı alır", d: "Biri gelemezse uygun olanlara anında haber gider." },
-                { icon: MessageSquare, t: "Ekiple yazışır", d: "Şube sohbeti ve sorumluya doğrudan mesaj." },
-                { icon: ListChecks, t: "Devir notunu okur", d: "Önceki vardiyanın bıraktığı not girişte karşılar." },
-              ].map(({ icon: Icon, t, d }, i) => (
-                <li key={t} className="m-up flex gap-3.5" style={{ "--d": `${200 + i * 80}ms` } as React.CSSProperties}>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-ember-300">
-                    <Icon size={18} />
-                  </span>
+                { icon: Building2, t: "Birden çok şubede çalışır", x: "Kişinin çalıştığı şubeleri seçin. Bir şubedeki vardiyası öbür şubenin planında görünür, aynı güne iki şube yazılmaz." },
+                { icon: Repeat, t: "Planlı şube değiştirir", x: "İki haftada bir Moda, sonra Kadıköy gibi bir sıra kurun. Kişi sırası gelen şubenin planına kendiliğinden girer." },
+                { icon: Users, t: "Başka şubeden yedek gelir", x: "Biri gelemezse diğer şubelerdeki uygun kişilere de haber gider. Üstlenen kişi o şubenin planına eklenir." },
+              ].map(({ icon: Icon, t, x }, i) => (
+                <li key={t} className="m-up flex gap-4" style={d(240 + i * 100)}>
+                  <FeatureIcon icon={Icon} />
                   <span>
-                    <span className="block font-semibold">{t}</span>
-                    <span className="mt-0.5 block text-sm text-forest-100/65">{d}</span>
+                    <span className="block font-semibold text-slate-900">{t}</span>
+                    <span className="mt-1 block text-[15px] leading-relaxed text-slate-600">{x}</span>
                   </span>
                 </li>
               ))}
@@ -228,46 +282,50 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Özellikler ───────────────────────────────────────── */}
-      <section id="features" className="py-20 sm:py-28">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto mb-14 max-w-2xl text-center">
-            <p className="mb-3 text-sm font-semibold text-ember-600">Özellikler</p>
-            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planlamadan puantaja, tek yerde.</h2>
-          </div>
-          <Reveal className="grid gap-px overflow-hidden rounded-3xl bg-slate-200/70 ring-1 ring-slate-200/70 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, text }, i) => (
-              <div key={title} className="m-up group bg-white p-7 sm:last:col-span-2 lg:last:col-span-2 transition-colors hover:bg-forest-50/40 sm:p-9" style={{ "--d": `${i * 80}ms` } as React.CSSProperties}>
-                <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-forest-50 text-forest-700 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg]">
-                  <Icon size={21} />
-                </span>
-                <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{text}</p>
-              </div>
-            ))}
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ─── Kapanış ──────────────────────────────────────────── */}
-      <section className="px-4 pb-20 sm:px-6 sm:pb-28">
-        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-forest-800 px-6 py-16 text-center sm:px-12 sm:py-24">
-          <SectorPhoto sector={SECTORS[2]} className="absolute inset-0 opacity-30" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-forest-900/40 to-forest-900/80" />
-          <Reveal className="relative">
-            <h2 className="m-up mx-auto max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
-              Gelecek haftanın planı, saniyeler içinde hazır.
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base text-forest-100/80 sm:text-lg">
-              Bir şube ve on kişiye kadar süresiz ücretsiz. Büyüdüğünüzde paketinizi yükseltirsiniz.
+      {/* ─── Ekip ─────────────────────────────────────────────── */}
+      <section className="py-20 sm:py-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
+          <Reveal className="order-2 lg:order-1">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Ekibiniz için</p>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>WhatsApp grubunda vardiya kovalamak yok.</h2>
+            <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(160)}>
+              Ekip üyeleri telefonun tarayıcısından girer. Bağlantıyı WhatsApp ile gönderirsiniz, Google hesabıyla tek dokunuşta bağlanırlar.
             </p>
-            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold text-forest-900 transition-colors hover:bg-cream">
-                Ücretsiz hesap açın <ArrowRight size={18} />
-              </Link>
-              <Link href="/pricing" className="inline-flex items-center justify-center rounded-2xl px-8 py-4 text-base font-semibold text-white ring-1 ring-white/30 transition-colors hover:bg-white/10">
-                Paketleri gör
-              </Link>
+            <ul className="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              {[
+                { icon: Smartphone, t: "Vardiyasını görür", x: "Haftası, kiminle çalıştığı, sıradaki vardiyası." },
+                { icon: CalendarClock, t: "Gelemeyeceği günü bildirir", x: "Uygunluğunu girer, plan buna göre kurulur." },
+                { icon: ArrowLeftRight, t: "Vardiya değiştirme ve izin ister", x: "Kurala uymayan isteği gönderilmeden önce uyarır." },
+                { icon: Megaphone, t: "Açık vardiyayı alır", x: "Biri gelemezse uygun olanlara anında haber gider." },
+              ].map(({ icon: Icon, t, x }, i) => (
+                <li key={t} className="m-up flex gap-3.5" style={d(220 + i * 80)}>
+                  <FeatureIcon icon={Icon} />
+                  <span>
+                    <span className="block font-semibold text-slate-900">{t}</span>
+                    <span className="mt-0.5 block text-sm leading-relaxed text-slate-600">{x}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="m-up mt-7 flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-900/5" style={d(560)}>
+              <Siren size={17} className="shrink-0 text-red-500" /> Acil bir durumda tek dokunuşla sorumluya haber verir.
+            </p>
+            <div className="m-up mt-8 flex flex-wrap items-center gap-3" style={d(640)}>
+              <StoreBadge store="App Store" />
+              <StoreBadge store="Google Play" />
+              <span className="text-[13px] text-slate-500">Ekip uygulaması yakında mağazalarda.</span>
+            </div>
+          </Reveal>
+          <Reveal className="relative order-1 lg:order-2">
+            <div className="m-up relative aspect-[4/3] overflow-hidden rounded-3xl bg-forest-900 lg:aspect-[5/4]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marketing/briefing.webp" alt="Vardiya başında kısa toplantı yapan ekip" className="h-full w-full object-cover" loading="lazy" />
+            </div>
+            <div className="m-up absolute -bottom-12 -left-4 z-10 hidden sm:block lg:-left-10" style={d(300)}>
+              <div className="m-float"><PhoneMock sector={KAFE} className="origin-bottom-left scale-[0.8]" /></div>
+            </div>
+            <div className="m-up absolute -right-3 top-8 z-10 hidden sm:block" style={d(800)}>
+              <Toast icon="bell" title="Açık vardiya: Cumartesi 15:00" text="Mert gelemiyor. Almak ister misiniz?" />
             </div>
           </Reveal>
         </div>
@@ -275,6 +333,29 @@ export default function LandingPage() {
 
       <PublicFooter />
     </div>
+  );
+}
+
+function FeatureIcon({ icon: Icon, dark = false }: { icon: typeof Check; dark?: boolean }) {
+  return (
+    <span className={dark
+      ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-ember-300"
+      : "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"}>
+      <Icon size={20} />
+    </span>
+  );
+}
+
+function Bento({ icon, title, text, children }: { icon: typeof Check; title: string; text: string; children?: React.ReactNode }) {
+  return (
+    <Reveal>
+      <div className="m-up flex h-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8">
+        <FeatureIcon icon={icon} />
+        <h3 className="mt-5 text-xl font-semibold text-slate-900">{title}</h3>
+        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{text}</p>
+        {children && <div className="mt-7 flex-1 rounded-2xl bg-cream p-4">{children}</div>}
+      </div>
+    </Reveal>
   );
 }
 
@@ -288,23 +369,23 @@ function DemandMini() {
     <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
       <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1 text-[10.5px]">
         <div />
-        {["P", "S", "Ç", "P", "C", "C", "P"].map((d, i) => (
-          <div key={i} className={i >= 5 ? "text-center font-medium text-ember-600" : "text-center font-medium text-slate-400"}>{d}</div>
+        {["P", "S", "Ç", "P", "C", "C", "P"].map((x, i) => (
+          <div key={i} className={i >= 5 ? "text-center font-medium text-ember-600" : "text-center font-medium text-slate-400"}>{x}</div>
         ))}
         {rows.map((r, ri) => (
-          <Row key={r.l} label={r.l} values={r.v} offset={ri * 260} />
+          <DemandRow key={r.l} label={r.l} values={r.v} offset={ri * 260} />
         ))}
       </div>
     </div>
   );
 }
 
-function Row({ label, values, offset }: { label: string; values: number[]; offset: number }) {
+function DemandRow({ label, values, offset }: { label: string; values: number[]; offset: number }) {
   return (
     <>
       <div className="flex items-center font-medium text-slate-600">{label}</div>
       {values.map((v, i) => (
-        <div key={i} className="m-pop flex h-7 items-center justify-center rounded-md bg-slate-50 font-semibold text-slate-800 ring-1 ring-inset ring-slate-200" style={{ "--d": `${500 + i * 70 + offset}ms` } as React.CSSProperties}>{v}</div>
+        <div key={i} className="m-pop flex h-7 items-center justify-center rounded-md bg-slate-50 font-semibold text-slate-800 ring-1 ring-inset ring-slate-200" style={d(500 + i * 70 + offset)}>{v}</div>
       ))}
     </>
   );
@@ -315,11 +396,34 @@ function ChecksMini() {
   return (
     <div className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
       {["Her vardiyada ihtiyaç kadar kişi", "11 saat dinlenme herkes için", "Haftalık sınırı aşan yok", "Hafta sonları dengeli dağıldı"].map((t, i) => (
-        <div key={t} className="m-up flex items-center gap-2.5 text-[13px] text-slate-700" style={{ "--d": `${600 + i * 220}ms` } as React.CSSProperties}>
+        <div key={t} className="m-up flex items-center gap-2.5 text-[13px] text-slate-700" style={d(600 + i * 220)}>
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-forest-100 text-forest-700">
             <Check size={11} strokeWidth={3} />
           </span>
           {t}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** "Ya şöyle olursa?" görseli: iki planın kısa karşılaştırması */
+function ScenarioMini() {
+  const rows = [
+    { l: "Vardiya", a: "38", b: "38" },
+    { l: "Eksik kişi", a: "0", b: "1", warn: true },
+    { l: "Sorun", a: "0", b: "0" },
+  ];
+  return (
+    <div className="text-[12.5px]" aria-hidden="true">
+      <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-x-4 text-[11px] font-semibold text-slate-400">
+        <span /><span>Şimdi</span><span>Selin izinde</span>
+      </div>
+      {rows.map((r) => (
+        <div key={r.l} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-t border-slate-900/5 py-2">
+          <span className="text-slate-600">{r.l}</span>
+          <span className="w-10 text-center font-semibold text-slate-900">{r.a}</span>
+          <span className={r.warn ? "w-[72px] text-center font-semibold text-ember-600" : "w-[72px] text-center font-semibold text-slate-900"}>{r.b}</span>
         </div>
       ))}
     </div>

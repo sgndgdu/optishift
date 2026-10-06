@@ -2,11 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
 
-// Kampanya kodu (promo_codes) ile verilen ücretsiz Pro süresi dolan
-// organizasyonları 'free' plana düşürür. subscription_status='trialing'
-// olan (yani gerçek ödeme yapmamış, sadece kampanyayla Pro'da olan) ve
-// trial_ends_at'ı geçmiş org'lar hedeflenir — gerçek ödeyen aboneler
-// (subscription_status='active', Stripe webhook'undan gelir) etkilenmez.
+// Deneme süresi (lib/plans TRIAL_DAYS ya da kampanya kodu) dolan işletmeleri
+// 'expired' olarak işaretler. Ücretsiz paket olmadığı için pakete dokunulmaz;
+// erişim kısıtı ödeme sistemi kurulunca eklenecek. Ödeyen aboneler
+// (subscription_status='active') etkilenmez.
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
@@ -26,9 +25,9 @@ export async function GET(req: NextRequest) {
 
   for (const org of expired) {
     await db.prepare(`
-      UPDATE organizations SET plan = 'free', subscription_status = 'inactive' WHERE id = ?
+      UPDATE organizations SET subscription_status = 'expired' WHERE id = ?
     `).run(org.id);
   }
 
-  return NextResponse.json({ downgraded: expired.length, orgs: expired.map((o) => o.name) });
+  return NextResponse.json({ expired: expired.length, orgs: expired.map((o) => o.name) });
 }

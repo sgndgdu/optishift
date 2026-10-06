@@ -14,7 +14,7 @@ export type Perm = "prepare" | "publish" | "approvals" | "team" | "plan_settings
 export const PERM_LIST: { key: Perm; label: string; description: string }[] = [
   { key: "prepare", label: "Planı hazırlama", description: "Vardiya planını ve ihtiyaç tablosunu hazırlar." },
   { key: "publish", label: "Planı yayınlama", description: "Planı ekibe yayınlar, yayınlanmış planı değiştirir." },
-  { key: "approvals", label: "Onaylar", description: "İzin, takas, fazla mesai ve saat düzeltme taleplerini onaylar." },
+  { key: "approvals", label: "Onaylar", description: "İzin, vardiya değiştirme, fazla mesai ve saat düzeltme taleplerini onaylar." },
   { key: "team", label: "Ekip", description: "Kişi ekler, çıkarır, kişi kartını ve belgeleri düzenler." },
   { key: "plan_settings", label: "Plan ayarları", description: "Vardiya saatleri, çalışma kuralları, açık vardiya ve Adalet Puanı." },
   { key: "budget", label: "Ücretler ve maliyet", description: "Kişilerin saatlik ücretini görür ve değiştirir, maaş için çalışma saatleri dökümünü alır." },

@@ -24,8 +24,6 @@ export interface Sector {
   /** public/marketing altındaki fotoğraf (yoksa sayfa degrade zemine düşer) */
   image: string;
   headline: string;
-  pain: string;
-  points: { title: string; text: string }[];
   location: string;
   shifts: SectorShift[];
   /** Plan önizlemesi: kişi, departman, 7 güne vardiya kodu (null = izin) */
@@ -39,11 +37,6 @@ export const SECTORS: Sector[] = [
     short: "Kafe",
     image: "/marketing/sector-kafe.webp",
     headline: "Cumartesi akşamı servis, eksik kişiyle başlamasın.",
-    pain: "Yarı zamanlı ekip, değişken yoğunluk, son dakika gelemiyorum mesajları. Planı her hafta baştan kurmak yerine ihtiyacı bir kez yazın.",
-    points: [
-      { title: "Açık vardiya", text: "Biri gelemezse vardiya ekibe açılır, uygun olan telefondan tek dokunuşla alır." },
-      { title: "Hafta sonu dengesi", text: "Cumartesi akşamı hep aynı kişiye düşmez. Adalet puanı sırayı tutar, zor vardiyalar döner." },
-    ],
     location: "Moda Şube",
     shifts: [
       { code: "A", label: "Açılış", time: "07:00 - 15:00", tone: "forest" },
@@ -64,12 +57,6 @@ export const SECTORS: Sector[] = [
     short: "Otel",
     image: "/marketing/sector-otel.webp",
     headline: "Resepsiyon 7/24 açık, gece vardiyası hep aynı kişide kalmasın.",
-    pain: "Üç vardiya, doluluk dalgalanması, departmanlar arası devir. Gece ve hafta sonu vardiyaları sırayla dönsün.",
-    points: [
-      { title: "Adil gece ve hafta sonu", text: "Gece vardiyasını zor olarak işaretleyin. Adalet puanı zor vardiyaları ve hafta sonlarını sayar, sıradaki kişiye düşer." },
-      { title: "Vardiya devir notu", text: "Çıkan ekip notunu bırakır, gelen ekip ilk açtığında görür. Önemli bilgi koridorda kaybolmaz." },
-      { title: "Yasal dinlenme", text: "Gece çıkışından sabah girişine en az 11 saat kuralı planı kurarken gözetilir." },
-    ],
     location: "Ön Büro",
     shifts: [
       { code: "S", label: "Sabah", time: "07:00 - 15:00", tone: "forest" },
@@ -90,12 +77,6 @@ export const SECTORS: Sector[] = [
     short: "Perakende",
     image: "/marketing/sector-perakende.webp",
     headline: "Elli mağazanın planı, tek ekranda ve aynı kurallarla.",
-    pain: "AVM saatleri, kampanya haftaları, onlarca şube. Her mağaza müdürü kendi Excel'iyle uğraşmasın, kurallar merkezden bir kez konsun.",
-    points: [
-      { title: "Çoklu şube", text: "Bütün şubeler tek panelde. Hangi mağazada kaç kişi eksik, tek bakışta görünür." },
-      { title: "Departman ve joker", text: "Kasa, reyon, depo ayrı planlanır. Birden çok departmanda çalışabilen kişi eksik olan yere kayar." },
-      { title: "Puantaj ve fazla mesai", text: "Çalışılan saatler, fazla mesai ve izinler ay sonunda rapora hazır gelir." },
-    ],
     location: "Kanyon Mağaza",
     shifts: [
       { code: "S", label: "Sabah", time: "09:30 - 17:30", tone: "forest" },
@@ -115,17 +96,12 @@ export const SECTORS: Sector[] = [
     label: "Üretim & Fabrika",
     short: "Üretim",
     image: "/marketing/sector-uretim.webp",
-    headline: "Üç vardiya, doğru yetkinlik, her hat dolu.",
-    pain: "Hat başına gereken operatör sayısı, gece çalışma kuralları, iş güvenliği belgeleri. Planı yaparken bunların hepsini akılda tutmak zorunda kalmayın.",
-    points: [
-      { title: "Hat bazında kadro", text: "Her hattın, her vardiyada kaç kişiye ihtiyacı olduğunu bir kez girin. Plan tam o sayıyla kurulur." },
-      { title: "Belge takibi", text: "Sağlık raporu ve sertifikaların bitiş tarihi yaklaşınca önceden uyarır." },
-    ],
+    headline: "Üç vardiya, gece kuralları hazır, her hat dolu.",
     location: "Hat 2 · Montaj",
     shifts: [
-      { code: "1", label: "1. Vardiya", time: "08:00 - 16:00", tone: "forest" },
-      { code: "2", label: "2. Vardiya", time: "16:00 - 24:00", tone: "ember" },
-      { code: "3", label: "3. Vardiya", time: "00:00 - 08:00", tone: "violet" },
+      { code: "1", label: "Sabah", time: "08:00 - 16:00", tone: "forest" },
+      { code: "2", label: "Akşam", time: "16:00 - 24:00", tone: "ember" },
+      { code: "3", label: "Gece", time: "00:00 - 08:00", tone: "violet" },
     ],
     rows: [
       { name: "Hasan Ü.", role: "Hat Sorumlusu", days: ["1", "1", "1", "1", "1", null, null] },

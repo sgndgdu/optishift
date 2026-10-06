@@ -1,4 +1,4 @@
-import { Check, ArrowLeftRight, CalendarClock, Bell, Clock } from "lucide-react";
+import { Check, ArrowLeftRight, CalendarClock, Bell, Clock, HelpCircle, Repeat, Smartphone, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DAYS, TONE_CLASSES, type Sector } from "@/components/marketing/sectors";
 
@@ -104,7 +104,7 @@ function Row({ row, days, shiftByCode, delay }: {
         const s = code ? shiftByCode[code] : null;
         return s ? (
           <div key={i} className={cn("flex h-8 min-w-0 items-center justify-center overflow-hidden rounded-md px-0.5 text-[9.5px] font-semibold sm:text-[10.5px]", TONE_CLASSES[s.tone], delay && "m-pop")} style={delay ? ({ "--d": `${delay(i)}ms` } as React.CSSProperties) : undefined}>
-            {s.label.length > 8 ? s.code : s.label}
+            {s.label}
           </div>
         ) : (
           <div key={i} className="flex h-8 items-center justify-center rounded-md bg-slate-50 text-[9.5px] text-slate-300">izin</div>
@@ -132,7 +132,7 @@ export function PhoneMock({ sector, className }: { sector: Sector; className?: s
             <p className="text-[11px] text-forest-100">{first.label} · {row.role}</p>
             <div className="mt-3 flex gap-1.5">
               <span className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[10px] font-semibold">
-                <ArrowLeftRight size={11} /> Takas
+                <ArrowLeftRight size={11} /> Değiştir
               </span>
               <span className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[10px] font-semibold">
                 <CalendarClock size={11} /> İzin
@@ -221,5 +221,105 @@ export function FairnessCard({ className, animate = false }: { className?: strin
         ))}
       </div>
     </div>
+  );
+}
+
+/** Otomatik Pilot: haftalık taslağın kendiliğinden hazırlandığı an */
+export function PilotCard({ className }: { className?: string }) {
+  return (
+    <div className={cn("w-[270px] rounded-2xl bg-white p-4 shadow-[0_20px_50px_-15px_rgba(10,33,30,0.45)] ring-1 ring-slate-900/5", className)} aria-hidden="true">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-forest-700 text-ember-300"><Repeat size={15} /></span>
+        <span className="min-w-0">
+          <span className="block text-[12px] font-semibold text-slate-900">Otomatik Pilot</span>
+          <span className="block text-[11px] text-slate-500">Perşembe 08:00</span>
+        </span>
+        <span className="ml-auto rounded-full bg-forest-50 px-2 py-0.5 text-[10px] font-semibold text-forest-700">Taslak hazır</span>
+      </div>
+      <div className="mt-3 grid grid-cols-7 gap-1">
+        {["P", "S", "Ç", "P", "C", "C", "P"].map((d, i) => (
+          <span key={i} className="flex h-7 items-center justify-center rounded-md bg-forest-50 text-[10px] font-semibold text-forest-700">{d}</span>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[11px] text-slate-500">Gelecek hafta · 38 vardiya, eksik yok</p>
+    </div>
+  );
+}
+
+/** "Neden bu kişi?" açıklaması */
+export function WhyCard({ className }: { className?: string }) {
+  const lines = ["Cumartesi için \"uygunum\" dedi", "Bu hafta 28 saat, sınırın altında", "Son 4 haftada 1 kez hafta sonu çalıştı", "Önceki vardiyasından 14 saat dinlenmiş olacak"];
+  return (
+    <div className={cn("w-[280px] rounded-2xl bg-white p-4 shadow-[0_20px_50px_-15px_rgba(10,33,30,0.45)] ring-1 ring-slate-900/5", className)} aria-hidden="true">
+      <div className="mb-2.5 flex items-center gap-2 text-[12px] font-semibold text-slate-900">
+        <HelpCircle size={15} className="text-ember-500" /> Neden Elif? <span className="font-normal text-slate-400">Cmt · Ara</span>
+      </div>
+      <ul className="space-y-1.5">
+        {lines.map((t) => (
+          <li key={t} className="flex gap-2 text-[11.5px] leading-snug text-slate-600">
+            <Check size={12} strokeWidth={3} className="mt-0.5 shrink-0 text-forest-600" /> {t}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Ekibin telefondan girdiği uygunluk */
+export function AvailabilityMini({ className }: { className?: string }) {
+  const days: [string, "ok" | "pref" | "no"][] = [["Pzt", "ok"], ["Sal", "ok"], ["Çar", "no"], ["Per", "ok"], ["Cum", "pref"], ["Cmt", "ok"], ["Paz", "no"]];
+  const tone = { ok: "bg-forest-50 text-forest-700", pref: "bg-ember-50 text-ember-700", no: "bg-red-50 text-red-600" };
+  const word = { ok: "Uygunum", pref: "Tercih etmem", no: "Gelemem" };
+  return (
+    <div className={cn("space-y-1.5", className)} aria-hidden="true">
+      {days.map(([d, v], i) => (
+        <div key={d} className="m-up flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-900/5" style={{ "--d": `${200 + i * 70}ms` } as React.CSSProperties}>
+          <span className="text-[12px] font-semibold text-slate-700">{d}</span>
+          <span className={cn("rounded-md px-2 py-0.5 text-[11px] font-semibold", tone[v])}>{word[v]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Şubeler arası planlı değiştirme: kişi haftalara göre şube değiştirir */
+export function RotationBoard({ className }: { className?: string }) {
+  const weeks = [
+    { w: "13-19 Ekim", b: "Moda" },
+    { w: "20-26 Ekim", b: "Moda" },
+    { w: "27 Eki-2 Kas", b: "Kadıköy" },
+    { w: "3-9 Kasım", b: "Kadıköy" },
+  ];
+  return (
+    <div className={cn("rounded-2xl bg-white p-4 shadow-[0_20px_50px_-15px_rgba(10,33,30,0.4)] ring-1 ring-slate-900/5", className)} aria-hidden="true">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-forest-100 text-[11px] font-bold text-forest-700">DÖ</span>
+        <span>
+          <span className="block text-[12.5px] font-semibold text-slate-900">Deniz Ö.</span>
+          <span className="block text-[11px] text-slate-500">2 haftada bir şube değiştirir</span>
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {weeks.map((x, i) => (
+          <div key={x.w} className="m-up flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2" style={{ "--d": `${250 + i * 120}ms` } as React.CSSProperties}>
+            <span className="text-[11.5px] text-slate-500">{x.w}</span>
+            <span className={cn("rounded-md px-2 py-0.5 text-[11px] font-semibold", x.b === "Moda" ? "bg-forest-50 text-forest-700" : "bg-ember-50 text-ember-700")}>{x.b} Şube</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Uygulama mağazası rozeti (yakında) */
+export function StoreBadge({ store }: { store: "App Store" | "Google Play" }) {
+  return (
+    <span className="inline-flex items-center gap-2.5 rounded-xl bg-black/80 px-3.5 py-2 text-white ring-1 ring-white/15">
+      {store === "App Store" ? <Smartphone size={18} /> : <Play size={17} className="fill-current" />}
+      <span className="leading-tight">
+        <span className="block text-[10px] text-white/60">Yakında</span>
+        <span className="block text-[13px] font-semibold">{store}</span>
+      </span>
+    </span>
   );
 }

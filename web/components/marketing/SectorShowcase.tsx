@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SECTORS, SECTOR_ICONS, type SectorId } from "@/components/marketing/sectors";
 import { AppWindow, ScheduleBoard } from "@/components/marketing/Mockups";
-import { SectorPhoto } from "@/components/marketing/SectorPhoto";
 
 const ROTATE_MS = 8000;
 
-/** Landing: sektör sekmeleri. Her sektörde fotoğraf, o sektörün derdi ve kendi vardiyalarıyla plan önizlemesi. */
+/**
+ * Landing: sektör sekmeleri. Her sektörde tam genişlik fotoğraf, üstünde sektörün
+ * başlığı ve kendi vardiyalarıyla plan önizlemesi (kullanıcı kararı 2026-10-06:
+ * açıklama paragrafı ve madde listesi yok).
+ */
 export function SectorShowcase() {
   const [active, setActive] = useState<SectorId>("kafe");
-  // Kendiliğinden döner; ziyaretçi bir sekmeye dokununca durur. Ekranda değilken beklemez, sadece görünürken ilerler.
+  // Kendiliğinden döner; ziyaretçi bir sekmeye dokununca durur. Sadece ekrandayken ilerler.
   const [auto, setAuto] = useState(true);
   const [visible, setVisible] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export function SectorShowcase() {
 
   return (
     <div ref={rootRef}>
-      <div role="tablist" aria-label="Sektör" className="mx-auto mb-10 flex w-full max-w-3xl gap-1 overflow-x-auto rounded-2xl bg-white p-1.5 ring-1 ring-slate-900/5 shadow-sm">
+      <div role="tablist" aria-label="Sektör" className="mx-auto mb-8 flex w-full max-w-3xl gap-1 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-900/5">
         {SECTORS.map((s) => {
           const Icon = SECTOR_ICONS[s.id];
           const on = s.id === active;
@@ -47,7 +49,7 @@ export function SectorShowcase() {
               aria-selected={on}
               onClick={() => { setActive(s.id); setAuto(false); }}
               className={cn(
-                "relative overflow-hidden flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2.5 sm:px-3 py-2.5 text-sm font-semibold transition-colors",
+                "relative flex flex-1 shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-xl px-2.5 py-2.5 text-sm font-semibold transition-colors sm:px-3",
                 on ? "bg-forest-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
@@ -62,35 +64,33 @@ export function SectorShowcase() {
         })}
       </div>
 
-      <div key={sector.id} className="grid items-stretch gap-6 lg:grid-cols-[1.05fr_1fr] animate-in fade-in duration-500">
-        {/* Fotoğraf + plan önizlemesi */}
-        <div className="motion-auto relative min-w-0 overflow-hidden rounded-3xl bg-forest-900 sm:min-h-[560px]">
-          <SectorPhoto sector={sector} className="m-zoom relative h-52 sm:absolute sm:inset-0 sm:h-auto" />
-          <div className="relative -mt-14 px-3 pb-3 sm:absolute sm:inset-x-6 sm:bottom-6 sm:mt-0 sm:p-0">
-            <AppWindow title={`${sector.label} · haftalık plan`}>
-              <ScheduleBoard sector={sector} compact animate />
+      <div key={sector.id} className="motion-auto relative overflow-hidden rounded-[2rem] bg-forest-900 shadow-[0_40px_90px_-40px_rgba(10,33,30,0.55)]">
+        <div className="m-zoom absolute inset-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={sector.image} alt={sector.label} className="h-full w-full object-cover" />
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest-900 via-forest-900/70 to-forest-900/20 lg:bg-gradient-to-r lg:from-forest-900/95 lg:via-forest-900/60 lg:to-forest-900/10" />
+
+        <div className="relative grid gap-8 p-5 pt-40 sm:p-10 sm:pt-56 lg:grid-cols-[0.85fr_1.15fr] lg:items-end lg:gap-10 lg:p-12 lg:pt-12 xl:min-h-[560px]">
+          <div className="min-w-0 lg:self-center">
+            <p className="m-up text-sm font-semibold text-ember-300">{sector.label}</p>
+            <h3 className="m-up mt-3 font-serif text-[28px] font-semibold leading-[1.1] tracking-tight text-white sm:text-[40px]" style={{ "--d": "80ms" } as React.CSSProperties}>
+              {sector.headline}
+            </h3>
+            <ul className="m-up mt-6 flex flex-wrap gap-2" style={{ "--d": "160ms" } as React.CSSProperties}>
+              {sector.shifts.map((s) => (
+                <li key={s.code} className="rounded-full bg-white/10 px-3 py-1 text-[13px] text-forest-50 ring-1 ring-white/15 backdrop-blur">
+                  <span className="font-semibold text-white">{s.label}</span> {s.time.replace(" - ", "-")}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="m-up min-w-0" style={{ "--d": "200ms" } as React.CSSProperties}>
+            <AppWindow title={`${sector.location} · Vardiya Planı`}>
+              <div className="sm:hidden"><ScheduleBoard sector={sector} compact animate /></div>
+              <div className="hidden sm:block"><ScheduleBoard sector={sector} animate /></div>
             </AppWindow>
           </div>
-        </div>
-
-        {/* Metin */}
-        <div className="motion-auto min-w-0 flex flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-10">
-          <p className="m-up mb-3 text-sm font-semibold text-ember-600">{sector.label}</p>
-          <h3 className="m-up font-serif text-2xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-[32px]">{sector.headline}</h3>
-          <p className="m-up mt-4 text-[15px] leading-relaxed text-slate-600 sm:text-base" style={{ "--d": "120ms" } as React.CSSProperties}>{sector.pain}</p>
-          <ul className="mt-8 space-y-5">
-            {sector.points.map((p, i) => (
-              <li key={p.title} className="m-up flex gap-4" style={{ "--d": `${250 + i * 120}ms` } as React.CSSProperties}>
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forest-50 text-forest-700">
-                  <Check size={13} strokeWidth={3} />
-                </span>
-                <span>
-                  <span className="block font-semibold text-slate-900">{p.title}</span>
-                  <span className="mt-0.5 block text-sm leading-relaxed text-slate-600">{p.text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </div>

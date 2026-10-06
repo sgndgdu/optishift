@@ -78,15 +78,15 @@ export function swapReducer(
             {
               type: "NOTIFY",
               personnel_id: swap.requester_id,
-              title: "Vardiya takası kabul edildi",
-              message: `${swap.target_name} takası kabul etti. Sorumlu onayı bekleniyor.`,
+              title: "Vardiya değiştirme kabul edildi",
+              message: `${swap.target_name} vardiya değiştirmeyi kabul etti. Sorumlu onayı bekleniyor.`,
             },
             // Factor 7: akış duraklar, müdüre "onayını bekliyorum" bildirimi gider
             {
               type: "NOTIFY_MANAGER",
               location_id: swap.location_id,
-              title: "Vardiya takası onay bekliyor",
-              message: `${swap.requester_name} ↔ ${swap.target_name} arası takas karşılıklı kabul edildi. Onayınızı bekliyor.`,
+              title: "Vardiya değiştirme onay bekliyor",
+              message: `${swap.requester_name} ↔ ${swap.target_name} arası vardiya değiştirme karşılıklı kabul edildi. Onayınızı bekliyor.`,
             },
           ],
         };
@@ -103,8 +103,8 @@ export function swapReducer(
             {
               type: "NOTIFY",
               personnel_id: swap.requester_id,
-              title: "Vardiya takası reddedildi",
-              message: `${swap.target_name} takası reddetti.`,
+              title: "Vardiya değiştirme reddedildi",
+              message: `${swap.target_name} vardiya değiştirmeyi reddetti.`,
             },
           ],
         };
@@ -121,8 +121,8 @@ export function swapReducer(
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
-              title: "Takas teklifi geri alındı",
-              message: `${swap.requester_name} takas teklifini geri aldı.`,
+              title: "Vardiya değiştirme teklifi geri alındı",
+              message: `${swap.requester_name} vardiya değiştirme teklifini geri aldı.`,
             },
           ],
         };
@@ -151,14 +151,14 @@ export function swapReducer(
             {
               type: "NOTIFY",
               personnel_id: swap.requester_id,
-              title: "Vardiya takası onaylandı",
-              message: "Sorumlun vardiya takasını onayladı.",
+              title: "Vardiya değiştirme onaylandı",
+              message: "Sorumlun vardiya değiştirmeyi onayladı.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
-              title: "Vardiya takası onaylandı",
-              message: "Sorumlun vardiya takasını onayladı.",
+              title: "Vardiya değiştirme onaylandı",
+              message: "Sorumlun vardiya değiştirmeyi onayladı.",
             },
           ],
         };
@@ -172,14 +172,14 @@ export function swapReducer(
             {
               type: "NOTIFY",
               personnel_id: swap.requester_id,
-              title: "Vardiya takası reddedildi",
-              message: "Sorumlun vardiya takasını reddetti.",
+              title: "Vardiya değiştirme reddedildi",
+              message: "Sorumlun vardiya değiştirmeyi reddetti.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
-              title: "Vardiya takası reddedildi",
-              message: "Sorumlun vardiya takasını reddetti.",
+              title: "Vardiya değiştirme reddedildi",
+              message: "Sorumlun vardiya değiştirmeyi reddetti.",
             },
           ],
         };

@@ -132,7 +132,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   const ots = await db.prepare(`SELECT * FROM overtime_records WHERE org_id = ? AND location_id = ? AND status = 'pending' ORDER BY week_start`).all(auth.org_id, loc.id) as any[];
   if (swaps.length || edits.length || ots.length) {
     out.push("### Bekleyen talepler");
-    for (const s of swaps) out.push(`- Takas: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "sorumlu onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
+    for (const s of swaps) out.push(`- Vardiya değiştirme: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "sorumlu onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
     for (const e of edits) out.push(`- Saat düzeltme: ${e.personnel_name ?? nameOf.get(e.personnel_id)}: ${e.reason}`);
     for (const o of ots) out.push(`- Fazla mesai: ${o.personnel_name ?? nameOf.get(o.personnel_id)} ${short(o.week_start)} haftası ${o.overtime_hours} s`);
   }

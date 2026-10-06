@@ -1480,7 +1480,7 @@ export default function SettingsPage() {
                 </SectionCard>
               </div>
               </SettingsGroup>
-              <SettingsGroup id="requests" title="Ekip Talepleri" description="Uygunluk, hatırlatma, takas ve izin kuralları" open={!!openGroups["requests"]} onToggle={toggleGroup}>
+              <SettingsGroup id="requests" title="Ekip Talepleri" description="Uygunluk, hatırlatma, vardiya değiştirme ve izin kuralları" open={!!openGroups["requests"]} onToggle={toggleGroup}>
               <div className="space-y-4">
                 <SectionCard title="Uygunluk">
                   <RuleRow
@@ -1523,7 +1523,7 @@ export default function SettingsPage() {
                 </SectionCard>
                 <SectionCard title="Vardiya Talepleri">
                   <RuleRow
-                    label="Vardiya Takas Talebi"
+                    label="Vardiya Değiştirme Talebi"
                     description="Ekip üyeleri kendi aralarında vardiya değiştirebilir, sorumlu onaylar."
                     right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
                   />

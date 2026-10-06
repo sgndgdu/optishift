@@ -109,7 +109,7 @@ export default function ManagerRequestsPage() {
 
   async function approveSwap(id: number, known: string[] = []) {
     // Kartta görünen kural sorunları varsa önce açık onay al
-    if (known.length > 0 && !confirmDespiteViolations(known, "Takas yine de onaylansın mı?")) return;
+    if (known.length > 0 && !confirmDespiteViolations(known, "Vardiya değiştirme yine de onaylansın mı?")) return;
     const send = (force: boolean) => fetch("/api/swap-requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -119,12 +119,12 @@ export default function ManagerRequestsPage() {
     let d: ViolationResponse = await r.json().catch(() => ({}));
     // Plan kart yüklendikten sonra değişmiş olabilir: yeni sorunları göster ve tekrar sor
     if (r.status === 409 && d.can_force && d.violations?.length) {
-      if (!confirmDespiteViolations(d.violations, "Takas yine de onaylansın mı?")) return;
+      if (!confirmDespiteViolations(d.violations, "Vardiya değiştirme yine de onaylansın mı?")) return;
       r = await send(true);
       d = await r.json().catch(() => ({}));
     }
-    if (!r.ok) { showToast(violationText(d, "Takas onaylanamadı.")); await load(); return; }
-    showToast("Takas onaylandı, vardiyalar güncellendi.");
+    if (!r.ok) { showToast(violationText(d, "Vardiya değiştirme onaylanamadı.")); await load(); return; }
+    showToast("Vardiya değiştirme onaylandı, vardiyalar güncellendi.");
     await load();
   }
 
@@ -134,7 +134,7 @@ export default function ManagerRequestsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "manager_rejected" }),
     });
-    showToast("Takas reddedildi.");
+    showToast("Vardiya değiştirme reddedildi.");
     setRejectModal(null); setRejectNote("");
     await load();
   }
@@ -277,7 +277,7 @@ export default function ManagerRequestsPage() {
       {/* Sadece içinde talep olan türlerin sekmesi; tek tür varsa sekme hiç yok */}
       {(() => {
         const kinds = [
-          swapRequestsEnabled && visibleSwaps.length > 0 ? { id: "swap", label: "Takas", count: pendingSwaps.length, icon: ArrowLeftRight } : null,
+          swapRequestsEnabled && visibleSwaps.length > 0 ? { id: "swap", label: "Vardiya değiştirme", count: pendingSwaps.length, icon: ArrowLeftRight } : null,
           editRequestsEnabled && visibleEdits.length > 0 ? { id: "edit", label: "Düzenleme", count: pendingEdits.length, icon: FileEdit } : null,
           leaveRequestsEnabled && visibleLeaves.length > 0 ? { id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff } : null,
           overtimeTrackingEnabled && visibleOvertimes.length > 0 ? { id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer } : null,
@@ -294,8 +294,8 @@ export default function ManagerRequestsPage() {
       {/* ── SWAP TAB ── */}
       {!loading && (tab === "swap" || (tab === "all" && visibleSwaps.length > 0)) && (
         <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Takas</p>}
-          {tab !== "all" && visibleSwaps.length === 0 && <EmptyState text={showHistory ? "Takas talebi yok" : "Onay bekleyen takas talebi yok"} />}
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Vardiya değiştirme</p>}
+          {tab !== "all" && visibleSwaps.length === 0 && <EmptyState text={showHistory ? "Vardiya değiştirme talebi yok" : "Onay bekleyen vardiya değiştirme talebi yok"} />}
           {visibleSwaps.map(s => {
             const pending = s.status === "peer_accepted";
             return (

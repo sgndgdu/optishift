@@ -313,7 +313,7 @@ export default function PortalRequests() {
       ? "Zaten ilanda"
       : [...swapsSent, ...swapsIn].some((w: any) => ["pending", "peer_accepted"].includes(w.status)
           && (Number(w.requester_shift_id) === Number(s.id) || Number(w.target_shift_id) === Number(s.id)))
-        ? "Takas bekliyor" : null;
+        ? "Vardiya değiştirme bekliyor" : null;
 
   async function submitSwap() {
     if (!selMyShift || !selMate || !selTheirShift || !user) return;
@@ -333,14 +333,14 @@ export default function PortalRequests() {
         }),
       });
       if (r.ok) {
-        showToast("Takas teklifi gönderildi!");
+        showToast("Vardiya değiştirme teklifi gönderildi.");
         resetSwapWizard();
         setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
         // Kural hatası ekranda kalır: kişi hangi vardiyayı değiştirmesi gerektiğini okuyabilsin
-        setSwapError(violationText(err, "Takas teklifi gönderilemedi."));
+        setSwapError(violationText(err, "Vardiya değiştirme teklifi gönderilemedi."));
       }
     } finally { setLoading(false); }
   }
@@ -414,7 +414,7 @@ export default function PortalRequests() {
       body: JSON.stringify({ id, status }),
     });
     if (r.ok) {
-      showToast(status === "peer_accepted" ? "Takas teklifi kabul edildi!" : "Takas teklifi reddedildi.");
+      showToast(status === "peer_accepted" ? "Vardiya değiştirme teklifi kabul edildi." : "Vardiya değiştirme teklifi reddedildi.");
     } else {
       const err = await r.json().catch(() => ({}));
       showToast(violationText(err, "İşlem sırasında hata oluştu."), "error");
@@ -507,7 +507,7 @@ export default function PortalRequests() {
   return (
     <Page width="narrow">
       {/* Header */}
-      <PageHeader title="Talepler" description="İzin, takas ve vardiya bırakma" actions={activeTab !== "new" && (
+      <PageHeader title="Talepler" description="İzin, vardiya değiştirme ve vardiya bırakma" actions={activeTab !== "new" && (
           <button
             onClick={() => { setActiveTab("new"); setNewType(null); resetSwapWizard(); }}
             className={pageActionClass}
@@ -558,10 +558,10 @@ export default function PortalRequests() {
             </Section>
           )}
           {swapsSent.length > 0 && (
-          <Section title="Takas Talepleri" icon={<ArrowLeftRight size={14} />}>
+          <Section title="Vardiya Değiştirme Talepleri" icon={<ArrowLeftRight size={14} />}>
             {swapsSent.map(s => (
                 <RequestCard key={s.id}
-                  title={`${s.target_name ?? "—"} ile takas`}
+                  title={`${s.target_name ?? "—"} ile vardiya değiştirme`}
                   sub={`Benim: ${shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })} → Onun: ${shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}`}
                   status={s.status}
                   note={s.note}
@@ -692,12 +692,12 @@ export default function PortalRequests() {
             </div>
           )}
 
-          {/* ── Gelen Takas Teklifleri ── */}
+          {/* ── Gelen vardiya değiştirme teklifleri ── */}
           <div className="space-y-3">
             {(forceAssigns.length > 0 || overtimePending.length > 0) && (
               <div className="flex items-center gap-1.5">
                 <ArrowLeftRight size={14} className="text-slate-400" />
-                <h2 className="text-xs font-bold text-slate-500">Gelen Takas Teklifleri</h2>
+                <h2 className="text-xs font-bold text-slate-500">Gelen Vardiya Değiştirme Teklifleri</h2>
               </div>
             )}
           {swapsIn.length === 0 ? (
@@ -714,7 +714,7 @@ export default function PortalRequests() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Bir arkadaşın"} sana takas teklif etti</p>
+                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Bir arkadaşın"} sana vardiya değiştirmeyi teklif etti</p>
                         <StatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -730,7 +730,7 @@ export default function PortalRequests() {
                   <SwapSteps status={s.status} />
                   {isPending && (s.violations?.length ?? 0) > 0 && (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700 space-y-0.5">
-                      <p className="font-bold">Bu takası kabul edemezsin:</p>
+                      <p className="font-bold">Bu vardiya değiştirmeyi kabul edemezsin:</p>
                       {s.violations.map((v: string, i: number) => <p key={i}>{v}</p>)}
                     </div>
                   )}
@@ -767,7 +767,7 @@ export default function PortalRequests() {
             const typeOptions: { id: NewType; label: string; hint: string; icon: typeof CalendarOff }[] = [
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
               ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", icon: UserX }] : []),
-              ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına takas teklif et", icon: ArrowLeftRight }] : []),
+              ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına vardiya değiştirmeyi teklif et", icon: ArrowLeftRight }] : []),
               ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Sorumludan saat düzeltme iste (son 2 hafta da olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
@@ -842,7 +842,7 @@ export default function PortalRequests() {
               <div className="p-4">
                 {swapStep === 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Takas etmek istediğin vardiyayı seç:</p>
+                    <p className="text-xs font-bold text-slate-500 mb-3">Değiştirmek istediğin vardiyayı seç:</p>
                     {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
                     {myShifts.map(s => {
                       const busy = shiftBusy(s);

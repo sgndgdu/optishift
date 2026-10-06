@@ -280,7 +280,7 @@ export default function PortalCalendar() {
           <div className="space-y-2">
             {[
               ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", Icon: UserX }] : []),
-              ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşına takas teklif et", Icon: ArrowLeftRight }] : []),
+              ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşına vardiya değiştirmeyi teklif et", Icon: ArrowLeftRight }] : []),
               ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Sorumludan saat düzeltme iste", Icon: FileEdit }] : []),
             ].map(o => (
               <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}

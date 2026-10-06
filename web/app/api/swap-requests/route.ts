@@ -26,7 +26,7 @@ async function swapProblems(db: any, requesterShiftId: number, targetShiftId: nu
   ]);
   return [
     ...forR.map(x => `${names.requester ?? "Talep eden"}: ${x}`),
-    ...forT.map(x => `${names.target ?? "Takas arkadaşı"}: ${x}`),
+    ...forT.map(x => `${names.target ?? "Değiştirilecek kişi"}: ${x}`),
   ];
 }
 
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         let rules: any = {};
         try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
         if (rules.swap_requests_enabled === false) {
-          return NextResponse.json({ error: "Bu şubede vardiya takası kapalı." }, { status: 422 });
+          return NextResponse.json({ error: "Bu şubede vardiya değiştirme kapalı." }, { status: 422 });
         }
       }
     }
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       `SELECT id FROM open_shifts WHERE source_assignment_id IN (?, ?) AND status = 'open' LIMIT 1`
     ).get(requester_shift_id, target_shift_id);
     if (listed) {
-      return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Takas için önce ilanı geri çek." }, { status: 409 });
+      return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Vardiya değiştirmek için önce ilanı geri çek." }, { status: 409 });
     }
 
     // Takas departman içinde: herkes alacağı vardiyanın departmanında çalışabilmeli (ana departman ya da joker)
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     const deptOf = (id: unknown) => shiftDepts.find(r => String(r.id) === String(id))?.dept ?? null;
     const fits = (pid: string, dept: string | null) => { const set = deptSet(pid); return !dept || set.size === 0 || set.has(dept); };
     if (!fits(requester_id, deptOf(target_shift_id)) || !fits(target_id, deptOf(requester_shift_id))) {
-      return NextResponse.json({ error: "Sadece aynı departmandaki arkadaşınla takas edebilirsin." }, { status: 400 });
+      return NextResponse.json({ error: "Sadece aynı departmandaki arkadaşınla vardiya değiştirebilirsin." }, { status: 400 });
     }
 
     // Vardiyalar gerçekten iki tarafa ait, yayınlanmış ve aynı işletmede olmalı
@@ -192,10 +192,10 @@ export async function POST(req: NextRequest) {
     const theirs = pair.find(r => String(r.id) === String(target_shift_id));
     if (!mine || !theirs || mine.personnel_id !== requester_id || theirs.personnel_id !== target_id
         || mine.org_id !== auth.org_id || theirs.org_id !== auth.org_id) {
-      return NextResponse.json({ error: "Takas edilecek vardiyalar bulunamadı." }, { status: 400 });
+      return NextResponse.json({ error: "Değiştirilecek vardiyalar bulunamadı." }, { status: 400 });
     }
     if (mine.publication_status === "draft" || theirs.publication_status === "draft") {
-      return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar takas edilebilir." }, { status: 400 });
+      return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar değiştirilebilir." }, { status: 400 });
     }
 
     // İcap nöbeti takasa konu olmaz (çalışma vardiyası değil)
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
       `SELECT id FROM shift_assignments WHERE id IN (?, ?) AND kind = 'on_call' LIMIT 1`
     ).get(requester_shift_id, target_shift_id);
     if (onCallRow) {
-      return NextResponse.json({ error: "İcap nöbeti takas edilemez." }, { status: 400 });
+      return NextResponse.json({ error: "İcap nöbeti değiştirilemez." }, { status: 400 });
     }
 
     // Takas sonrası iki tarafın planı kurallara uymalı (aynı gün iki vardiya, dinlenme, haftalık sınır)
@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
     await blocked(requester_id, dayOf(target_shift_id), requester_name);
     await blocked(target_id, dayOf(requester_shift_id), target_name);
     if (problems.length > 0) {
-      return NextResponse.json({ error: "Bu takas çalışma kurallarına uymuyor.", violations: problems }, { status: 409 });
+      return NextResponse.json({ error: "Bu vardiya değiştirme çalışma kurallarına uymuyor.", violations: problems }, { status: 409 });
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
     const rName = requester_name ?? "Bir personel";
     await db.prepare(`
       INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
-      VALUES (?, 'trade_request', 'Vardiya Takas Teklifi', ?, false, '/portal/requests', ?)
+      VALUES (?, 'trade_request', 'Vardiya Değiştirme Teklifi', ?, false, '/portal/requests', ?)
     `).run(
       target_id,
       `${rName} seninle vardiya değiştirmek istiyor. Talepler'den yanıtla.`,
@@ -314,8 +314,8 @@ export async function PATCH(req: NextRequest) {
       if (problems.length > 0 && !managerForce) {
         return NextResponse.json({
           error: result.newStatus === "manager_approved"
-            ? "Bu takas çalışma kurallarına uymuyor. Yine de onaylamak için sorunları görüp onaylayın."
-            : "Bu takası kabul edersen çalışma kurallarına uymayan bir plan oluşur.",
+            ? "Bu vardiya değiştirme çalışma kurallarına uymuyor. Yine de onaylamak için sorunları görüp onaylayın."
+            : "Bu vardiya değiştirmeyi kabul edersen çalışma kurallarına uymayan bir plan oluşur.",
           violations: problems,
           can_force: result.newStatus === "manager_approved",
         }, { status: 409 });

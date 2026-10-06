@@ -44,7 +44,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
           <div className="m-up absolute -bottom-8 -right-6" style={{ "--d": "1900ms" } as React.CSSProperties}>
             <div className="m-float">
               {variant === "login" ? (
-                <Toast icon="swap" title="Takas onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
+                <Toast icon="swap" title="Vardiya değiştirme onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
               ) : (
                 <Toast icon="check" title="Plan yayınlandı" text="5 kişiye bildirim gitti." />
               )}
@@ -65,7 +65,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
           </div>
         ) : (
           <ul className="m-up mt-16 space-y-2.5" style={{ "--d": "400ms" } as React.CSSProperties}>
-            {["Adil dağıtım, herkesin yükü dengede", "İzin ve takas istekleri tek yerde", "İş Kanunu dinlenme kuralları dahil"].map((t) => (
+            {["Adil dağıtım, herkesin yükü dengede", "İzin ve vardiya değiştirme istekleri tek yerde", "İş Kanunu dinlenme kuralları dahil"].map((t) => (
               <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ember-500/20 text-ember-300">
                   <Check size={12} strokeWidth={3} />

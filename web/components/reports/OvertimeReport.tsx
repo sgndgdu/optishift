@@ -386,7 +386,7 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
   return (
     <div className="space-y-6">
       <List>
-        {/* Karar TEK yerde: Onaylar sayfası (izin, takas, düzenleme ile aynı akış). Burada sadece görünür. */}
+        {/* Karar TEK yerde: Onaylar sayfası (izin, vardiya değiştirme, düzenleme ile aynı akış). Burada sadece görünür. */}
         {pending.length > 0 && (
           <li className="px-4 py-2.5 text-xs text-slate-500 bg-slate-50">
             Bekleyen kayıtlar <Link href="/requests" className="font-semibold text-forest-700 hover:underline">Onaylar</Link> sayfasında onaylanır.

@@ -305,3 +305,9 @@
 @keyframes m-zoom { from { transform: scale(1.08); } to { transform: scale(1); } }
 .m-zoom img { animation: m-zoom 8s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .m-zoom img { animation: none !important; } }
+
+/* Tanıtım: yazı imleci ve yeniden takılınca oynayan giriş (components/marketing) */
+@keyframes m-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.m-caret { animation: m-blink 1s step-end infinite; }
+.m-enter { animation: m-up 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .m-caret, .m-enter { animation: none !important; } }

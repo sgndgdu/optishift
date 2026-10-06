@@ -3,6 +3,7 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { signToken, setCookie } from "@/lib/auth";
+import { trialEndsAt as trialEnd } from "@/lib/plans";
 
 
 export async function POST(req: NextRequest) {
@@ -67,14 +68,12 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)
     `).run(userId, cleanUsername, email?.trim()?.toLowerCase() || null, passwordHash, orgId, owner_name.trim(), now);
 
-    let trialEndsAt: number | null = null;
-    if (promo) {
-      trialEndsAt = now + promo.free_months * 30 * 86400;
-      await db.prepare(`
-        UPDATE organizations SET plan = ?, subscription_status = 'trialing', trial_ends_at = ? WHERE id = ?
-      `).run(promo.plan, trialEndsAt, orgId);
-      await db.prepare(`UPDATE promo_codes SET used_count = used_count + 1 WHERE id = ?`).run(promo.id);
-    }
+    // Her yeni işletme Pro denemeyle açılır; kampanya kodu (şimdilik kapalı) süreyi uzatır
+    const trialEndsAt = promo ? now + promo.free_months * 30 * 86400 : trialEnd(now);
+    await db.prepare(`
+      UPDATE organizations SET plan = ?, subscription_status = 'trialing', trial_ends_at = ? WHERE id = ?
+    `).run(promo?.plan ?? "pro", trialEndsAt, orgId);
+    if (promo) await db.prepare(`UPDATE promo_codes SET used_count = used_count + 1 WHERE id = ?`).run(promo.id);
 
     const token = await signToken({
       id: userId,

@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
           `SELECT id FROM shift_swap_requests WHERE (requester_shift_id = ? OR target_shift_id = ?) AND status IN ('pending', 'peer_accepted') LIMIT 1`
         ).get(convert_assignment_id, convert_assignment_id) as any;
         if (pendingSwap) {
-          return NextResponse.json({ error: "Bu vardiya için bekleyen bir takas talebin var. Önce takası geri çek." }, { status: 409 });
+          return NextResponse.json({ error: "Bu vardiya için bekleyen bir vardiya değiştirme talebin var. Önce onu geri çek." }, { status: 409 });
         }
         sourceAssignmentId = Number(convert_assignment_id);
         note = body.note ?? `${asg.p_name} bu vardiyayı devretmek istiyor`;

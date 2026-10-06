@@ -22,6 +22,18 @@ export interface PlanInfo {
 
 export const SALES_EMAIL = "sgndgdu@gmail.com";
 
+/**
+ * Ücretsiz paket yok (kullanıcı kararı 2026-10-06): her yeni işletme Pro pakette
+ * TRIAL_DAYS günlük denemeyle açılır. "free" kimliği sadece eski hesaplar için durur,
+ * fiyat sayfasında gösterilmez.
+ */
+export const TRIAL_DAYS = 14;
+
+/** Yeni işletmenin deneme bitişi (saniye) */
+export function trialEndsAt(nowSec: number): number {
+  return nowSec + TRIAL_DAYS * 86400;
+}
+
 export const PLANS: PlanInfo[] = [
   {
     id: "free",
@@ -38,10 +50,10 @@ export const PLANS: PlanInfo[] = [
     name: "Pro",
     price: "₺1.299",
     period: "/ay",
-    desc: "Büyüyen işletmeler ve zincir mağazalar için.",
+    desc: "Tek şubeden zincire, her işletme için.",
     maxLocations: null,
     maxPersonnel: null,
-    features: ["Sınırsız şube", "Sınırsız kişi", "Bütün şubeler tek ekranda", "Ücretsiz paketteki her şey"],
+    features: ["Sınırsız şube ve kişi", "Otomatik Pilot ve İşletme Asistanı", "Şubeler arası personel", "Ekip telefondan kullanır"],
   },
   {
     id: "enterprise",

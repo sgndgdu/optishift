@@ -1,6 +1,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { signToken, setCookie } from "@/lib/auth";
+import { trialEndsAt } from "@/lib/plans";
 import { verifyPendingGoogleProfile } from "@/lib/googleAuth";
 import { generateUsername } from "@/lib/accountCreation";
 
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
     const userId = `U-${Date.now()}`;
 
     await db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(orgId, org_name.trim());
+    await db.prepare(`
+      UPDATE organizations SET plan = 'pro', subscription_status = 'trialing', trial_ends_at = ? WHERE id = ?
+    `).run(trialEndsAt(now), orgId);
     await db.prepare(`
       INSERT INTO users (id, username, email, role, org_id, name, auth_provider, google_id, created_at)
       VALUES (?, ?, ?, 'admin', ?, ?, 'google', ?, ?)

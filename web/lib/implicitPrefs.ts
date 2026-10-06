@@ -3,7 +3,7 @@
  *  - Uygunluk geçmişi: son haftalarda bir haftanın gününü çoğunlukla "gelemem" ya da
  *    "tercih etmem" işaretlemiş (en az 3 hafta ve girdiği haftaların yarısı) → o gün kaçınılır.
  *    Bu hafta uygunluk girdiyse ondan öğrenilmez (açık tercih her zaman önce gelir).
- *  - Takas geçmişi: aynı gün + vardiyayı en az 2 kez takasa vermiş → o kombinasyondan kaçınılır.
+ *  - Takas geçmişi: aynı gün + vardiyayı en az 2 kez başkasıyla değiştirmiş → o kombinasyondan kaçınılır.
  * Motor bunları esnek (açık tercihten zayıf) ceza olarak kullanır. Saf; DB okuması çağıranda.
  */
 
@@ -69,7 +69,7 @@ export function learnImplicitPrefs(
     const d = Number(day);
     if ((out[pid] ?? []).some(a => a.day === d && a.shiftId === null)) continue; // gün zaten kaçınılıyor
     const name = opts.shiftNames?.[shiftId] ?? "bu vardiya";
-    (out[pid] ??= []).push({ day: d, shiftId, count: n, note: `${DAY_NAMES[d]} ${name} vardiyasını ${n} kez takasa vermiş` });
+    (out[pid] ??= []).push({ day: d, shiftId, count: n, note: `${DAY_NAMES[d]} ${name} vardiyasını ${n} kez başkasıyla değiştirmiş` });
   }
   return out;
 }

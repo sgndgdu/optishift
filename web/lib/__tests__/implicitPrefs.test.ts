@@ -21,11 +21,11 @@ describe("örtük tercih", () => {
     expect(learnImplicitPrefs(sparse, [], { enteredThisWeek: new Set() })).toEqual({});
   });
 
-  it("aynı gün ve vardiyayı 2 kez takasa veren kişi", () => {
+  it("aynı gün ve vardiyayı 2 kez başkasıyla değiştiren kişi", () => {
     const r = learnImplicitPrefs([], [
       { personnel_id: "can", day: 5, shift_id: "s-kapanis" }, { personnel_id: "can", day: 5, shift_id: "s-kapanis" },
       { personnel_id: "can", day: 1, shift_id: "s-acilis" },
     ], { enteredThisWeek: new Set(), shiftNames: { "s-kapanis": "Kapanış" } });
-    expect(r.can).toEqual([{ day: 5, shiftId: "s-kapanis", count: 2, note: "Cumartesi Kapanış vardiyasını 2 kez takasa vermiş" }]);
+    expect(r.can).toEqual([{ day: 5, shiftId: "s-kapanis", count: 2, note: "Cumartesi Kapanış vardiyasını 2 kez başkasıyla değiştirmiş" }]);
   });
 });

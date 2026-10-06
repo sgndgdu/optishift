@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
         .sort((a, b) => dateOf(a).localeCompare(dateOf(b)) || String(a.start_time).localeCompare(String(b.start_time)))
         .map(t => {
           const problems: string[] = [];
-          if (busy.has(Number(t.id))) problems.push("Bu vardiya ilanda ya da başka bir takasta");
+          if (busy.has(Number(t.id))) problems.push("Bu vardiya ilanda ya da başka bir vardiya değiştirme isteğinde");
           const tDept = t.department_id ?? t.owner_dept;
           if (tDept && myDepts.size > 0 && !myDepts.has(tDept)) problems.push("Bu vardiya senin departmanında değil");
           if (dateOf(t) === dateOf(mine) && t.start_time === mine.start_time && t.end_time === mine.end_time) problems.push("Seninkiyle aynı vardiya");

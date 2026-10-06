@@ -87,7 +87,7 @@ export default function LoginPage() {
           </Link>
           <p className="text-sm text-slate-500">
             <span className="hidden sm:inline">Hesabınız yok mu? </span>
-            <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Ücretsiz hesap açın</Link>
+            <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">14 gün ücretsiz deneyin</Link>
           </p>
         </header>
 
