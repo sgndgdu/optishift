@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff, Store, User, Gift, Loader2, XCircle } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Gift, Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 import { Logo } from "@/components/Logo";
 import { AuthLogo } from "@/components/AuthLogo";
+import { AuthVisual } from "@/components/marketing/AuthVisual";
+import { BRAND } from "@/lib/brand";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -138,54 +140,26 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-white flex">
-      {/* Sol — Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-950 relative flex-col justify-between p-12 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-forest-600/30 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-ember-600/20 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <Logo size="md" className="w-10 h-10" />
-          <span className="text-xl font-bold tracking-tight text-white">OptiShift</span>
-        </div>
-
-        <div className="relative z-10 max-w-lg mt-20">
-          <h2 className="font-serif text-4xl md:text-5xl font-semibold text-white mb-6 leading-tight">
-            Tüm şubelerinizi<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest-400 to-ember-400">tek ekrandan</span> yönetin.
-          </h2>
-          <p className="text-slate-400 text-lg leading-relaxed mb-8">
-            1 cafe veya 50 şube, fark etmez. OptiShift&apos;in adil vardiya dağıtımı her ölçekte çalışır.
+      <div className="w-full lg:w-[52%] flex flex-col bg-white">
+        <header className="hidden lg:flex items-center justify-between px-12 pt-10">
+          <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-bold tracking-tight hover:text-forest-700 transition-colors">
+            <Logo size="sm" />
+            {BRAND.name}
+          </Link>
+          <p className="text-sm text-slate-500">
+            Hesabınız var mı?{" "}
+            <Link href="/login" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Giriş yapın</Link>
           </p>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="text-lg font-black text-white mb-1">Hazır Şablonlar</div>
-              <div className="text-sm text-slate-400 font-medium">Sektörünüze göre gelir</div>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="text-lg font-black text-white mb-1">Adil Dağıtım</div>
-              <div className="text-sm text-slate-400 font-medium">Otomatik hesaplanır</div>
-            </div>
-          </div>
-        </div>
+        </header>
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 text-slate-500 text-sm font-medium">
-            <span>© 2026 OptiShift</span>
-            <span>·</span>
-            <span>Tüm hakları saklıdır.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Sağ — Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-slate-50">
-        <div className="w-full max-w-[440px]">
+        <main className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+        <div className="w-full max-w-[420px]">
           <AuthLogo className="lg:hidden" />
 
           {!registeredUser && googlePending ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6 sm:mb-8 text-center lg:text-left">
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Son Bir Adım</h1>
+              <div className="mb-8">
+                <h1 className="text-[28px] font-bold text-slate-900 mb-2 tracking-tight leading-tight">Son bir adım</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">
                   <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. Son olarak işletmenizin adını yazın.
                 </p>
@@ -203,14 +177,13 @@ export default function RegisterPage() {
 
               <form onSubmit={handleGoogleRegister} className="space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <Store size={14} className="text-forest-500" />
-                    İşletme Adı
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                    İşletme adı
                   </label>
                   <input
                     value={googleForm.org_name}
                     onChange={(e) => setGoogleForm((f) => ({ ...f, org_name: e.target.value }))}
-                    placeholder="Örn: Cup & Go Cafe"
+                    placeholder="Örn. Moda Kahve"
                     className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                   />
                 </div>
@@ -218,29 +191,29 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-forest-200 mt-4 group"
+                  className="w-full bg-forest-700 hover:bg-forest-800 active:bg-forest-900 disabled:opacity-60 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-colors mt-2 group"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <>Hesabı Oluştur <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                    <>Hesabı oluştur <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" /></>
                   )}
                 </button>
               </form>
             </div>
           ) : !registeredUser ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6 sm:mb-8 text-center lg:text-left">
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Ücretsiz Hesap Oluştur</h1>
-                <p className="text-slate-500 font-medium text-sm sm:text-base">İşletmenizi 1 dakikadan kısa sürede sisteme kaydedin.</p>
+              <div className="mb-8">
+                <h1 className="text-[28px] font-bold text-slate-900 mb-2 tracking-tight leading-tight">Ücretsiz hesap açın</h1>
+                <p className="text-[15px] text-slate-500">Kredi kartı gerekmez. Küçük işletmeye süresiz ücretsiz.</p>
               </div>
 
               {FEATURES.googleAuth && (
-                <div className="space-y-5 mb-5">
-                  <GoogleAuthButton intent="register" label="Google ile Kaydol" />
+                <div className="space-y-6 mb-6">
+                  <GoogleAuthButton intent="register" label="Google ile devam et" />
                   <div className="flex items-center gap-3">
                     <div className="h-px bg-slate-200 flex-1" />
-                    <span className="text-xs font-bold text-slate-400">veya</span>
+                    <span className="text-xs font-medium text-slate-400">veya e-posta ile</span>
                     <div className="h-px bg-slate-200 flex-1" />
                   </div>
                 </div>
@@ -255,22 +228,20 @@ export default function RegisterPage() {
 
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <Store size={14} className="text-forest-500" />
-                    İşletme Adı
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                    İşletme adı
                   </label>
                   <input
                     value={form.org_name}
                     onChange={(e) => set("org_name", e.target.value)}
-                    placeholder="Örn: Cup & Go Cafe"
+                    placeholder="Örn. Moda Kahve"
                     className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <User size={14} className="text-forest-500" />
-                    Adınız Soyadınız
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                    Adınız soyadınız
                   </label>
                   <input
                     value={form.owner_name}
@@ -281,7 +252,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">E-posta Adresi</label>
+                  <label className="text-sm font-semibold text-slate-700 mb-2 block">E-posta</label>
                   {/* Kullanıcı adı ayrıca sorulmaz: giriş e-postayla yapılır, kullanıcı adı sunucuda türetilir */}
                   <input
                     type="email"
@@ -293,7 +264,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">Şifre</label>
+                  <label className="text-sm font-semibold text-slate-700 mb-2 block">Şifre</label>
                   <div className="relative">
                     <input
                       type={showPass ? "text" : "password"}
@@ -314,9 +285,9 @@ export default function RegisterPage() {
 
                 {showPromoField ? (
                   <div>
-                    <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
                       <Gift size={14} className="text-ember-500" />
-                      Kampanya Kodu <span className="text-slate-400 normal-case font-medium">(isteğe bağlı)</span>
+                      Kampanya kodu <span className="text-slate-400 normal-case font-medium">(isteğe bağlı)</span>
                     </label>
                     <div className="relative">
                       <input
@@ -360,12 +331,12 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-forest-200 mt-4 group"
+                  className="w-full bg-forest-700 hover:bg-forest-800 active:bg-forest-900 disabled:opacity-60 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-colors mt-2 group"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <>Hesabı Oluştur <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                    <>Hesabı oluştur <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" /></>
                   )}
                 </button>
 
@@ -378,10 +349,10 @@ export default function RegisterPage() {
                 </p>
               </form>
 
-              <p className="text-center text-sm text-slate-500 mt-8 font-medium">
-                Zaten hesabın var mı?{" "}
-                <Link href="/login" className="text-forest-600 font-bold hover:text-forest-700 transition-colors">
-                  Giriş Yap
+              <p className="text-center text-sm text-slate-500 mt-8 lg:hidden">
+                Hesabınız var mı?{" "}
+                <Link href="/login" className="text-forest-700 font-semibold hover:text-forest-800 transition-colors">
+                  Giriş yapın
                 </Link>
               </p>
             </div>
@@ -393,7 +364,7 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hesabınız Oluşturuldu!</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hesabınız hazır</h2>
                 <p className="text-slate-500 mt-3 font-medium leading-relaxed">
                   <strong>{form.org_name}</strong> hazır. Şimdi işletme türünüzü seçip kurulumu tamamlayalım.
                 </p>
@@ -413,15 +384,23 @@ export default function RegisterPage() {
               <div className="pt-2">
                 <button
                   onClick={handleStart}
-                  className="w-full bg-forest-600 hover:bg-forest-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-forest-200 transition-all flex items-center justify-center gap-2 group"
+                  className="w-full bg-forest-700 hover:bg-forest-800 text-white font-semibold py-3.5 rounded-2xl transition-colors flex items-center justify-center gap-2 group"
                 >
-                  Kuruluma Başla <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  Kuruluma başla <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </div>
           )}
         </div>
+        </main>
+
+        <footer className="hidden lg:flex items-center justify-between px-12 pb-8 text-xs text-slate-400">
+          <span>© {new Date().getFullYear()} {BRAND.name}</span>
+          <span>Bağlantınız şifrelidir</span>
+        </footer>
       </div>
+
+      <AuthVisual variant="register" />
     </div>
   );
 }

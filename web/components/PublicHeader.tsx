@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Herkese açık içerik sayfalarının (landing, pricing, kılavuz, gizlilik,
@@ -24,7 +25,7 @@ export default function PublicHeader({ active }: { active?: "pricing" }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
           <Logo size="md" className="sm:w-10 sm:h-10 group-hover:scale-105 transition-transform duration-300" />
-          <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900">OptiShift</span>
+          <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900">{BRAND.name}</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-10">

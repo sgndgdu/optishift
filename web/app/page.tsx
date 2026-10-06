@@ -1,130 +1,251 @@
-"use client";
-
 import Link from "next/link";
-import { CalendarCheck, ArrowRight, ShieldCheck, ChevronDown, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowRight, Check, Scale, ShieldCheck, ArrowLeftRight, Tablet, FileSpreadsheet, Building2,
+  ListChecks, Sparkles, Smartphone, MessageSquare, CalendarClock, Megaphone,
+} from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
+import { BRAND } from "@/lib/brand";
+import { SECTORS } from "@/components/marketing/sectors";
+import { AppWindow, ScheduleBoard, PhoneMock, Toast, FairnessCard } from "@/components/marketing/Mockups";
+import { SectorShowcase } from "@/components/marketing/SectorShowcase";
+import { SectorPhoto } from "@/components/marketing/SectorPhoto";
+
+const KAFE = SECTORS[0];
+const OTEL = SECTORS[1];
+
+const FEATURES = [
+  { icon: ShieldCheck, title: "İş Kanunu kuralları hazır", text: "İki vardiya arası en az 11 saat dinlenme, haftalık çalışma sınırı, hafta tatili ve gece çalışma süresi plan kurulurken gözetilir." },
+  { icon: Scale, title: "Adalet puanı", text: "Kim kaç hafta sonu ve kaç zor vardiya çalıştı sayılır. Zor vardiyalar sırayla döner, kimse sürekli aynı yükü taşımaz." },
+  { icon: ArrowLeftRight, title: "Takas, izin, açık vardiya", text: "Ekip takas ister, izin ister, boşta kalan vardiyayı üstlenir. Kurala uymayan değişiklik daha istek aşamasında durur." },
+  { icon: Tablet, title: "Tablet ile giriş çıkış", text: "İş yerindeki ortak tablete PIN ile giriş. İsterseniz telefondan konum doğrulamalı giriş." },
+  { icon: FileSpreadsheet, title: "Puantaj ve fazla mesai", text: "Çalışılan saat, geç kalma, fazla mesai ve izinler ay sonunda raporda. Excel olarak indirilir." },
+  { icon: Building2, title: "Çok şube, tek panel", text: "Bütün şubeleri tek ekranda görün. Birden çok şubede çalışan kişinin saatleri birlikte sayılır." },
+];
+
+const STEPS = [
+  {
+    n: "1",
+    title: "İhtiyacı bir kez girin",
+    text: "Hangi gün, hangi vardiyada kaç kişi gerektiğini tabloya yazın. Geçmiş haftalarınızdan öneri de alabilirsiniz.",
+  },
+  {
+    n: "2",
+    title: "Plan saniyeler içinde hazır",
+    text: "Uygunluklar, yasal kurallar ve adalet puanı birlikte hesaplanır. Beğenmediğiniz hücreyi elle değiştirin, gerisi korunur.",
+  },
+  {
+    n: "3",
+    title: "Yayınlayın, ekip telefondan görsün",
+    text: "Yayınladığınız an herkese bildirim gider. Ekip vardiyasını, takas ve izin isteklerini telefonundan yönetir.",
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-cream text-slate-900 font-sans selection:bg-primary/20 selection:text-primary relative overflow-hidden">
-
-      {/* Sıcak, tek gradient — jenerik çoklu-blob desenden kaçınıldı */}
-      <div className="absolute top-[-15%] right-[-10%] w-[900px] h-[900px] bg-gradient-to-br from-forest-100 via-ember-100/70 to-transparent rounded-full blur-[130px] opacity-80 pointer-events-none" />
-
+    <div className="min-h-screen bg-cream text-slate-900 font-sans selection:bg-forest-200 selection:text-forest-900">
       <PublicHeader />
 
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-16 sm:pt-16 sm:pb-24 md:pt-20 md:pb-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center flex flex-col items-center">
+      {/* ─── Hero ─────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute -top-40 right-[-15%] h-[720px] w-[720px] rounded-full bg-gradient-to-br from-forest-100 via-ember-100/60 to-transparent blur-[120px]" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-8 lg:pb-28 lg:pt-20">
+          <div className="max-w-xl">
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-forest-700 ring-1 ring-forest-100 shadow-sm sm:text-[13px]">
+              <Sparkles size={14} className="text-ember-500" />
+              Kafe, restoran, otel, mağaza ve fabrikalar için
+            </p>
+            <h1 className="font-serif text-[42px] font-semibold leading-[1.04] tracking-tight text-slate-900 sm:text-6xl lg:text-[68px]">
+              Vardiya planı,<br />
+              <span className="text-forest-700">dakikalar içinde</span><br />
+              ve herkese adil.
+            </h1>
+            <p className="mt-6 text-[17px] leading-relaxed text-slate-600 sm:text-lg">
+              Kaç kişiye ihtiyacınız olduğunu söyleyin, {BRAND.name}{" "}haftanın planını İş Kanunu&apos;na uygun ve dengeli şekilde kursun.
+              Ekibiniz vardiyasını, takasını ve iznini telefonundan yönetsin.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href="/register" className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-forest-700 px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-10px_rgba(20,69,61,0.7)] transition-colors hover:bg-forest-800">
+                Ücretsiz başlayın <ArrowRight size={18} />
+              </Link>
+              <Link href="#nasil" className="inline-flex h-13 items-center justify-center rounded-2xl bg-white px-7 py-3.5 text-base font-semibold text-slate-800 ring-1 ring-slate-200 transition-colors hover:bg-slate-50">
+                Nasıl çalışır?
+              </Link>
+            </div>
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+              {["Kredi kartı gerekmez", "Küçük işletmeye süresiz ücretsiz", "Telefonda tam çalışır"].map((t) => (
+                <li key={t} className="flex items-center gap-1.5">
+                  <Check size={15} className="text-forest-600" strokeWidth={2.5} /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-[5rem] font-semibold tracking-tight mb-6 sm:mb-8 leading-[1.05] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 text-slate-900">
-            Vardiya Planlamasını <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-forest-500 to-ember-500">
-              Excel&apos;den Kurtarın
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 px-2">
-            Ekibinizi <strong className="text-slate-900 font-bold">yasal dinlenme sürelerine ve adalet puanına</strong> göre otomatik planlayın. Hafta sonu ve gece vardiyaları herkese eşit dağılsın.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500">
-            <Link href="/register" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 bg-primary hover:bg-forest-600 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 text-base sm:text-lg shadow-[0_8px_20px_rgba(20,69,61,0.3)] hover:shadow-[0_12px_25px_rgba(20,69,61,0.4)] hover:-translate-y-1">
-                Ücretsiz Dene <ArrowRight size={18} />
-              </Button>
-            </Link>
-            <Link href="#features" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-bold rounded-2xl transition-all flex items-center justify-center text-base sm:text-lg shadow-sm hover:shadow-md hover:-translate-y-1 gap-2">
-                <ChevronDown size={18} className="text-slate-400" />
-                Nasıl Çalışır?
-              </Button>
-            </Link>
+          {/* Ürün kompozisyonu */}
+          <div className="relative mx-auto w-full max-w-[640px] lg:mr-0">
+            <AppWindow title={`${KAFE.location} · Vardiya Planı`} className="relative z-10">
+              <ScheduleBoard sector={KAFE} />
+            </AppWindow>
+            <div className="absolute -bottom-16 left-4 z-20 hidden md:block xl:-left-6">
+              <PhoneMock sector={KAFE} className="scale-[0.82] origin-bottom-left" />
+            </div>
+            <Toast
+              icon="swap"
+              title="Takas onaylandı"
+              text="Burak ile Selin cumartesi vardiyalarını değiştirdi."
+              className="absolute -right-4 -top-6 z-20 hidden sm:flex lg:-right-10"
+            />
+            <FairnessCard className="absolute -bottom-10 -right-4 z-20 hidden lg:block lg:-right-10" />
           </div>
         </div>
       </section>
 
-      {/* Modern Bento Grid Features */}
-      <section id="features" className="py-16 sm:py-24 relative z-10 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 sm:mb-16 md:mb-24">
-            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-slate-900">İşinizi Kolaylaştıran Özellikler</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg font-medium px-4">
-              Kurallarınızı bir kez tanımlayın. OptiShift, kaç kişiye ihtiyacınız olduğunu, ekibin uygunluğunu ve adalet puanını birlikte hesaba katarak planı sizin yerinize hazırlar.
+      {/* ─── Kurallar şeridi ──────────────────────────────────── */}
+      <section className="border-y border-slate-200/70 bg-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-slate-100 sm:grid-cols-4">
+          {[
+            { k: "11 saat", v: "vardiyalar arası dinlenme" },
+            { k: "45 saat", v: "haftalık sınır, kişiye göre" },
+            { k: "7,5 saat", v: "gece çalışma süresi" },
+            { k: "1 gün", v: "hafta tatili her hafta" },
+          ].map((x) => (
+            <div key={x.k} className="bg-white px-5 py-6 text-center sm:py-8">
+              <p className="font-serif text-2xl font-semibold text-forest-700 sm:text-3xl">{x.k}</p>
+              <p className="mt-1 text-xs text-slate-500 sm:text-sm">{x.v}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mx-auto max-w-7xl px-4 pb-5 text-center text-xs text-slate-400 sm:px-6">
+          4857 sayılı İş Kanunu&apos;nun vardiya kuralları varsayılan olarak açıktır, işletmenize göre ayarlanabilir.
+        </p>
+      </section>
+
+      {/* ─── Sektörler ────────────────────────────────────────── */}
+      <section id="sektorler" className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="mb-3 text-sm font-semibold text-ember-600">Sektörünüze göre</p>
+            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Her işletmenin vardiyası farklı.</h2>
+            <p className="mt-4 text-base text-slate-600 sm:text-lg">
+              İşletme türünüzü seçtiğinizde vardiya saatleri, departmanlar ve kurallar hazır gelir. Sonra dilediğiniz gibi değiştirirsiniz.
             </p>
           </div>
+          <SectorShowcase />
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            {/* Büyük Kutu */}
-            <div className="md:col-span-2 stripe-card p-7 sm:p-10 md:p-12 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-forest-100/80 to-transparent rounded-full blur-[60px] group-hover:scale-110 transition-transform duration-700" />
-              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white border border-slate-100 shadow-[0_8px_16px_rgba(0,0,0,0.06)] text-primary rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-md flex items-center justify-center mb-6 sm:mb-8 relative z-10">
-                <CalendarCheck size={28} />
+      {/* ─── Nasıl çalışır ────────────────────────────────────── */}
+      <section id="nasil" className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mb-14 max-w-2xl">
+            <p className="mb-3 text-sm font-semibold text-ember-600">Nasıl çalışır</p>
+            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Pazar akşamı Excel başında oturmaya son.</h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="flex flex-col rounded-3xl bg-cream p-7 ring-1 ring-slate-900/5 sm:p-8">
+                <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-forest-700 font-serif text-lg font-semibold text-white">{s.n}</span>
+                <h3 className="text-xl font-semibold text-slate-900">{s.title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{s.text}</p>
+                <div className="mt-8 flex-1">
+                  {i === 0 && <DemandMini />}
+                  {i === 1 && <ChecksMini />}
+                  {i === 2 && (
+                    <div className="space-y-2">
+                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13 - 19 Ekim vardiyaların hazır." className="w-full" />
+                      <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="w-full" />
+                    </div>
+                  )}
+                </div>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4 relative z-10">Otomatik Planlama</h3>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-md relative z-10 font-medium">
-                Her gün için kaç kişi gerektiğini tabloya girin. OptiShift; ekibin uygunluğunu, yasal dinlenme sürelerini ve adalet puanını aynı anda gözeterek planı oluşturur.
-              </p>
-            </div>
-
-            {/* Küçük Kutu 1 */}
-            <div className="stripe-card p-7 sm:p-10 relative overflow-hidden group">
-              <div className="absolute bottom-0 right-0 w-[200px] h-[200px] bg-gradient-to-tl from-emerald-100/80 to-transparent rounded-full blur-[50px] group-hover:scale-110 transition-transform duration-700" />
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mb-5 sm:mb-6 relative z-10">
-                <ShieldCheck size={22} />
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Adil Dağıtım</h3>
-              <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
-                Adalet Puanı kimin ne kadar zor vardiya aldığını sayar; hafta sonu ve akşamlar herkese sırayla düşer.
-              </p>
-            </div>
-
-            {/* Küçük Kutu 2 */}
-            <div className="stripe-card p-7 sm:p-10 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-[200px] h-[200px] bg-gradient-to-br from-ember-100/80 to-transparent rounded-full blur-[50px] group-hover:scale-110 transition-transform duration-700" />
-              <div className="text-ember-600 mb-5 sm:mb-6 relative z-10">
-                <Smartphone size={34} strokeWidth={1.75} />
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3 relative z-10">Anında Kurulum</h3>
-              <p className="text-slate-600 leading-relaxed font-medium relative z-10 text-sm sm:text-base">
-                Dakikalar içinde kayıt olun, şubelerinizi ekleyin. Plan yayınlanınca ekibiniz telefonundan hemen görsün.
-              </p>
-            </div>
-
-            {/* Yatay Kutu */}
-            <div className="md:col-span-2 stripe-card p-7 sm:p-10 bg-gradient-to-r from-white to-slate-50 flex flex-col md:flex-row items-start md:items-center gap-6 sm:gap-8 relative overflow-hidden">
-              <div className="flex-1 relative z-10">
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2 sm:mb-3">Çoklu Şube Yönetimi</h3>
-                <p className="text-slate-600 font-medium leading-relaxed text-sm sm:text-base">
-                  İster 1 şube, ister 100 şube. Tüm şubelerinizi tek bir panelden yönetin, ekibinizi şubeler arasında paylaştırın. 10+ şubesi olan markalar için kurumsal çözümleri inceleyin.
-                </p>
-                <Link href="/pricing" className="inline-flex items-center gap-2 mt-4 sm:mt-6 text-primary font-bold hover:text-forest-600 transition-colors text-sm sm:text-base">
-                  Kurumsal Planlar <ArrowRight size={16} />
-                </Link>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 sm:py-24 relative z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="bg-primary rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 md:p-20 text-center relative overflow-hidden shadow-[0_20px_50px_rgba(20,69,61,0.3)]">
-            <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-white/20 rounded-full blur-[80px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-forest-900/40 rounded-full blur-[80px] pointer-events-none" />
-
-            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold mb-4 sm:mb-6 tracking-tight relative z-10 text-white">Vardiyaları Dert Etmeyi <br className="hidden sm:block"/> Bırakın.</h2>
-            <p className="text-base sm:text-xl text-forest-100 mb-8 sm:mb-10 max-w-2xl mx-auto font-medium relative z-10">
-              OptiShift&apos;i bugün deneyin, vardiya planlamayı bir daha elle yapmak zorunda kalmayın.
+      {/* ─── Ekip tarafı ──────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-forest-900 py-20 text-white sm:py-28">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "56px 56px" }}
+        />
+        <div className="pointer-events-none absolute -left-40 top-0 h-[600px] w-[600px] rounded-full bg-forest-600/30 blur-[140px]" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
+          <div className="relative order-2 flex justify-center lg:order-1">
+            <div className="relative h-[460px] w-full max-w-[460px]">
+              <SectorPhoto sector={OTEL} className="absolute inset-y-6 left-0 right-16 overflow-hidden rounded-3xl" />
+              <PhoneMock sector={OTEL} className="absolute bottom-0 right-0 z-10" />
+            </div>
+          </div>
+          <div className="order-1 lg:order-2">
+            <p className="mb-3 text-sm font-semibold text-ember-300">Ekibiniz için</p>
+            <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">WhatsApp grubunda vardiya kovalamak yok.</h2>
+            <p className="mt-5 text-base leading-relaxed text-forest-100/75 sm:text-lg">
+              Ekip üyeleri uygulama indirmeden, telefonun tarayıcısından girer. Bağlantıyı WhatsApp ile gönderirsiniz, Google hesabıyla tek dokunuşta bağlanırlar.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 relative z-10">
-              <Link href="/register" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto h-14 sm:h-16 px-8 sm:px-10 bg-white text-slate-900 hover:bg-slate-50 font-black rounded-2xl transition-all text-base sm:text-lg hover:scale-105 shadow-[0_8px_20px_rgba(0,0,0,0.1)]">
-                  Hemen Kayıt Ol <ArrowRight size={20} className="ml-2" />
-                </Button>
+            <ul className="mt-10 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              {[
+                { icon: Smartphone, t: "Vardiyasını görür", d: "Haftası, kiminle çalıştığı, sıradaki vardiyası." },
+                { icon: CalendarClock, t: "Uygunluğunu girer", d: "Gelemeyeceği günler plana kendiliğinden yansır." },
+                { icon: ArrowLeftRight, t: "Takas ve izin ister", d: "Kurala uymayan takas daha gönderilmeden uyarır." },
+                { icon: Megaphone, t: "Açık vardiyayı alır", d: "Biri gelemezse uygun olanlara anında haber gider." },
+                { icon: MessageSquare, t: "Ekiple yazışır", d: "Şube sohbeti ve sorumluya doğrudan mesaj." },
+                { icon: ListChecks, t: "Devir notunu okur", d: "Önceki vardiyanın bıraktığı not girişte karşılar." },
+              ].map(({ icon: Icon, t, d }) => (
+                <li key={t} className="flex gap-3.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-ember-300">
+                    <Icon size={18} />
+                  </span>
+                  <span>
+                    <span className="block font-semibold">{t}</span>
+                    <span className="mt-0.5 block text-sm text-forest-100/65">{d}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Özellikler ───────────────────────────────────────── */}
+      <section id="features" className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <p className="mb-3 text-sm font-semibold text-ember-600">Platform</p>
+            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planlamadan puantaja, tek yerde.</h2>
+          </div>
+          <div className="grid gap-px overflow-hidden rounded-3xl bg-slate-200/70 ring-1 ring-slate-200/70 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="bg-white p-7 sm:p-9">
+                <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
+                  <Icon size={21} />
+                </span>
+                <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Kapanış ──────────────────────────────────────────── */}
+      <section className="px-4 pb-20 sm:px-6 sm:pb-28">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-forest-800 px-6 py-16 text-center sm:px-12 sm:py-24">
+          <SectorPhoto sector={SECTORS[2]} className="absolute inset-0 opacity-30" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-forest-900/40 to-forest-900/80" />
+          <div className="relative">
+            <h2 className="mx-auto max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
+              Gelecek haftanın planını bugün, on dakikada hazırlayın.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base text-forest-100/80 sm:text-lg">
+              Bir şube ve on kişiye kadar süresiz ücretsiz. Büyüdüğünüzde paketinizi yükseltirsiniz.
+            </p>
+            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold text-forest-900 transition-colors hover:bg-cream">
+                Ücretsiz hesap açın <ArrowRight size={18} />
+              </Link>
+              <Link href="/pricing" className="inline-flex items-center justify-center rounded-2xl px-8 py-4 text-base font-semibold text-white ring-1 ring-white/30 transition-colors hover:bg-white/10">
+                Paketleri görün
               </Link>
             </div>
           </div>
@@ -132,6 +253,54 @@ export default function LandingPage() {
       </section>
 
       <PublicFooter />
+    </div>
+  );
+}
+
+/** Adım 1 görseli: ihtiyaç tablosu */
+function DemandMini() {
+  const rows = [
+    { l: "Açılış", v: [2, 2, 2, 2, 3, 4, 3] },
+    { l: "Kapanış", v: [2, 2, 3, 3, 4, 5, 4] },
+  ];
+  return (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
+      <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1 text-[10.5px]">
+        <div />
+        {["P", "S", "Ç", "P", "C", "C", "P"].map((d, i) => (
+          <div key={i} className={i >= 5 ? "text-center font-medium text-ember-600" : "text-center font-medium text-slate-400"}>{d}</div>
+        ))}
+        {rows.map((r) => (
+          <Row key={r.l} label={r.l} values={r.v} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, values }: { label: string; values: number[] }) {
+  return (
+    <>
+      <div className="flex items-center font-medium text-slate-600">{label}</div>
+      {values.map((v, i) => (
+        <div key={i} className="flex h-7 items-center justify-center rounded-md bg-slate-50 font-semibold text-slate-800 ring-1 ring-inset ring-slate-200">{v}</div>
+      ))}
+    </>
+  );
+}
+
+/** Adım 2 görseli: plan kontrolü */
+function ChecksMini() {
+  return (
+    <div className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
+      {["Her vardiyada ihtiyaç kadar kişi", "11 saat dinlenme herkes için", "Haftalık sınırı aşan yok", "Hafta sonları dengeli dağıldı"].map((t) => (
+        <div key={t} className="flex items-center gap-2.5 text-[13px] text-slate-700">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-forest-100 text-forest-700">
+            <Check size={11} strokeWidth={3} />
+          </span>
+          {t}
+        </div>
+      ))}
     </div>
   );
 }

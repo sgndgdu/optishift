@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, AtSign, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
+import { Lock, AtSign, Eye, EyeOff, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
@@ -10,6 +10,8 @@ import { GoogleOneTap } from "@/components/GoogleOneTap";
 import { FEATURES } from "@/lib/features";
 import { routeAfterLogin as routeAfterLoginShared, type LoginData } from "@/lib/sessionRouting";
 import { AuthLogo } from "@/components/AuthLogo";
+import { AuthVisual } from "@/components/marketing/AuthVisual";
+import { BRAND } from "@/lib/brand";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
@@ -82,7 +84,7 @@ export default function LoginPage() {
         <header className="hidden lg:flex items-center justify-between px-12 pt-10">
           <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-bold tracking-tight hover:text-forest-700 transition-colors">
             <Logo size="sm" />
-            OptiShift
+            {BRAND.name}
           </Link>
           <p className="text-sm text-slate-500">
             Hesabınız yok mu?{" "}
@@ -203,86 +205,13 @@ export default function LoginPage() {
         </main>
 
         <footer className="hidden lg:flex items-center justify-between px-12 pb-8 text-xs text-slate-400">
-          <span>© {new Date().getFullYear()} OptiShift</span>
+          <span>© {new Date().getFullYear()} {BRAND.name}</span>
           <span>Bağlantınız şifrelidir</span>
         </footer>
       </div>
 
-      {/* Sağ: ürün önizlemesi */}
-      <aside className="hidden lg:flex lg:w-[48%] relative overflow-hidden bg-forest-900 flex-col justify-center px-14 xl:px-20">
-        <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
-          style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "48px 48px" }}
-        />
-        <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-forest-600/40 blur-[120px] pointer-events-none" />
-
-        <div className="relative z-10 max-w-[480px]">
-          <h2 className="font-serif text-[40px] font-semibold text-white leading-[1.1] tracking-tight">
-            Haftalık plan,<br />dakikalar içinde hazır.
-          </h2>
-          <p className="mt-4 text-[17px] leading-relaxed text-forest-100/70">
-            Hesap sahibi, sorumlu ya da ekip üyesi: herkes aynı kapıdan girer, kendi ekranını görür.
-          </p>
-
-          {/* Plan önizlemesi (süs, gerçek veri değil) */}
-          <div className="mt-10 rounded-2xl bg-white p-5 shadow-2xl shadow-black/30" aria-hidden="true">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-900">Bu hafta</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700">
-                <Check size={12} strokeWidth={3} /> Yayında
-              </span>
-            </div>
-            <div className="grid grid-cols-[72px_repeat(5,1fr)] gap-1.5 text-[11px]">
-              <div />
-              {["Pzt", "Sal", "Çar", "Per", "Cum"].map((d) => (
-                <div key={d} className="text-center font-medium text-slate-400">{d}</div>
-              ))}
-              {PREVIEW_ROWS.map((row) => (
-                <PreviewRow key={row.name} {...row} />
-              ))}
-            </div>
-          </div>
-
-          <ul className="mt-8 space-y-3">
-            {["Adil dağıtım, herkesin yükü dengede", "İzin ve takas istekleri tek yerde", "Ekip planı telefonundan görür"].map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ember-500/20 text-ember-300">
-                  <Check size={12} strokeWidth={3} />
-                </span>
-                {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+      <AuthVisual variant="login" />
     </div>
   );
 }
 
-type Shift = "A" | "K" | null;
-const PREVIEW_ROWS: { name: string; shifts: Shift[] }[] = [
-  { name: "Ayşe", shifts: ["A", "A", null, "K", "K"] },
-  { name: "Mehmet", shifts: ["K", null, "A", "A", null] },
-  { name: "Zeynep", shifts: [null, "K", "K", null, "A"] },
-  { name: "Can", shifts: ["A", "K", "A", null, "K"] },
-];
-
-function PreviewRow({ name, shifts }: { name: string; shifts: Shift[] }) {
-  return (
-    <>
-      <div className="flex items-center font-medium text-slate-600">{name}</div>
-      {shifts.map((s, i) => (
-        <div
-          key={i}
-          className={
-            s === "A" ? "h-7 rounded-md bg-forest-100 text-forest-800 flex items-center justify-center font-semibold"
-            : s === "K" ? "h-7 rounded-md bg-ember-100 text-ember-800 flex items-center justify-center font-semibold"
-            : "h-7 rounded-md border border-dashed border-slate-200"
-          }
-        >
-          {s === "A" ? "Açılış" : s === "K" ? "Kapanış" : ""}
-        </div>
-      ))}
-    </>
-  );
-}

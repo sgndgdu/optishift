@@ -13,7 +13,7 @@ const PANEL_DIRS = ["app/(app)", "app/supervisor", "app/(portal)", "components"]
 const EXEMPT = [
   "app/(app)/onboarding/", "app/(portal)/portal/login/", "app/(portal)/layout.tsx",
   "components/ui/PageHeader.tsx", "components/LegalShell.tsx", "components/guide/", "components/Sidebar.tsx",
-  "components/PublicHeader.tsx", "components/ui/",
+  "components/PublicHeader.tsx", "components/ui/", "components/marketing/",
 ];
 
 function files(dir: string): string[] {

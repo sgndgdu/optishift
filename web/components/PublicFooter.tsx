@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Herkese açık içerik sayfalarının (landing, pricing, kılavuz, gizlilik,
@@ -15,7 +16,7 @@ export default function PublicFooter() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10 sm:mb-12">
           <div className="flex items-center gap-2">
             <Logo size="sm" />
-            <span className="text-xl font-black text-slate-900 tracking-tight">OptiShift</span>
+            <span className="text-xl font-black text-slate-900 tracking-tight">{BRAND.name}</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-bold text-slate-500">
             <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
@@ -27,7 +28,7 @@ export default function PublicFooter() {
           </div>
         </div>
         <div className="text-center text-slate-400 text-sm font-medium border-t border-slate-100 pt-8">
-          <p>© 2026 OptiShift. Tüm hakları saklıdır.</p>
+          <p>© {new Date().getFullYear()} {BRAND.name}. Tüm hakları saklıdır.</p>
         </div>
       </div>
     </footer>
