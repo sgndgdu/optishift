@@ -1329,32 +1329,6 @@ function SchedulePageInner() {
   // Çubuk rengi takım ortalamasına göre (Raporlar → Adalet ile aynı kural)
   const avgScore = personScores.length ? personScores.reduce((t, s) => t + s.score, 0) / personScores.length : 0;
 
-  // Canlı TL maliyet bütçesi — hourly_wage tanımlı personelin saatlerini eşik-altı normal + eşik-üstü ×1.5 mesai olarak fiyatlar
-  const laborCost = useMemo(() => {
-    const otThreshold = typeof (locRules as Record<string, unknown>)?.overtime_threshold_hours === "number"
-      ? (locRules as Record<string, number>).overtime_threshold_hours : 45;
-    let total = 0;
-    let missingWage = 0;
-    for (const p of personnel) {
-      const hours = [...Object.entries(cellMap), ...Object.entries(extraCells).flatMap(([k, l]) => l.map(v => [k, v] as [string, CellData]))]
-        .filter(([k]) => k.startsWith(`${p.id}-`))
-        .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0);
-      if (hours === 0) continue;
-      if (typeof p.hourly_wage !== "number" || p.hourly_wage <= 0) { missingWage++; continue; }
-      const baseHours = Math.min(hours, otThreshold);
-      const otHours = Math.max(0, hours - otThreshold);
-      total += baseHours * p.hourly_wage + otHours * p.hourly_wage * 1.5;
-    }
-    // İcap: bekleme saati değil, icap başına sabit ücret (vardiya tanımında)
-    for (const v of Object.values(onCallMap)) {
-      const pay = shiftDefs.find(d => d.id === v.defId)?.on_call_pay;
-      if (typeof pay === "number" && pay > 0) total += pay;
-    }
-    return { total: Math.round(total), missingWage };
-  }, [personnel, cellMap, extraCells, onCallMap, shiftDefs, locRules]);
-  const weeklyLaborBudgetTry = typeof (locRules as Record<string, unknown>)?.weekly_labor_budget_try === "number"
-    ? (locRules as Record<string, number>).weekly_labor_budget_try : 0;
-  const laborBudgetExceeded = weeklyLaborBudgetTry > 0 && laborCost.total > weeklyLaborBudgetTry;
 
   // Hafta durumu (OPTI-024): tek birincil aksiyon + pasif durum çipi bu türevlerden beslenir
   const cellCount = Object.keys(cellMap).length;
@@ -2234,8 +2208,6 @@ function SchedulePageInner() {
       const def = shiftDefs.find(d => d.start === o.start_time?.slice(0, 5) && d.end === o.end_time?.slice(0, 5));
       return day !== undefined && def ? [{ day, shiftId: def.id, count: 1 }] : [];
     }),
-    // Tek bütçe: işçilik maliyeti (₺; mesai ×1,5 dahil). Saat bazlı mesai bütçesi kaldırıldı.
-    labor: { total: laborCost.total, budget: weeklyLaborBudgetTry },
   };
   const crossTraining = crossTrainingInsight(weekSnapshot, shiftDefs);
   const weekInsights = crossTraining ? [...buildInsights(weekSnapshot, weekBudgets), crossTraining] : buildInsights(weekSnapshot, weekBudgets);
@@ -2886,22 +2858,6 @@ loading ? (
               </span>
             )}
 
-            {/* Canlı TL maliyet bütçesi */}
-            {laborCost.total > 0 && (
-              <span
-                title={
-                  (laborBudgetExceeded ? `Bütçe ₺${weeklyLaborBudgetTry.toLocaleString("tr-TR")} aşıldı. ` : "") +
-                  (laborCost.missingWage > 0 ? `${laborCost.missingWage} kişinin saatlik ücreti tanımsız, hesaba dahil değil.` : "Bu haftanın planlanan işçilik maliyeti.")
-                }
-                className={cn(
-                  "px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap flex items-center gap-1",
-                  laborBudgetExceeded ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
-                )}
-              >
-                <span className="font-semibold opacity-70">Maliyet</span> ₺{laborCost.total.toLocaleString("tr-TR")}
-                {laborBudgetExceeded && " ⚠️"}
-              </span>
-            )}
 
             {/* Ekip yokken plan düğmeleri gizli: yapılacak tek iş ekip eklemek (Hızlı Kurulum) */}
             <div className={cn("ml-auto flex flex-wrap items-center gap-2", !loading && personnel.length === 0 && "hidden")}>
@@ -3665,7 +3621,6 @@ loading ? (
                             <Row label="Vardiya / saat" a={`${b.snap.totalShifts} / ${b.snap.totalHours} s`} b={`${x.snap.totalShifts} / ${x.snap.totalHours} s`} />
                             <Row label="Eksik kişi (ihtiyaca göre)" a={String(short(b.snap))} b={String(short(x.snap))} better={cmp(short(b.snap), short(x.snap))} />
                             <Row label="Acil sorun" a={String(crit(b))} b={String(crit(x))} better={cmp(crit(b), crit(x))} />
-                            <Row label="Maliyet (ücreti girilenler)" a={`₺${b.cost.toLocaleString("tr-TR")}`} b={`₺${x.cost.toLocaleString("tr-TR")}`} />
                             {scnExtra > 0 && <Row label="Yeni kişinin vardiyası" a="—" b={`${x.extraShifts} vardiya`} />}
                           </tbody>
                         </table>

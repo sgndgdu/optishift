@@ -706,12 +706,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       }
     }
 
-    // Haftalık işçilik bütçesi (Ayarlar › Kurallar): motor aşan her ₺'yi esnek cezalandırır
-    let laborBudgetTry = 0;
-    try {
-      const lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {};
-      if (typeof lr?.weekly_labor_budget_try === "number" && lr.weekly_labor_budget_try > 0) laborBudgetTry = lr.weekly_labor_budget_try;
-    } catch { /* bütçe yok */ }
+    // Maliyet bütçesi kaldırıldı (kullanıcı kararı 2026-10-06): motora sınır gönderilmez
+    const laborBudgetTry = 0;
 
     // Geçmiş günler (bugünden önce) planlanmaz: kimse yazılmaz, ihtiyaç sayılmaz, kapalı gün sayılır.
     // O günlerdeki mevcut vardiyalar istemciden sabit (fixed) gelir ve haftalık saate sayılır.

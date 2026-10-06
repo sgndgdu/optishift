@@ -71,7 +71,7 @@ function usePendingApprovals(orgId: string | undefined) {
   return count;
 }
 import {
-  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, HelpCircle, Wallet, ClipboardCheck, Building2, CalendarCheck,
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, HelpCircle, ClipboardCheck, Building2, CalendarCheck,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -96,14 +96,13 @@ const NAV = [
   { href: "/reports",      label: "Raporlar",               icon: BarChart2,       group: "more" },
   { href: "/chat",         label: "Mesajlar",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
   { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
-  { href: "/tip-pools",    label: "Bahşiş Havuzu",          icon: Wallet,          group: "more", module: "tip_pooling_enabled" },
   { href: "/handovers",    label: "Devir-Teslim", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
   { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
 
-const CHEF_HIDDEN = new Set<string>(["/requests", "/open-shifts", "/overtime", "/tip-pools", "/handovers"]);
+const CHEF_HIDDEN = new Set<string>(["/requests", "/open-shifts", "/overtime", "/handovers"]);
 
 // "Tüm Şubeler" kapsamı (patron / bölge müdürü): işletme geneli sayfalar (/supervisor/*).
 // Şube seçicinin en üstündeki "Tüm Şubeler" bu kapsama geçer; bir şube seçmek şube kapsamına döner.

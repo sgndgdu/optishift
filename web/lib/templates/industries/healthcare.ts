@@ -16,8 +16,6 @@ export const healthcare: IndustryProfile = {
       shifts: [
         { id: "s-sabah", name: "Sabah", start: "08:00", end: "16:00", base_points: 4 },
         { id: "s-aksam", name: "Akşam", start: "12:00", end: "20:00", base_points: 5 },
-        // Gece kapalı birimde hekim evden icapta: çalışma saatine sayılmaz, çağrılırsa saat girilir
-        { id: "s-icap", name: "Gece İcabı", start: "20:00", end: "08:00", base_points: 2, is_night: true, on_call: true },
       ],
     },
     {
@@ -128,6 +126,5 @@ export const healthcare: IndustryProfile = {
     ],
   },
 
-  // İcap nöbeti artık vardiya türü (on_call): Vardiya Planı'nda normal vardiyayla aynı gün verilebilir
   limitations: [],
 };

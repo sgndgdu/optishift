@@ -4,7 +4,7 @@ import type { IndustryProfile } from "../types";
 export const hospitality: IndustryProfile = {
   key: "hospitality",
   label: "Yeme-İçme ve Konaklama",
-  description: "Kafe, restoran, bar, otel. Yoğun saatlere göre esnek kadro, bahşiş ve kolay takas.",
+  description: "Kafe, restoran, bar, otel. Yoğun saatlere göre esnek kadro ve kolay vardiya değiştirme.",
   icon: "UtensilsCrossed",
 
   variants: [
@@ -119,9 +119,8 @@ export const hospitality: IndustryProfile = {
       late: { title: "{n} kişi vardiyasına gelmedi", detail: "Servis başladı, yerine birini bulun." },
     },
     firstSteps: [
-      "Ekibi ekleyin ve rollerini (Barista, Garson, Aşçı...) işaretleyin.",
+      "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin.",
       "Hafta sonu yoğunluğu için Personel İhtiyacı tablosunda Cuma-Cumartesi sayılarını artırın.",
-      "Bahşiş Havuzu açık: dönem sonunda toplam tutarı girip çalışılan süreye göre dağıtın.",
     ],
   },
 };

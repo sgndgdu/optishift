@@ -80,7 +80,6 @@ export function buildIndustryDefaults(industryKey: string, variantKey?: string |
  */
 export function enabledHighlights(industry: IndustryProfile): string[] {
   const LABELS: Record<string, string> = {
-    tip_pooling_enabled: "Bahşiş Havuzu",
     task_management_enabled: "Görev Listeleri",
     handover_log_enabled: `Dijital ${titleCaseTr(industry.nudges.terms.handover)} Defteri`,
     fatigue_radar_enabled: "Yorgunluk Uyarısı",

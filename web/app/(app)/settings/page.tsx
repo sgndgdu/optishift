@@ -1,6 +1,5 @@
 "use client";
 
-import { ComingSoonFeature } from "@/components/feedback/ComingSoonFeature";
 import { formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
@@ -9,7 +8,7 @@ import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
   Save, Plus, X, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown,
-  MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer, Wallet,
+  MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -350,7 +349,6 @@ export default function SettingsPage() {
   const [personnelConflictsEnabled, setPersonnelConflictsEnabled] = useState(true);
   const [complianceTrackingEnabled, setComplianceTrackingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
-  const [tipPoolingEnabled, setTipPoolingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
   const [forecastingEnabled, setForecastingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
@@ -376,7 +374,6 @@ export default function SettingsPage() {
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
-  const [weeklyLaborBudgetTry, setWeeklyLaborBudgetTry]           = useState(0); // 0 = limitsiz (₺)
   const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
   const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
@@ -502,7 +499,6 @@ export default function SettingsPage() {
           setPersonnelConflictsEnabled(isModuleOn(loc.rules, "personnel_conflicts_enabled"));
           setComplianceTrackingEnabled(loc.rules?.compliance_tracking_enabled === true);
           setTaskManagementEnabled(loc.rules?.task_management_enabled === true);
-          setTipPoolingEnabled(loc.rules?.tip_pooling_enabled === true);
           setKioskModeEnabled(loc.rules?.kiosk_mode_enabled === true);
           setForecastingEnabled(loc.rules?.forecasting_enabled === true);
           setHandoverLogEnabled(loc.rules?.handover_log_enabled === true);
@@ -519,7 +515,6 @@ export default function SettingsPage() {
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
-          if (typeof loc.rules?.weekly_labor_budget_try === "number")     setWeeklyLaborBudgetTry(loc.rules.weekly_labor_budget_try);
           setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
           setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
@@ -603,7 +598,6 @@ export default function SettingsPage() {
             personnelConflictsEnabled: isModuleOn(loc.rules, "personnel_conflicts_enabled"),
             complianceTrackingEnabled: loc.rules?.compliance_tracking_enabled === true,
             taskManagementEnabled: loc.rules?.task_management_enabled === true,
-            tipPoolingEnabled: loc.rules?.tip_pooling_enabled === true,
             kioskModeEnabled: loc.rules?.kiosk_mode_enabled === true,
             forecastingEnabled: loc.rules?.forecasting_enabled === true,
             handoverLogEnabled: loc.rules?.handover_log_enabled === true,
@@ -623,7 +617,6 @@ export default function SettingsPage() {
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
-            weeklyLaborBudgetTry: typeof loc.rules?.weekly_labor_budget_try === "number" ? loc.rules.weekly_labor_budget_try : 0,
             consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
@@ -656,12 +649,12 @@ export default function SettingsPage() {
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+      chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       locationLat, locationLon,
       changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     });
     setIsDirty(current !== savedSnapshot.current);
   }, [
@@ -674,12 +667,12 @@ export default function SettingsPage() {
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+    chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
     locationLat, locationLon,
     changeCompensationEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
   ]);
 
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
@@ -838,7 +831,6 @@ export default function SettingsPage() {
             personnel_conflicts_enabled:        personnelConflictsEnabled,
             compliance_tracking_enabled:        complianceTrackingEnabled,
             task_management_enabled:            taskManagementEnabled,
-            tip_pooling_enabled:                false, // Yakında: açık kalmış şubede de kayıtla kapanır
             kiosk_mode_enabled:                 kioskModeEnabled,
             forecasting_enabled:                forecastingEnabled,
             handover_log_enabled:               handoverLogEnabled,
@@ -855,7 +847,6 @@ export default function SettingsPage() {
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             overtime_fair_distribution:         overtimeFairDistribution,
-            weekly_labor_budget_try:            weeklyLaborBudgetTry,
             consecutive_night_weeks_enabled:    consecutiveNightWeeks,
             balancing_period_weeks:             balancingPeriodWeeks,
             night_legal_warning_enabled:        nightLegalWarning,
@@ -879,13 +870,13 @@ export default function SettingsPage() {
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
-        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, tipPoolingEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
+        chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, weeklyLaborBudgetTry, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         });
       setIsDirty(false);
       showToast("ok", "Ayarlar kaydedildi");
@@ -1327,8 +1318,8 @@ export default function SettingsPage() {
                           <Moon size={10} /> Gece
                         </button>
                         )}
-                        {/* Nöbet (icap) sadece sağlık, fabrika ve güvenlikte anlamlı; başka sektörde sadece zaten açıksa görünür */}
-                        {(["healthcare", "manufacturing", "security"].includes(savedIndustry?.key ?? "") || shift.on_call) && (
+                        {/* İcap nöbeti kaldırıldı (kullanıcı kararı 2026-10-06): düğme sadece eski kayıtta kapatmak için görünür */}
+                        {shift.on_call && (
                         <button
                           type="button"
                           title="Nöbet: evden beklenir, çağrılırsa gelir. Çalışma saatine sayılmaz, aynı gün normal vardiyayla birlikte verilebilir."
@@ -1631,11 +1622,6 @@ export default function SettingsPage() {
                     label="Her vardiyada kıdemli biri"
                     description="Her vardiyada en az 1 kıdemli (1 yıldan uzun çalışan) bulunmaya çalışılır."
                     right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
-                  />
-                  <RuleRow
-                    lock="budget" label="Haftalık personel maliyeti sınırı"
-                    description="Bir haftanın planındaki toplam ücret (çalışılan saat × saatlik ücret) bu tutarı geçmesin. Plan geçerse uyarır. Saatlik ücretler kişi kartında. 0 = sınır yok."
-                    right={<NumberInput value={weeklyLaborBudgetTry} onChange={setWeeklyLaborBudgetTry} min={0} max={10_000_000} step={500} suffix="₺/hafta" width="w-28" />}
                   />
                 </SectionCard>
               </SettingsGroup>
@@ -1968,8 +1954,6 @@ export default function SettingsPage() {
                   forecast: fitsIndustry("forecasting_enabled", forecastingEnabled),
                   tasks: fitsIndustry("task_management_enabled", taskManagementEnabled),
                   overtime: fitsIndustry("overtime_tracking_enabled", overtimeTrackingEnabled),
-                  // Bahşiş dağıtımı "Yakında" (kullanıcı kararı 2026-10-05): her işletmede ayrı kartta görünür
-                  tips: true,
               };
               const card = {
                   chat: (
@@ -2090,20 +2074,12 @@ export default function SettingsPage() {
                   description="Yayınlanan planlardan fazla mesai kaydı çıkarılır, onay akışına girer ve yıllık sınır izlenir."
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />
                   ),
-                  tips: (
-                // Bahşiş herkese eşit dağılmıyor (pay oranları işletmeden işletmeye değişir): özellik kapandı,
-                // işletmelerin nasıl dağıttığını sorup ona göre yapılacak (kullanıcı kararı 2026-10-05)
-                <ComingSoonFeature feature="tips" icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
-                  description="Toplanan bahşişi ve primi ekibe sizin kurallarınızla paylaştırmak."
-                  question="Böyle bir özellik ister misiniz? İşletmenizde bahşiş nasıl dağıtılıyor?"
-                  placeholder="Örn: Bahşiş kutusu haftada bir açılır, mutfak ve salon ayrı pay alır, şef iki pay alır." />
-                  ),
               };
               type CardId = keyof typeof fits;
               const GROUPS: { title: string; ids: CardId[] }[] = [
                 { title: "Ekip ve İletişim", ids: ["chat", "openShifts", "handover", "tasks"] },
                 { title: "Planlama ve Güvenlik", ids: ["conflicts", "fatigue", "compliance", "forecast"] },
-                { title: "Maaş ve Mesai", ids: ["overtime", "tips"] },
+                { title: "Mesai", ids: ["overtime"] },
               ];
               const others = GROUPS.flatMap(g => g.ids).filter(id => !fits[id]);
               return (
