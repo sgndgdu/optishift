@@ -42,7 +42,7 @@ export function TypedDay() {
   return (
     <span className="inline-flex items-baseline">
       <span className="font-semibold text-white">{text}</span>
-      <span aria-hidden="true" className="m-caret ml-px inline-block h-[1.05em] w-[2px] translate-y-[2px] bg-ember-300" />
+      <span aria-hidden="true" className="m-caret -mr-[2px] ml-px inline-block h-[1.05em] w-[2px] translate-y-[2px] bg-ember-300" />
     </span>
   );
 }
