@@ -9,7 +9,6 @@ import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { GoogleOneTap } from "@/components/GoogleOneTap";
 import { FEATURES } from "@/lib/features";
 import { routeAfterLogin as routeAfterLoginShared, type LoginData } from "@/lib/sessionRouting";
-import { AuthLogo } from "@/components/AuthLogo";
 import { AuthVisual } from "@/components/marketing/AuthVisual";
 import { BRAND } from "@/lib/brand";
 
@@ -81,21 +80,20 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white flex">
       {/* Sol: form */}
       <div className="w-full lg:w-[52%] flex flex-col bg-white">
-        <header className="hidden lg:flex items-center justify-between px-12 pt-10">
+        <header className="flex items-center justify-between px-5 pt-5 sm:px-8 lg:px-12 lg:pt-10">
           <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-bold tracking-tight hover:text-forest-700 transition-colors">
             <Logo size="sm" />
             {BRAND.name}
           </Link>
           <p className="text-sm text-slate-500">
-            Hesabınız yok mu?{" "}
+            <span className="hidden sm:inline">Hesabınız yok mu? </span>
             <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Kayıt olun</Link>
           </p>
         </header>
 
-        <main className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+        <main className="flex-1 flex items-start justify-center px-5 pt-10 pb-12 sm:px-8 lg:items-center lg:py-10">
           <div className="w-full max-w-[400px]">
-            <AuthLogo className="lg:hidden" />
-
+  
             <div className="mb-8">
               <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-tight">Giriş yapın</h1>
               <p className="mt-2 text-[15px] text-slate-500">Hesabınıza girin, size ait ekran otomatik açılır.</p>
@@ -197,10 +195,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-8 text-center text-sm text-slate-500 lg:hidden">
-              Hesabınız yok mu?{" "}
-              <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Kayıt olun</Link>
-            </p>
           </div>
         </main>
 

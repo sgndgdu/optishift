@@ -7,7 +7,6 @@ import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
 import { Logo } from "@/components/Logo";
-import { AuthLogo } from "@/components/AuthLogo";
 import { AuthVisual } from "@/components/marketing/AuthVisual";
 import { BRAND } from "@/lib/brand";
 
@@ -141,20 +140,19 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-white flex">
       <div className="w-full lg:w-[52%] flex flex-col bg-white">
-        <header className="hidden lg:flex items-center justify-between px-12 pt-10">
+        <header className="flex items-center justify-between px-5 pt-5 sm:px-8 lg:px-12 lg:pt-10">
           <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-bold tracking-tight hover:text-forest-700 transition-colors">
             <Logo size="sm" />
             {BRAND.name}
           </Link>
           <p className="text-sm text-slate-500">
-            Hesabınız var mı?{" "}
+            <span className="hidden sm:inline">Hesabınız var mı? </span>
             <Link href="/login" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Giriş yapın</Link>
           </p>
         </header>
 
-        <main className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+        <main className="flex-1 flex items-start justify-center px-5 pt-10 pb-12 sm:px-8 lg:items-center lg:py-10">
         <div className="w-full max-w-[420px]">
-          <AuthLogo className="lg:hidden" />
 
           {!registeredUser && googlePending ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -349,12 +347,6 @@ export default function RegisterPage() {
                 </p>
               </form>
 
-              <p className="text-center text-sm text-slate-500 mt-8 lg:hidden">
-                Hesabınız var mı?{" "}
-                <Link href="/login" className="text-forest-700 font-semibold hover:text-forest-800 transition-colors">
-                  Giriş yapın
-                </Link>
-              </p>
             </div>
           ) : (
             <div className="animate-in zoom-in duration-500 text-center space-y-6">
