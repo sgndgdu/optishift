@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import SystemBanner from "@/components/SystemBanner";
-import { Logo } from "@/components/Logo";
+import { MobileBrand } from "@/components/MobileBrand";
 import MobileTabBar from "@/components/MobileTabBar";
 import AssistantPanel from "@/components/AssistantPanel";
 
@@ -34,17 +34,15 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden bg-slate-50/50 min-w-0">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 h-14 shrink-0 bg-white border-b border-slate-100 z-30">
+        <div className="lg:hidden flex items-center gap-2 pl-2 pr-4 h-16 shrink-0 bg-white border-b border-slate-100 z-30">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+            aria-label="Menü"
+            className="p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
           >
-            <Menu size={20} />
+            <Menu size={24} />
           </button>
-          <div className="flex items-center gap-2">
-            <Logo size="sm" className="w-6 h-6" />
-            <span className="font-bold text-slate-800 text-sm">OptiShift</span>
-          </div>
+          <MobileBrand />
         </div>
 
         <div className="flex-1 overflow-auto">

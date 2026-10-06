@@ -37,7 +37,7 @@ export const SECTORS: Sector[] = [
     id: "kafe",
     label: "Kafe & Restoran",
     short: "Kafe",
-    image: "",
+    image: "/marketing/sector-kafe.webp",
     headline: "Cumartesi akşamı servis, eksik kişiyle başlamasın.",
     pain: "Yarı zamanlı ekip, değişken yoğunluk, son dakika gelemiyorum mesajları. Planı her hafta baştan kurmak yerine ihtiyacı bir kez yazın.",
     points: [
@@ -63,7 +63,7 @@ export const SECTORS: Sector[] = [
     id: "otel",
     label: "Otel & Konaklama",
     short: "Otel",
-    image: "",
+    image: "/marketing/sector-otel.webp",
     headline: "Resepsiyon 7/24 açık, gece vardiyası hep aynı kişide kalmasın.",
     pain: "Üç vardiya, doluluk dalgalanması, departmanlar arası devir. Gece ve hafta sonu vardiyaları sırayla dönsün, kimse kendini haksızlığa uğramış hissetmesin.",
     points: [
@@ -89,7 +89,7 @@ export const SECTORS: Sector[] = [
     id: "perakende",
     label: "Perakende & Mağaza",
     short: "Perakende",
-    image: "",
+    image: "/marketing/sector-perakende.webp",
     headline: "Elli mağazanın planı, tek ekranda ve aynı kurallarla.",
     pain: "AVM saatleri, kampanya haftaları, onlarca şube. Her mağaza müdürü kendi Excel'iyle uğraşmasın, kurallar merkezden bir kez konsun.",
     points: [
@@ -115,7 +115,7 @@ export const SECTORS: Sector[] = [
     id: "uretim",
     label: "Üretim & Fabrika",
     short: "Üretim",
-    image: "",
+    image: "/marketing/sector-uretim.webp",
     headline: "Üç vardiya, doğru yetkinlik, her hat dolu.",
     pain: "Hat başına gereken operatör sayısı, gece çalışma kuralları, iş güvenliği belgeleri. Planı yaparken bunların hepsini akılda tutmak zorunda kalmayın.",
     points: [

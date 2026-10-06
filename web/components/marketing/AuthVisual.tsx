@@ -10,26 +10,26 @@ import { SectorPhoto } from "@/components/marketing/SectorPhoto";
 export function AuthVisual({ variant }: { variant: "login" | "register" }) {
   const sector = variant === "login" ? SECTORS[0] : SECTORS[1];
   return (
-    <aside className="relative hidden overflow-hidden bg-forest-900 lg:flex lg:w-[48%] flex-col">
-      <SectorPhoto sector={sector} className="absolute inset-0 opacity-40" />
+    <aside className="motion-auto relative hidden overflow-hidden bg-forest-900 lg:flex lg:w-[48%] flex-col">
+      <SectorPhoto sector={sector} className="m-zoom absolute inset-0 opacity-40" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-forest-900/60 via-forest-900/70 to-forest-900" />
 
       <div className="relative z-10 flex flex-1 flex-col justify-center px-12 py-14 xl:px-16">
         {variant === "login" ? (
           <>
-            <h2 className="max-w-[460px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
+            <h2 className="m-up max-w-[460px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
               Haftanın planı hazır,<br />ekibiniz de haberdar.
             </h2>
-            <p className="mt-4 max-w-[440px] text-[16px] leading-relaxed text-forest-100/75">
+            <p className="m-up mt-4 max-w-[440px] text-[16px] leading-relaxed text-forest-100/75">
               Hesap sahibi, sorumlu ya da ekip üyesi: herkes aynı kapıdan girer, kendi ekranını görür.
             </p>
           </>
         ) : (
           <>
-            <h2 className="max-w-[480px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
+            <h2 className="m-up max-w-[480px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
               İlk planınız<br />bugün yayında olsun.
             </h2>
-            <ul className="mt-6 space-y-3">
+            <ul className="m-up mt-6 space-y-3" style={{ "--d": "120ms" } as React.CSSProperties}>
               {["İşletme türünüzü seçin, vardiyalar hazır gelsin", "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin", "Kaç kişi gerektiğini yazın, plan kurulsun"].map((t, i) => (
                 <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[12px] font-semibold text-ember-300">{i + 1}</span>
@@ -40,19 +40,23 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
           </>
         )}
 
-        <div className="relative mt-10 max-w-[560px]">
+        <div className="m-up relative mt-10 max-w-[560px]" style={{ "--d": "200ms" } as React.CSSProperties}>
           <AppWindow title={`${sector.location} · Vardiya Planı`}>
-            <ScheduleBoard sector={sector} compact />
+            <ScheduleBoard sector={sector} compact animate />
           </AppWindow>
-          {variant === "login" ? (
-            <Toast icon="swap" title="Takas onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." className="absolute -bottom-8 -right-6" />
-          ) : (
-            <Toast icon="check" title="Plan yayınlandı" text="5 kişiye bildirim gitti." className="absolute -bottom-8 -right-6" />
-          )}
+          <div className="m-up absolute -bottom-8 -right-6" style={{ "--d": "1900ms" } as React.CSSProperties}>
+            <div className="m-float">
+              {variant === "login" ? (
+                <Toast icon="swap" title="Takas onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
+              ) : (
+                <Toast icon="check" title="Plan yayınlandı" text="5 kişiye bildirim gitti." />
+              )}
+            </div>
+          </div>
         </div>
 
         {variant === "register" ? (
-          <div className="mt-16 flex flex-wrap gap-2">
+          <div className="m-up mt-16 flex flex-wrap gap-2" style={{ "--d": "400ms" } as React.CSSProperties}>
             {SECTORS.map((s) => {
               const Icon = SECTOR_ICONS[s.id];
               return (
@@ -63,7 +67,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
             })}
           </div>
         ) : (
-          <ul className="mt-16 space-y-2.5">
+          <ul className="m-up mt-16 space-y-2.5" style={{ "--d": "400ms" } as React.CSSProperties}>
             {["Adil dağıtım, herkesin yükü dengede", "İzin ve takas istekleri tek yerde", "İş Kanunu dinlenme kuralları dahil"].map((t) => (
               <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ember-500/20 text-ember-300">

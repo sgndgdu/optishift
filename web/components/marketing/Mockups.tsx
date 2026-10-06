@@ -1,4 +1,4 @@
-import { Check, ArrowLeftRight, CalendarClock, Bell, Sparkles, Clock } from "lucide-react";
+import { Check, ArrowLeftRight, CalendarClock, Bell, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DAYS, TONE_CLASSES, type Sector } from "@/components/marketing/sectors";
 
@@ -25,9 +25,12 @@ export function AppWindow({ title, children, className }: { title: string; child
 }
 
 /** Haftalık vardiya planı: sektörün vardiyaları, görevleri ve doluluk satırı */
-export function ScheduleBoard({ sector, compact = false }: { sector: Sector; compact?: boolean }) {
+export function ScheduleBoard({ sector, compact = false, animate = false }: { sector: Sector; compact?: boolean; animate?: boolean }) {
   const shiftByCode = Object.fromEntries(sector.shifts.map((s) => [s.code, s]));
   const days = compact ? DAYS.slice(0, 5) : DAYS;
+  // Plan sütun sütun dolar (motorun günleri sırayla kurması gibi), en sonda "Yayında" belirir
+  const cellDelay = (day: number, row: number) => 350 + day * 110 + row * 45;
+  const doneAt = cellDelay(days.length - 1, sector.rows.length - 1) + 250;
   return (
     <div className="p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -35,11 +38,13 @@ export function ScheduleBoard({ sector, compact = false }: { sector: Sector; com
           <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{sector.location}</p>
           <p className="text-sm font-semibold text-slate-900">13 - 19 Ekim haftası</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-            <Sparkles size={11} /> Otomatik hazırlandı
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700">
+        <div className="relative flex items-center">
+          {animate && (
+            <span className="m-out absolute right-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600" style={{ "--d": `${doneAt}ms` } as React.CSSProperties}>
+              <span className="m-pulse-dot h-1.5 w-1.5 rounded-full bg-ember-500" /> Plan kuruluyor
+            </span>
+          )}
+          <span className={cn("inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700", animate && "m-pop")} style={{ "--d": `${doneAt + 150}ms` } as React.CSSProperties}>
             <Check size={11} strokeWidth={3} /> Yayında
           </span>
         </div>
@@ -53,12 +58,12 @@ export function ScheduleBoard({ sector, compact = false }: { sector: Sector; com
         {days.map((d, i) => (
           <div key={d} className={cn("pb-1 text-center font-medium", i >= 5 ? "text-ember-600" : "text-slate-400")}>{d}</div>
         ))}
-        {sector.rows.map((row) => (
-          <Row key={row.name} row={row} days={days.length} shiftByCode={shiftByCode} />
+        {sector.rows.map((row, ri) => (
+          <Row key={row.name} row={row} days={days.length} shiftByCode={shiftByCode} delay={animate ? (d) => cellDelay(d, ri) : undefined} />
         ))}
         <div className="flex items-center pt-1.5 text-[10px] font-medium text-slate-400">İhtiyaç</div>
-        {days.map((d) => (
-          <div key={d} className="pt-1.5 text-center text-[10px] font-semibold text-forest-600">
+        {days.map((d, i) => (
+          <div key={d} className={cn("pt-1.5 text-center text-[10px] font-semibold text-forest-600", animate && "m-up")} style={{ "--d": `${cellDelay(i, sector.rows.length - 1) + 120}ms` } as React.CSSProperties}>
             <Check size={10} strokeWidth={3} className="inline -mt-0.5" /> tam
           </div>
         ))}
@@ -78,7 +83,12 @@ export function ScheduleBoard({ sector, compact = false }: { sector: Sector; com
   );
 }
 
-function Row({ row, days, shiftByCode }: { row: Sector["rows"][number]; days: number; shiftByCode: Record<string, Sector["shifts"][number]> }) {
+function Row({ row, days, shiftByCode, delay }: {
+  row: Sector["rows"][number];
+  days: number;
+  shiftByCode: Record<string, Sector["shifts"][number]>;
+  delay?: (day: number) => number;
+}) {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2 py-0.5">
@@ -93,7 +103,7 @@ function Row({ row, days, shiftByCode }: { row: Sector["rows"][number]; days: nu
       {row.days.slice(0, days).map((code, i) => {
         const s = code ? shiftByCode[code] : null;
         return s ? (
-          <div key={i} className={cn("flex h-8 items-center justify-center rounded-md font-semibold", TONE_CLASSES[s.tone])}>
+          <div key={i} className={cn("flex h-8 items-center justify-center rounded-md font-semibold", TONE_CLASSES[s.tone], delay && "m-pop")} style={delay ? ({ "--d": `${delay(i)}ms` } as React.CSSProperties) : undefined}>
             {s.label.length > 8 ? s.code : s.label}
           </div>
         ) : (
@@ -158,11 +168,13 @@ export function Toast({
   title,
   text,
   className,
+  style,
 }: {
   icon?: "check" | "swap" | "bell" | "clock";
   title: string;
   text: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const Icon = { check: Check, swap: ArrowLeftRight, bell: Bell, clock: Clock }[icon];
   const tone = {
@@ -172,7 +184,7 @@ export function Toast({
     clock: "bg-violet-100 text-violet-700",
   }[icon];
   return (
-    <div className={cn("flex w-[250px] items-start gap-3 rounded-2xl bg-white/95 p-3 shadow-[0_16px_40px_-12px_rgba(10,33,30,0.35)] ring-1 ring-slate-900/5 backdrop-blur", className)} aria-hidden="true">
+    <div className={cn("flex w-[250px] items-start gap-3 rounded-2xl bg-white/95 p-3 shadow-[0_16px_40px_-12px_rgba(10,33,30,0.35)] ring-1 ring-slate-900/5 backdrop-blur", className)} style={style} aria-hidden="true">
       <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", tone)}>
         <Icon size={15} strokeWidth={2.5} />
       </span>
@@ -185,7 +197,7 @@ export function Toast({
 }
 
 /** Adalet puanı: zor vardiyaların kişilere dağılımı */
-export function FairnessCard({ className }: { className?: string }) {
+export function FairnessCard({ className, animate = false }: { className?: string; animate?: boolean }) {
   const people = [
     { name: "Elif", v: 0.82 },
     { name: "Burak", v: 0.78 },
@@ -199,11 +211,11 @@ export function FairnessCard({ className }: { className?: string }) {
         <span className="rounded-full bg-forest-50 px-2 py-0.5 text-[10px] font-semibold text-forest-700">Dengeli</span>
       </div>
       <div className="space-y-2">
-        {people.map((p) => (
+        {people.map((p, i) => (
           <div key={p.name} className="flex items-center gap-2">
             <span className="w-10 text-[10.5px] text-slate-500">{p.name}</span>
             <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-              <span className="block h-full rounded-full bg-gradient-to-r from-forest-500 to-forest-400" style={{ width: `${p.v * 100}%` }} />
+              <span className={cn("block h-full rounded-full bg-gradient-to-r from-forest-500 to-forest-400", animate && "m-grow")} style={{ width: `${p.v * 100}%`, "--d": `${1800 + i * 140}ms` } as React.CSSProperties} />
             </span>
           </div>
         ))}

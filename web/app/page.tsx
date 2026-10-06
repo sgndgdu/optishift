@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight, Check, Scale, ShieldCheck, ArrowLeftRight, Tablet, FileSpreadsheet, Building2,
-  ListChecks, Sparkles, Smartphone, MessageSquare, CalendarClock, Megaphone,
+  ListChecks, Smartphone, MessageSquare, CalendarClock, Megaphone,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -10,9 +10,10 @@ import { SECTORS } from "@/components/marketing/sectors";
 import { AppWindow, ScheduleBoard, PhoneMock, Toast, FairnessCard } from "@/components/marketing/Mockups";
 import { SectorShowcase } from "@/components/marketing/SectorShowcase";
 import { SectorPhoto } from "@/components/marketing/SectorPhoto";
+import { Reveal } from "@/components/marketing/Reveal";
+import { CountUp } from "@/components/marketing/CountUp";
 
 const KAFE = SECTORS[0];
-const OTEL = SECTORS[1];
 
 const FEATURES = [
   { icon: ShieldCheck, title: "İş Kanunu kuralları hazır", text: "İki vardiya arası en az 11 saat dinlenme, haftalık çalışma sınırı, hafta tatili ve gece çalışma süresi plan kurulurken gözetilir." },
@@ -47,24 +48,25 @@ export default function LandingPage() {
       <PublicHeader />
 
       {/* ─── Hero ─────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -top-40 right-[-15%] h-[720px] w-[720px] rounded-full bg-gradient-to-br from-forest-100 via-ember-100/60 to-transparent blur-[120px]" />
+      <section className="motion-auto relative overflow-hidden">
+        <div className="m-drift pointer-events-none absolute -top-40 right-[-15%] h-[720px] w-[720px] rounded-full bg-gradient-to-br from-forest-100 via-ember-100/60 to-transparent blur-[120px]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-8 lg:pb-28 lg:pt-20">
           <div className="max-w-xl">
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-forest-700 ring-1 ring-forest-100 shadow-sm sm:text-[13px]">
-              <Sparkles size={14} className="text-ember-500" />
-              Kafe, restoran, otel, mağaza ve fabrikalar için
-            </p>
+            <Link href="#nasil" className="m-up group mb-7 inline-flex max-w-full items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] text-slate-600 ring-1 ring-slate-200 transition-colors hover:ring-forest-300">
+              <span className="rounded-full bg-forest-700 px-2.5 py-0.5 text-[11px] font-semibold text-white">Yeni</span>
+              <span className="truncate">Otomatik Pilot: gelecek haftanın planı her perşembe hazır</span>
+              <ArrowRight size={14} className="shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" />
+            </Link>
             <h1 className="font-serif text-[42px] font-semibold leading-[1.04] tracking-tight text-slate-900 sm:text-6xl lg:text-[68px]">
-              Vardiya planı,<br />
-              <span className="text-forest-700">dakikalar içinde</span><br />
-              ve herkese adil.
+              <span className="m-up block" style={{ "--d": "80ms" } as React.CSSProperties}>Vardiya planı,</span>
+              <span className="m-up block text-forest-700" style={{ "--d": "180ms" } as React.CSSProperties}>dakikalar içinde</span>
+              <span className="m-up block" style={{ "--d": "280ms" } as React.CSSProperties}>ve herkese adil.</span>
             </h1>
-            <p className="mt-6 text-[17px] leading-relaxed text-slate-600 sm:text-lg">
+            <p className="m-up mt-6 text-[17px] leading-relaxed text-slate-600 sm:text-lg" style={{ "--d": "400ms" } as React.CSSProperties}>
               Kaç kişiye ihtiyacınız olduğunu söyleyin, {BRAND.name}{" "}haftanın planını İş Kanunu&apos;na uygun ve dengeli şekilde kursun.
               Ekibiniz vardiyasını, takasını ve iznini telefonundan yönetsin.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="m-up mt-9 flex flex-col gap-3 sm:flex-row" style={{ "--d": "500ms" } as React.CSSProperties}>
               <Link href="/register" className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-forest-700 px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-10px_rgba(20,69,61,0.7)] transition-colors hover:bg-forest-800">
                 Ücretsiz başlayın <ArrowRight size={18} />
               </Link>
@@ -72,7 +74,7 @@ export default function LandingPage() {
                 Nasıl çalışır?
               </Link>
             </div>
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+            <ul className="m-up mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500" style={{ "--d": "600ms" } as React.CSSProperties}>
               {["Kredi kartı gerekmez", "Küçük işletmeye süresiz ücretsiz", "Telefonda tam çalışır"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <Check size={15} className="text-forest-600" strokeWidth={2.5} /> {t}
@@ -83,19 +85,26 @@ export default function LandingPage() {
 
           {/* Ürün kompozisyonu */}
           <div className="relative mx-auto w-full max-w-[640px] lg:mr-0">
-            <AppWindow title={`${KAFE.location} · Vardiya Planı`} className="relative z-10">
-              <ScheduleBoard sector={KAFE} />
-            </AppWindow>
-            <div className="absolute -bottom-16 left-4 z-20 hidden md:block xl:-left-6">
-              <PhoneMock sector={KAFE} className="scale-[0.82] origin-bottom-left" />
+            <div className="m-up relative z-10" style={{ "--d": "150ms" } as React.CSSProperties}>
+              <AppWindow title={`${KAFE.location} · Vardiya Planı`}>
+                <ScheduleBoard sector={KAFE} animate />
+              </AppWindow>
             </div>
-            <Toast
-              icon="swap"
-              title="Takas onaylandı"
-              text="Burak ile Selin cumartesi vardiyalarını değiştirdi."
-              className="absolute -right-4 -top-6 z-20 hidden sm:flex lg:-right-10"
-            />
-            <FairnessCard className="absolute -bottom-10 -right-4 z-20 hidden lg:block lg:-right-10" />
+            <div className="m-up absolute -bottom-16 left-4 z-20 hidden md:block xl:-left-6" style={{ "--d": "1100ms" } as React.CSSProperties}>
+              <div className="m-float" style={{ animationDelay: "2s" }}>
+                <PhoneMock sector={KAFE} className="scale-[0.82] origin-bottom-left" />
+              </div>
+            </div>
+            <div className="m-up absolute -right-4 -top-6 z-20 hidden sm:block lg:-right-10" style={{ "--d": "2100ms" } as React.CSSProperties}>
+              <div className="m-float">
+                <Toast icon="swap" title="Takas onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
+              </div>
+            </div>
+            <div className="m-up absolute -bottom-10 -right-4 z-20 hidden lg:block lg:-right-10" style={{ "--d": "1700ms" } as React.CSSProperties}>
+              <div className="m-float" style={{ animationDelay: "3.5s" }}>
+                <FairnessCard animate />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -110,7 +119,7 @@ export default function LandingPage() {
             { k: "1 gün", v: "hafta tatili her hafta" },
           ].map((x) => (
             <div key={x.k} className="bg-white px-5 py-6 text-center sm:py-8">
-              <p className="font-serif text-2xl font-semibold text-forest-700 sm:text-3xl">{x.k}</p>
+              <p className="font-serif text-2xl font-semibold text-forest-700 sm:text-3xl"><CountUp value={x.k} /></p>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">{x.v}</p>
             </div>
           ))}
@@ -123,27 +132,28 @@ export default function LandingPage() {
       {/* ─── Sektörler ────────────────────────────────────────── */}
       <section id="sektorler" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto mb-10 max-w-2xl text-center">
-            <p className="mb-3 text-sm font-semibold text-ember-600">Sektörünüze göre</p>
-            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Her işletmenin vardiyası farklı.</h2>
-            <p className="mt-4 text-base text-slate-600 sm:text-lg">
+          <Reveal className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Sektörünüze göre</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={{ "--d": "80ms" } as React.CSSProperties}>Her işletmenin vardiyası farklı.</h2>
+            <p className="m-up mt-4 text-base text-slate-600 sm:text-lg">
               İşletme türünüzü seçtiğinizde vardiya saatleri, departmanlar ve kurallar hazır gelir. Sonra dilediğiniz gibi değiştirirsiniz.
             </p>
-          </div>
-          <SectorShowcase />
+          </Reveal>
+          <Reveal threshold={0.15}><SectorShowcase /></Reveal>
         </div>
       </section>
 
       {/* ─── Nasıl çalışır ────────────────────────────────────── */}
       <section id="nasil" className="bg-white py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mb-14 max-w-2xl">
-            <p className="mb-3 text-sm font-semibold text-ember-600">Nasıl çalışır</p>
-            <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Pazar akşamı Excel başında oturmaya son.</h2>
-          </div>
+          <Reveal className="mb-14 max-w-2xl">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Nasıl çalışır</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={{ "--d": "80ms" } as React.CSSProperties}>Pazar akşamı Excel başında oturmaya son.</h2>
+          </Reveal>
           <div className="grid gap-6 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div key={s.n} className="flex flex-col rounded-3xl bg-cream p-7 ring-1 ring-slate-900/5 sm:p-8">
+              <Reveal key={s.n} className="flex">
+              <div className="m-up flex w-full flex-col rounded-3xl bg-cream p-7 ring-1 ring-slate-900/5 sm:p-8" style={{ "--d": `${i * 120}ms` } as React.CSSProperties}>
                 <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-forest-700 font-serif text-lg font-semibold text-white">{s.n}</span>
                 <h3 className="text-xl font-semibold text-slate-900">{s.title}</h3>
                 <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{s.text}</p>
@@ -152,12 +162,13 @@ export default function LandingPage() {
                   {i === 1 && <ChecksMini />}
                   {i === 2 && (
                     <div className="space-y-2">
-                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13 - 19 Ekim vardiyaların hazır." className="w-full" />
-                      <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="w-full" />
+                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13 - 19 Ekim vardiyaların hazır." className="m-up w-full" style={{ "--d": "700ms" } as React.CSSProperties} />
+                      <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={{ "--d": "1300ms" } as React.CSSProperties} />
                     </div>
                   )}
                 </div>
               </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -172,13 +183,22 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute -left-40 top-0 h-[600px] w-[600px] rounded-full bg-forest-600/30 blur-[140px]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
           <div className="relative order-2 flex justify-center lg:order-1">
-            <div className="relative h-[460px] w-full max-w-[460px]">
-              <SectorPhoto sector={OTEL} className="absolute inset-y-6 left-0 right-16 overflow-hidden rounded-3xl" />
-              <PhoneMock sector={OTEL} className="absolute bottom-0 right-0 z-10" />
-            </div>
+            <Reveal className="relative h-[480px] w-full max-w-[460px]">
+              <div className="m-up absolute inset-y-0 left-0 right-20 overflow-hidden rounded-3xl">
+                <SectorPhoto sector={{ image: "/marketing/team.webp", label: "Vardiyasını telefonundan kontrol eden ekip üyesi" }} className="h-full w-full" />
+              </div>
+              <div className="m-up absolute -bottom-2 right-0 z-10" style={{ "--d": "300ms" } as React.CSSProperties}>
+                <div className="m-float">
+                  <PhoneMock sector={KAFE} className="scale-[0.86] origin-bottom-right" />
+                </div>
+              </div>
+              <div className="m-up absolute bottom-10 -left-4 z-20 hidden sm:block" style={{ "--d": "900ms" } as React.CSSProperties}>
+                <Toast icon="bell" title="Açık vardiya: Cumartesi 15:00" text="Mert gelemiyor. Almak ister misin?" />
+              </div>
+            </Reveal>
           </div>
-          <div className="order-1 lg:order-2">
-            <p className="mb-3 text-sm font-semibold text-ember-300">Ekibiniz için</p>
+          <Reveal className="order-1 lg:order-2">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-300">Ekibiniz için</p>
             <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">WhatsApp grubunda vardiya kovalamak yok.</h2>
             <p className="mt-5 text-base leading-relaxed text-forest-100/75 sm:text-lg">
               Ekip üyeleri uygulama indirmeden, telefonun tarayıcısından girer. Bağlantıyı WhatsApp ile gönderirsiniz, Google hesabıyla tek dokunuşta bağlanırlar.
@@ -191,8 +211,8 @@ export default function LandingPage() {
                 { icon: Megaphone, t: "Açık vardiyayı alır", d: "Biri gelemezse uygun olanlara anında haber gider." },
                 { icon: MessageSquare, t: "Ekiple yazışır", d: "Şube sohbeti ve sorumluya doğrudan mesaj." },
                 { icon: ListChecks, t: "Devir notunu okur", d: "Önceki vardiyanın bıraktığı not girişte karşılar." },
-              ].map(({ icon: Icon, t, d }) => (
-                <li key={t} className="flex gap-3.5">
+              ].map(({ icon: Icon, t, d }, i) => (
+                <li key={t} className="m-up flex gap-3.5" style={{ "--d": `${200 + i * 80}ms` } as React.CSSProperties}>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-ember-300">
                     <Icon size={18} />
                   </span>
@@ -203,7 +223,7 @@ export default function LandingPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -214,17 +234,17 @@ export default function LandingPage() {
             <p className="mb-3 text-sm font-semibold text-ember-600">Platform</p>
             <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planlamadan puantaja, tek yerde.</h2>
           </div>
-          <div className="grid gap-px overflow-hidden rounded-3xl bg-slate-200/70 ring-1 ring-slate-200/70 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, text }) => (
-              <div key={title} className="bg-white p-7 sm:p-9">
-                <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
+          <Reveal className="grid gap-px overflow-hidden rounded-3xl bg-slate-200/70 ring-1 ring-slate-200/70 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map(({ icon: Icon, title, text }, i) => (
+              <div key={title} className="m-up group bg-white p-7 transition-colors hover:bg-forest-50/40 sm:p-9" style={{ "--d": `${i * 80}ms` } as React.CSSProperties}>
+                <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-forest-50 text-forest-700 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg]">
                   <Icon size={21} />
                 </span>
                 <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
                 <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{text}</p>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -233,8 +253,8 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-forest-800 px-6 py-16 text-center sm:px-12 sm:py-24">
           <SectorPhoto sector={SECTORS[2]} className="absolute inset-0 opacity-30" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-forest-900/40 to-forest-900/80" />
-          <div className="relative">
-            <h2 className="mx-auto max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
+          <Reveal className="relative">
+            <h2 className="m-up mx-auto max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
               Gelecek haftanın planını bugün, on dakikada hazırlayın.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-forest-100/80 sm:text-lg">
@@ -248,7 +268,7 @@ export default function LandingPage() {
                 Paketleri görün
               </Link>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -270,20 +290,20 @@ function DemandMini() {
         {["P", "S", "Ç", "P", "C", "C", "P"].map((d, i) => (
           <div key={i} className={i >= 5 ? "text-center font-medium text-ember-600" : "text-center font-medium text-slate-400"}>{d}</div>
         ))}
-        {rows.map((r) => (
-          <Row key={r.l} label={r.l} values={r.v} />
+        {rows.map((r, ri) => (
+          <Row key={r.l} label={r.l} values={r.v} offset={ri * 260} />
         ))}
       </div>
     </div>
   );
 }
 
-function Row({ label, values }: { label: string; values: number[] }) {
+function Row({ label, values, offset }: { label: string; values: number[]; offset: number }) {
   return (
     <>
       <div className="flex items-center font-medium text-slate-600">{label}</div>
       {values.map((v, i) => (
-        <div key={i} className="flex h-7 items-center justify-center rounded-md bg-slate-50 font-semibold text-slate-800 ring-1 ring-inset ring-slate-200">{v}</div>
+        <div key={i} className="m-pop flex h-7 items-center justify-center rounded-md bg-slate-50 font-semibold text-slate-800 ring-1 ring-inset ring-slate-200" style={{ "--d": `${500 + i * 70 + offset}ms` } as React.CSSProperties}>{v}</div>
       ))}
     </>
   );
@@ -293,8 +313,8 @@ function Row({ label, values }: { label: string; values: number[] }) {
 function ChecksMini() {
   return (
     <div className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
-      {["Her vardiyada ihtiyaç kadar kişi", "11 saat dinlenme herkes için", "Haftalık sınırı aşan yok", "Hafta sonları dengeli dağıldı"].map((t) => (
-        <div key={t} className="flex items-center gap-2.5 text-[13px] text-slate-700">
+      {["Her vardiyada ihtiyaç kadar kişi", "11 saat dinlenme herkes için", "Haftalık sınırı aşan yok", "Hafta sonları dengeli dağıldı"].map((t, i) => (
+        <div key={t} className="m-up flex items-center gap-2.5 text-[13px] text-slate-700" style={{ "--d": `${600 + i * 220}ms` } as React.CSSProperties}>
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-forest-100 text-forest-700">
             <Check size={11} strokeWidth={3} />
           </span>

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { Logo } from "@/components/Logo";
+import { MobileBrand } from "@/components/MobileBrand";
 import { AvailabilityEnabledContext, OpenShiftsEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
 import { CountBadge } from "@/components/ui/StatusPill";
@@ -219,10 +220,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       {/* ── MAIN CONTENT ──────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobil Top Bar */}
-        <div className="md:hidden flex items-center justify-between px-4 h-14 shrink-0 bg-white border-b border-slate-100 z-30">
-          <Link href="/portal" className="flex items-center gap-2">
-            <Logo size="sm" />
-            <span className="font-bold text-slate-800">OptiShift</span>
+        <div className="md:hidden flex items-center justify-between px-4 h-16 shrink-0 bg-white border-b border-slate-100 z-30">
+          <Link href="/portal">
+            <MobileBrand />
           </Link>
           <div className="flex items-center gap-1">
             {isEmployeeView(user) && (
