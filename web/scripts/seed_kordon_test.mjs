@@ -178,6 +178,25 @@ async function cleanup() {
   await safe(sql`DELETE FROM tip_pools WHERE org_id = ${ORG}`);
   await safe(sql`DELETE FROM plan_submissions WHERE location_id = ANY(${locIds})`);
   await safe(sql`DELETE FROM invite_tokens WHERE org_id = ${ORG}`);
+  // Elle testte oluşan veriler (mesaj, passkey, push, öneri, ekip vb.)
+  if (pids.length) {
+    await safe(sql`DELETE FROM shift_bids WHERE personnel_id = ANY(${pids})`);
+    await safe(sql`DELETE FROM shift_proposals WHERE personnel_id = ANY(${pids})`);
+    await safe(sql`DELETE FROM push_subscriptions WHERE personnel_id = ANY(${pids})`);
+  }
+  await safe(sql`DELETE FROM messages WHERE org_id = ${ORG} OR from_user_id IN (SELECT id FROM users WHERE org_id = ${ORG})`);
+  await safe(sql`DELETE FROM password_reset_tokens WHERE user_id IN (SELECT id FROM users WHERE org_id = ${ORG})`);
+  await safe(sql`DELETE FROM webauthn_credentials WHERE user_id IN (SELECT id FROM users WHERE org_id = ${ORG})`);
+  await safe(sql`DELETE FROM shift_tasks WHERE org_id = ${ORG} OR location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM shift_handovers WHERE org_id = ${ORG}`);
+  await safe(sql`DELETE FROM personnel_conflicts WHERE org_id = ${ORG}`);
+  await safe(sql`DELETE FROM personnel_documents WHERE org_id = ${ORG}`);
+  await safe(sql`DELETE FROM break_sessions WHERE location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM overtime_records WHERE location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM crews WHERE org_id = ${ORG} OR location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM location_events WHERE location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM location_sales_data WHERE org_id = ${ORG} OR location_id = ANY(${locIds})`);
+  await safe(sql`DELETE FROM payroll_periods WHERE org_id = ${ORG} OR location_id = ANY(${locIds})`);
   await safe(sql`DELETE FROM users WHERE org_id = ${ORG}`);
   await safe(sql`DELETE FROM personnel WHERE org_id = ${ORG}`);
   await safe(sql`DELETE FROM departments WHERE location_id = ANY(${locIds})`);
