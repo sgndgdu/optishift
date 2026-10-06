@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Play, Sparkles, CalendarCheck, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Play, Sparkles, CalendarCheck, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toast } from "@/components/marketing/Mockups";
+import { TOUR_CAPTIONS } from "@/components/marketing/tourCaptions";
 
 /**
  * Uygulamanın gerçek ekran kayıtları (scripts/vid/*, vitrin işletmesi "Moda Kahve").
@@ -37,8 +39,8 @@ const CHAPTERS = [
   },
 ] as const;
 
-const src = (key: string, small: boolean, phone?: boolean) =>
-  `/marketing/tour/${key}${small && !phone ? "-sm" : ""}.mp4`;
+/** Dar ekranda masaüstü kaydı okunmaz: uygulamanın telefon ekranında çekilmiş sürümü (-m) gösterilir */
+const file = (key: string, small: boolean, phone?: boolean) => `/marketing/tour/${key}${small && !phone ? "-m" : ""}`;
 
 /** Medya sorgusu: sunucuda false, tarayıcıda canlı */
 function useMedia(query: string) {
@@ -52,6 +54,7 @@ function useMedia(query: string) {
 export function ProductTour() {
   const [active, setActive] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const small = useMedia("(max-width: 767px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
@@ -97,12 +100,16 @@ export function ProductTour() {
     let raf = 0;
     const tick = () => {
       const v = videoRef.current;
-      if (v && v.duration) setProgress(v.currentTime / v.duration);
+      if (v && v.duration) { setProgress(v.currentTime / v.duration); setTime(v.currentTime); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Telefonda o anki adım başlığı (videonun içi dar olduğu için altında yazılır)
+  const caps = TOUR_CAPTIONS[chapter.key] ?? [];
+  const cap = [...caps].reverse().find((c) => c.t <= time);
 
   const next = () => { setProgress(0); setActive((i) => (i + 1) % CHAPTERS.length); };
   const choose = (i: number) => {
@@ -118,8 +125,8 @@ export function ProductTour() {
       ref={videoRef}
       key={chapter.key}
       className="block h-full w-full object-cover"
-      src={src(chapter.key, small, "phone" in chapter)}
-      poster={`/marketing/tour/${chapter.key}.webp`}
+      src={`${file(chapter.key, small, "phone" in chapter)}.mp4`}
+      poster={`${file(chapter.key, small, "phone" in chapter)}.webp`}
       muted
       playsInline
       preload="metadata"
@@ -185,8 +192,24 @@ export function ProductTour() {
         />
 
         <div className="relative grid gap-6 p-3 sm:p-8 lg:grid-cols-[1fr_270px] lg:items-center lg:gap-10 lg:p-12">
-          {/* Masaüstünde yükseklik sabit (pencere boyu): telefon bölümüne geçince sayfa zıplamasın */}
-          <div key={chapter.key} className="flex h-[min(480px,118vw)] min-w-0 items-center justify-center sm:h-auto sm:aspect-[16/10.75]">
+          {/* Masaüstünde yükseklik sabit (pencere boyu); telefonda her bölüm telefon ekranı oranında: bölüm değişince sayfa zıplamaz */}
+          {small ? (
+            <div className="min-w-0">
+              <div key={chapter.key} className="tour-swap mx-auto w-[min(100%,calc(70svh*390/760))] overflow-hidden rounded-[1.6rem] bg-cream shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10" style={{ aspectRatio: "390 / 760" }}>
+                <div className="relative h-full">{video}</div>
+              </div>
+              {/* Adım başlığı: videonun içi dar, burada eşzamanlı yazılır; yükseklik sabit */}
+              <div className="mt-3 flex h-[52px] items-center justify-center px-1" aria-live="polite">
+                {cap?.text ? (
+                  <p key={cap.text} className="tour-swap flex items-center gap-2.5 text-[15px] font-semibold leading-snug text-white">
+                    {cap.n > 0 && <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ember-400 text-xs font-bold text-forest-900">{cap.n}</span>}
+                    {cap.text}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+          <div key={chapter.key} className="flex min-w-0 items-center justify-center sm:aspect-[16/10.75]">
             {"phone" in chapter ? (
               <div className="relative flex h-full justify-center">
                 {/* Masaüstünde telefonun iki yanında bildirimler (videodaki anla aynı) */}
@@ -194,23 +217,23 @@ export function ProductTour() {
                   <div className="m-float"><Toast icon="bell" title="Vardiya programı yayınlandı" text="12-18 Ekim haftanız hazır." className="tour-swap w-full" style={{ animationDelay: "350ms" }} /></div>
                 </div>
                 <div className="pointer-events-none absolute bottom-[18%] left-full z-10 ml-8 hidden w-[230px] lg:block">
-                  <div className="m-float" style={{ animationDelay: "2.5s" }}><Toast icon="check" title="Aynı vardiyada" text="Salı 15:00 · Burak ile" className="tour-swap w-full" style={{ animationDelay: "650ms" }} /></div>
+                  <div className="m-float" style={{ animationDelay: "2.5s" }}><Toast icon="swap" title="Değiştirmek mi gerekti?" text="Arkadaşına tek dokunuşla teklif eder." className="tour-swap w-full" style={{ animationDelay: "650ms" }} /></div>
                 </div>
-                <div className="tour-swap h-full rounded-[2.2rem] bg-slate-950 p-2 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10 sm:rounded-[2.6rem] sm:p-2.5" style={{ aspectRatio: "410 / 864" }}>
-                  <div className="relative h-full overflow-hidden rounded-[1.8rem] bg-cream sm:rounded-[2.1rem]">
+                <div className="tour-swap h-full rounded-[2.6rem] bg-slate-950 p-2.5 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10" style={{ aspectRatio: "410 / 780" }}>
+                  <div className="relative h-full overflow-hidden rounded-[2.1rem] bg-cream">
                     {video}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="tour-swap w-full overflow-hidden rounded-xl bg-white shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10 sm:rounded-2xl">
-                <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/90 px-3 py-2 sm:px-4 sm:py-2.5">
+              <div className="tour-swap w-full overflow-hidden rounded-2xl bg-white shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+                <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/90 px-4 py-2.5">
                   <div className="flex gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-200 sm:h-2.5 sm:w-2.5" />
-                    <span className="h-2 w-2 rounded-full bg-slate-200 sm:h-2.5 sm:w-2.5" />
-                    <span className="h-2 w-2 rounded-full bg-slate-200 sm:h-2.5 sm:w-2.5" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
                   </div>
-                  <span className="truncate text-[10px] font-medium text-slate-400 sm:text-[11px]">{chapter.window}</span>
+                  <span className="truncate text-[11px] font-medium text-slate-400">{chapter.window}</span>
                 </div>
                 <div className="relative bg-white" style={{ aspectRatio: "16 / 10" }}>
                   {video}
@@ -218,6 +241,7 @@ export function ProductTour() {
               </div>
             )}
           </div>
+          )}
 
           {/* Bölüm açıklaması */}
           <div key={`${chapter.key}-text`} className="tour-swap min-h-[188px] px-2 pb-3 text-white sm:min-h-0 sm:px-0 sm:pb-0">
@@ -226,6 +250,11 @@ export function ProductTour() {
             <p className="mt-3 text-[15px] leading-relaxed text-forest-100/80">{chapter.text}</p>
           </div>
         </div>
+      </div>
+      <div className="mt-6 text-center">
+        <Link href="/videolar" className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-forest-800 ring-1 ring-forest-900/15 transition-colors hover:bg-white">
+          Bütün özellik videoları <ArrowRight size={15} />
+        </Link>
       </div>
     </div>
   );

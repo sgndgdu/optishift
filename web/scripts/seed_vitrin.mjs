@@ -66,7 +66,7 @@ const LOCATIONS = [
       { id: "vd-bar", name: "Bar", demand: { "s-acilis": wk(1, 1, 1), "s-ara": wk(1, 1, 1), "s-kapanis": wk(1, 1, 1) },
         people: [["Elif", "Kaya"], ["Can", "Ertürk"], ["Irmak", "Soylu"], ["Kaan", "Yıldız", { part: true }], ["Ozan", "Kurt"], ["Pelin", "Acar"]] },
       { id: "vd-salon", name: "Salon", demand: { "s-acilis": wk(1, 1, 1), "s-ara": wk(1, 1, 2), "s-kapanis": wk(1, 2, 2) },
-        people: [["Burak", "Tan"], ["Deniz", "Özkan"], ["Ece", "Korkmaz"], ["Onur", "Taş"], ["Zeynep", "Kılıç", { extra: ["vd-kasa"] }], ["Pınar", "Yalçın"]] },
+        people: [["Burak", "Tan"], ["Deniz", "Özkan"], ["Ece", "Korkmaz"], ["Onur", "Taş"], ["Zeynep", "Kılıç", { extra: ["vd-kasa"] }], ["Pınar", "Yalçın"], ["Bora", "Aksu"]] },
       { id: "vd-kasa", name: "Kasa", demand: { "s-acilis": wk(1, 1, 1), "s-ara": wk(0, 0, 0), "s-kapanis": wk(1, 1, 1) },
         people: [["Selin", "Aydın"], ["Yusuf", "Aksoy"], ["Melis", "Güneş", { part: true }], ["Gamze", "Erdem"]] },
       { id: "vd-mutfak", name: "Mutfak", demand: { "s-acilis": wk(1, 1, 1), "s-ara": wk(0, 1, 1), "s-kapanis": wk(1, 1, 1) },
@@ -254,7 +254,10 @@ function planWeek(loc, weekStart, days, mode) {
         // Ana ekip önce; eksik kalırsa bu departmana ek departmanı olan joker
         const own = PEOPLE.filter(p => p.locations.includes(loc.id) && p.departments.includes(d.id) && (p.dept === d.id || (p.loc !== loc.id && p.departments.includes(d.id))));
         const helpers = PEOPLE.filter(p => p.loc === loc.id && p.extra.includes(d.id));
-        const pool = [...own.sort(() => rand() - 0.5), ...helpers.sort(() => rand() - 0.5)];
+        // Vitrin: uygulamanın yaptığı gibi o ana kadar en az puan almış kişi önce (Adalet Puanı raporu dengeli görünsün)
+        const load = (p) => ROWS.reduce((t, r) => t + (r.personnel_id === p.id ? r.points / (p.part ? 0.62 : 1) : 0), 0) + rand() * 3;
+        const byLoad = (arr) => arr.map((p) => [load(p), p]).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+        const pool = [...byLoad(own), ...byLoad(helpers)];
         let got = 0;
         FILL.need += need;
         for (const p of pool) {
@@ -364,15 +367,27 @@ async function insertRequests() {
               VALUES (${p.id}, ${type}, ${s}, ${e}, ${days}, ${note}, ${status},
                       ${status === "approved" ? "u-vitrin-sorumlu" : null}, ${status === "approved" ? now - 20 * 86400 : null}, ${now - randInt(2, 20) * 3600})`;
   }
-  // Vardiya değiştirme: iki kişi anlaştı, sorumlu onayı bekliyor
-  const rows = await sql`SELECT id, personnel_id, day FROM shift_assignments WHERE location_id = ${"loc-vitrin-moda"} AND week_start = ${THIS_MONDAY}
-                         AND publication_status = 'published' AND day > ${TODAY_DAY} ORDER BY id LIMIT 30`;
-  const a = rows[0]; const b = rows.find(r => r.personnel_id !== a?.personnel_id && r.day !== a?.day);
-  if (a && b) {
-    const pa = PERSON.get(a.personnel_id), pb = PERSON.get(b.personnel_id);
-    await sql`INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)
-              VALUES (${ORG}, ${pa.id}, ${pa.name}, ${pb.id}, ${pb.name}, ${a.id}, ${b.id}, 'peer_accepted', ${"Akşam dersim var, değişebilir miyiz?"}, ${now - 7200})`;
+  // Vardiya değiştirme: iki kişi anlaştı, sorumlu onayı bekliyor. Bilerek kurala uymayan bir istek (tanıtımda uyarı görünsün):
+  // A, kapanış yaptığı günün ertesi sabahı B'nin açılışını alıyor (aradaki dinlenme 8 saat).
+  const wk = await sql`SELECT id, personnel_id, day, shift_id FROM shift_assignments WHERE location_id = ${"loc-vitrin-moda"} AND week_start = ${THIS_MONDAY}
+                       AND publication_status = 'published' AND day > ${TODAY_DAY}`;
+  const has = (pid, day) => wk.some((r) => r.personnel_id === pid && r.day === day);
+  let pair = null;
+  for (const k of wk.filter((r) => r.shift_id === "s-kapanis")) {
+    const pa = PERSON.get(k.personnel_id);
+    for (const o of wk.filter((r) => r.shift_id === "s-acilis" && r.day === k.day + 1 && r.personnel_id !== k.personnel_id && !has(k.personnel_id, k.day + 1))) {
+      const pb = PERSON.get(o.personnel_id);
+      if (!pb.departments.some((x) => pa.departments.includes(x))) continue;
+      // A'nın vereceği vardiya: B'nin boş olduğu, A'nın başka bir günü
+      const give = wk.find((r) => r.personnel_id === k.personnel_id && r.id !== k.id && r.day !== k.day + 1 && !has(o.personnel_id, r.day));
+      if (give) { pair = { pa, pb, give, take: o }; break; }
+    }
+    if (pair) break;
   }
+  if (pair) {
+    await sql`INSERT INTO shift_swap_requests (org_id, requester_id, requester_name, target_id, target_name, requester_shift_id, target_shift_id, status, note, created_at)
+              VALUES (${ORG}, ${pair.pa.id}, ${pair.pa.name}, ${pair.pb.id}, ${pair.pb.name}, ${pair.give.id}, ${pair.take.id}, 'peer_accepted', ${"Akşam dersim var, değişebilir miyiz?"}, ${now - 7200})`;
+  } else console.log("UYARI: kurala uymayan vardiya değiştirme örneği kurulamadı");
   const d = Math.min(6, TODAY_DAY + 2);
   await sql`INSERT INTO open_shifts (org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status, created_at)
             VALUES (${ORG}, ${"loc-vitrin-moda"}, ${dateForWeekDay(THIS_MONDAY, d)}, ${"15:00"}, ${"23:00"}, ${"Hafta sonu yoğunluğu için ek barista"}, 6, 'open', ${now - 3 * 3600})`;
