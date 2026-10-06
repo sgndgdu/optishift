@@ -39,6 +39,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(appUrl(`/login?google_error=exchange_failed`));
   }
 
+  // Davet bağlantısından gelen kişi: Gmail'i kendi hesabına bağlanır, şifre belirlemesi gerekmez
+  if (stateResult.intent === "link" && stateResult.userId) {
+    const [owner] = await db.select().from(users).where(eq(users.google_id, profile.googleId)).limit(1);
+    if (owner && owner.id !== stateResult.userId) {
+      return NextResponse.redirect(appUrl(`/login?google_error=already_linked`));
+    }
+    const [target] = await db.select().from(users).where(eq(users.id, stateResult.userId)).limit(1);
+    if (!target) {
+      return NextResponse.redirect(appUrl(`/login?google_error=invalid_request`));
+    }
+    // Yöneticinin verdiği geçici şifre artık geçmesin; kendi belirlediği şifre varsa kalır
+    await db.update(users).set(
+      target.is_temp_password
+        ? { google_id: profile.googleId, is_temp_password: false, password_hash: null, auth_provider: "google" }
+        : { google_id: profile.googleId }
+    ).where(eq(users.id, target.id));
+    await getDB().prepare("UPDATE invite_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL")
+      .run(Math.floor(Date.now() / 1000), target.id);
+  }
+
   // Google hesabı zaten bağlıysa doğrudan kullan
   let [user] = await db.select().from(users).where(eq(users.google_id, profile.googleId)).limit(1);
 

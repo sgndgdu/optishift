@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Shield, AlertCircle } from "lucide-react";
 import { routeAfterLogin } from "@/lib/sessionRouting";
 import { AuthLogo } from "@/components/AuthLogo";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { FEATURES } from "@/lib/features";
 
 function SetupForm() {
   const router = useRouter();
@@ -162,6 +164,17 @@ function SetupForm() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+          {FEATURES.googleAuth && (
+            <div className="mb-6">
+              <GoogleAuthButton intent="link" label="Google ile devam et" />
+              <p className="text-xs text-slate-500 text-center mt-2">Şifre gerekmez, sonraki girişlerde de Google ile girersiniz.</p>
+              <div className="flex items-center gap-3 mt-6">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400">veya şifre belirleyin</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium">

@@ -575,7 +575,7 @@ Bu üç tier'ın orijinal maddeleri (kapasite matrisi, swap/edit/open-shifts bac
 - `STRIPE_SECRET_KEY` — billing demo modda, gerçek ödeme alınmıyor
 - `RESEND_API_KEY` — şifre sıfırlama e-postası gitmiyor (bildirim maili `lib/mailer.ts`'e bağlandı ama credential yok)
 - `ANTHROPIC_API_KEY` + `FEATURES.aiSummary` — AI Özet kapalı
-- `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`NEXT_PUBLIC_APP_URL` + `FEATURES.googleAuth` — Google ile giriş kapalı (not: `NEXT_PUBLIC_APP_URL` prod'da tanımlı ama flag yine de kapalı — birlikte açılmalı)
+- [x] Google ile giriş AÇILDI (2026-10-06): Google Cloud projesi `optishift-510811` (sgndgdu@gmail.com), OAuth istemcisi "OptiShift Web", yayında (production, sadece temel kapsamlar, inceleme gerekmez). Vercel prod env'leri kuruldu, `FEATURES.googleAuth` true. Ekip üyeleri davet bağlantısında (`/setup?token=`) "Google ile devam et" ile Gmail'ini hesabına bağlar (`intent=link`, state içinde hesap kimliği; geçici şifre silinir, davetler kapanır). Bağlı olmayan Gmail ile girişte yeni işletme kaydına düşer, kayıt sayfası çalışanı uyarır. Alan adı değişirse Google Cloud'da yönlendirme adresi ve yetkili alan güncellenmeli.
 
 **Flag'li bilinçli kapalı modüller (`web/lib/features.ts`):**
 - `integrations: false` — ERP (SAP/Nebim/Logo) UI hazır, gerçek senkron backend'i yok

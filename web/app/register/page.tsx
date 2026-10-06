@@ -190,6 +190,9 @@ export default function RegisterPage() {
                 <p className="text-slate-500 font-medium text-sm sm:text-base">
                   <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. İşletmenizin adını ve bir kullanıcı adı belirleyin.
                 </p>
+                <p className="mt-3 text-xs sm:text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  Bir işletmede çalışıyorsanız yeni işletme açmayın: sorumlunuzdan giriş bağlantısı isteyin, bağlantıda &quot;Google ile devam et&quot;e basın.
+                </p>
               </div>
 
               {error && (

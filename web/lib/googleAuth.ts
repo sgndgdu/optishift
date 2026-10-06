@@ -34,21 +34,30 @@ export function isGoogleAuthConfigured(): boolean {
   return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-export type GoogleAuthIntent = "login" | "register";
+export type GoogleAuthIntent = "login" | "register" | "link";
 
-/** CSRF korumalı, kısa ömürlü state token'ı — intent'i (login|register) taşır. */
-export async function signGoogleState(intent: GoogleAuthIntent): Promise<string> {
-  return new SignJWT({ intent })
+/**
+ * CSRF korumalı, kısa ömürlü state token'ı — intent'i taşır. "link" (davet bağlantısından
+ * gelen kişinin Gmail'ini hesabına bağlaması) bağlanacak hesabın kimliğini de taşır.
+ */
+export async function signGoogleState(intent: GoogleAuthIntent, userId?: string): Promise<string> {
+  return new SignJWT(userId ? { intent, userId } : { intent })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
     .sign(STATE_SECRET);
 }
 
-export async function verifyGoogleState(state: string): Promise<{ intent: GoogleAuthIntent } | null> {
+export async function verifyGoogleState(
+  state: string
+): Promise<{ intent: GoogleAuthIntent; userId?: string } | null> {
   try {
     const { payload } = await jwtVerify(state, STATE_SECRET);
     const intent = payload.intent as string;
+    if (intent === "link") {
+      if (typeof payload.userId !== "string") return null;
+      return { intent, userId: payload.userId };
+    }
     if (intent !== "login" && intent !== "register") return null;
     return { intent };
   } catch {

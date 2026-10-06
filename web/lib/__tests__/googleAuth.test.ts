@@ -47,6 +47,16 @@ describe("signGoogleState / verifyGoogleState", () => {
     expect(result).toEqual({ intent: "register" });
   });
 
+  it("link intent'i hesap kimliğiyle round-trip doğru çözülür", async () => {
+    const state = await signGoogleState("link", "U-1");
+    expect(await verifyGoogleState(state)).toEqual({ intent: "link", userId: "U-1" });
+  });
+
+  it("hesap kimliği olmayan link state'i reddedilir", async () => {
+    const state = await signGoogleState("link");
+    expect(await verifyGoogleState(state)).toBeNull();
+  });
+
   it("bozuk/geçersiz state için null döner", async () => {
     const result = await verifyGoogleState("not-a-real-jwt");
     expect(result).toBeNull();

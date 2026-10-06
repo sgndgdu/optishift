@@ -18,6 +18,7 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   exchange_failed: "Google ile bağlantı kurulamadı, lütfen tekrar deneyin.",
   account_pending: "Hesabınız henüz onaylanmadı. Lütfen sorumlunuzla iletişime geçin.",
   account_rejected: "Hesabınız reddedildi. Lütfen sorumlunuzla iletişime geçin.",
+  already_linked: "Bu Gmail başka bir hesaba bağlı. Farklı bir Gmail seçin ya da o hesapla giriş yapın.",
 };
 
 export default function LoginPage() {

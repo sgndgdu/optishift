@@ -1,6 +1,6 @@
 // Google ile devam et — /api/auth/google/start'a düz bir GET yönlendirmesi.
 // Fetch/JS gerekmez; buton normal bir <a> linki, Google'ın OAuth ekranına yönlendirir.
-export function GoogleAuthButton({ intent, label }: { intent: "login" | "register"; label: string }) {
+export function GoogleAuthButton({ intent, label }: { intent: "login" | "register" | "link"; label: string }) {
   return (
     <a
       href={`/api/auth/google/start?intent=${intent}`}
