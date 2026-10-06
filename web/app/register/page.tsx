@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff, Store, User, AtSign, Gift, Loader2, XCircle } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Store, User, Gift, Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { FEATURES } from "@/lib/features";
@@ -60,7 +60,7 @@ export default function RegisterPage() {
       email: params.get("google_email") ?? "",
     };
   });
-  const [googleForm, setGoogleForm] = useState({ org_name: "", username: "" });
+  const [googleForm, setGoogleForm] = useState({ org_name: "" });
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,8 +101,8 @@ export default function RegisterPage() {
     setError("");
     if (!googlePending) return;
 
-    if (!googleForm.org_name.trim() || !googleForm.username.trim()) {
-      setError("Lütfen tüm alanları doldurun.");
+    if (!googleForm.org_name.trim()) {
+      setError("Lütfen işletmenizin adını yazın.");
       return;
     }
 
@@ -114,7 +114,6 @@ export default function RegisterPage() {
         body: JSON.stringify({
           pending_token: googlePending.token,
           org_name: googleForm.org_name,
-          username: googleForm.username,
         }),
       });
       const data = await res.json();
@@ -188,7 +187,7 @@ export default function RegisterPage() {
               <div className="mb-6 sm:mb-8 text-center lg:text-left">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">Son Bir Adım</h1>
                 <p className="text-slate-500 font-medium text-sm sm:text-base">
-                  <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. İşletmenizin adını ve bir kullanıcı adı belirleyin.
+                  <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. Son olarak işletmenizin adını yazın.
                 </p>
                 <p className="mt-3 text-xs sm:text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                   Bir işletmede çalışıyorsanız yeni işletme açmayın: sorumlunuzdan giriş bağlantısı isteyin, bağlantıda &quot;Google ile devam et&quot;e basın.
@@ -214,20 +213,6 @@ export default function RegisterPage() {
                     placeholder="Örn: Cup & Go Cafe"
                     className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <AtSign size={14} className="text-forest-500" />
-                    Kullanıcı Adı
-                  </label>
-                  <input
-                    value={googleForm.username}
-                    onChange={(e) => setGoogleForm((f) => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "") }))}
-                    placeholder="ahmet.yilmaz"
-                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-slate-900 font-medium font-mono bg-white focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"
-                  />
-                  <p className="text-xs text-slate-400 mt-1.5">Giriş yaparken kullanacaksınız (Google ile de giriş yapabilirsiniz). Sadece harf, rakam, nokta ve tire.</p>
                 </div>
 
                 <button

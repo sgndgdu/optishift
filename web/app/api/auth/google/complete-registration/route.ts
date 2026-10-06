@@ -7,14 +7,24 @@ import { verifyPendingGoogleProfile } from "@/lib/googleAuth";
 // /api/auth/google/callback bu Google hesabına bağlı hiçbir kayıt bulamayınca
 // üretilen kısa ömürlü "pending" token'ı + org_name/username ile yeni bir
 // organizasyon + admin kullanıcı kurar (şifresiz, auth_provider='google').
+async function uniqueUsername(db: ReturnType<typeof getDB>, email: string): Promise<string> {
+  let base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "");
+  if (base.length < 3) base = `kullanici${base}`;
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? base : `${base}${i + 1}`;
+    if (!(await db.prepare("SELECT id FROM users WHERE username = ?").get(candidate))) return candidate;
+  }
+  return `${base}${Date.now() % 100000}`;
+}
+
 export async function POST(req: NextRequest) {
   const db = getDB();
 
   try {
-    const { pending_token, org_name, username } = await req.json();
+    const { pending_token, org_name } = await req.json();
 
-    if (!pending_token || !org_name?.trim() || !username?.trim()) {
-      return NextResponse.json({ error: "Tüm alanlar zorunlu" }, { status: 400 });
+    if (!pending_token || !org_name?.trim()) {
+      return NextResponse.json({ error: "İşletme adı zorunlu" }, { status: 400 });
     }
 
     const profile = await verifyPendingGoogleProfile(pending_token);
@@ -35,14 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Bu e-posta adresiyle zaten bir hesap var. Lütfen giriş yapın." }, { status: 409 });
     }
 
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-    if (cleanUsername.length < 3) {
-      return NextResponse.json({ error: "Kullanıcı adı en az 3 karakter olmalı" }, { status: 400 });
-    }
-    const existingUsername = await db.prepare("SELECT id FROM users WHERE username = ?").get(cleanUsername);
-    if (existingUsername) {
-      return NextResponse.json({ error: "Bu kullanıcı adı zaten alınmış" }, { status: 409 });
-    }
+    // Kullanıcı adı sorulmaz: Gmail adresinin baş kısmından üretilir, doluysa sonuna sayı eklenir
+    const cleanUsername = await uniqueUsername(db, profile.email);
 
     const now = Math.floor(Date.now() / 1000);
     const orgId = `ORG-${Date.now()}`;
