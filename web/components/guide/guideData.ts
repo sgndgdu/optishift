@@ -199,7 +199,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Mesajlar ve hesabım",
         icon: MessageSquare,
         paragraphs: [
-          "Mesajlar açıksa ekip sohbeti ve sorumlunla yazışma buradadır. Hesabım'dan şifreni değiştirir, telefonun destekliyorsa parmak izi ya da yüzle girişi açarsın. Gerçek bir acil durumda Ana Sayfa'nın en altındaki \"Acil durum bildir\" sorumlularına haber verir.",
+          "Mesajlar açıksa ekip sohbeti ve sorumlunla yazışma buradadır. Hesabım'dan şifreni değiştirirsin. Gerçek bir acil durumda Ana Sayfa'nın en altındaki \"Acil durum bildir\" sorumlularına haber verir.",
         ],
       },
     ],

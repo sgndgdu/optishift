@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AccountTab from "@/components/AccountTab";
-import BiometricCard from "@/components/portal/BiometricCard";
 import { HelpCircle, LogOut } from "lucide-react";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 
@@ -22,8 +21,6 @@ export default function PortalSettingsPage() {
   return (
     <Page width="narrow">
       <PageHeader title="Hesabım" description="Profil, şifre ve giriş ayarları" />
-      {/* Cihaz desteklemiyorsa görünmez */}
-      <BiometricCard />
       <AccountTab storageKey="optishift_portal_user" />
       {/* Telefonda üst çubuktan kaldırılan Yardım ve Çıkış burada */}
       <div className="grid grid-cols-2 gap-3">

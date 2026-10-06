@@ -39,13 +39,6 @@ export interface PersonnelDocument {
   created_at?: number;
 }
 
-export interface WebauthnCredential {
-  id: number;
-  device_name: string | null;
-  created_at: number;
-  last_used_at: number | null;
-}
-
 // ─── Rotasyon Şablonu — Fabrika Modülü ───────────────────────────────────────
 
 // ─── Fazla Mesai Kaydı — Fabrika Modülü ──────────────────────────────────────

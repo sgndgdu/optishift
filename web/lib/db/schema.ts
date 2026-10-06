@@ -802,7 +802,7 @@ export const tipAllocations = pgTable("tip_allocations", {
   ),
 });
 
-// Biyometrik giriş (WebAuthn/passkey) — Face ID/Touch ID/parmak izi ile giriş
+// Biyometrik giriş (WebAuthn/passkey) kaldırıldı (2026-10-06); tablo eski kayıtlar için duruyor, kod kullanmıyor
 export const webauthnCredentials = pgTable("webauthn_credentials", {
   id: serial("id").primaryKey(),
   user_id: text("user_id")

@@ -1,4 +1,4 @@
-// Giriş sonrası panel seçimi: şifreli giriş, biyometrik giriş ve Google girişi aynı kuralı kullanır.
+// Giriş sonrası panel seçimi: şifreli giriş ve Google girişi aynı kuralı kullanır.
 // Sahip (admin, şubeye bağlı değil) için şube sayısı belirler:
 //   0 şube → ilk kurulum (/onboarding), kurulumu yarıda bırakan da buraya döner
 //   1 şube → doğrudan o şubenin müdür paneli (tek şubeli işletme amir paneline düşmez)
