@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const DAYS = ["perşembe", "cuma", "pazartesi", "çarşamba", "salı"];
+const LONGEST = DAYS.reduce((a, b) => (b.length > a.length ? b : a));
 
 /**
  * Otomatik Pilot rozetindeki gün: klavyeyle yazılıp silinir gibi döner.
@@ -40,9 +41,13 @@ export function TypedDay() {
   }, []);
 
   return (
-    <span className="inline-flex items-baseline">
-      <span className="font-semibold text-white">{text}</span>
-      <span aria-hidden="true" className="m-caret -mr-[2px] ml-px inline-block h-[1.05em] w-[2px] translate-y-[2px] bg-ember-300" />
+    <span className="inline-grid">
+      {/* En uzun gün görünmez yer tutar: yazı uzayıp kısaldıkça satır kırılmaz, sayfa zıplamaz */}
+      <span aria-hidden="true" className="invisible col-start-1 row-start-1 pr-[3px] font-semibold">{LONGEST}</span>
+      <span className="col-start-1 row-start-1 inline-flex items-baseline">
+        <span className="font-semibold text-white">{text}</span>
+        <span aria-hidden="true" className="m-caret -mr-[2px] ml-px inline-block h-[1.05em] w-[2px] translate-y-[2px] bg-ember-300" />
+      </span>
     </span>
   );
 }

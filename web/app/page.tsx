@@ -104,10 +104,10 @@ export default function LandingPage() {
                 <div className="hidden sm:block"><ScheduleBoard sector={KAFE} animate /></div>
               </AppWindow>
             </div>
-            <div className="m-up absolute -right-6 -top-10 z-20 hidden lg:block xl:-right-12" style={d(1900)}>
+            <div className="m-up absolute -right-4 -top-10 z-20 hidden lg:block 2xl:-right-12" style={d(1900)}>
               <div className="m-float"><PilotCard /></div>
             </div>
-            <div className="m-up absolute -bottom-36 -left-6 z-20 hidden md:block xl:-left-14" style={d(2400)}>
+            <div className="m-up absolute -bottom-36 left-4 z-20 hidden md:block xl:-left-4" style={d(2400)}>
               <div className="m-float" style={{ animationDelay: "2.5s" }}><WhyCard /></div>
             </div>
           </div>
