@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const { username, password } = await req.json();
 
     if (!username?.trim() || !password) {
-      return NextResponse.json({ error: "Kullanıcı adı ve şifre zorunlu" }, { status: 400 });
+      return NextResponse.json({ error: "Telefon, e-posta ya da kullanıcı adı ve şifre zorunlu" }, { status: 400 });
     }
 
     const normalized = username.trim().toLowerCase();
@@ -53,7 +53,28 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      return NextResponse.json({ error: "E-posta veya şifre hatalı" }, { status: 401 });
+      // Telefonla giriş: son 10 hane karşılaştırılır (0555..., +90 555..., 555... aynı numara).
+      // Aynı numara birden çok hesapta olabilir (iki işletmede çalışan): şifresi tutan hesap seçilir.
+      const digits = normalized.replace(/\D/g, "");
+      if (digits.length >= 10 && !/[a-z@]/.test(normalized)) {
+        const rows = await getDB().prepare(`
+          SELECT u.id FROM users u LEFT JOIN personnel p ON p.id = u.personnel_id
+          WHERE right(regexp_replace(coalesce(nullif(u.phone, ''), p.phone, ''), '[^0-9]', '', 'g'), 10) = ?
+        `).all(digits.slice(-10)) as { id: string }[];
+        for (const row of rows) {
+          const [candidate] = await db.select().from(users).where(eq(users.id, row.id)).limit(1);
+          if (!candidate) continue;
+          if (!user) user = candidate;
+          if (candidate.password_hash && await bcrypt.compare(password, candidate.password_hash)) {
+            user = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: "Hesap bulunamadı ya da şifre hatalı" }, { status: 401 });
     }
 
     if (!user.password_hash) {
@@ -66,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
-      return NextResponse.json({ error: "Kullanıcı adı veya şifre hatalı" }, { status: 401 });
+      return NextResponse.json({ error: "Hesap bulunamadı ya da şifre hatalı" }, { status: 401 });
     }
 
     // Onay bekleyen hesaplar giriş yapamaz

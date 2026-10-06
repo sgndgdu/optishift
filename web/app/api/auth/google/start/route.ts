@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { buildGoogleAuthUrl, isGoogleAuthConfigured, signGoogleState, type GoogleAuthIntent } from "@/lib/googleAuth";
 
-// GET /api/auth/google/start?intent=login|register|link
+// GET /api/auth/google/start?intent=login|register|link|join[&token=kayıt bağlantısı]
 // link: davet bağlantısıyla açılmış oturumdaki hesaba Gmail bağlanır (şifre belirlemek yerine)
 export async function GET(req: NextRequest) {
   if (!isGoogleAuthConfigured()) {
@@ -17,7 +17,12 @@ export async function GET(req: NextRequest) {
   if (intentParam === "link") {
     const auth = getAuthUser(req);
     if (!auth) return NextResponse.redirect(new URL("/login", req.url));
-    return NextResponse.redirect(buildGoogleAuthUrl(await signGoogleState("link", auth.id)));
+    return NextResponse.redirect(buildGoogleAuthUrl(await signGoogleState("link", { userId: auth.id })));
+  }
+  if (intentParam === "join") {
+    const signupToken = searchParams.get("token");
+    if (!signupToken) return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(buildGoogleAuthUrl(await signGoogleState("join", { signupToken })));
   }
   const intent: GoogleAuthIntent = intentParam === "register" ? "register" : "login";
 

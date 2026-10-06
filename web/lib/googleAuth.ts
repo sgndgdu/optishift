@@ -34,14 +34,15 @@ export function isGoogleAuthConfigured(): boolean {
   return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-export type GoogleAuthIntent = "login" | "register" | "link";
+export type GoogleAuthIntent = "login" | "register" | "link" | "join";
 
-/**
- * CSRF korumalı, kısa ömürlü state token'ı — intent'i taşır. "link" (davet bağlantısından
- * gelen kişinin Gmail'ini hesabına bağlaması) bağlanacak hesabın kimliğini de taşır.
- */
-export async function signGoogleState(intent: GoogleAuthIntent, userId?: string): Promise<string> {
-  return new SignJWT(userId ? { intent, userId } : { intent })
+/** "link": davet bağlantısıyla açılmış hesaba Gmail bağlanır (hesap kimliği taşır).
+ *  "join": şubenin kayıt bağlantısıyla ekibe katılma (kayıt bağlantısı kodunu taşır). */
+export type GoogleStateExtra = { userId?: string; signupToken?: string };
+
+/** CSRF korumalı, kısa ömürlü state token'ı — intent'i ve gerekiyorsa bağlamını taşır. */
+export async function signGoogleState(intent: GoogleAuthIntent, extra: GoogleStateExtra = {}): Promise<string> {
+  return new SignJWT({ intent, ...extra })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
@@ -50,13 +51,17 @@ export async function signGoogleState(intent: GoogleAuthIntent, userId?: string)
 
 export async function verifyGoogleState(
   state: string
-): Promise<{ intent: GoogleAuthIntent; userId?: string } | null> {
+): Promise<({ intent: GoogleAuthIntent } & GoogleStateExtra) | null> {
   try {
     const { payload } = await jwtVerify(state, STATE_SECRET);
     const intent = payload.intent as string;
     if (intent === "link") {
       if (typeof payload.userId !== "string") return null;
       return { intent, userId: payload.userId };
+    }
+    if (intent === "join") {
+      if (typeof payload.signupToken !== "string") return null;
+      return { intent, signupToken: payload.signupToken };
     }
     if (intent !== "login" && intent !== "register") return null;
     return { intent };

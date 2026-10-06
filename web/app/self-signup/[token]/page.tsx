@@ -3,6 +3,8 @@
 import { useState, useEffect, use } from "react";
 import { Lock, User, Phone, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { AuthLogo } from "@/components/AuthLogo";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { FEATURES } from "@/lib/features";
 
 export default function SelfSignupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -19,7 +21,10 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ username: string } | null>(null);
+  // Google ile katılan kişi kayıttan sonra buraya ?google=pending ile döner
+  const [done, setDone] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("google") === "pending"
+  );
 
   useEffect(() => {
     fetch(`/api/self-signup?token=${encodeURIComponent(token)}`)
@@ -56,7 +61,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
         setLoading(false);
         return;
       }
-      setResult({ username: data.username });
+      setDone(true);
     } catch {
       setError("Sunucuya bağlanılamadı");
       setLoading(false);
@@ -85,7 +90,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
     );
   }
 
-  if (result) {
+  if (done) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
@@ -93,14 +98,9 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             <CheckCircle size={40} className="text-emerald-600" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Kaydınız alındı!</h1>
-          <p className="text-slate-500 text-sm mb-4">
-            Sorumlunuz hesabınızı onayladığında giriş yapabilirsiniz.
+          <p className="text-slate-500 text-sm">
+            Sorumlunuz onayladığında giriş sayfasından Google ile, telefon numaranız ya da e-postanızla girebilirsiniz.
           </p>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-xs font-bold text-slate-400 mb-1">Kullanıcı Adınız</p>
-            <p className="text-lg font-bold text-slate-900">{result.username}</p>
-            <p className="text-xs text-slate-400 mt-1">Giriş için bunu not edin.</p>
-          </div>
         </div>
       </div>
     );
@@ -120,6 +120,17 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+          {FEATURES.googleAuth && (
+            <div className="mb-6">
+              <GoogleAuthButton intent="join" token={token} label="Google ile devam et" />
+              <p className="text-xs text-slate-500 text-center mt-2">Adınız Google&apos;dan gelir, şifre gerekmez.</p>
+              <div className="flex items-center gap-3 mt-6">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400">veya bilgilerinizi girin</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600 font-medium">

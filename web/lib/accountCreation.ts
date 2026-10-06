@@ -36,3 +36,34 @@ export async function generateUsername(db: any, name: string): Promise<string> {
   }
   return `${base}.${Date.now()}`;
 }
+
+// Şubenin kayıt bağlantısıyla ekibe katılma (şifreyle ya da Google ile). Hesap her zaman onay bekler.
+export async function createSelfSignupAccount(
+  db: any,
+  loc: { id: string; org_id: string },
+  p: { name: string; phone?: string; passwordHash?: string | null; email?: string | null; googleId?: string | null }
+): Promise<{ userId: string; username: string }> {
+  const now = Math.floor(Date.now() / 1000);
+  const personnelId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const userId = `U-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const employeeId = `EMP-${Math.floor(10000 + Math.random() * 90000)}`;
+  const username = await generateUsername(db, p.name);
+  const phone = p.phone?.trim() || "";
+
+  await db.prepare(`
+    INSERT INTO personnel (id, org_id, primary_location_id, assigned_location_ids, user_access_level, name, employee_id, phone, title, employment_type, status, max_weekly_hours, prev_score, hero_count, no_show_count, late_count, annual_leave_days_total, roles, role_levels, preferred_shift_ids, preferred_days, preferred_roles, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'employee', ?, ?, ?, 'Personel', 'full_time', 'active', 45, 0, 0, 0, 0, 14, '[]', '{}', '[]', '[]', '[]', ?, ?)
+  `).run(personnelId, loc.org_id, loc.id, JSON.stringify([loc.id]), p.name.trim(), employeeId, phone, now, now);
+
+  try {
+    await db.prepare(`
+      INSERT INTO users (id, personnel_id, username, password_hash, email, auth_provider, google_id, role, org_id, location_id, name, phone, is_temp_password, approval_status, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'employee', ?, ?, ?, ?, false, 'pending', 'self-signup', ?)
+    `).run(userId, personnelId, username, p.passwordHash ?? null, p.email ?? null, p.googleId ? "google" : "password",
+      p.googleId ?? null, loc.org_id, loc.id, p.name.trim(), phone || null, now);
+  } catch (err) {
+    await db.prepare("DELETE FROM personnel WHERE id = ?").run(personnelId).catch(() => undefined);
+    throw err;
+  }
+  return { userId, username };
+}

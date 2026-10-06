@@ -2,21 +2,12 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { signToken, setCookie } from "@/lib/auth";
 import { verifyPendingGoogleProfile } from "@/lib/googleAuth";
+import { generateUsername } from "@/lib/accountCreation";
 
 // POST /api/auth/google/complete-registration
 // /api/auth/google/callback bu Google hesabına bağlı hiçbir kayıt bulamayınca
 // üretilen kısa ömürlü "pending" token'ı + org_name/username ile yeni bir
 // organizasyon + admin kullanıcı kurar (şifresiz, auth_provider='google').
-async function uniqueUsername(db: ReturnType<typeof getDB>, email: string): Promise<string> {
-  let base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "");
-  if (base.length < 3) base = `kullanici${base}`;
-  for (let i = 0; i < 50; i++) {
-    const candidate = i === 0 ? base : `${base}${i + 1}`;
-    if (!(await db.prepare("SELECT id FROM users WHERE username = ?").get(candidate))) return candidate;
-  }
-  return `${base}${Date.now() % 100000}`;
-}
-
 export async function POST(req: NextRequest) {
   const db = getDB();
 
@@ -45,8 +36,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Bu e-posta adresiyle zaten bir hesap var. Lütfen giriş yapın." }, { status: 409 });
     }
 
-    // Kullanıcı adı sorulmaz: Gmail adresinin baş kısmından üretilir, doluysa sonuna sayı eklenir
-    const cleanUsername = await uniqueUsername(db, profile.email);
+    // Kullanıcı adı sorulmaz: Google'daki addan üretilir (ayse.kaya, doluysa ayse.kaya2)
+    const cleanUsername = await generateUsername(db, profile.name);
 
     const now = Math.floor(Date.now() / 1000);
     const orgId = `ORG-${Date.now()}`;

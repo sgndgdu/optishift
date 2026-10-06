@@ -48,8 +48,17 @@ describe("signGoogleState / verifyGoogleState", () => {
   });
 
   it("link intent'i hesap kimliğiyle round-trip doğru çözülür", async () => {
-    const state = await signGoogleState("link", "U-1");
+    const state = await signGoogleState("link", { userId: "U-1" });
     expect(await verifyGoogleState(state)).toEqual({ intent: "link", userId: "U-1" });
+  });
+
+  it("join intent'i kayıt bağlantısı koduyla round-trip doğru çözülür", async () => {
+    const state = await signGoogleState("join", { signupToken: "abc" });
+    expect(await verifyGoogleState(state)).toEqual({ intent: "join", signupToken: "abc" });
+  });
+
+  it("kayıt bağlantısı kodu olmayan join state'i reddedilir", async () => {
+    expect(await verifyGoogleState(await signGoogleState("join"))).toBeNull();
   });
 
   it("hesap kimliği olmayan link state'i reddedilir", async () => {

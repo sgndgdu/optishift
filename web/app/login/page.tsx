@@ -19,6 +19,7 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   account_pending: "Hesabınız henüz onaylanmadı. Lütfen sorumlunuzla iletişime geçin.",
   account_rejected: "Hesabınız reddedildi. Lütfen sorumlunuzla iletişime geçin.",
   already_linked: "Bu Gmail başka bir hesaba bağlı. Farklı bir Gmail seçin ya da o hesapla giriş yapın.",
+  signup_closed: "Bu kayıt bağlantısı kapatılmış. Sorumlunuzdan yeni bir bağlantı isteyin.",
 };
 
 export default function LoginPage() {
@@ -35,7 +36,14 @@ export default function LoginPage() {
   const [googleError] = useState(() => {
     if (typeof window === "undefined") return "";
     const code = new URLSearchParams(window.location.search).get("google_error");
-    return code ? (GOOGLE_ERROR_MESSAGES[code] ?? "Google girişi başarısız oldu.") : "";
+    if (!code || code === "not_found") return "";
+    return GOOGLE_ERROR_MESSAGES[code] ?? "Google girişi başarısız oldu.";
+  });
+  // Bu Gmail'e bağlı hesap yok: hata değil, iki yol gösterilir (çalışan bağlantı ister, sahip işletme açar)
+  const [unknownGmail] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("google_error") === "not_found" ? (params.get("google_email") ?? "Bu Gmail") : "";
   });
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
@@ -122,6 +130,17 @@ export default function LoginPage() {
             <p className="text-slate-500 font-medium text-sm sm:text-base">Hesabınızla giriş yapın, doğru panele otomatik yönlendirilirsiniz.</p>
           </div>
 
+          {unknownGmail && (
+            <div className="mb-5 bg-white border-2 border-slate-200 rounded-2xl p-4 text-sm text-slate-600 space-y-3">
+              <p><span className="font-bold text-slate-900">{unknownGmail}</span> hiçbir hesaba bağlı değil.</p>
+              <p><span className="font-semibold text-slate-800">Bir işletmede çalışıyorsanız:</span> sorumlunuzdan giriş bağlantısı isteyin. Bağlantıyı açıp &quot;Google ile devam et&quot;e basınca bu Gmail hesabınıza bağlanır.</p>
+              <p><span className="font-semibold text-slate-800">İşletme sahibiyseniz:</span> bu Gmail ile yeni işletme hesabı açabilirsiniz.</p>
+              <a href="/api/auth/google/start?intent=register" className="block text-center w-full py-3 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-bold transition-colors">
+                Yeni işletme aç
+              </a>
+            </div>
+          )}
+
           {(FEATURES.googleAuth || webauthnAvailable) && (
             <div className="space-y-3 mb-5">
               {FEATURES.googleAuth && <GoogleAuthButton intent="login" label="Google ile Giriş Yap" />}
@@ -162,14 +181,14 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">Kullanıcı Adı veya E-Posta</label>
+              <label className="text-xs font-bold text-slate-700 mb-2 block">Telefon, E-Posta veya Kullanıcı Adı</label>
               <div className="relative">
                 <AtSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="kullanici.adi veya ad@sirket.com"
+                  placeholder="0555 123 45 67 veya ad@sirket.com"
                   required
                   autoComplete="username"
                   className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:border-forest-500 transition-colors placeholder:text-slate-400 placeholder:font-normal"

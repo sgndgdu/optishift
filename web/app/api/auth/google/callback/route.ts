@@ -7,6 +7,7 @@ import { parseAccess } from "@/lib/userAccess";
 import { exchangeGoogleCode, verifyGoogleState, signPendingGoogleProfile } from "@/lib/googleAuth";
 import { logPlatformEvent } from "@/lib/platform-logger";
 import { getDB } from "@/lib/db/client";
+import { createSelfSignupAccount } from "@/lib/accountCreation";
 
 function appUrl(path: string): string {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -69,6 +70,25 @@ export async function GET(req: NextRequest) {
       await db.update(users).set({ google_id: profile.googleId }).where(eq(users.id, byEmail.id));
       user = { ...byEmail, google_id: profile.googleId };
     }
+  }
+
+  if (!user && stateResult.intent === "join" && stateResult.signupToken) {
+    // Şubenin kayıt bağlantısından gelen kişi: Google'daki adıyla ekibe katılır, sorumlunun onayını bekler
+    const loc = await getDB().prepare("SELECT id, org_id FROM locations WHERE self_signup_token = ?")
+      .get(stateResult.signupToken) as { id: string; org_id: string } | undefined;
+    if (!loc) return NextResponse.redirect(appUrl(`/login?google_error=signup_closed`));
+    await createSelfSignupAccount(getDB(), loc, {
+      name: profile.name,
+      email: profile.emailVerified ? profile.email : null,
+      googleId: profile.googleId,
+    });
+    return NextResponse.redirect(appUrl(`/self-signup/${encodeURIComponent(stateResult.signupToken)}?google=pending`));
+  }
+
+  if (!user && stateResult.intent !== "register") {
+    // Girişte bu Gmail'e bağlı hesap yok: çalışan yanlışlıkla işletme açmasın, giriş sayfası iki yolu anlatır
+    const params = new URLSearchParams({ google_error: "not_found", google_email: profile.email });
+    return NextResponse.redirect(appUrl(`/login?${params.toString()}`));
   }
 
   if (!user) {

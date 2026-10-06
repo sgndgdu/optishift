@@ -425,8 +425,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
             <div className="flex-1 min-w-0 text-sm">
               {ep.userId ? (
                 <>
-                  <p className="text-slate-700 truncate">Kullanıcı adı: <span className="font-semibold">{ep.username}</span></p>
-                  {ep.is_temp_password && <p className="text-xs text-amber-700">Henüz uygulamaya girmedi</p>}
+                  {ep.is_temp_password
+                    ? <p className="text-amber-700">Henüz uygulamaya girmedi</p>
+                    : <p className="text-slate-700">Uygulamaya giriş yapıyor</p>}
                   {ep.email && <p className="text-xs text-slate-500 truncate">{ep.email}</p>}
                 </>
               ) : <p className="text-slate-600">Giriş hesabı yok</p>}

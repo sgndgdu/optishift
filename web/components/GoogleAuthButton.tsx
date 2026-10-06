@@ -1,9 +1,9 @@
 // Google ile devam et — /api/auth/google/start'a düz bir GET yönlendirmesi.
 // Fetch/JS gerekmez; buton normal bir <a> linki, Google'ın OAuth ekranına yönlendirir.
-export function GoogleAuthButton({ intent, label }: { intent: "login" | "register" | "link"; label: string }) {
+export function GoogleAuthButton({ intent, label, token }: { intent: "login" | "register" | "link" | "join"; label: string; token?: string }) {
   return (
     <a
-      href={`/api/auth/google/start?intent=${intent}`}
+      href={`/api/auth/google/start?intent=${intent}${token ? `&token=${encodeURIComponent(token)}` : ""}`}
       className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white border-2 border-slate-200 rounded-2xl text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-colors"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
