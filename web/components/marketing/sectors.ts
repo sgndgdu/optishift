@@ -41,7 +41,6 @@ export const SECTORS: Sector[] = [
     headline: "Cumartesi akşamı servis, eksik kişiyle başlamasın.",
     pain: "Yarı zamanlı ekip, değişken yoğunluk, son dakika gelemiyorum mesajları. Planı her hafta baştan kurmak yerine ihtiyacı bir kez yazın.",
     points: [
-      { title: "Yoğunluğa göre kadro", text: "Geçmiş haftalarınıza bakıp hangi gün kaç kişi gerektiğini önerir. Hafta sonu akşamı kendiliğinden güçlenir." },
       { title: "Açık vardiya", text: "Biri gelemezse vardiya ekibe açılır, uygun olan telefondan tek dokunuşla alır." },
       { title: "Hafta sonu dengesi", text: "Cumartesi akşamı hep aynı kişiye düşmez. Adalet puanı sırayı tutar, zor vardiyalar döner." },
     ],
@@ -65,7 +64,7 @@ export const SECTORS: Sector[] = [
     short: "Otel",
     image: "/marketing/sector-otel.webp",
     headline: "Resepsiyon 7/24 açık, gece vardiyası hep aynı kişide kalmasın.",
-    pain: "Üç vardiya, doluluk dalgalanması, departmanlar arası devir. Gece ve hafta sonu vardiyaları sırayla dönsün, kimse kendini haksızlığa uğramış hissetmesin.",
+    pain: "Üç vardiya, doluluk dalgalanması, departmanlar arası devir. Gece ve hafta sonu vardiyaları sırayla dönsün.",
     points: [
       { title: "Adil gece ve hafta sonu", text: "Gece vardiyasını zor olarak işaretleyin. Adalet puanı zor vardiyaları ve hafta sonlarını sayar, sıradaki kişiye düşer." },
       { title: "Vardiya devir notu", text: "Çıkan ekip notunu bırakır, gelen ekip ilk açtığında görür. Önemli bilgi koridorda kaybolmaz." },
@@ -121,7 +120,6 @@ export const SECTORS: Sector[] = [
     points: [
       { title: "Hat bazında kadro", text: "Her hattın, her vardiyada kaç kişiye ihtiyacı olduğunu bir kez girin. Plan tam o sayıyla kurulur." },
       { title: "Belge takibi", text: "Sağlık raporu ve sertifikaların bitiş tarihi yaklaşınca önceden uyarır." },
-      { title: "Tablet ile giriş çıkış", text: "Vardiya girişinde ortak tablete PIN ile kayıt. Puantaj kendiliğinden oluşur." },
     ],
     location: "Hat 2 · Montaj",
     shifts: [

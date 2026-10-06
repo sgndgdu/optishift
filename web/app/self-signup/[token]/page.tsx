@@ -34,10 +34,10 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           setOrgName(data.org_name);
           setLocationName(data.location_name);
         } else {
-          setTokenError(data.error ?? "Geçersiz kayıt linki");
+          setTokenError(data.error ?? "Bu bağlantı artık kullanılamıyor. Sorumlunuzdan yenisini talep edin.");
         }
       })
-      .catch(() => setTokenError("Sunucuya bağlanılamadı"))
+      .catch(() => setTokenError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin."))
       .finally(() => setTokenLoading(false));
   }, [token]);
 
@@ -57,13 +57,13 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Bir hata oluştu");
+        setError(data.error ?? "Bir sorun çıktı. Tekrar deneyin.");
         setLoading(false);
         return;
       }
       setDone(true);
     } catch {
-      setError("Sunucuya bağlanılamadı");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
       setLoading(false);
     }
   };
@@ -83,7 +83,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           <div className="flex justify-center mb-3">
             <AlertCircle size={28} className="text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-slate-900 mb-2">Bu link kullanılamıyor</h1>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Bu kayıt bağlantısı çalışmıyor</h1>
           <p className="text-slate-500 text-sm">{tokenError}</p>
         </div>
       </div>
@@ -97,9 +97,9 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Kaydınız alındı!</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Kaydınız alındı</h1>
           <p className="text-slate-500 text-sm">
-            Sorumlunuz onayladığında giriş sayfasından Google ile, telefon numaranız ya da e-postanızla girebilirsiniz.
+            Sorumlunuz onaylayınca giriş sayfasından Google, telefon numaranız ya da e-postanızla girebilirsiniz.
           </p>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <AuthLogo className="mb-6" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Ekibe Katıl</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Ekibe katıl</h1>
           <p className="text-slate-500 text-sm">
             <span className="font-semibold text-slate-700">{orgName}</span>
             {locationName && <> · {locationName}</>}
@@ -223,7 +223,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
               disabled={loading}
               className="w-full bg-forest-700 hover:bg-forest-800 text-white font-bold py-3.5 rounded-2xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : "Kaydımı Tamamla"}
+              {loading ? <Loader2 size={18} className="animate-spin" /> : "Kaydımı tamamla"}
             </button>
             <p className="text-center text-xs text-slate-400">
               Hesabınız, sorumlunuz onayladıktan sonra aktif olur.

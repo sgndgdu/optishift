@@ -14,11 +14,11 @@ import { BRAND } from "@/lib/brand";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   denied: "Google girişi iptal edildi.",
-  invalid_request: "Google girişi başarısız oldu, lütfen tekrar deneyin.",
-  invalid_state: "Oturum süresi doldu, lütfen tekrar deneyin.",
+  invalid_request: "Google ile giriş yapılamadı. Tekrar deneyin.",
+  invalid_state: "Google girişi için verilen süre doldu. Tekrar deneyin.",
   exchange_failed: "Google ile bağlantı kurulamadı, lütfen tekrar deneyin.",
-  account_pending: "Hesabınız henüz onaylanmadı. Lütfen sorumlunuzla iletişime geçin.",
-  account_rejected: "Hesabınız reddedildi. Lütfen sorumlunuzla iletişime geçin.",
+  account_pending: "Hesabınız henüz onaylanmadı. Sorumlunuz onaylayınca girebilirsiniz.",
+  account_rejected: "Hesabınız onaylanmadı. Lütfen sorumlunuzla iletişime geçin.",
   already_linked: "Bu Gmail başka bir hesaba bağlı. Farklı bir Gmail seçin ya da o hesapla giriş yapın.",
   signup_closed: "Bu kayıt bağlantısı kapatılmış. Sorumlunuzdan yeni bir bağlantı isteyin.",
 };
@@ -38,7 +38,7 @@ export default function LoginPage() {
     if (typeof window === "undefined") return "";
     const code = new URLSearchParams(window.location.search).get("google_error");
     if (!code || code === "not_found") return "";
-    return GOOGLE_ERROR_MESSAGES[code] ?? "Google girişi başarısız oldu.";
+    return GOOGLE_ERROR_MESSAGES[code] ?? "Google ile giriş yapılamadı. Tekrar deneyin.";
   });
   // Bu Gmail'e bağlı hesap yok: hata değil, iki yol gösterilir (çalışan bağlantı ister, sahip işletme açar)
   const [unknownGmail] = useState(() => {
@@ -64,14 +64,14 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Giriş başarısız");
+        setError(data.error ?? "Giriş yapılamadı. Bilgilerinizi kontrol edip tekrar deneyin.");
         setLoading(false);
         return;
       }
 
       routeAfterLogin(data);
     } catch {
-      setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
       setLoading(false);
     }
   };
@@ -87,7 +87,7 @@ export default function LoginPage() {
           </Link>
           <p className="text-sm text-slate-500">
             <span className="hidden sm:inline">Hesabınız yok mu? </span>
-            <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Kayıt olun</Link>
+            <Link href="/register" className="font-semibold text-forest-700 hover:text-forest-800 transition-colors">Ücretsiz hesap açın</Link>
           </p>
         </header>
 
@@ -96,7 +96,6 @@ export default function LoginPage() {
   
             <div className="mb-8">
               <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-tight">Giriş yapın</h1>
-              <p className="mt-2 text-[15px] text-slate-500">Hesabınıza girin, size ait ekran otomatik açılır.</p>
             </div>
 
             {FEATURES.googleAuth && !unknownGmail && <GoogleOneTap />}
@@ -114,7 +113,7 @@ export default function LoginPage() {
 
             {(sessionExpired && !error) && (
               <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-                Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.
+                Oturumunuz kapandı. Tekrar giriş yapın.
               </div>
             )}
             {(error || googleError) && (

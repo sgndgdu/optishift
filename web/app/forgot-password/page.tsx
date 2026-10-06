@@ -23,10 +23,10 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ identifier: identifier.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Hata oluştu"); return; }
+      if (!res.ok) { setError(data.error ?? "Bir sorun çıktı. Tekrar deneyin."); return; }
       setDone(true);
     } catch {
-      setError("Sunucuya bağlanılamadı.");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
     } finally {
       setLoading(false);
     }
@@ -41,9 +41,9 @@ export default function ForgotPasswordPage() {
           {!done ? (
             <>
               <div className="text-center">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Şifremi Unuttum</h1>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Şifremi unuttum</h1>
                 <p className="text-sm text-slate-500 mt-1.5">
-                  Hesabınıza kayıtlı e-posta adresinizi veya kullanıcı adınızı girin.
+                  Hesabınızdaki e-posta adresini ya da kullanıcı adını yazın. Size şifre yenileme bağlantısı gönderelim.
                 </p>
               </div>
 
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 mb-2 block">
-                    E-posta veya Kullanıcı Adı
+                    E-posta ya da kullanıcı adı
                   </label>
                   <div className="relative">
                     <AtSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    "Sıfırlama Talebi Gönder"
+                    "Bağlantı gönder"
                   )}
                 </button>
               </form>
@@ -92,15 +92,15 @@ export default function ForgotPasswordPage() {
                 <Mail size={26} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Talebiniz Alındı</h2>
+                <h2 className="text-lg font-bold text-slate-900">E-postanızı kontrol edin</h2>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                  Eğer bu e-posta / kullanıcı adı sistemimizde kayıtlıysa, kayıtlı e-posta
-                  adresine bir sıfırlama bağlantısı gönderdik. Bağlantı 1 saat geçerlidir.
+                  Bu bilgiyle bir hesap varsa, hesaptaki e-posta adresine şifre yenileme
+                  bağlantısı gönderdik. Bağlantı 1 saat geçerli.
                 </p>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                E-posta gelmiyorsa spam klasörünü kontrol edin. Hesabınızda kayıtlı e-posta
-                yoksa sorumlunuz size kişi kartından yeni bir geçici şifre oluşturabilir.
+                E-posta birkaç dakikada gelmezse gereksiz (spam) klasörüne bakın. Hesabınızda
+                e-posta yoksa sorumlunuz size yeni bir geçici şifre verebilir.
               </p>
             </div>
           )}

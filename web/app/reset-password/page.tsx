@@ -37,7 +37,7 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError("");
     if (password !== confirm) { setError("Şifreler eşleşmiyor"); return; }
-    if (password.length < 6)  { setError("Şifre en az 6 karakter olmalı"); return; }
+    if (password.length < 6)  { setError("Şifre en az 6 karakterden oluşmalıdır."); return; }
 
     setLoading(true);
     try {
@@ -47,11 +47,11 @@ function ResetPasswordForm() {
         body: JSON.stringify({ token, new_password: password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Hata oluştu"); return; }
+      if (!res.ok) { setError(data.error ?? "Bir sorun çıktı. Tekrar deneyin."); return; }
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch {
-      setError("Sunucuya bağlanılamadı.");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ function ResetPasswordForm() {
           {tokenValid === null && (
             <div className="text-center py-8">
               <div className="w-8 h-8 border-2 border-forest-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
-              <p className="text-sm text-slate-500 mt-3">Link doğrulanıyor…</p>
+              <p className="text-sm text-slate-500 mt-3">Bağlantı kontrol ediliyor…</p>
             </div>
           )}
 
@@ -78,10 +78,10 @@ function ResetPasswordForm() {
                 <AlertCircle size={26} className="text-red-500" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Geçersiz Link</h2>
+                <h2 className="text-lg font-bold text-slate-900">Bu bağlantı çalışmıyor</h2>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                  Bu şifre sıfırlama linki geçersiz veya süresi dolmuş.
-                  Lütfen yeni bir sıfırlama talebi oluşturun.
+                  Bağlantının süresi dolmuş ya da daha önce kullanılmış.
+                  &quot;Şifremi unuttum&quot; sayfasından yenisini isteyin.
                 </p>
               </div>
               <Link
@@ -100,9 +100,9 @@ function ResetPasswordForm() {
                 <CheckCircle2 size={26} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Şifre Güncellendi!</h2>
+                <h2 className="text-lg font-bold text-slate-900">Şifreniz değişti</h2>
                 <p className="text-sm text-slate-500 mt-1.5">
-                  Şifreniz başarıyla değiştirildi. Giriş sayfasına yönlendiriliyorsunuz…
+                  Yeni şifrenizle giriş yapabilirsiniz. Giriş sayfası açılıyor…
                 </p>
               </div>
             </div>
@@ -112,7 +112,7 @@ function ResetPasswordForm() {
           {tokenValid === true && !success && (
             <>
               <div className="text-center">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Yeni Şifre Belirle</h1>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Yeni şifre belirleyin</h1>
                 {name && (
                   <p className="text-sm text-slate-500 mt-1">Merhaba {name}, yeni şifrenizi girin.</p>
                 )}
@@ -128,7 +128,7 @@ function ResetPasswordForm() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 mb-2 block">
-                    Yeni Şifre
+                    Yeni şifre
                   </label>
                   <div className="relative">
                     <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -159,7 +159,7 @@ function ResetPasswordForm() {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 mb-2 block">
-                    Şifre Tekrar
+                    Yeni şifre (tekrar)
                   </label>
                   <div className="relative">
                     <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -185,7 +185,7 @@ function ResetPasswordForm() {
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <><Lock size={15} /> Şifreyi Kaydet</>
+                    <><Lock size={15} /> Şifreyi kaydet</>
                   )}
                 </button>
               </form>

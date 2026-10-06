@@ -22,13 +22,13 @@ export default function PricingPage() {
       <section className="relative pt-12 pb-12 sm:pt-16 sm:pb-20 md:pt-20 md:pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center">
           <h1 className="font-serif text-3xl sm:text-5xl md:text-7xl font-semibold tracking-tight mb-4 sm:mb-6 leading-[1.05] animate-in fade-in slide-in-from-bottom-4 duration-700 text-slate-900">
-            Sürpriz Ücret Yok. <br className="hidden sm:block" />
+            Sürpriz ücret yok. <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-forest-500 to-ember-500">
-              Sadece Verimlilik.
+              Küçük işletmeye sonsuza dek ücretsiz!
             </span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150 px-2">
-            İşletmenizin büyüklüğüne uygun planı seçin. Kredi kartı gerekmez, küçük işletmeler için ücretsiz plan süresiz.
+            İşletmenizin büyüklüğüne uygun paketi seçin.
           </p>
         </div>
       </section>
@@ -50,11 +50,11 @@ export default function PricingPage() {
               </div>
               <Link href="/register" className="w-full mb-8">
                 <Button variant="outline" className="w-full h-14 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 rounded-[1rem] font-bold text-lg transition-all shadow-sm">
-                  Ücretsiz Başla
+                  Ücretsiz hesap aç
                 </Button>
               </Link>
               <div className="space-y-4 flex-1">
-                <p className="text-xs font-bold text-slate-400 mb-4">Neler Dahil?</p>
+                <p className="text-xs font-bold text-slate-400 mb-4">Neler var</p>
                 {FREE.features.map(f => (
                   <div key={f} className="flex items-center gap-3">
                     <CheckCircle2 size={20} className="text-primary" />
@@ -71,7 +71,7 @@ export default function PricingPage() {
               </div>
               
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-forest-500 text-white text-xs font-black px-5 py-2 rounded-full shadow-[0_4px_10px_rgba(20,69,61,0.3)]">
-                ÖNERİLEN
+                Önerilen
               </div>
               <div className="mb-8 relative z-10">
                 <h3 className="text-2xl font-black text-slate-900 mb-2">{PRO.name}</h3>
@@ -83,11 +83,11 @@ export default function PricingPage() {
               </div>
               <Link href="/register" className="w-full mb-8 relative z-10">
                 <Button className="w-full h-14 bg-primary hover:bg-forest-600 text-white rounded-[1rem] font-bold text-lg transition-all shadow-[0_8px_20px_rgba(20,69,61,0.25)] hover:shadow-[0_12px_25px_rgba(20,69,61,0.35)] hover:-translate-y-0.5">
-                  Ücretsiz Başla
+                  Ücretsiz hesap aç
                 </Button>
               </Link>
               <div className="space-y-4 flex-1 relative z-10">
-                <p className="text-xs font-bold text-primary mb-4">Neler Dahil?</p>
+                <p className="text-xs font-bold text-primary mb-4">Neler var</p>
                 {PRO.features.map(f => (
                   <div key={f} className="flex items-center gap-3">
                     <CheckCircle2 size={20} className="text-primary" />
@@ -110,11 +110,11 @@ export default function PricingPage() {
               </div>
               <a href={`mailto:${SALES_EMAIL}?subject=Kurumsal%20Paket%20Teklif%20Talebi`} className="w-full mb-8 block">
                 <Button className="w-full h-14 bg-slate-900 text-white hover:bg-slate-800 rounded-[1rem] font-bold text-lg transition-all flex items-center gap-2 shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:-translate-y-0.5">
-                  Teklif Al <ArrowRight size={18} />
+                  Teklif iste <ArrowRight size={18} />
                 </Button>
               </a>
               <div className="space-y-4 flex-1">
-                <p className="text-xs font-bold text-slate-400 mb-4">Neler Dahil?</p>
+                <p className="text-xs font-bold text-slate-400 mb-4">Neler var</p>
                 {ENT.features.map(f => (
                   <div key={f} className="flex items-center gap-3">
                     <CheckCircle2 size={20} className="text-ember-500" />

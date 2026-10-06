@@ -19,9 +19,9 @@ export default function PublicFooter() {
             <span className="text-xl font-black text-slate-900 tracking-tight">{BRAND.name}</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-bold text-slate-500">
-            <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlandırma</Link>
-            <Link href="/login" className="hover:text-primary transition-colors">Giriş Yap</Link>
-            <Link href="/register" className="hover:text-primary transition-colors">Kayıt Ol</Link>
+            <Link href="/pricing" className="hover:text-primary transition-colors">Fiyatlar</Link>
+            <Link href="/login" className="hover:text-primary transition-colors">Giriş yap</Link>
+            <Link href="/register" className="hover:text-primary transition-colors">Hesap aç</Link>
             <Link href="/kilavuz" className="hover:text-primary transition-colors">Kılavuz</Link>
             <Link href="/gizlilik" className="hover:text-primary transition-colors">Gizlilik &amp; KVKK</Link>
             <Link href="/kullanim-sartlari" className="hover:text-primary transition-colors">Kullanım Şartları</Link>

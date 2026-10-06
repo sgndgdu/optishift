@@ -20,9 +20,6 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
             <h2 className="m-up max-w-[460px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
               Haftanın planı hazır,<br />ekibiniz de haberdar.
             </h2>
-            <p className="m-up mt-4 max-w-[440px] text-[16px] leading-relaxed text-forest-100/75">
-              Hesap sahibi, sorumlu ya da ekip üyesi: herkes aynı kapıdan girer, kendi ekranını görür.
-            </p>
           </>
         ) : (
           <>

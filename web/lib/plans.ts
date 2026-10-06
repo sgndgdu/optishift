@@ -28,10 +28,10 @@ export const PLANS: PlanInfo[] = [
     name: "Ücretsiz",
     price: "₺0",
     period: "/ay",
-    desc: "Tek şubeli kafeler ve butik restoranlar için, süresiz.",
+    desc: "Tek şubeli küçük işletmeler için.",
     maxLocations: 1,
     maxPersonnel: 10,
-    features: ["1 şube", "10 kişiye kadar", "Akıllı otomatik planlama", "Ekip için mobil uygulama"],
+    features: ["1 şube", "10 kişiye kadar", "Akıllı otomatik planlama", "Ekip telefondan kullanır"],
   },
   {
     id: "pro",
@@ -41,7 +41,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Büyüyen işletmeler ve zincir mağazalar için.",
     maxLocations: null,
     maxPersonnel: null,
-    features: ["Sınırsız şube", "Sınırsız kişi", "Adalet Puanı raporları", "Anlık bildirimler", "Puantaj ve bordro raporları"],
+    features: ["Sınırsız şube", "Sınırsız kişi", "Bütün şubeler tek ekranda", "Ücretsiz paketteki her şey"],
   },
   {
     id: "enterprise",

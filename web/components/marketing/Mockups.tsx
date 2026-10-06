@@ -36,7 +36,7 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{sector.location}</p>
-          <p className="text-sm font-semibold text-slate-900">13 - 19 Ekim haftası</p>
+          <p className="text-sm font-semibold text-slate-900">13-19 Ekim haftası</p>
         </div>
         <div className="relative flex items-center">
           {animate && (
@@ -127,7 +127,7 @@ export function PhoneMock({ sector, className }: { sector: Sector; className?: s
           <p className="text-[15px] font-bold text-slate-900">{row.name.split(" ")[0]}</p>
 
           <div className="mt-3 rounded-2xl bg-forest-700 p-3.5 text-white">
-            <p className="text-[9.5px] font-medium uppercase tracking-wider text-forest-200">Sıradaki vardiyan</p>
+            <p className="text-[9.5px] font-medium uppercase tracking-wider text-forest-200">Sıradaki vardiyanız</p>
             <p className="mt-1 text-[17px] font-bold leading-tight">Yarın {first.time.split(" - ")[0]}</p>
             <p className="text-[11px] text-forest-100">{first.label} · {row.role}</p>
             <div className="mt-3 flex gap-1.5">

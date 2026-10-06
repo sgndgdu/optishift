@@ -10,6 +10,9 @@ import { Logo } from "@/components/Logo";
 import { AuthVisual } from "@/components/marketing/AuthVisual";
 import { BRAND } from "@/lib/brand";
 
+
+/** Kampanya kodu alanı şimdilik kapalı (2026-10-06 kullanıcı kararı). Açmak için true yap. */
+const PROMO_CODES_ENABLED = false;
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -21,6 +24,7 @@ export default function RegisterPage() {
   // Reklam kampanyası linki (?ref=KOD) kampanya kodu alanını otomatik doldurur.
   const [initialPromo] = useState(() => {
     if (typeof window === "undefined") return "";
+    if (!PROMO_CODES_ENABLED) return "";
     return new URLSearchParams(window.location.search).get("ref") ?? "";
   });
 
@@ -68,11 +72,11 @@ export default function RegisterPage() {
     setError("");
 
     if (!form.org_name || !form.owner_name || !form.email || !form.password) {
-      setError("Lütfen tüm alanları doldurun.");
+      setError("Eksik alanları doldurun.");
       return;
     }
     if (form.password.length < 6) {
-      setError("Şifreniz en az 6 karakter olmalıdır.");
+      setError("Şifre en az 6 karakterden oluşmalıdır.");
       return;
     }
 
@@ -92,7 +96,7 @@ export default function RegisterPage() {
       setPromoResult({ applied: !!data.promo_applied, trial_ends_at: data.trial_ends_at ?? null });
       setRegisteredUser(data.user);
     } catch {
-      setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
     }
     setLoading(false);
   };
@@ -103,7 +107,7 @@ export default function RegisterPage() {
     if (!googlePending) return;
 
     if (!googleForm.org_name.trim()) {
-      setError("Lütfen işletmenizin adını yazın.");
+      setError("İşletmenizin adını yazın.");
       return;
     }
 
@@ -126,7 +130,7 @@ export default function RegisterPage() {
       setForm((f) => ({ ...f, org_name: googleForm.org_name }));
       setRegisteredUser(data.user);
     } catch {
-      setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
+      setError("Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.");
     }
     setLoading(false);
   };
@@ -162,7 +166,7 @@ export default function RegisterPage() {
                   <strong>{googlePending.name}</strong> ({googlePending.email}) ile devam ediyorsunuz. Son olarak işletmenizin adını yazın.
                 </p>
                 <p className="mt-3 text-xs sm:text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  Bir işletmede çalışıyorsanız yeni işletme açmayın: sorumlunuzdan giriş bağlantısı isteyin, bağlantıda &quot;Google ile devam et&quot;e basın.
+                  {BRAND.name}&apos;e kayıtlı bir işletmede çalışıyorsanız, sorumlunuzdan giriş bağlantısı isteyin ve bağlantıda &quot;Google ile devam et&quot;e basın.
                 </p>
               </div>
 
@@ -203,7 +207,7 @@ export default function RegisterPage() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="mb-8">
                 <h1 className="text-[28px] font-bold text-slate-900 mb-2 tracking-tight leading-tight">Ücretsiz hesap açın</h1>
-                <p className="text-[15px] text-slate-500">Kredi kartı gerekmez. Küçük işletmeye süresiz ücretsiz.</p>
+                <p className="text-[15px] text-slate-500">Kredi kartı gerekmez. Tek bir şube ve toplam 10 kullanıcıya kadar, sonsuza dek ücretsiz.</p>
               </div>
 
               {FEATURES.googleAuth && (
@@ -281,7 +285,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {showPromoField ? (
+                {PROMO_CODES_ENABLED && (showPromoField ? (
                   <div>
                     <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
                       <Gift size={14} className="text-ember-500" />
@@ -322,9 +326,9 @@ export default function RegisterPage() {
                     onClick={() => setShowPromoField(true)}
                     className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-ember-600 transition-colors"
                   >
-                    <Gift size={13} /> Kampanya kodun var mı?
+                    <Gift size={13} /> Kampanya kodunuz var mı?
                   </button>
-                )}
+                ))}
 
                 <button
                   type="submit"
@@ -358,7 +362,7 @@ export default function RegisterPage() {
               <div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hesabınız hazır</h2>
                 <p className="text-slate-500 mt-3 font-medium leading-relaxed">
-                  <strong>{form.org_name}</strong> hazır. Şimdi işletme türünüzü seçip kurulumu tamamlayalım.
+                  Şimdi işletme türünüzü seçin, vardiyalar hazır gelsin. Dilerseniz vardiyalarınızı özelleştirebilir, yeni vardiyalar ekleyebilirsiniz.
                 </p>
               </div>
               {promoResult?.applied && (

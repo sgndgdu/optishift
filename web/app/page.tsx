@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, Check, Scale, ShieldCheck, ArrowLeftRight, Tablet, FileSpreadsheet, Building2,
+  ArrowRight, Check, Scale, ShieldCheck, ArrowLeftRight, FileSpreadsheet, Building2,
   ListChecks, Smartphone, MessageSquare, CalendarClock, Megaphone,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
@@ -19,7 +19,6 @@ const FEATURES = [
   { icon: ShieldCheck, title: "İş Kanunu kuralları hazır", text: "İki vardiya arası en az 11 saat dinlenme, haftalık çalışma sınırı, hafta tatili ve gece çalışma süresi plan kurulurken gözetilir." },
   { icon: Scale, title: "Adalet puanı", text: "Kim kaç hafta sonu ve kaç zor vardiya çalıştı sayılır. Zor vardiyalar sırayla döner, kimse sürekli aynı yükü taşımaz." },
   { icon: ArrowLeftRight, title: "Takas, izin, açık vardiya", text: "Ekip takas ister, izin ister, boşta kalan vardiyayı üstlenir. Kurala uymayan değişiklik daha istek aşamasında durur." },
-  { icon: Tablet, title: "Tablet ile giriş çıkış", text: "İş yerindeki ortak tablete PIN ile giriş. İsterseniz telefondan konum doğrulamalı giriş." },
   { icon: FileSpreadsheet, title: "Puantaj ve fazla mesai", text: "Çalışılan saat, geç kalma, fazla mesai ve izinler ay sonunda raporda. Excel olarak indirilir." },
   { icon: Building2, title: "Çok şube, tek panel", text: "Bütün şubeleri tek ekranda görün. Birden çok şubede çalışan kişinin saatleri birlikte sayılır." },
 ];
@@ -33,7 +32,7 @@ const STEPS = [
   {
     n: "2",
     title: "Plan saniyeler içinde hazır",
-    text: "Uygunluklar, yasal kurallar ve adalet puanı birlikte hesaplanır. Beğenmediğiniz hücreyi elle değiştirin, gerisi korunur.",
+    text: "Kimin ne zaman gelebildiği, yasal kurallar ve adalet puanı birlikte gözetilir. Beğenmediğiniz hücreyi elle değiştirin, gerisi korunur.",
   },
   {
     n: "3",
@@ -59,12 +58,12 @@ export default function LandingPage() {
             </Link>
             <h1 className="font-serif text-[42px] font-semibold leading-[1.04] tracking-tight text-slate-900 sm:text-6xl lg:text-[68px]">
               <span className="m-up block" style={{ "--d": "80ms" } as React.CSSProperties}>Vardiya planı,</span>
-              <span className="m-up block text-forest-700" style={{ "--d": "180ms" } as React.CSSProperties}>dakikalar içinde</span>
+              <span className="m-up block text-forest-700" style={{ "--d": "180ms" } as React.CSSProperties}>saniyeler içinde</span>
               <span className="m-up block" style={{ "--d": "280ms" } as React.CSSProperties}>ve herkese adil.</span>
             </h1>
             <p className="m-up mt-6 text-[17px] leading-relaxed text-slate-600 sm:text-lg" style={{ "--d": "400ms" } as React.CSSProperties}>
-              Kaç kişiye ihtiyacınız olduğunu söyleyin, {BRAND.name}{" "}haftanın planını İş Kanunu&apos;na uygun ve dengeli şekilde kursun.
-              Ekibiniz vardiyasını, takasını ve iznini telefonundan yönetsin.
+              Kaç kişiye ihtiyacınız olduğunu yazın. {BRAND.name}{" "}haftanın planını İş Kanunu&apos;na uygun ve adil şekilde kursun.
+              Ekibiniz vardiyasını, takasını ve iznini telefondan görsün.
             </p>
             <div className="m-up mt-9 flex flex-col gap-3 sm:flex-row" style={{ "--d": "500ms" } as React.CSSProperties}>
               <Link href="/register" className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-forest-700 px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-10px_rgba(20,69,61,0.7)] transition-colors hover:bg-forest-800">
@@ -127,7 +126,7 @@ export default function LandingPage() {
           ))}
         </div>
         <p className="mx-auto max-w-7xl px-4 pb-5 text-center text-xs text-slate-400 sm:px-6">
-          4857 sayılı İş Kanunu&apos;nun vardiya kuralları varsayılan olarak açıktır, işletmenize göre ayarlanabilir.
+          4857 sayılı İş Kanunu&apos;nun vardiya kuralları baştan açık gelir. İşletmenize göre değiştirebilirsiniz.
         </p>
       </section>
 
@@ -164,7 +163,7 @@ export default function LandingPage() {
                   {i === 1 && <ChecksMini />}
                   {i === 2 && (
                     <div className="space-y-2">
-                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13 - 19 Ekim vardiyaların hazır." className="m-up w-full" style={{ "--d": "700ms" } as React.CSSProperties} />
+                      <Toast icon="bell" title="Yeni haftanın planı yayında" text="13-19 Ekim vardiyalarınız hazır." className="m-up w-full" style={{ "--d": "700ms" } as React.CSSProperties} />
                       <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={{ "--d": "1300ms" } as React.CSSProperties} />
                     </div>
                   )}
@@ -195,7 +194,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="m-up absolute bottom-10 -left-4 z-20 hidden sm:block" style={{ "--d": "900ms" } as React.CSSProperties}>
-                <Toast icon="bell" title="Açık vardiya: Cumartesi 15:00" text="Mert gelemiyor. Almak ister misin?" />
+                <Toast icon="bell" title="Açık vardiya: Cumartesi 15:00" text="Mert gelemiyor. Almak ister misiniz?" />
               </div>
             </Reveal>
           </div>
@@ -209,7 +208,7 @@ export default function LandingPage() {
               {[
                 { icon: Smartphone, t: "Vardiyasını görür", d: "Haftası, kiminle çalıştığı, sıradaki vardiyası." },
                 { icon: CalendarClock, t: "Uygunluğunu girer", d: "Gelemeyeceği günler plana kendiliğinden yansır." },
-                { icon: ArrowLeftRight, t: "Takas ve izin ister", d: "Kurala uymayan takas daha gönderilmeden uyarır." },
+                { icon: ArrowLeftRight, t: "Takas ve izin ister", d: "Kurala uymayan takası gönderilmeden önce uyarır." },
                 { icon: Megaphone, t: "Açık vardiyayı alır", d: "Biri gelemezse uygun olanlara anında haber gider." },
                 { icon: MessageSquare, t: "Ekiple yazışır", d: "Şube sohbeti ve sorumluya doğrudan mesaj." },
                 { icon: ListChecks, t: "Devir notunu okur", d: "Önceki vardiyanın bıraktığı not girişte karşılar." },
@@ -233,12 +232,12 @@ export default function LandingPage() {
       <section id="features" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto mb-14 max-w-2xl text-center">
-            <p className="mb-3 text-sm font-semibold text-ember-600">Platform</p>
+            <p className="mb-3 text-sm font-semibold text-ember-600">Özellikler</p>
             <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planlamadan puantaja, tek yerde.</h2>
           </div>
           <Reveal className="grid gap-px overflow-hidden rounded-3xl bg-slate-200/70 ring-1 ring-slate-200/70 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, text }, i) => (
-              <div key={title} className="m-up group bg-white p-7 transition-colors hover:bg-forest-50/40 sm:p-9" style={{ "--d": `${i * 80}ms` } as React.CSSProperties}>
+              <div key={title} className="m-up group bg-white p-7 sm:last:col-span-2 lg:last:col-span-2 transition-colors hover:bg-forest-50/40 sm:p-9" style={{ "--d": `${i * 80}ms` } as React.CSSProperties}>
                 <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-forest-50 text-forest-700 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg]">
                   <Icon size={21} />
                 </span>
@@ -257,7 +256,7 @@ export default function LandingPage() {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-forest-900/40 to-forest-900/80" />
           <Reveal className="relative">
             <h2 className="m-up mx-auto max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
-              Gelecek haftanın planını bugün, on dakikada hazırlayın.
+              Gelecek haftanın planı, saniyeler içinde hazır.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-forest-100/80 sm:text-lg">
               Bir şube ve on kişiye kadar süresiz ücretsiz. Büyüdüğünüzde paketinizi yükseltirsiniz.
@@ -267,7 +266,7 @@ export default function LandingPage() {
                 Ücretsiz hesap açın <ArrowRight size={18} />
               </Link>
               <Link href="/pricing" className="inline-flex items-center justify-center rounded-2xl px-8 py-4 text-base font-semibold text-white ring-1 ring-white/30 transition-colors hover:bg-white/10">
-                Paketleri görün
+                Paketleri gör
               </Link>
             </div>
           </Reveal>
