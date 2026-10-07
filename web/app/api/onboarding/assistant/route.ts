@@ -11,8 +11,9 @@ import { businessToday } from "@/lib/date";
 export const maxDuration = 60;
 
 const MAX_TURNS = 14;
-// Kurulum cevabı uzun JSON: düşünme düşük ("minimal" bu modelde yok), süre fonksiyon sınırına yakın
-const CHAT_OPTS = { thinking: "low" as const, timeoutMs: 55_000 };
+// Ücretsiz katmanda büyük flash modeller 15-40+ sn sürebiliyor (2026-10-07 ölçümü); hafif model ~1-2 sn
+// ve öneri kalitesi yeterli. Yanıt vermezse 3.5-flash denenir.
+const CHAT_OPTS = { thinking: "low" as const, timeoutMs: 25_000, models: [process.env.GEMINI_SETUP_MODEL || "gemini-flash-lite-latest", "gemini-3.5-flash"] };
 const DAILY_LIMIT = 40; // kişi başı; kurulum bir kez yapılır, ücretsiz kotayı korur
 const usage = new Map<string, { day: string; n: number }>();
 

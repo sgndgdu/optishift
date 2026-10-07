@@ -23,13 +23,14 @@ export function aiChatProvider(): AiProvider | null {
 
 const FAIL = "Asistan şu an cevap veremiyor, biraz sonra tekrar deneyin.";
 
-export type ChatOptions = { thinking?: "minimal" | "low"; timeoutMs?: number };
+/** models: Gemini model sırası (verilmezse varsayılan liste); timeoutMs: model başına süre */
+export type ChatOptions = { thinking?: "low"; timeoutMs?: number; models?: string[] };
 
 async function geminiChat(system: string, turns: ChatTurn[], opts: ChatOptions = {}): Promise<ChatResult> {
   // Interactions API (yeni hesaplarda generateContent ile yeni modeller 404 veriyor).
   // Geçmiş "step" biçiminde gönderilir, sunucuda saklanmaz (store: false).
   const key = process.env.GEMINI_API_KEY!;
-  const models = [process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter(Boolean) as string[];
+  const models = opts.models ?? ([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter(Boolean) as string[]);
   for (const model of [...new Set(models)]) {
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
@@ -46,7 +47,7 @@ async function geminiChat(system: string, turns: ChatTurn[], opts: ChatOptions =
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 45_000),
     }).catch((e) => { console.error("[ai/gemini] istek düştü", model, String(e).slice(0, 200)); return null; });
-    if (!res) return { ok: false, error: FAIL };
+    if (!res) { if (opts.models) continue; return { ok: false, error: FAIL }; }
     // Model bu hesapta yok (404) ya da ücretsiz katmanda geçici yoğunluk (503/500): sıradaki modeli dene
     if (res.status === 404 || res.status === 503 || res.status === 500) {
       console.error("[ai/gemini] model atlandı", model, res.status, (await res.text().catch(() => "")).slice(0, 200));
