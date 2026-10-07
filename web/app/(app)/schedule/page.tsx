@@ -3104,12 +3104,11 @@ loading ? (
           />
           {!loading && activeLocationId && <WeekCalendarCard locationId={activeLocationId} weekStart={weekStart} />}
           {/* Planı cümleyle değiştirme (yapay zekâ): dolu ve düzenlenebilir haftada */}
-          {/* Her hafta görünür: plan yoksa önce oluşturulur, yayınlanmış haftada Düzenle ile açılır */}
+          {/* Her hafta görünür; plan yoksa / yayınlanmışsa üstteki tek Planı Oluştur / Düzenle düğmesine yönlendirir */}
           {aiEnabled && !loading && activeLocationId && !viewOnly && !(isPublishedWeek && !canPublish) && (
             <PlanInstructBar locationId={activeLocationId} weekStart={weekStart}
               mode={isPublishedWeek && !editUnlocked ? "locked" : cellCount === 0 ? "empty" : "ready"}
-              onRebuild={overrides => runGenerate({ overrides })} onUndo={undo}
-              onUnlock={() => setEditUnlocked(true)} onCreate={() => openWizard()} />
+              onRebuild={overrides => runGenerate({ overrides })} onUndo={undo} />
           )}
           {/* Rehber üç adım bitene kadar kalır; haftada plan oluştuysa ihtiyaç tablosu bilinçli boş bırakılmış olabilir */}
           {!loading && (shiftDefs.length === 0 || personnel.length === 0 || (dbShiftCount === 0 && demandEmpty)) && (

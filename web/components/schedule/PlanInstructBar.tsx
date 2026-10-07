@@ -7,10 +7,11 @@
  *
  * Konuşma olarak çalışır (2026-10-07, kullanıcı geri bildirimi): yapay zekâ soru sorarsa altta cevap yazılır,
  * önceki mesajlar sunucuya `history` ile gider; anlaşılan listeye ekleme/düzeltme de aynı kutudan yazılır.
- * Kutu her hafta görünür: plan yoksa "Planı Oluştur", yayınlanmış haftada "Düzenle" ile açılır.
+ * Kutu her hafta görünür; plan yoksa veya hafta yayınlanmışsa sadece üstteki Planı Oluştur / Düzenle düğmesine yönlendirir
+ * (düğme tek yerde, sayfanın üst çubuğunda).
  */
 import { useEffect, useRef, useState } from "react";
-import { Lock, RotateCcw, Send, Sparkles, Undo2 } from "lucide-react";
+import { RotateCcw, Send, Sparkles, Undo2 } from "lucide-react";
 import type { PlanOverride } from "@/lib/planOverrides";
 import { cn } from "@/lib/utils";
 
@@ -23,12 +24,10 @@ type Msg =
 
 export type InstructMode = "ready" | "locked" | "empty";
 
-export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild, onUndo, onUnlock, onCreate }: {
+export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild, onUndo }: {
   locationId: string; weekStart: string; mode: InstructMode;
   onRebuild: (overrides: PlanOverride[]) => Promise<RebuildResult>;
   onUndo: () => void;
-  onUnlock: () => void;
-  onCreate: () => void;
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"" | "parse" | "build">("");
@@ -110,17 +109,11 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
     return (
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
         {header}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-          <p className="text-sm text-slate-600">
-            {mode === "locked"
-              ? "Bu hafta yayınlanmış. Yazarak değiştirmek için önce düzenlemeyi açın."
-              : "Bu haftanın planı henüz yok. Önce planı oluşturun, sonra buradan yazarak değiştirebilirsiniz."}
-          </p>
-          <button type="button" onClick={mode === "locked" ? onUnlock : onCreate}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
-            {mode === "locked" ? <><Lock size={13} /> Düzenle</> : <><Sparkles size={13} /> Planı Oluştur</>}
-          </button>
-        </div>
+        <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+          {mode === "locked"
+            ? "Bu hafta yayınlanmış. Yazarak değiştirmek için önce üstteki Düzenle düğmesiyle düzenlemeyi açın."
+            : "Bu haftanın planı henüz yok. Önce üstteki Planı Oluştur düğmesiyle planı oluşturun, sonra buradan yazarak değiştirebilirsiniz."}
+        </p>
       </div>
     );
   }
