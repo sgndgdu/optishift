@@ -16,6 +16,9 @@ const MAX_QUESTION = 500;
 const MAX_TURNS = 8;
 const DAILY_LIMIT = 60; // kişi başı, ücretsiz kotayı korumak için (sunucu örneği başına, kabaca)
 const usage = new Map<string, { day: string; n: number }>();
+// Ücretsiz katmanda büyük flash model 45 sn'de cevap vermeyip düşüyordu (2026-10-07); kurulumdaki gibi hafif model,
+// yanıt vermezse 3.5-flash. Claude'a geçince (AI_PROVIDER=anthropic) bu liste kullanılmaz.
+const CHAT_OPTS = { thinking: "low" as const, timeoutMs: 25_000, models: [process.env.GEMINI_CHAT_MODEL || "gemini-flash-lite-latest", "gemini-3.5-flash"] };
 
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
   while (history.length && history[0].role !== "user") history.shift();
 
   const context = await buildBusinessContext(db, auth, locationId);
-  const result = await aiChat(systemPrompt(context, !!locationId), [...history, { role: "user", text: question }]);
+  const result = await aiChat(systemPrompt(context, !!locationId), [...history, { role: "user", text: question }], CHAT_OPTS);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   const { answer, raw } = splitAssistantReply(result.text);
   const { actions, dropped } = locationId ? await resolveActions(db, auth, locationId, raw) : { actions: [], dropped: [] };
