@@ -100,9 +100,9 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   }
 
   // Takvim: bu ve gelecek haftanın özel günleri, işletmenin aynı gündeki geçmişiyle (lib/weekCalendar; hava yok, hızlı kalsın)
-  // Önümüzdeki 5 hafta: bayram gibi günler için önceden soru sorulabilsin
+  // Önümüzdeki 5 hafta: bayram gibi günler için önceden soru sorulabilsin (geçmiş karşılaştırması yok, cevap hızlı kalsın)
   const cal = (await Promise.all([0, 1, 2, 3, 4].map(w =>
-    buildWeekCalendar(db, loc.id, addDays(weekStart, 7 * w), { weather: false }).catch(() => [])))).flat();
+    buildWeekCalendar(db, loc.id, addDays(weekStart, 7 * w), { weather: false, history: false }).catch(() => [])))).flat();
   if (cal.length) { out.push("### Takvim (önümüzdeki haftaların özel günleri)"); out.push(...calendarLines(cal).map(l => `- ${l}`)); }
 
   // Gelecek haftanın uygunluğu

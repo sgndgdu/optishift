@@ -84,7 +84,7 @@ async function weatherItems(lat: number, lon: number, start: string, end: string
   return out;
 }
 
-export async function buildWeekCalendar(db: any, locationId: string, weekStart: string, opts: { weather?: boolean } = {}): Promise<CalendarItem[]> {
+export async function buildWeekCalendar(db: any, locationId: string, weekStart: string, opts: { weather?: boolean; history?: boolean } = {}): Promise<CalendarItem[]> {
   const loc = await db.prepare(`SELECT rules, latitude, longitude FROM locations WHERE id = ?`).get(locationId) as any;
   if (!loc) return [];
   const industry = industryFromRules(J(loc.rules, {}))?.key ?? null;
@@ -93,7 +93,7 @@ export async function buildWeekCalendar(db: any, locationId: string, weekStart: 
   for (const s of specialDaysInRange(weekStart, end, industry)) {
     let detail = s.note;
     const prev = previousOccurrence(s);
-    if (prev) {
+    if (prev && opts.history !== false) {
       const h = await historyNote(db, locationId, prev).catch(() => null);
       if (h) detail = `${detail} ${h}`;
     }
