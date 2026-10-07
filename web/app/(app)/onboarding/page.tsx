@@ -5,9 +5,9 @@ import { getPlan, limitMessage } from "@/lib/plans";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
 import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
-import { Store, CalendarClock, Plus, Trash2, Users, Sparkles } from "lucide-react";
+import { Store, CalendarClock, Plus, Trash2, Users, Sparkles, UserPlus } from "lucide-react";
 import { SetupChat } from "@/components/onboarding/SetupChat";
-import type { SetupProposal } from "@/lib/ai/setupAssistant";
+import type { SetupPerson, SetupProposal } from "@/lib/ai/setupAssistant";
 import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
@@ -25,6 +25,9 @@ const BASE_STEPS = [
 ];
 // Yapay zekâ önerisi kaç kişi gerektiğini de getirdiyse üçüncü adımda gösterilir
 const DEMAND_STEP = { label: "Kaç kişi", icon: Users };
+// Fotoğraftan/listeden ekip okunduysa son adımda gösterilir; onayda herkes eklenir
+const TEAM_STEP = { label: "Ekibiniz", icon: UserPlus };
+const FREE_TEAM_LIMIT = 10;
 const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const DIFFICULTY_POINTS = { easy: 3, medium: 5, hard: 8 } as const;
 
@@ -63,7 +66,12 @@ export default function OnboardingWizard() {
   // Önerinin çalışma saatleri ve kaç kişi gerektiği: departman adı ("" = departmansız) → vardiya id → 7 gün
   const [opHours, setOpHours] = useState<{ open: string; close: string; closedDays: number[] } | null>(null);
   const [demand, setDemand] = useState<Record<string, Record<string, number[]>>>({});
-  const STEPS = aiApplied ? [...BASE_STEPS, DEMAND_STEP] : BASE_STEPS;
+  // Fotoğraftan okunan ekip (lib/ai/setupAssistant SetupPerson); adım bir kez açılınca liste boşalsa da kalır
+  const [team, setTeam] = useState<SetupPerson[]>([]);
+  const [teamFound, setTeamFound] = useState(false);
+  const stepKeys = ["business", "shifts", ...(aiApplied ? ["demand"] : []), ...(teamFound ? ["team"] : [])];
+  const STEPS = stepKeys.map(k => (k === "business" ? BASE_STEPS[0] : k === "shifts" ? BASE_STEPS[1] : k === "demand" ? DEMAND_STEP : TEAM_STEP));
+  const cur = stepKeys[step];
 
   // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
   const [shifts, setShifts] = useState<ShiftDefinition[]>(() => getVariant(getIndustry("hospitality")!, "cafe").shifts.map(d => ({ ...d })));
@@ -133,6 +141,8 @@ export default function OnboardingWizard() {
     }
     setDemand(dm);
     setAiSummary(p.summary);
+    setTeam(p.team ?? []);
+    setTeamFound((p.team ?? []).length > 0);
     setAiApplied(true);
     setMode("form");
     setStep(0);
@@ -260,12 +270,28 @@ export default function OnboardingWizard() {
         }
       }
 
+      // Fotoğraftan okunan ekip ilk şubeye eklenir (departmanlar yukarıda açıldı; hesap + davet bağlantısı)
+      const people = team.filter(t => t.name.trim().length >= 2);
+      let teamAdded = 0;
+      const teamTarget = newLocationIds[0] ?? targets[0]?.id;
+      if (people.length && teamTarget) {
+        const r = await fetch("/api/personnel/bulk", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location_id: teamTarget,
+            rows: people.map((t, i) => ({ line: i + 1, name: t.name.trim(), department: t.department, phone: t.phone })),
+          }),
+        }).then(x => (x.ok ? x.json() : null)).catch(() => null);
+        teamAdded = Number(r?.addedCount ?? 0);
+      }
+
       // Ara ekran yok: tek şube doğrudan Vardiya Planı'na (Hızlı Kurulum yol gösterir), çok şube Tüm Şubeler'e
       const allIds = [...existingByName.values(), ...newLocationIds];
       if (allIds.length === 1) {
         openBranchPanel(user, allIds[0]);
-        // Tam yükleme: kenar menü kurulum sırasında (şube yokken) yüklendi, yeniden okumalı
-        window.location.assign("/schedule");
+        // Tam yükleme: kenar menü kurulum sırasında (şube yokken) yüklendi, yeniden okumalı.
+        // Ekip ve kaç kişi tablosu hazırsa plan sihirbazı açık gelir: ilk plan tek dokunuşla oluşur
+        window.location.assign(teamAdded > 0 && aiApplied ? "/schedule?wizard=1" : "/schedule");
         return;
       }
       router.push("/supervisor");
@@ -460,7 +486,7 @@ export default function OnboardingWizard() {
             )}
 
             {/* ── Adım 2: Kaç kişi (yapay zekâ önerisinden) ── */}
-            {step === 2 && aiApplied && (
+            {cur === "demand" && (
               <WizardStep icon={<Users size={24} />} color="bg-forest-100 text-forest-600"
                 title="Her gün kaç kişi gerekli?"
                 sub="Yapay zekâ anlattıklarınıza göre doldurdu. Plan bu sayılara göre hazırlanır. İstediğiniz kutuyu değiştirin.">
@@ -487,6 +513,48 @@ export default function OnboardingWizard() {
                   ))}
                 </div>
                 <p className="text-xs text-slate-400">Bu tabloyu sonra Vardiya Planı sayfasından da değiştirebilirsiniz.</p>
+              </WizardStep>
+            )}
+
+            {/* ── Ekibiniz (fotoğraftan okunan) ── */}
+            {cur === "team" && (
+              <WizardStep icon={<UserPlus size={24} />} color="bg-forest-100 text-forest-600"
+                title="Ekibiniz"
+                sub="Yapay zekâ bu adları fotoğraftan okudu. Yanlış okunan adı düzeltin, olmayan kişiyi silin. Onaylayınca herkes ekibe eklenir ve giriş bağlantıları hazırlanır.">
+                <div className="space-y-2">
+                  {team.map((t, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2 sm:flex-nowrap">
+                      <input value={t.name} onChange={e => setTeam(p => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                        aria-label={`${i + 1}. kişinin adı`} placeholder="Ad Soyad" maxLength={60}
+                        className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-[15px] focus:border-primary focus:outline-none" />
+                      {pickedDepts.length > 0 && (
+                        <select value={t.department} onChange={e => setTeam(p => p.map((x, j) => (j === i ? { ...x, department: e.target.value } : x)))}
+                          aria-label={`${t.name || "Kişi"} departmanı`}
+                          className="h-11 w-[calc(100%-3.25rem)] rounded-lg border border-slate-200 bg-white px-2 text-sm sm:w-36">
+                          <option value="">Departman seçin</option>
+                          {pickedDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      )}
+                      <button type="button" onClick={() => setTeam(p => p.filter((_, j) => j !== i))} aria-label={`${t.name || "Kişiyi"} sil`}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setTeam(p => [...p, { name: "", department: "", phone: "" }])}
+                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-forest-700 hover:bg-forest-50">
+                    <Plus size={16} /> Kişi ekle
+                  </button>
+                </div>
+                <div className="space-y-1 text-xs text-slate-500">
+                  <p>Toplam {team.filter(t => t.name.trim().length >= 2).length} kişi. Telefon numaralarını ve çalışma saatlerini sonra Ekip sayfasından ekleyebilirsiniz.</p>
+                  {pickedDepts.length > 0 && team.some(t => t.name.trim() && !t.department) && (
+                    <p className="font-semibold text-amber-700">Departmanı seçilmeyen kişiler otomatik plana alınmaz. Ekip sayfasından da seçebilirsiniz.</p>
+                  )}
+                  {freePlan && team.length > FREE_TEAM_LIMIT && (
+                    <p className="font-semibold text-amber-700">Ücretsiz pakette ilk {FREE_TEAM_LIMIT} kişi eklenir. Kalanlar için paketi yükseltebilirsiniz.</p>
+                  )}
+                </div>
               </WizardStep>
             )}
 

@@ -9,7 +9,9 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
-export type ChatTurn = { role: "user" | "assistant"; text: string };
+/** images: kullanıcı mesajına eklenen resimler (base64, ör. kurulumda çizelge fotoğrafı) */
+export type ChatImage = { mime: string; data: string };
+export type ChatTurn = { role: "user" | "assistant"; text: string; images?: ChatImage[] };
 export type ChatResult = { ok: true; text: string } | { ok: false; error: string };
 export type AiProvider = "gemini" | "anthropic";
 
@@ -42,7 +44,10 @@ async function geminiChat(system: string, turns: ChatTurn[], opts: ChatOptions =
         generation_config: { thinking_level: opts.thinking ?? "low", max_output_tokens: 4096 },
         input: turns.map(t => ({
           type: t.role === "assistant" ? "model_output" : "user_input",
-          content: [{ type: "text", text: t.text }],
+          content: [
+            ...(t.role === "user" ? (t.images ?? []).map(im => ({ type: "image", data: im.data, mime_type: im.mime })) : []),
+            { type: "text", text: t.text },
+          ],
         })),
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 45_000),
@@ -77,7 +82,12 @@ async function anthropicChat(system: string, turns: ChatTurn[]): Promise<ChatRes
       // Kısa, veriye dayalı cevaplar: düşük çaba yeterli ve ucuz
       output_config: { effort: "low" },
       system,
-      messages: turns.map(t => ({ role: t.role, content: t.text })),
+      messages: turns.map(t => (t.role === "user" && t.images?.length
+        ? { role: t.role, content: [
+            ...t.images.map(im => ({ type: "image" as const, source: { type: "base64" as const, media_type: im.mime as "image/jpeg", data: im.data } })),
+            { type: "text" as const, text: t.text },
+          ] }
+        : { role: t.role, content: t.text })),
     });
     if (response.stop_reason === "refusal") return { ok: false, error: "Bu soruya cevap verilemedi." };
     const text = response.content.flatMap(b => (b.type === "text" ? [b.text] : [])).join("").trim();

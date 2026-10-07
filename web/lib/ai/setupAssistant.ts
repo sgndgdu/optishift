@@ -7,6 +7,8 @@
 import { INDUSTRIES, getIndustry, getVariant } from "@/lib/templates";
 
 export type SetupShift = { name: string; start: string; end: string; difficulty: "easy" | "medium" | "hard" };
+/** Fotoğraftan ya da yazılan listeden okunan ekip üyesi; department önerideki departmanlardan biri ya da "" */
+export type SetupPerson = { name: string; department: string; phone: string };
 export type SetupProposal = {
   industry: string;
   variant: string;
@@ -19,6 +21,8 @@ export type SetupProposal = {
   teamSize: number | null;
   /** departman adı (departman yoksa "") → vardiya adı → 7 günün kişi sayısı */
   demand: Record<string, Record<string, number[]>>;
+  /** Fotoğraftan/listeden okunan ekip (yoksa boş) */
+  team: SetupPerson[];
   summary: string;
 };
 export type SetupReply = { type: "question"; text: string } | { type: "proposal"; text: string; proposal: SetupProposal };
@@ -51,6 +55,14 @@ Kurallar:
 - Kişi sayılarında ekip büyüklüğünü aşma: bir günde çalışan toplam kişi, ekibin yaklaşık üçte ikisini geçmesin.
 - Saatler HH:MM biçiminde. Gece yarısını geçen vardiyada bitiş başlangıçtan küçük olur (ör. 16:00-01:00).
 
+Fotoğraf eklendiyse (kâğıt ya da Excel vardiya çizelgesi, ekip listesi, ekran görüntüsü):
+- Üzerindeki kişi adlarını "team" listesine yaz. Okuyamadığın adı uydurma, atla. Aynı kişiyi bir kez yaz.
+- Bölüm başlığı ya da sütunu varsa (Mutfak, Salon, Kasa) bunları departman yap ve kişiyi bağla.
+- Çizelgedeki vardiya saatlerini "shifts"e yaz. Her gün her vardiyada kaç kişi yazılıysa "demand"e o sayıyı koy.
+- Telefon numarası görünüyorsa "phone"a yaz, yoksa boş bırak.
+- teamSize, team listesindeki kişi sayısından az olamaz.
+- Fotoğraftan yeterli bilgi çıktıysa soru sorma, hemen proposal yaz. Fotoğraf okunamıyorsa bunu söyleyip daha net bir fotoğraf iste.
+
 Katalog:
 ${catalog()}
 
@@ -64,9 +76,10 @@ Bilgiler yeterli olunca:
   "open": "07:00", "close": "23:00", "closedDays": [6],
   "teamSize": 12,
   "demand": {"Salon": {"Açılış": [2,2,2,2,3,4,3]}, "Mutfak": {"Açılış": [1,1,1,1,1,2,2]}},
+  "team": [{"name": "Ayşe Demir", "department": "Salon", "phone": ""}],
   "summary": "Sahibe gösterilecek 2-3 cümlelik özet"
 }}
-demand anahtarları departman adlarıdır; departman yoksa tek anahtar "" kullan. Diziler Pazartesi'den Pazar'a 7 sayıdır, kapalı günlerde 0.`;
+demand anahtarları departman adlarıdır; departman yoksa tek anahtar "" kullan. team sadece kişi adları biliniyorsa doldurulur, yoksa boş dizi. Diziler Pazartesi'den Pazar'a 7 sayıdır, kapalı günlerde 0.`;
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -116,7 +129,9 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
   const closedDays = Array.isArray(r.closedDays)
     ? [...new Set(r.closedDays.map(d => clampInt(d, -1, 6, -1)).filter(d => d >= 0))].slice(0, 6)
     : [];
-  const teamSize = r.teamSize == null ? null : clampInt(r.teamSize, 1, 500, 0) || null;
+  const team = normalizeTeam(r.team, departments);
+  let teamSize = r.teamSize == null ? null : clampInt(r.teamSize, 1, 500, 0) || null;
+  if (team.length && (teamSize ?? 0) < team.length) teamSize = team.length;
 
   // İhtiyaç: bilinen departman/vardiya adlarıyla eşleşen, 7 elemanlı, 0-50 arası sayılar
   const deptKeys = departments.length ? departments : [""];
@@ -150,7 +165,31 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
   }
 
   const summary = typeof r.summary === "string" ? r.summary.trim().slice(0, 600) : "";
-  return { industry: industry.key, variant: variant.key, departments, shifts, open, close, closedDays, teamSize, demand, summary };
+  return { industry: industry.key, variant: variant.key, departments, shifts, open, close, closedDays, teamSize, demand, team, summary };
+}
+
+const MAX_TEAM = 200;
+/** Ekip listesi: ad 2-60 harf, aynı ad bir kez, departman önerideki departmanlardan biri (değilse ""), telefon sadece rakam */
+export function normalizeTeam(raw: unknown, departments: string[]): SetupPerson[] {
+  if (!Array.isArray(raw)) return [];
+  const deptOf = (v: unknown) => {
+    const w = typeof v === "string" ? v.trim().toLocaleLowerCase("tr") : "";
+    return departments.find(d => d.toLocaleLowerCase("tr") === w) ?? "";
+  };
+  const seen = new Set<string>();
+  const out: SetupPerson[] = [];
+  for (const item of raw) {
+    const x = (typeof item === "string" ? { name: item } : item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const name = typeof x.name === "string" ? x.name.replace(/\s+/g, " ").trim().slice(0, 60) : "";
+    if (name.length < 2 || !/\p{L}/u.test(name)) continue;
+    const key = name.toLocaleLowerCase("tr");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const digits = typeof x.phone === "string" ? x.phone.replace(/[^\d+]/g, "") : "";
+    out.push({ name, department: deptOf(x.department), phone: digits.length >= 10 ? digits.slice(0, 20) : "" });
+    if (out.length >= MAX_TEAM) break;
+  }
+  return out;
 }
 
 /** Modelin ham cevabını soru ya da öneriye çevirir */
