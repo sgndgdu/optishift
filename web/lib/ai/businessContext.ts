@@ -14,6 +14,7 @@ import { summarizeOperatingHours } from "@/lib/operatingHours";
 import { industryFromRules } from "@/lib/templates";
 import { hasPerm } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
+import { buildWeekCalendar, calendarLines } from "@/lib/weekCalendar";
 
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const day = (d: number) => DAY_SHORT[d] ?? String(d);
@@ -97,6 +98,13 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
       if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}${r.check_in_at ? " (geldi)" : ""}`).join(", ")}`);
     }
   }
+
+  // Takvim: bu ve gelecek haftanın özel günleri, işletmenin aynı gündeki geçmişiyle (lib/weekCalendar; hava yok, hızlı kalsın)
+  const cal = [
+    ...await buildWeekCalendar(db, loc.id, weekStart, { weather: false }).catch(() => []),
+    ...await buildWeekCalendar(db, loc.id, nextWeek, { weather: false }).catch(() => []),
+  ];
+  if (cal.length) { out.push("### Takvim (özel günler)"); out.push(...calendarLines(cal).map(l => `- ${l}`)); }
 
   // Gelecek haftanın uygunluğu
   const avail = await db.prepare(`SELECT * FROM availability WHERE week_start = ? AND personnel_id IN (SELECT id FROM personnel WHERE org_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?))`)

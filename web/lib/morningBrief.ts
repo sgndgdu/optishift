@@ -9,6 +9,8 @@ import type { AuthUser } from "@/lib/auth";
 import { businessNow } from "@/lib/date";
 import { buildSuggestions } from "@/lib/suggestions";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
+import { specialDaysInRange } from "@/lib/specialDays";
+import { industryFromRules } from "@/lib/templates";
 
 const parseRules = (r: any) => { try { return typeof r === "string" ? JSON.parse(r || "{}") : (r ?? {}); } catch { return {}; } };
 const names = (list: string[], max = 3) =>
@@ -51,6 +53,12 @@ export async function buildMorningBrief(db: any, orgId: string, locationId: stri
   }
   if (swaps) parts.push(`${swaps} vardiya değiştirme talebi onayınızı bekliyor.`);
   if (!suggestions.length && !swaps) parts.push("Karar bekleyen bir iş yok.");
+
+  // Bugün özel bir günse (resmî tatil, arife, sektörü ilgilendiren özel gün) tek cümle (lib/specialDays)
+  const loc = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(locationId) as any;
+  const special = specialDaysInRange(today, today, industryFromRules(parseRules(loc?.rules))?.key ?? null)
+    .find(d => d.kind === "holiday" || d.kind === "half_holiday" || d.kind === "commercial");
+  if (special) parts.splice(1, 0, `Bugün ${special.name}: ${special.note.split(". ")[0].replace(/\.$/, "")}.`);
 
   const urgent = suggestions.filter(s => s.urgent).length;
   return {

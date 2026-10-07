@@ -27,6 +27,7 @@ import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import PlanInstructBar, { type RebuildResult } from "@/components/schedule/PlanInstructBar";
+import WeekCalendarCard from "@/components/schedule/WeekCalendarCard";
 import type { PlanOverride } from "@/lib/planOverrides";
 import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
 import {
@@ -3086,6 +3087,7 @@ loading ? (
             onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
             onJump={jumpTo}
           />
+          {!loading && activeLocationId && <WeekCalendarCard locationId={activeLocationId} weekStart={weekStart} />}
           {/* Planı cümleyle değiştirme (yapay zekâ): dolu ve düzenlenebilir haftada */}
           {aiEnabled && !loading && activeLocationId && cellCount > 0 && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
             <PlanInstructBar locationId={activeLocationId} weekStart={weekStart}
