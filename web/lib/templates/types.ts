@@ -90,13 +90,11 @@ export interface IndustryRules {
   max_consecutive_days: number;
   balancing_period_weeks: number;
   no_night_to_morning: boolean;
-  consecutive_night_weeks_enabled: boolean;
   night_legal_warning_enabled: boolean;
   clopening_enabled: boolean;
   clopening_min_rest_hours: number;
   clopening_penalty_weight: number;
   hard_shift_points: number;
-  ensure_senior_per_shift: boolean;
   overtime_threshold_hours: number;
   checkin_required: boolean;
   gps_checkin_required: boolean;

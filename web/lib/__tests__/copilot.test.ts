@@ -277,13 +277,12 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     expect(list.find(i => i.id === "clopening")!.lines).toEqual(["Ali: Pzt→Sal 12 saat"]);
   });
 
-  it("gece engeli, arka arkaya iki hafta gece ve 7,5 saati aşan gece", () => {
+  it("gece engeli ve 7,5 saati aşan gece", () => {
     const input = base();
     input.personnel[0].nightRestriction = "pregnant";
-    input.personnel[1].workedNightLastWeek = true;
     input.assignments = [a("ali", 0, "s-gece"), a("ayse", 1, "s-gece")]; // gece 8 saat
     const ids = problems(input).map(i => i.id);
-    expect(ids).toEqual(expect.arrayContaining(["night-restriction", "night-weeks", "long-night"]));
+    expect(ids).toEqual(expect.arrayContaining(["night-restriction", "long-night"]));
     input.rules.nightLegalWarning = false;
     expect(problems(input).map(i => i.id)).not.toContain("long-night");
   });

@@ -17,7 +17,7 @@ export const manufacturing: IndustryProfile = {
         { id: "s-sabah", name: "Sabah", start: "06:00", end: "14:00", base_points: 4 },
         { id: "s-aksam", name: "Akşam", start: "14:00", end: "22:00", base_points: 5 },
         // Gece çalışması 7,5 saati aşamaz (sanayide istisna yok)
-        { id: "s-gece",  name: "Gece",  start: "22:00", end: "05:30", base_points: 8, is_night: true },
+        { id: "s-gece",  name: "Gece",  start: "22:00", end: "05:30", base_points: 8 },
       ],
       skillRecommendations: [
         { shiftId: "s-gece", skill: "Bakım Teknisyeni", count: 1, reason: "Gece arızasında hattı ayağa kaldıracak biri olmalı." },
@@ -79,13 +79,11 @@ export const manufacturing: IndustryProfile = {
     min_rest_hours: 11,
     max_consecutive_days: 6,
     no_night_to_morning: true,
-    consecutive_night_weeks_enabled: true,
     night_legal_warning_enabled: true,
     clopening_enabled: true,
     clopening_min_rest_hours: 13,
     clopening_penalty_weight: 50,
     hard_shift_points: 5,
-    ensure_senior_per_shift: true,
     checkin_required: true,
     auto_open_shift_on_late: false,
   },

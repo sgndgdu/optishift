@@ -112,3 +112,25 @@ export function formatBreak(min: number): string {
   if (min < 60) return `${min} dk`;
   return `${(min / 60).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
 }
+
+/**
+ * Gece vardiyası TEK KURAL (2026-10-07, elle "Gece" işareti kaldırıldı): 22:00 ve sonrası başlayan, gece yarısını geçen
+ * ya da süresinin yarıdan fazlası 00:00-06:00 arasında olan vardiya. 16:00-24:00 gece sayılmaz.
+ * Motor da aynı sonucu kullanır (generatePlan vardiyaya is_night olarak bunu yazar).
+ */
+export function isNightTime(start?: string | null, end?: string | null): boolean {
+  if (!start || !end) return false;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if ([sh, sm, eh, em].some(Number.isNaN)) return false;
+  const s = sh * 60 + sm;
+  let e = eh * 60 + em;
+  if (e <= s) e += 1440;
+  if (s >= 22 * 60 || e > 24 * 60) return true;
+  const early = Math.max(0, Math.min(e, 6 * 60) - s); // 00:00-06:00 ile kesişen dakika (gece yarısını geçmeyen vardiya)
+  return early * 2 > e - s;
+}
+
+export function isNightDef(d?: { start?: string | null; end?: string | null } | null): boolean {
+  return !!d && isNightTime(d.start, d.end);
+}

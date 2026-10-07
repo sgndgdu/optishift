@@ -16,6 +16,7 @@
  * kullanılan ayrı bir mekanizmadır (rules.clopening_min_rest_hours).
  */
 
+import { isNightTime } from "@/lib/legal";
 import { getHolidaysForDate } from "@/lib/holidays";
 
 export interface ShiftDef {
@@ -309,7 +310,7 @@ export function calcWeeklyPoints(
         start_time: a.start_time,
         end_time: a.end_time,
         base_points: def?.base_points ?? 5,
-        is_night: def?.is_night ?? false,
+        is_night: isNightTime(a.start_time, a.end_time),
         is_pref_not: avail[`day_${a.day}`] === "preferred_not",
         is_hero: a.is_hero ?? false,
         hero_points: a.hero_points,

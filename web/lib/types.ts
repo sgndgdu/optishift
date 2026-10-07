@@ -140,7 +140,7 @@ export interface ShiftDefinition {
   start: string;       // "HH:MM"
   end: string;         // "HH:MM"
   base_points: number; // 1–10, bu vardiyayı OR-Tools'a ne kadar "ağır" göstereceği
-  is_night?: boolean;  // gece vardiyası — adalet motorunda "zor vardiya" sayılabilir (hard_shift_night)
+  is_night?: boolean;  // eski elle işaret, okunmaz: gece saatten anlaşılır (lib/legal isNightTime)
   coverage?: Record<string, number>; // role_id -> required_count
   required_skills?: { skill: string; count: number }[]; // bu vardiyada bulunması ZORUNLU yetkinlikler (örn. gece ≥1 bakımcı) — motor hard kısıt uygular
   on_call?: boolean;    // icap nöbeti: bekleme çalışma sayılmaz, aynı gün normal vardiyayla birlikte olabilir

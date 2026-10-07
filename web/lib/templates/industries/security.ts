@@ -15,7 +15,7 @@ export const security: IndustryProfile = {
       departments: ["Nizamiye", "Devriye", "CCTV"],
       shifts: [
         { id: "s-gunduz", name: "Gündüz", start: "08:00", end: "20:00", base_points: 5 },
-        { id: "s-gece",   name: "Gece",   start: "20:00", end: "08:00", base_points: 8, is_night: true },
+        { id: "s-gece",   name: "Gece",   start: "20:00", end: "08:00", base_points: 8 },
       ],
       // 12 saatlik vardiyadan sonra 24 saat dinlenme şartı, motoru 12/24 düzenine iter
       rules: { min_rest_hours: 24, balancing_period_weeks: 2 },
@@ -30,7 +30,7 @@ export const security: IndustryProfile = {
       departments: ["Nizamiye", "Devriye", "CCTV"],
       shifts: [
         { id: "s-gunduz", name: "Gündüz", start: "08:00", end: "20:00", base_points: 5 },
-        { id: "s-gece",   name: "Gece",   start: "20:00", end: "08:00", base_points: 8, is_night: true },
+        { id: "s-gece",   name: "Gece",   start: "20:00", end: "08:00", base_points: 8 },
       ],
       rules: { min_rest_hours: 36 },
     },
@@ -42,7 +42,7 @@ export const security: IndustryProfile = {
       shifts: [
         { id: "s-sabah", name: "Sabah", start: "08:00", end: "16:00", base_points: 4 },
         { id: "s-aksam", name: "Akşam", start: "16:00", end: "00:00", base_points: 6 },
-        { id: "s-gece",  name: "Gece",  start: "00:00", end: "08:00", base_points: 8, is_night: true },
+        { id: "s-gece",  name: "Gece",  start: "00:00", end: "08:00", base_points: 8 },
       ],
     },
   ],
@@ -74,7 +74,6 @@ export const security: IndustryProfile = {
     night_legal_warning_enabled: false,
     clopening_enabled: false,
     hard_shift_points: 5,
-    ensure_senior_per_shift: true,
     checkin_required: true,
     gps_checkin_required: true,
     auto_open_shift_on_late: true,

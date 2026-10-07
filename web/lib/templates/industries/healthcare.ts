@@ -25,7 +25,7 @@ export const healthcare: IndustryProfile = {
       departments: ["Acil", "Yoğun Bakım", "Servis"],
       shifts: [
         { id: "s-gunduz", name: "Gündüz Nöbeti", start: "08:00", end: "20:00", base_points: 5 },
-        { id: "s-gece",   name: "Gece Nöbeti",   start: "20:00", end: "08:00", base_points: 9, is_night: true },
+        { id: "s-gece",   name: "Gece Nöbeti",   start: "20:00", end: "08:00", base_points: 9 },
       ],
       rules: { min_rest_hours: 12 },
       skillRecommendations: [
@@ -39,7 +39,7 @@ export const healthcare: IndustryProfile = {
       description: "08:00'de başlayıp ertesi gün 08:00'de biten nöbet, ardından dinlenme.",
       departments: ["Acil", "Yoğun Bakım"],
       shifts: [
-        { id: "s-nobet", name: "24 Saat Nöbet", start: "08:00", end: "08:00", base_points: 10, is_night: true },
+        { id: "s-nobet", name: "24 Saat Nöbet", start: "08:00", end: "08:00", base_points: 10 },
       ],
       // 24 saatlik nöbetten sonra en az 24 saat dinlenme; 45 saatlik ortalama
       // iki haftalık denkleştirmeyle korunur (tek hafta tavanı 66 saat).
@@ -85,7 +85,6 @@ export const healthcare: IndustryProfile = {
     clopening_min_rest_hours: 12,
     clopening_penalty_weight: 40,
     hard_shift_points: 6,
-    ensure_senior_per_shift: true,
     checkin_required: true,
     auto_open_shift_on_late: false,
   },

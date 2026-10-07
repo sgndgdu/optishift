@@ -121,10 +121,6 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("night-restriction", "critical", `${restricted.length} kişi gece çalışma engeline rağmen gece vardiyasında`,
     restricted.map(p => ({ text: `${p.name}: ${NIGHT_RESTRICTION[p.nightRestriction!] ?? p.nightRestriction}. İş Kanunu m.73 gereği gece çalıştırılamaz`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
 
-  const nightWeeks = working.filter(p => p.nights > 0 && p.workedNightLastWeek && !p.nightRestriction);
-  add("night-weeks", "critical", `${nightWeeks.length} kişi arka arkaya ikinci hafta gece çalışıyor`,
-    nightWeeks.map(p => ({ text: `${p.name}: geçen hafta da gece çalıştı, üst üste iki hafta gece çalışılamaz`, personId: p.id, day: p.shifts.find(x => x.night)?.day })));
-
   // Geçmiş günler değiştirilemez: kapsama uyarıları sadece bugün ve sonrası için
   const upcoming = snap.coverage.filter(c => !c.past);
   const skillGaps = upcoming.filter(c => c.missingSkills.length > 0);

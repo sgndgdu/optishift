@@ -16,7 +16,7 @@ export const logistics: IndustryProfile = {
       shifts: [
         { id: "s-sabah", name: "Sabah", start: "06:00", end: "14:00", base_points: 4 },
         { id: "s-aksam", name: "Akşam", start: "14:00", end: "22:00", base_points: 5 },
-        { id: "s-gece",  name: "Gece",  start: "22:00", end: "05:30", base_points: 8, is_night: true },
+        { id: "s-gece",  name: "Gece",  start: "22:00", end: "05:30", base_points: 8 },
       ],
       skillRecommendations: [
         { shiftId: "s-gece", skill: "Forklift Operatörü", count: 1, reason: "Gece sevkiyatında belgeli forklift operatörü bulunmalı." },
@@ -40,7 +40,7 @@ export const logistics: IndustryProfile = {
       departments: ["Aktarma", "Dağıtım"],
       shifts: [
         { id: "s-gunduz", name: "Gündüz", start: "08:00", end: "17:00", base_points: 4 },
-        { id: "s-gece",   name: "Gece Aktarma", start: "22:00", end: "05:30", base_points: 8, is_night: true },
+        { id: "s-gece",   name: "Gece Aktarma", start: "22:00", end: "05:30", base_points: 8 },
       ],
     },
   ],
@@ -76,7 +76,6 @@ export const logistics: IndustryProfile = {
     min_rest_hours: 11,
     max_consecutive_days: 6,
     no_night_to_morning: true,
-    consecutive_night_weeks_enabled: true,
     night_legal_warning_enabled: true,
     clopening_enabled: true,
     clopening_min_rest_hours: 12,

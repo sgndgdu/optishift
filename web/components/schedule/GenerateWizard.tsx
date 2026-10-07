@@ -37,7 +37,7 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 export default function GenerateWizard({
   weekLabel, demandTable, demandEmpty, demandAutoFilled, demandGaps = [], onFillGaps, pastDayCount = 0, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
-  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, generating, error, generatedCount, seniorViolationCount, excludedCount,
+  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, generating, error, generatedCount, excludedCount,
   onGenerate, onClose,
 }: {
   weekLabel: string;
@@ -67,7 +67,6 @@ export default function GenerateWizard({
   generating: boolean;
   error: string | null;
   generatedCount: number;
-  seniorViolationCount: number;
   excludedCount: number;
   onGenerate: () => Promise<void>;
   /** "Planı yayınlama" yetkisi yoksa (lib/userAccess) boş geçilir; düğme gizlenir. */
@@ -217,9 +216,6 @@ export default function GenerateWizard({
                   <CheckRow tone="ok">
                     <span className="font-bold">{generatedCount} vardiya yazıldı.</span> Plan taslak olarak kaydedildi. Ekibiniz plan yayınlanana kadar göremez. Önce planı inceleyin, uygunsa yayınlayın.
                   </CheckRow>
-                  {seniorViolationCount > 0 && (
-                    <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli kimse bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>
-                  )}
                   {excludedCount > 0 && (
                     <CheckRow tone="warn">{excludedCount} kişi geçersiz belge nedeniyle plana alınmadı.</CheckRow>
                   )}

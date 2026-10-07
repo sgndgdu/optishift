@@ -297,10 +297,7 @@ export default function PortalRequests() {
         body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
       });
       if (r.ok) {
-        const d = await r.json().catch(() => ({}));
-        showToast(d.auto_covered
-          ? `Vardiyanız ${d.auto_covered} adına yazıldı. Artık sizin planınızda değil.`
-          : "Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır.");
+        showToast("Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır.");
         resetSwapWizard(); setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {

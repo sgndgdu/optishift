@@ -12,9 +12,8 @@ import { recomputeYtdOvertime, upsertPendingOvertime } from "@/lib/overtime";
 import { industryFromRules, applyCertificationShield, type PersonDocument } from "@/lib/templates";
 import { weekStates } from "@/lib/workCycle";
 import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
-import { isSenior } from "@/lib/seniority";
 import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
-import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
+import { assignmentWorkMinutes, effectiveWeeklyLimit, isNightTime, netWorkMinutes } from "@/lib/legal";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -96,7 +95,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             start: String(d.start ?? "08:00"),
             end: String(d.end ?? "16:00"),
             base_points: Number(d.base_points ?? 5),
-            is_night: !!d.is_night,
+            is_night: isNightTime(d.start, d.end), // tek kural lib/legal (elle işaret kaldırıldı)
             on_call: !!d.on_call,
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
             // Mola (dk): girilmediyse null, motor yasal asgariyi uygular (lib/legal breakMinutes ile aynı)
@@ -188,7 +187,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     }
 
     // Personel verisini formatla
-    const todayForSeniority = businessToday();
     // Görevler 2026-10-05'te kaldırıldı (kullanıcı kararı): motor kişiyi sadece departmanlarıyla tanır.
     // Paylaşılan personel: her şubede o şubenin departmanı (lib/branchRotation departmentInBranch).
     // Birden çok departmanı olan kişi o departmanların hepsinin ihtiyacına yazılabilir (department_ids).
@@ -199,8 +197,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       p.department_id = departmentInBranch(p, branchDeptIds);
     }
     let personnelData = personnelRows.map((p: any) => {
-      // Kıdem işe giriş tarihinden (lib/seniority), elle işaretlenmez
-      const role_level = isSenior(p.hire_date, todayForSeniority) ? "primary" : "secondary";
       return {
         id: p.id,
         name: p.name,
@@ -216,7 +212,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         min_weekly_hours: p.min_weekly_hours ?? 0,
         branch_ids: JSON.parse(p.assigned_location_ids || "[]"),
         org_id: p.org_id,
-        role_level,
+        role_level: "secondary",
         ytd_overtime_hours: ytdFresh[p.id] ?? p.ytd_overtime_hours ?? 0,
       };
     });
@@ -363,7 +359,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     }
 
     // Kural toggle'ları
-    let ensureSeniorPerShift = false;
     let maxConsecutiveDays = 6;
     let noNightToMorning = false;
     let preferredNotMultiplier = 1.5;
@@ -374,7 +369,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     let overtimeTrackingEnabled = true;
     let personnelConflictsEnabled = true;
     let complianceTrackingEnabled = false; // varsayılan kapalı — ileri seviye modül
-    let consecutiveNightWeeksEnabled = false;
     let balancingPeriodWeeks = 0;
     let ruleMaxWeeklyHours = 45;
     let maxOnCallPerWeek = 3; // icap nöbeti: kişi başı haftalık üst sınır
@@ -389,7 +383,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     if (locationRow?.rules) {
       try {
         const pr = JSON.parse(locationRow.rules);
-        ensureSeniorPerShift = !!pr?.ensure_senior_per_shift;
         if (typeof pr?.max_consecutive_days === "number")
           maxConsecutiveDays = pr.max_consecutive_days;
         noNightToMorning = !!pr?.no_night_to_morning;
@@ -406,8 +399,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         overtimeTrackingEnabled = isModuleOn(pr, "overtime_tracking_enabled");
         personnelConflictsEnabled = isModuleOn(pr, "personnel_conflicts_enabled");
         if (pr?.compliance_tracking_enabled === true) complianceTrackingEnabled = true;
-        if (typeof pr?.consecutive_night_weeks_enabled === "boolean")
-          consecutiveNightWeeksEnabled = pr.consecutive_night_weeks_enabled;
         if (typeof pr?.balancing_period_weeks === "number")
           balancingPeriodWeeks = Math.max(0, Math.min(8, Math.round(pr.balancing_period_weeks)));
         if (typeof pr?.max_weekly_hours === "number")
@@ -565,46 +556,6 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       }
     }
 
-    // Arka arkaya iki hafta gece yasağı için geçen haftanın gece çalışanları
-    let prevWeekNightIds: string[] = [];
-    if (consecutiveNightWeeksEnabled) {
-      try {
-        const prevDate = new Date(week_start + "T00:00:00Z");
-        prevDate.setUTCDate(prevDate.getUTCDate() - 7);
-        const prev_week_start = prevDate.toISOString().split("T")[0];
-        const prevRows = (await db
-          .prepare(
-            `SELECT DISTINCT personnel_id, shift_id, start_time, end_time
-             FROM shift_assignments
-             WHERE location_id = $1 AND week_start = $2 AND publication_status = 'published'
-               AND COALESCE(kind, 'regular') = 'regular'`
-          )
-          .all(branchId, prev_week_start)) as any[];
-        const nightDefIds = new Set(
-          shiftsPayload.filter((s: any) => s.is_night).map((s: any) => String(s.id))
-        );
-        // Motorla aynı sezgi: 22:00+ başlayan veya gece yarısını aşan vardiya gece sayılır
-        const isNightTime = (start?: string | null, end?: string | null) => {
-          if (!start || !end) return false;
-          const [sh, sm] = start.split(":").map(Number);
-          const [eh, em] = end.split(":").map(Number);
-          if ([sh, sm, eh, em].some(Number.isNaN)) return false;
-          const startMin = sh * 60 + sm;
-          let endMin = eh * 60 + em;
-          if (endMin <= startMin) endMin += 1440;
-          return startMin >= 22 * 60 || endMin > 24 * 60;
-        };
-        const ids = new Set<string>();
-        for (const r of prevRows) {
-          if (nightDefIds.has(String(r.shift_id)) || isNightTime(r.start_time, r.end_time)) {
-            ids.add(r.personnel_id);
-          }
-        }
-        prevWeekNightIds = [...ids];
-      } catch (e) {
-        console.error("[generate] önceki hafta gece çalışanları sorgusu hatası:", e);
-      }
-    }
 
     // Uyumluluk filtresi TÜM personeli listeden düşürdüyse motoru hiç çağırma —
     // genel "aktif personel bulunamadı" hatası yerine kimin neden dışlandığını
@@ -766,14 +717,15 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       demand_matrix: demandMatrixPayload,
       department_demand_matrix: departmentDemandMatrixPayload,
       department_names: departmentNamesPayload,
-      ensure_senior_per_shift: ensureSeniorPerShift,
+      ensure_senior_per_shift: false, // kıdemli kuralı kaldırıldı (2026-10-07)
       max_consecutive_days: maxConsecutiveDays,
       no_night_to_morning: noNightToMorning,
       preferred_not_multiplier: preferredNotMultiplier,
       night_restricted_ids: nightRestrictedIds,
       conflict_pairs: conflictPairs,
-      prev_week_night_ids: prevWeekNightIds,
-      consecutive_night_weeks_enabled: consecutiveNightWeeksEnabled,
+      // Arka arkaya iki hafta gece yasağı kaldırıldı (2026-10-07, kullanıcı kararı)
+      prev_week_night_ids: [],
+      consecutive_night_weeks_enabled: false,
       rules: {
         // Denkleştirme açıkken hafta tavanı yasal 66'ya çıkar — kişi bazlı hak
         // yukarıda max_weekly_hours override'ı olarak zaten daraltıldı

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isNightDef } from "@/lib/legal";
 import {
   INDUSTRIES, LEGACY_SECTOR_MAP, getIndustry, industryFromRules,
   buildIndustryDefaults, enabledHighlights, applyCertificationShield, matchDocument,
@@ -51,7 +52,7 @@ describe("sektör kayıtları: iç tutarlılık", () => {
             expect(s.end, `${v.key}/${s.id}`).toMatch(HHMM);
             expect(s.base_points).toBeGreaterThanOrEqual(1);
             expect(s.base_points).toBeLessThanOrEqual(10);
-            if (s.is_night && nightWarning) expect(durationH(s), `${v.key}/${s.id} gece süresi`).toBeLessThanOrEqual(7.5);
+            if (isNightDef(s) && nightWarning) expect(durationH(s), `${v.key}/${s.id} gece süresi`).toBeLessThanOrEqual(7.5);
             // Günlük 11 saat: 12 saatlik vardiya ancak ara dinlenmesiyle, 24 saat nöbet sadece sağlıkta
             if (ind.key !== "healthcare") expect(durationH(s), `${v.key}/${s.id}`).toBeLessThanOrEqual(12);
           }
@@ -124,7 +125,7 @@ describe("akıllı varsayılanlar", () => {
     for (const [legacy, m] of Object.entries(LEGACY_SECTOR_MAP)) {
       expect(getIndustry(m.industry)!.variants.map(v => v.key), legacy).toContain(m.variant);
     }
-    expect(getSectorPreset("factory").shiftDefs.find(s => s.is_night)!.end).toBe("05:30");
+    expect(getSectorPreset("factory").shiftDefs.find(s => isNightDef(s))!.end).toBe("05:30");
     expect(getSectorPreset("healthcare:hospital-24h").shiftDefs).toHaveLength(1);
     expect(SECTOR_PRESETS).toHaveLength(7);
   });

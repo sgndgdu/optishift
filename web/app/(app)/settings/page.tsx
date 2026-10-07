@@ -8,7 +8,7 @@ import { isModuleOn } from "@/lib/moduleVisibility";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
 import {
-  Save, Plus, X, Moon, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown,
+  Save, Plus, X, PhoneCall, Pencil, Check, Scale, Trash2, ChevronDown,
   MessageSquare, Megaphone, BookOpen, UserX, AlertTriangle, FileCheck, TrendingUp, ListChecks, Timer,
 } from "lucide-react";
 import type { Location, ShiftDefinition, Department } from "@/lib/types";
@@ -24,7 +24,7 @@ import { summarizeOperatingHours } from "@/lib/operatingHours";
 import IndustryPicker from "@/components/IndustryPicker";
 import { getIndustry, industryFromRules } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
-import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
+import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, isNightDef, netWorkHours } from "@/lib/legal";
 import { BreakPicker } from "@/components/ui/BreakPicker";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { getWeekStart } from "@/lib/date";
@@ -321,7 +321,6 @@ export default function SettingsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   // Kural toggle'ları
-  const [ensureSeniorPerShift, setEnsureSeniorPerShift]           = useState(false);
   const [maxConsecutiveDays, setMaxConsecutiveDays]               = useState(6);
   const [maxOnCallPerWeek, setMaxOnCallPerWeek]                   = useState(3);
   const [noNightToMorning, setNoNightToMorning]                   = useState(false);
@@ -362,7 +361,6 @@ export default function SettingsPage() {
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
   const [checkinRadiusM, setCheckinRadiusM]                       = useState(150);
   const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
-  const [autoCoverEnabled, setAutoCoverEnabled]                   = useState(true);
   const [morningBriefEnabled, setMorningBriefEnabled]             = useState(true);
   const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
@@ -375,7 +373,6 @@ export default function SettingsPage() {
   const [overtimeThresholdHours, setOvertimeThresholdHours]       = useState(45);
   const [maxYtdOvertimeHours, setMaxYtdOvertimeHours]             = useState(270);
   const [overtimeFairDistribution, setOvertimeFairDistribution]   = useState(true);
-  const [consecutiveNightWeeks, setConsecutiveNightWeeks]         = useState(false);
   const [balancingPeriodWeeks, setBalancingPeriodWeeks]           = useState(0);
   const [nightLegalWarning, setNightLegalWarning]                 = useState(true);
   const [handoverNotesEnabled, setHandoverNotesEnabled]           = useState(true);
@@ -463,7 +460,6 @@ export default function SettingsPage() {
           setSavedWorkCycle(undefined);
 
 
-          setEnsureSeniorPerShift(!!loc.rules?.ensure_senior_per_shift);
           setMaxConsecutiveDays(loc.rules?.max_consecutive_days ?? 6);
           setMaxOnCallPerWeek(loc.rules?.max_on_call_per_week ?? 3);
           setNoNightToMorning(!!loc.rules?.no_night_to_morning);
@@ -506,7 +502,6 @@ export default function SettingsPage() {
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
-          setAutoCoverEnabled(loc.rules?.auto_cover_enabled !== false);
           setMorningBriefEnabled(loc.rules?.morning_brief_enabled !== false);
           if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
           if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
@@ -517,7 +512,6 @@ export default function SettingsPage() {
           if (typeof loc.rules?.overtime_threshold_hours === "number")  setOvertimeThresholdHours(loc.rules.overtime_threshold_hours);
           if (typeof loc.rules?.max_ytd_overtime_hours === "number")    setMaxYtdOvertimeHours(loc.rules.max_ytd_overtime_hours);
           if (typeof loc.rules?.overtime_fair_distribution === "boolean") setOvertimeFairDistribution(loc.rules.overtime_fair_distribution);
-          setConsecutiveNightWeeks(loc.rules?.consecutive_night_weeks_enabled === true);
           if (typeof loc.rules?.balancing_period_weeks === "number") setBalancingPeriodWeeks(loc.rules.balancing_period_weeks);
           setNightLegalWarning(loc.rules?.night_legal_warning_enabled !== false);
           setHandoverNotesEnabled(isModuleOn(loc.rules, "handover_notes_enabled"));
@@ -568,7 +562,6 @@ export default function SettingsPage() {
           savedSnapshot.current = JSON.stringify({
             shift_definitions: loc.shift_definitions ?? [],
             operating_hours: loc.operating_hours ?? {},
-            ensureSeniorPerShift: !!loc.rules?.ensure_senior_per_shift,
             maxConsecutiveDays: loc.rules?.max_consecutive_days ?? 6,
             maxOnCallPerWeek: loc.rules?.max_on_call_per_week ?? 3,
             noNightToMorning: !!loc.rules?.no_night_to_morning,
@@ -607,7 +600,6 @@ export default function SettingsPage() {
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
-            autoCoverEnabled: loc.rules?.auto_cover_enabled !== false,
             morningBriefEnabled: loc.rules?.morning_brief_enabled !== false,
             lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
             maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
@@ -620,7 +612,6 @@ export default function SettingsPage() {
             overtimeThresholdHours: typeof loc.rules?.overtime_threshold_hours === "number" ? loc.rules.overtime_threshold_hours : 45,
             maxYtdOvertimeHours: typeof loc.rules?.max_ytd_overtime_hours === "number" ? loc.rules.max_ytd_overtime_hours : 270,
             overtimeFairDistribution: typeof loc.rules?.overtime_fair_distribution === "boolean" ? loc.rules.overtime_fair_distribution : true,
-            consecutiveNightWeeks: loc.rules?.consecutive_night_weeks_enabled === true,
             balancingPeriodWeeks: typeof loc.rules?.balancing_period_weeks === "number" ? loc.rules.balancing_period_weeks : 0,
             nightLegalWarning: loc.rules?.night_legal_warning_enabled !== false,
             handoverNotesEnabled: isModuleOn(loc.rules, "handover_notes_enabled"),
@@ -644,38 +635,38 @@ export default function SettingsPage() {
     const current = JSON.stringify({
       shift_definitions: locationData.shift_definitions ?? [],
       operating_hours: locationData.operating_hours ?? {},
-      ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
+      maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
       hardDays, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
-      editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
+      editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, morningBriefEnabled, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
       locationLat, locationLon,
       changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
     });
     setIsDirty(current !== savedSnapshot.current);
   }, [
     locationData,
-    ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
+    maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
     hardDays, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
-    editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
+    editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, morningBriefEnabled, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
     locationLat, locationLon,
     changeCompensationEnabled,
-    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+    overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
   ]);
 
   const geocodeCity = async (city: string): Promise<{ lat: number; lon: number; label: string } | null> => {
@@ -793,7 +784,7 @@ export default function SettingsPage() {
             // Önce mevcut rules yayılır: bu sayfanın state'inde temsil edilmeyen
             // anahtarlar (sunucu tarafının yazdıkları dahil) kaydetmede silinmez
             ...baseRules,
-            ensure_senior_per_shift:      ensureSeniorPerShift,
+            ensure_senior_per_shift:      false, // kıdemli kuralı kaldırıldı (2026-10-07)
             max_consecutive_days:         maxConsecutiveDays,
             max_on_call_per_week:         maxOnCallPerWeek,
             no_night_to_morning:          noNightToMorning,
@@ -843,7 +834,7 @@ export default function SettingsPage() {
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
-            auto_cover_enabled:                 autoCoverEnabled,
+            auto_cover_enabled:                 false, // kendiliğinden yedek kaldırıldı (2026-10-07)
             morning_brief_enabled:              morningBriefEnabled,
             late_threshold_min:                 lateThresholdMin,
             max_concurrent_breaks:              maxConcurrentBreaks,
@@ -854,7 +845,7 @@ export default function SettingsPage() {
             overtime_threshold_hours:           overtimeThresholdHours,
             max_ytd_overtime_hours:             maxYtdOvertimeHours,
             overtime_fair_distribution:         overtimeFairDistribution,
-            consecutive_night_weeks_enabled:    consecutiveNightWeeks,
+            consecutive_night_weeks_enabled:    false, // kaldırıldı (2026-10-07)
             balancing_period_weeks:             balancingPeriodWeeks,
             night_legal_warning_enabled:        nightLegalWarning,
             handover_notes_enabled:             handoverNotesEnabled,
@@ -869,21 +860,21 @@ export default function SettingsPage() {
       savedSnapshot.current = JSON.stringify({
         shift_definitions: locationData.shift_definitions ?? [],
         operating_hours: locationData.operating_hours ?? {},
-        ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
+        maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
         hardDays, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
-        editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
+        editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, morningBriefEnabled, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
         locationLat: finalLat,
         locationLon: finalLon,
         changeCompensationEnabled,
-      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, consecutiveNightWeeks, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
+      overtimeThresholdHours, maxYtdOvertimeHours, overtimeFairDistribution, balancingPeriodWeeks, nightLegalWarning, handoverNotesEnabled, autoLeaveEntitlement,
         });
       setIsDirty(false);
       showToast("ok", "Ayarlar kaydedildi");
@@ -970,12 +961,9 @@ export default function SettingsPage() {
   const nextHoliday = TURKISH_HOLIDAYS.find(h => h.date >= todayIso) ?? null;
   // Vardiyalı (7/24, dönüşümlü) çalışan sektörler: çalışma döngüsü ve denkleştirme sadece bunlarda (ya da zaten ayarlıysa) görünür
   const shiftWorkBusiness = !savedIndustry || ["manufacturing", "healthcare", "security", "logistics", "callcenter"].includes(savedIndustry.key);
-  // Gece vardiyası var mı: işaretli, 22:00 ve sonrası başlayan ya da gece yarısını geçen
+  // Gece vardiyası var mı (tek kural lib/legal isNightTime)
   const hasNightShift = ((locationData?.shift_definitions ?? []) as ShiftDefinition[]).some(d => {
-    if (d.is_night) return true;
-    const [sh, sm] = (d.start ?? "00:00").split(":").map(Number); const [eh, em] = (d.end ?? "00:00").split(":").map(Number);
-    const st = sh * 60 + sm, en = eh * 60 + em;
-    return st >= 22 * 60 || (en < st && en > 0);
+    return isNightDef(d);
   });
   const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
   const [industryDraft, setIndustryDraft] = useState<{ industry: string; variant: string } | null>(null);
@@ -1308,26 +1296,6 @@ export default function SettingsPage() {
                           }}
                           className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-forest-500 outline-none px-1 py-0.5 text-sm"
                         />
-                        {/* Gece işareti sadece gece saatine uzanan vardiyada ya da zaten işaretliyse (kafede gürültü) */}
-                        {(shift.is_night || (shift.start ?? "") >= "20:00" || ((shift.end ?? "") < (shift.start ?? "") && (shift.end ?? "") > "00:00")) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                              i === idx ? { ...s, is_night: !s.is_night } : s
-                            );
-                            setLocationData({ ...locationData, shift_definitions: next });
-                          }}
-                          className={cn(
-                            "shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold transition-colors",
-                            shift.is_night
-                              ? "bg-forest-50 border-forest-300 text-forest-700"
-                              : "bg-white border-slate-200 text-slate-300 hover:text-slate-500"
-                          )}
-                        >
-                          <Moon size={10} /> Gece
-                        </button>
-                        )}
                         {/* İcap nöbeti kaldırıldı (kullanıcı kararı 2026-10-06): düğme sadece eski kayıtta kapatmak için görünür */}
                         {shift.on_call && (
                         <button
@@ -1429,7 +1397,7 @@ export default function SettingsPage() {
                           ⚠ Mola düşülünce çalışma süresi günlük 11 saati aşıyor (İş Kanunu m.63). Vardiyayı kısaltın.
                         </p>
                       )}
-                      {shift.is_night && nightLegalWarning && netWorkHours(shiftDurationHours(shift), shift.break_minutes) > 7.5 && (
+                      {isNightDef(shift) && nightLegalWarning && netWorkHours(shiftDurationHours(shift), shift.break_minutes) > 7.5 && (
                         <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
                           ⚠ Gece çalışması en fazla 7,5 saat olabilir. Vardiyayı kısaltmanız önerilir.
                         </p>
@@ -1565,13 +1533,6 @@ export default function SettingsPage() {
                     description="Ekip üyesi vardiyasında hata görürse düzeltme isteği gönderir."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
-                  {openShiftsEnabled && (
-                    <RuleRow
-                      label="Gelemeyenin yerine kendiliğinden yedek"
-                      description="Biri vardiyasına gelemeyeceğini bildirdiğinde ve vardiya 24 saat içindeyse, o gün için uygun olduğunu girmiş ve kurallara uyan en uygun kişi kendiliğinden yazılır. Size sadece sonuç bildirilir. Uygun kimse yoksa vardiya ekibe duyurulur."
-                      right={<Toggle on={autoCoverEnabled} onToggle={() => setAutoCoverEnabled(v => !v)} />}
-                    />
-                  )}
                 </SectionCard>
                 <SectionCard title="İzin Politikası">
                   <RuleRow
@@ -1643,27 +1604,15 @@ export default function SettingsPage() {
                     right={<Toggle on={noNightToMorning} onToggle={() => setNoNightToMorning(v => !v)} />}
                   />}
                 </SectionCard>
-                {(hasNightShift || consecutiveNightWeeks) && (
+                {hasNightShift && (
                 <SectionCard title="Gece Çalışması">
                   <RuleRow
-                    lock="rules" label="Arka Arkaya İki Hafta Gece Yasağı"
-                    description="Geçen hafta gece vardiyasında çalışan kişiye bu hafta gece vardiyası verilmez (yasal kural). 24 saat çalışan işletmelerde açık tutulması önerilir."
-                    right={<Toggle on={consecutiveNightWeeks} onToggle={() => setConsecutiveNightWeeks(v => !v)} />}
-                  />
-                  <RuleRow
                     lock="rules" label="Gece 7,5 Saat Uyarısı"
-                    description="Gece işaretli vardiyada çalışma 7,5 saati aşarsa vardiya düzenleme penceresinde ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
+                    description="Gece vardiyasında (22:00 sonrası başlayan ya da gece yarısını geçen) çalışma 7,5 saati aşarsa vardiya düzenleme penceresinde ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>
                 )}
-                <SectionCard title="Plan Oluşturma ve Yayın">
-                  <RuleRow
-                    label="Her vardiyada kıdemli biri"
-                    description="Her vardiyada en az 1 kıdemli (1 yıldan uzun çalışan) bulunmaya çalışılır."
-                    right={<Toggle on={ensureSeniorPerShift} onToggle={() => setEnsureSeniorPerShift(v => !v)} />}
-                  />
-                </SectionCard>
               </SettingsGroup>
               <SettingsGroup id="live" title="Vardiya Girişi" description="Giriş yöntemi (telefon, konum, ortak tablet), geç kalma" open={!!openGroups["live"]} onToggle={toggleGroup}>
                 {/* Girişle ilgili her şey TEK yerde: yöntem seçimi kiosk_mode_enabled ve gps_checkin_required'ı birlikte yazar */}

@@ -17,7 +17,6 @@ import { industryFromRules, matchDocument } from "@/lib/templates";
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments, type DeptLite } from "@/lib/departments";
 import { parseBranchRotation, rotationBranchForWeek } from "@/lib/branchRotation";
 import { defaultWeeklyHours } from "@/lib/legal";
-import { isSenior } from "@/lib/seniority";
 import { formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { businessToday, getWeekStart } from "@/lib/date";
 
@@ -537,7 +536,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               </div>
               </details>
               <details className="rounded-xl border border-slate-200 px-3 py-2">
-              <summary className="cursor-pointer text-sm font-semibold text-slate-700">İşe giriş, kıdem ve izin</summary>
+              <summary className="cursor-pointer text-sm font-semibold text-slate-700">İşe giriş ve izin</summary>
               <div className="space-y-4 mt-3">
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -557,9 +556,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                 </div>
               </div>
               <p className="text-xs text-slate-400 -mt-2">
-                {editForm.hire_date
-                  ? <>{isSenior(editForm.hire_date, businessToday()) ? "1 yılını doldurdu: kıdemli sayılır." : "1 yılı dolunca kıdemli sayılır."} </>
-                  : <>Tarih girilmezse kıdemli sayılmaz. </>}
                 {autoLeaveOn && editForm.hire_date
                   ? "Yıllık izin hakkı işe giriş tarihinden hesaplanır (İş K. m.53)."
                   : "Yıllık izin hakkı buradaki sabit günden hesaplanır."}

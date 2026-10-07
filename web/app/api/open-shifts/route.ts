@@ -3,9 +3,8 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
-import { announceOpenShift, claimOpenShift, publishOpenShift } from "@/lib/openShifts";
-import { AUTO_COVER_HOURS, autoCoverEnabled, tryAutoCover } from "@/lib/autoCover";
-import { addDays, businessToday, businessWallTime, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
+import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
+import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
 import { openShiftSuggestion } from "@/lib/suggestions";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { checkPersonChange } from "@/lib/assignmentCheck";
@@ -221,26 +220,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
-    // Çalışan vardiyasını bıraktı ve vardiya 24 saat içinde: önce kendiliğinden yedek denenir (lib/autoCover),
-    // bulunursa ekibe duyuru gitmez; bulunamazsa ilan her zamanki gibi duyurulur.
     const employeeRelease = auth.role === "employee" && !!sourceAssignmentId;
-    const startsAt = businessWallTime(date, start_time).getTime();
-    const coverFirst = employeeRelease && startsAt > Date.now() && startsAt - Date.now() <= AUTO_COVER_HOURS * 3600_000
-      && await autoCoverEnabled(db, location_id);
     const published = await publishOpenShift(db, {
       org_id, location_id, date, start_time, end_time, note: note ?? null,
       heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
-      releasedBy: absentPersonnelId, sourceAssignmentId, notify: coverFirst ? "none" : notify,
+      releasedBy: absentPersonnelId, sourceAssignmentId, notify,
     });
-    if (coverFirst && published.id) {
-      const res = await tryAutoCover(db, Number(published.id)).catch(() => ({ assigned: false as const }));
-      if (res.assigned) return NextResponse.json({ success: true, id: published.id, notified: [], auto_covered: res.name });
-      const os = await db.prepare(`SELECT hero_bonus_multiplier FROM open_shifts WHERE id = ?`).get(published.id) as any;
-      published.notified = await announceOpenShift(db, {
-        id: Number(published.id), org_id, location_id, date, start_time, end_time,
-        heroPoints: Number(os?.hero_bonus_multiplier ?? 6), releasedBy: absentPersonnelId, notify,
-      });
-    }
     // Çalışan vardiyasını bıraktı ("Gelemeyeceğim"): sorumlulara en uygun yedekle birlikte haber ver (lib/suggestions)
     if (employeeRelease) {
       try {

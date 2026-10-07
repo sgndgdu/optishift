@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { isNightTime } from "@/lib/legal";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -42,19 +43,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Yorgunluk uyarısı bu şubede kapalı" }, { status: 403 });
     }
 
-    let shiftDefs: { id: string; is_night?: boolean }[] = [];
-    try { shiftDefs = JSON.parse(loc.shift_definitions || "[]"); } catch { /* boş kalsın */ }
-    const nightDefIds = new Set(shiftDefs.filter((s) => s.is_night).map((s) => String(s.id)));
-    const isNightTime = (start?: string | null, end?: string | null) => {
-      if (!start || !end) return false;
-      const [sh, sm] = start.split(":").map(Number);
-      const [eh, em] = end.split(":").map(Number);
-      if ([sh, sm, eh, em].some(Number.isNaN)) return false;
-      const startMin = sh * 60 + sm;
-      let endMin = eh * 60 + em;
-      if (endMin <= startMin) endMin += 1440;
-      return startMin >= 22 * 60 || endMin > 24 * 60;
-    };
+    // Gece tek kural lib/legal isNightTime (vardiya saatinden)
 
     const personnelRows = await db.prepare(
       `SELECT id, name FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`
@@ -78,7 +67,7 @@ export async function GET(req: NextRequest) {
       if (!r.start_time || !r.end_time) continue;
       const date = dateForWeekDay(r.week_start, Number(r.day));
       if (date < cutoff) continue; // hafta sınırından çekildi ama gün bazında hâlâ pencerenin dışında olabilir
-      const isNight = nightDefIds.has(String(r.shift_id)) || isNightTime(r.start_time, r.end_time);
+      const isNight = isNightTime(r.start_time, r.end_time);
       const list = entriesByPerson.get(r.personnel_id) || [];
       list.push({ date, is_night: isNight, start_time: r.start_time, end_time: r.end_time });
       entriesByPerson.set(r.personnel_id, list);

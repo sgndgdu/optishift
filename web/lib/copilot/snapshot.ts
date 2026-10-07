@@ -13,7 +13,7 @@
 
 import type { ShiftDefinition } from "@/lib/types";
 import { addDays } from "@/lib/date";
-import { effectiveWeeklyLimit, longestWeeklyRestHours, netWorkMinutes } from "@/lib/legal";
+import { effectiveWeeklyLimit, isNightTime, longestWeeklyRestHours, netWorkMinutes } from "@/lib/legal";
 
 export type DayState = "available" | "partial" | "preferred_not" | "unavailable";
 
@@ -44,8 +44,6 @@ export interface CopilotInput {
     maxWeeklyHours?: number | null;
     /** Gece çalışma engeli: pregnant | nursing | under18 | medical */
     nightRestriction?: string | null;
-    /** Geçen hafta yayınlanmış planda gece çalıştı mı (arka arkaya iki hafta gece yasağı). */
-    workedNightLastWeek?: boolean;
   }[];
   assignments: {
     personnel_id: string; day: number; shift_id: string;
@@ -74,7 +72,6 @@ export interface PersonWeek {
   /** Aynı gün hem bu şubede hem başka şubede vardiyası olan günler */
   elsewhereSameDay: { day: number; branch: string }[];
   nightRestriction: string | null;
-  workedNightLastWeek: boolean;
   /** Uygunluk girmiş mi? */
   hasAvailability: boolean;
   /** Birikimli adalet puanının şube ortalamasına oranı (1 = ortalama). */
@@ -152,9 +149,8 @@ export function shiftSpan(start: string, end: string): { startMin: number; endMi
 
 /** Kaza Risk Radarı'yla aynı tanım: 22:00 ve sonrası başlayan ya da ertesi güne taşan vardiya. */
 function isNight(def: ShiftDefinition | undefined, start: string, end: string): boolean {
-  if (def?.is_night) return true;
-  const { startMin, endMin } = shiftSpan(start, end);
-  return startMin >= 22 * 60 || endMin > 24 * 60;
+  void def;
+  return isNightTime(start, end);
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -236,7 +232,6 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
       // Aynı gün hem bu şubede hem başka şubede vardiya (paylaşılan personel çakışması)
       elsewhereSameDay: shifts.filter(x => x.elsewhere && shifts.some(y => !y.elsewhere && y.day === x.day)).map(x => ({ day: x.day, branch: x.elsewhere! })),
       nightRestriction: p.nightRestriction ?? null,
-      workedNightLastWeek: !!p.workedNightLastWeek,
       hasAvailability: !!input.availability[p.id],
       loadRatio: avgScore > 0 ? p.score / avgScore : 1,
       shifts,

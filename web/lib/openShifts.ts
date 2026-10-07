@@ -22,7 +22,7 @@ export async function claimOpenShift(
   openShiftId: number,
   claimedBy: string,
   claimedByName: string | null,
-  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean; autoCover?: boolean } = {},
+  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean } = {},
 ): Promise<ClaimOutcome> {
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
@@ -133,10 +133,8 @@ export async function claimOpenShift(
   `).run(
     claimedBy,
     "hero_bonus",
-    opts.autoCover ? "Size bir vardiya yazıldı" : opts.assignedByManager ? "Açık vardiyaya atandınız" : "Vardiyayı aldınız",
-    opts.autoCover
-      ? `Bir ekip arkadaşınız gelemediği için ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyası size yazıldı. O gün için uygun olduğunuzu girmiştiniz ve kurallara en uygun kişi sizdiniz. Gelemiyorsanız Vardiyalarım'dan bildirin. Bu vardiya için ek puan alırsınız.`
-      : opts.assignedByManager
+    opts.assignedByManager ? "Açık vardiyaya atandınız" : "Vardiyayı aldınız",
+    opts.assignedByManager
       ? `Sorumlunuz sizi ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsınız ve sonraki planlarda size daha az vardiya verilir.`
       : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını aldınız. Teşekkürler! Ek puan aldınız, sonraki planlarda size daha az vardiya verilir.`,
     now,
@@ -178,7 +176,7 @@ export async function publishOpenShift(
   return { id: osId, notified };
 }
 
-/** İlanı ekibe duyurur (publishOpenShift; kendiliğinden yedek bulunamayınca ayrıca çağrılır) */
+/** İlanı ekibe duyurur (publishOpenShift içinden) */
 export async function announceOpenShift(
   db: any,
   o: {

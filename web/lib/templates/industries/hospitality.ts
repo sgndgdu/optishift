@@ -37,7 +37,7 @@ export const hospitality: IndustryProfile = {
       departments: ["Bar", "Salon", "Güvenlik"],
       shifts: [
         { id: "s-hazirlik", name: "Hazırlık", start: "16:00", end: "00:00", base_points: 5 },
-        { id: "s-gece",     name: "Gece",     start: "20:00", end: "03:30", base_points: 8, is_night: true },
+        { id: "s-gece",     name: "Gece",     start: "20:00", end: "03:30", base_points: 8 },
       ],
       rules: { night_legal_warning_enabled: false },
     },
@@ -49,7 +49,7 @@ export const hospitality: IndustryProfile = {
       shifts: [
         { id: "s-sabah", name: "Sabah", start: "07:00", end: "15:00", base_points: 4 },
         { id: "s-aksam", name: "Akşam", start: "15:00", end: "23:00", base_points: 5 },
-        { id: "s-gece",  name: "Gece",  start: "23:00", end: "07:00", base_points: 8, is_night: true },
+        { id: "s-gece",  name: "Gece",  start: "23:00", end: "07:00", base_points: 8 },
       ],
       rules: { night_legal_warning_enabled: false },
     },

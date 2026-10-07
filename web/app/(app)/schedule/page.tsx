@@ -1,7 +1,7 @@
 "use client";
 import TimeInput from "@/components/ui/TimeInput";
 import { jointShortfalls } from "@/lib/jointCapacity";
-import { effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
+import { effectiveWeeklyLimit, isNightDef, isNightTime, netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
 import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -90,7 +90,7 @@ function cellBurden(
     start_time: minToHHMM(startMin),
     end_time: minToHHMM(endMin % 1440),
     base_points: def?.base_points ?? 5,
-    is_night: def?.is_night ?? false,
+    is_night: isNightTime(minToHHMM(startMin), minToHHMM(endMin % 1440)),
     is_pref_not: am[pid]?.[day]?.status === "preferred_not",
   }, rules);
   return Math.round(r.points * 10) / 10;
@@ -143,7 +143,7 @@ const CUSTOM_TONE: ShiftTone = { box: "bg-slate-100 border-slate-300 hover:borde
 function shiftToneList(defs: ShiftDefinition[]): { def: ShiftDefinition; tone: ShiftTone }[] {
   const list = defs.filter(d => !d.on_call).sort((a, b) => hhmmToMin(a.start) - hhmmToMin(b.start));
   let i = 0;
-  return list.map(def => ({ def, tone: def.is_night ? NIGHT_TONE : SHIFT_TONES[i++ % SHIFT_TONES.length] }));
+  return list.map(def => ({ def, tone: isNightDef(def) ? NIGHT_TONE : SHIFT_TONES[i++ % SHIFT_TONES.length] }));
 }
 
 function wmoIcon(code: number): string {
@@ -203,7 +203,7 @@ function scheduleSnapshot(a: {
   demandMatrix: Record<string, Record<number, number>>;
   deptDemandMatrix: Record<string, Record<string, Record<number, number>>>;
   availMap: AvailMap; personnel: any[]; locRules: FairnessRules; clopeningMinRest: number;
-  availCollectionEnabled: boolean; prevWeekNightIds: Set<string>;
+  availCollectionEnabled: boolean;
   approvedLeaves: { personnel_id: string; start_date: string; end_date: string; type: string }[];
   weekStart: string;
 }): WeekSnapshot {
@@ -276,7 +276,6 @@ function scheduleSnapshot(a: {
       score: Number(p.prev_score) || 0,
       maxWeeklyHours: p.max_weekly_hours ?? null,
       nightRestriction: p.night_restriction ?? null,
-      workedNightLastWeek: a.prevWeekNightIds.has(p.id),
     })),
     assignments,
     leaves: a.approvedLeaves,
@@ -472,12 +471,10 @@ function SchedulePageInner() {
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void; verb?: "Yayınla" | "Onaya Gönder" } | null>(null);
   const [approvedLeaves, setApprovedLeaves]       = useState<{ personnel_id: string; start_date: string; end_date: string; type: string }[]>([]); // Plan Asistanı + yayın kontrolü: izinli gün ataması
-  const [prevWeekNightIds, setPrevWeekNightIds]   = useState<Set<string>>(new Set()); // geçen hafta gece çalışanlar — ardışık hafta gece yasağı kontrolü
   const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
   const [tplName, setTplName]                     = useState("");
   const [tplOpen, setTplOpen]                     = useState(false); // ilk kullanımda şablon çubuğu kapalı
   const [tplBusy, setTplBusy]                     = useState(false);
-  const [seniorViolations, setSeniorViolations]   = useState<{ shift: string; day: number }[]>([]);
   const [excludedCompliance, setExcludedCompliance] = useState<{ id: string; name: string; doc_type: string; expiry_date: string }[]>([]);
   // Sertifika Kalkanı: belgesi geçersiz olduğu için bu haftalık planda düşürülen roller (/api/generate revoked_skills)
   const [revokedSkills, setRevokedSkills] = useState<{ id: string; name: string; skill: string; document: string; reason: "expired" | "missing" }[]>([]);
@@ -726,30 +723,6 @@ function SchedulePageInner() {
           setFatigueRiskMap({});
         }
 
-        // Arka arkaya iki hafta gece yasağı açıksa geçen haftanın gece çalışanlarını yükle
-        if (isModuleOn(parsedRules, "consecutive_night_weeks_enabled")) {
-          try {
-            const prevWs = addDays(weekStart, -7);
-            const pr = await fetch(`/api/shifts?location_id=${activeLocationId}&week_start=${prevWs}`);
-            const prevRows = await pr.json();
-            const ids = new Set<string>();
-            if (Array.isArray(prevRows)) {
-              for (const r of prevRows) {
-                if (r.publication_status !== "published" || !r.start_time || !r.end_time) continue;
-                const [sh, sm] = String(r.start_time).split(":").map(Number);
-                const [eh, em] = String(r.end_time).split(":").map(Number);
-                if ([sh, sm, eh, em].some(Number.isNaN)) continue;
-                const startMin = sh * 60 + sm;
-                let endMin = eh * 60 + em;
-                if (endMin <= startMin) endMin += 1440;
-                if (startMin >= 22 * 60 || endMin > 24 * 60) ids.add(r.personnel_id);
-              }
-            }
-            setPrevWeekNightIds(ids);
-          } catch { setPrevWeekNightIds(new Set()); }
-        } else {
-          setPrevWeekNightIds(new Set());
-        }
 
         // Koordinatlar (hava durumu için)
         const rawLat = Array.isArray(locData) ? locData[0]?.latitude : null;
@@ -1531,7 +1504,7 @@ function SchedulePageInner() {
       cellMap: cells, onCallMap: oc, shiftDefs,
       demandMatrix: scale(demandMatrix), deptDemandMatrix: Object.fromEntries(Object.entries(deptDemandMatrix).map(([k, m]) => [k, scale(m)])),
       availMap: scnAvail, personnel: [...personnel, ...extraPeople], locRules, clopeningMinRest, availCollectionEnabled,
-      prevWeekNightIds, approvedLeaves, weekStart,
+      approvedLeaves, weekStart,
     });
     let cost = 0;
     for (const [k, c] of Object.entries(cells)) {
@@ -1686,7 +1659,6 @@ function SchedulePageInner() {
       setDbShiftCount(0); // OR-Tools taslağı — henüz yayınlanmadı
       // Engine'in base_points tabanlı puanlarını sakla — publish sırasında prev_score güncellemesinde kullanılır
       setEngineScores(data.scores ?? {});
-      setSeniorViolations(data.senior_violations ?? []);
       // Taslak hemen kaydedilir: sihirbaz "kaydedildi" dediğinde plan DB'de olmalı
       // (eskiden 1,2 sn'lik otomatik kayda kalıyordu, hemen çıkan kullanıcı planı kaybediyordu)
       if (!(await saveDraftWeek(newCellMap, newOnCall))) {
@@ -2215,7 +2187,7 @@ function SchedulePageInner() {
   // yayın öncesi kontrol aynı nesneyi ve aynı kuralları (lib/copilot) kullanır.
   // Kişi × 7 gün: her render'da hesaplamak ucuz
   const weekSnapshot = scheduleSnapshot({ cellMap, onCallMap, extraCells, shiftDefs, demandMatrix, deptDemandMatrix, availMap, personnel, locRules,
-    clopeningMinRest, availCollectionEnabled, prevWeekNightIds, approvedLeaves, weekStart, elsewhere });
+    clopeningMinRest, availCollectionEnabled, approvedLeaves, weekStart, elsewhere });
 
   const weekBudgets: WeekBudgets = {
     unreliable: reliabilityNotes,
@@ -2841,11 +2813,6 @@ loading ? (
       detail: editRequestNote ? <>&ldquo;{editRequestNote}&rdquo;</> : undefined,
       action: { label: "Tekrar İste", onClick: () => { setEditRequestStatus("idle"); setUnlockModal(true); } },
     }] : []),
-    ...(seniorViolations.length > 0 ? [{
-      id: "senior", tone: "warning" as const,
-      title: "Bazı vardiyalarda kıdemli kimse yok",
-      detail: <>{seniorViolations.map(v => `${["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][v.day]} ${v.shift}`).join(", ")}</>,
-    }] : []),
     ...(revokedSkills.length > 0 ? [{
       id: "revoked-skills", tone: "warning" as const,
       title: `${new Set(revokedSkills.map(r => r.id)).size} kişi, belgesinin süresi dolduğu için bazı görevlere atanmadı`,
@@ -3372,7 +3339,6 @@ loading ? (
               generating={generating}
               error={error}
               generatedCount={cellCount}
-              seniorViolationCount={seniorViolations.length}
               excludedCount={excludedCompliance.length}
               onGenerate={async () => { await runGenerate(); }}
               onClose={() => setWizardOpen(false)}
@@ -3600,7 +3566,7 @@ loading ? (
                   if (!key.startsWith(`${s.id}-`)) continue;
                   const day = parseInt(key.slice(key.lastIndexOf("-") + 1));
                   if (day === 5 || day === 6) wknd++;
-                  if (matchShiftDef(val.startMin, val.endMin, shiftDefs)?.is_night) nght++;
+                  if (isNightTime(minToHHMM(val.startMin), minToHHMM(val.endMin % 1440))) nght++;
                   if (availMap[s.id]?.[day]?.status === "preferred_not") prfn++;
                 }
                 return (
@@ -3719,11 +3685,11 @@ loading ? (
             const pts = calcAssignmentPoints({
               day: popover.day, date: addDays(weekStart, popover.day),
               start_time: minToHHMM(popover.startMin), end_time: minToHHMM(popover.endMin % 1440),
-              base_points: matchedDef?.base_points ?? 5, is_night: matchedDef?.is_night ?? false,
+              base_points: matchedDef?.base_points ?? 5, is_night: isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440)),
               is_pref_not: availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not",
             }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
-            const isNght = matchedDef?.is_night ?? false;
+            const isNght = isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440));
             if (!pts.hardPoints && !isNght) return null;
             return (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">

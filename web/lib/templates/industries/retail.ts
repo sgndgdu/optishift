@@ -72,7 +72,6 @@ export const retail: IndustryProfile = {
     // Perakendenin en büyük şikâyeti: gece kapanıp sabah açmak. Ceza yüksek tutulur.
     clopening_penalty_weight: 60,
     hard_shift_points: 4,
-    ensure_senior_per_shift: true,
     auto_open_shift_on_late: true,
     late_threshold_min: 15,
   },

@@ -72,9 +72,7 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
     case "release_shift": {
       const r = await call("/api/open-shifts", "POST", { convert_assignment_id: a.assignment_id });
       if (!r.ok) return { ok: false, message: err(r.data, "Vardiya bırakılamadı.") };
-      return { ok: true, message: typeof r.data.auto_covered === "string"
-        ? `Vardiyanız ${r.data.auto_covered} adına yazıldı. Artık sizin planınızda değil.`
-        : "Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır." };
+      return { ok: true, message: "Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır." };
     }
     case "claim_open_shift": {
       const r = await call("/api/open-shifts", "PATCH", { id: a.open_shift_id, claimed_by: a.personnel_id, claimed_by_name: a.name });
