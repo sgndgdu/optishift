@@ -12,6 +12,7 @@ import { MobileBrand } from "@/components/MobileBrand";
 import { AvailabilityEnabledContext, OpenShiftsEnabledContext, ShiftWordsContext } from "@/hooks/useShiftWords";
 import { industryFromRules, shiftWords } from "@/lib/templates";
 import { CountBadge } from "@/components/ui/StatusPill";
+import AssistantPanel from "@/components/AssistantPanel";
 import { installEmployeeView, isEmployeeView, managementHome } from "@/lib/employeeView";
 
 function useChatUnread() {
@@ -276,6 +277,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             })}
           </ul>
         </nav>
+        <AssistantPanel scope="team" />
       </main>
     </div>
   );

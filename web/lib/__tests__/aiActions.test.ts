@@ -20,6 +20,9 @@ describe("splitAssistantReply", () => {
     expect(splitAssistantReply("Batuhan Yazıcı'nın izin talebi ([izin 3625]) bekliyor. Pzt vardiyası [v12] boş.").answer)
       .toBe("Batuhan Yazıcı'nın izin talebi bekliyor. Pzt vardiyası boş.");
   });
+  it("açık vardiya numarasını da siler (ekip üyesinin asistanı)", () => {
+    expect(splitAssistantReply("Cumartesi 10:00-17:00 ilanı [ilan 7] açık.").answer).toBe("Cumartesi 10:00-17:00 ilanı açık.");
+  });
   it("blok yoksa metin aynen kalır", () => {
     expect(splitAssistantReply("Bu hafta 3 kişi izinli.")).toEqual({ answer: "Bu hafta 3 kişi izinli.", raw: [] });
   });

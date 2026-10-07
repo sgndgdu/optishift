@@ -23,7 +23,11 @@ export type ProposedAction =
   | { kind: "absence"; title: string; assignment_id: number; note: string; replacement: { personnel_id: string; name: string } | null }
   | { kind: "open_shift"; title: string; location_id: string; date: string; start_time: string; end_time: string; note: string }
   /** Kimsenin almadığı ilanı bir kişiye vermek (lib/suggestions hazır çözümü) */
-  | { kind: "assign_open_shift"; title: string; open_shift_id: number; personnel_id: string; name: string };
+  | { kind: "assign_open_shift"; title: string; open_shift_id: number; personnel_id: string; name: string }
+  /** Ekip üyesinin asistanı (lib/ai/teamActions): kendi adına */
+  | { kind: "request_leave"; title: string; personnel_id: string; type: string; start_date: string; end_date: string; days: number; note: string }
+  | { kind: "release_shift"; title: string; assignment_id: number }
+  | { kind: "claim_open_shift"; title: string; open_shift_id: number; personnel_id: string; name: string };
 
 const ACTION_TAG = /<islem>([\s\S]*?)<\/islem>/gi;
 
@@ -39,7 +43,7 @@ export function splitAssistantReply(text: string): { answer: string; raw: unknow
     return "";
   }).replace(/<\/?islem>/gi, "")
     // Bağlamdaki iç numaralar ([v12], [izin 5], [takas 3]) kullanıcıya gösterilmez
-    .replace(/\s*\(?\[(?:v\d+|izin \d+|takas \d+)\]\)?/g, "").trim();
+    .replace(/\s*\(?\[(?:v\d+|izin \d+|takas \d+|ilan \d+)\]\)?/g, "").trim();
   return { answer, raw };
 }
 

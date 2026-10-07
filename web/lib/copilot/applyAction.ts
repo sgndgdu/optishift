@@ -62,6 +62,25 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
       if (!r.ok) return { ok: false, message: `${a.name} atanamadı: ${violationText(r.data, "işlem yapılamadı")} Açık Vardiyalar'dan başka birini seçin.` };
       return { ok: true, message: `Vardiya ${a.name} adına yazıldı, kendisine bildirim gitti.` };
     }
+    case "request_leave": {
+      const r = await call("/api/leave-requests", "POST", {
+        personnel_id: a.personnel_id, type: a.type, start_date: a.start_date, end_date: a.end_date, days: a.days, note: a.note,
+      });
+      if (!r.ok) return { ok: false, message: err(r.data, "İzin talebi gönderilemedi.") };
+      return { ok: true, message: "İzin talebiniz sorumlunuza gönderildi. Karar verilince bildirim alırsınız." };
+    }
+    case "release_shift": {
+      const r = await call("/api/open-shifts", "POST", { convert_assignment_id: a.assignment_id });
+      if (!r.ok) return { ok: false, message: err(r.data, "Vardiya bırakılamadı.") };
+      return { ok: true, message: typeof r.data.auto_covered === "string"
+        ? `Vardiyanız ${r.data.auto_covered} adına yazıldı. Artık sizin planınızda değil.`
+        : "Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır." };
+    }
+    case "claim_open_shift": {
+      const r = await call("/api/open-shifts", "PATCH", { id: a.open_shift_id, claimed_by: a.personnel_id, claimed_by_name: a.name });
+      if (!r.ok) return { ok: false, message: violationText(r.data, "Vardiya alınamadı.") };
+      return { ok: true, message: "Vardiya sizin oldu, planınıza eklendi." };
+    }
     case "open_shift": {
       const r = await call("/api/open-shifts", "POST", {
         location_id: a.location_id, date: a.date, start_time: a.start_time, end_time: a.end_time, note: a.note || null,

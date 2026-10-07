@@ -6,6 +6,7 @@
  * (bağlam sunucuda: lib/ai/businessContext). Sunucuda anahtar yoksa hiç görünmez.
  * Şube görünümünde asistan işlem önerebilir (lib/ai/actions): kartta "Uygula" denince
  * lib/copilot/applyAction mevcut uçları çağırır. Onaysız hiçbir şey değişmez.
+ * scope="team": ekip üyesinin portaldaki kişisel asistanı (/api/copilot/team, sadece kendi verisi ve kendi adına işlem).
  */
 import { useEffect, useRef, useState } from "react";
 import { Check, Send, Sparkles, X } from "lucide-react";
@@ -69,8 +70,11 @@ function Rich({ text }: { text: string }) {
 
 const EXAMPLES_BRANCH = ["Bu hafta kim izinli?", "Bekleyen onaylar neler?", "Yarın biri gelemezse yerine kim girebilir?", "En çok kim çalışıyor?"];
 const EXAMPLES_ALL = ["Hangi şubenin planı eksik?", "Şubeleri karşılaştır", "Bekleyen izinler hangi şubede?"];
+const EXAMPLES_TEAM = ["Bu hafta ne zaman çalışıyorum?", "Cumartesi izin alabilir miyim?", "Yarın gelemeyeceğim", "Alabileceğim bir vardiya var mı?"];
 
-export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" | "all" }) {
+export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" | "all" | "team" }) {
+  const team = scope === "team";
+  const endpoint = team ? "/api/copilot/team" : "/api/copilot/chat";
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [locationId, setLocationId] = useState<string | null>(null);
@@ -83,13 +87,13 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
 
   useEffect(() => {
     let stale = false;
-    fetch("/api/copilot/chat").then(r => (r.ok ? r.json() : null)).then(d => { if (!stale) setEnabled(!!d?.enabled); }).catch(() => {});
+    fetch(endpoint).then(r => (r.ok ? r.json() : null)).then(d => { if (!stale) setEnabled(!!d?.enabled); }).catch(() => {});
     return () => { stale = true; };
-  }, []);
+  }, [endpoint]);
 
   // Şube kapsamı: seçili şube; değişince eski sohbet yeni şubeye karışmasın
   useEffect(() => {
-    if (scope === "all") return;
+    if (scope !== "branch") return;
     const read = () => {
       let loc: string | null = null;
       try {
@@ -116,9 +120,9 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
     setTurns([...history, { role: "user", text: question }]);
     setBusy(true);
     try {
-      const r = await fetch("/api/copilot/chat", {
+      const r = await fetch(endpoint, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id: scope === "all" ? null : locationId, question, history }),
+        body: JSON.stringify(team ? { question, history } : { location_id: scope === "all" ? null : locationId, question, history }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.answer) {
@@ -140,7 +144,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
     }
   };
 
-  const examples = scope === "all" ? EXAMPLES_ALL : EXAMPLES_BRANCH;
+  const examples = team ? EXAMPLES_TEAM : scope === "all" ? EXAMPLES_ALL : EXAMPLES_BRANCH;
 
   const runAction = async (key: string, a: ProposedAction) => {
     setActionState(s => ({ ...s, [key]: { status: "busy" } }));
@@ -158,12 +162,12 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
         </button>
       )}
       {open && (
-        <div className="fixed z-50 inset-x-0 bottom-0 lg:inset-auto lg:right-6 lg:bottom-6 lg:w-[400px] h-[80vh] lg:h-[600px] bg-white border border-slate-200 rounded-t-2xl lg:rounded-2xl shadow-xl flex flex-col" role="dialog" aria-label="İşletme Asistanı">
+        <div className="fixed z-50 inset-x-0 bottom-0 lg:inset-auto lg:right-6 lg:bottom-6 lg:w-[400px] h-[80vh] lg:h-[600px] bg-white border border-slate-200 rounded-t-2xl lg:rounded-2xl shadow-xl flex flex-col" role="dialog" aria-label={team ? "Asistanım" : "İşletme Asistanı"}>
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
             <Sparkles size={16} className="text-ember-500" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900">İşletme Asistanı</p>
-              <p className="text-xs text-slate-500 truncate">{scope === "all" ? "Bütün şubeler hakkında soru sorun" : "Planınız ve ekibiniz hakkında soru sorun"}</p>
+              <p className="text-sm font-bold text-slate-900">{team ? "Asistanım" : "İşletme Asistanı"}</p>
+              <p className="text-xs text-slate-500 truncate">{team ? "Vardiyalarınız ve izinleriniz hakkında sorun" : scope === "all" ? "Bütün şubeler hakkında soru sorun" : "Planınız ve ekibiniz hakkında soru sorun"}</p>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Kapat" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
           </div>
@@ -171,7 +175,9 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {turns.length === 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-500">{scope === "all"
+                <p className="text-xs text-slate-500">{team
+                  ? "Vardiyalarınızı, izninizi ve açık vardiyaları sorabilirsiniz. \"Cumartesi izin istiyorum\" ya da \"Yarın gelemeyeceğim\" yazarsanız asistan talebi hazırlar, siz onaylarsınız."
+                  : scope === "all"
                   ? "Ekip, plan, izinler, onaylar, fazla mesai ve ayarlar hakkında sorabilirsiniz."
                   : "Ekip, plan, izinler ve onaylar hakkında sorabilirsiniz. \"Ayşe yarın gelemiyor\" ya da \"Mehmet'e cuma izin ver\" gibi bir değişiklik de isteyebilirsiniz."}</p>
                 <div className="flex flex-wrap gap-1.5">
