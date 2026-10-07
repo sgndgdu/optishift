@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, businessToday } from "@/lib/date";
+import { applyOverrides, sanitizeOverrides } from "@/lib/planOverrides";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { hasSubDepartments } from "@/lib/departments";
 import { getDB } from "@/lib/db/client";
@@ -704,6 +705,15 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         scale(demandMatrixPayload);
         for (const m of Object.values(departmentDemandMatrixPayload ?? {})) scale(m);
       }
+    }
+
+    // Cümleyle plan değiştirme (lib/ai/planInstruct → lib/planOverrides): sorumlunun bu çözüm için ek kısıtları
+    const overrides = sanitizeOverrides(body.overrides);
+    if (overrides.length) {
+      applyOverrides(overrides, {
+        availability: availabilityData, fixed: fixedAssignments, personnel: personnelData as any[], conflictPairs,
+        demand: demandMatrixPayload, deptDemand: departmentDemandMatrixPayload, shifts: shiftsPayload,
+      });
     }
 
     // Maliyet bütçesi kaldırıldı (kullanıcı kararı 2026-10-06): motora sınır gönderilmez

@@ -26,6 +26,8 @@ import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules, fo
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
+import PlanInstructBar, { type RebuildResult } from "@/components/schedule/PlanInstructBar";
+import type { PlanOverride } from "@/lib/planOverrides";
 import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
 import {
   DndContext,
@@ -399,6 +401,13 @@ function SchedulePageInner() {
     } catch { return { role: null, access: null }; }
   });
   const viewOnly = !hasPerm(viewerAccess, "prepare");
+  // Yapay zekâ açık mı (anahtar sunucuda): cümleyle plan değiştirme kutusu
+  const [aiEnabled, setAiEnabled] = useState(false);
+  useEffect(() => {
+    let stale = false;
+    fetch("/api/copilot/chat").then(r => (r.ok ? r.json() : null)).then(d => { if (!stale) setAiEnabled(!!d?.enabled); }).catch(() => {});
+    return () => { stale = true; };
+  }, []);
   const chefDept = departmentScope(viewerAccess);
   const canPublish = canPublishPlan(viewerAccess);
   // Departman sorumlusu planı açınca "departman planı hazırlandı" bildirimi okundu sayılır (Ana Sayfa maddesi kalkar)
@@ -1589,7 +1598,10 @@ function SchedulePageInner() {
 
   // Otomatik planlama (/api/generate). Mevcut vardiyaların üzerine yazılacağı uyarısı
   // sihirbazın Kontrol adımında gösterilir (UX-7).
-  const runGenerate = async () => {
+  // overrides: cümleyle plan değiştirme (components/schedule/PlanInstructBar); verilirse mevcut plan en az değişir
+  // ve değişen vardiyalar okunur listeyle döner
+  const runGenerate = async (opts?: { overrides?: PlanOverride[] }): Promise<RebuildResult> => {
+    const instruct = !!opts?.overrides?.length;
     setGenerating(true);
     setError(null);
     // Elle düzeltilen (korunan) hücreler ve geçmiş günlerin vardiyaları motora sabit olarak gider,
@@ -1611,7 +1623,7 @@ function SchedulePageInner() {
       };
     }), ...onCallRows(Object.fromEntries(pinnedOnCall))];
     // Mevcut plan (korunanlar hariç, onlar zaten sabit): motor gereksiz yer değiştirmeyi cezalandırır
-    const current_assignments = minimizeChanges
+    const current_assignments = (minimizeChanges || instruct)
       ? Object.entries(cellMap).filter(([k, v]) => !keep(k, v)).flatMap(([key, val]) => {
           const def = matchShiftDef(val.startMin, val.endMin, shiftDefs);
           if (!def) return [];
@@ -1626,12 +1638,13 @@ function SchedulePageInner() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments, current_assignments }),
+        body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments, current_assignments,
+          ...(instruct ? { overrides: opts!.overrides } : {}) }),
       });
       const data = await res.json();
       setExcludedCompliance(data.excluded_compliance ?? []);
       setRevokedSkills(data.revoked_skills ?? []);
-      if (data.error) { setError(data.error); return; }
+      if (data.error) { if (!instruct) setError(data.error); return { ok: false, error: String(data.error), changes: [] }; }
       const newCellMap: CellMap = {};
       const newOnCall: Record<string, { defId: string; pinned?: boolean }> = {};
       for (const a of (data.assignments || [])) {
@@ -1672,11 +1685,28 @@ function SchedulePageInner() {
       if (!(await saveDraftWeek(newCellMap, newOnCall))) {
         setError("Plan oluşturuldu ama kaydedilemedi. Bağlantınızı kontrol edip bir hücreyi düzenleyin, otomatik kaydedilir.");
       }
+      return { ok: true, changes: describeChanges(before, newCellMap) };
     } catch (e) {
-      setError(String(e));
+      if (!instruct) setError(String(e));
+      return { ok: false, error: "Plan yeniden kurulamadı, tekrar deneyin.", changes: [] };
     } finally {
       setGenerating(false);
     }
+  };
+
+  // Değişen vardiyaların okunur listesi: "Ayşe Kaya, Cmt: 15:00-23:00 yerine 07:00-15:00"
+  const describeChanges = (before: CellMap, after: CellMap): string[] => {
+    const nameOf = new Map(personnel.map((p: { id: string; name: string }) => [p.id, p.name]));
+    const t = (c: { startMin: number; endMin: number }) => `${minToHHMM(c.startMin)}-${minToHHMM(c.endMin % 1440)}`;
+    const out: { order: string; text: string }[] = [];
+    for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      const a = before[k], b = after[k];
+      if (a && b && a.startMin === b.startMin && a.endMin === b.endMin) continue;
+      const pid = k.slice(0, k.lastIndexOf("-")), day = Number(k.slice(k.lastIndexOf("-") + 1));
+      const who = `${nameOf.get(pid) ?? pid}, ${DAY_SHORT[day]}`;
+      out.push({ order: `${day}-${who}`, text: a && b ? `${who}: ${t(a)} yerine ${t(b)}` : b ? `${who}: ${t(b)} eklendi` : `${who}: ${t(a!)} çıkarıldı` });
+    }
+    return out.sort((x, y) => x.order.localeCompare(y.order, "tr")).map(x => x.text);
   };
 
   // Publish → write to DB + notify (with optional violation override)
@@ -3056,6 +3086,11 @@ loading ? (
             onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
             onJump={jumpTo}
           />
+          {/* Planı cümleyle değiştirme (yapay zekâ): dolu ve düzenlenebilir haftada */}
+          {aiEnabled && !loading && activeLocationId && cellCount > 0 && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
+            <PlanInstructBar locationId={activeLocationId} weekStart={weekStart}
+              onRebuild={overrides => runGenerate({ overrides })} onUndo={undo} />
+          )}
           {/* Rehber üç adım bitene kadar kalır; haftada plan oluştuysa ihtiyaç tablosu bilinçli boş bırakılmış olabilir */}
           {!loading && (shiftDefs.length === 0 || personnel.length === 0 || (dbShiftCount === 0 && demandEmpty)) && (
             <QuickSetup
@@ -3557,7 +3592,7 @@ loading ? (
               generatedCount={cellCount}
               seniorViolationCount={seniorViolations.length}
               excludedCount={excludedCompliance.length}
-              onGenerate={runGenerate}
+              onGenerate={async () => { await runGenerate(); }}
               onPublish={canPublish ? handlePublish : undefined}
               onClose={() => setWizardOpen(false)}
             />
