@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
-import { businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
+import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
+import { notifyBranchManagers, openShiftSuggestion } from "@/lib/suggestions";
 import { checkPersonChange } from "@/lib/assignmentCheck";
 
 
@@ -223,6 +224,23 @@ export async function POST(req: NextRequest) {
       heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
       releasedBy: absentPersonnelId, sourceAssignmentId, notify,
     });
+    // Çalışan vardiyasını bıraktı ("Gelemeyeceğim"): sorumlulara en uygun yedekle birlikte haber ver (lib/suggestions)
+    if (auth.role === "employee" && sourceAssignmentId) {
+      try {
+        const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ?`).get(published.id) as any;
+        const sug = await openShiftSuggestion(db, os).catch(() => null);
+        const soon = os && os.date <= addDays(businessToday(), 2);
+        const who = await db.prepare(`SELECT name FROM personnel WHERE id = ?`).get(absentPersonnelId) as any;
+        await notifyBranchManagers(db, org_id, location_id, {
+          type: "open_shift",
+          title: "Vardiyasına gelemeyecek",
+          message: sug
+            ? `${sug.title} ${sug.detail}${soon ? " Ana Sayfa'dan tek dokunuşla verebilirsiniz." : ""}`
+            : `${who?.name ?? "Bir ekip üyesi"}, ${formatDateTR(date)} ${start_time}-${end_time} vardiyasına gelemiyor. Vardiya ekibe duyuruldu.`,
+          link: sug && soon ? "/dashboard#hazir-cozumler" : "/open-shifts",
+        });
+      } catch (e) { console.error("[open-shifts] sorumlu bildirimi", e); }
+    }
     return NextResponse.json({ success: true, id: published.id, notified: published.notified });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -28,9 +28,12 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
       return { ok: true, message: `İzin kaydedildi.${removed ? ` ${removed} vardiya plandan çıktı.` : ""}` };
     }
     case "review_leave": {
-      const r = await call(`/api/leave-requests/review?id=${a.leave_id}`, "PATCH", { status: a.status, conflict_action: "open" });
+      const r = await call(`/api/leave-requests/review?id=${a.leave_id}`, "PATCH", { status: a.status, conflict_action: "open", replacements: a.replacements ?? {} });
       if (!r.ok) return { ok: false, message: err(r.data, "Talep güncellenemedi.") };
-      return { ok: true, message: a.status === "approved" ? "İzin onaylandı." : "İzin reddedildi." };
+      if (a.status !== "approved") return { ok: true, message: "İzin reddedildi." };
+      const replaced = Number(r.data.replaced ?? 0);
+      const skipped = Array.isArray(r.data.skipped) ? (r.data.skipped as string[]) : [];
+      return { ok: true, message: `İzin onaylandı.${replaced ? ` ${replaced} vardiya yedeğe yazıldı.` : ""}${skipped.length ? ` ${skipped.join(". ")}.` : ""}` };
     }
     case "review_swap": {
       const r = await call("/api/swap-requests", "PATCH", { id: a.swap_id, status: a.status });
@@ -53,6 +56,11 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
         return { ok: false, message: `Vardiya ilana çıktı ama ${a.replacement.name} atanamadı: ${violationText(assigned.data, "kural engeli")} Açık Vardiyalar'dan başka birini seçin.` };
       }
       return { ok: true, message: `${a.replacement.name} vardiyaya atandı ve bilgilendirildi.` };
+    }
+    case "assign_open_shift": {
+      const r = await call("/api/open-shifts", "PATCH", { id: a.open_shift_id, claimed_by: a.personnel_id, claimed_by_name: a.name, assigned_by_manager: true });
+      if (!r.ok) return { ok: false, message: `${a.name} atanamadı: ${violationText(r.data, "işlem yapılamadı")} Açık Vardiyalar'dan başka birini seçin.` };
+      return { ok: true, message: `Vardiya ${a.name} adına yazıldı, kendisine bildirim gitti.` };
     }
     case "open_shift": {
       const r = await call("/api/open-shifts", "POST", {

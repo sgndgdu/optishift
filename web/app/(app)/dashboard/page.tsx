@@ -25,6 +25,8 @@ import { industryFromRules } from "@/lib/templates";
 import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { SuggestionsCard } from "@/components/dashboard/SuggestionsCard";
+import type { Suggestion } from "@/lib/suggestions";
 
 const ITEM_ICON: Record<string, any> = {
   "add-personnel": UserPlus,
@@ -54,6 +56,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, mounted } = useManagerAuth();
   const [personnel, setPersonnel] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [todayShifts, setTodayShifts] = useState<any[]>([]);
   const [openShiftCount, setOpenShiftCount] = useState(0);
   const [openShiftNearest, setOpenShiftNearest] = useState<{ date: string; start: string } | null>(null);
@@ -99,6 +102,8 @@ export default function DashboardPage() {
     setLoading(true);
     const json = (url: string) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
     const list = (d: any) => (Array.isArray(d) ? d : []);
+    // Hazır çözümler (lib/suggestions) ayrı yüklenir: yedek araması diğer kartları bekletmesin
+    if (u?.location_id) json(`/api/suggestions?location_id=${u.location_id}`).then(d => setSuggestions(list(d?.suggestions)));
     // Departman sorumlusu: okunmamış "departman planı hazırlandı" bildirimi Bekleyen İşler'de gösterilir
     if (departmentScope(u) && u?.personnel_id) {
       json(`/api/notifications?personnel_id=${u.personnel_id}`).then(d => {
@@ -186,6 +191,15 @@ export default function DashboardPage() {
     }
     setLoading(false);
   };
+
+  // Hazır çözüm ya da asistan işlemi uygulanınca (lib/copilot/applyAction) Bekleyen İşler tazelenir
+  useEffect(() => {
+    if (!user?.location_id) return;
+    const reload = () => loadData(user);
+    window.addEventListener("optishift_data_changed", reload);
+    return () => window.removeEventListener("optishift_data_changed", reload);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (!mounted || !user) return;
@@ -388,6 +402,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      <SuggestionsCard suggestions={suggestions} />
 
       {/* Bekleyen işler */}
       <Card className="stripe-card border-0 shadow-none">

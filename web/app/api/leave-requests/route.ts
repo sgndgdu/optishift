@@ -7,6 +7,7 @@ import { leaveRequests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch, canActOnPersonnel } from "@/lib/access";
+import { leaveSuggestion, notifyBranchManagers } from "@/lib/suggestions";
 
 // GET: Personelin izin taleplerini listele (veya location'daki tüm personelin)
 export async function GET(req: NextRequest) {
@@ -105,22 +106,19 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Sorumluya bildirim gönder (izni sorumlu kendisi girdiyse gerek yok: asistan ya da Onaylar'dan hemen karar verir)
-    if (auth.location_id && auth.role === "employee") {
-      const managers = await rawDb.prepare(`
-        SELECT personnel_id FROM users
-        WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
-      `).all(auth.location_id) as any[];
-
-      const pRow = await rawDb.prepare(`SELECT name FROM personnel WHERE id = ?`).get(personnel_id) as any;
-      const pName = pRow?.name ?? "Personel";
-
-      for (const mgr of managers) {
-        await rawDb.prepare(`
-          INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-          VALUES (?, 'leave_request', ?, ?, false, ?)
-        `).run(mgr.personnel_id, "Yeni İzin Talebi", `${pName}: ${leaveTypeLabel(type)} · ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`, now);
-      }
+    // Sorumlulara bildirim: hazır çözümüyle birlikte (lib/suggestions; yedek seçilmiş "onayla" önerisi Ana Sayfa'da)
+    if (auth.role === "employee" && personnelRow?.primary_location_id) {
+      try {
+        const pRow = await rawDb.prepare(`SELECT name, org_id FROM personnel WHERE id = ?`).get(personnel_id) as any;
+        const sug = await leaveSuggestion(rawDb, pRow.org_id, personnelRow.primary_location_id, Number(result.id)).catch(() => null);
+        const head = `${pRow?.name ?? "Bir ekip üyesi"}: ${leaveTypeLabel(type)} · ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`;
+        await notifyBranchManagers(rawDb, pRow.org_id, personnelRow.primary_location_id, {
+          type: "leave_request",
+          title: "Yeni izin talebi",
+          message: sug ? `${sug.title} ${sug.detail} Ana Sayfa'dan tek dokunuşla onaylayabilirsiniz.` : head,
+          link: sug ? "/dashboard#hazir-cozumler" : "/requests",
+        });
+      } catch (e) { console.error("[leave-requests] bildirim", e); }
     }
 
     return NextResponse.json({ success: true, id: result.id });

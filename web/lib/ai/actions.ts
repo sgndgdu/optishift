@@ -18,10 +18,12 @@ const MAX_LEAVE_DAYS = 60;
 
 export type ProposedAction =
   | { kind: "add_leave"; title: string; personnel_id: string; type: string; start_date: string; end_date: string; days: number; note: string }
-  | { kind: "review_leave"; title: string; leave_id: number; status: "approved" | "rejected" }
+  | { kind: "review_leave"; title: string; leave_id: number; status: "approved" | "rejected"; replacements?: Record<string, string> }
   | { kind: "review_swap"; title: string; swap_id: number; status: "manager_approved" | "manager_rejected" }
   | { kind: "absence"; title: string; assignment_id: number; note: string; replacement: { personnel_id: string; name: string } | null }
-  | { kind: "open_shift"; title: string; location_id: string; date: string; start_time: string; end_time: string; note: string };
+  | { kind: "open_shift"; title: string; location_id: string; date: string; start_time: string; end_time: string; note: string }
+  /** Kimsenin almadığı ilanı bir kişiye vermek (lib/suggestions hazır çözümü) */
+  | { kind: "assign_open_shift"; title: string; open_shift_id: number; personnel_id: string; name: string };
 
 const ACTION_TAG = /<islem>([\s\S]*?)<\/islem>/gi;
 
