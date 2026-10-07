@@ -8,6 +8,7 @@
 
 import { loadReliability } from "@/lib/reliabilityData";
 import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
+import { trNum } from "@/lib/format";
 import { RELIABILITY_WEEKS, isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 
 export interface SlotInput {
@@ -142,7 +143,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     const maxH = effectiveWeeklyLimit(p.max_weekly_hours, ruleMax);
     const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
     if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH} saate çıkar (sınır ${maxH})`); blocking = true; }
-    else reasons.push(`Bu hafta ${Math.round(weekMin / 6) / 10} saat çalışıyor, sınırı aşmaz`);
+    else reasons.push(`Bu hafta ${trNum(Math.round(weekMin / 6) / 10)} saat çalışıyor, sınırı aşmaz`);
 
     const prevA = mine.find(a => Number(a.day) === dayIdx - 1);
     if (prevA) {
@@ -150,7 +151,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (pe !== null && ps !== null) {
         const prevEnd = pe <= ps ? pe + 1440 : pe;
         const gap = (osStart + 1440) - prevEnd;
-        if (gap < 11 * 60) { warnings.push(`Önceki günle arada ${Math.round(gap / 6) / 10} saat kalır, en az 11 olmalı`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Önceki günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az 11 olmalı`); blocking = true; }
       }
     }
     const nextA = mine.find(a => Number(a.day) === dayIdx + 1);
@@ -158,7 +159,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       const ns = toMin(nextA.start_time);
       if (ns !== null) {
         const gap = (ns + 1440) - osEnd;
-        if (gap < 11 * 60) { warnings.push(`Ertesi günle arada ${Math.round(gap / 6) / 10} saat kalır, en az 11 olmalı`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Ertesi günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az 11 olmalı`); blocking = true; }
       }
     }
 

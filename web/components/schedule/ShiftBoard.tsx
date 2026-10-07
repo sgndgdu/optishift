@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { trNum } from "@/lib/format";
 import type { ShiftDefinition } from "@/lib/types";
 
 /**
@@ -305,7 +306,7 @@ export default function ShiftBoard({
                       className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45">
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold text-slate-800">{p.name}</span>
-                        <span className="block text-[11px] text-slate-400">{b ? picker.def.on_call ? "Bu gün zaten nöbetçi" : `Bu gün ${b.def?.name ?? timeLabel(b.cell)} vardiyasında` : `Bu hafta ${Math.round(weekHours(p.id) * 10) / 10} saat`}</span>
+                        <span className="block text-[11px] text-slate-400">{b ? picker.def.on_call ? "Bu gün zaten nöbetçi" : `Bu gün ${b.def?.name ?? timeLabel(b.cell)} vardiyasında` : `Bu hafta ${trNum(weekHours(p.id))} saat`}</span>
                       </span>
                       {!b && STATUS_LABEL[st] && (
                         <span className={cn("shrink-0 text-[11px] font-semibold", st === "available" ? "text-emerald-600" : warn ? "text-red-500" : "text-amber-600")}>{STATUS_LABEL[st]}</span>

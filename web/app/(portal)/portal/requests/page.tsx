@@ -769,7 +769,7 @@ export default function PortalRequests() {
           {newType === null && (() => {
             const typeOptions: { id: NewType; label: string; hint: string; icon: typeof CalendarOff }[] = [
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
-              ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", icon: UserX }] : []),
+              ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır.", icon: UserX }] : []),
               ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", icon: ArrowLeftRight }] : []),
               ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiyamda hata var", hint: "Sorumludan düzeltme isteyin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
             ];

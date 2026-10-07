@@ -4,6 +4,7 @@ import { db as drizzleDb } from "@/lib/db";
 import { scoreAdjustments } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { trNum } from "@/lib/format";
 import { canPublishPlan } from "@/lib/userAccess";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
@@ -317,7 +318,7 @@ export async function POST(req: NextRequest) {
             const prevEndAdj = prevEnd <= toMin(prevShift.start_time) ? prevEnd + 1440 : prevEnd;
             const gap = (newStart + 1440) - prevEndAdj;
             if (gap < minRest) {
-              const msg = `${personnel_id} için iki vardiya arası ${Math.round(gap / 60 * 10) / 10} saat, en az ${minRest / 60} olmalı.`;
+              const msg = `${personnel_id} için iki vardiya arası ${trNum(Math.round(gap / 60 * 10) / 10)} saat, en az ${minRest / 60} olmalı.`;
               if (!forcePublish) { errors.push(msg); continue; }
               else errors.push(msg);
             }
@@ -330,7 +331,7 @@ export async function POST(req: NextRequest) {
             const curEndAdj = newEnd <= newStart ? newEnd + 1440 : newEnd;
             const gap = (nextStart + 1440) - curEndAdj;
             if (gap < minRest) {
-              const msg = `${personnel_id} için ertesi günkü vardiyayla arası ${Math.round(gap / 60 * 10) / 10} saat, en az ${minRest / 60} olmalı.`;
+              const msg = `${personnel_id} için ertesi günkü vardiyayla arası ${trNum(Math.round(gap / 60 * 10) / 10)} saat, en az ${minRest / 60} olmalı.`;
               if (!forcePublish) { errors.push(msg); continue; }
               else errors.push(msg);
             }

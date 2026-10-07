@@ -279,7 +279,7 @@ export default function PortalCalendar() {
         <Sheet open onClose={() => setPicked(null)} title={picked.label} description="Bu vardiya için ne yapmak istiyorsunuz?">
           <div className="space-y-2">
             {[
-              ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", Icon: UserX }] : []),
+              ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır.", Icon: UserX }] : []),
               ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", Icon: ArrowLeftRight }] : []),
               ...(reqFlags.edit ? [{ type: "edit", label: "Vardiyada hata var", hint: "Sorumludan düzeltme isteyin", Icon: FileEdit }] : []),
             ].map(o => (

@@ -1510,7 +1510,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Sabah özeti"
-                    description="Her sabah 08.00'de tek bildirim: bugün kimler çalışıyor, kim izinde, hangi işler kararınızı bekliyor ve çözümleri. Bugün planı ve bekleyen işi olmayan günde gönderilmez."
+                    description="Her sabah 08:00'de tek bildirim: bugün kimler çalışıyor, kim izinde, hangi işler kararınızı bekliyor ve çözümleri. Bugün planı ve bekleyen işi olmayan günde gönderilmez."
                     right={<Toggle on={morningBriefEnabled} onToggle={() => setMorningBriefEnabled(v => !v)} />}
                   />
                 </SectionCard>
@@ -1892,13 +1892,13 @@ export default function SettingsPage() {
                 <SectionCard title="Ekibe kolaylık sağlayana ek puan">
                   <p className="text-xs text-slate-500 pt-4 pb-3">Bu durumlarda kişiye fazladan puan yazılır. Puanı yükselen kişiye sonraki planlarda daha az vardiya verilir. Böylece ekibe kolaylık sağlayan kişi ödüllendirilir. 0 yazarsanız kapanır.</p>
                   <RuleRow
-                    label="Boşta kalan vardiyayı üstlenince"
+                    label="Boşta kalan vardiyayı alınca"
                     description="Açık Vardiyalar'dan gönüllü olarak bir vardiya alan kişiye."
                     right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
                   />
                   <RuleRow
                     label="Yayından sonra vardiyası değişince"
-                    description="Plan yayınlandıktan sonra vardiyası değiştirilen kişiye, düzeni bozulduğu için. Anahtar kapalıysa verilmez."
+                    description="Plan yayınlandıktan sonra vardiyası değiştirilen kişiye, düzeni bozulduğu için."
                     right={
                       <div className="flex items-center gap-2">
                         <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>

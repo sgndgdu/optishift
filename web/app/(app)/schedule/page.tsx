@@ -3894,7 +3894,7 @@ loading ? (
               />
               <p className="text-center text-sm font-bold text-slate-700 mt-2">
                 {minToHHMM(proposalStartMin)} – {minToHHMM(proposalEndMin, proposalEndMin >= 1440)}
-                <span className="text-xs font-normal text-slate-400 ml-2">{Math.round((proposalEndMin - proposalStartMin) / 60 * 10) / 10} saat</span>
+                <span className="text-xs font-normal text-slate-400 ml-2">{trNum(Math.round((proposalEndMin - proposalStartMin) / 60 * 10) / 10)} saat</span>
               </p>
             </div>
 
