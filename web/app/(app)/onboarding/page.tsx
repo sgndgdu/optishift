@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import TimeInput from "@/components/ui/TimeInput";
 import { getPlan, limitMessage } from "@/lib/plans";
 import { BreakPicker } from "@/components/ui/BreakPicker";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
@@ -453,12 +454,12 @@ export default function OnboardingWizard() {
                         className="w-full md:w-auto text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white" />
                       {/* Başlangıç ve bitiş birlikte kalır (telefonda bitiş alt satıra düşmesin) */}
                       <div className="flex items-center gap-1.5">
-                        <input type="time" value={s.start}
-                          onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
+                        <TimeInput value={s.start}
+                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, start: v } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
                         <span className="text-slate-400 text-xs font-semibold">–</span>
-                        <input type="time" value={s.end}
-                          onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
+                        <TimeInput value={s.end}
+                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, end: v } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
                       </div>
                       <div className="flex items-center gap-1 w-full md:w-auto">

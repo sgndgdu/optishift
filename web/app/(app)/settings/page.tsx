@@ -1,5 +1,6 @@
 "use client";
 
+import TimeSelect from "@/components/ui/TimeInput";
 import { formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
@@ -258,13 +259,8 @@ function FeatureGroup({ title, children }: { title: string; children: ReactNode 
 // Shared time input style — same everywhere on the page
 function TimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <input
-      type="time"
-      // "24:00" (gece yarısı bitiş) saat kutusunda gösterilemiyor, boş görünüyordu
-      value={value === "24:00" ? "00:00" : value}
-      onChange={e => onChange(e.target.value)}
-      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 w-28"
-    />
+    <TimeSelect value={value} onChange={onChange}
+      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 w-28" />
   );
 }
 

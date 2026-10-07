@@ -10,6 +10,7 @@
  *   POST /api/users (role=manager) → isteğe bağlı müdür hesabı + davet bağlantısı
  */
 
+import TimeInput from "@/components/ui/TimeInput";
 import { limitMessage } from "@/lib/plans";
 import { useState } from "react";
 import { Building2, CalendarClock, Check, Copy, MapPin, Plus, Trash2, UserPlus, X } from "lucide-react";
@@ -299,10 +300,10 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       <div key={i} className="flex flex-wrap items-center gap-2 bg-slate-50 rounded-xl p-2.5">
                         <input value={s.name} onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                           placeholder="Vardiya adı" className="flex-1 min-w-[120px] text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-primary" />
-                        <input type="time" value={s.start} onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
+                        <TimeInput value={s.start} onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, start: v } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-primary" />
                         <span className="text-slate-400 text-xs font-semibold">→</span>
-                        <input type="time" value={s.end} onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
+                        <TimeInput value={s.end} onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, end: v } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-primary" />
                         <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))} aria-label="Vardiyayı sil"
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50">

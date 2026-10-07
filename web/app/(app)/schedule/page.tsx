@@ -1,4 +1,5 @@
 "use client";
+import TimeInput from "@/components/ui/TimeInput";
 import { jointShortfalls } from "@/lib/jointCapacity";
 import { effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
@@ -3522,11 +3523,11 @@ loading ? (
                 ))}
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-[12px] font-semibold text-slate-600">Başlangıç
-                    <input type="time" value={calloutForm.start} onChange={e => setCalloutForm(f => ({ ...f, start: e.target.value }))}
+                    <TimeInput value={calloutForm.start} onChange={v => setCalloutForm(f => ({ ...f, start: v }))}
                       className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
                   </label>
                   <label className="text-[12px] font-semibold text-slate-600">Bitiş
-                    <input type="time" value={calloutForm.end} onChange={e => setCalloutForm(f => ({ ...f, end: e.target.value }))}
+                    <TimeInput value={calloutForm.end} onChange={v => setCalloutForm(f => ({ ...f, end: v }))}
                       className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
                   </label>
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import TimeInput from "@/components/ui/TimeInput";
 import { useEffect, useState, useCallback } from "react";
 import { businessToday } from "@/lib/date";
 import { useRouter } from "next/navigation";
@@ -304,11 +305,11 @@ export default function OpenShiftsPage() {
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Başlangıç</span>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+              <TimeInput value={startTime} onChange={setStartTime} className={inputClass} />
             </label>
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Bitiş</span>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
+              <TimeInput value={endTime} onChange={setEndTime} className={inputClass} />
             </label>
           </div>
           <div className="space-y-1.5">
