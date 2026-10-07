@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight, Check, Scale, FileSpreadsheet, HelpCircle, Repeat, CalendarCheck, GitCompare,
-  Smartphone, ArrowLeftRight, Megaphone, CalendarClock, Siren, Building2, Users,
+  Smartphone, ArrowLeftRight, Megaphone, CalendarClock, Siren, Building2, Users, Layers, StickyNote,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -16,6 +16,7 @@ import { Reveal } from "@/components/marketing/Reveal";
 import { TypedDay } from "@/components/marketing/TypedDay";
 import { AssistantDemo } from "@/components/marketing/AssistantDemo";
 import { ProductTour } from "@/components/marketing/ProductTour";
+import { DepartmentsMock, CalendarMock, FeatureCatalog } from "@/components/marketing/FeatureShowcase";
 
 const KAFE = SECTORS[0];
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
@@ -36,18 +37,6 @@ const STEPS = [
     title: "Yayınlayın, ekip telefondan görsün",
     text: "Yayınladığınız an ekibinize bildirim gider.",
   },
-];
-
-const MORE = [
-  "İş Kanunu kuralları hazır",
-  "Biri gelemezse en uygun yedek",
-  "Planı bozmadan yeniden kur",
-  "Tercihleri zamanla öğrenir",
-  "Birlikte çalışamaz",
-  "Yorgunluk ve kaza riski uyarısı",
-  "Geçmiş haftalardan ihtiyaç önerisi",
-  "Ekip sohbeti",
-  "Devir notu",
 ];
 
 export default function LandingPage() {
@@ -223,19 +212,52 @@ export default function LandingPage() {
             <Reveal className="lg:col-span-2">
               <div className="m-up flex h-full flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-9">
                 <p className="text-sm font-semibold text-slate-900">Ve dahası</p>
-                <ul className="mt-4 flex flex-wrap gap-2">
-                  {MORE.map((t) => (
-                    <li key={t} className="flex items-center gap-1.5 rounded-full bg-cream px-3.5 py-1.5 text-[13.5px] text-slate-700 ring-1 ring-slate-900/5">
-                      <Check size={13} strokeWidth={3} className="text-forest-600" /> {t}
-                    </li>
-                  ))}
-                  <li className="flex items-center gap-1.5 rounded-full bg-ember-50 px-3.5 py-1.5 text-[13.5px] text-ember-800 ring-1 ring-ember-200">
-                    Muhasebe programı bağlantısı · yakında
-                  </li>
-                </ul>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Departmanlar, bayramlar ve güne düşülen notlar, İş Kanunu kuralları, puantaj, giriş-çıkış ve çok daha fazlası.</p>
+                <a href="#tum-ozellikler" className="mt-5 inline-flex items-center gap-2 self-start rounded-full bg-forest-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-800">
+                  Bütün özellikleri görün <ArrowRight size={15} />
+                </a>
               </div>
             </Reveal>
           </div>
+        </div>
+      </section>
+
+      {/* ─── Departmanlar ve takvim ───────────────────────────── */}
+      <section id="departmanlar" className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <Reveal className="mx-auto mb-12 max-w-2xl text-center">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">İşletmenize göre</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Plan işletmenizin düzenini bilir.</h2>
+          </Reveal>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Reveal>
+              <div className="m-up flex h-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8">
+                <FeatureIcon icon={Layers} />
+                <h3 className="mt-5 text-xl font-semibold text-slate-900">Departmanlar</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Salon, mutfak, bar gibi departmanlar ve alt departmanlar. İhtiyaç her departman için ayrı sayılır. Birden çok departmanda çalışabilen kişi gerektiğinde öbürüne yazılır. Departman sorumlusu kendi planını hazırlayıp onaya gönderir.</p>
+                <div className="mt-7 flex-1 rounded-2xl bg-cream p-4"><DepartmentsMock /></div>
+              </div>
+            </Reveal>
+            <Reveal>
+              <div className="m-up flex h-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8" style={d(120)}>
+                <FeatureIcon icon={StickyNote} />
+                <h3 className="mt-5 text-xl font-semibold text-slate-900">Bayramlar ve notlar</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Resmî tatiller ve bayramlar planda kendiliğinden görünür. Kampanya, etkinlik, denetim ya da kapalı gün gibi notları bir güne veya bütün haftaya düşün, plana bakan herkes görsün.</p>
+                <div className="mt-7 flex-1 rounded-2xl bg-cream p-4"><CalendarMock /></div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Bütün özellikler ─────────────────────────────────── */}
+      <section id="tum-ozellikler" className="scroll-mt-20 bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <Reveal className="mx-auto mb-12 max-w-2xl text-center">
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Bütün özellikler</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Neler yapabildiği, tek listede.</h2>
+          </Reveal>
+          <Reveal threshold={0.05}><FeatureCatalog /></Reveal>
         </div>
       </section>
 
