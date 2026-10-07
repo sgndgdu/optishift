@@ -1,7 +1,15 @@
 import { Check, ArrowLeftRight, CalendarClock, Bell, Clock } from "lucide-react";
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
-import { DAYS, TONE_CLASSES, type Sector } from "@/components/marketing/sectors";
+import { DAYS, TONE_CLASSES, type Sector, type ShiftTone } from "@/components/marketing/sectors";
+
+const BAR_CLASSES: Record<ShiftTone, string> = { forest: "bg-forest-500", ember: "bg-ember-500", sky: "bg-sky-500", violet: "bg-violet-500" };
+const CHIP_CLASSES: Record<ShiftTone, string> = {
+  forest: "border-forest-200 bg-forest-50 text-forest-800",
+  ember: "border-ember-200 bg-ember-50 text-ember-800",
+  sky: "border-sky-200 bg-sky-50 text-sky-800",
+  violet: "border-violet-200 bg-violet-50 text-violet-800",
+};
 
 /**
  * Tanıtım sayfalarının ürün önizlemeleri. Hepsi süs (aria-hidden), gerçek veri değil;
@@ -30,8 +38,13 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
   const shiftByCode = Object.fromEntries(sector.shifts.map((s) => [s.code, s]));
   const days = compact ? DAYS.slice(0, 5) : DAYS;
   // Plan sütun sütun dolar (motorun günleri sırayla kurması gibi), en sonda "Yayında" belirir
-  const cellDelay = (day: number, row: number) => 350 + day * 110 + row * 45;
-  const doneAt = cellDelay(days.length - 1, sector.rows.length - 1) + 250;
+  const depts = [...new Set(sector.rows.map(r => r.dept))];
+  const board = depts.flatMap(dept => sector.shifts.map(sh => ({
+    dept, code: sh.code,
+    days: days.map((_, d) => sector.rows.filter(r => r.dept === dept && r.days[d] === sh.code).map(r => r.name)),
+  }))).filter(r => r.days.some(x => x.length > 0));
+  const cellDelay = (day: number, row: number) => 350 + day * 110 + row * 35;
+  const doneAt = cellDelay(days.length - 1, board.length - 1) + 250;
   return (
     <div className="p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -51,29 +64,39 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
         </div>
       </div>
 
-      <div
-        className="grid gap-1 text-[10.5px]"
-        style={{ gridTemplateColumns: `minmax(${compact ? 70 : 92}px,1.3fr) repeat(${days.length}, minmax(0,1fr))` }}
-      >
-        <div />
+      {/* Uygulamadaki Vardiya Planı gibi: satırlar vardiya (departman başlığı altında), kutularda kişiler */}
+      <div className="grid gap-x-1 gap-y-0.5 text-[10.5px]" style={{ gridTemplateColumns: `${compact ? 74 : 92}px repeat(${days.length}, minmax(0,1fr))` }}>
+        <div className="pb-1 text-[10px] font-medium text-slate-400">Vardiya</div>
         {days.map((d, i) => (
-          <div key={d} className={cn("pb-1 text-center font-medium", i >= 5 ? "text-ember-600" : "text-slate-400")}>{d}</div>
+          <div key={d} className={cn("pb-1 text-center font-medium", i >= 5 ? "text-forest-600" : "text-slate-400")}>{d}</div>
         ))}
-        {sector.rows.map((row, ri) => (
-          <Fragment key={row.name}>
-            {/* Uygulamadaki gibi kişiler departmanlarının başlığı altında */}
-            {(ri === 0 || sector.rows[ri - 1].dept !== row.dept) && (
-              <div className="pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-forest-700" style={{ gridColumn: "1 / -1" }}>{row.dept}</div>
-            )}
-            <Row row={row} days={days.length} shiftByCode={shiftByCode} delay={animate ? (d) => cellDelay(d, ri) : undefined} />
-          </Fragment>
-        ))}
-        <div className="flex items-center pt-1.5 text-[10px] font-medium text-slate-400">İhtiyaç</div>
-        {days.map((d, i) => (
-          <div key={d} className={cn("pt-1.5 text-center text-[10px] font-semibold text-forest-600", animate && "m-up")} style={{ "--d": `${cellDelay(i, sector.rows.length - 1) + 120}ms` } as React.CSSProperties}>
-            <Check size={10} strokeWidth={3} className="inline -mt-0.5" /> tam
-          </div>
-        ))}
+        {board.map((row, ri) => {
+          const s = shiftByCode[row.code];
+          return (
+            <Fragment key={`${row.dept}-${row.code}`}>
+              {(ri === 0 || board[ri - 1].dept !== row.dept) && (
+                <div className="mt-1 rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700" style={{ gridColumn: "1 / -1" }}>{row.dept}</div>
+              )}
+              <div className="flex min-w-0 items-start gap-1.5 py-0.5">
+                <span className={cn("mt-0.5 h-5 w-1 shrink-0 rounded-full", BAR_CLASSES[s.tone])} />
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold leading-tight text-slate-800">{s.label}</span>
+                  <span className="block text-[9.5px] leading-tight text-slate-400">{s.time.replace(/:00/g, "").replace(" - ", "-")}</span>
+                </span>
+              </div>
+              {row.days.map((names, d) => (
+                <div key={d} className="flex min-w-0 flex-col gap-0.5 py-0.5">
+                  {names.map(n => (
+                    <span key={n} className={cn("block truncate rounded border px-1 text-[10px] font-semibold leading-[16px]", CHIP_CLASSES[s.tone], animate && "m-pop")}
+                      style={animate ? ({ "--d": `${cellDelay(d, ri)}ms` } as React.CSSProperties) : undefined}>
+                      {n}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </Fragment>
+          );
+        })}
       </div>
 
       {!compact && (
@@ -87,34 +110,6 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
         </div>
       )}
     </div>
-  );
-}
-
-function Row({ row, days, shiftByCode, delay }: {
-  row: Sector["rows"][number];
-  days: number;
-  shiftByCode: Record<string, Sector["shifts"][number]>;
-  delay?: (day: number) => number;
-}) {
-  return (
-    <>
-      <div className="flex min-w-0 items-center gap-2 py-0.5">
-        <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 sm:flex">
-          {row.name.split(" ").map((p) => p[0]).join("")}
-        </span>
-        <span className="block min-w-0 truncate font-semibold text-slate-800">{row.name}</span>
-      </div>
-      {row.days.slice(0, days).map((code, i) => {
-        const s = code ? shiftByCode[code] : null;
-        return s ? (
-          <div key={i} className={cn("flex h-8 min-w-0 items-center justify-center overflow-hidden rounded-md px-0.5 text-[9.5px] font-semibold sm:text-[10.5px]", TONE_CLASSES[s.tone], delay && "m-pop")} style={delay ? ({ "--d": `${delay(i)}ms` } as React.CSSProperties) : undefined}>
-            {s.label}
-          </div>
-        ) : (
-          <div key={i} className="flex h-8 items-center justify-center rounded-md bg-slate-50 text-[9.5px] text-slate-300">izin</div>
-        );
-      })}
-    </>
   );
 }
 

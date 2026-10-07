@@ -32,9 +32,9 @@ function Btn({ pressed, className, children }: { pressed?: boolean; className?: 
 }
 
 const SHIFTS = {
-  A: { label: "Açılış", time: "07-15", tone: "bg-forest-100 text-forest-800" },
-  R: { label: "Ara", time: "11-19", tone: "bg-sky-100 text-sky-800" },
-  K: { label: "Kapanış", time: "15-23", tone: "bg-ember-100 text-ember-800" },
+  A: { label: "Açılış", time: "07-15", tone: "bg-forest-100 text-forest-800", bar: "bg-forest-500", chip: "border-forest-200 bg-forest-50 text-forest-800" },
+  R: { label: "Ara", time: "11-19", tone: "bg-sky-100 text-sky-800", bar: "bg-sky-500", chip: "border-sky-200 bg-sky-50 text-sky-800" },
+  K: { label: "Kapanış", time: "15-23", tone: "bg-ember-100 text-ember-800", bar: "bg-ember-500", chip: "border-ember-200 bg-ember-50 text-ember-800" },
 } as const;
 type Code = keyof typeof SHIFTS | null;
 
@@ -43,23 +43,35 @@ const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const TEAM: { name: string; dept: string; days: (Code | `${NonNullable<Code>}@${string}`)[] }[] = [
   { name: "Elif K.", dept: "Salon", days: ["A", "A", null, "K", "K", "A", null] },
   { name: "Mert Y.", dept: "Salon", days: ["A", "R", "K", "K", "K", null, "A"] },
-  { name: "Deniz Ö.", dept: "Salon", days: [null, "K", "R", "A", "R@Bar", "A", "K"] },
+  { name: "Deniz Ö.", dept: "Salon", days: [null, "K", "R", "A", "A@Bar", "A", "K"] },
   { name: "Burak T.", dept: "Bar", days: ["K", "K", "A", null, "A", "K", "K"] },
-  { name: "Can B.", dept: "Mutfak", days: ["A", "A", null, "R", "K", null, "A"] },
+  { name: "Can B.", dept: "Mutfak", days: ["A", "A", null, "K", "K", null, "A"] },
   { name: "Ayşe D.", dept: "Mutfak", days: ["K", null, "K", "A", "A", "K", null] },
 ];
 
 /* ─── 1. Plan ─────────────────────────────────────────────── */
+/** Uygulamadaki Vardiya Planı gibi: satırlar vardiya (departman başlığı altında), kutularda kişiler */
+const DEPTS = ["Salon", "Bar", "Mutfak"];
+const BOARD = DEPTS.flatMap(dept => (Object.keys(SHIFTS) as (keyof typeof SHIFTS)[]).map(code => ({
+  dept, code,
+  days: DAYS.map((_, d) => TEAM.flatMap(p => {
+    const c = p.days[d];
+    if (!c) return [];
+    const [cc, other] = c.split("@");
+    return cc === code && (other ?? p.dept) === dept ? [{ name: p.name, joker: !!other }] : [];
+  })),
+})).filter(r => r.days.some(x => x.length > 0)));
+
 const P_BUILD = 2200, P_CELL = 330, P_PUBLISH = 7600;
 
 function PlanScene({ t, small }: SceneProps) {
   const days = small ? 4 : 7;
-  const cellAt = (d: number, r: number) => P_BUILD + d * P_CELL + r * 55;
-  const built = cellAt(days - 1, TEAM.length - 1) + 300;
+  const cellAt = (d: number, r: number) => P_BUILD + d * P_CELL + r * 40;
+  const built = cellAt(days - 1, BOARD.length - 1) + 300;
   const published = after(t, P_PUBLISH + 250);
   return (
-    <div className="flex h-full flex-col p-4 sm:p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="relative flex h-full flex-col p-4 sm:p-6">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[12px] font-medium text-slate-400">Gelecek hafta</p>
           <p className="text-[15px] font-semibold text-slate-900 sm:text-base">13-19 Ekim</p>
@@ -77,69 +89,51 @@ function PlanScene({ t, small }: SceneProps) {
         )}
       </div>
 
-      <div className="grid gap-1.5" style={{ gridTemplateColumns: `${small ? 84 : 120}px repeat(${days}, minmax(0,1fr))` }}>
-        <div />
+      <div className="grid gap-x-1.5 gap-y-1" style={{ gridTemplateColumns: `${small ? 76 : 104}px repeat(${days}, minmax(0,1fr))` }}>
+        <div className="pb-0.5 text-[11px] font-semibold text-slate-400">Vardiya</div>
         {DAYS.slice(0, days).map((d, i) => (
-          <div key={d} className={cn("pb-1 text-center text-[12px] font-medium", i >= 5 ? "text-ember-600" : "text-slate-400")}>{d}</div>
+          <div key={d} className={cn("pb-0.5 text-center text-[12px] font-semibold", i >= 5 ? "text-forest-600" : "text-slate-500")}>{d}</div>
         ))}
-        {TEAM.map((p, r) => (
-          <Fragment key={p.name}>
-            {(r === 0 || TEAM[r - 1].dept !== p.dept) && (
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-forest-700" style={{ gridColumn: "1 / -1" }}>{p.dept}</div>
-            )}
-            <Row name={p.name}>
-              {p.days.slice(0, days).map((c, d) => {
+        {BOARD.map((row, r) => {
+          const s = SHIFTS[row.code];
+          return (
+            <Fragment key={`${row.dept}-${row.code}`}>
+              {(r === 0 || BOARD[r - 1].dept !== row.dept) && (
+                <div className="mt-1 rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700" style={{ gridColumn: "1 / -1" }}>{row.dept}</div>
+              )}
+              <div className="flex min-w-0 items-start gap-1.5 py-0.5">
+                <span className={cn("mt-0.5 h-6 w-1 shrink-0 rounded-full", s.bar)} />
+                <span className="min-w-0">
+                  <span className="block truncate text-[12px] font-semibold leading-tight text-slate-800">{s.label}</span>
+                  <span className="block text-[10.5px] leading-tight text-slate-400">{s.time}</span>
+                </span>
+              </div>
+              {row.days.slice(0, days).map((people, d) => {
                 const on = after(t, cellAt(d, r));
-                const [code, other] = c ? (c.split("@") as [keyof typeof SHIFTS, string?]) : [null];
-                const s = code ? SHIFTS[code] : null;
                 return (
-                  <div key={d} className="h-9 min-w-0 rounded-lg bg-slate-50">
-                    {on && (
-                      <div className={cn("sc-pop flex h-full flex-col items-center justify-center rounded-lg text-[12px] font-semibold leading-tight", s ? s.tone : "text-slate-300", other && "ring-2 ring-inset ring-sky-400")}>
-                        {s ? s.label : "izin"}
-                        {other && <span className="text-[10px] font-medium">{other}</span>}
-                      </div>
-                    )}
+                  <div key={d} className="flex min-w-0 flex-col gap-0.5 py-0.5">
+                    {on && people.map(x => (
+                      <span key={x.name} className={cn("sc-pop block truncate rounded border px-1 text-[11px] font-semibold leading-[17px]", s.chip, x.joker && "border-dashed border-sky-400")}>
+                        {x.name}
+                      </span>
+                    ))}
                   </div>
                 );
               })}
-            </Row>
-          </Fragment>
-        ))}
-        <div className="flex items-center pt-1 text-[12px] font-medium text-slate-400">İhtiyaç</div>
-        {DAYS.slice(0, days).map((d, i) => {
-          const full = after(t, cellAt(i, TEAM.length - 1) + 150);
-          return (
-            <div key={d} className={cn("pt-1 text-center text-[12px] font-semibold transition-colors duration-300", full ? "text-forest-600" : "text-slate-300")}>
-              {full ? <><Check size={12} strokeWidth={3} className="-mt-0.5 inline" /> tam</> : "boş"}
-            </div>
+            </Fragment>
           );
         })}
       </div>
 
-      <div className="mt-auto flex justify-center pt-4">
-        {published && (
-          <div className="m-enter flex items-center gap-3 rounded-2xl bg-forest-900 px-4 py-3 text-white shadow-lg">
+      {published && (
+        <div className="absolute inset-x-0 bottom-3 flex justify-center">
+          <div className="m-enter flex items-center gap-3 rounded-2xl bg-forest-900 px-4 py-2.5 text-white shadow-lg">
             <Bell size={16} className="text-ember-300" />
             <span className="text-[13px] font-medium">21 kişiye bildirim gitti</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-function Row({ name, children }: { name: string; children: React.ReactNode }) {
-  return (
-    <>
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 sm:flex">
-          {name.split(" ").map((x) => x[0]).join("")}
-        </span>
-        <span className="block min-w-0 truncate text-[13px] font-semibold text-slate-800">{name}</span>
-      </div>
-      {children}
-    </>
   );
 }
 

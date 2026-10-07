@@ -16,7 +16,7 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 const FEATURES = [
   { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı seçtiğiniz gün ve saatte taslak olarak hazırlanır. Siz yayınlamadan ekibinize gitmez." },
-  { icon: Scale, title: "Adalet puanı", text: "Hafta sonu ve zor vardiyalar kişiler arasında sırayla dağıtılır." },
+  { icon: Scale, title: "Adalet puanı", text: "Zor sayılan günler kişiler arasında sırayla dağıtılır. Hangi günlerin zor sayılacağını siz seçersiniz; bayramlar ve kendi özel günleriniz de eklenebilir." },
   { icon: Megaphone, title: "Vardiya ilanı", text: "Boşta kalan bir vardiyayı uygun kişilere ilan edersiniz. Ekibinizden biri ilanı alır." },
   { icon: Building2, title: "Birden çok şube", text: "Bir kişi birden çok şubede çalışabilir. Çalışma süresi bütün şubelerde birlikte hesaplanır." },
   { icon: Sun, title: "Sabah özeti", text: "Her sabah o gün kimin çalıştığı ve karar bekleyen işler size tek bildirimle gelir." },

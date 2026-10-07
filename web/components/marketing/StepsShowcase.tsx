@@ -30,7 +30,7 @@ export function HeroPlan() {
         </div>
         <span className="truncate text-[11px] font-medium text-slate-400">Moda Kahve · Vardiya Planı</span>
       </div>
-      <div className="relative h-[430px] sm:h-[470px]">
+      <div className="relative h-[530px] sm:h-[520px]">
         <Scene t={Math.min(t, scene.duration)} small={small} />
       </div>
     </div>
