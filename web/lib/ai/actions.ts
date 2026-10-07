@@ -178,8 +178,8 @@ export async function resolveActions(db: any, auth: { org_id: string }, location
         const problems = await checkPersonChange(db, p.id, locationId, {
           add: [{ week_start: row.week_start, day: Number(row.day), start_time: row.start_time, end_time: row.end_time }],
         }).catch(() => [] as string[]);
-        // Kurala takılan kişi önerilmez: uygulanırsa vardiya ilana çıkar ama atama 409 ile düşerdi
-        if (problems.length) { dropped.push(`${p.name} bu vardiyayı alamaz: ${problems[0]}.`); continue; }
+        // Kurala takılan kişi yazılmaz (atama 409 ile düşerdi): vardiya en uygun 3 kişiye teklif edilir
+        if (problems.length) { dropped.push(`${p.name} bu vardiyayı alamaz: ${problems[0]}. Bunun yerine en uygun 3 kişiye teklif önerildi.`); replacement = null; }
       }
       const reason = str(a.reason) === "emergency" ? "acil bir durum nedeniyle gelemiyor" : "hastalık nedeniyle gelemiyor";
       actions.push({

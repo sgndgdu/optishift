@@ -100,11 +100,10 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   }
 
   // Takvim: bu ve gelecek haftanın özel günleri, işletmenin aynı gündeki geçmişiyle (lib/weekCalendar; hava yok, hızlı kalsın)
-  const cal = [
-    ...await buildWeekCalendar(db, loc.id, weekStart, { weather: false }).catch(() => []),
-    ...await buildWeekCalendar(db, loc.id, nextWeek, { weather: false }).catch(() => []),
-  ];
-  if (cal.length) { out.push("### Takvim (özel günler)"); out.push(...calendarLines(cal).map(l => `- ${l}`)); }
+  // Önümüzdeki 5 hafta: bayram gibi günler için önceden soru sorulabilsin
+  const cal = (await Promise.all([0, 1, 2, 3, 4].map(w =>
+    buildWeekCalendar(db, loc.id, addDays(weekStart, 7 * w), { weather: false }).catch(() => [])))).flat();
+  if (cal.length) { out.push("### Takvim (önümüzdeki haftaların özel günleri)"); out.push(...calendarLines(cal).map(l => `- ${l}`)); }
 
   // Gelecek haftanın uygunluğu
   const avail = await db.prepare(`SELECT * FROM availability WHERE week_start = ? AND personnel_id IN (SELECT id FROM personnel WHERE org_id = ? AND (primary_location_id = ? OR assigned_location_ids LIKE ?))`)
