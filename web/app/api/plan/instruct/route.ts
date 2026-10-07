@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   if (!aiChatProvider()) return NextResponse.json({ error: "Yapay zekâ bu kurulumda kapalı." }, { status: 503 });
 
-  const body = await req.json().catch(() => null) as { location_id?: string; week_start?: string; text?: string } | null;
+  const body = await req.json().catch(() => null) as { location_id?: string; week_start?: string; text?: string; history?: unknown } | null;
   const text = body?.text?.trim() ?? "";
   const locationId = body?.location_id ?? "";
   const weekStart = body?.week_start ?? "";
@@ -50,11 +50,19 @@ export async function POST(req: NextRequest) {
   const departments = await db.prepare(`SELECT id, name FROM departments WHERE location_id = ? ORDER BY name`).all(locationId) as any[];
   const ctx: InstructCtx = { people, shifts, departments, weekStart, today: day };
 
-  const result = await aiChat(planInstructPrompt(ctx), [{ role: "user", text }], OPTS);
+  // Konuşma: önceki mesajlar (sorumlunun yazdıkları ve modelin JSON cevapları), en fazla 8, her biri sınırlı
+  const history = (Array.isArray(body?.history) ? body!.history as any[] : [])
+    .filter(h => (h?.role === "user" || h?.role === "model") && typeof h?.text === "string" && h.text.trim())
+    .slice(-8)
+    .map(h => ({ role: (h.role === "user" ? "user" : "assistant") as "user" | "assistant", text: String(h.text).slice(0, h.role === "user" ? MAX_TEXT : 2000) }));
+  while (history.length && history[0].role !== "user") history.shift(); // konuşma kullanıcıyla başlamalı
+
+  const result = await aiChat(planInstructPrompt(ctx), [...history, { role: "user", text }], OPTS);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   const json = extractJson(result.text);
-  if (json && typeof json.ask === "string" && json.ask.trim()) return NextResponse.json({ ask: json.ask.trim().slice(0, 400), overrides: [], summary: [], dropped: [] });
+  const model_text = json ? JSON.stringify(json).slice(0, 2000) : result.text.slice(0, 2000);
+  if (json && typeof json.ask === "string" && json.ask.trim()) return NextResponse.json({ ask: json.ask.trim().slice(0, 400), overrides: [], summary: [], dropped: [], model_text });
   const raw = Array.isArray(json?.directives) ? json!.directives as unknown[] : [];
-  if (!raw.length) return NextResponse.json({ ask: "İstek anlaşılamadı. Kişi adı, gün ve vardiyayı yazarak tekrar deneyin.", overrides: [], summary: [], dropped: [] });
-  return NextResponse.json(resolveDirectives(raw, ctx));
+  if (!raw.length) return NextResponse.json({ ask: "İsteği anlayamadım. Kişinin adını, günü ve vardiyayı yazar mısınız?", overrides: [], summary: [], dropped: [], model_text });
+  return NextResponse.json({ ...resolveDirectives(raw, ctx), model_text });
 }

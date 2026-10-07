@@ -204,5 +204,6 @@ export function planInstructPrompt(ctx: InstructCtx): string {
     "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"count\":4" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  o vardiyada o gün şu kadar kişi olsun",
     "Kurallar: İsimleri ve vardiya adlarını listeden aynen yaz. \"Yeniden dağıt\", \"planı düzelt\" gibi ifadeler ayrı istek değildir. Bir kişi için birden çok istek olabilir.",
     "Listede olmayan bir kişi ya da vardiya söylenirse ya da ne istendiği açık değilse \"ask\" ile kısa bir soru sor.",
+    "Konuşma: önceki mesajlar varsa sorumlunun son mesajı bir soruya cevap ya da önceki isteklere ekleme/düzeltme olabilir. Cevabın HER ZAMAN bütün konuşmadaki geçerli isteklerin tam listesi olsun (önceki istekleri tekrar yaz, düzeltileni değiştir, vazgeçileni çıkar).",
   ].filter(Boolean).join("\n");
 }
