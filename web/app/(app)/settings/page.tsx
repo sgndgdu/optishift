@@ -1682,7 +1682,7 @@ export default function SettingsPage() {
                         >
                           {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
                         </button>
-                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. Kişilerin PIN'leri Ekip sayfasında, kişinin kartında yazar.</p>
+                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. Kişilerin PIN&apos;leri Ekip sayfasında, kişinin kartında yazar.</p>
                       </div>
                     )}
                   </div>

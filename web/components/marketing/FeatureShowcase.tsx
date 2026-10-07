@@ -19,7 +19,7 @@ const TONE = {
 /** Departmanlara bölünmüş gün planı: sayaçlar departman başına, joker kişi başka departmanda */
 export function DepartmentsMock({ className }: { className?: string }) {
   const depts = [
-    { name: "Salon", sub: "Salon › Teras", need: "3/3", rows: [["Elif K.", "A", "Açılış"], ["Mert Y.", "K", "Kapanış"], ["Selin A.", "R", "Ara"]] },
+    { name: "Salon", sub: "Salon › Teras", need: "2/2", rows: [["Elif K.", "A", "Açılış"], ["Mert Y.", "K", "Kapanış"]] },
     { name: "Mutfak", need: "2/2", rows: [["Can B.", "A", "Açılış"], ["Ayşe D.", "K", "Kapanış"]], pending: true },
     { name: "Bar", need: "2/2", rows: [["Burak T.", "K", "Kapanış"], ["Deniz Ö.", "R", "Ara"]], joker: "Deniz Ö." },
   ] as const;

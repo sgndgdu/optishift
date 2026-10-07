@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const QA = [
   {
     q: "Bu hafta kim izinli?",
-    a: ["Bu hafta 2 kişi izinli:", "Selin A. · Çarşamba ve Perşembe, yıllık izin", "Mert Y. · Pazar, mazeret izni"],
+    a: ["Bu hafta 2 kişi izinli:", "Can B. · Perşembe, yıllık izin", "Deniz Ö. · Pazar, mazeret izni"],
   },
   {
     q: "Gelecek hafta planı hazır mı?",

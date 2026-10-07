@@ -152,7 +152,7 @@ export default function LandingPage() {
                     {i === 2 && (
                       <div className="space-y-2">
                         <Toast icon="bell" title="Yeni haftanın planı yayında" text="13-19 Ekim vardiyalarınız hazır." className="m-up w-full" style={d(700)} />
-                        <Toast icon="check" title="Selin izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={d(1300)} />
+                        <Toast icon="check" title="Can izin istedi" text="Perşembe · yerine 3 uygun kişi var" className="m-up w-full" style={d(1300)} />
                       </div>
                     )}
                   </div>
@@ -454,7 +454,7 @@ function ScenarioMini() {
   return (
     <div className="text-[12.5px]" aria-hidden="true">
       <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-x-4 text-[11px] font-semibold text-slate-400">
-        <span /><span>Şimdi</span><span>Selin izinde</span>
+        <span /><span>Şimdi</span><span>Can izinde</span>
       </div>
       {rows.map((r) => (
         <div key={r.l} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-t border-slate-900/5 py-2">

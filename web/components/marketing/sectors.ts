@@ -26,8 +26,8 @@ export interface Sector {
   headline: string;
   location: string;
   shifts: SectorShift[];
-  /** Plan önizlemesi: kişi, departman, 7 güne vardiya kodu (null = izin) */
-  rows: { name: string; role: string; days: (string | null)[] }[];
+  /** Plan önizlemesi: kişi, departman (satırlar departmana göre sıralı), 7 güne vardiya kodu (null = izin) */
+  rows: { name: string; dept: string; days: (string | null)[] }[];
 }
 
 export const SECTORS: Sector[] = [
@@ -44,11 +44,11 @@ export const SECTORS: Sector[] = [
       { code: "K", label: "Kapanış", time: "15:00 - 23:30", tone: "ember" },
     ],
     rows: [
-      { name: "Elif K.", role: "Barista", days: ["A", "A", null, "K", "K", "R", null] },
-      { name: "Burak T.", role: "Servis", days: ["K", null, "A", "A", null, "K", "K"] },
-      { name: "Selin A.", role: "Kasa", days: [null, "R", "R", null, "A", "A", "R"] },
-      { name: "Mert Y.", role: "Mutfak", days: ["R", "K", "K", "R", null, null, "A"] },
-      { name: "Deniz Ö.", role: "Servis", days: ["A", null, "K", "K", "R", "K", null] },
+      { name: "Elif K.", dept: "Salon", days: ["A", "A", null, "K", "K", "R", null] },
+      { name: "Mert Y.", dept: "Salon", days: [null, "R", "R", null, "A", "A", "R"] },
+      { name: "Burak T.", dept: "Bar", days: ["K", null, "A", "A", null, "K", "K"] },
+      { name: "Can B.", dept: "Mutfak", days: ["R", "K", "K", "R", null, null, "A"] },
+      { name: "Ayşe D.", dept: "Mutfak", days: ["A", null, "K", "K", "R", "K", null] },
     ],
   },
   {
@@ -57,18 +57,18 @@ export const SECTORS: Sector[] = [
     short: "Otel",
     image: "/marketing/sector-otel.webp",
     headline: "Gece vardiyaları ekip içinde sırayla dağıtılır.",
-    location: "Ön Büro",
+    location: "Kordon Otel",
     shifts: [
       { code: "S", label: "Sabah", time: "07:00 - 15:00", tone: "forest" },
       { code: "A", label: "Akşam", time: "15:00 - 23:00", tone: "ember" },
       { code: "G", label: "Gece", time: "23:00 - 07:00", tone: "violet" },
     ],
     rows: [
-      { name: "Ayşe D.", role: "Resepsiyon", days: ["S", "S", "A", "A", null, null, "G"] },
-      { name: "Kerem B.", role: "Resepsiyon", days: ["G", "G", null, null, "S", "S", "A"] },
-      { name: "Nazlı E.", role: "Kat Hizmetleri", days: ["S", null, "S", "S", "S", "A", null] },
-      { name: "Onur K.", role: "Gece Sorumlusu", days: [null, "A", "G", "G", "G", null, "S"] },
-      { name: "Zehra P.", role: "Konuk İlişkileri", days: ["A", "A", "S", null, "A", "G", "G"] },
+      { name: "Ayşe D.", dept: "Ön Büro", days: ["S", "S", "A", "A", null, null, "G"] },
+      { name: "Kerem B.", dept: "Ön Büro", days: ["G", "G", null, null, "S", "S", "A"] },
+      { name: "Onur K.", dept: "Ön Büro", days: [null, "A", "G", "G", "G", null, "S"] },
+      { name: "Nazlı E.", dept: "Kat Hizmetleri", days: ["S", null, "S", "S", "S", "A", null] },
+      { name: "Zehra P.", dept: "Kat Hizmetleri", days: ["A", "A", "S", null, "A", "G", "G"] },
     ],
   },
   {
@@ -84,11 +84,11 @@ export const SECTORS: Sector[] = [
       { code: "A", label: "Akşam", time: "14:00 - 22:00", tone: "ember" },
     ],
     rows: [
-      { name: "Gizem S.", role: "Mağaza Sorumlusu", days: ["S", "S", "S", null, "O", "A", null] },
-      { name: "Emre Ç.", role: "Kasa", days: ["A", "A", null, "S", "S", null, "O"] },
-      { name: "İrem T.", role: "Reyon", days: [null, "O", "A", "A", null, "S", "S"] },
-      { name: "Okan V.", role: "Depo", days: ["S", null, "O", "O", "A", "A", null] },
-      { name: "Buse N.", role: "Kasa", days: ["O", "S", null, "A", "A", "O", "A"] },
+      { name: "Emre Ç.", dept: "Kasa", days: ["A", "A", null, "S", "S", null, "O"] },
+      { name: "Buse N.", dept: "Kasa", days: ["O", "S", null, "A", "A", "O", "A"] },
+      { name: "Gizem S.", dept: "Reyon", days: ["S", "S", "S", null, "O", "A", null] },
+      { name: "İrem T.", dept: "Reyon", days: [null, "O", "A", "A", null, "S", "S"] },
+      { name: "Okan V.", dept: "Depo", days: ["S", null, "O", "O", "A", "A", null] },
     ],
   },
   {
@@ -97,18 +97,18 @@ export const SECTORS: Sector[] = [
     short: "Üretim",
     image: "/marketing/sector-uretim.webp",
     headline: "Üç vardiyalı düzen ve gece çalışma kuralları kurulu gelir.",
-    location: "Hat 2 · Montaj",
+    location: "Torbalı Fabrika",
     shifts: [
       { code: "1", label: "Sabah", time: "08:00 - 16:00", tone: "forest" },
       { code: "2", label: "Akşam", time: "16:00 - 24:00", tone: "ember" },
       { code: "3", label: "Gece", time: "00:00 - 08:00", tone: "violet" },
     ],
     rows: [
-      { name: "Hasan Ü.", role: "Hat Sorumlusu", days: ["1", "1", "1", "1", "1", null, null] },
-      { name: "Murat E.", role: "Operatör", days: ["2", "2", "2", "2", "2", null, null] },
-      { name: "Serkan A.", role: "Forklift", days: ["3", "3", "3", "3", null, null, "3"] },
-      { name: "Fatma Y.", role: "Kalite", days: ["1", "1", null, "2", "2", "2", null] },
-      { name: "Cem D.", role: "Operatör", days: [null, "3", "3", "1", "1", "1", null] },
+      { name: "Hasan Ü.", dept: "Montaj Hattı", days: ["1", "1", "1", "1", "1", null, null] },
+      { name: "Murat E.", dept: "Montaj Hattı", days: ["2", "2", "2", "2", "2", null, null] },
+      { name: "Cem D.", dept: "Montaj Hattı", days: [null, "3", "3", "1", "1", "1", null] },
+      { name: "Fatma Y.", dept: "Kalite", days: ["1", "1", null, "2", "2", "2", null] },
+      { name: "Serkan A.", dept: "Depo", days: ["3", "3", "3", "3", null, null, "3"] },
     ],
   },
 ];

@@ -1,4 +1,5 @@
 import { Check, ArrowLeftRight, CalendarClock, Bell, Clock, HelpCircle, Repeat, Smartphone, Play } from "lucide-react";
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import { DAYS, TONE_CLASSES, type Sector } from "@/components/marketing/sectors";
 
@@ -24,7 +25,7 @@ export function AppWindow({ title, children, className }: { title: string; child
   );
 }
 
-/** Haftalık vardiya planı: sektörün vardiyaları, görevleri ve doluluk satırı */
+/** Haftalık vardiya planı: sektörün vardiyaları, departman başlıklarıyla kişiler ve doluluk satırı */
 export function ScheduleBoard({ sector, compact = false, animate = false }: { sector: Sector; compact?: boolean; animate?: boolean }) {
   const shiftByCode = Object.fromEntries(sector.shifts.map((s) => [s.code, s]));
   const days = compact ? DAYS.slice(0, 5) : DAYS;
@@ -59,7 +60,13 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
           <div key={d} className={cn("pb-1 text-center font-medium", i >= 5 ? "text-ember-600" : "text-slate-400")}>{d}</div>
         ))}
         {sector.rows.map((row, ri) => (
-          <Row key={row.name} row={row} days={days.length} shiftByCode={shiftByCode} delay={animate ? (d) => cellDelay(d, ri) : undefined} />
+          <Fragment key={row.name}>
+            {/* Uygulamadaki gibi kişiler departmanlarının başlığı altında */}
+            {(ri === 0 || sector.rows[ri - 1].dept !== row.dept) && (
+              <div className="pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-forest-700" style={{ gridColumn: "1 / -1" }}>{row.dept}</div>
+            )}
+            <Row row={row} days={days.length} shiftByCode={shiftByCode} delay={animate ? (d) => cellDelay(d, ri) : undefined} />
+          </Fragment>
         ))}
         <div className="flex items-center pt-1.5 text-[10px] font-medium text-slate-400">İhtiyaç</div>
         {days.map((d, i) => (
@@ -95,10 +102,7 @@ function Row({ row, days, shiftByCode, delay }: {
         <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 sm:flex">
           {row.name.split(" ").map((p) => p[0]).join("")}
         </span>
-        <span className="min-w-0">
-          <span className="block truncate font-semibold text-slate-800">{row.name}</span>
-          <span className="block truncate text-[9.5px] text-slate-400">{row.role}</span>
-        </span>
+        <span className="block min-w-0 truncate font-semibold text-slate-800">{row.name}</span>
       </div>
       {row.days.slice(0, days).map((code, i) => {
         const s = code ? shiftByCode[code] : null;
@@ -129,7 +133,7 @@ export function PhoneMock({ sector, className }: { sector: Sector; className?: s
           <div className="mt-3 rounded-2xl bg-forest-700 p-3.5 text-white">
             <p className="text-[9.5px] font-medium uppercase tracking-wider text-forest-200">Sıradaki vardiyanız</p>
             <p className="mt-1 text-[17px] font-bold leading-tight">Yarın {first.time.split(" - ")[0]}</p>
-            <p className="text-[11px] text-forest-100">{first.label} · {row.role}</p>
+            <p className="text-[11px] text-forest-100">{first.label} · {row.dept}</p>
             <div className="mt-3 flex gap-1.5">
               <span className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[10px] font-semibold">
                 <ArrowLeftRight size={11} /> Değiştir
@@ -201,7 +205,7 @@ export function FairnessCard({ className, animate = false }: { className?: strin
   const people = [
     { name: "Elif", v: 0.82 },
     { name: "Burak", v: 0.78 },
-    { name: "Selin", v: 0.8 },
+    { name: "Can", v: 0.8 },
     { name: "Mert", v: 0.76 },
   ];
   return (

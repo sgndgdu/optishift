@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Bell, Sparkles, ArrowUp, AlertTriangle, ArrowLeftRight, CalendarX, X, LifeBuoy, ChevronRight, MessageCircle } from "lucide-react";
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,12 +39,14 @@ const SHIFTS = {
 type Code = keyof typeof SHIFTS | null;
 
 const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-const TEAM: { name: string; role: string; days: Code[] }[] = [
-  { name: "Elif K.", role: "Barista", days: ["A", "A", null, "K", "K", "A", null] },
-  { name: "Burak T.", role: "Barista", days: ["K", "K", "A", null, "A", "K", "K"] },
-  { name: "Selin A.", role: "Kasa", days: ["R", null, "A", "A", "K", null, "R"] },
-  { name: "Mert Y.", role: "Servis", days: ["A", "R", "K", "K", null, "R", "A"] },
-  { name: "Deniz Ö.", role: "Servis", days: [null, "K", "R", "A", "R", "A", "K"] },
+/** Örnek ekip (bütün tanıtım görselleri aynı kafe): departmanlara göre sıralı. "R@Bar": o gün başka departmana yazıldı */
+const TEAM: { name: string; dept: string; days: (Code | `${NonNullable<Code>}@${string}`)[] }[] = [
+  { name: "Elif K.", dept: "Salon", days: ["A", "A", null, "K", "K", "A", null] },
+  { name: "Mert Y.", dept: "Salon", days: ["A", "R", "K", "K", "K", null, "A"] },
+  { name: "Deniz Ö.", dept: "Salon", days: [null, "K", "R", "A", "R@Bar", "A", "K"] },
+  { name: "Burak T.", dept: "Bar", days: ["K", "K", "A", null, "A", "K", "K"] },
+  { name: "Can B.", dept: "Mutfak", days: ["A", "A", null, "R", "K", null, "A"] },
+  { name: "Ayşe D.", dept: "Mutfak", days: ["K", null, "K", "A", "A", "K", null] },
 ];
 
 /* ─── 1. Plan ─────────────────────────────────────────────── */
@@ -80,21 +83,28 @@ function PlanScene({ t, small }: SceneProps) {
           <div key={d} className={cn("pb-1 text-center text-[12px] font-medium", i >= 5 ? "text-ember-600" : "text-slate-400")}>{d}</div>
         ))}
         {TEAM.map((p, r) => (
-          <Row key={p.name} name={p.name} role={p.role}>
-            {p.days.slice(0, days).map((c, d) => {
-              const on = after(t, cellAt(d, r));
-              const s = c ? SHIFTS[c] : null;
-              return (
-                <div key={d} className="h-10 min-w-0 rounded-lg bg-slate-50">
-                  {on && (
-                    <div className={cn("sc-pop flex h-full items-center justify-center rounded-lg text-[12px] font-semibold", s ? s.tone : "text-slate-300")}>
-                      {s ? s.label : "izin"}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </Row>
+          <Fragment key={p.name}>
+            {(r === 0 || TEAM[r - 1].dept !== p.dept) && (
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-forest-700" style={{ gridColumn: "1 / -1" }}>{p.dept}</div>
+            )}
+            <Row name={p.name}>
+              {p.days.slice(0, days).map((c, d) => {
+                const on = after(t, cellAt(d, r));
+                const [code, other] = c ? (c.split("@") as [keyof typeof SHIFTS, string?]) : [null];
+                const s = code ? SHIFTS[code] : null;
+                return (
+                  <div key={d} className="h-9 min-w-0 rounded-lg bg-slate-50">
+                    {on && (
+                      <div className={cn("sc-pop flex h-full flex-col items-center justify-center rounded-lg text-[12px] font-semibold leading-tight", s ? s.tone : "text-slate-300", other && "ring-2 ring-inset ring-sky-400")}>
+                        {s ? s.label : "izin"}
+                        {other && <span className="text-[10px] font-medium">{other}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </Row>
+          </Fragment>
         ))}
         <div className="flex items-center pt-1 text-[12px] font-medium text-slate-400">İhtiyaç</div>
         {DAYS.slice(0, days).map((d, i) => {
@@ -119,17 +129,14 @@ function PlanScene({ t, small }: SceneProps) {
   );
 }
 
-function Row({ name, role, children }: { name: string; role: string; children: React.ReactNode }) {
+function Row({ name, children }: { name: string; children: React.ReactNode }) {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2">
-        <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-600 sm:flex">
+        <span className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 sm:flex">
           {name.split(" ").map((x) => x[0]).join("")}
         </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-slate-800">{name}</span>
-          <span className="block truncate text-[11px] text-slate-400">{role}</span>
-        </span>
+        <span className="block min-w-0 truncate text-[13px] font-semibold text-slate-800">{name}</span>
       </div>
       {children}
     </>
@@ -169,7 +176,7 @@ function PhoneScene({ t }: SceneProps) {
             <p className="m-enter mb-2 mt-4 text-[13px] font-semibold text-slate-500">Haftanız · 13-19 Ekim</p>
             <div className="space-y-1.5">
               {me.days.map((c, i) => {
-                const s = c ? SHIFTS[c] : null;
+                const s = c ? SHIFTS[c.split("@")[0] as keyof typeof SHIFTS] : null;
                 const pick = i === 4 && between(t, 5700, 6200);
                 return (
                   <div
@@ -196,10 +203,10 @@ function PhoneScene({ t }: SceneProps) {
       <div className={cn("absolute inset-x-0 bottom-0 z-10 rounded-t-3xl bg-white p-4 shadow-[0_-20px_40px_-20px_rgba(10,33,30,0.35)] transition-transform duration-500", sheet ? "translate-y-0" : "translate-y-full")}>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
         <p className="text-[15px] font-bold text-slate-900">Cuma · Kapanış</p>
-        <p className="text-[13px] text-slate-500">15:00 - 23:00 · Barista</p>
+        <p className="text-[13px] text-slate-500">15:00 - 23:00 · Salon</p>
         <p className="mb-2 mt-3 text-[12px] font-semibold text-slate-500">Birlikte çalışacağınız</p>
         <div className="flex flex-wrap gap-1.5">
-          {["Selin A. · Kasa", "Deniz Ö. · Servis"].map((x) => (
+          {["Mert Y. · Salon", "Can B. · Mutfak"].map((x) => (
             <span key={x} className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-700">{x}</span>
           ))}
         </div>
@@ -218,8 +225,8 @@ function PhoneScene({ t }: SceneProps) {
 /* ─── 3. Onaylar ──────────────────────────────────────────── */
 type Req = { who: string; kind: string; detail: string; check: number; act: number; ok: boolean; note: string; done: string };
 const REQS: Req[] = [
-  { who: "Selin A.", kind: "İzin", detail: "Çarşamba ve Perşembe · yıllık izin", check: 900, act: 3200, ok: true, note: "Plan bozulmuyor, yerine Deniz Ö. uygun", done: "Onaylandı" },
-  { who: "Mert Y.", kind: "Vardiya değiştirme", detail: "Cuma kapanışını Burak T. ile değiştirmek istiyor", check: 4200, act: 7200, ok: false, note: "Burak cumartesi 07:00'de açılışta: arada sadece 8 saat dinlenme kalır", done: "Reddedildi, gerekçesi Mert'e iletildi" },
+  { who: "Can B.", kind: "İzin", detail: "Perşembe · yıllık izin", check: 900, act: 3200, ok: true, note: "Mutfak'ta plan bozulmuyor, yerine Burak T. uygun (Mutfakta da çalışabiliyor)", done: "Onaylandı" },
+  { who: "Mert Y.", kind: "Vardiya değiştirme", detail: "Cuma kapanışını Deniz Ö. ile değiştirmek istiyor (ikisi de Salon)", check: 4200, act: 7200, ok: false, note: "Deniz cumartesi 07:00'de açılışta: arada sadece 8 saat dinlenme kalır", done: "Reddedildi, gerekçesi Mert'e iletildi" },
   { who: "Deniz Ö.", kind: "İzin", detail: "Pazar · mazeret izni", check: 8200, act: 9800, ok: true, note: "Pazar ihtiyacı yine karşılanıyor", done: "Onaylandı" },
 ];
 
@@ -272,17 +279,18 @@ function ApprovalsScene({ t }: SceneProps) {
 }
 
 /* ─── 4. Biri gelemezse ───────────────────────────────────── */
+/** Çarşamba: plan sahnesindeki ekiple aynı (TEAM, 3. gün) */
 const DAY_SHIFTS = [
-  { name: "Burak T.", code: "A" as const },
-  { name: "Selin A.", code: "A" as const },
-  { name: "Deniz Ö.", code: "R" as const },
-  { name: "Mert Y.", code: "K" as const },
-  { name: "Ayşe D.", code: "K" as const, out: true },
+  { name: "Burak T.", dept: "Bar", code: "A" as const },
+  { name: "Deniz Ö.", dept: "Salon", code: "R" as const },
+  { name: "Mert Y.", dept: "Salon", code: "K" as const },
+  { name: "Ayşe D.", dept: "Mutfak", code: "K" as const, out: true },
 ];
+/** Mutfakta çalışabilen yedekler: kendi departmanı, joker, başka şube */
 const CANDIDATES = [
-  { name: "Elif K.", best: true, why: ["\"Uygunum\" dedi", "Bu hafta 24 saat", "14 saat dinlenmiş olacak"] },
-  { name: "Can B.", why: ["Uygun", "Bu hafta 42 saat, sınıra yakın"] },
-  { name: "Burak T.", why: ["Aynı gün açılışta, 16 saat olur"] },
+  { name: "Can B.", sub: "Mutfak", best: true, why: ["\"Uygunum\" dedi", "Bu hafta 24 saat", "14 saat dinlenmiş olacak"] },
+  { name: "Ece S.", sub: "Kadıköy şubesinden", why: ["Uygun", "Bu hafta 30 saat"] },
+  { name: "Burak T.", sub: "Bar, Mutfakta da çalışabilir", why: ["Aynı gün açılışta, 16 saat olur"] },
 ];
 
 function CoverScene({ t }: SceneProps) {
@@ -314,11 +322,11 @@ function CoverScene({ t }: SceneProps) {
             <div key={r.name} className={cn("flex items-center justify-between gap-2 rounded-xl px-3 py-2 ring-1 transition-colors duration-500", out ? "bg-red-50 ring-red-200" : r.out && filled ? "bg-forest-50 ring-forest-200" : "bg-white ring-slate-900/5")}>
               <span className={cn("rounded-md px-2 py-0.5 text-[12px] font-semibold", s.tone)}>{s.label} {s.time}</span>
               {r.out && filled ? (
-                <span className="sc-pop flex items-center gap-1.5 text-[13px] font-semibold text-forest-800"><Check size={14} strokeWidth={3} /> Elif K.</span>
+                <span className="sc-pop flex items-center gap-1.5 text-[13px] font-semibold text-forest-800"><Check size={14} strokeWidth={3} /> Can B.</span>
               ) : out ? (
                 <Btn pressed={between(t, 3200, 3700)} className="bg-ember-400 py-1.5 text-forest-900"><LifeBuoy size={14} /> Yedek bul</Btn>
               ) : (
-                <span className="text-[13px] font-medium text-slate-700">{r.name}</span>
+                <span className="text-[13px] font-medium text-slate-700">{r.name} <span className="font-normal text-slate-400">· {r.dept}</span></span>
               )}
             </div>
           );
@@ -329,20 +337,20 @@ function CoverScene({ t }: SceneProps) {
         <div className="mt-auto flex justify-center pt-3">
           <div className="m-enter flex items-center gap-3 rounded-2xl bg-forest-900 px-4 py-3 text-white shadow-lg">
             <Bell size={16} className="text-ember-300" />
-            <span className="text-[13px] font-medium">{"Elif'e bildirim gitti"}</span>
+            <span className="text-[13px] font-medium">{"Can'a bildirim gitti"}</span>
           </div>
         </div>
       )}
 
       {/* Yedek önerileri */}
       <div className={cn("absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-4 shadow-[0_-24px_50px_-20px_rgba(10,33,30,0.4)] ring-1 ring-slate-900/5 transition-transform duration-500 sm:p-5", panel ? "translate-y-0" : "translate-y-full")}>
-        <p className="mb-2.5 text-[14px] font-semibold text-slate-900">Kapanış için en uygun yedekler</p>
+        <p className="mb-2.5 text-[14px] font-semibold text-slate-900">Mutfak kapanışı için en uygun yedekler</p>
         <div className="space-y-2">
           {CANDIDATES.map((c, i) => (
             <div key={c.name} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity", c.best ? "bg-forest-50 ring-1 ring-forest-200" : "bg-slate-50", after(t, 4100 + i * 250) ? "opacity-100" : "opacity-0")}>
               <div className="min-w-0 flex-1">
                 <p className="text-[13.5px] font-semibold text-slate-900">{c.name} {c.best && <span className="ml-1 rounded-full bg-forest-600 px-2 py-0.5 text-[11px] font-semibold text-white">En uygun</span>}</p>
-                <p className="truncate text-[12px] text-slate-500">{c.why.join(" · ")}</p>
+                <p className="truncate text-[12px] text-slate-500">{c.sub} · {c.why.join(" · ")}</p>
               </div>
               {c.best ? (
                 <Btn pressed={between(t, 6800, 7400)} className="bg-forest-700 py-1.5 text-white">Ata</Btn>
@@ -359,7 +367,7 @@ function CoverScene({ t }: SceneProps) {
 
 /* ─── 5. Asistan ──────────────────────────────────────────── */
 const CHAT = [
-  { at: 500, q: "Bu hafta kim izinli?", a: ["Bu hafta 2 kişi izinli:", "Selin A. · Çarşamba ve Perşembe, yıllık izin", "Deniz Ö. · Pazar, mazeret izni"] },
+  { at: 500, q: "Bu hafta kim izinli?", a: ["Bu hafta 2 kişi izinli:", "Can B. · Perşembe, yıllık izin", "Deniz Ö. · Pazar, mazeret izni"] },
   { at: 5200, q: "Gelecek haftanın planı hazır mı?", a: ["Taslak hazır, henüz yayınlanmadı.", "Bütün vardiyalar dolu, kural ihlali yok. Bakıp yayınlayabilirsiniz."] },
 ];
 const TYPE_MS = 45;

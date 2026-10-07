@@ -44,7 +44,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
           <div className="m-up absolute -bottom-8 -right-6" style={{ "--d": "1900ms" } as React.CSSProperties}>
             <div className="m-float">
               {variant === "login" ? (
-                <Toast icon="swap" title="Vardiya değiştirme onaylandı" text="Burak ile Selin cumartesi vardiyalarını değiştirdi." />
+                <Toast icon="swap" title="Vardiya değiştirme onaylandı" text="Elif ile Mert cumartesi vardiyalarını değiştirdi." />
               ) : (
                 <Toast icon="check" title="Plan yayınlandı" text="5 kişiye bildirim gitti." />
               )}
