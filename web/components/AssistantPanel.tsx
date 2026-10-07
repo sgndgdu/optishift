@@ -4,11 +4,42 @@
  * İşletme Asistanı (yapay zekâ, lib/ai/chat): yönetim panelinin her sayfasında sağ alttaki düğme.
  * Şube panelinde o şube, "Tüm Şubeler" görünümünde kapsamdaki şubeler hakkında sorulur
  * (bağlam sunucuda: lib/ai/businessContext). Sunucuda anahtar yoksa hiç görünmez.
+ * Şube görünümünde asistan işlem önerebilir (lib/ai/actions): kartta "Uygula" denince
+ * lib/copilot/applyAction mevcut uçları çağırır. Onaysız hiçbir şey değişmez.
  */
 import { useEffect, useRef, useState } from "react";
-import { Send, Sparkles, X } from "lucide-react";
+import { Check, Send, Sparkles, X } from "lucide-react";
+import type { ProposedAction } from "@/lib/ai/actions";
+import { applyAction } from "@/lib/copilot/applyAction";
 
-type Turn = { role: "user" | "assistant"; text: string };
+type ActionState = { status: "idle" | "busy" | "done" | "failed" | "skipped"; message?: string };
+type Turn = { role: "user" | "assistant"; text: string; actions?: ProposedAction[]; dropped?: string[] };
+
+function ActionCard({ action, state, onApply, onSkip }: { action: ProposedAction; state: ActionState; onApply: () => void; onSkip: () => void }) {
+  return (
+    <div className="rounded-xl border border-forest-200 bg-white px-3 py-2.5 space-y-2">
+      <p className="text-xs font-bold text-forest-800">Önerilen işlem</p>
+      <p className="text-sm text-slate-800">{action.title}</p>
+      {state.status === "idle" && (
+        <div className="flex gap-2">
+          <button onClick={onApply} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-700 text-white text-xs font-bold hover:bg-forest-800">
+            <Check size={14} /> Uygula
+          </button>
+          <button onClick={onSkip} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50">Vazgeç</button>
+        </div>
+      )}
+      {state.status === "busy" && <p className="text-xs text-slate-500">Uygulanıyor…</p>}
+      {state.status === "done" && <p className="text-xs font-semibold text-forest-700">{state.message}</p>}
+      {state.status === "failed" && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-red-600">{state.message}</p>
+          <button onClick={onApply} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50">Tekrar dene</button>
+        </div>
+      )}
+      {state.status === "skipped" && <p className="text-xs text-slate-500">Uygulanmadı.</p>}
+    </div>
+  );
+}
 
 // Yapay zekâ cevabındaki basit Markdown: **kalın**, *italik*, "- " / "* " madde, # başlık (ham işaret görünmesin)
 function Rich({ text }: { text: string }) {
@@ -36,7 +67,7 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-const EXAMPLES_BRANCH = ["Bu hafta kim izinli?", "Gelecek hafta planı hazır mı?", "En çok kim çalışıyor?", "Bekleyen onaylar neler?"];
+const EXAMPLES_BRANCH = ["Bu hafta kim izinli?", "Bekleyen onaylar neler?", "Yarın biri gelemezse yerine kim girebilir?", "En çok kim çalışıyor?"];
 const EXAMPLES_ALL = ["Hangi şubenin planı eksik?", "Şubeleri karşılaştır", "Bekleyen izinler hangi şubede?"];
 
 export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" | "all" }) {
@@ -47,6 +78,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [actionState, setActionState] = useState<Record<string, ActionState>>({});
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -64,7 +96,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
         loc = localStorage.getItem("optishift_selected_location")
           || JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").location_id || null;
       } catch { loc = null; }
-      setLocationId(prev => { if (prev !== loc) setTurns([]); return loc; });
+      setLocationId(prev => { if (prev !== loc) { setTurns([]); setActionState({}); } return loc; });
     };
     read();
     window.addEventListener("optishift_location_changed", read);
@@ -94,7 +126,10 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
         setTurns(history);
         setInput(question);
       } else {
-        setTurns([...history, { role: "user", text: question }, { role: "assistant", text: d.answer }]);
+        setTurns([...history, { role: "user", text: question }, {
+          role: "assistant", text: d.answer,
+          actions: Array.isArray(d.actions) ? d.actions : [], dropped: Array.isArray(d.dropped) ? d.dropped : [],
+        }]);
       }
     } catch {
       setError("Bağlantı hatası, tekrar deneyin.");
@@ -106,6 +141,12 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
   };
 
   const examples = scope === "all" ? EXAMPLES_ALL : EXAMPLES_BRANCH;
+
+  const runAction = async (key: string, a: ProposedAction) => {
+    setActionState(s => ({ ...s, [key]: { status: "busy" } }));
+    const res = await applyAction(a);
+    setActionState(s => ({ ...s, [key]: { status: res.ok ? "done" : "failed", message: res.message } }));
+  };
 
   return (
     <>
@@ -130,7 +171,9 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {turns.length === 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-500">Ekip, plan, izinler, onaylar, fazla mesai ve ayarlar hakkında sorabilirsiniz.</p>
+                <p className="text-xs text-slate-500">{scope === "all"
+                  ? "Ekip, plan, izinler, onaylar, fazla mesai ve ayarlar hakkında sorabilirsiniz."
+                  : "Ekip, plan, izinler ve onaylar hakkında sorabilirsiniz. \"Ayşe yarın gelemiyor\" ya da \"Mehmet'e cuma izin ver\" gibi bir değişiklik de isteyebilirsiniz."}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {examples.map(e => (
                     <button key={e} onClick={() => ask(e)} disabled={busy}
@@ -142,12 +185,24 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
               </div>
             )}
             {turns.map((t, i) => (
-              <div key={i} className={t.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div className={t.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-br-md bg-forest-700 text-white px-3.5 py-2 text-sm"
-                  : "max-w-[90%] rounded-2xl rounded-bl-md bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-sm text-slate-800"}>
-                  {t.role === "assistant" ? <Rich text={t.text} /> : t.text}
+              <div key={i} className="space-y-2">
+                <div className={t.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <div className={t.role === "user"
+                    ? "max-w-[85%] rounded-2xl rounded-br-md bg-forest-700 text-white px-3.5 py-2 text-sm"
+                    : "max-w-[90%] rounded-2xl rounded-bl-md bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-sm text-slate-800"}>
+                    {t.role === "assistant" ? <Rich text={t.text} /> : t.text}
+                  </div>
                 </div>
+                {t.actions?.map((a, j) => {
+                  const key = `${i}-${j}`;
+                  return <ActionCard key={key} action={a} state={actionState[key] ?? { status: "idle" }}
+                    onApply={() => runAction(key, a)} onSkip={() => setActionState(s => ({ ...s, [key]: { status: "skipped" } }))} />;
+                })}
+                {!!t.dropped?.length && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 space-y-0.5">
+                    {t.dropped.map((d, j) => <p key={j}>Önerilemedi: {d}</p>)}
+                  </div>
+                )}
               </div>
             ))}
             {busy && <p className="text-xs text-slate-400 px-1">Asistan cevap hazırlıyor…</p>}
@@ -165,7 +220,7 @@ export default function AssistantPanel({ scope = "branch" }: { scope?: "branch" 
                 <Send size={16} />
               </button>
             </form>
-            <p className="text-xs text-slate-400 px-1">Yapay zekâ cevaplarını kontrol edin. Asistan kayıt değiştirmez, bilgi ve öneri verir.</p>
+            <p className="text-xs text-slate-400 px-1">Yapay zekâ cevaplarını kontrol edin. Asistan bir işlem önerirse, siz onaylamadan hiçbir şey değişmez.</p>
           </div>
         </div>
       )}

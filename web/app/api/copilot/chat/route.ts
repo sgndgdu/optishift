@@ -5,10 +5,12 @@ import { canManageLocation } from "@/lib/access";
 import { aiChat, aiChatProvider, type ChatTurn } from "@/lib/ai/chat";
 import { buildBusinessContext } from "@/lib/ai/businessContext";
 import { businessToday } from "@/lib/date";
+import { ACTIONS_PROMPT, resolveActions, splitAssistantReply } from "@/lib/ai/actions";
 
 // İşletme Asistanı (lib/ai/chat). Bağlam: kullanıcının kapsamındaki işletme özeti (lib/ai/businessContext),
 // her soruda sunucuda taze hazırlanır. location_id: şube ayrıntısı; yoksa (patron/bölge müdürü) tüm şubeler.
-// Asistan sadece bilgi ve öneri verir, hiçbir kaydı değiştirmez.
+// Asistan kayıt değiştirmez: şube görünümünde işlem ÖNERİR (lib/ai/actions), sorumlu onaylarsa
+// tarayıcı uygulamanın mevcut uçlarını çağırır (lib/copilot/applyAction).
 
 const MAX_QUESTION = 500;
 const MAX_TURNS = 8;
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ enabled: auth.role !== "employee" && aiChatProvider() !== null });
 }
 
-function systemPrompt(context: string): string {
+function systemPrompt(context: string, actions: boolean): string {
   return [
     "Sen OptiShift'in İşletme Asistanı'sın. Hesap sahibine ya da sorumluya personel, vardiya planı, izinler, onaylar,",
     "fazla mesai, uygunluk ve şube ayarları hakkında yardım ediyorsun.",
@@ -29,9 +31,11 @@ function systemPrompt(context: string): string {
     "- Türkçe, kısa ve net yaz. Gerekirse madde işareti kullan.",
     "- Sadece aşağıdaki işletme verisine dayan. Veride olmayan bir şeyi uydurma; bilmiyorsan söyle ve nereden bakılacağını öner.",
     "- Sayıları, isimleri ve tarihleri veriden aynen al.",
-    "- Hiçbir kaydı değiştiremezsin. İşlem önerirsen uygulamada nereden yapılacağını söyle",
-    "  (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar).",
+    actions
+      ? "- Kayıtları kendin değiştiremezsin; aşağıdaki işlemleri önerebilirsin. Diğer işler için uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar)."
+      : "- Hiçbir kaydı değiştiremezsin. İşlem önerirsen uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar). İşlem için şubeye girilmesi gerektiğini söyle.",
     "- İş Kanunu sınırlarını (haftalık saat, 11 saat dinlenme, hafta tatili, yıllık izin) gözet; hukuki kesinlik iddia etme.",
+    ...(actions ? ["", ACTIONS_PROMPT] : []),
     "",
     "İşletme verisi:",
     context,
@@ -70,7 +74,9 @@ export async function POST(req: NextRequest) {
   while (history.length && history[0].role !== "user") history.shift();
 
   const context = await buildBusinessContext(db, auth, locationId);
-  const result = await aiChat(systemPrompt(context), [...history, { role: "user", text: question }]);
+  const result = await aiChat(systemPrompt(context, !!locationId), [...history, { role: "user", text: question }]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
-  return NextResponse.json({ answer: result.text });
+  const { answer, raw } = splitAssistantReply(result.text);
+  const { actions, dropped } = locationId ? await resolveActions(db, auth, locationId, raw) : { actions: [], dropped: [] };
+  return NextResponse.json({ answer: answer || (actions.length ? "Şu işlemi öneriyorum:" : "Cevap alınamadı, soruyu başka türlü sorun."), actions, dropped });
 }

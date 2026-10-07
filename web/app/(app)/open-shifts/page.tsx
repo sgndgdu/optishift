@@ -81,6 +81,11 @@ export default function OpenShiftsPage() {
 
   // İlk yükleme (2026-10-04: Teklif Pazarı kaldırılırken bu satır da silinmişti, liste hiç yüklenmiyordu)
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
+  // Asistanda onaylanan işlem (lib/copilot/applyAction) ilan açmış olabilir
+  useEffect(() => {
+    window.addEventListener("optishift_data_changed", load);
+    return () => window.removeEventListener("optishift_data_changed", load);
+  }, [load]);
 
   // Varsayılan kahraman bonus puanını Ayarlar'daki kuraldan al (tek kaynak: rules.hero_bonus_points)
   useEffect(() => {

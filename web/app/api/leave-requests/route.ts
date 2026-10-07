@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Müdüre bildirim gönder
-    if (auth.location_id) {
+    // Sorumluya bildirim gönder (izni sorumlu kendisi girdiyse gerek yok: asistan ya da Onaylar'dan hemen karar verir)
+    if (auth.location_id && auth.role === "employee") {
       const managers = await rawDb.prepare(`
         SELECT personnel_id FROM users
         WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL

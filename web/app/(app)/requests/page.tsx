@@ -106,6 +106,11 @@ export default function ManagerRequestsPage() {
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+  // Asistanda onaylanan işlem (lib/copilot/applyAction) talepleri değiştirmiş olabilir
+  useEffect(() => {
+    window.addEventListener("optishift_data_changed", load);
+    return () => window.removeEventListener("optishift_data_changed", load);
+  }, [load]);
 
   async function approveSwap(id: number, known: string[] = []) {
     // Kartta görünen kural sorunları varsa önce açık onay al

@@ -557,7 +557,13 @@ function SchedulePageInner() {
       setReloadTick(t => t + 1);
     };
     window.addEventListener("optishift_location_changed", handleLocChange);
-    return () => window.removeEventListener("optishift_location_changed", handleLocChange);
+    // Asistanda onaylanan işlem (lib/copilot/applyAction) planı değiştirmiş olabilir: haftayı yeniden yükle
+    const handleDataChange = () => setReloadTick(t => t + 1);
+    window.addEventListener("optishift_data_changed", handleDataChange);
+    return () => {
+      window.removeEventListener("optishift_location_changed", handleLocChange);
+      window.removeEventListener("optishift_data_changed", handleDataChange);
+    };
   }, []);
 
   // Load personnel + availability + existing shifts

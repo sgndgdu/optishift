@@ -63,7 +63,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   // Plan: bu hafta ve gelecek hafta
   for (const [label, ws] of [["Bu hafta", weekStart], ["Gelecek hafta", nextWeek]] as const) {
     const rows = await db.prepare(`
-      SELECT personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at
+      SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at
       FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
     `).all(loc.id, ws) as any[];
     const status = rows.length === 0 ? "plan yok" : rows.some(r => r.publication_status === "published") ? "yayınlandı" : "taslak (personel görmüyor)";
@@ -71,7 +71,8 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
     const byPerson = new Map<string, string[]>();
     const hours = new Map<string, number>();
     for (const r of rows) {
-      const tag = `${day(r.day)} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""}`;
+      // [v<id>]: asistanın işlem önerisinde vardiyayı göstermesi için (lib/ai/actions)
+      const tag = `${day(r.day)} ${short(addDays(ws, Number(r.day)))} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""} [v${r.id}]`;
       byPerson.set(r.personnel_id, [...(byPerson.get(r.personnel_id) ?? []), tag]);
       if (r.kind !== "on_call" && r.start_time && r.end_time) {
         const [a, b] = [r.start_time, r.end_time].map((t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
@@ -117,7 +118,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   `).all(auth.org_id, loc.id, today, addDays(today, 30)) as any[];
   if (leaves.length) {
     out.push("### İzinler");
-    for (const l of leaves) out.push(`- ${nameOf.get(l.personnel_id) ?? l.personnel_id}: ${leaveTypeLabel(l.type)} ${l.start_date}→${l.end_date} (${l.days} gün, ${l.status === "pending" ? "onay bekliyor" : "onaylı"})`);
+    for (const l of leaves) out.push(`- ${nameOf.get(l.personnel_id) ?? l.personnel_id}: ${leaveTypeLabel(l.type)} ${l.start_date}→${l.end_date} (${l.days} gün, ${l.status === "pending" ? `onay bekliyor [izin ${l.id}]` : "onaylı"})`);
   }
 
   // Bekleyen onaylar
@@ -132,7 +133,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   const ots = await db.prepare(`SELECT * FROM overtime_records WHERE org_id = ? AND location_id = ? AND status = 'pending' ORDER BY week_start`).all(auth.org_id, loc.id) as any[];
   if (swaps.length || edits.length || ots.length) {
     out.push("### Bekleyen talepler");
-    for (const s of swaps) out.push(`- Vardiya değiştirme: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? "sorumlu onayı bekliyor" : "arkadaşın yanıtı bekleniyor"})`);
+    for (const s of swaps) out.push(`- Vardiya değiştirme: ${s.requester_name} ↔ ${s.target_name} (${s.status === "peer_accepted" ? `sorumlu onayı bekliyor [takas ${s.id}]` : "arkadaşın yanıtı bekleniyor"})`);
     for (const e of edits) out.push(`- Saat düzeltme: ${e.personnel_name ?? nameOf.get(e.personnel_id)}: ${e.reason}`);
     for (const o of ots) out.push(`- Fazla mesai: ${o.personnel_name ?? nameOf.get(o.personnel_id)} ${short(o.week_start)} haftası ${o.overtime_hours} s`);
   }
