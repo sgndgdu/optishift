@@ -48,7 +48,10 @@ async function geminiChat(system: string, turns: ChatTurn[], opts: ChatOptions =
     }).catch((e) => { console.error("[ai/gemini] istek düştü", model, String(e).slice(0, 200)); return null; });
     if (!res) return { ok: false, error: FAIL };
     // Model bu hesapta yok (404) ya da ücretsiz katmanda geçici yoğunluk (503/500): sıradaki modeli dene
-    if (res.status === 404 || res.status === 503 || res.status === 500) continue;
+    if (res.status === 404 || res.status === 503 || res.status === 500) {
+      console.error("[ai/gemini] model atlandı", model, res.status, (await res.text().catch(() => "")).slice(0, 200));
+      continue;
+    }
     if (res.status === 429) return { ok: false, error: "Ücretsiz kullanım sınırına ulaşıldı, birkaç dakika sonra tekrar deneyin." };
     if (!res.ok) {
       console.error("[ai/gemini]", res.status, (await res.text().catch(() => "")).slice(0, 300));
