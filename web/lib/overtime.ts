@@ -13,6 +13,7 @@
  * hata sabıkası var (bkz. CLAUDE.md 2026-07-03).
  */
 import { isModuleOn } from "@/lib/moduleVisibility";
+import { assignmentWorkMinutes, shiftDefsFrom } from "@/lib/legal";
 import { db } from "@/lib/db";
 import {
   locations,
@@ -273,10 +274,11 @@ export async function deriveOvertimeForWeek(
   weekStart: string,
 ): Promise<DerivedOvertime[]> {
   const loc = await db
-    .select({ rules: locations.rules })
+    .select({ rules: locations.rules, shift_definitions: locations.shift_definitions })
     .from(locations)
     .where(and(eq(locations.id, locationId), eq(locations.org_id, orgId)));
   if (!loc[0]) return [];
+  const shiftDefs = shiftDefsFrom(loc[0].shift_definitions);
   const rules = parseJSON<Record<string, unknown>>(loc[0].rules, {});
   if (!isModuleOn(rules, "overtime_tracking_enabled")) return [];
   const threshold = typeof rules.overtime_threshold_hours === "number"
@@ -286,6 +288,7 @@ export async function deriveOvertimeForWeek(
   const saRows = await db
     .select({
       personnel_id: shiftAssignments.personnel_id,
+      shift_id: shiftAssignments.shift_id,
       start_time: shiftAssignments.start_time,
       end_time: shiftAssignments.end_time,
     })
@@ -301,7 +304,8 @@ export async function deriveOvertimeForWeek(
   const minutesByPid: Record<string, number> = {};
   for (const r of saRows) {
     if (!r.start_time || !r.end_time) continue;
-    minutesByPid[r.personnel_id] = (minutesByPid[r.personnel_id] ?? 0) + shiftMinutes(r.start_time, r.end_time);
+    // Mola çalışma süresine sayılmaz (lib/legal)
+    minutesByPid[r.personnel_id] = (minutesByPid[r.personnel_id] ?? 0) + assignmentWorkMinutes(shiftDefs, r);
   }
   // İcapta çağrılınca çalışılan saat çalışma süresidir (bekleme değil)
   const callouts = await db

@@ -602,3 +602,17 @@ def test_availability_window_infeasible_is_explained():
     result = run_engine(payload)
     assert "error" in result
     assert "saat aralığı" in result["error"] or "saatlere uygun" in result["error"], result["error"]
+
+
+def test_break_not_counted_in_weekly_hours():
+    """Mola çalışma süresine sayılmaz: 08:00-18:00 (10 s, yasal 1 s mola) 5 gün = 45 saat çalışma.
+    Molasız tanımda (break_minutes 0) aynı plan 45 saati aşar ve tek kişiyle kurulamaz."""
+    people = [make_person("P1", "Tek Kişi")]
+    shifts = [{"id": "gun", "name": "Gündüz", "start": "08:00", "end": "18:00", "base_points": 3}]
+    demand = {"gun": {str(d): 1 for d in range(5)}}
+    avail = {"P1": FULL_WEEK_AVAILABLE}
+    ok = run_engine(base_payload(personnel=people, availability=avail, shifts=shifts, demand_matrix=demand))
+    assert "error" not in ok, ok  # 10 s - 1 s mola = 9 s × 5 = 45 saat: sığar
+    no_break = [{**shifts[0], "break_minutes": 0}]
+    bad = run_engine(base_payload(personnel=people, availability=avail, shifts=no_break, demand_matrix=demand))
+    assert "error" in bad or len(bad.get("assignments", [])) < 5  # 50 saat: sığmaz

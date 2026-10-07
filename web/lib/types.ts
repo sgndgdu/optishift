@@ -146,6 +146,7 @@ export interface ShiftDefinition {
   on_call?: boolean;    // icap nöbeti: bekleme çalışma sayılmaz, aynı gün normal vardiyayla birlikte olabilir
   on_call_pay?: number; // icap başına sabit ücret (TL), maliyet hesabına eklenir
   driving_hours?: number; // vardiyadaki direksiyon süresi (saat): AETR günlük 9/10, haftalık 56, iki haftalık 90
+  break_minutes?: number; // mola (dakika), vardiya süresinin içinde, çalışma süresine sayılmaz; yoksa yasal asgari (lib/legal breakMinutes)
 }
 
 // ─── Eski ZoneConfig yerine yeni Role interface'i yukarı eklendi ──────────────────────────────────────────────────────

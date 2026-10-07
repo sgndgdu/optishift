@@ -629,14 +629,14 @@ export default function PortalRequests() {
                         {r.overtime_hours} saat fazla mesai
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {otWeekLabel(r.week_start)} haftası · toplam {r.scheduled_hours} saat planlı
+                        {otWeekLabel(r.week_start)} haftası · toplam {r.scheduled_hours} planlı
                       </p>
                       {r.note && <p className="text-xs text-slate-400 mt-1 italic">{r.note}</p>}
                     </div>
                     <Clock size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   </div>
                   <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                    Kabul edersen telafi türünü sen seçersin: <b>zamlı ücret</b> (%50 artırımlı) veya <b>serbest zaman</b> (1 saat mesai = 1,5 saat izin).
+                    Kabul edersen telafi türünü sen seçersin: <b>zamlı ücret</b> (%50 artırımlı) veya <b>serbest zaman</b> (1 saat mesaiye 1,5 saat izin).
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
@@ -771,7 +771,7 @@ export default function PortalRequests() {
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
               ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", icon: UserX }] : []),
               ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", icon: ArrowLeftRight }] : []),
-              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Sorumludan saat düzeltmesi isteyin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiyamda hata var", hint: "Sorumludan düzeltme isteyin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;

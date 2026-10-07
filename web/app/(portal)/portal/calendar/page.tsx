@@ -188,7 +188,7 @@ export default function PortalCalendar() {
                       )}
                       {onCall && (
                         <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700"
-                          title="Evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
+                          title="Evde beklersiniz, çağrılırsanız gelirsiniz. Ne kadar çalıştığınızı sorumlunuz kaydeder.">
                           Nöbet · {onCall.start_time}–{onCall.end_time}
                         </p>
                       )}
@@ -281,7 +281,7 @@ export default function PortalCalendar() {
             {[
               ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", Icon: UserX }] : []),
               ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", Icon: ArrowLeftRight }] : []),
-              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Sorumludan saat düzeltmesi isteyin", Icon: FileEdit }] : []),
+              ...(reqFlags.edit ? [{ type: "edit", label: "Vardiyada hata var", hint: "Sorumludan düzeltme isteyin", Icon: FileEdit }] : []),
             ].map(o => (
               <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}
                 className="w-full flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3.5 text-left hover:bg-slate-50 min-h-[56px]">

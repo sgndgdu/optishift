@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { breakMinutes, definedBreakFor, netWorkMinutes, shiftDefsFrom } from "@/lib/legal";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -25,9 +26,10 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     // Lokasyon org doğrulaması
-    const loc = await db.prepare(`SELECT id FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id);
+    const loc = await db.prepare(`SELECT id, shift_definitions FROM locations WHERE id = ? AND org_id = ?`).get(location_id, auth.org_id) as any;
     if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    const shiftDefs = shiftDefsFrom(loc.shift_definitions);
 
     // Ayın gün aralığını kapsayan haftalar: ay başından 6 gün öncesi pazartesi'lerinden itibaren
     const monthStart = new Date(month + "-01T00:00:00Z");
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
     monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
 
     const rows = await db.prepare(`
-      SELECT sa.week_start, sa.day, sa.start_time, sa.end_time, sa.check_in_at, sa.check_out_at,
+      SELECT sa.shift_id, sa.week_start, sa.day, sa.start_time, sa.end_time, sa.check_in_at, sa.check_out_at,
              p.name, p.employee_id
       FROM shift_assignments sa
       JOIN personnel p ON p.id = sa.personnel_id
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
       return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
     };
 
-    const lines = ["Sicil;Ad Soyad;Tarih;Plan Başlangıç;Plan Bitiş;Plan Saat;Giriş;Çıkış;Gerçekleşen Saat;Geç Kalma (dk);Durum"];
+    const lines = ["Sicil;Ad Soyad;Tarih;Plan Başlangıç;Plan Bitiş;Mola (dk);Plan Saat;Giriş;Çıkış;Gerçekleşen Saat;Geç Kalma (dk);Durum"];
     const today = new Date();
     for (const r of rows) {
       const shiftDate = new Date(r.week_start + "T00:00:00Z");
@@ -70,15 +72,19 @@ export async function GET(req: NextRequest) {
 
       const ps = toMin(r.start_time);
       let pe = toMin(r.end_time);
+      // Saatler mola düşülerek (lib/legal: vardiya tanımındaki mola, yoksa yasal asgari)
+      const defBreak = definedBreakFor(shiftDefs, r);
       let planH = "";
+      let breakMin = "";
       if (ps !== null && pe !== null) {
         if (pe <= ps) pe += 1440;
-        planH = ((pe - ps) / 60).toFixed(1).replace(".", ",");
+        breakMin = String(breakMinutes(pe - ps, defBreak));
+        planH = (netWorkMinutes(pe - ps, defBreak) / 60).toFixed(1).replace(".", ",");
       }
 
       let actualH = "";
       if (r.check_in_at && r.check_out_at) {
-        actualH = (Math.max(0, r.check_out_at - r.check_in_at) / 3600).toFixed(1).replace(".", ",");
+        actualH = (netWorkMinutes(Math.max(0, r.check_out_at - r.check_in_at) / 60, defBreak) / 60).toFixed(1).replace(".", ",");
       }
 
       let lateMin = "";
@@ -100,7 +106,7 @@ export async function GET(req: NextRequest) {
       const clean = (v: any) => String(v ?? "").replace(/;/g, ",");
       lines.push([
         clean(r.employee_id), clean(r.name), dateStr,
-        clean(r.start_time), clean(r.end_time), planH,
+        clean(r.start_time), clean(r.end_time), breakMin, planH,
         fmtTs(r.check_in_at), fmtTs(r.check_out_at), actualH, lateMin, status,
       ].join(";"));
     }

@@ -9,14 +9,14 @@ describe("findAssignmentProblems", () => {
   it("aynı gün açılış + kapanış: 0 saat dinlenme yakalanır", () => {
     const add = s(2, "15:00", "23:00");
     const out = findAssignmentProblems([s(2, "07:00", "15:00"), add], [add], rules);
-    expect(out.some(x => x.includes("0 saat dinlenme"))).toBe(true);
+    expect(out.some(x => x.includes("0 saat kalıyor"))).toBe(true);
   });
 
   it("gece kapanışı → ertesi sabah açılış 8 saat dinlenme yakalanır", () => {
     const add = s(4, "15:00", "23:00");
     const out = findAssignmentProblems([add, s(5, "07:00", "15:00")], [add], rules);
     expect(out).toHaveLength(1);
-    expect(out[0]).toContain("8 saat dinlenme");
+    expect(out[0]).toContain("8 saat kalıyor");
   });
 
   it("çakışan vardiyalar", () => {
@@ -25,16 +25,23 @@ describe("findAssignmentProblems", () => {
   });
 
   it("haftalık sınır aşımı", () => {
-    const base = [0, 1, 2, 3, 4].map(d => s(d, "09:00", "18:00")); // 45 saat
-    const add = s(5, "10:00", "12:00");
+    // 09-19 = 10 saat, 1 saat yasal mola düşülünce 9 saat çalışma → 45 saat
+    const base = [0, 1, 2, 3, 4].map(d => s(d, "09:00", "19:00"));
+    const add = s(5, "10:00", "12:00"); // 2 saat, 15 dk mola → 1,75
     const out = findAssignmentProblems([...base, add], [add], rules);
-    expect(out.some(x => x.includes("47 saate"))).toBe(true);
+    expect(out.some(x => x.includes("46,8 saate"))).toBe(true);
+  });
+
+  it("vardiya tanımındaki mola yasal asgari yerine sayılır", () => {
+    const base = [0, 1, 2, 3, 4].map(d => ({ ...s(d, "09:00", "18:00"), break_minutes: 0 })); // molasız 45 saat
+    const add = { ...s(5, "10:00", "11:00"), break_minutes: 0 };
+    expect(findAssignmentProblems([...base, add], [add], rules).some(x => x.includes("46 saate"))).toBe(true);
   });
 
   it("hafta sınırını geçen dinlenme (Pazar gece → sonraki Pazartesi sabah)", () => {
     const add = s(6, "16:00", "00:00");
     const out = findAssignmentProblems([add, s(0, "06:00", "14:00", "2026-10-12")], [add], rules);
-    expect(out[0]).toContain("6 saat dinlenme");
+    expect(out[0]).toContain("6 saat kalıyor");
   });
 
   it("eski sorunlar yeni değişikliğe yazılmaz, uygun değişiklik temiz", () => {

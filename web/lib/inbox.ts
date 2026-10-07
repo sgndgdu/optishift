@@ -195,7 +195,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
         ? {
             id: "next-week",
             severity: "week",
-            title: `Gelecek haftanın planı ${ap.when} saatinde otomatik hazırlanacak`,
+            title: `Gelecek haftanın planı ${ap.when}'de otomatik hazırlanacak`,
             detail: pub ? "Siz kontrol edip yayınlarsınız. İsterseniz planı şimdi de oluşturabilirsiniz." : "Siz kontrol edip onaya gönderirsiniz. İsterseniz planı şimdi de oluşturabilirsiniz.",
             action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
           }

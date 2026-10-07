@@ -28,8 +28,47 @@ export function legalBreakHours(grossHours: number): number {
 }
 
 /** Vardiyanın mola düşülmüş net çalışma süresi (saat). */
-export function netWorkHours(grossHours: number): number {
-  return Math.max(0, grossHours - legalBreakHours(grossHours));
+export function netWorkHours(grossHours: number, definedBreakMin?: number | null): number {
+  return netWorkMinutes(grossHours * 60, definedBreakMin) / 60;
+}
+
+/**
+ * Mola süresi (dakika), TEK KURAL: vardiya tanımında "Mola ne kadar?" girildiyse o, girilmediyse
+ * m.68 asgarisi. Mola vardiya süresinin içindedir ve çalışma süresine sayılmaz (haftalık 45 saat,
+ * fazla mesai, raporlar, maliyet). Adalet Puanı vardiyanın tamamına göre kalır.
+ */
+export function breakMinutes(grossMin: number, definedBreakMin?: number | null): number {
+  if (grossMin <= 0) return 0;
+  const b = typeof definedBreakMin === "number" && Number.isFinite(definedBreakMin) && definedBreakMin >= 0
+    ? definedBreakMin
+    : legalBreakHours(grossMin / 60) * 60;
+  return Math.min(Math.round(b), grossMin);
+}
+
+/** Mola düşülmüş çalışma süresi (dakika). */
+export function netWorkMinutes(grossMin: number, definedBreakMin?: number | null): number {
+  return Math.max(0, grossMin - breakMinutes(grossMin, definedBreakMin));
+}
+
+type BreakDef = { id?: string | number; start?: string; end?: string; break_minutes?: number | null; on_call?: boolean };
+
+/** Atamanın bağlı olduğu vardiya tanımındaki mola (dakika); tanım bulunamazsa ya da girilmemişse undefined (yasal asgari). */
+export function definedBreakFor(defs: BreakDef[] | null | undefined, a: { shift_id?: string | number | null; start_time?: string | null; end_time?: string | null }): number | undefined {
+  if (!Array.isArray(defs) || defs.length === 0) return undefined;
+  const def = (a.shift_id != null && defs.find(d => d.id != null && String(d.id) === String(a.shift_id)))
+    || defs.find(d => d.start === a.start_time && d.end === a.end_time);
+  return def && typeof def.break_minutes === "number" ? def.break_minutes : undefined;
+}
+
+/** "HH:MM"-"HH:MM" atamanın net çalışma dakikası (gece geçişi dahil). */
+export function assignmentWorkMinutes(defs: BreakDef[] | null | undefined, a: { shift_id?: string | number | null; start_time?: string | null; end_time?: string | null }): number {
+  if (!a.start_time || !a.end_time) return 0;
+  const [sh, sm] = a.start_time.split(":").map(Number);
+  const [eh, em] = a.end_time.split(":").map(Number);
+  const s = sh * 60 + sm;
+  let e = eh * 60 + em;
+  if (e <= s) e += 1440;
+  return netWorkMinutes(e - s, definedBreakFor(defs, a));
 }
 
 /**
@@ -57,4 +96,19 @@ export function longestWeeklyRestHours(spans: { start: number; end: number }[]):
  */
 export function effectiveWeeklyLimit(personMax: number | null | undefined, ruleMax: number): number {
   return typeof personMax === "number" && personMax > 0 ? Math.min(personMax, ruleMax) : ruleMax;
+}
+
+/** locations.shift_definitions (JSON metin ya da dizi) → mola hesabı için tanım listesi. */
+export function shiftDefsFrom(raw: unknown): BreakDef[] {
+  try {
+    const d = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(d) ? d : [];
+  } catch { return []; }
+}
+
+/** Mola süresinin kısa yazımı: "15 dk", "1 saat", "1,5 saat" */
+export function formatBreak(min: number): string {
+  if (min <= 0) return "Mola yok";
+  if (min < 60) return `${min} dk`;
+  return `${(min / 60).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
 }

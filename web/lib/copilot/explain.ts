@@ -57,7 +57,7 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
   else out.push({ tone: "info", text: "Ekip ortalaması kadar çalışmış" });
 
   // Saat ve dinlenme
-  if (p.hours > p.maxHours) out.push({ tone: "warn", text: `Bu hafta ${fmt(p.hours)} saat, sınır ${fmt(p.maxHours)} saat` });
+  if (p.hours > p.maxHours) out.push({ tone: "warn", text: `Bu hafta ${fmt(p.hours)} saat, sınır ${fmt(p.maxHours)}` });
   else out.push({ tone: "ok", text: `Bu hafta ${fmt(p.hours)} saat çalışıyor, sınırı (${fmt(p.maxHours)}) aşmıyor` });
   const gap = p.restGaps.find(g => g.toDay === day);
   if (gap) {

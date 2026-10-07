@@ -6,7 +6,7 @@
  */
 import { INDUSTRIES, getIndustry, getVariant } from "@/lib/templates";
 
-export type SetupShift = { name: string; start: string; end: string; difficulty: "easy" | "medium" | "hard" };
+export type SetupShift = { name: string; start: string; end: string; difficulty: "easy" | "medium" | "hard"; break_minutes?: number };
 /** Fotoğraftan ya da yazılan listeden okunan ekip üyesi; department önerideki departmanlardan biri ya da "" */
 export type SetupPerson = { name: string; department: string; phone: string };
 /** Kişinin çizelgedeki haftası: 7 gün (Pzt..Paz) vardiya adı ya da "" (izin/boş) */
@@ -46,7 +46,7 @@ Toplanacak bilgiler:
 1. İşletme türü (aşağıdaki katalogdan en yakını)
 2. Açılış ve kapanış saatleri, kapalı günler
 3. Departmanlar (varsa; mutfak, salon gibi). Yoksa boş bırak.
-4. Vardiyalar (adı, başlangıç, bitiş). Sahip söylemezse türün hazır vardiyalarını öner.
+4. Vardiyalar (adı, başlangıç, bitiş, mola ne kadar). Sahip söylemezse türün hazır vardiyalarını öner.
 5. Kaç kişilik ekip
 6. Her departmanda, her vardiyada, haftanın her günü kaç kişi gerektiği (yoğun günler dahil)
 
@@ -55,6 +55,7 @@ Kurallar:
 - Her seferinde SADECE BİR soru sor. Soruyu örnekle somutlaştır.
 - En fazla 4 soru sor. Bilgi eksik kalırsa işletme türüne göre makul tahmin yap.
 - Kişi sayılarında ekip büyüklüğünü aşma: bir günde çalışan toplam kişi, ekibin yaklaşık üçte ikisini geçmesin.
+- Mola: vardiyanın içindeki mola süresini (dakika) "break_minutes"e yaz. Kişi söylemediyse alanı yazma, yasal asgari uygulanır.
 - Saatler HH:MM biçiminde. Gece yarısını geçen vardiyada bitiş başlangıçtan küçük olur (ör. 16:00-01:00).
 
 Fotoğraf eklendiyse (kâğıt ya da Excel vardiya çizelgesi, ekip listesi, ekran görüntüsü):
@@ -75,7 +76,7 @@ Bilgiler yeterli olunca:
 {"proposal": {
   "industry": "katalogdaki tür anahtarı", "variant": "alt tür anahtarı",
   "departments": ["Salon", "Mutfak"],
-  "shifts": [{"name": "Açılış", "start": "07:00", "end": "15:00", "difficulty": "easy|medium|hard"}],
+  "shifts": [{"name": "Açılış", "start": "07:00", "end": "15:00", "difficulty": "easy|medium|hard", "break_minutes": 60}],
   "open": "07:00", "close": "23:00", "closedDays": [6],
   "teamSize": 12,
   "demand": {"Salon": {"Açılış": [2,2,2,2,3,4,3]}, "Mutfak": {"Açılış": [1,1,1,1,1,2,2]}},
@@ -117,7 +118,9 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
         const start = String(x.start ?? ""), end = String(x.end ?? "");
         if (!name || !TIME.test(start) || !TIME.test(end) || start === end) return [];
         const difficulty = x.difficulty === "easy" || x.difficulty === "hard" ? x.difficulty : "medium";
-        return [{ name, start, end, difficulty }];
+        const br = Number(x.break_minutes);
+        const break_minutes = x.break_minutes !== undefined && x.break_minutes !== null && Number.isFinite(br) && br >= 0 && br <= 180 ? Math.round(br) : undefined;
+        return [{ name, start, end, difficulty, ...(break_minutes !== undefined ? { break_minutes } : {}) }];
       }).slice(0, 6)
     : [];
   // Vardiya çıkmadıysa türün hazır vardiyaları

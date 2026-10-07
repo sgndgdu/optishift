@@ -13,6 +13,7 @@ import { DAY_SHORT } from "@/lib/constants";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import { industryFromRules } from "@/lib/templates";
 import { autopilotSettings, autopilotWhen } from "@/lib/autopilotRules";
+import { assignmentWorkMinutes } from "@/lib/legal";
 import { hasPerm } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 import { buildWeekCalendar, calendarLines } from "@/lib/weekCalendar";
@@ -77,8 +78,8 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
       const tag = `${day(r.day)} ${short(addDays(ws, Number(r.day)))} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""} [v${r.id}]`;
       byPerson.set(r.personnel_id, [...(byPerson.get(r.personnel_id) ?? []), tag]);
       if (r.kind !== "on_call" && r.start_time && r.end_time) {
-        const [a, b] = [r.start_time, r.end_time].map((t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
-        hours.set(r.personnel_id, (hours.get(r.personnel_id) ?? 0) + ((b <= a ? b + 1440 : b) - a) / 60);
+        // Mola düşülmüş çalışma saati (lib/legal)
+        hours.set(r.personnel_id, (hours.get(r.personnel_id) ?? 0) + assignmentWorkMinutes(defs, r) / 60);
       }
     }
     for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);

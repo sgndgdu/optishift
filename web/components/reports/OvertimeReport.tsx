@@ -266,10 +266,10 @@ export default function OvertimeReport() {
             <input type="date" value={fWeek} onChange={e => setFWeek(e.target.value)} className={inputClass} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Planlanan saat">
+            <FormField label="Planlanan (saat)">
               <input type="number" min={1} max={80} step={0.5} value={fScheduled} onChange={e => setFScheduled(Number(e.target.value))} className={inputClass} />
             </FormField>
-            <FormField label="Mesai saati">
+            <FormField label="Fazla mesai (saat)">
               <input type="number" min={0.5} max={20} step={0.5} value={fOvertime} onChange={e => setFOvertime(Number(e.target.value))} className={inputClass} />
             </FormField>
           </div>
@@ -312,7 +312,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
         id: `ytd-over-${p.id}`,
         level: "critical",
         title: "Yıllık mesai limiti aşıldı",
-        detail: `${ytd.toFixed(0)} / ${maxYtd} saat, yasal sınır (İş K. m.41) geçildi`,
+        detail: `${ytd.toFixed(0)} / ${maxYtd}, yasal sınır (İş K. m.41) geçildi`,
         personnelName: p.name,
       });
     } else if (pct >= 0.9) {
@@ -320,7 +320,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
         id: `ytd-near-${p.id}`,
         level: "high",
         title: "Yıllık mesai limitine yaklaşıyor",
-        detail: `${ytd.toFixed(0)} / ${maxYtd} saat, limitin %${Math.round(pct * 100)}'inde`,
+        detail: `${ytd.toFixed(0)} / ${maxYtd}, sınırın %${Math.round(pct * 100)}'inde`,
         personnelName: p.name,
       });
     }
@@ -448,9 +448,9 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
             <DetailRow label="Durum"><StatusPill tone={st.tone}>{st.label}</StatusPill></DetailRow>
             <DetailRow label="Kişinin onayı"><StatusPill tone={emp.tone}>{emp.label}</StatusPill></DetailRow>
             <DetailRow label="Mesai">{open.overtime_hours} saat</DetailRow>
-            <DetailRow label="Planlanan">{open.scheduled_hours} saat</DetailRow>
+            <DetailRow label="Planlanan">{open.scheduled_hours}</DetailRow>
             {cost !== null && <DetailRow label="Tahmini maliyet">₺{cost.toLocaleString("tr-TR")} (ücret × 1,5)</DetailRow>}
-            {isCompTime && <DetailRow label="Serbest zaman">{open.comp_time_used_at ? "Kullandırıldı" : `${open.overtime_hours * 1.5} saat hak`}</DetailRow>}
+            {isCompTime && <DetailRow label="Serbest zaman">{open.comp_time_used_at ? "Kullandırıldı" : `${open.overtime_hours * 1.5} saat izin hakkı`}</DetailRow>}
             {open.note && <DetailRow label="Not">{open.note}</DetailRow>}
             {open.created_at && <DetailRow label="Oluşturuldu">{timeAgo(open.created_at)}</DetailRow>}
           </Sheet>
@@ -485,7 +485,7 @@ function StatusTab({ personnel, maxYtd }: { personnel: any[]; maxYtd: number }) 
   const sorted = [...personnel].sort((a, b) => (b.ytd_overtime_hours ?? 0) - (a.ytd_overtime_hours ?? 0));
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500">Bu yıl yapılan onaylı mesai. Yasal sınır yılda {maxYtd} saat.</p>
+      <p className="text-xs text-slate-500">Bu yıl yapılan onaylı fazla mesai. Yasal sınır yılda {maxYtd} saat.</p>
       <List>
         {sorted.length === 0 ? <ListEmpty>Kimse bulunamadı.</ListEmpty> : sorted.map(p => {
           const ytd = p.ytd_overtime_hours ?? 0;

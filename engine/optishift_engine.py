@@ -196,6 +196,23 @@ def _shift_minutes(shift: dict) -> tuple:
     return start_min, end_min
 
 
+def _break_min(shift: dict, gross_min: int) -> int:
+    """Mola (dakika), web/lib/legal.ts breakMinutes ile AYNI kural: tanımda break_minutes varsa o,
+    yoksa İş K. m.68 asgarisi (4 s'e kadar 15 dk, 7,5 s'e kadar 30 dk, üstü 60 dk). Çalışma süresine sayılmaz."""
+    if gross_min <= 0:
+        return 0
+    b = shift.get("break_minutes") if isinstance(shift, dict) else None
+    if not isinstance(b, (int, float)) or b < 0:
+        b = 15 if gross_min <= 240 else (30 if gross_min <= 450 else 60)
+    return int(min(round(b), gross_min))
+
+
+def _work_min(shift: dict) -> int:
+    """Vardiyanın mola düşülmüş çalışma dakikası."""
+    a, b = _shift_minutes(shift)
+    return max(0, (b - a) - _break_min(shift, b - a))
+
+
 def _driving_min(s_idx: int) -> int:
     if s_idx >= len(SHIFTS) or SHIFTS[s_idx].get("on_call"):
         return 0
@@ -527,9 +544,8 @@ def build_model():
     shift_durations_min = []
     for s in range(NUM_SHIFTS):
         if s < len(SHIFTS):
-            start_m, end_m = _shift_minutes(SHIFTS[s])
-            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir
-            shift_durations_min.append(0 if _is_on_call(s) else end_m - start_m)
+            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir. Mola düşülür.
+            shift_durations_min.append(0 if _is_on_call(s) else _work_min(SHIFTS[s]))
         else:
             shift_durations_min.append(SHIFT_HOURS * 60)
 
@@ -1052,8 +1068,7 @@ def _joint_department_problems(available_pool) -> list:
     def dur_min(s_idx):
         if s_idx >= len(SHIFTS) or _is_on_call(s_idx):
             return 0
-        a, b = _shift_minutes(SHIFTS[s_idx])
-        return b - a
+        return _work_min(SHIFTS[s_idx])
 
     rule = int(RULES["max_weekly_hours"]) * 60
     limit = {p["id"]: min(rule, int(p.get("max_weekly_hours", RULES["max_weekly_hours"]) or 0) * 60) for p in PERSONNEL}
@@ -1225,8 +1240,7 @@ def diagnose_infeasibility() -> str | None:
         def _dur_min(s_idx):
             if s_idx >= len(SHIFTS) or _is_on_call(s_idx):
                 return 0
-            a, b = _shift_minutes(SHIFTS[s_idx])
-            return b - a
+            return _work_min(SHIFTS[s_idx])
 
         def _cap_min(ids):
             rule = int(RULES["max_weekly_hours"]) * 60
@@ -1647,6 +1661,8 @@ def api_mode(payload: dict):
                 "on_call":     bool(s.get("on_call", False)),
                 # Direksiyon süresi (saat): AETR / AB 561/2006 sürüş sınırları için
                 "driving_hours": max(0.0, float(s.get("driving_hours") or 0)),
+                # Mola (dakika); yoksa yasal asgari (_break_min). Çalışma süresine sayılmaz.
+                "break_minutes": float(s["break_minutes"]) if isinstance(s.get("break_minutes"), (int, float)) else None,
                 # Zorunlu yetkinlik karması: [{"skill": "bakımcı", "count": 1}, ...]
                 "required_skills": [
                     {"skill": str(rs.get("skill", "")).strip(), "count": int(rs.get("count", 1))}
@@ -1750,8 +1766,7 @@ def api_mode(payload: dict):
         if kind == "regular" and fa.get("department_id"):
             FIXED_DEPARTMENTS[(pid, day)] = str(fa["department_id"])
         if kind == "regular" and s_idx is None and fa.get("start_time") and fa.get("end_time"):
-            start_m, end_m = _shift_minutes({"start": fa["start_time"], "end": fa["end_time"]})
-            FIXED_EXTRA_MINUTES[pid] = FIXED_EXTRA_MINUTES.get(pid, 0) + max(0, end_m - start_m)
+            FIXED_EXTRA_MINUTES[pid] = FIXED_EXTRA_MINUTES.get(pid, 0) + _work_min({"start": fa["start_time"], "end": fa["end_time"]})
 
     DEMAND_MATRIX = {}
     raw_demand = payload.get("demand_matrix")
@@ -1857,9 +1872,8 @@ def api_mode(payload: dict):
     shift_durations_min = []
     for s in range(NUM_SHIFTS):
         if s < len(SHIFTS):
-            start_m, end_m = _shift_minutes(SHIFTS[s])
-            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir
-            shift_durations_min.append(0 if _is_on_call(s) else end_m - start_m)
+            # İcap bekleme süresi çalışma sayılmaz; çağrılınca çalışılan saat ayrı kaydedilir. Mola düşülür.
+            shift_durations_min.append(0 if _is_on_call(s) else _work_min(SHIFTS[s]))
         else:
             shift_durations_min.append(SHIFT_HOURS * 60)
 

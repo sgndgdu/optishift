@@ -1,3 +1,4 @@
+import { netWorkMinutes } from "@/lib/legal";
 /**
  * Personel İhtiyacı tablosu önerisi (Planı Oluştur 1. adım).
  *
@@ -13,7 +14,7 @@
 export type DemandMatrix = Record<string, Record<number, number>>;
 
 export interface SuggestionInput {
-  shiftDefs: { id: string; name: string; start: string; end: string }[];
+  shiftDefs: { id: string; name: string; start: string; end: string; break_minutes?: number }[];
   /** computeForecast çıktısı: {shiftDefId → {gün → ortalama kişi}} */
   history: DemandMatrix;
   /** Ortalamaya giren yayınlanmış hafta sayısı */
@@ -54,11 +55,12 @@ function isCoveredByOthers(def: { start: string; end: string }, others: { start:
   return false;
 }
 
-function shiftHours(start: string, end: string): number {
+/** Mola düşülmüş çalışma saati (lib/legal) */
+function shiftHours(start: string, end: string, breakMin?: number): number {
   const s = toMinutes(start);
   let e = toMinutes(end);
   if (e <= s) e += 1440;
-  return (e - s) / 60;
+  return netWorkMinutes(e - s, breakMin) / 60;
 }
 
 export function suggestDemand(input: SuggestionInput): DemandSuggestion {
@@ -107,7 +109,7 @@ export function suggestDemand(input: SuggestionInput): DemandSuggestion {
   }
 
   // Kapasite: haftalık saat sınırı (ortalama vardiya süresine göre kişi başı vardiya, en fazla 6 gün)
-  const avgHours = shiftDefs.length ? shiftDefs.reduce((s, d) => s + shiftHours(d.start, d.end), 0) / shiftDefs.length : 8;
+  const avgHours = shiftDefs.length ? shiftDefs.reduce((s, d) => s + shiftHours(d.start, d.end, d.break_minutes), 0) / shiftDefs.length : 8;
   const perPerson = Math.min(6, Math.max(1, Math.floor(maxWeeklyHours / Math.max(avgHours, 1))));
   const weeklyCap = personnelCount * perPerson;
   const total = () => cells().reduce((s, c) => s + matrix[c.id][c.d], 0);

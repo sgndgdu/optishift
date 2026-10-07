@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getPlan, limitMessage } from "@/lib/plans";
+import { BreakPicker } from "@/components/ui/BreakPicker";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
 import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
@@ -130,7 +131,7 @@ export default function OnboardingWizard() {
     setIndustry(p.industry);
     setVariant(p.variant);
     setPickedDepts(p.departments);
-    const defs: ShiftDefinition[] = p.shifts.map((s, i) => ({ id: `s-${i + 1}`, name: s.name, start: s.start, end: s.end, base_points: DIFFICULTY_POINTS[s.difficulty] }));
+    const defs: ShiftDefinition[] = p.shifts.map((s, i) => ({ id: `s-${i + 1}`, name: s.name, start: s.start, end: s.end, base_points: DIFFICULTY_POINTS[s.difficulty], ...(s.break_minutes !== undefined ? { break_minutes: s.break_minutes } : {}) }));
     setShifts(defs);
     setOpHours({ open: p.open, close: p.close, closedDays: p.closedDays });
     const byName = new Map(defs.map(d => [d.name, d.id]));
@@ -469,6 +470,11 @@ export default function OnboardingWizard() {
                           <Trash2 size={12} />
                         </button>
                       </div>
+                      {/* Mola: Ayarlar'la aynı seçici, çalışma süresine sayılmaz */}
+                      <div className="w-full md:col-span-3">
+                        <BreakPicker id={`ob-break-${i}`} start={s.start} end={s.end} value={s.break_minutes}
+                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, break_minutes: v } : x))} />
+                      </div>
                     </div>
                   ))}
                   {shifts.length < 6 && (
@@ -547,7 +553,7 @@ export default function OnboardingWizard() {
                   </button>
                 </div>
                 <div className="space-y-1 text-xs text-slate-500">
-                  <p>Toplam {team.filter(t => t.name.trim().length >= 2).length} kişi. Telefon numaralarını ve çalışma saatlerini sonra Ekip sayfasından ekleyebilirsiniz.</p>
+                  <p>Toplam {team.filter(t => t.name.trim().length >= 2).length} kişi. Telefon numaralarını ve haftalık sınırlarını sonra Ekip sayfasından ekleyebilirsiniz.</p>
                   {pickedDepts.length > 0 && team.some(t => t.name.trim() && !t.department) && (
                     <p className="font-semibold text-amber-700">Departmanı seçilmeyen kişiler otomatik plana alınmaz. Ekip sayfasından da seçebilirsiniz.</p>
                   )}

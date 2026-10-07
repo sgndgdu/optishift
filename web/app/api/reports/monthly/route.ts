@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { definedBreakFor, netWorkMinutes, shiftDefsFrom } from "@/lib/legal";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
@@ -66,13 +67,14 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     // Verify location belongs to this org
-    const loc = await db.prepare("SELECT id, name, rules FROM locations WHERE id = ? AND org_id = ?")
-      .get(location_id, auth.org_id) as { id: string; name: string; rules?: unknown } | undefined;
+    const loc = await db.prepare("SELECT id, name, rules, shift_definitions FROM locations WHERE id = ? AND org_id = ?")
+      .get(location_id, auth.org_id) as { id: string; name: string; rules?: unknown; shift_definitions?: unknown } | undefined;
     if (managerOutsideBranch(auth, location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     if (!loc) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
+    const shiftDefs = shiftDefsFrom(loc.shift_definitions);
     // Mesai eşiği lokasyon kuralından (varsayılan 45s/hafta)
     let overtimeThresholdHours = 45;
     try {
@@ -99,6 +101,7 @@ export async function GET(req: NextRequest) {
         p.name AS personnel_name,
         (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, -- Görevler kaldırıldı: kişinin departmanı
         p.hourly_wage,
+        sa.shift_id,
         sa.start_time,
         sa.end_time,
         sa.day,
@@ -114,7 +117,7 @@ export async function GET(req: NextRequest) {
         AND COALESCE(sa.kind, 'regular') = 'regular'
       UNION ALL
       -- İcapta çağrılınca çalışılan saat: çalışma süresine ve mesaiye sayılır, vardiya sayısına sayılmaz
-      SELECT c.personnel_id, p.name, (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, p.hourly_wage, c.start_time, c.end_time, c.day, c.week_start, 1
+      SELECT c.personnel_id, p.name, (SELECT d.name FROM departments d WHERE d.id = p.department_id) AS title, p.hourly_wage, NULL, c.start_time, c.end_time, c.day, c.week_start, 1
       FROM on_call_callouts c
       JOIN personnel p ON c.personnel_id = p.id
       WHERE c.location_id = ? AND c.week_start >= ? AND c.week_start <= ?
@@ -153,7 +156,8 @@ export async function GET(req: NextRequest) {
         const startMin = toMin(row.start_time);
         let endMin = toMin(row.end_time);
         if (endMin <= startMin) endMin += 1440; // overnight shift
-        const shiftMinutes = endMin - startMin;
+        // Mola çalışma süresine sayılmaz (lib/legal). İcapta çağrılma gerçek çalışma bloğu: olduğu gibi sayılır.
+        const shiftMinutes = Number(row.is_callout) ? endMin - startMin : netWorkMinutes(endMin - startMin, definedBreakFor(shiftDefs, row));
 
         if (!Number(row.is_callout)) person.shift_count += 1;
         person.total_minutes += shiftMinutes;

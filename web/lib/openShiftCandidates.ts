@@ -7,7 +7,7 @@
  */
 
 import { loadReliability } from "@/lib/reliabilityData";
-import { effectiveWeeklyLimit } from "@/lib/legal";
+import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { RELIABILITY_WEEKS, isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 
 export interface SlotInput {
@@ -53,12 +53,16 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   const osStart = toMin(slot.start_time) ?? 0;
   let osEnd = toMin(slot.end_time) ?? 0;
   if (osEnd <= osStart) osEnd += 1440;
-  const osDurationH = (osEnd - osStart) / 60;
+  // Çalışma süresi mola düşülerek (lib/legal); vardiya tanımı aşağıda locRow ile gelir
+  let osDurationH = netWorkMinutes(osEnd - osStart) / 60;
   const osIsNight = osStart >= 22 * 60 || osEnd > 24 * 60;
 
   // Plana giren herkes aday (vardiya yapan yönetici dahil, personnel.schedulable). Şubeler arası (2026-10-04):
   // işletmenin diğer şubelerindeki çalışanlar da "ödünç" aday olur; kendi şubesindekiler önce gelir.
-  const locRow = await db.prepare(`SELECT org_id, rules FROM locations WHERE id = ?`).get(slot.location_id) as any;
+  const locRow = await db.prepare(`SELECT org_id, rules, shift_definitions FROM locations WHERE id = ?`).get(slot.location_id) as any;
+  let locDefs: any[] = [];
+  try { const d = typeof locRow?.shift_definitions === "string" ? JSON.parse(locRow.shift_definitions) : locRow?.shift_definitions; locDefs = Array.isArray(d) ? d : []; } catch { /* yasal asgari */ }
+  osDurationH = assignmentWorkMinutes(locDefs, { start_time: slot.start_time, end_time: slot.end_time }) / 60 || osDurationH;
   const people = await db.prepare(`
     SELECT p.id, p.name, p.prev_score, p.max_weekly_hours, p.night_restriction, p.weekly_off_day, p.user_access_level, p.roles,
            p.assigned_location_ids, p.department_id, p.assigned_department_ids, l.name AS home_name
@@ -80,7 +84,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
   // O haftanın normal vardiyaları TÜM şubelerde (gün çakışması, saat toplamı, dinlenme şubeler arası)
   const asgs = await db.prepare(`
-    SELECT sa.personnel_id, sa.day, sa.start_time, sa.end_time FROM shift_assignments sa
+    SELECT sa.personnel_id, sa.shift_id, sa.day, sa.start_time, sa.end_time FROM shift_assignments sa
     JOIN personnel p ON p.id = sa.personnel_id
     WHERE p.org_id = ? AND sa.week_start = ? AND COALESCE(sa.kind, 'regular') = 'regular'
   `).all(locRow?.org_id ?? "", week_start) as any[];
@@ -134,15 +138,10 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     else if (availByPerson[p.id]) reasons.push("Bu gün için uygun olduğunu girmiş");
 
     let weekMin = 0;
-    for (const a of mine) {
-      const s = toMin(a.start_time); let e = toMin(a.end_time);
-      if (s === null || e === null) continue;
-      if (e <= s) e += 1440;
-      weekMin += e - s;
-    }
+    for (const a of mine) weekMin += assignmentWorkMinutes(locDefs, a);
     const maxH = effectiveWeeklyLimit(p.max_weekly_hours, ruleMax);
     const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
-    if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH} saate çıkar (sınır ${maxH} saat)`); blocking = true; }
+    if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH} saate çıkar (sınır ${maxH})`); blocking = true; }
     else reasons.push(`Bu hafta ${Math.round(weekMin / 6) / 10} saat çalışıyor, sınırı aşmaz`);
 
     const prevA = mine.find(a => Number(a.day) === dayIdx - 1);
@@ -151,7 +150,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (pe !== null && ps !== null) {
         const prevEnd = pe <= ps ? pe + 1440 : pe;
         const gap = (osStart + 1440) - prevEnd;
-        if (gap < 11 * 60) { warnings.push(`Önceki günle arasında ${Math.round(gap / 6) / 10} saat dinlenme kalır (en az 11 saat olmalı)`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Önceki günle arada ${Math.round(gap / 6) / 10} saat kalır, en az 11 olmalı`); blocking = true; }
       }
     }
     const nextA = mine.find(a => Number(a.day) === dayIdx + 1);
@@ -159,7 +158,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       const ns = toMin(nextA.start_time);
       if (ns !== null) {
         const gap = (ns + 1440) - osEnd;
-        if (gap < 11 * 60) { warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10} saat dinlenme kalır (en az 11 saat olmalı)`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Ertesi günle arada ${Math.round(gap / 6) / 10} saat kalır, en az 11 olmalı`); blocking = true; }
       }
     }
 

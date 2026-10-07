@@ -115,7 +115,7 @@ describe("otomatik pilot maddesi", () => {
   it("henüz gün gelmediyse acil değil, ne zaman hazırlanacağını söyler", () => {
     const it0 = buildInbox({ ...base, nextWeek: "none", now: SAT, autopilot: { drafted: false, upcoming: true, when: "Perşembe 08:00" } })[0];
     expect(it0.severity).toBe("week");
-    expect(it0.title).toContain("Perşembe 08:00 saatinde otomatik hazırlanacak");
+    expect(it0.title).toContain("Perşembe 08:00'de otomatik hazırlanacak");
   });
   it("otomatik pilot yoksa eski metin", () => {
     expect(buildInbox({ ...base, nextWeek: "none" })[0].title).toBe("Gelecek haftanın planı henüz hazır değil");

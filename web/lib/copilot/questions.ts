@@ -44,7 +44,7 @@ export const QUESTIONS: CopilotQuestion[] = [
         lines: room.map(p => {
           const left = Math.floor(snap.rules.maxWeeklyHours - p.hours);
           const load = p.loadRatio < 0.8 ? " Adalet Puanı düşük, sıradaki vardiya ona verilebilir." : "";
-          return `${p.name}: ${fmtHours(p.hours)} çalışıyor, ${left} saat daha eklenebilir. Boş günleri: ${dayList(p.freeDays)}.${load}`;
+          return `${p.name}: ${fmtHours(p.hours)} çalışıyor, ${left} daha eklenebilir. Boş günleri: ${dayList(p.freeDays)}.${load}`;
         }),
       };
     },

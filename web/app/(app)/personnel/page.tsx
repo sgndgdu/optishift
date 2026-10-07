@@ -462,7 +462,7 @@ export default function PersonnelPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en fazla saat</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftada en fazla (saat)</label>
                       <input type="number" min={8} max={60} value={addForm.max_weekly_hours} onChange={e => setAddForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                     </div>
                   </div>

@@ -12,7 +12,7 @@
  */
 import { addDays, businessToday } from "@/lib/date";
 import { findAssignmentProblems, type TimedShift } from "@/lib/assignmentCheck";
-import { effectiveWeeklyLimit } from "@/lib/legal";
+import { definedBreakFor, effectiveWeeklyLimit, netWorkMinutes, shiftDefsFrom } from "@/lib/legal";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { monthLabel, monthRange, prevMonth } from "@/lib/months";
@@ -37,23 +37,24 @@ export type MonthlyGain = {
 };
 
 const tsOf = (date: string) => Math.floor(Date.parse(date + "T00:00:00+03:00") / 1000);
-const hoursOf = (s: { start_time: string; end_time: string }) => {
+const hoursOf = (s: { start_time: string; end_time: string; break_minutes?: number }) => {
   const [a, b] = [s.start_time, s.end_time].map(t => { const [h, mi] = t.split(":").map(Number); return h * 60 + (mi || 0); });
-  return ((b <= a ? b + 1440 : b) - a) / 60;
+  return netWorkMinutes((b <= a ? b + 1440 : b) - a, s.break_minutes) / 60;
 };
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 
 /** Yayınlanmış normal vardiyalar (tarih aralığında, şubede) */
-async function publishedShifts(db: any, locationId: string, start: string, end: string) {
+async function publishedShifts(db: any, locationId: string, start: string, end: string, defs: any[] = []) {
   const rows = await db.prepare(`
-    SELECT sa.personnel_id, sa.week_start, sa.day, sa.start_time, sa.end_time
+    SELECT sa.personnel_id, sa.shift_id, sa.week_start, sa.day, sa.start_time, sa.end_time
     FROM shift_assignments sa
     WHERE sa.location_id = ? AND sa.publication_status = 'published' AND COALESCE(sa.kind, 'regular') = 'regular'
       AND sa.start_time IS NOT NULL AND sa.end_time IS NOT NULL
       AND (sa.week_start::date + sa.day) BETWEEN ?::date AND ?::date
   `).all(locationId, start, end) as any[];
-  return rows.map(r => ({ ...r, day: Number(r.day), date: addDays(r.week_start, Number(r.day)) }));
+  // break_minutes: vardiya tanımındaki mola (yoksa yasal asgari), çalışma süresine sayılmaz (lib/legal)
+  return rows.map(r => ({ ...r, day: Number(r.day), date: addDays(r.week_start, Number(r.day)), break_minutes: definedBreakFor(defs, r) }));
 }
 
 async function overtimeFor(db: any, locationId: string, start: string, end: string, withCost: boolean) {
@@ -72,12 +73,13 @@ export async function buildMonthlyGain(db: any, orgId: string, locationId: strin
   const { start, end } = monthRange(month);
   const prev = monthRange(prevMonth(month));
   const today = businessToday();
-  const loc = await db.prepare(`SELECT rules FROM locations WHERE id = ? AND org_id = ?`).get(locationId, orgId) as any;
+  const loc = await db.prepare(`SELECT rules, shift_definitions FROM locations WHERE id = ? AND org_id = ?`).get(locationId, orgId) as any;
+  const defs = shiftDefsFrom(loc?.shift_definitions);
   let rules: any = {};
   try { rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules || "{}") : (loc?.rules ?? {}); } catch { /* varsayılan */ }
 
   // ── Planlar
-  const shifts = await publishedShifts(db, locationId, start, end);
+  const shifts = await publishedShifts(db, locationId, start, end, defs);
   const published = new Set(shifts.map(s => s.week_start)).size;
   const events = await db.prepare(`
     SELECT meta FROM platform_events WHERE type = 'or_tools_call' AND org_id = ? AND created_at BETWEEN ? AND ? AND meta LIKE ?
@@ -109,7 +111,7 @@ export async function buildMonthlyGain(db: any, orgId: string, locationId: strin
   const ruleMax = typeof rules.max_weekly_hours === "number" ? rules.max_weekly_hours : 45;
   const minRest = typeof rules.min_rest_hours === "number" ? rules.min_rest_hours : 11;
   const balancing = typeof rules.balancing_period_weeks === "number" ? rules.balancing_period_weeks : 1;
-  const ctx = await publishedShifts(db, locationId, addDays(start, -7), end);
+  const ctx = await publishedShifts(db, locationId, addDays(start, -7), end, defs);
   const people = await db.prepare(`SELECT id, name, max_weekly_hours FROM personnel WHERE org_id = ?`).all(orgId) as any[];
   const personOf = new Map(people.map(p => [p.id, p]));
   const examples: string[] = [];
@@ -128,7 +130,7 @@ export async function buildMonthlyGain(db: any, orgId: string, locationId: strin
   }
 
   // ── Çalışma saati ve fazla mesai
-  const prevShifts = await publishedShifts(db, locationId, prev.start, prev.end);
+  const prevShifts = await publishedShifts(db, locationId, prev.start, prev.end, defs);
   const work = { hours: round1(shifts.reduce((t, s) => t + hoursOf(s), 0)), prevHours: round1(prevShifts.reduce((t, s) => t + hoursOf(s), 0)) };
   let overtime: MonthlyGain["overtime"] = null;
   if (isModuleOn(rules, "overtime_tracking_enabled")) {
@@ -158,14 +160,14 @@ export function highlights(r: MonthlyGain): string[] {
   const decided = r.requests.leaveApproved + r.requests.leaveRejected + r.requests.swapsDecided;
   if (decided) out.push(`${decided} izin ve vardiya değiştirme talebi karara bağlandı.`);
   if (r.compliance.shifts) out.push(r.compliance.problems === 0
-    ? `Yayınlanan ${r.compliance.shifts} vardiyanın hiçbirinde dinlenme ya da haftalık saat sınırı aşılmadı.`
-    : `Yayınlanan planlarda ${r.compliance.problems} yerde dinlenme ya da haftalık saat sınırı aşıldı.`);
+    ? `Yayınlanan ${r.compliance.shifts} vardiyanın hiçbirinde dinlenme ya da haftalık sınır aşılmadı.`
+    : `Yayınlanan planlarda ${r.compliance.problems} yerde dinlenme ya da haftalık sınır aşıldı.`);
   // Süren ay tam ayla karşılaştırılmaz (yanıltır): sadece bugüne kadarki saat
   if (r.overtime && r.partial && r.overtime.hours) out.push(`Bu ay şu ana kadar ${fmt(r.overtime.hours)} saat fazla mesai yazıldı.`);
   else if (r.overtime && !r.partial && (r.overtime.hours || r.overtime.prevHours)) {
     const diff = round1(r.overtime.hours - r.overtime.prevHours);
-    out.push(diff < 0 ? `Fazla mesai bir önceki aya göre ${fmt(-diff)} saat azaldı (${fmt(r.overtime.hours)} saat).`
-      : diff > 0 ? `Fazla mesai bir önceki aya göre ${fmt(diff)} saat arttı (${fmt(r.overtime.hours)} saat).`
+    out.push(diff < 0 ? `Fazla mesai bir önceki aya göre ${fmt(-diff)} saat azaldı, toplam ${fmt(r.overtime.hours)}.`
+      : diff > 0 ? `Fazla mesai bir önceki aya göre ${fmt(diff)} saat arttı, toplam ${fmt(r.overtime.hours)}.`
       : `Fazla mesai bir önceki ayla aynı kaldı (${fmt(r.overtime.hours)} saat).`);
   }
   return out;

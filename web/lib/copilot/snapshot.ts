@@ -13,7 +13,7 @@
 
 import type { ShiftDefinition } from "@/lib/types";
 import { addDays } from "@/lib/date";
-import { effectiveWeeklyLimit, longestWeeklyRestHours } from "@/lib/legal";
+import { effectiveWeeklyLimit, longestWeeklyRestHours, netWorkMinutes } from "@/lib/legal";
 
 export type DayState = "available" | "partial" | "preferred_not" | "unavailable";
 
@@ -183,7 +183,8 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
         const { startMin, endMin } = shiftSpan(start, end);
         return {
           day: a.day, shiftId: a.shift_id, shiftName: a.elsewhere ?? def?.name ?? "Özel", start, end, driving: def?.driving_hours ?? 0,
-          hours: (endMin - startMin) / 60, night: isNight(def, start, end), ...(a.elsewhere ? { elsewhere: a.elsewhere } : {}),
+          // Çalışma süresi: mola düşülmüş (lib/legal, tanımdaki mola ya da yasal asgari)
+          hours: netWorkMinutes(endMin - startMin, def && def.start === start && def.end === end ? def.break_minutes : undefined) / 60, night: isNight(def, start, end), ...(a.elsewhere ? { elsewhere: a.elsewhere } : {}),
         };
       })
       .sort((a, b) => a.day - b.day || toMin(a.start) - toMin(b.start));

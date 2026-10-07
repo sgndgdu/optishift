@@ -92,10 +92,10 @@ export function computeFatigueRisk(
   if (overtimeThresholdHours > 0 && weeklyOvertimeHours > 0) {
     if (weeklyOvertimeHours >= overtimeThresholdHours + OVERTIME_DANGER_MARGIN_HOURS) {
       escalate("danger");
-      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours} saat)`);
+      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours})`);
     } else if (weeklyOvertimeHours >= overtimeThresholdHours) {
       escalate("warning");
-      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours} saat)`);
+      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours})`);
     }
   }
 

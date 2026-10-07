@@ -566,8 +566,8 @@ export default function PortalAvailability() {
                   {d.status !== "unavailable" && d.start && (
                     <p className="text-xs text-slate-500 mb-1">
                       {d.status === "available"
-                        ? "Bu saatlerin dışına vardiya yazılmaz."
-                        : "Mümkünse bu saatlerin dışına vardiya yazılmaz."}
+                        ? "Bu aralığın dışına vardiya yazılmaz."
+                        : "Mümkünse bu aralığın dışına vardiya yazılmaz."}
                     </p>
                   )}
 

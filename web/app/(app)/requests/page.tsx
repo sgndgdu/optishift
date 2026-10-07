@@ -591,7 +591,7 @@ export default function ManagerRequestsPage() {
                       <StatusPill tone={empChip.tone}>{empChip.label}</StatusPill>
                     </div>
                     <p className="text-xs text-slate-600 font-semibold">{o.overtime_hours} saat fazla mesai</p>
-                    <p className="text-xs text-slate-500">{o.week_start ? otWeekLabel(o.week_start) : "—"} haftası · {o.scheduled_hours} saat planlı</p>
+                    <p className="text-xs text-slate-500">{o.week_start ? otWeekLabel(o.week_start) : "—"} haftası · toplam {o.scheduled_hours} planlı</p>
                     {o.note && <p className="text-xs text-slate-400 mt-1 italic">{o.note}</p>}
                   </div>
                   {o.created_at && (

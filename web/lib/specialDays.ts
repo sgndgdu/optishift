@@ -80,7 +80,7 @@ export function specialDaysInRange(start: string, end: string, industry?: string
   for (const r of RAMADAN) {
     if (r.end < start || r.start > end) continue;
     const note = industry === "hospitality"
-      ? "İftar saatinde yoğunluk artar, öğle saatleri sakinleşebilir. Akşam vardiyasını iftardan önce başlatmayı düşünün."
+      ? "İftar vaktinde yoğunluk artar, öğlen sakinleşebilir. Akşam vardiyasını iftardan önce başlatmayı düşünün."
       : "Çalışma saatlerinde değişiklik isteyen olabilir (sahur, iftar).";
     out.push({ date: r.start < start ? start : r.start, name: `Ramazan ayı (${r.start.slice(8)}.${r.start.slice(5, 7)} - ${r.end.slice(8)}.${r.end.slice(5, 7)})`, kind: "ramadan", note });
   }

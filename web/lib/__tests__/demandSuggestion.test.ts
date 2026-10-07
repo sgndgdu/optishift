@@ -39,19 +39,19 @@ describe("ihtiyaç tablosu önerisi", () => {
   });
 
   it("ekibin karşılayabileceğinden fazlasını önermez", () => {
-    // 2 kişi: günde en fazla 2, haftada 2 × floor(45/7,7)=5 → 10 vardiya
+    // 2 kişi: günde en fazla 2; ortalama vardiya mola düşülünce ~7 saat, haftada 2 × floor(45/7)=6 → 12 vardiya
     const r = suggestDemand({ ...base(), personnelCount: 2 });
-    expect(total(r.matrix)).toBe(10);
+    expect(total(r.matrix)).toBe(12);
     for (let d = 0; d < 7; d++) expect(defs.reduce((s, def) => s + r.matrix[def.id][d], 0)).toBeLessThanOrEqual(2);
-    expect(r.notes.some(n => n.includes("en fazla 10 vardiya"))).toBe(true);
+    expect(r.notes.some(n => n.includes("en fazla 12 vardiya"))).toBe(true);
   });
 
   it("ekip yetmezse önce açılış/kapanış arasında kalan vardiyadan keser, açılışı boş bırakmaz", () => {
     const r = suggestDemand({ ...base(), personnelCount: 4, closedDays: [6] }); // 18 istek, kapasite 20: kesinti yok
     expect(Object.values(r.matrix.acilis).slice(0, 6).every(n => n === 1)).toBe(true);
-    const tight = suggestDemand({ ...base(), personnelCount: 3 }); // 21 istek, kapasite 15
+    const tight = suggestDemand({ ...base(), personnelCount: 3 }); // 21 istek, kapasite 18
     for (let d = 0; d < 7; d++) expect(tight.matrix.acilis[d] + tight.matrix.kapanis[d]).toBeGreaterThanOrEqual(1);
-    expect(Object.values(tight.matrix.yogun).reduce((a, b) => a + b, 0)).toBe(1); // 6 kesinti Yoğun Saat'ten
+    expect(Object.values(tight.matrix.yogun).reduce((a, b) => a + b, 0)).toBe(4); // 3 kesinti Yoğun Saat'ten
   });
 
   it("resmî tatil not olarak düşülür, kapalı günse düşülmez", () => {

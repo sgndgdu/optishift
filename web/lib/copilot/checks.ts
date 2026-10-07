@@ -8,7 +8,7 @@
 
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import type { WeekSnapshot } from "./snapshot";
-import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_DRIVING_MAX_HOURS, DAILY_MAX_NET_HOURS, WEEKLY_DRIVING_MAX_HOURS, WEEKLY_REST_HOURS, netWorkHours } from "@/lib/legal";
+import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_DRIVING_MAX_HOURS, DAILY_MAX_NET_HOURS, WEEKLY_DRIVING_MAX_HOURS, WEEKLY_REST_HOURS } from "@/lib/legal";
 
 export type InsightSeverity = "critical" | "warning" | "info";
 
@@ -38,6 +38,7 @@ export interface WeekBudgets {
 }
 
 export const fmtHours = (h: number) => `${h.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
+const trN = (h: number) => h.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 export const dayList = (days: number[]) => days.map(d => DAY_SHORT[d]).join(", ");
 const gap = (g: { fromDay: number; toDay: number }) => `${DAY_SHORT[g.fromDay]}→${DAY_SHORT[g.toDay]}`;
 
@@ -83,11 +84,11 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("unavailable", "critical", `${unavailable.length} kişi "Gelemem" dediği gün vardiyada`, unavailable);
 
   const outside = per(p => p.outsideWindowDays, (n, d) => `${n}: ${dayList(d)}`);
-  add("outside-window", "critical", `${outside.length} kişi uygun olduğu saatlerin dışında vardiyada`, outside);
+  add("outside-window", "critical", `${outside.length} kişi uygun olduğu aralığın dışında vardiyada`, outside);
 
   const over = working.filter(p => p.hours > p.maxHours);
   add("over-hours", "critical", `${over.length} kişi haftalık çalışma sınırını aşıyor`,
-    over.map(p => ({ text: `${p.name}: ${fmtHours(p.hours)}, sınır ${fmtHours(p.maxHours)}${p.maxHours === 66 ? " (denkleştirmede tek hafta tavanı)" : ""}`, personId: p.id })));
+    over.map(p => ({ text: `${p.name}: ${fmtHours(p.hours)}, sınır ${trN(p.maxHours)}${p.maxHours === 66 ? " (denkleştirmede tek hafta tavanı)" : ""}`, personId: p.id })));
 
   const shortRest = per(p => p.restGaps.filter(g => g.hours < rules.minRestHours),
     (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}`);
@@ -95,11 +96,11 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
 
   // İş K. m.46: 7 günde en az 24 saat kesintisiz hafta tatili
   const noWeeklyRest = working.filter(p => p.longestRestHours < WEEKLY_REST_HOURS);
-  add("weekly-rest", "critical", `${noWeeklyRest.length} kişiye haftada 24 saat kesintisiz dinlenme kalmıyor`,
+  add("weekly-rest", "critical", `${noWeeklyRest.length} kişiye haftada bir tam gün (24 saat) kesintisiz dinlenme kalmıyor`,
     noWeeklyRest.map(p => ({ text: `${p.name}: en uzun dinlenme ${fmtHours(p.longestRestHours)} (İş Kanunu m.46 hafta tatili)`, personId: p.id })));
 
   // İş K. m.63: günlük çalışma 11 saati aşamaz (m.68 asgari mola düşülerek)
-  const longDays = per(p => p.shifts.filter(x => netWorkHours(x.hours) > DAILY_MAX_NET_HOURS),
+  const longDays = per(p => p.shifts.filter(x => x.hours > DAILY_MAX_NET_HOURS),
     (n, xs) => `${n}: ${xs.map(x => `${DAY_NAMES[x.day]} ${fmtHours(x.hours)}`).join(", ")}`);
   add("daily-11", "critical", `${longDays.length} kişinin vardiyası molası düşüldükten sonra 11 saati aşıyor`, longDays);
 
@@ -107,11 +108,11 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   const driving = working.flatMap(p => {
     const lines: string[] = [];
     const over10 = p.shifts.filter(x => x.driving > DAILY_DRIVING_EXTENDED_HOURS);
-    if (over10.length) lines.push(`${p.name}: ${over10.map(x => `${DAY_NAMES[x.day]} ${fmtHours(x.driving)}`).join(", ")} direksiyon (günlük sınır 10 saat)`);
+    if (over10.length) lines.push(`${p.name}: ${over10.map(x => `${DAY_NAMES[x.day]} ${fmtHours(x.driving)}`).join(", ")} direksiyon (günlük sınır 10)`);
     const extended = p.shifts.filter(x => x.driving > DAILY_DRIVING_MAX_HOURS && x.driving <= DAILY_DRIVING_EXTENDED_HOURS);
     if (extended.length > 2) lines.push(`${p.name}: ${extended.length} gün 9 saatten uzun sürüş (haftada en fazla 2)`);
     const weekly = Math.round(p.shifts.reduce((t, x) => t + x.driving, 0) * 10) / 10;
-    if (weekly > WEEKLY_DRIVING_MAX_HOURS) lines.push(`${p.name}: haftada ${fmtHours(weekly)} direksiyon (sınır 56 saat)`);
+    if (weekly > WEEKLY_DRIVING_MAX_HOURS) lines.push(`${p.name}: haftada ${fmtHours(weekly)} direksiyon (sınır 56)`);
     return lines;
   });
   add("driving", "critical", "Sürüş süresi sınırı aşılıyor (AETR)", driving);
@@ -144,8 +145,8 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
 
   if (rules.nightLegalWarning) {
     const long = [...new Set(working.flatMap(p => p.shifts.filter(s => s.night && s.hours > 7.5).map(s => s.hours)))];
-    add("long-night", "critical", "Gece vardiyası yasal 7,5 saat sınırını aşıyor",
-      long.map(h => `${fmtHours(h)} süren gece vardiyası var (yasal sınır 7,5 saat)`));
+    add("long-night", "critical", "Gece çalışması yasal 7,5 saat sınırını aşıyor",
+      long.map(h => `${fmtHours(h)} çalışılan gece vardiyası var (sınır 7,5)`));
   }
 
   if (budgets.labor && budgets.labor.budget > 0 && budgets.labor.total > budgets.labor.budget) {
@@ -207,7 +208,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("preferred-not", "warning", `${prefNot.length} kişi "Tercih etmem" dediği gün vardiyada`, prefNot);
 
   const outsideFlex = per(p => p.outsideWindowFlexibleDays, (n, d) => `${n}: ${dayList(d)}`);
-  add("outside-window-flexible", "warning", `${outsideFlex.length} kişi "Tercih etmem" gününde verdiği saatlerin dışında`, outsideFlex);
+  add("outside-window-flexible", "warning", `${outsideFlex.length} kişi "Tercih etmem" gününde verdiği aralığın dışında`, outsideFlex);
 
   // Adalet: zaten çok yüklü olan ortalamadan belirgin fazla zor vardiya almış, az yüklüler daha az almış
   const heavy = working.filter(p => p.loadRatio > 1.2 && p.hardShifts >= 2 && p.hardShifts >= snap.avgHard + 1);

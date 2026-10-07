@@ -13,7 +13,7 @@ import { weekStates } from "@/lib/workCycle";
 import { loadImplicitPrefs } from "@/lib/implicitPrefsData";
 import { isSenior } from "@/lib/seniority";
 import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
-import { effectiveWeeklyLimit } from "@/lib/legal";
+import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 
 // Railway'de çalışan FastAPI engine servisinin URL'i
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://localhost:8000";
@@ -98,6 +98,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             is_night: !!d.is_night,
             on_call: !!d.on_call,
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
+            // Mola (dk): girilmediyse null, motor yasal asgariyi uygular (lib/legal breakMinutes ile aynı)
+            break_minutes: typeof d.break_minutes === "number" && d.break_minutes >= 0 ? d.break_minutes : null,
             // Departman şefinin planında şube geneli "en az N yetkinlikli" kuralı uygulanmaz: yetkinlikli kişi
             // çoğu zaman başka departmandadır; kuralı şube yöneticisi yayın kontrolünde görür.
             // Zorunlu görev kuralı Görevler'le birlikte kaldırıldı (2026-10-05): eski kayıtlı kural gizli kısıt olmasın
@@ -291,7 +293,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
           if ([sh, sm, eh, em].some(Number.isNaN)) continue;
           let dur = (eh * 60 + em) - (sh * 60 + sm);
           if (dur <= 0) dur += 1440;
-          otherBranchMinutes[r.personnel_id] = (otherBranchMinutes[r.personnel_id] ?? 0) + dur;
+          // Diğer şubenin tanımı burada yok: yasal asgari mola düşülür
+          otherBranchMinutes[r.personnel_id] = (otherBranchMinutes[r.personnel_id] ?? 0) + netWorkMinutes(dur);
         }
       } catch (e) {
         console.error("[generate] diğer şube vardiyaları okunamadı:", e);
@@ -517,7 +520,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         const ph = prevWeeks.map((_, i) => `$${i + 2}`).join(",");
         const rows = (await db
           .prepare(
-            `SELECT personnel_id, start_time, end_time FROM shift_assignments
+            `SELECT personnel_id, shift_id, start_time, end_time FROM shift_assignments
              WHERE location_id = $1 AND week_start IN (${ph}) AND publication_status = 'published'
                AND COALESCE(kind, 'regular') = 'regular'`
           )
@@ -528,9 +531,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
           const [sh, sm] = String(r.start_time).split(":").map(Number);
           const [eh, em] = String(r.end_time).split(":").map(Number);
           if ([sh, sm, eh, em].some(Number.isNaN)) continue;
-          let dur = (eh * 60 + em) - (sh * 60 + sm);
-          if (dur <= 0) dur += 1440;
-          workedMin[r.personnel_id] = (workedMin[r.personnel_id] ?? 0) + dur;
+          workedMin[r.personnel_id] = (workedMin[r.personnel_id] ?? 0) + assignmentWorkMinutes(shiftsPayload as any[], r);
         }
         for (const p of personnelData as any[]) {
           const pMax = p.max_weekly_hours ?? ruleMaxWeeklyHours;

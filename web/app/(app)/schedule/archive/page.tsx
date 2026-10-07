@@ -144,7 +144,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
       {/* Mini istatistikler */}
       <div className="flex items-center gap-6 px-5 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
         <span><strong className="text-slate-700">{totalPersonnel}</strong> çalışan</span>
-        <span><strong className="text-slate-700">{Math.round(totalPersonHours)}</strong> toplam saat</span>
+        <span><strong className="text-slate-700">{Math.round(totalPersonHours)}</strong> saat toplam çalışma</span>
         <span><strong className="text-slate-700">{snapshot.assignments.length}</strong> vardiya ataması</span>
         {/* Shift tanım lejandı */}
         <span className="flex items-center gap-2 ml-auto flex-wrap">

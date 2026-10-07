@@ -17,13 +17,15 @@ import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/h
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import { coworkersOf } from "@/lib/coworkers";
+import { netWorkMinutes } from "@/lib/legal";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
   const [eh, em] = s.end_time.split(":").map(Number);
   let diff = (eh * 60 + em) - (sh * 60 + sm);
   if (diff < 0) diff += 1440;
-  return Math.round(diff / 60 * 10) / 10;
+  // Çalışma süresi mola düşülerek (lib/legal)
+  return Math.round(netWorkMinutes(diff, s.break_minutes) / 60 * 10) / 10;
 }
 
 function elapsedLabel(checkInAt: number): string {
@@ -322,7 +324,7 @@ export default function PortalDashboard() {
 
           {todayOnCall && !dataLoading && (
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-semibold text-violet-50"
-              title="Nöbet: evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
+              title="Nöbet: evde beklersiniz, çağrılırsanız gelirsiniz. Ne kadar çalıştığınızı sorumlunuz kaydeder.">
               Bugün nöbetçisin · {todayOnCall.start_time}–{todayOnCall.end_time}
             </div>
           )}

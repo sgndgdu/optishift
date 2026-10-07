@@ -201,7 +201,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const patch = (url: string, body: unknown) => fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
   const save = async () => {
-    if (ep.personnelId && editForm.min_weekly_hours > editForm.max_weekly_hours) { setEditError("Haftalık en az saat, en fazla saatten büyük olamaz."); return; }
+    if (ep.personnelId && editForm.min_weekly_hours > editForm.max_weekly_hours) { setEditError("Haftalık en az süre, en fazladan büyük olamaz."); return; }
     setEditLoading(true); setEditError("");
     try {
       if (ep.userId) {
@@ -489,17 +489,17 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en fazla saat</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftada en fazla</label>
                   <input type="number" min={8} max={60} value={editForm.max_weekly_hours} onChange={e => setEditForm(f => ({ ...f, max_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
               </div>
               {/* Tek kural (lib/legal effectiveWeeklyLimit): şube sınırı üst sınırdır */}
               <p className="text-xs text-slate-400 -mt-2">
-                Şubenin sınırı {branchWeeklyMax} saat. Kişiye sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir; yüksek yazılsa da şube sınırı geçerlidir.
+                Şubenin sınırı {branchWeeklyMax} saat. Kişiye sadece daha düşük bir sınır (yarı zamanlı gibi) yazılabilir.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftalık en az saat</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Haftada en az</label>
                   <input type="number" min={0} max={editForm.max_weekly_hours} value={editForm.min_weekly_hours} onChange={e => setEditForm(f => ({ ...f, min_weekly_hours: Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400" />
                 </div>
                 <div>
@@ -515,7 +515,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                 <input type="number" min={0} step={0.5} placeholder="Tanımsız" value={editForm.hourly_wage ?? ""} disabled={!can("budget")} onChange={e => setEditForm(f => ({ ...f, hourly_wage: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-forest-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 <p className="text-xs text-slate-400 mt-1">
                   {can("budget")
-                    ? "Fazla mesai maliyeti hesabında kullanılır (mesai saati × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
+                    ? "Fazla mesai maliyeti hesabında kullanılır (fazla mesai × ücret × 1,5). Boş bırakılırsa maliyet gösterilmez."
                     : "🔒 Ücretleri görmek ve değiştirmek için \"Ücretler ve maliyet\" yetkisi gerekir. Hesap sahibi verebilir."}
                 </p>
               </div>

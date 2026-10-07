@@ -9,7 +9,7 @@
  * lib/copilot/snapshot ile aynı). Bulgu varsa değişiklik engellenir; müdür açıkça
  * onaylarsa (force) yine de yapılabilir.
  */
-import { effectiveWeeklyLimit } from "@/lib/legal";
+import { definedBreakFor, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 
 export interface TimedShift {
   /** Haftanın pazartesisi (YYYY-MM-DD) */
@@ -18,6 +18,8 @@ export interface TimedShift {
   day: number;
   start_time: string;
   end_time: string;
+  /** Vardiya tanımındaki mola (dk); yoksa yasal asgari. Haftalık toplam mola düşülerek sayılır. */
+  break_minutes?: number;
 }
 
 export interface PersonRules {
@@ -59,15 +61,15 @@ export function findAssignmentProblems(shifts: TimedShift[], added: TimedShift[]
     const label = `${DAY[Number(prev.s.day)]} ${prev.s.start_time}-${prev.s.end_time} ile ${DAY[Number(cur.s.day)]} ${cur.s.start_time}-${cur.s.end_time}`;
     const gapH = (cur.span[0] - prev.span[1]) / 60;
     if (gapH < 0) out.push(`${label} vardiyaları çakışıyor`);
-    else if (gapH < rules.minRestHours) out.push(`${label} arasında ${fmt(gapH)} saat dinlenme kalıyor (en az ${fmt(rules.minRestHours)} saat)`);
+    else if (gapH < rules.minRestHours) out.push(`${label} arasında ${fmt(gapH)} saat kalıyor, en az ${fmt(rules.minRestHours)} olmalı`);
   }
 
   // Haftalık sınır: değişikliğin dokunduğu her hafta için
   for (const ws of new Set(added.map(a => a.week_start))) {
     const total = shifts.filter(s => s.week_start === ws)
-      .reduce((t, s) => { const [a, b] = span(s, ws); return t + (b - a) / 60; }, 0);
+      .reduce((t, s) => { const [a, b] = span(s, ws); return t + netWorkMinutes(b - a, s.break_minutes) / 60; }, 0);
     if (total > rules.maxWeeklyHours + 1e-9) {
-      out.push(`Haftalık çalışma ${fmt(total)} saate çıkıyor (sınır ${fmt(rules.maxWeeklyHours)} saat)`);
+      out.push(`Haftalık çalışma ${fmt(total)} saate çıkıyor (sınır ${fmt(rules.maxWeeklyHours)})`);
     }
   }
   return out;
@@ -109,15 +111,26 @@ export async function checkPersonChange(
   for (const a of change.add) { weeks.add(addDaysISO(a.week_start, -7)); weeks.add(a.week_start); weeks.add(addDaysISO(a.week_start, 7)); }
   const wl = [...weeks];
   const rows = await db.prepare(`
-    SELECT id, week_start, day, start_time, end_time FROM shift_assignments
+    SELECT id, location_id, shift_id, week_start, day, start_time, end_time FROM shift_assignments
     WHERE personnel_id = ? AND week_start IN (${wl.map(() => "?").join(",")})
       AND COALESCE(kind, 'regular') = 'regular' AND status != 'swapped' AND status != 'absent'
       AND start_time IS NOT NULL AND end_time IS NOT NULL
   `).all(personnelId, ...wl) as any[];
   const remove = new Set((change.removeIds ?? []).map(Number));
+  // Mola: her vardiyanın kendi şubesindeki tanımından (yoksa yasal asgari)
+  const locIds = [...new Set([locationId, ...rows.map(r => String(r.location_id))])];
+  const defsByLoc = new Map<string, any[]>();
+  try {
+    const locRows = await db.prepare(`SELECT id, shift_definitions FROM locations WHERE id IN (${locIds.map(() => "?").join(",")})`).all(...locIds) as any[];
+    for (const l of locRows) {
+      try { const d = typeof l.shift_definitions === "string" ? JSON.parse(l.shift_definitions) : l.shift_definitions; defsByLoc.set(String(l.id), Array.isArray(d) ? d : []); } catch { /* boş */ }
+    }
+  } catch { /* yasal asgari */ }
   const kept: TimedShift[] = rows.filter(r => !remove.has(Number(r.id))).map(r => ({
     week_start: String(r.week_start), day: Number(r.day), start_time: String(r.start_time), end_time: String(r.end_time),
+    break_minutes: definedBreakFor(defsByLoc.get(String(r.location_id)), r),
   }));
+  const add = change.add.map(a => a.break_minutes !== undefined ? a : { ...a, break_minutes: definedBreakFor(defsByLoc.get(locationId), a) });
   const rules = await loadPersonRules(db, personnelId, locationId);
-  return findAssignmentProblems([...kept, ...change.add], change.add, rules);
+  return findAssignmentProblems([...kept, ...add], add, rules);
 }

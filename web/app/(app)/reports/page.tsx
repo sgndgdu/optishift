@@ -164,7 +164,7 @@ function WorkHoursReport() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
-            title="Her kişinin her günkü giriş ve çıkış saatleri. Bordro ve muhasebe programına aktarmak için CSV dosyası."
+            title="Her kişinin her gün ne zaman girip çıktığı. Bordro ve muhasebe programına aktarmak için CSV dosyası."
             className={downloadClass}
           >
             <Download size={15} /> Puantaj
@@ -287,7 +287,7 @@ function WorkHoursReport() {
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        Fazla mesai hesabı: ayarlardaki haftalık eşiği aşan çalışma süresi. Maliyet = mesai saati × saatlik ücret × 1,5 (%50 zamlı).
+        Fazla mesai hesabı: ayarlardaki haftalık eşiği aşan çalışma süresi. Maliyet = fazla mesai × saatlik ücret × 1,5 (%50 zamlı).
       </p>
     </div>
   );
@@ -299,7 +299,7 @@ function WorkHoursReport() {
 const REPORT_TABS = [
   // Aylık Özet (lib/monthlyGain) ilk ve varsayılan: ay başı bildirimi buraya açılır (?tab=ozet&month=)
   { id: "ozet",    label: "Aylık Özet",       icon: Sparkles },
-  { id: "saatler", label: "Çalışma Saatleri", icon: Clock },
+  { id: "saatler", label: "Çalışma Süresi", icon: Clock },
   { id: "adalet",  label: "Adalet Puanı",     icon: Scale },
   { id: "mesai",   label: "Fazla Mesai",      icon: Timer },
 ] as const;

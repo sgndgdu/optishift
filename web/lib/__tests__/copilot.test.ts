@@ -3,9 +3,9 @@ import { answerQuestion, buildInsights, buildWeekSnapshot, crossTrainingInsight,
 
 // 2026-09-28 Pazartesi haftası
 const defs = [
-  { id: "s-sabah", name: "Sabah", start: "08:00", end: "16:00", base_points: 3 },
-  { id: "s-aksam", name: "Akşam", start: "16:00", end: "24:00", base_points: 4 },
-  { id: "s-gece", name: "Gece", start: "22:00", end: "06:00", base_points: 6, is_night: true,
+  { id: "s-sabah", name: "Sabah", start: "08:00", end: "16:00", base_points: 3, break_minutes: 0 },
+  { id: "s-aksam", name: "Akşam", start: "16:00", end: "24:00", base_points: 4, break_minutes: 0 },
+  { id: "s-gece", name: "Gece", start: "22:00", end: "06:00", base_points: 6, is_night: true, break_minutes: 0,
     required_skills: [{ skill: "Bakım Teknisyeni", count: 1 }] },
 ];
 
@@ -127,7 +127,7 @@ describe("içgörüler", () => {
     const input = base();
     input.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ali", d, "s-sabah"));
     const over = buildInsights(buildWeekSnapshot(input)).find(i => i.id === "over-hours")!;
-    expect(over.lines).toEqual(["Ali: 48 saat, sınır 45 saat"]);
+    expect(over.lines).toEqual(["Ali: 48 saat, sınır 45"]);
   });
 
   it("adalet: yüklü kişiye zor vardiya, az yüklüye yok", () => {
@@ -227,7 +227,15 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
       { ...a("ali", 0, "s-sabah"), start_time: "07:00", end_time: "20:00" }, // 13 s, net 12
       { ...a("can", 0, "s-sabah"), start_time: "07:00", end_time: "19:00" }, // 12 s, net 11: yasal
     ];
-    expect(problems(input).find(i => i.id === "daily-11")!.lines).toEqual(["Ali: Pazartesi 13 saat"]);
+    expect(problems(input).find(i => i.id === "daily-11")!.lines).toEqual(["Ali: Pazartesi 12 saat"]); // çalışma süresi (mola düşülmüş)
+  });
+
+  it("mola: tanımda yoksa yasal asgari, varsa tanımdaki süre çalışmadan düşülür", () => {
+    const input = base();
+    input.shiftDefs = defs.map(d => d.id === "s-sabah" ? { ...d, break_minutes: undefined } : d.id === "s-aksam" ? { ...d, break_minutes: 45 } : d);
+    input.assignments = [a("ali", 0, "s-sabah"), a("ali", 1, "s-aksam")];
+    const ali = buildWeekSnapshot(input).people.find(p => p.id === "ali")!;
+    expect(ali.hours).toBe(14.3); // 8 s - 1 saat yasal asgari + 8 s - 45 dk
   });
 
   it("sürüş süresi (AETR): 10 saat üstü gün, 9 saat üstü 2'den fazla gün, haftalık 56 saat", () => {
@@ -251,7 +259,7 @@ describe("kural kontrolleri (yayın penceresiyle ortak)", () => {
     const input = base();
     input.personnel[0].maxWeeklyHours = 20; // Ali yarı zamanlı
     input.assignments = [0, 1, 2].map(d => a("ali", d, "s-sabah")); // 24 saat
-    expect(problems(input).find(i => i.id === "over-hours")!.lines).toEqual(["Ali: 24 saat, sınır 20 saat"]);
+    expect(problems(input).find(i => i.id === "over-hours")!.lines).toEqual(["Ali: 24 saat, sınır 20"]);
 
     const full = base();
     full.assignments = [0, 1, 2, 3, 4, 5].map(d => a("ayse", d, "s-sabah")); // 48 saat

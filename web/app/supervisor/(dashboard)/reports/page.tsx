@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
 import { effectiveWeeklyLimit } from "@/lib/legal";
 import { formatScore, scoreVsAverageText } from "@/lib/fairness";
@@ -32,7 +33,8 @@ function calcHours(start_time: string, end_time: string): number {
   let startMin = sh * 60 + sm;
   let endMin = eh * 60 + em;
   if (endMin <= startMin) endMin += 1440;
-  return (endMin - startMin) / 60;
+  // Mola çalışma süresine sayılmaz; bu görünümde vardiya tanımı yok, yasal asgari düşülür (lib/legal)
+  return netWorkMinutes(endMin - startMin) / 60;
 }
 
 // ─── types ─────────────────────────────────────────────────────────────────
@@ -195,7 +197,7 @@ export default function SupervisorReports() {
 
       {/* Şube/personel sayıları Genel Bakış'ta; burada sadece rapor sayıları */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Toplam saat" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
+        <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
         <StatCard label="Çalışma sınırı" value={overCount > 0 ? `${overCount} kişi aştı` : nearCount > 0 ? `${nearCount} kişi sınırda` : "Herkes sınırın altında"}
           icon={overCount + nearCount > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : nearCount > 0 ? "attention" : "positive"}
           hint={overCount > 0 && nearCount > 0 ? `${nearCount} kişi de sınırda` : `${working.length} kişi çalışıyor`}
@@ -204,7 +206,7 @@ export default function SupervisorReports() {
 
       <Tabs fill value={activeTab} onChange={setActiveTab} items={[
         { id: "summary",    label: "Şubeler" },
-        { id: "hours",      label: "Kişi saatleri", count: overCount + nearCount || undefined },
+        { id: "hours",      label: "Kişilerin haftası", count: overCount + nearCount || undefined },
         { id: "fairness",   label: "Adalet" },
       ] as const} />
 
@@ -225,7 +227,7 @@ export default function SupervisorReports() {
         </List>
       ) : activeTab === "hours" ? (
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Bu tablo bu hafta kimin kaç saat çalıştığını gösterir. İki şubede çalışan kişinin saatleri toplanır. Sınır, kişinin ana şubesindeki haftalık sınırdır (yarı zamanlı çalışanda kişinin kendi sınırı). Sınırı aşan kırmızı, sınırın %90&apos;ına gelen sarı gösterilir.</p>
+          <p className="text-xs text-slate-500">Bu tablo bu hafta kimin ne kadar çalıştığını gösterir. İki şubede çalışan kişinin süreleri toplanır. Sınır, kişinin ana şubesindeki haftalık sınırdır (yarı zamanlı çalışanda kişinin kendi sınırı). Sınırı aşan kırmızı, sınırın %90&apos;ına gelen sarı gösterilir.</p>
           <List>
             {working.length === 0 ? <ListEmpty>Bu hafta plan yok.</ListEmpty>
               : working.map(w => {

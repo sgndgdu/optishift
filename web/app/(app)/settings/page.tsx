@@ -24,6 +24,7 @@ import IndustryPicker from "@/components/IndustryPicker";
 import { getIndustry, industryFromRules } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, netWorkHours } from "@/lib/legal";
+import { BreakPicker } from "@/components/ui/BreakPicker";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { getWeekStart } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
@@ -1245,7 +1246,7 @@ export default function SettingsPage() {
               {/* 1. Çalışma Saatleri — lokasyonun açık olduğu saatler */}
               <div>
                 <SectionLabel>Çalışma Saatleri</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Her gün kaçta açılıp kaçta kapandığınızı belirleyin. Vardiya saatleri bu aralık içinde kalmalıdır.</p>
+                <p className="text-xs text-slate-400 mb-3">Her gün kaçta açılıp kaçta kapandığınızı belirleyin. Vardiyalar bu aralık içinde kalmalıdır.</p>
                 {/* Tek satır özet; 7 günlük düzenleyici "Düzenle" ile açılır */}
                 <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
                   <p className="text-sm font-semibold text-slate-700 min-w-0">{summarizeOperatingHours(locationData.operating_hours)}</p>
@@ -1295,7 +1296,7 @@ export default function SettingsPage() {
               {/* 2. Vardiya Tanımları */}
               <div>
                 <SectionLabel>Vardiya Tanımları</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Her vardiyanın adını, saatlerini ve ne kadar zor olduğunu belirleyin.</p>
+                <p className="text-xs text-slate-400 mb-3">Her vardiyanın adını, başlangıç ve bitişini, molasını ve ne kadar zor olduğunu belirleyin.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(locationData.shift_definitions ?? []).map((shift: ShiftDefinition, idx: number) => (
                     <div key={shift.id} className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-white space-y-3">
@@ -1334,7 +1335,7 @@ export default function SettingsPage() {
                         {shift.on_call && (
                         <button
                           type="button"
-                          title="Nöbet: kişi evde bekler, çağrılırsa işe gelir. Nöbet çalışma saatine sayılmaz ve aynı gün normal vardiyayla birlikte verilebilir."
+                          title="Nöbet: kişi evde bekler, çağrılırsa işe gelir. Nöbet çalışma süresine sayılmaz ve aynı gün normal vardiyayla birlikte verilebilir."
                           onClick={() => {
                             const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
                               i === idx ? { ...s, on_call: !s.on_call } : s
@@ -1377,9 +1378,19 @@ export default function SettingsPage() {
                           setLocationData({ ...locationData, shift_definitions: next });
                         }} />
                       </div>
+                      {/* Mola: vardiyanın içinde, çalışma süresine sayılmaz (lib/legal breakMinutes). Boş = yasal asgari */}
+                      {!shift.on_call && (
+                        <BreakPicker id={`break-${idx}`} start={shift.start} end={shift.end} value={shift.break_minutes}
+                          onChange={v => {
+                            const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
+                              i === idx ? { ...s, break_minutes: v } : s
+                            );
+                            setLocationData({ ...locationData, shift_definitions: next });
+                          }} />
+                      )}
                       {shift.on_call && (
                         <div className="flex flex-wrap items-center gap-2 text-xs text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
-                          <span className="flex-1 min-w-[180px]">Nöbet: kişi evde bekler. Nöbet çalışma saatine ve fazla mesaiye sayılmaz. Kişi çağrılırsa çalıştığı saat Vardiya Planı&apos;ndan girilir.</span>
+                          <span className="flex-1 min-w-[180px]">Nöbet: kişi evde bekler. Bekleme çalışma süresine ve fazla mesaiye sayılmaz. Kişi çağrılırsa ne kadar çalıştığı Vardiya Planı&apos;ndan girilir.</span>
                           <label className="flex items-center gap-1 font-semibold">
                             Nöbet ücreti
                             <input type="number" min={0} step={50} value={shift.on_call_pay ?? ""} placeholder="0"
@@ -1408,7 +1419,7 @@ export default function SettingsPage() {
                             }}
                             className="w-16 border border-slate-200 rounded-md px-1.5 py-0.5 bg-white text-slate-800" />
                           <span>saat</span>
-                          <span className="text-slate-400 basis-full sm:basis-auto">Plan AETR sürüş sınırlarına uyar: günde en fazla 9 saat (haftada 2 gün 10 saat), haftada 56 saat, iki haftada 90 saat.</span>
+                          <span className="text-slate-400 basis-full sm:basis-auto">Plan AETR sürüş sınırlarına uyar: günde en fazla 9 (haftada 2 gün 10), haftada 56, iki haftada 90 saat.</span>
                         </label>
                       )}
                       {(shift.driving_hours ?? 0) > DAILY_DRIVING_EXTENDED_HOURS && (
@@ -1416,14 +1427,14 @@ export default function SettingsPage() {
                           ⚠ Günlük direksiyon süresi 10 saati aşamaz (AETR). Bu vardiya kimseye yazılmaz.
                         </p>
                       )}
-                      {!shift.on_call && netWorkHours(shiftDurationHours(shift)) > DAILY_MAX_NET_HOURS && (
+                      {!shift.on_call && netWorkHours(shiftDurationHours(shift), shift.break_minutes) > DAILY_MAX_NET_HOURS && (
                         <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
-                          ⚠ Vardiya {shiftDurationHours(shift)} saat: yasal mola düşülse de günlük 11 saat sınırını aşıyor (İş Kanunu m.63). Saatleri kısaltın.
+                          ⚠ Mola düşülünce çalışma süresi günlük 11 saati aşıyor (İş Kanunu m.63). Vardiyayı kısaltın.
                         </p>
                       )}
-                      {shift.is_night && nightLegalWarning && shiftDurationHours(shift) > 7.5 && (
+                      {shift.is_night && nightLegalWarning && netWorkHours(shiftDurationHours(shift), shift.break_minutes) > 7.5 && (
                         <p className="text-xs text-red-500 font-semibold bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
-                          ⚠ Gece vardiyası {shiftDurationHours(shift)} saat, yasal sınır 7,5 saattir. Saatleri kısaltmanız önerilir.
+                          ⚠ Gece çalışması en fazla 7,5 saat olabilir. Vardiyayı kısaltmanız önerilir.
                         </p>
                       )}
 
@@ -1525,7 +1536,7 @@ export default function SettingsPage() {
                       label="Otomatik Uygunluk Hatırlatması"
                       description={
                         <span>
-                          Planlanan saatten sonra, gelecek haftanın uygunluğunu girmemiş kişilere haftada bir kez bildirim gönderilir.
+                          Seçilen gün ve saatte, gelecek haftanın uygunluğunu girmemiş kişilere haftada bir kez bildirim gönderilir.
                           {reminderEnabled && (
                             <span className="flex flex-wrap items-center gap-2 mt-2">
                               <span>Her</span>
@@ -1554,7 +1565,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Vardiya Değişiklik Talebi"
-                    description="Ekip üyesi vardiya saatinde hata görürse düzeltme isteği gönderir."
+                    description="Ekip üyesi vardiyasında hata görürse düzeltme isteği gönderir."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
                   {openShiftsEnabled && (
@@ -1583,19 +1594,19 @@ export default function SettingsPage() {
                 <SectionCard title="Çalışma Süresi">
                   <RuleRow
                     lock="rules" label="Haftalık En Fazla Çalışma"
-                    description="Kimseye bu saatten fazla vardiya yazılmaz. Kişinin kartında daha düşük sınır verilebilir."
+                    description="Kimseye bundan fazla vardiya yazılmaz. Kişinin kartında daha düşük sınır verilebilir."
                     right={<NumberInput value={maxWeeklyHours} onChange={setMaxWeeklyHours} min={20} max={60} suffix="saat" />}
                   />
                   <RuleRow
                     lock="rules" label="Fazla Mesai Başlangıcı"
-                    description="Haftada bu saati aşan çalışma fazla mesai sayılır (maliyet ×1,5)."
+                    description="Haftada bunu aşan çalışma fazla mesai sayılır (maliyet ×1,5)."
                     right={<NumberInput value={overtimeThresholdHours} onChange={setOvertimeThresholdHours} min={1} max={60} suffix="saat" />}
                   />
                   {/* Fazla mesai takibi açıkken: yıllık sınır ve dağılım (Özellikler sadece aç/kapat) */}
                   {overtimeTrackingEnabled && (<>
                   <RuleRow
                     lock="rules" label="Yıllık Fazla Mesai Sınırı"
-                    description="Kişi başı yıllık fazla mesai üst sınırı (İş Kanunu m.41, 270 saat)."
+                    description="Kişi başı yıllık fazla mesai üst sınırı (İş Kanunu m.41: 270)."
                     right={<NumberInput value={maxYtdOvertimeHours} onChange={setMaxYtdOvertimeHours} min={0} max={500} suffix="saat/yıl" />}
                   />
                   <RuleRow
@@ -1606,7 +1617,7 @@ export default function SettingsPage() {
                   </>)}
                   {(shiftWorkBusiness || balancingPeriodWeeks > 0) && <RuleRow
                     lock="rules" label="Denkleştirme Dönemi"
-                    description="0 kapalı demektir. 2-8 hafta seçerseniz yoğun haftalardaki fazla saat, aynı dönemdeki hafif haftalarla dengelenir. Bir haftada en fazla 66 saat çalışılabilir (İş K. m.63)."
+                    description="0 kapalı demektir. 2-8 hafta seçerseniz yoğun haftalardaki fazla çalışma, aynı dönemdeki hafif haftalarla dengelenir. Bir haftada en fazla 66 saat çalışılabilir (İş K. m.63)."
                     right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
                   />}
                   <RuleRow
@@ -1644,7 +1655,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     lock="rules" label="Gece 7,5 Saat Uyarısı"
-                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya düzenleme penceresinde ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
+                    description="Gece işaretli vardiyada çalışma 7,5 saati aşarsa vardiya düzenleme penceresinde ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>
@@ -1887,7 +1898,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Yayından sonra vardiyası değişince"
-                    description="Plan yayınlandıktan sonra vardiya saati değiştirilen kişiye, düzeni bozulduğu için. Anahtar kapalıysa verilmez."
+                    description="Plan yayınlandıktan sonra vardiyası değiştirilen kişiye, düzeni bozulduğu için. Anahtar kapalıysa verilmez."
                     right={
                       <div className="flex items-center gap-2">
                         <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
@@ -2103,7 +2114,7 @@ export default function SettingsPage() {
                   ),
                   overtime: (
                 <FeatureCard icon={Timer} title="Fazla Mesai Takibi"
-                  description="Yayınlanan plandaki fazla mesai saatleri kaydedilir ve onayınıza gelir. Yıllık fazla mesai sınırı da takip edilir."
+                  description="Yayınlanan plandaki fazla mesai kaydedilir ve onayınıza gelir. Yıllık fazla mesai sınırı da takip edilir."
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />
                   ),
               };

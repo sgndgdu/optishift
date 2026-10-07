@@ -1,6 +1,6 @@
 "use client";
 import { jointShortfalls } from "@/lib/jointCapacity";
-import { effectiveWeeklyLimit } from "@/lib/legal";
+import { effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
 import { departmentInBranch, departmentsInBranch, plannedInBranch } from "@/lib/branchRotation";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -103,6 +103,11 @@ function matchShiftDef(startMin: number, endMin: number, defs: ShiftDefinition[]
     if (Math.abs(startMin - ds) <= 10 && Math.abs(endMin - de) <= 10) return d;
   }
   return null;
+}
+
+/** Hücrenin mola düşülmüş çalışma saati: eşleşen vardiya tanımının molası, yoksa yasal asgari (lib/legal). */
+function cellWorkHours(startMin: number, endMin: number, defs: ShiftDefinition[]): number {
+  return netWorkMinutes(endMin - startMin, matchShiftDef(startMin, endMin, defs)?.break_minutes) / 60;
 }
 
 /** "26:00" gibi gece geçişi formatını "02:00" olarak normalize eder */
@@ -1520,7 +1525,7 @@ function SchedulePageInner() {
     for (const [k, c] of Object.entries(cells)) {
       const pid = k.slice(0, k.lastIndexOf("-"));
       const w = personnel.find((p: { id: string; hourly_wage?: number }) => p.id === pid)?.hourly_wage;
-      if (typeof w === "number" && w > 0) cost += ((c.endMin - c.startMin) / 60) * w;
+      if (typeof w === "number" && w > 0) cost += cellWorkHours(c.startMin, c.endMin, shiftDefs) * w;
     }
     return { snap, problems: findProblems(snap, {}), extraShifts: Object.keys(cells).filter(k => k.startsWith("SCN-")).length, cost: Math.round(cost) } as ScnSide;
   };
@@ -1738,7 +1743,7 @@ function SchedulePageInner() {
         const unique = [...new Set(names)];
         showToast(
           unique.length > 0
-            ? `Tüm vardiyalar yayınlandı. (${unique.join(", ")} için 11 saat dinlenme uyarısı var)`
+            ? `Tüm vardiyalar yayınlandı. ${unique.join(", ")} için dinlenme süresi uyarısı var.`
             : "Tüm vardiyalar yayınlandı.",
           "info"
         );
@@ -2179,28 +2184,28 @@ function SchedulePageInner() {
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
   const hasExisting   = popover ? !!cellMap[`${popover.personnelId}-${popover.day}`] : false;
-  const popoverHours  = popover ? Math.round((popover.endMin - popover.startMin) / 60 * 10) / 10 : 0;
+  const popoverHours  = popover ? Math.round(cellWorkHours(popover.startMin, popover.endMin, shiftDefs) * 10) / 10 : 0;
 
   // Popover anlık kural kontrolleri
   const popoverWarnings: { type: 'error' | 'warn'; msg: string }[] = [];
   if (popover && popoverPerson) {
     // Haftalık saat limit kontrolü
     const existKey   = `${popover.personnelId}-${popover.day}`;
-    const existHours = cellMap[existKey] ? (cellMap[existKey].endMin - cellMap[existKey].startMin) / 60 : 0;
+    const existHours = cellMap[existKey] ? cellWorkHours(cellMap[existKey].startMin, cellMap[existKey].endMin, shiftDefs) : 0;
     const weekBase   = Object.entries(cellMap)
       .filter(([k]) => k.startsWith(`${popover.personnelId}-`))
-      .reduce((sum, [, v]) => sum + (v.endMin - v.startMin) / 60, 0) - existHours;
-    const projHours = weekBase + (popover.endMin - popover.startMin) / 60;
+      .reduce((sum, [, v]) => sum + cellWorkHours(v.startMin, v.endMin, shiftDefs), 0) - existHours;
+    const projHours = weekBase + cellWorkHours(popover.startMin, popover.endMin, shiftDefs);
     const maxH = effectiveWeeklyLimit(popoverPerson.max_weekly_hours, (() => { const v = (locRules as Record<string, unknown>)?.max_weekly_hours; return typeof v === "number" ? v : 45; })());
     if (projHours > maxH) {
-      popoverWarnings.push({ type: 'error', msg: `Haftalık saat sınırı aşılacak: ${Math.round(projHours * 10) / 10} saat / ${maxH} saat` });
+      popoverWarnings.push({ type: 'error', msg: `Haftalık sınır aşılır: ${trNum(projHours)} / ${maxH} saat` });
     }
     // 11 saatlik dinlenme — önceki gün
     const prevCell = popover.day > 0 ? cellMap[`${popover.personnelId}-${popover.day - 1}`] : null;
     if (prevCell) {
       const gapFromPrev = (popover.startMin + 1440) - prevCell.endMin;
       if (gapFromPrev < 11 * 60) {
-        popoverWarnings.push({ type: 'error', msg: `Önceki vardiyadan sonra sadece ${Math.round(gapFromPrev / 60 * 10) / 10} saat dinlenme kalır (en az 11 saat olmalı)` });
+        popoverWarnings.push({ type: 'error', msg: `Önceki vardiyayla arada ${trNum(gapFromPrev / 60)} saat kalır, en az 11 olmalı` });
       }
       // Gececi→Sabahçı uyarısı
       if (prevCell.endMin >= 23 * 60 && popover.startMin <= 12 * 60) {
@@ -2212,7 +2217,7 @@ function SchedulePageInner() {
     if (nextCell) {
       const gapToNext = (nextCell.startMin + 1440) - popover.endMin;
       if (gapToNext < 11 * 60) {
-        popoverWarnings.push({ type: 'error', msg: `Ertesi günkü vardiyaya kadar sadece ${Math.round(gapToNext / 60 * 10) / 10} saat dinlenme kalır (en az 11 saat olmalı)` });
+        popoverWarnings.push({ type: 'error', msg: `Ertesi günkü vardiyayla arada ${trNum(gapToNext / 60)} saat kalır, en az 11 olmalı` });
       }
     }
     // Uygunluk durumu
@@ -2269,7 +2274,7 @@ function SchedulePageInner() {
     };
 
     // Haftalık saat: istenen vardiyaların toplam saati, ekibin haftalık sınırlarının toplamını aşarsa motor plan
-    // bulamaz (motor brüt saati sayar, lib/legal effectiveWeeklyLimit). Pub testi: kontrol "karşılanabilir" deyip
+    // bulamaz (motor mola düşülmüş saati sayar, lib/legal netWorkMinutes + effectiveWeeklyLimit). Pub testi: kontrol "karşılanabilir" deyip
     // motor nedensiz "plan bulunamadı" diyordu.
     const ruleMax = Number((locRules as Record<string, unknown>).max_weekly_hours ?? 45) || 45;
     const defHours = (defId: string) => {
@@ -2277,7 +2282,7 @@ function SchedulePageInner() {
       if (!def || def.on_call) return 0;
       const [sh, sm] = def.start.split(":").map(Number); const [eh, em] = def.end.split(":").map(Number);
       let mins = eh * 60 + em - (sh * 60 + sm); if (mins <= 0) mins += 24 * 60;
-      return mins / 60;
+      return netWorkMinutes(mins, def.break_minutes) / 60;
     };
     const weeklyCheck = (matrix: Record<string, Record<number, number>>, members: any[], label: string) => {
       let need = 0, shiftsNeeded = 0;
@@ -2285,9 +2290,9 @@ function SchedulePageInner() {
       if (need <= 0 || members.length === 0) return;
       const cap = members.reduce((a, p) => a + effectiveWeeklyLimit(p.max_weekly_hours, ruleMax), 0);
       if (need > cap) {
-        warnings.push(`${label}haftada ${trNum(need)} saatlik vardiya isteniyor, ${members.length} kişi haftalık sınırla en fazla ${trNum(cap)} saat çalışabilir. Kişi ekleyin ya da sayıları azaltın.`);
+        warnings.push(`${label}istenen vardiyalar haftada ${trNum(need)} saat tutuyor, ${members.length} kişi haftalık sınırla en fazla ${trNum(cap)} çalışabilir. Kişi ekleyin ya da sayıları azaltın.`);
       } else if (need > cap * 0.95) {
-        warnings.push(`${label}haftada ${trNum(need)} saatlik vardiya isteniyor, ${members.length} kişinin haftalık sınırı toplam ${trNum(cap)} saat. Sınıra çok yakın: vardiya süreleri farklı olduğu için plan bulunamayabilir.`);
+        warnings.push(`${label}istenen vardiyalar haftada ${trNum(need)} saat tutuyor, ${members.length} kişinin haftalık sınırı toplam ${trNum(cap)}. Sınıra çok yakın: vardiya süreleri farklı olduğu için plan bulunamayabilir.`);
       } else if (shiftsNeeded > members.length * 6) {
         warnings.push(`${label}haftada ${shiftsNeeded} vardiya isteniyor, ${members.length} kişi haftada en fazla 6 gün çalışabilir (${members.length * 6} vardiya).`);
       }
@@ -2323,7 +2328,7 @@ function SchedulePageInner() {
           const names = w.departments.map(name).join(" + ");
           warnings.push(w.kind === "day"
             ? `${DAYS[w.day]} · ${names}: birlikte ${w.need} kişi isteniyor, bu departmanlarda o gün ${w.available} uygun kişi var (iki departmanda çalışan kişi aynı gün tek yere yazılır).`
-            : `${names}: birlikte haftada ${trNum(w.need)} saatlik vardiya isteniyor, bu departmanlardaki kişilerin haftalık sınırı toplam ${trNum(w.capacity)} saat.`);
+            : `${names}: istenen vardiyalar birlikte haftada ${trNum(w.need)} saat tutuyor, bu departmanlardaki kişilerin haftalık sınırı toplam ${trNum(w.capacity)}.`);
         }
       }
     } else if (Object.keys(demandMatrix).length > 0) {
@@ -3385,8 +3390,8 @@ loading ? (
                                 ? (oc?.id ? () => { setCalloutForm({ start: "", end: "", note: "" }); setCalloutModal({ assignmentId: oc.id!, title: `${p.name} · ${DAYS[day]} · ${ocDef.name}` }); } : undefined)
                                 : (e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                               title={readOnlyWeek
-                                ? "Nöbet: çağrıldıysa çalıştığı saati girmek için tıklayın"
-                                : `Nöbet ${ocDef.start}–${ocDef.end}: kişi evde bekler, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
+                                ? "Nöbet: çağrıldıysa ne kadar çalıştığını girmek için tıklayın"
+                                : `Nöbet ${ocDef.start}–${ocDef.end}: kişi evde bekler, çağrılırsa gelir. Çalışma süresine sayılmaz.`}
                               className="mt-0.5 mx-auto w-full max-w-[112px] text-[10.5px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
                             >
                               {ocCallMin > 0
@@ -3404,7 +3409,7 @@ loading ? (
                             return (
                               <div key={x.id ?? label}
                                 onClick={readOnlyWeek && x.id ? () => openAbsence(x.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${label}`) : undefined}
-                                title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlanmış haftada tıklayıp başka birine verebilirsiniz."
+                                title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık sınır kurallarına uymayabilir. Yayınlanmış haftada tıklayıp başka birine verebilirsiniz."
                                 className={cn("mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
                               >
                                 <div className="text-[11px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
@@ -3652,7 +3657,7 @@ loading ? (
                         <table className="w-full text-xs">
                           <thead><tr><th className="text-left text-slate-400 font-semibold pb-1"></th><th className="text-left text-slate-400 font-semibold pb-1">Senaryosuz</th><th className="text-left text-slate-400 font-semibold pb-1">Senaryo</th></tr></thead>
                           <tbody>
-                            <Row label="Vardiya / saat" a={`${b.snap.totalShifts} / ${b.snap.totalHours} s`} b={`${x.snap.totalShifts} / ${x.snap.totalHours} s`} />
+                            <Row label="Vardiya / süre" a={`${b.snap.totalShifts} / ${b.snap.totalHours} s`} b={`${x.snap.totalShifts} / ${x.snap.totalHours} s`} />
                             <Row label="Eksik kişi (ihtiyaca göre)" a={String(short(b.snap))} b={String(short(x.snap))} better={cmp(short(b.snap), short(x.snap))} />
                             <Row label="Acil sorun" a={String(crit(b))} b={String(crit(x))} better={cmp(crit(b), crit(x))} />
                             {scnExtra > 0 && <Row label="Yeni kişinin vardiyası" a="—" b={`${x.extraShifts} vardiya`} />}
@@ -3729,7 +3734,7 @@ loading ? (
                 <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end} className={sheetPrimaryClass}>Çağrıyı kaydet</button>
               </>}>
               <div className="space-y-4">
-                <p className="text-xs text-slate-500">Çağrılan kişinin çalıştığı saat çalışma süresine ve fazla mesaiye sayılır. Evde beklediği süre sayılmaz.</p>
+                <p className="text-xs text-slate-500">Çağrılan kişinin çalıştığı süre fazla mesaiye de sayılır. Evde beklediği süre sayılmaz.</p>
                 {callouts.filter(c => c.assignment_id === calloutModal.assignmentId).map(c => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
                     <span className="font-semibold text-violet-800">{c.start_time}–{c.end_time}{c.note ? ` · ${c.note}` : ""}</span>

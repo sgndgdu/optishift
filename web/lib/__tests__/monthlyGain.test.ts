@@ -28,11 +28,11 @@ describe("highlights", () => {
   it("otomatik plan tahmini ve kural sonucu", () => {
     const h = highlights({ ...base, plans: { published: 4, generated: 3, estHours: 2.5 }, compliance: { shifts: 120, problems: 0, examples: [] } });
     expect(h[0]).toBe("3 haftanın planı otomatik hazırlandı. Bu, elle planlamaya göre yaklaşık 2,5 saat demek (tahmin).");
-    expect(h[1]).toBe("Yayınlanan 120 vardiyanın hiçbirinde dinlenme ya da haftalık saat sınırı aşılmadı.");
+    expect(h[1]).toBe("Yayınlanan 120 vardiyanın hiçbirinde dinlenme ya da haftalık sınır aşılmadı.");
   });
   it("fazla mesai değişimi yönüyle yazılır", () => {
     expect(highlights({ ...base, plans: { published: 0, generated: 0, estHours: 0 }, overtime: { hours: 6, prevHours: 10, cost: null, prevCost: null } }))
-      .toEqual(["Fazla mesai bir önceki aya göre 4 saat azaldı (6 saat)."]);
+      .toEqual(["Fazla mesai bir önceki aya göre 4 saat azaldı, toplam 6."]);
   });
   it("süren ayı önceki tam ayla karşılaştırmaz", () => {
     expect(highlights({ ...base, partial: true, plans: { published: 0, generated: 0, estHours: 0 }, overtime: { hours: 6, prevHours: 10, cost: null, prevCost: null } }))

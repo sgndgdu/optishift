@@ -5,6 +5,7 @@
  * izinleri ve kalan izni, uygunluk durumu, alabileceği açık vardiyalar. Başkasının saati, puanı, ücreti, izni YOK.
  * [v12] / [ilan 5] numaraları asistanın işlem önerisi içindir (lib/ai/teamActions).
  */
+import { assignmentWorkMinutes, shiftDefsFrom } from "@/lib/legal";
 import type { AuthUser } from "@/lib/auth";
 import { addDays, businessNow } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
@@ -14,10 +15,6 @@ import { loadLeaveBalance } from "@/lib/leaveBalance";
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const short = (iso: string) => { const [, m, dd] = iso.split("-"); return `${Number(dd)}.${Number(m)}`; };
 const dayName = (iso: string) => DAY_SHORT[(new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7];
-const hoursOf = (a: string, b: string) => {
-  const [x, y] = [a, b].map(t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
-  return ((y <= x ? y + 1440 : y) - x) / 60;
-};
 const STATUS: Record<string, string> = { pending: "sorumlu onayı bekliyor", approved: "onaylandı", rejected: "reddedildi" };
 
 export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text: string; locationId: string | null }> {
@@ -27,7 +24,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
   const until = addDays(weekStart, 13);
   const locIds = [...new Set([me.primary_location_id, ...J(me.assigned_location_ids, [])].filter(Boolean))] as string[];
   const ph = locIds.map(() => "?").join(",") || "''";
-  const locs = locIds.length ? await db.prepare(`SELECT id, name, rules FROM locations WHERE id IN (${ph})`).all(...locIds) as any[] : [];
+  const locs = locIds.length ? await db.prepare(`SELECT id, name, rules, shift_definitions FROM locations WHERE id IN (${ph})`).all(...locIds) as any[] : [];
   const home = locs.find(l => l.id === me.primary_location_id) ?? locs[0];
   const rules = J(home?.rules, {});
   const out: string[] = [];
@@ -45,7 +42,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
 
   // Kendi vardiyaları ve o gün birlikte çalıştıkları
   const mine = await db.prepare(`
-    SELECT id, location_id, week_start, day, start_time, end_time, COALESCE(kind,'regular') AS kind
+    SELECT id, location_id, shift_id, week_start, day, start_time, end_time, COALESCE(kind,'regular') AS kind
     FROM shift_assignments
     WHERE personnel_id = ? AND publication_status = 'published' AND (week_start::date + day) BETWEEN ?::date AND ?::date
     ORDER BY week_start, day, start_time
@@ -66,7 +63,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
     const span = (a: string, b: string) => { const [x, y] = [a, b].map(t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; }); return [x, y <= x ? y + 1440 : y]; };
     const [ms, me2] = span(s.start_time, s.end_time);
     const together = mates.filter(m => { const [a, b] = span(m.start_time, m.end_time); return a < me2 && ms < b; });
-    if (s.kind === "regular") weekHours.set(s.week_start, (weekHours.get(s.week_start) ?? 0) + hoursOf(s.start_time, s.end_time));
+    if (s.kind === "regular") weekHours.set(s.week_start, (weekHours.get(s.week_start) ?? 0) + assignmentWorkMinutes(shiftDefsFrom(locs.find(l => l.id === s.location_id)?.shift_definitions), s) / 60);
     out.push(`- ${dayName(date)} ${short(date)} (${date}) ${s.start_time}-${s.end_time}${s.kind === "on_call" ? " icap nöbeti" : ""}${locs.length > 1 ? `, ${locName.get(s.location_id) ?? ""}` : ""} [v${s.id}]` +
       (together.length ? `. Aynı saatlerde çalışanlar: ${together.map(m => m.name).join(", ")}` : ""));
   }
