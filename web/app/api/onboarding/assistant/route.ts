@@ -8,7 +8,11 @@ import { businessToday } from "@/lib/date";
 // Yapay zekâ ile kurulum (lib/ai/setupAssistant). Sadece hesap sahibi ve bölge sorumlusu.
 // Cevap ya bir soru ya da doğrulanmış kurulum önerisidir; burada hiçbir kayıt yazılmaz.
 
+export const maxDuration = 60;
+
 const MAX_TURNS = 14;
+// Kurulum cevabı uzun JSON: düşünme en az, süre fonksiyon sınırına yakın
+const CHAT_OPTS = { thinking: "minimal" as const, timeoutMs: 50_000 };
 const DAILY_LIMIT = 40; // kişi başı; kurulum bir kez yapılır, ücretsiz kotayı korur
 const usage = new Map<string, { day: string; n: number }>();
 
@@ -49,12 +53,14 @@ export async function POST(req: NextRequest) {
   const asked = turns.filter(t => t.role === "assistant").length;
   if (body?.finish || asked >= 4) system += "\n\nArtık soru sorma. Eldeki bilgilerle hemen proposal yaz.";
 
-  let result = await aiChat(system, turns);
+  const t0 = Date.now();
+  let result = await aiChat(system, turns, CHAT_OPTS);
+  console.log("[onboarding/assistant] cevap süresi", Date.now() - t0, "ms", result.ok ? "ok" : "hata");
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   let reply = parseSetupReply(result.text);
   // Biçim bozuksa bir kez daha iste
   if (!reply) {
-    result = await aiChat(system + "\n\nÖnceki cevabın JSON değildi. Sadece istenen JSON nesnesini yaz.", turns);
+    result = await aiChat(system + "\n\nÖnceki cevabın JSON değildi. Sadece istenen JSON nesnesini yaz.", turns, CHAT_OPTS);
     if (result.ok) reply = parseSetupReply(result.text);
   }
   if (!reply) return NextResponse.json({ error: "Asistanın cevabı anlaşılamadı, tekrar deneyin." }, { status: 502 });

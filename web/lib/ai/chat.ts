@@ -23,7 +23,9 @@ export function aiChatProvider(): AiProvider | null {
 
 const FAIL = "Asistan şu an cevap veremiyor, biraz sonra tekrar deneyin.";
 
-async function geminiChat(system: string, turns: ChatTurn[]): Promise<ChatResult> {
+export type ChatOptions = { thinking?: "minimal" | "low"; timeoutMs?: number };
+
+async function geminiChat(system: string, turns: ChatTurn[], opts: ChatOptions = {}): Promise<ChatResult> {
   // Interactions API (yeni hesaplarda generateContent ile yeni modeller 404 veriyor).
   // Geçmiş "step" biçiminde gönderilir, sunucuda saklanmaz (store: false).
   const key = process.env.GEMINI_API_KEY!;
@@ -36,14 +38,14 @@ async function geminiChat(system: string, turns: ChatTurn[]): Promise<ChatResult
         model,
         store: false,
         system_instruction: system,
-        generation_config: { thinking_level: "low", max_output_tokens: 4096 },
+        generation_config: { thinking_level: opts.thinking ?? "low", max_output_tokens: 4096 },
         input: turns.map(t => ({
           type: t.role === "assistant" ? "model_output" : "user_input",
           content: [{ type: "text", text: t.text }],
         })),
       }),
-      signal: AbortSignal.timeout(45_000),
-    }).catch(() => null);
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 45_000),
+    }).catch((e) => { console.error("[ai/gemini] istek düştü", model, String(e).slice(0, 200)); return null; });
     if (!res) return { ok: false, error: FAIL };
     // Model bu hesapta yok (404) ya da ücretsiz katmanda geçici yoğunluk (503/500): sıradaki modeli dene
     if (res.status === 404 || res.status === 503 || res.status === 500) continue;
@@ -84,8 +86,8 @@ async function anthropicChat(system: string, turns: ChatTurn[]): Promise<ChatRes
   }
 }
 
-export async function aiChat(system: string, turns: ChatTurn[]): Promise<ChatResult> {
+export async function aiChat(system: string, turns: ChatTurn[], opts: ChatOptions = {}): Promise<ChatResult> {
   const provider = aiChatProvider();
   if (!provider) return { ok: false, error: "Asistan sohbeti bu kurulumda kapalı." };
-  return provider === "gemini" ? geminiChat(system, turns) : anthropicChat(system, turns);
+  return provider === "gemini" ? geminiChat(system, turns, opts) : anthropicChat(system, turns);
 }
