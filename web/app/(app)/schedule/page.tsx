@@ -9,9 +9,9 @@ import { useState, useEffect, useRef, useCallback, Fragment, useMemo, Suspense }
 import { useSearchParams } from "next/navigation";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
-  Download, Zap, Send, X, Plus, BookOpen, Sparkles, Copy,
+  Download, Zap, Send, X, BookOpen, Sparkles, Copy,
   Undo2, Redo2, Search, Trash2, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Pin, PinOff, Lock,
+  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, Pin, PinOff, Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -40,7 +40,6 @@ import {
   DragOverlay,
   closestCenter,
 } from "@dnd-kit/core";
-import { DroppableCell, DraggableShift } from "@/components/schedule/DragDrop";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { canPublishPlan, departmentScope, hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
@@ -449,30 +448,18 @@ function SchedulePageInner() {
   }, [chefDept]);
   // Otomatik pilot (lib/autopilot): bu haftanın taslağını sistem mi hazırladı
   const [autopilotDraftWeek, setAutopilotDraftWeek] = useState<string | null>(null);
-  // İsim altındaki Adalet Puanı çubuğu varsayılan gizli (Adalet panelinden açılır, tarayıcıda hatırlanır)
-  const [showScores, setShowScores] = useState(() => {
-    try { return localStorage.getItem("optishift_show_scores") === "1"; } catch { return false; }
-  });
-  const toggleScores = () => setShowScores(v => {
-    try { localStorage.setItem("optishift_show_scores", v ? "0" : "1"); } catch {}
-    return !v;
-  });
   // Telefonda tablo tek gün gösterir; varsayılan bugün
   const [mobileDay, setMobileDay] = useState(() => (weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0));
-  // Tablo düzeni: "shift" = vardiyalara göre (varsayılan, kâğıttaki çizelge gibi), "person" = kişilere göre
-  const [boardView, setBoardViewState] = useState<"shift" | "person">("shift");
-  useEffect(() => { try { if (localStorage.getItem("schedule_view") === "person") setBoardViewState("person"); } catch {} }, []);
-  const setBoardView = (v: "shift" | "person") => { setBoardViewState(v); try { localStorage.setItem("schedule_view", v); } catch {} };
-  // Plan Kontrolü / yayın uyarısından "oraya git": kişinin satırına kaydırır, hücreyi kısa süre vurgular
+  // Plan Kontrolü / yayın uyarısından "oraya git": kişinin adına kaydırır, kısa süre vurgular
   const [flash, setFlash] = useState<InsightTarget | null>(null);
   const jumpTo = (t: InsightTarget) => {
     if (t.day !== undefined) setMobileDay(t.day);
-    if (t.personId) setBoardViewState("person"); // kişi satırı sadece kişilere göre görünümde var
     setFlash(t);
     setTimeout(() => {
-      const el = t.personId
-        ? document.querySelector(`[data-person-row="${t.personId}"]`)
-        : document.querySelector("[data-schedule-grid]");
+      const el = (t.personId && (t.day !== undefined
+          ? document.querySelector(`[data-board-person="${t.personId}-${t.day}"]`)
+          : document.querySelector(`[data-board-person^="${t.personId}-"]`)))
+        || document.querySelector("[data-schedule-grid]");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 60);
     setTimeout(() => setFlash(null), 3000);
@@ -494,7 +481,6 @@ function SchedulePageInner() {
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
   const [demandOpen, setDemandOpen]               = useState(false);
-  const [collapsedDepts, setCollapsedDepts]       = useState<Set<string>>(new Set());
   const [proposalModal, setProposalModal]         = useState<{
     personnelId: string; name: string;
     currentDate: string; currentStart: string; currentEnd: string;
@@ -871,7 +857,6 @@ function SchedulePageInner() {
         userEditRef.current = false;
         setDirty(false);
         setSaveState("idle");
-        setCollapsedDepts(new Set());
         setEditUnlocked(false);
         setEditRequestStatus("idle");
         setEditRequestId(null);
@@ -1984,11 +1969,7 @@ function SchedulePageInner() {
     } catch { /* sessiz hata */ }
   };
 
-  // Gece vardiyası sezgisi — motorla aynı: 22:00+ başlayan veya gece yarısını aşan
-  const isNightCell = (c: CellData) => c.startMin >= 22 * 60 || c.endMin > 24 * 60;
   const shiftTones = shiftToneList(shiftDefs);
-  const toneOf = (def: ShiftDefinition | null, night: boolean): ShiftTone =>
-    def ? (shiftTones.find(x => x.def.id === def.id)?.tone ?? CUSTOM_TONE) : night ? NIGHT_TONE : CUSTOM_TONE;
 
   // Kural kontrolleri lib/copilot/checks.ts'te (yayın penceresi ve Plan Asistanı ortak)
 
@@ -2056,16 +2037,7 @@ function SchedulePageInner() {
     }
   };
 
-  // Satır hızlı işlemi: kişinin haftasını temizle
-  const clearPersonRow = (personId: string) => {
-    const newMap = { ...cellMap };
-    let removed = 0;
-    for (let day = 0; day < 7; day++) {
-      if (newMap[`${personId}-${day}`]) { delete newMap[`${personId}-${day}`]; removed++; }
-    }
-    if (removed === 0) { showToast("Silinecek vardiya yok.", "info"); return; }
-    pushCellMap(newMap);
-  };
+
 
   // Popover klavye kısayolları: Escape / Enter / Delete
   // (Effect popover değişince yeniden bağlanır — popover ve hasExisting değişkenlerine bağımlı)
@@ -2366,11 +2338,6 @@ function SchedulePageInner() {
     return totalAvail - usedByOtherShifts;
   };
 
-  // Çok departmanlı kişinin ana departmanı dışında çalıştığı gün: kutuda o departmanın adı
-  const otherDeptName = (p: { department_id?: string | null; department_ids?: string[] }, cell: CellData): string | null =>
-    cell.deptId && cell.deptId !== p.department_id && p.department_ids?.includes(cell.deptId)
-      ? departments.find(d => d.id === cell.deptId)?.name ?? null
-      : null;
 
   // Personel filtresi
   const filteredPersonnel = personnelFilter.trim()
@@ -2435,7 +2402,21 @@ function SchedulePageInner() {
     const person = personnel.find(p => p.id === pid);
     if (cell.id && canPublish) openAbsence(cell.id, pid, `${person?.name ?? ""} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`);
   };
+  const boardOnCallClick = (e: React.MouseEvent, pid: string, day: number) => {
+    if (viewOnly) return;
+    const oc = onCallMap[`${pid}-${day}`];
+    const def = oc ? shiftDefs.find(d => d.id === oc.defId) : null;
+    if (boardEditable) { handleCellClick(e, pid, day); return; }
+    const person = personnel.find(p => p.id === pid);
+    if (oc?.id && def) { setCalloutForm({ start: "", end: "", note: "" }); setCalloutModal({ assignmentId: oc.id, title: `${person?.name ?? ""} · ${DAYS[day]} · ${def.name}` }); }
+  };
   const boardAssign = (pid: string, day: number, def: ShiftDefinition, groupId: string) => {
+    if (def.on_call) {
+      userEditRef.current = true;
+      setDirty(true);
+      setOnCallMap(prev => ({ ...prev, [`${pid}-${day}`]: { defId: def.id, pinned: true } }));
+      return;
+    }
     const startMin = hhmmToMin(def.start);
     let endMin = hhmmToMin(def.end);
     if (endMin <= startMin) endMin += 1440;
@@ -3267,14 +3248,6 @@ loading ? (
             {/* Vardiya renkleri: tablodaki renklerin anlamı */}
             {personnel.length > 0 && shiftTones.length > 0 && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-slate-100 text-[12px] text-slate-600">
-                <div role="tablist" aria-label="Tablo düzeni" className="mr-2 inline-flex rounded-lg bg-slate-100 p-0.5">
-                  {([["shift", "Vardiyalara göre"], ["person", "Kişilere göre"]] as const).map(([v, label]) => (
-                    <button key={v} role="tab" aria-selected={boardView === v} onClick={() => setBoardView(v)}
-                      className={cn("rounded-md px-3 py-1 text-[12px] font-semibold transition-colors", boardView === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
                 {shiftTones.map(({ def, tone }) => (
                   <span key={def.id} className="inline-flex items-center gap-1.5">
                     <span className={cn("h-2.5 w-2.5 rounded-sm", tone.dot)} />
@@ -3285,11 +3258,46 @@ loading ? (
               </div>
             )}
             <div className="overflow-x-auto relative" data-schedule-grid>
-              {boardView === "shift" && shiftTones.length > 0 && personnel.length > 0 ? (
+              {shiftTones.length > 0 && filteredPersonnel.length > 0 ? (
                 <ShiftBoard
                   groups={boardGroups}
                   tones={shiftTones}
-                  days={Array.from({ length: 7 }, (_, i) => ({ label: DAYS[i], date: dates[i], weekend: i === 5 || i === 6 }))}
+                  days={Array.from({ length: 7 }, (_, i) => {
+                    const isoDate = isoDates[i];
+                    const holiday = getHolidaysForDate(isoDate)[0]?.name;
+                    const dayEvents = events.filter(ev => ev.scope === "day" && eventCoversDate(ev, isoDate));
+                    const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
+                    const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
+                    return {
+                      label: DAYS[i], date: dates[i], weekend: i === 5 || i === 6,
+                      extra: <>
+                        {holiday && (
+                          <div className="mt-1 text-[10.5px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
+                            🎌 {holiday.length > 12 ? holiday.slice(0, 10) + "…" : holiday}
+                          </div>
+                        )}
+                        {dayEvents.map(ev => (
+                          <div key={ev.id} className={cn("mt-0.5 text-[10.5px] rounded px-1 py-0.5 leading-tight font-semibold truncate border", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-50 text-slate-500 border-slate-100")} title={ev.title}>
+                            {EVENT_TYPE_CONFIG[ev.type]?.emoji} {ev.title.length > 9 ? ev.title.slice(0, 7) + "…" : ev.title}
+                          </div>
+                        ))}
+                        {weather[isoDate] && <div className="text-[11px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>}
+                        {totalNeeded > 0 && cellCount > 0 && (
+                          <div className="mt-1 w-fit mx-auto">
+                            <StatusPill tone={totalAssigned < totalNeeded ? "danger" : totalAssigned === totalNeeded ? "positive" : "info"}
+                              title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</StatusPill>
+                          </div>
+                        )}
+                      </>,
+                    };
+                  })}
+                  chipMark={(pid, day) => {
+                    const f = forceAssignMap[`${pid}-${day}`];
+                    if (f) return { text: f.status === "pending" ? "⏳" : f.status === "accepted" ? "✓" : "✗", title: f.status === "pending" ? "Zorunlu atama: yanıt bekleniyor" : f.status === "accepted" ? "Zorunlu atama kabul edildi" : "Zorunlu atama reddedildi" };
+                    const r = fatigueRiskMap[pid];
+                    if (r) return { text: r.riskLevel === "danger" ? "‼" : "!", title: `Yorgunluk uyarısı: ${r.reasons.join(" / ")}` };
+                    return null;
+                  }}
                   mobileDay={mobileDay}
                   cellMap={cellMap}
                   matchDef={c => matchShiftDef(c.startMin, c.endMin, shiftDefs)}
@@ -3302,331 +3310,21 @@ loading ? (
                   onAssign={boardAssign}
                   timeLabel={c => `${normTime(minToHHMM(c.startMin))}–${normTime(minToHHMM(c.endMin, c.endMin >= 1440))}`}
                   customTone={CUSTOM_TONE}
+                  onCallDefs={shiftDefs.filter(d => d.on_call)}
+                  onCallMap={onCallMap}
+                  onOnCallClick={boardOnCallClick}
+                  extras={extraCells}
+                  onExtraClick={(pid, day, c) => {
+                    const person = personnel.find(p => p.id === pid);
+                    if (isPublishedWeek && !editUnlocked && c.id && canPublish) openAbsence(c.id, pid, `${person?.name ?? ""} · ${DAY_NAMES[day]} ${normTime(minToHHMM(c.startMin))}–${normTime(minToHHMM(c.endMin, c.endMin >= 1440))}`);
+                  }}
+                  flash={flash}
                 />
-              ) : (
-              <table className="w-full sm:min-w-[700px] border-collapse">
-                <thead>
-                  <tr className="bg-white border-b-2 border-slate-200">
-                    <th className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
-                      <span className="text-[11px] font-bold text-slate-400">
-                        Ekip {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
-                      </span>
-                      {showScores && <span className="block text-[10.5px] font-medium text-slate-400 normal-case tracking-normal">İsimlerin altındaki çubuk Adalet Puanını gösterir</span>}
-                    </th>
-                    {Array.from({ length: 7 }, (_, i) => {
-                      const isWeekend = i === 5 || i === 6;
-                      const isoDate = isoDates[i];
-                      // TURKISH_HOLIDAYS bir dizi: eskiden sözlük gibi okunduğu için tatil hiç görünmüyordu
-                      const holiday = getHolidaysForDate(isoDate)[0]?.name;
-                      const dayEvents = events.filter(ev => ev.scope === "day" && eventCoversDate(ev, isoDate));
-                      const totalNeeded = Object.values(effectiveDemandMatrix).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
-                      const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
-                      return (
-                        <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top", isWeekend ? "bg-forest-50/50" : "", mobileDay !== i && "hidden sm:table-cell")}>
-                          <div className={cn("text-[12px] font-bold", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
-                          <div className={cn("text-[11px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
-                          {holiday && (
-                            <div className="mt-1 text-[10.5px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
-                              🎌 {holiday.length > 12 ? holiday.slice(0, 10) + "…" : holiday}
-                            </div>
-                          )}
-                          {dayEvents.map(ev => (
-                            <div key={ev.id} className={cn("mt-0.5 text-[10.5px] rounded px-1 py-0.5 leading-tight font-semibold truncate border", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-50 text-slate-500 border-slate-100")} title={ev.title}>
-                              {EVENT_TYPE_CONFIG[ev.type]?.emoji} {ev.title.length > 9 ? ev.title.slice(0, 7) + "…" : ev.title}
-                            </div>
-                          ))}
-                          {weather[isoDate] && (
-                            <div className="text-[11px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
-                          )}
-                          {totalNeeded > 0 && cellCount > 0 && (
-                            <div className="mt-1 w-fit mx-auto">
-                              <StatusPill tone={totalAssigned < totalNeeded ? "danger" : totalAssigned === totalNeeded ? "positive" : "info"}
-                                title={`${totalAssigned} kişi atandı, ${totalNeeded} kişi gerekiyor`}>{totalAssigned}/{totalNeeded}</StatusPill>
-                            </div>
-                          )}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableRows.length === 0 && !loading && (
-                    <tr>
-                      <td colSpan={8} className="py-16 text-slate-400 text-sm">
-                        {/* Telefonda tablo ekrandan geniş: mesaj görünür alanda kalsın */}
-                        <div className="sticky left-0 w-[calc(100vw-4rem)] sm:w-auto text-center px-4">
-                          {personnel.length === 0 ? "Ekip eklenince kişiler burada listelenir." : "Arama sonucu bulunamadı."}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  {tableRows.map((row, _idx) => {
-                    if (row.kind === 'header') {
-                      const deptId = row.dept.id;
-                      const isCollapsed = collapsedDepts.has(deptId);
-                      const byDeptCount: Record<string, any[]> = {};
-                      for (const p of filteredPersonnel) {
-                        const k = p.department_id || '__none__';
-                        if (!byDeptCount[k]) byDeptCount[k] = [];
-                        byDeptCount[k].push(p);
-                      }
-                      return (
-                        <tr key={`dept-${deptId}`} className="border-t-2 border-slate-200">
-                          <td colSpan={8} className="px-4 py-2 bg-slate-50">
-                            <button
-                              onClick={() => setCollapsedDepts(prev => {
-                                const next = new Set(prev);
-                                if (next.has(deptId)) next.delete(deptId); else next.add(deptId);
-                                return next;
-                              })}
-                              className="flex items-center gap-2 hover:text-slate-900 transition-colors group"
-                            >
-                              <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-200 group-hover:text-slate-600", isCollapsed && "-rotate-90")} />
-                              <div className="w-2 h-2 rounded-full bg-forest-400 shrink-0" />
-                              <span className="text-xs font-semibold text-slate-700">{row.dept.name}</span>
-                              <span className="text-[11px] text-slate-400 font-semibold">{byDeptCount[deptId]?.length ?? 0} kişi</span>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    const p = row.person;
-                    const deptId = p.department_id || '__none__';
-                    if (collapsedDepts.has(deptId)) return null;
-
-                    const pScore = personScores.find(s => s.id === p.id);
-                    const score = pScore?.score ?? 0;
-                    const scoreBarWidth = maxScore > 0 ? `${Math.min(100, (score / maxScore) * 100)}%` : "0%";
-
-                    return (
-                      <tr key={p.id} data-person-row={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
-                        <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-2 sm:px-3 py-2 h-14">
-                          <div className="flex items-center gap-2">
-                            <div className="hidden sm:flex w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-semibold flex items-center justify-center shrink-0">
-                              {p.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-slate-800 truncate leading-tight flex items-center gap-1">
-                                <span className="truncate">{p.name}</span>
-                                {fatigueRiskMap[p.id] && (
-                                  <span title={`Risk: ${fatigueRiskMap[p.id].reasons.join(" / ")}`} className="shrink-0">
-                                    <AlertTriangle
-                                      size={12}
-                                      className={fatigueRiskMap[p.id].riskLevel === "danger" ? "text-red-500" : "text-amber-500"}
-                                    />
-                                  </span>
-                                )}
-                              </div>
-                              {showScores && <div className="flex items-center gap-1.5 mt-0.5">
-                                <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
-                                  <div className={cn("h-full rounded-full", fairnessBarColor(score, avgScore))} style={{ width: scoreBarWidth }} />
-                                </div>
-                                <span className="text-[11px] text-slate-400 tabular-nums" title="Adalet Puanı: kişinin son haftalarda ne kadar çalıştığını gösterir. Yüksek puan daha çok çalıştığı anlamına gelir.">{Math.round(score * 10) / 10}</span>
-                              </div>}
-                            </div>
-                            <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => clearPersonRow(p.id)} title="Temizle" className="p-1 text-slate-300 hover:text-red-400 transition-colors">
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                        {Array.from({ length: 7 }, (_, day) => {
-                          const cellKey = `${p.id}-${day}`;
-                          const cell = cellMap[cellKey];
-                          const avail = availMap[p.id]?.[day];
-                          const isWeeklyOff = p.weekly_off_day !== null && p.weekly_off_day !== undefined && Number(p.weekly_off_day) === day;
-                          const dayIso = addDays(weekStart, day);
-                          const isOnLeave = approvedLeaves.some(l => l.personnel_id === p.id && l.start_date <= dayIso && l.end_date >= dayIso);
-                          const isWeekend = day === 5 || day === 6;
-                          const isUnavailable = avail?.status === 'unavailable' || isWeeklyOff;
-                          const isPrefNot = avail?.status === 'preferred_not';
-                          const noAvailInfo = !availMap[p.id];
-                          const forceData = cell ? forceAssignMap[cellKey] : null;
-                          const matchedDef = cell ? matchShiftDef(cell.startMin, cell.endMin, shiftDefs) : null;
-
-                          const oc = onCallMap[cellKey];
-                          const ocDef = oc ? shiftDefs.find(d => d.id === oc.defId) : null;
-                          const tdClass = cn(
-                            "py-1 px-1 h-14 align-middle",
-                            isWeekend && "bg-forest-50/20",
-                            // Plan Kontrolü'nden "oraya git": hücre kısa süre vurgulanır
-                            flash && flash.personId === p.id && (flash.day === undefined || flash.day === day) && "ring-2 ring-inset ring-amber-400 bg-amber-50",
-                            mobileDay !== day && "hidden sm:table-cell",
-                          );
-                          const ocCallMin = oc?.id ? callouts.filter(c => c.assignment_id === oc.id)
-                            .reduce((t, c) => { const a = hhmmToMin(c.start_time); let b = hhmmToMin(c.end_time); if (b <= a) b += 1440; return t + b - a; }, 0) : 0;
-                          const readOnlyWeek = isPublishedWeek && !editUnlocked;
-                          const onCallChip = ocDef ? (
-                            <div
-                              onClick={readOnlyWeek
-                                ? (oc?.id ? () => { setCalloutForm({ start: "", end: "", note: "" }); setCalloutModal({ assignmentId: oc.id!, title: `${p.name} · ${DAYS[day]} · ${ocDef.name}` }); } : undefined)
-                                : (e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                              title={readOnlyWeek
-                                ? "Nöbet: çağrıldıysa ne kadar çalıştığını girmek için tıklayın"
-                                : `Nöbet ${ocDef.start}–${ocDef.end}: kişi evde bekler, çağrılırsa gelir. Çalışma süresine sayılmaz.`}
-                              className="mt-0.5 mx-auto w-full max-w-[112px] text-[10.5px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
-                            >
-                              {ocCallMin > 0
-                                ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} saat çağrıldı`
-                                : `Nöbet · ${ocDef.name}`}
-                            </div>
-                          ) : null;
-
-                          // Aynı gün ek vardiya: tabloda düzenlenemez, çakışma olarak kırmızı gösterilir.
-                          // Yayınlı haftada tıklanınca "Gelemiyor" penceresi açılır (yedeğe ver / ilana çıkar).
-                          const extras = extraCells[cellKey] ?? [];
-                          const extraChip = extras.length > 0 ? extras.map(x => {
-                            const xDef = matchShiftDef(x.startMin, x.endMin, shiftDefs);
-                            const label = `${normTime(minToHHMM(x.startMin))}–${normTime(minToHHMM(x.endMin, x.endMin >= 1440))}`;
-                            return (
-                              <div key={x.id ?? label}
-                                onClick={readOnlyWeek && x.id ? () => openAbsence(x.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${label}`) : undefined}
-                                title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık sınır kurallarına uymayabilir. Yayınlanmış haftada tıklayıp başka birine verebilirsiniz."
-                                className={cn("mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
-                              >
-                                <div className="text-[11px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
-                                <div className="text-[10.5px] text-red-500">{label}</div>
-                              </div>
-                            );
-                          }) : null;
-
-                          // Başka şubedeki vardiya: gri, sadece bilgi (o şubenin planında değiştirilir)
-                          const away = elsewhere.filter(e => e.personnel_id === p.id && Number(e.day) === day);
-                          const awayChip = away.length > 0 ? away.map((e, ai) => (
-                            <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var. Bu vardiya o şubenin planından değiştirilir.`}
-                              className="mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
-                              <div className="text-[11px] font-bold text-slate-600 truncate">{e.location_name}</div>
-                              <div className="text-[10.5px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
-                            </div>
-                          )) : null;
-
-                          const tone = toneOf(matchedDef, cell ? isNightCell(cell) : false);
-                          if ((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek)) {
-                            return (
-                              <td key={day} className={tdClass}>
-                                {cell ? (
-                                  <div
-                                    onClick={cell.id && !viewOnly && canPublish ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
-                                    title={cell.id ? "Kişi gelemiyorsa tıklayın, uygun yedekler önerilir" : undefined}
-                                    className={cn(
-                                    "mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border",
-                                    cell.id && "cursor-pointer hover:shadow-sm",
-                                    forceData ? "bg-amber-50 border-amber-200" : tone.box
-                                  )}>
-                                    {matchedDef && <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : tone.name)}>{matchedDef.name}</div>}
-                                    <div className={cn("text-[10.5px] font-medium", forceData ? "text-amber-500" : tone.time)}>
-                                      {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
-                                    </div>
-                                    {otherDeptName(p, cell) && <div className="text-[10.5px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
-                                  </div>
-                                ) : !ocDef ? (
-                                  <div className="flex items-center justify-center h-full">
-                                    <span className="text-slate-200 text-xs">—</span>
-                                  </div>
-                                ) : null}
-                                {extraChip}{awayChip}
-                                {onCallChip}
-                              </td>
-                            );
-                          }
-
-                          return (
-                            <DroppableCell key={day} id={cellKey} className={tdClass}>
-                              {cell ? (
-                                <DraggableShift id={cellKey} disabled={false}>
-                                  <div
-                                    onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                    title={cell.pinned ? "Elle düzenlendi: Planı Oluştur bu vardiyayı korur" : undefined}
-                                    className={cn(
-                                      "relative mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
-                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : tone.box
-                                    )}
-                                  >
-                                    {cell.pinned && (
-                                      <Pin size={10} aria-label="Korunuyor" className={cn("absolute top-0.5 right-0.5 rotate-45", tone.time)} />
-                                    )}
-                                    <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : tone.name)}>
-                                      {matchedDef ? matchedDef.name : "Özel"}
-                                    </div>
-                                    <div className={cn("text-[10.5px] font-medium", forceData ? "text-amber-500" : tone.time)}>
-                                      {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
-                                    </div>
-                                    {/* Joker başka departmana yazıldıysa o departmanın adı */}
-                                    {otherDeptName(p, cell) && <div className="text-[10.5px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
-                                    {forceData && (
-                                      <div className="text-[8px] text-amber-600 font-semibold">
-                                        {forceData.status === "pending" ? "⏳" : forceData.status === "accepted" ? "✓" : "✗"}
-                                      </div>
-                                    )}
-                                  </div>
-                                </DraggableShift>
-                              ) : isOnLeave ? (
-                                <div className="w-full h-11 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center" title="Onaylı izin">
-                                  <span className="text-[11px] font-bold text-sky-600">İzinli</span>
-                                </div>
-                              ) : isWeeklyOff ? (
-                                <button
-                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center"
-                                  title="Haftalık izin günü. Yine de vardiya eklemek için tıklayın."
-                                >
-                                  <span className="text-[11px] font-medium text-slate-400">Haftalık izin</span>
-                                </button>
-                              ) : isUnavailable ? (
-                                <button
-                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg border border-transparent hover:border-red-200 hover:bg-red-50/60 transition-all flex items-center justify-center gap-1"
-                                  title="Bu gün gelemeyeceğini bildirdi. Yine de vardiya eklemek için tıklayın."
-                                >
-                                  <X size={11} className="text-red-300" />
-                                  <span className="text-[11px] font-medium text-red-400">Gelemem</span>
-                                </button>
-                              ) : isPrefNot ? (
-                                <button
-                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="relative w-full h-11 rounded-lg border border-transparent hover:border-amber-200 hover:bg-amber-50/60 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                  title={avail?.start && avail.end ? `Tercih etmiyor, ${avail.start}–${avail.end} arası gelebilir` : "Tercih etmiyor (gerekirse gelebilir)"}
-                                >
-                                  <span className="text-[11px] font-medium text-amber-500 group-hover:opacity-0 transition-opacity">Tercih etmem</span>
-                                  {avail?.start && avail.end && (
-                                    <span className="text-[10.5px] text-amber-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
-                                  )}
-                                  <Plus size={13} className="text-amber-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
-                                </button>
-                              ) : avail?.status === 'available' ? (
-                                <button
-                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="relative w-full h-11 rounded-lg border border-dashed border-slate-200 hover:border-forest-300 hover:bg-forest-50/40 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                  title={avail?.start && avail.end ? `Uygun, ${avail.start}–${avail.end}` : "Uygun"}
-                                >
-                                  <span className="text-[11px] font-medium text-emerald-600/70 group-hover:opacity-0 transition-opacity">Uygun</span>
-                                  {avail?.start && avail.end && (
-                                    <span className="text-[10.5px] text-slate-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
-                                  )}
-                                  <Plus size={13} className="text-forest-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-forest-300 hover:text-forest-400 hover:bg-forest-50/30 transition-all flex items-center justify-center"
-                                  title={availCollectionEnabled ? "Uygunluk girilmemiş, vardiya ekle" : "Vardiya ekle"}
-                                >
-                                  <Plus size={13} />
-                                </button>
-                              )}
-                              {extraChip}{awayChip}
-                              {onCallChip}
-                            </DroppableCell>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              )}
+              ) : !loading ? (
+                <div className="py-16 px-4 text-center text-sm text-slate-400">
+                  {personnel.length === 0 ? "Ekip eklenince plan burada görünür." : shiftTones.length === 0 ? "Önce Ayarlar'dan vardiyalarınızı tanımlayın." : "Arama sonucu bulunamadı."}
+                </div>
+              ) : null}
             </div>
 
           </div>
@@ -3884,10 +3582,6 @@ loading ? (
           </div>
           <button onClick={() => setFairnessOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
         </div>
-        <label className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-100 text-xs font-semibold text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={showScores} onChange={toggleScores} className="accent-forest-600" />
-          Puanı tabloda isimlerin altında göster
-        </label>
         <div className="flex-1 overflow-y-auto p-4">
           {personScores.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-6">Ekip yok</p>

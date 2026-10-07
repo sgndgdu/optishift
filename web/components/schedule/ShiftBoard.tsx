@@ -12,10 +12,13 @@ import type { ShiftDefinition } from "@/lib/types";
  * - Ada tıklama: onNameClick (düzenlenebilir haftada vardiya penceresi, yayınlı haftada "gelemiyor" penceresi)
  * - Boş yere tıklama: o departmandan kişi seçme listesi açılır, seçilen kişi onAssign ile o vardiyaya yazılır
  * - Hiçbir vardiya tanımına uymayan saatler "Diğer saatler" satırında
+ * - Nöbet tanımları ayrı satır (onCallMap; normal vardiyayla aynı gün olabilir)
+ * - Aynı gün ikinci vardiya (extras) kırmızı uyarılı ad olarak kendi vardiya satırında
+ * - flash: Plan Kontrolü'nden "oraya git" ile gelen kişi/gün vurgulanır
  */
 
 export type ShiftTone = { box: string; name: string; time: string; dot: string };
-type Cell = { startMin: number; endMin: number; deptId?: string };
+type Cell = { startMin: number; endMin: number; deptId?: string; id?: number };
 type Person = { id: string; name: string; department_id?: string | null; department_ids?: string[] | null; weekly_off_day?: number | string | null };
 export type BoardGroup = { id: string; name: string | null; members: Person[] };
 type Status = "available" | "pref_not" | "unavailable" | "leave" | "weekly_off" | "away" | "unknown";
@@ -38,11 +41,11 @@ function shortName(n: string) {
 
 export default function ShiftBoard({
   groups, tones, days, mobileDay, cellMap, matchDef, demandOf, statusOf, cellGroupId, weekHours, editable,
-  onNameClick, onAssign, timeLabel, customTone,
+  onNameClick, onAssign, timeLabel, customTone, onCallDefs, onCallMap, onOnCallClick, extras, onExtraClick, flash, chipMark,
 }: {
   groups: BoardGroup[];
   tones: { def: ShiftDefinition; tone: ShiftTone }[];
-  days: { label: string; date: string; weekend: boolean }[];
+  days: { label: string; date: string; weekend: boolean; extra?: React.ReactNode }[];
   mobileDay: number;
   cellMap: Record<string, Cell>;
   matchDef: (c: Cell) => ShiftDefinition | null;
@@ -55,6 +58,14 @@ export default function ShiftBoard({
   onAssign: (personId: string, day: number, def: ShiftDefinition, groupId: string) => void;
   timeLabel: (c: Cell) => string;
   customTone: ShiftTone;
+  onCallDefs: ShiftDefinition[];
+  onCallMap: Record<string, { defId: string }>;
+  onOnCallClick: (e: React.MouseEvent, personId: string, day: number) => void;
+  extras: Record<string, Cell[]>;
+  onExtraClick: (personId: string, day: number, c: Cell) => void;
+  flash: { personId?: string; day?: number } | null;
+  /** Ad kutusunun sonuna küçük işaret (zorunlu atama durumu, yorgunluk uyarısı) */
+  chipMark?: (personId: string, day: number) => { text: string; title: string } | null;
 }) {
   const [picker, setPicker] = useState<{ groupId: string; def: ShiftDefinition; day: number; x: number; y: number } | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +91,22 @@ export default function ShiftBoard({
     placed.push({ person, day: Number(key.slice(i + 1)), cell, def: matchDef(cell), groupId: cellGroupId(person, cell) });
   }
 
+  const placedExtras: Placed[] = [];
+  for (const [key, list] of Object.entries(extras)) {
+    const i = key.lastIndexOf("-");
+    const person = people.get(key.slice(0, i));
+    if (!person) continue;
+    for (const cell of list) placedExtras.push({ person, day: Number(key.slice(i + 1)), cell, def: matchDef(cell), groupId: cellGroupId(person, cell) });
+  }
+  const placedOnCall: { person: Person; day: number; defId: string; groupId: string }[] = [];
+  for (const [key, v] of Object.entries(onCallMap)) {
+    const i = key.lastIndexOf("-");
+    const person = people.get(key.slice(0, i));
+    if (!person) continue;
+    placedOnCall.push({ person, day: Number(key.slice(i + 1)), defId: v.defId, groupId: cellGroupId(person, { startMin: 0, endMin: 0 }) });
+  }
+  const isFlash = (pid: string, day: number) => !!flash && flash.personId === pid && (flash.day === undefined || flash.day === day);
+
   const openPicker = (e: React.MouseEvent, groupId: string, def: ShiftDefinition, day: number) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const w = 280, h = 340;
@@ -101,6 +128,7 @@ export default function ShiftBoard({
               <th key={i} className={cn("px-1 py-2 text-center", d.weekend && "bg-forest-50/50", mobileDay !== i && "hidden sm:table-cell")}>
                 <div className={cn("text-[12px] font-bold", d.weekend ? "text-forest-600" : "text-slate-700")}>{d.label}</div>
                 <div className={cn("text-[11px] font-semibold", d.weekend ? "text-forest-400" : "text-slate-400")}>{d.date}</div>
+                {d.extra}
               </th>
             ))}
           </tr>
@@ -108,7 +136,7 @@ export default function ShiftBoard({
         <tbody>
           {groups.map(g => {
             const inGroup = placed.filter(x => x.groupId === g.id);
-            const other = inGroup.filter(x => !x.def);
+            const other = [...inGroup.filter(x => !x.def), ...placedExtras.filter(x => x.groupId === g.id && !x.def)];
             return [
               g.name && (
                 <tr key={`h-${g.id}`} className="border-t-2 border-slate-200">
@@ -144,9 +172,19 @@ export default function ShiftBoard({
                         <div className="flex flex-col gap-1">
                           {here.map(x => (
                             <button key={x.person.id} type="button" onClick={e => onNameClick(e, x.person.id, day)}
+                              data-board-person={`${x.person.id}-${day}`}
                               title={`${x.person.name} · ${timeLabel(x.cell)}`}
-                              className={cn("w-full truncate rounded-md border px-2 py-1 text-left text-[12px] font-semibold transition-colors", tone.box, tone.name)}>
+                              className={cn("w-full truncate rounded-md border px-2 py-1 text-left text-[12px] font-semibold transition-colors", tone.box, tone.name,
+                                isFlash(x.person.id, day) && "ring-2 ring-amber-400 ring-offset-1")}>
                               {shortName(x.person.name)}
+                              {(() => { const m = chipMark?.(x.person.id, day); return m ? <span className="ml-1 font-normal" title={m.title}>{m.text}</span> : null; })()}
+                            </button>
+                          ))}
+                          {placedExtras.filter(x => x.groupId === g.id && x.def?.id === def.id && x.day === day).map(x => (
+                            <button key={`x-${x.person.id}`} type="button" onClick={() => onExtraClick(x.person.id, day, x.cell)}
+                              title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık sınır kurallarına uymayabilir."
+                              className="w-full truncate rounded-md border border-red-300 bg-red-50 px-2 py-1 text-left text-[12px] font-semibold text-red-700">
+                              ⚠ {shortName(x.person.name)}
                             </button>
                           ))}
                           {editable && Array.from({ length: Math.min(missing, 4) }, (_, k) => (
@@ -169,6 +207,43 @@ export default function ShiftBoard({
                   })}
                 </tr>
               )),
+              ...onCallDefs.map(def => {
+                const rows = placedOnCall.filter(x => x.groupId === g.id && x.defId === def.id);
+                if (rows.length === 0 && !editable) return null;
+                return (
+                  <tr key={`${g.id}-oc-${def.id}`} className="border-t border-slate-100">
+                    <th scope="row" className="sticky left-0 z-10 bg-white px-3 py-2 text-left align-top">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-1 h-8 w-1.5 shrink-0 rounded-full border-2 border-dashed border-violet-400" />
+                        <span>
+                          <span className="block text-[13px] font-bold leading-tight text-slate-800">{def.name}</span>
+                          <span className="block text-[11px] text-slate-400">Nöbet · {def.start}–{def.end}</span>
+                        </span>
+                      </div>
+                    </th>
+                    {days.map((_, day) => (
+                      <td key={day} className={dayCell(day)}>
+                        <div className="flex flex-col gap-1">
+                          {rows.filter(x => x.day === day).map(x => (
+                            <button key={x.person.id} type="button" onClick={e => onOnCallClick(e, x.person.id, day)}
+                              title={`${x.person.name} · nöbet: evde bekler, çağrılırsa gelir`}
+                              className="w-full truncate rounded-md border border-dashed border-violet-300 bg-white px-2 py-1 text-left text-[12px] font-semibold text-violet-800">
+                              {shortName(x.person.name)}
+                            </button>
+                          ))}
+                          {editable && (
+                            <button type="button" onClick={e => openPicker(e, g.id, def, day)}
+                              className="flex h-[22px] w-full items-center justify-center rounded-md text-slate-200 transition-colors hover:bg-slate-50 hover:text-violet-500"
+                              title="Nöbetçi ekle">
+                              <Plus size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              }),
               other.length > 0 && (
                 <tr key={`${g.id}-other`} className="border-t border-slate-100">
                   <th scope="row" className="sticky left-0 z-10 bg-white px-3 py-2 text-left align-top">
@@ -183,8 +258,8 @@ export default function ShiftBoard({
                   {days.map((_, day) => (
                     <td key={day} className={dayCell(day)}>
                       <div className="flex flex-col gap-1">
-                        {other.filter(x => x.day === day).map(x => (
-                          <button key={x.person.id} type="button" onClick={e => onNameClick(e, x.person.id, day)}
+                        {other.filter(x => x.day === day).map((x, k) => (
+                          <button key={`${x.person.id}-${k}`} type="button" data-board-person={`${x.person.id}-${day}`} onClick={e => onNameClick(e, x.person.id, day)}
                             className={cn("w-full rounded-md border px-2 py-1 text-left transition-colors", customTone.box)}>
                             <span className={cn("block truncate text-[12px] font-semibold", customTone.name)}>{shortName(x.person.name)}</span>
                             <span className={cn("block text-[10.5px]", customTone.time)}>{timeLabel(x.cell)}</span>
@@ -203,7 +278,10 @@ export default function ShiftBoard({
       {/* Kişi seçme listesi */}
       {picker && (() => {
         const g = groups.find(x => x.id === picker.groupId);
-        const busy = new Map(placed.filter(x => x.day === picker.day).map(x => [x.person.id, x]));
+        // Nöbet satırında meşgul = o gün zaten nöbetçi; normal vardiyada = o gün vardiyası var
+        const busy = picker.def.on_call
+          ? new Map(placedOnCall.filter(x => x.day === picker.day).map(x => [x.person.id, { def: picker.def as ShiftDefinition | null, cell: { startMin: 0, endMin: 0 } as Cell }]))
+          : new Map(placed.filter(x => x.day === picker.day).map(x => [x.person.id, x]));
         const list = (g?.members ?? [])
           .map(p => ({ p, st: statusOf(p.id, picker.day), busy: busy.get(p.id) }))
           .sort((a, b) => Number(!!a.busy || a.st === "away") - Number(!!b.busy || b.st === "away") || STATUS_ORDER[a.st] - STATUS_ORDER[b.st] || weekHours(a.p.id) - weekHours(b.p.id));
@@ -227,7 +305,7 @@ export default function ShiftBoard({
                       className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45">
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold text-slate-800">{p.name}</span>
-                        <span className="block text-[11px] text-slate-400">{b ? `Bu gün ${b.def?.name ?? timeLabel(b.cell)} vardiyasında` : `Bu hafta ${Math.round(weekHours(p.id) * 10) / 10} saat`}</span>
+                        <span className="block text-[11px] text-slate-400">{b ? picker.def.on_call ? "Bu gün zaten nöbetçi" : `Bu gün ${b.def?.name ?? timeLabel(b.cell)} vardiyasında` : `Bu hafta ${Math.round(weekHours(p.id) * 10) / 10} saat`}</span>
                       </span>
                       {!b && STATUS_LABEL[st] && (
                         <span className={cn("shrink-0 text-[11px] font-semibold", st === "available" ? "text-emerald-600" : warn ? "text-red-500" : "text-amber-600")}>{STATUS_LABEL[st]}</span>
