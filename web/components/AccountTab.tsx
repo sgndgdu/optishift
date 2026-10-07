@@ -124,7 +124,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
           <div>
             <h2 className="text-base font-bold text-slate-900">Profil</h2>
             <p className="text-xs text-slate-500">
-              {allowNameEdit ? "Ad, e-posta ve kullanıcı adınızı güncelleyin" : "E-posta adresinizi güncelleyin"}
+              {allowNameEdit ? "Ad ve e-posta adresinizi güncelleyin" : "E-posta adresinizi güncelleyin"}
             </p>
           </div>
         </div>

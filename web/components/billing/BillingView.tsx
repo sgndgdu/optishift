@@ -18,7 +18,8 @@ const PLAN_STYLE: Record<PlanId, { color: string; dark: boolean; cta: string }> 
   pro:        { color: "border-primary",   dark: true,  cta: "Pro'ya Geç" },
   enterprise: { color: "border-slate-300", dark: false, cta: "İletişime Geç" },
 };
-const PLAN_CARDS = PLANS.map(p => ({ ...p, ...PLAN_STYLE[p.id] }));
+// Ücretsiz paket satılmıyor (yeni işletme Pro denemeyle açılır); "free" sadece eski hesaplarda kayıt olarak durur
+const PLAN_CARDS = PLANS.filter(p => p.id !== "free").map(p => ({ ...p, ...PLAN_STYLE[p.id] }));
 
 /** storageKey: oturumun tutulduğu anahtar; returnPath: ödeme dönüşünde açılacak sayfa */
 export default function BillingView({ storageKey = "optishift_manager_user", returnPath = "/billing" }: { storageKey?: string; returnPath?: string }) {
@@ -135,7 +136,7 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
       </div>
 
       {/* Plan cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl gap-4 md:gap-6">
         {PLAN_CARDS.map(plan => {
           const isCurrent = currentPlan === plan.id;
           return (

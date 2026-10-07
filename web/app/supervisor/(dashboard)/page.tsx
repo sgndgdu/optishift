@@ -155,7 +155,7 @@ export default function SupervisorDashboard() {
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: "Şube", value: locations.length, icon: Building2, tone: "neutral" as const },
-          { label: "Plan eksik", value: notReady, icon: CalendarX, tone: notReady > 0 ? "attention" as const : "positive" as const },
+          { label: "Yayınlanmamış", value: notReady, icon: CalendarX, tone: notReady > 0 ? "attention" as const : "positive" as const },
           { label: "Onay", value: pendingTotal, icon: Inbox, tone: pendingTotal > 0 ? "attention" as const : "neutral" as const },
         ].map(({ label, value, icon, tone }) => (
           <StatCard key={label} label={label} icon={icon} tone={tone}

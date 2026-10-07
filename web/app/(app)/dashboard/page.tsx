@@ -47,7 +47,7 @@ const ITEM_ICON: Record<string, any> = {
 const SEVERITY_STYLE = {
   critical: { dot: "bg-red-500",   icon: "bg-red-50 text-red-600",     label: "Acil",      labelCls: "text-red-600" },
   today:    { dot: "bg-amber-500", icon: "bg-amber-50 text-amber-600", label: "Bugün",     labelCls: "text-amber-600" },
-  week:     { dot: "bg-slate-300", icon: "bg-slate-100 text-slate-500", label: "Bu hafta", labelCls: "text-slate-400" },
+  week:     { dot: "bg-slate-300", icon: "bg-slate-100 text-slate-500", label: "Bu hafta içinde", labelCls: "text-slate-400" },
 } as const;
 
 const isPublishedRow = (s: any) => (!s.publication_status || s.publication_status === "published") && s.kind !== "on_call";
@@ -317,7 +317,8 @@ export default function DashboardPage() {
     lateCount: openShiftsEnabled && autoOpenOnLate ? 0 : lateShifts.length,
     nextWeek,
     canPublish: canPublishPlan(user),
-    pendingApprovals,
+    // Hazır çözümü gösterilen izin talepleri Bekleyen İşler'de ikinci kez sayılmaz
+    pendingApprovals: Math.max(0, pendingApprovals - suggestions.filter(s => s.action.kind === "review_leave").length),
     pendingAccounts,
     deptPlan,
     submittedDepts,
@@ -484,10 +485,10 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Bugün Çalışanlar</CardTitle>
                 <div className="flex flex-wrap gap-3 ml-1">
                   {[
-                    { label: "Aktif",    value: checkedIn.length + untracked.length,  color: "text-emerald-600" },
-                    { label: "Bekliyor", value: waiting.length,    color: "text-amber-600" },
+                    { label: "Vardiyada", value: checkedIn.length + untracked.length,  color: "text-emerald-600" },
+                    { label: "Bekleniyor", value: waiting.length,    color: "text-amber-600" },
                     { label: "Geç",      value: lateShifts.length, color: "text-red-600" },
-                    { label: "Çıktı",    value: checkedOut.length + ended.length, color: "text-slate-400" },
+                    { label: "Vardiyası bitti", value: checkedOut.length + ended.length, color: "text-slate-400" },
                   ].filter(x => x.value > 0).map(({ label, value, color }) => (
                     <span key={label} className="flex items-center gap-1 text-xs text-slate-400 font-medium">
                       <span className={`text-sm font-bold ${color}`}>{value}</span> {label}
@@ -505,8 +506,8 @@ export default function DashboardPage() {
                   const isCheckedOut = !!s.check_out_at;
                   const late         = isLate(s);
                   const phase        = checkinTracked ? "before" : shiftPhase(s);
-                  const status = isCheckedOut ? { label: "Çıktı", tone: "neutral" as const }
-                    : isCheckedIn ? { label: "Aktif", tone: "positive" as const }
+                  const status = isCheckedOut ? { label: "Bitti", tone: "neutral" as const }
+                    : isCheckedIn ? { label: "Vardiyada", tone: "positive" as const }
                     : late ? { label: "Gelmedi", tone: "danger" as const }
                     : phase === "after" ? { label: "Bitti", tone: "neutral" as const }
                     : phase === "during" ? { label: "Vardiyada", tone: "positive" as const }

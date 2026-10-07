@@ -436,7 +436,7 @@ async function insertRequests() {
   // Bildirimler: birkaç kişiye yayın bildirimi
   for (const p of PEOPLE.slice(0, 12)) {
     await sql`INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-              VALUES (${p.id}, 'schedule', ${"Vardiya Programı Yayınlandı"}, ${"Bu haftanın programı hazır. Takvimini kontrol et."}, '/portal/calendar', false, ${now - 86400})`;
+              VALUES (${p.id}, 'schedule', ${"Vardiya planı yayınlandı"}, ${"Bu haftanın vardiya planı yayınlandı. Vardiyalarım'dan bakabilirsiniz."}, '/portal/calendar', false, ${now - 86400})`;
   }
   console.log(`${av} uygunluk, ${leaves.length} izin, 2 takas, 1 açık vardiya, 12 bildirim.`);
 }

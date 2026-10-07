@@ -247,7 +247,7 @@ function CurrentView({
           {/* Kırılım — neden bu puan? */}
           {isExpanded && (
             <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
-              <p className="text-xs text-slate-500">{fairnessText}{(p.hero_count ?? 0) > 0 && ` · ${p.hero_count} kez açık vardiya üstlendi`}{(p.no_show_count ?? 0) > 0 && ` · ${p.no_show_count} kez gelmedi`}</p>
+              <p className="text-xs text-slate-500">{fairnessText}{(p.hero_count ?? 0) > 0 && ` · ${p.hero_count} kez açık vardiya aldı`}{(p.no_show_count ?? 0) > 0 && ` · ${p.no_show_count} kez gelmedi`}</p>
               {pHist.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">

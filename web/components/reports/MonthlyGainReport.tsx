@@ -79,9 +79,9 @@ export default function MonthlyGainReport({ initialMonth }: { initialMonth?: str
             <StatCard label="Kural aşımı" value={data.compliance.problems} icon={ShieldCheck}
               tone={data.compliance.problems ? "danger" : data.compliance.shifts ? "positive" : "neutral"}
               hint={`${data.compliance.shifts} vardiya kontrol edildi`} />
-            <StatCard label="Çalışma süresi" value={trNum(data.work.hours)} icon={Clock} hint={diffText(data.work.hours, data.work.prevHours, data.partial)} />
+            <StatCard label="Çalışma süresi" value={`${trNum(data.work.hours)} saat`} icon={Clock} hint={diffText(data.work.hours, data.work.prevHours, data.partial)} />
             {data.overtime && (
-              <StatCard label="Fazla mesai" value={`${trNum(data.overtime.hours)} sa`} icon={Timer}
+              <StatCard label="Fazla mesai" value={`${trNum(data.overtime.hours)} saat`} icon={Timer}
                 tone={!data.partial && data.overtime.hours > data.overtime.prevHours ? "attention" : "neutral"}
                 hint={data.overtime.cost !== null ? `₺${data.overtime.cost.toLocaleString("tr-TR")}` : diffText(data.overtime.hours, data.overtime.prevHours, data.partial)} />
             )}
@@ -95,8 +95,9 @@ export default function MonthlyGainReport({ initialMonth }: { initialMonth?: str
           )}
 
           <p className="text-xs leading-relaxed text-slate-400">
-            Rakamlar uygulamadaki kayıtlardan hesaplanır. Kazanılan süre tahminidir: elle planlamanın kişi başı haftada {MANUAL_MINUTES} dakika sürdüğü varsayılır.
-            Kural kontrolü yayınlanmış vardiyalarda iki vardiya arası dinlenmeye ve haftalık sınıra bakar.
+            Rakamlar uygulamadaki kayıtlardan hesaplanır.
+            {data.plans.generated > 0 && <> Otomatik hazırlananların yanındaki süre tahminidir: elle planlamanın kişi başı haftada {MANUAL_MINUTES} dakika sürdüğü varsayılır.</>}
+            {" "}Kural kontrolü yayınlanmış vardiyalarda iki vardiya arası dinlenmeye ve haftalık sınıra bakar.
           </p>
         </>
       )}

@@ -406,7 +406,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
           )}
           {ep.personnelId && ep.role === "employee" && (
             <p className="text-xs text-slate-500">
-              {[ep.prev_score > 0 ? `Adalet Puanı ${formatScore(ep.prev_score)} (${scoreVsAverageText(ep.prev_score, teamAvgScore ?? 0)})` : null, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya üstlendi` : null,
+              {[ep.prev_score > 0 ? `Adalet Puanı ${formatScore(ep.prev_score)} (${scoreVsAverageText(ep.prev_score, teamAvgScore ?? 0)})` : null, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya aldı` : null,
                 (ep.ytd_overtime_hours ?? 0) > 0 ? `bu yıl ${ep.ytd_overtime_hours} saat fazla mesai` : null].filter(Boolean).join(" · ")}
             </p>
           )}

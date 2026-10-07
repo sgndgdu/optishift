@@ -197,7 +197,7 @@ export default function SupervisorReports() {
 
       {/* Şube/personel sayıları Genel Bakış'ta; burada sadece rapor sayıları */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} sa`} icon={Clock} hint={`${totalShifts} vardiya`} />
+        <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} saat`} icon={Clock} hint={`${totalShifts} vardiya`} />
         <StatCard label="Çalışma sınırı" value={overCount > 0 ? `${overCount} kişi aştı` : nearCount > 0 ? `${nearCount} kişi sınırda` : "Herkes sınırın altında"}
           icon={overCount + nearCount > 0 ? AlertTriangle : ShieldCheck} tone={overCount > 0 ? "danger" : nearCount > 0 ? "attention" : "positive"}
           hint={overCount > 0 && nearCount > 0 ? `${nearCount} kişi de sınırda` : `${working.length} kişi çalışıyor`}
@@ -218,7 +218,7 @@ export default function SupervisorReports() {
             <ListItem key={b.id} href={planHref(b.id)}
               leading={<Avatar name={b.name} tone="brand" />}
               title={b.name}
-              subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${trNum(b.total_hours)} sa`}
+              subtitle={`${b.personnel_count} kişi · ${b.scheduled_shifts} vardiya · ${trNum(b.total_hours)} saat`}
               trailing={flagsIn(b.name).length > 0
                 ? <StatusPill tone={flagsIn(b.name).some(w => w.hours > w.limit) ? "danger" : "attention"}>{flagsIn(b.name).length} kişi sınırda</StatusPill>
                 : undefined}
@@ -233,7 +233,7 @@ export default function SupervisorReports() {
               : working.map(w => {
                 const over = w.hours > w.limit, near = !over && w.hours > w.limit * 0.9;
                 const branchesText = Object.keys(w.byBranch).length > 1
-                  ? Object.entries(w.byBranch).map(([n, h]) => `${n} ${trNum(Math.round(h * 10) / 10)} sa`).join(" + ")
+                  ? Object.entries(w.byBranch).map(([n, h]) => `${n} ${trNum(Math.round(h * 10) / 10)}`).join(" + ") + " saat"
                   : Object.keys(w.byBranch)[0];
                 return (
                   <ListItem key={w.id} href={`/supervisor/personnel?location_id=${w.home_location_id}`}
@@ -241,7 +241,7 @@ export default function SupervisorReports() {
                     title={w.name}
                     subtitle={branchesText}
                     trailing={<span className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{trNum(w.hours)} / {trNum(w.limit)} sa</span>
+                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{trNum(w.hours)} / {trNum(w.limit)} saat</span>
                       {(over || near) && <StatusPill tone={over ? "danger" : "attention"}>{over ? "Aştı" : "Sınırda"}</StatusPill>}
                     </span>}
                   />

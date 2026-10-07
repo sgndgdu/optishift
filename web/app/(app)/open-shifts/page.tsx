@@ -23,7 +23,7 @@ function formatDate(d: string) {
 function StatusBadge({ status, expired }: { status: string; expired?: boolean }) {
   if (status === "open" && expired) return <StatusPill tone="neutral">Süresi geçti</StatusPill>;
   if (status === "open") return <StatusPill tone="attention">Açık</StatusPill>;
-  if (status === "claimed") return <StatusPill tone="positive">Üstlenildi</StatusPill>;
+  if (status === "claimed") return <StatusPill tone="positive">Alındı</StatusPill>;
   return <StatusPill tone="neutral">İptal</StatusPill>;
 }
 
@@ -203,7 +203,7 @@ export default function OpenShiftsPage() {
     <ListItem key={s.id} onClick={() => openDetail(s)}
       leading={<DateBadge date={s.date} />}
       title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
-      subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} üstlendi`
+      subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} aldı`
         : s.note || (s.hero_bonus_multiplier > 0 ? `Üstlenene +${s.hero_bonus_multiplier} puan` : "Bonus yok")}
       trailing={<StatusBadge status={s.status} expired={s.status === "open" && s.date < todayISO} />}
     />
