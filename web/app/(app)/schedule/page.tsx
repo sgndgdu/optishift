@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
 import GenerateWizard from "@/components/schedule/GenerateWizard";
+import ShiftBoard, { type BoardGroup } from "@/components/schedule/ShiftBoard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
 import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type DayState, type Insight, type InsightTarget, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
@@ -118,11 +119,30 @@ function normTime(t: string): string {
   return `${String(h % 24).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
 }
 
-const AVAIL_BG: Record<string, string> = {
-  available:     "bg-emerald-50/80",
-  preferred_not: "bg-amber-50",
-  unavailable:   "bg-red-50",
-};
+/**
+ * Vardiya renkleri: her vardiya tanımının kendi rengi olur, tablo bakınca anlaşılsın (kullanıcı kararı 2026-10-07).
+ * Tanımlar başlangıç saatine göre sıralanır ve sırayla renk alır; gece vardiyaları her zaman lacivert.
+ * Eşleşmeyen (özel saatli) hücre gri.
+ */
+type ShiftTone = { box: string; name: string; time: string; dot: string };
+const SHIFT_TONES: ShiftTone[] = [
+  { box: "bg-amber-100 border-amber-300 hover:border-amber-500",    name: "text-amber-900",  time: "text-amber-700",  dot: "bg-amber-400" },
+  { box: "bg-sky-100 border-sky-300 hover:border-sky-500",          name: "text-sky-900",    time: "text-sky-700",    dot: "bg-sky-400" },
+  { box: "bg-violet-100 border-violet-300 hover:border-violet-500", name: "text-violet-900", time: "text-violet-700", dot: "bg-violet-400" },
+  { box: "bg-teal-100 border-teal-300 hover:border-teal-500",       name: "text-teal-900",   time: "text-teal-700",   dot: "bg-teal-400" },
+  { box: "bg-orange-100 border-orange-300 hover:border-orange-500", name: "text-orange-900", time: "text-orange-700", dot: "bg-orange-400" },
+  { box: "bg-rose-100 border-rose-300 hover:border-rose-500",       name: "text-rose-900",   time: "text-rose-700",   dot: "bg-rose-400" },
+  { box: "bg-lime-100 border-lime-300 hover:border-lime-500",       name: "text-lime-900",   time: "text-lime-700",   dot: "bg-lime-500" },
+];
+const NIGHT_TONE: ShiftTone = { box: "bg-indigo-100 border-indigo-300 hover:border-indigo-500", name: "text-indigo-900", time: "text-indigo-700", dot: "bg-indigo-500" };
+const CUSTOM_TONE: ShiftTone = { box: "bg-slate-100 border-slate-300 hover:border-slate-400", name: "text-slate-700", time: "text-slate-500", dot: "bg-slate-400" };
+
+/** Normal (icap olmayan) vardiya tanımları başlangıç saatine göre, her biri rengiyle */
+function shiftToneList(defs: ShiftDefinition[]): { def: ShiftDefinition; tone: ShiftTone }[] {
+  const list = defs.filter(d => !d.on_call).sort((a, b) => hhmmToMin(a.start) - hhmmToMin(b.start));
+  let i = 0;
+  return list.map(def => ({ def, tone: def.is_night ? NIGHT_TONE : SHIFT_TONES[i++ % SHIFT_TONES.length] }));
+}
 
 function wmoIcon(code: number): string {
   if (code === 0) return "☀️";
@@ -439,10 +459,15 @@ function SchedulePageInner() {
   });
   // Telefonda tablo tek gün gösterir; varsayılan bugün
   const [mobileDay, setMobileDay] = useState(() => (weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0));
+  // Tablo düzeni: "shift" = vardiyalara göre (varsayılan, kâğıttaki çizelge gibi), "person" = kişilere göre
+  const [boardView, setBoardViewState] = useState<"shift" | "person">("shift");
+  useEffect(() => { try { if (localStorage.getItem("schedule_view") === "person") setBoardViewState("person"); } catch {} }, []);
+  const setBoardView = (v: "shift" | "person") => { setBoardViewState(v); try { localStorage.setItem("schedule_view", v); } catch {} };
   // Plan Kontrolü / yayın uyarısından "oraya git": kişinin satırına kaydırır, hücreyi kısa süre vurgular
   const [flash, setFlash] = useState<InsightTarget | null>(null);
   const jumpTo = (t: InsightTarget) => {
     if (t.day !== undefined) setMobileDay(t.day);
+    if (t.personId) setBoardViewState("person"); // kişi satırı sadece kişilere göre görünümde var
     setFlash(t);
     setTimeout(() => {
       const el = t.personId
@@ -1961,6 +1986,9 @@ function SchedulePageInner() {
 
   // Gece vardiyası sezgisi — motorla aynı: 22:00+ başlayan veya gece yarısını aşan
   const isNightCell = (c: CellData) => c.startMin >= 22 * 60 || c.endMin > 24 * 60;
+  const shiftTones = shiftToneList(shiftDefs);
+  const toneOf = (def: ShiftDefinition | null, night: boolean): ShiftTone =>
+    def ? (shiftTones.find(x => x.def.id === def.id)?.tone ?? CUSTOM_TONE) : night ? NIGHT_TONE : CUSTOM_TONE;
 
   // Kural kontrolleri lib/copilot/checks.ts'te (yayın penceresi ve Plan Asistanı ortak)
 
@@ -2378,6 +2406,46 @@ function SchedulePageInner() {
   } else {
     for (const p of filteredPersonnel) tableRows.push({ kind: 'person', person: p });
   }
+
+  // "Vardiyalara göre" görünümü: departman grupları (joker kişi kendi departmanlarının hepsinde seçilebilir)
+  const boardGroups: BoardGroup[] = departments.length === 0
+    ? [{ id: "__all__", name: null, members: filteredPersonnel }]
+    : [
+        ...sortDepartments(departments).filter(d => !groupDeptIds.has(d.id)).map(d => ({
+          id: d.id,
+          name: departmentLabel(departments, d),
+          members: filteredPersonnel.filter(p => p.department_id === d.id || p.department_ids?.includes(d.id)),
+        })),
+        { id: "__none__", name: "Diğer", members: filteredPersonnel.filter(p => !p.department_id) },
+      ].filter(g => g.members.length > 0);
+  const boardEditable = !((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek));
+  const boardStatusOf = (pid: string, day: number) => {
+    const dayIso = isoDates[day];
+    if (approvedLeaves.some(l => l.personnel_id === pid && l.start_date <= dayIso && l.end_date >= dayIso)) return "leave" as const;
+    const person = personnel.find(p => p.id === pid);
+    if (person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === day) return "weekly_off" as const;
+    if (elsewhere.some(e => e.personnel_id === pid && Number(e.day) === day)) return "away" as const;
+    const st = availMap[pid]?.[day]?.status;
+    return st === "available" ? "available" as const : st === "preferred_not" ? "pref_not" as const : st === "unavailable" ? "unavailable" as const : "unknown" as const;
+  };
+  const boardNameClick = (e: React.MouseEvent, pid: string, day: number) => {
+    const cell = cellMap[`${pid}-${day}`];
+    if (!cell || viewOnly) return;
+    if (boardEditable) { handleCellClick(e, pid, day); return; }
+    const person = personnel.find(p => p.id === pid);
+    if (cell.id && canPublish) openAbsence(cell.id, pid, `${person?.name ?? ""} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`);
+  };
+  const boardAssign = (pid: string, day: number, def: ShiftDefinition, groupId: string) => {
+    const startMin = hhmmToMin(def.start);
+    let endMin = hhmmToMin(def.end);
+    if (endMin <= startMin) endMin += 1440;
+    const person = personnel.find(p => p.id === pid);
+    const joker = groupId !== "__all__" && groupId !== "__none__" && person?.department_id !== groupId;
+    pushCellMap({
+      ...cellMap,
+      [`${pid}-${day}`]: { startMin, endMin, points: cellBurden(startMin, endMin, day, availMap, pid, locRules, shiftDefs), pinned: true, ...(joker ? { deptId: groupId } : {}) },
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -3196,7 +3264,46 @@ loading ? (
                 })}
               </div>
             )}
+            {/* Vardiya renkleri: tablodaki renklerin anlamı */}
+            {personnel.length > 0 && shiftTones.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-slate-100 text-[12px] text-slate-600">
+                <div role="tablist" aria-label="Tablo düzeni" className="mr-2 inline-flex rounded-lg bg-slate-100 p-0.5">
+                  {([["shift", "Vardiyalara göre"], ["person", "Kişilere göre"]] as const).map(([v, label]) => (
+                    <button key={v} role="tab" aria-selected={boardView === v} onClick={() => setBoardView(v)}
+                      className={cn("rounded-md px-3 py-1 text-[12px] font-semibold transition-colors", boardView === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {shiftTones.map(({ def, tone }) => (
+                  <span key={def.id} className="inline-flex items-center gap-1.5">
+                    <span className={cn("h-2.5 w-2.5 rounded-sm", tone.dot)} />
+                    <span className="font-semibold text-slate-700">{def.name}</span>
+                    <span className="text-slate-400">{normTime(def.start)}–{normTime(def.end)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="overflow-x-auto relative" data-schedule-grid>
+              {boardView === "shift" && shiftTones.length > 0 && personnel.length > 0 ? (
+                <ShiftBoard
+                  groups={boardGroups}
+                  tones={shiftTones}
+                  days={Array.from({ length: 7 }, (_, i) => ({ label: DAYS[i], date: dates[i], weekend: i === 5 || i === 6 }))}
+                  mobileDay={mobileDay}
+                  cellMap={cellMap}
+                  matchDef={c => matchShiftDef(c.startMin, c.endMin, shiftDefs)}
+                  demandOf={(gid, defId, day) => hasDeptDemand ? (deptDemandMatrix[gid]?.[defId]?.[day] ?? 0) : gid === "__all__" ? (demandMatrix[defId]?.[day] ?? 0) : 0}
+                  statusOf={boardStatusOf}
+                  cellGroupId={(p, c) => departments.length === 0 ? "__all__" : (c.deptId && p.department_ids?.includes(c.deptId) ? c.deptId : p.department_id || "__none__")}
+                  weekHours={pid => Object.entries(cellMap).filter(([k]) => k.startsWith(`${pid}-`)).reduce((sum, [, v]) => sum + cellWorkHours(v.startMin, v.endMin, shiftDefs), 0)}
+                  editable={boardEditable}
+                  onNameClick={boardNameClick}
+                  onAssign={boardAssign}
+                  timeLabel={c => `${normTime(minToHHMM(c.startMin))}–${normTime(minToHHMM(c.endMin, c.endMin >= 1440))}`}
+                  customTone={CUSTOM_TONE}
+                />
+              ) : (
               <table className="w-full sm:min-w-[700px] border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
@@ -3395,8 +3502,8 @@ loading ? (
                             </div>
                           )) : null;
 
+                          const tone = toneOf(matchedDef, cell ? isNightCell(cell) : false);
                           if ((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek)) {
-                            const cellIsNight = cell ? isNightCell(cell) : false;
                             return (
                               <td key={day} className={tdClass}>
                                 {cell ? (
@@ -3406,10 +3513,10 @@ loading ? (
                                     className={cn(
                                     "mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border",
                                     cell.id && "cursor-pointer hover:shadow-sm",
-                                    forceData ? "bg-amber-50 border-amber-200" : cellIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70"
+                                    forceData ? "bg-amber-50 border-amber-200" : tone.box
                                   )}>
-                                    {matchedDef && <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>{matchedDef.name}</div>}
-                                    <div className={cn("text-[10.5px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
+                                    {matchedDef && <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : tone.name)}>{matchedDef.name}</div>}
+                                    <div className={cn("text-[10.5px] font-medium", forceData ? "text-amber-500" : tone.time)}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                     {otherDeptName(p, cell) && <div className="text-[10.5px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
@@ -3425,7 +3532,6 @@ loading ? (
                             );
                           }
 
-                          const cellIsNight = cell ? isNightCell(cell) : false;
                           return (
                             <DroppableCell key={day} id={cellKey} className={tdClass}>
                               {cell ? (
@@ -3435,16 +3541,16 @@ loading ? (
                                     title={cell.pinned ? "Elle düzenlendi: Planı Oluştur bu vardiyayı korur" : undefined}
                                     className={cn(
                                       "relative mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border cursor-pointer transition-all hover:shadow-sm",
-                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : cellIsNight ? "bg-indigo-50 border-indigo-200/70 hover:border-indigo-400" : "bg-forest-50 border-forest-200/70 hover:border-forest-400"
+                                      forceData ? "bg-amber-50 border-amber-300 hover:border-amber-400" : tone.box
                                     )}
                                   >
                                     {cell.pinned && (
-                                      <Pin size={10} aria-label="Korunuyor" className="absolute top-0.5 right-0.5 text-forest-600 rotate-45" />
+                                      <Pin size={10} aria-label="Korunuyor" className={cn("absolute top-0.5 right-0.5 rotate-45", tone.time)} />
                                     )}
-                                    <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>
+                                    <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : tone.name)}>
                                       {matchedDef ? matchedDef.name : "Özel"}
                                     </div>
-                                    <div className={cn("text-[10.5px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
+                                    <div className={cn("text-[10.5px] font-medium", forceData ? "text-amber-500" : tone.time)}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                     {/* Joker başka departmana yazıldıysa o departmanın adı */}
@@ -3463,44 +3569,43 @@ loading ? (
                               ) : isWeeklyOff ? (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg bg-amber-50 border border-amber-100 hover:border-amber-300 transition-all flex flex-col items-center justify-center gap-0.5"
+                                  className="w-full h-11 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center"
                                   title="Haftalık izin günü. Yine de vardiya eklemek için tıklayın."
                                 >
-                                  <span className="text-[10.5px] font-bold text-amber-400">Haftalık</span>
-                                  <span className="text-[10.5px] font-bold text-amber-400">İzin</span>
+                                  <span className="text-[11px] font-medium text-slate-400">Haftalık izin</span>
                                 </button>
                               ) : isUnavailable ? (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg bg-red-50 border border-red-200 hover:border-red-400 transition-all flex flex-col items-center justify-center gap-0.5"
+                                  className="w-full h-11 rounded-lg border border-transparent hover:border-red-200 hover:bg-red-50/60 transition-all flex items-center justify-center gap-1"
                                   title="Bu gün gelemeyeceğini bildirdi. Yine de vardiya eklemek için tıklayın."
                                 >
-                                  <X size={12} className="text-red-400" />
-                                  <span className="text-[10.5px] font-bold text-red-400">Gelemem</span>
+                                  <X size={11} className="text-red-300" />
+                                  <span className="text-[11px] font-medium text-red-400">Gelemem</span>
                                 </button>
                               ) : isPrefNot ? (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg bg-amber-50 border border-amber-300 hover:border-amber-400 hover:bg-amber-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                  className="relative w-full h-11 rounded-lg border border-transparent hover:border-amber-200 hover:bg-amber-50/60 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                   title={avail?.start && avail.end ? `Tercih etmiyor, ${avail.start}–${avail.end} arası gelebilir` : "Tercih etmiyor (gerekirse gelebilir)"}
                                 >
-                                  <span className="text-[11px] font-bold text-amber-600">~ Tercih etmem</span>
+                                  <span className="text-[11px] font-medium text-amber-500 group-hover:opacity-0 transition-opacity">Tercih etmem</span>
                                   {avail?.start && avail.end && (
-                                    <span className="text-[10.5px] text-amber-400">{avail.start}–{avail.end}</span>
+                                    <span className="text-[10.5px] text-amber-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
                                   )}
-                                  <Plus size={10} className="text-amber-400 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
+                                  <Plus size={13} className="text-amber-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
                                 </button>
                               ) : avail?.status === 'available' ? (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
-                                  className="w-full h-11 rounded-lg bg-emerald-50 border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                  className="relative w-full h-11 rounded-lg border border-dashed border-slate-200 hover:border-forest-300 hover:bg-forest-50/40 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                   title={avail?.start && avail.end ? `Uygun, ${avail.start}–${avail.end}` : "Uygun"}
                                 >
-                                  <span className="text-[11px] font-bold text-emerald-600 group-hover:opacity-0 transition-opacity">✓ Uygun</span>
+                                  <span className="text-[11px] font-medium text-emerald-600/70 group-hover:opacity-0 transition-opacity">Uygun</span>
                                   {avail?.start && avail.end && (
-                                    <span className="text-[10.5px] text-emerald-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
+                                    <span className="text-[10.5px] text-slate-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
                                   )}
-                                  <Plus size={13} className="text-emerald-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
+                                  <Plus size={13} className="text-forest-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
                                 </button>
                               ) : (
                                 <button
@@ -3521,6 +3626,7 @@ loading ? (
                   })}
                 </tbody>
               </table>
+              )}
             </div>
 
           </div>
