@@ -184,11 +184,11 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
       setContacts(prev => prev.map(c => {
         if (c.type === "group" && c.groupId && grpMap[c.groupId]) {
           const g = grpMap[c.groupId];
-          return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: g.unread };
+          return { ...c, lastMessage: g.last_message, lastAt: g.last_at, unread: Number(g.unread) || 0 };
         }
         if (c.type === "individual" && dmMap[c.id]) {
           const d = dmMap[c.id];
-          return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: d.unread };
+          return { ...c, lastMessage: d.last_message, lastAt: d.last_at, unread: Number(d.unread) || 0 };
         }
         return c;
       }));
@@ -328,7 +328,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
     else grouped.push({ date: d, msgs: [m] });
   }
 
-  const totalUnread = contacts.reduce((s, c) => s + (c.unread ?? 0), 0);
+  const totalUnread = contacts.reduce((s, c) => s + (Number(c.unread) || 0), 0);
   const q = search.toLowerCase();
   const filtered = q ? contacts.filter(c => c.name.toLowerCase().includes(q)) : contacts;
   const groupContacts = filtered.filter(c => c.type === "group");

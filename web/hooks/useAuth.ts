@@ -33,6 +33,8 @@ export function managerFallbackPath(): string {
   try {
     const sup = JSON.parse(localStorage.getItem("optishift_supervisor_user") || "null");
     if (sup && (sup.role === "admin" || sup.role === "supervisor")) return "/supervisor";
+    // Ekip üyesi yönetim adresini açarsa kendi ekranına
+    if (localStorage.getItem("optishift_portal_user")) return "/portal";
   } catch { /* yok say */ }
   return "/login";
 }
@@ -77,8 +79,16 @@ export function useSupervisorAuth() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (!user) { router.push("/login"); return; }
-    if (user.role !== "supervisor" && user.role !== "admin") { router.push("/login"); return; }
+    // Tüm Şubeler yetkisi olmayan: şube sorumlusu kendi paneline, ekip üyesi kendi ekranına
+    const elsewhere = () => {
+      try {
+        if (localStorage.getItem("optishift_manager_user")) return "/dashboard";
+        if (localStorage.getItem("optishift_portal_user")) return "/portal";
+      } catch { /* yok say */ }
+      return "/login";
+    };
+    if (!user) { router.push(elsewhere()); return; }
+    if (user.role !== "supervisor" && user.role !== "admin") { router.push(elsewhere()); return; }
   }, [mounted, user, router]);
 
   return { user, mounted };

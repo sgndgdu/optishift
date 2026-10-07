@@ -61,7 +61,27 @@ const NAV = [
   { href: "/portal/settings",     label: "Hesabım",     icon: UserCircle },
 ];
 
+/**
+ * Oturum yoksa portal hiç kurulmaz: kabuk ve sayfalar veri istemeden önce /login'e gidilir
+ * (eskiden istekler 401 alıyor, SessionGuard "oturumunuz doldu" diyordu). /portal/login sadece yönlendirir.
+ */
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [ok, setOk] = useState(false);
+  const isLogin = pathname === "/portal/login";
+  useEffect(() => {
+    if (isLogin) return;
+    let has = false;
+    try { has = !!localStorage.getItem("optishift_portal_user"); } catch {}
+    if (has) setOk(true); else router.replace("/login");
+  }, [isLogin, router]);
+  if (isLogin) return <>{children}</>;
+  if (!ok) return null;
+  return <PortalShell>{children}</PortalShell>;
+}
+
+function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);

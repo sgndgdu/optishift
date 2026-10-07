@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { managerFallbackPath } from "@/hooks/useAuth";
 import { Menu, X } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -12,6 +14,21 @@ import AssistantPanel from "@/components/AssistantPanel";
 import OwnerBranchBanner from "@/components/OwnerBranchBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [ok, setOk] = useState(false);
+  // Şube paneli oturumu yoksa panel kurulmaz (sayfa "Yükleniyor"da kalıyor ya da 401 alıyordu).
+  // İlk kurulum hariç: şubesi olmayan sahipte sadece Tüm Şubeler oturumu vardır (lib/sessionRouting).
+  useEffect(() => {
+    let has = pathname.startsWith("/onboarding");
+    try { has = has || !!localStorage.getItem("optishift_manager_user"); } catch {}
+    if (has) setOk(true); else router.replace(managerFallbackPath());
+  }, [router, pathname]);
+  if (!ok) return null;
+  return <AppShell>{children}</AppShell>;
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
