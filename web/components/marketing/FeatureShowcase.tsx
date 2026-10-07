@@ -93,8 +93,10 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
     icon: Sparkles, title: "Yapay zekâ",
     items: [
       "İşletmenizi anlatarak kurulum",
+      "Kâğıttaki ya da Excel'deki çizelgenin fotoğrafından kurulum: ekip, vardiyalar ve günlük kişi sayısı okunur",
       "Departman, vardiya ve günlük kişi sayısı önerisi",
       "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
+      "İşletme Asistanı işlem önerir: izin ekler, talepleri karara bağlar, gelemeyen kişinin yerine birini bulur",
       "Hiçbir kayıt sizin onayınız olmadan değişmez",
     ],
   },

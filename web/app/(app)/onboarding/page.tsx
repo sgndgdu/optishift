@@ -339,7 +339,7 @@ export default function OnboardingWizard() {
               <div className="mb-6 flex items-start gap-3 rounded-2xl bg-forest-50 px-4 py-3 ring-1 ring-forest-100">
                 <Sparkles size={18} className="mt-0.5 shrink-0 text-forest-700" />
                 <div className="text-sm leading-relaxed text-forest-900">
-                  <p className="font-semibold">Yapay zekâ bu bilgileri sizin anlattıklarınıza göre doldurdu.</p>
+                  <p className="font-semibold">{teamFound ? "Yapay zekâ bu bilgileri eklediğiniz fotoğrafa göre doldurdu." : "Yapay zekâ bu bilgileri sizin anlattıklarınıza göre doldurdu."}</p>
                   {aiSummary && step === 0 && <p className="mt-1 text-forest-800/80">{aiSummary}</p>}
                   <p className="mt-1 text-forest-800/80">Kontrol edin, istediğinizi değiştirin. Siz onaylayınca kaydedilir.</p>
                 </div>
@@ -523,14 +523,14 @@ export default function OnboardingWizard() {
                 sub="Yapay zekâ bu adları fotoğraftan okudu. Yanlış okunan adı düzeltin, olmayan kişiyi silin. Onaylayınca herkes ekibe eklenir ve giriş bağlantıları hazırlanır.">
                 <div className="space-y-2">
                   {team.map((t, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2 sm:flex-nowrap">
+                    <div key={i} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-slate-200 p-2 sm:grid-cols-[1fr_10rem_auto]">
                       <input value={t.name} onChange={e => setTeam(p => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                         aria-label={`${i + 1}. kişinin adı`} placeholder="Ad Soyad" maxLength={60}
-                        className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-[15px] focus:border-primary focus:outline-none" />
+                        className="h-11 min-w-0 rounded-lg border border-slate-200 px-3 text-[15px] focus:border-primary focus:outline-none" />
                       {pickedDepts.length > 0 && (
                         <select value={t.department} onChange={e => setTeam(p => p.map((x, j) => (j === i ? { ...x, department: e.target.value } : x)))}
                           aria-label={`${t.name || "Kişi"} departmanı`}
-                          className="h-11 w-[calc(100%-3.25rem)] rounded-lg border border-slate-200 bg-white px-2 text-sm sm:w-36">
+                          className="order-3 col-span-2 h-11 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-sm sm:order-none sm:col-span-1">
                           <option value="">Departman seçin</option>
                           {pickedDepts.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>

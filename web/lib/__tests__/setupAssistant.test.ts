@@ -59,6 +59,19 @@ describe("çizelgeden sayım", () => {
     expect(p?.demand.Salon["Akşam"]).toEqual([0, 1, 1, 0, 1, 1, 1]);
     expect(p?.demand.Mutfak.Sabah).toEqual([1, 1, 1, 0, 1, 1, 0]);
   });
+  it("saat gibi yazılmış vardiyaya ad verir, çizelgedeki saatlerle yine eşleşir", () => {
+    const p = normalizeProposal({
+      industry: "hospitality", variant: "cafe", departments: [],
+      shifts: [{ name: "08-16", start: "08:00", end: "16:00" }, { name: "15-23", start: "15:00", end: "23:00" }, { name: "16-24", start: "16:00", end: "00:00" }],
+      team: [
+        { name: "Elif Kaya", week: ["08-16", "15-23", "", "", "", "", ""] },
+        { name: "Mert Yılmaz", week: ["08-16", "", "", "", "", "", ""] },
+      ],
+    });
+    expect(p?.shifts.map(s => s.name)).toEqual(["Sabah", "Akşam", "Akşam 2"]);
+    expect(p?.demand[""].Sabah.slice(0, 2)).toEqual([2, 0]);
+    expect(p?.demand[""]["Akşam"].slice(0, 2)).toEqual([0, 1]);
+  });
   it("büyük harfli başlığı düzeltir, karışık yazılmışa dokunmaz", () => {
     expect(titleCaseIfShouting("SALON")).toBe("Salon");
     expect(titleCaseIfShouting("İÇ MEKAN")).toBe("İç Mekan");

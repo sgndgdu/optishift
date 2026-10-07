@@ -80,7 +80,7 @@ Bilgiler yeterli olunca:
   "teamSize": 12,
   "demand": {"Salon": {"Açılış": [2,2,2,2,3,4,3]}, "Mutfak": {"Açılış": [1,1,1,1,1,2,2]}},
   "team": [{"name": "Ayşe Demir", "department": "Salon", "phone": "", "week": ["Açılış","Açılış","","Açılış","","Açılış","Açılış"]}],
-  "summary": "Sahibe gösterilecek 2-3 cümlelik özet"
+  "summary": "Sahibe gösterilecek 2-3 cümlelik özet: ne anladığını yaz (ör. 9 kişi, 3 departman, 2 vardiya). Henüz hiçbir şey kaydedilmedi, \"kaydedildi\" ya da \"aktarıldı\" deme."
 }}
 demand anahtarları departman adlarıdır; departman yoksa tek anahtar "" kullan. team sadece kişi adları biliniyorsa doldurulur, yoksa boş dizi. Diziler Pazartesi'den Pazar'a 7 sayıdır, kapalı günlerde 0.`;
 }
@@ -124,8 +124,15 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
   if (shifts.length === 0) {
     shifts = variant.shifts.map(s => ({ name: s.name, start: s.start, end: s.end, difficulty: s.base_points >= 7 ? "hard" : s.base_points <= 3 ? "easy" : "medium" }));
   }
-  const names = new Set<string>();
-  shifts = shifts.filter(s => (names.has(s.name.toLowerCase()) ? false : (names.add(s.name.toLowerCase()), true)));
+  // Çizelgede vardiya adı yoksa model "08-16" yazıyor: başlangıç saatine göre ad verilir (Sabah, Öğle, Akşam, Gece)
+  shifts = shifts.map(sh => (/^\d{1,2}([:.]\d{2})?\s*[-–]\s*\d/.test(sh.name) ? { ...sh, name: shiftNameByTime(sh.start) } : sh));
+  const used = new Map<string, number>();
+  shifts = shifts.map(sh => {
+    const k = sh.name.toLocaleLowerCase("tr");
+    const n = (used.get(k) ?? 0) + 1;
+    used.set(k, n);
+    return n > 1 ? { ...sh, name: `${sh.name} ${n}` } : sh;
+  });
 
   const open = TIME.test(String(r.open)) ? String(r.open) : shifts.reduce((a, s) => (s.start < a ? s.start : a), "23:59");
   const close = TIME.test(String(r.close)) ? String(r.close) : "23:00";
@@ -184,6 +191,12 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
 }
 
 const MAX_TEAM = 200;
+
+/** Saatle adlandırılmış vardiyaya ad: başlangıç 05-10 Sabah, 11-14 Öğle, 15-19 Akşam, diğer Gece */
+export function shiftNameByTime(start: string): string {
+  const h = Number(start.slice(0, 2));
+  return h >= 5 && h < 11 ? "Sabah" : h >= 11 && h < 15 ? "Öğle" : h >= 15 && h < 20 ? "Akşam" : "Gece";
+}
 
 /** "SALON" → "Salon" (çizelge başlıkları çoğu zaman büyük harf); karışık yazılmış ada dokunulmaz */
 export function titleCaseIfShouting(v: string): string {
