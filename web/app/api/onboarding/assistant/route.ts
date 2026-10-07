@@ -11,8 +11,8 @@ import { businessToday } from "@/lib/date";
 export const maxDuration = 60;
 
 const MAX_TURNS = 14;
-// Kurulum cevabı uzun JSON: düşünme en az, süre fonksiyon sınırına yakın
-const CHAT_OPTS = { thinking: "minimal" as const, timeoutMs: 50_000 };
+// Kurulum cevabı uzun JSON: düşünme düşük ("minimal" bu modelde yok), süre fonksiyon sınırına yakın
+const CHAT_OPTS = { thinking: "low" as const, timeoutMs: 55_000 };
 const DAILY_LIMIT = 40; // kişi başı; kurulum bir kez yapılır, ücretsiz kotayı korur
 const usage = new Map<string, { day: string; n: number }>();
 
