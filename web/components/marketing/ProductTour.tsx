@@ -1,46 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
-import { ArrowRight, Play, Sparkles, CalendarCheck, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
+import { Sparkles, CalendarCheck, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Toast } from "@/components/marketing/Mockups";
-import { TOUR_CAPTIONS } from "@/components/marketing/tourCaptions";
+import { SCENES } from "@/components/marketing/TourScenes";
 
 /**
- * Uygulamanın gerçek ekran kayıtları (scripts/vid/*, vitrin işletmesi "Moda Kahve").
- * Bölüm sekmeleri ilerleme çubuğuyla sırayla oynar; sahne ekrana girdikçe büyür (globals.css .tour-stage).
- * Sadece seçili bölümün videosu yüklenir, ekran dışındayken durur; hareketi azalt açıksa kendiliğinden oynamaz.
+ * Ürün turu: kodla çizilmiş sahneler (TourScenes), video yok. Tek saat (t) sahneyi yürütür;
+ * bölüm sekmeleri ilerleme çubuğuyla sırayla oynar, ekran dışındayken durur.
+ * Hareketi azalt açıksa sahne son hâliyle durur.
  */
 const CHAPTERS = [
-  {
-    key: "plan", icon: CalendarCheck, title: "Plan saniyeler içinde",
-    text: "Ekibin uygunluğuna bakar, ihtiyacı karşılayan planı kurar. Kontrol edip tek tıkla yayınlarsınız.",
-    window: "Moda Şube · Vardiya Planı",
-  },
-  {
-    key: "phone", icon: Smartphone, title: "Ekip telefondan görür", phone: true,
-    text: "Yayınladığınız an bildirim gider. Herkes vardiyasını ve kiminle çalışacağını görür.",
-  },
-  {
-    key: "approvals", icon: ClipboardCheck, title: "Onaylar tek ekranda",
-    text: "İzin ve vardiya değişikliği isteklerini kurallara göre kontrol eder, sorun varsa önceden söyler.",
-    window: "Moda Şube · Onaylar",
-  },
-  {
-    key: "cover", icon: LifeBuoy, title: "Biri gelemezse",
-    text: "En uygun yedekleri gerekçesiyle sıralar. Tek dokunuşla atarsınız, kişiye bildirim gider.",
-    window: "Moda Şube · Vardiya Planı",
-  },
-  {
-    key: "assistant", icon: Sparkles, title: "İşletme Asistanı",
-    text: "İşletmenizle ilgili sorunuzu yazın, cevabı planınızdan ve kayıtlarınızdan gelsin.",
-    window: "Moda Şube · Ana Sayfa",
-  },
+  { key: "plan", icon: CalendarCheck, title: "Plan saniyeler içinde", text: "Ekibin uygunluğuna bakar, ihtiyacı karşılayan planı kurar. Kontrol edip tek dokunuşla yayınlarsınız.", window: "Moda Şube · Vardiya Planı" },
+  { key: "phone", icon: Smartphone, title: "Ekip telefondan görür", phone: true, text: "Yayınladığınız an bildirim gider. Herkes vardiyasını ve kiminle çalışacağını görür." },
+  { key: "approvals", icon: ClipboardCheck, title: "Onaylar tek ekranda", text: "İzin ve vardiya değiştirme isteklerini kurallara göre kontrol eder, sorun varsa önceden söyler.", window: "Moda Şube · Onaylar" },
+  { key: "cover", icon: LifeBuoy, title: "Biri gelemezse", text: "En uygun yedekleri gerekçesiyle sıralar. Tek dokunuşla atarsınız, kişiye bildirim gider.", window: "Moda Şube · Bugün" },
+  { key: "assistant", icon: Sparkles, title: "İşletme Asistanı", text: "İşletmenizle ilgili sorunuzu yazın, cevabı planınızdan ve kayıtlarınızdan gelsin.", window: "Moda Şube · Asistan" },
 ] as const;
-
-/** Dar ekranda masaüstü kaydı okunmaz: uygulamanın telefon ekranında çekilmiş sürümü (-m) gösterilir */
-const file = (key: string, small: boolean, phone?: boolean) => `/marketing/tour/${key}${small && !phone ? "-m" : ""}`;
 
 /** Medya sorgusu: sunucuda false, tarayıcıda canlı */
 function useMedia(query: string) {
@@ -53,41 +29,45 @@ function useMedia(query: string) {
 
 export function ProductTour() {
   const [active, setActive] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [time, setTime] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [t, setT] = useState(0);
+  const [visible, setVisible] = useState(false);
   const small = useMedia("(max-width: 767px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const stageRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const visible = useRef(false);
   const stripRef = useRef<HTMLDivElement>(null);
   const chapter = CHAPTERS[active];
+  const scene = SCENES[chapter.key];
+  const Scene = scene.Component;
+  const time = reduced ? scene.duration : t;
 
-  // Ekrandayken oynat, çıkınca durdur
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => {
-      visible.current = e.isIntersecting;
-      const v = videoRef.current;
-      if (!v) return;
-      if (e.isIntersecting && !reduced) v.play().catch(() => {});
-      else v.pause();
-    }, { threshold: 0.35 });
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.35 });
     io.observe(el);
     return () => io.disconnect();
-  }, [reduced]);
+  }, []);
 
-  // Bölüm değişince yeni video baştan (ilerleme çubuğu yeni videonun süresinden okunur)
+  // Saat: ekrandayken ilerler, sahne bitince sıradaki bölüm
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.load();
-    if (visible.current && !reduced) v.play().catch(() => {});
-  }, [active, small, reduced]);
+    if (!visible || reduced) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 100);
+      last = now;
+      setT((x) => {
+        const n = x + dt;
+        if (n >= scene.duration) { setActive((i) => (i + 1) % CHAPTERS.length); return 0; }
+        return n;
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [visible, reduced, scene.duration]);
 
-  // Dar ekranda sekme şeridi oynayan bölüme kayar (sayfa dikeyde oynamaz)
+  // Dar ekranda sekme şeridi oynayan bölüme kayar
   useEffect(() => {
     const strip = stripRef.current;
     const tab = strip?.querySelectorAll<HTMLElement>("[role=tab]")[active];
@@ -95,57 +75,34 @@ export function ProductTour() {
     strip.scrollTo({ left: tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2, behavior: "smooth" });
   }, [active]);
 
-  // İlerleme çubuğu: timeupdate seyrek geldiği için kare kare
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      const v = videoRef.current;
-      if (v && v.duration) { setProgress(v.currentTime / v.duration); setTime(v.currentTime); }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  const choose = (i: number) => { setT(0); setActive(i); };
+  const progress = Math.min(1, time / scene.duration);
+  const stepIdx = scene.steps.reduce((acc, s, i) => (s.t <= time ? i : acc), 0);
+  const step = scene.steps[stepIdx];
+  const isPhone = "phone" in chapter;
 
-  // Telefonda o anki adım başlığı (videonun içi dar olduğu için altında yazılır)
-  const caps = TOUR_CAPTIONS[chapter.key] ?? [];
-  const cap = [...caps].reverse().find((c) => c.t <= time);
-
-  const next = () => { setProgress(0); setActive((i) => (i + 1) % CHAPTERS.length); };
-  const choose = (i: number) => {
-    if (i === active) {
-      const v = videoRef.current;
-      if (v) { v.currentTime = 0; v.play().catch(() => {}); }
-    } else { setProgress(0); setActive(i); }
-  };
-
-  const video = (
-    <>
-    <video
-      ref={videoRef}
-      key={chapter.key}
-      className="block h-full w-full object-cover"
-      src={`${file(chapter.key, small, "phone" in chapter)}.mp4`}
-      poster={`${file(chapter.key, small, "phone" in chapter)}.webp`}
-      muted
-      playsInline
-      preload="metadata"
-      onEnded={next}
-      onPlay={() => setPlaying(true)}
-      onPause={() => setPlaying(false)}
-      aria-label={`${chapter.title}: uygulamanın ekran kaydı`}
-    />
-    {/* Hareketi azalt açıkken kendiliğinden oynamaz: oynatma düğmesi */}
-    {reduced && !playing && (
-      <button
-        onClick={() => videoRef.current?.play().catch(() => {})}
-        aria-label="Videoyu oynat"
-        className="absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-forest-900/80 text-white shadow-lg ring-1 ring-white/20"
-      >
-        <Play size={22} fill="currentColor" />
-      </button>
-    )}
-    </>
+  const frame = isPhone ? (
+    <div className="relative flex justify-center">
+      <div className="tour-swap h-[560px] rounded-[2.6rem] bg-slate-950 p-2.5 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10 sm:h-[600px]" style={{ aspectRatio: "390 / 800" }}>
+        <div className="relative h-full overflow-hidden rounded-[2.1rem]">
+          <Scene t={time} small={small} />
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="tour-swap w-full overflow-hidden rounded-2xl bg-white shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/90 px-4 py-2.5">
+        <div className="flex gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+        </div>
+        <span className="truncate text-[11px] font-medium text-slate-400">{chapter.window}</span>
+      </div>
+      <div className="relative h-[520px] bg-white sm:h-[560px]">
+        <Scene t={time} small={small} />
+      </div>
+    </div>
   );
 
   return (
@@ -191,70 +148,33 @@ export function ProductTour() {
           style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "56px 56px" }}
         />
 
-        <div className="relative grid gap-6 p-3 sm:p-8 lg:grid-cols-[1fr_270px] lg:items-center lg:gap-10 lg:p-12">
-          {/* Masaüstünde yükseklik sabit (pencere boyu); telefonda her bölüm telefon ekranı oranında: bölüm değişince sayfa zıplamaz */}
-          {small ? (
-            <div className="min-w-0">
-              <div key={chapter.key} className="tour-swap mx-auto w-[min(100%,calc(70svh*390/760))] overflow-hidden rounded-[1.6rem] bg-cream shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10" style={{ aspectRatio: "390 / 760" }}>
-                <div className="relative h-full">{video}</div>
-              </div>
-              {/* Adım başlığı: videonun içi dar, burada eşzamanlı yazılır; yükseklik sabit */}
-              <div className="mt-3 flex h-[52px] items-center justify-center px-1" aria-live="polite">
-                {cap?.text ? (
-                  <p key={cap.text} className="tour-swap flex items-center gap-2.5 text-[15px] font-semibold leading-snug text-white">
-                    {cap.n > 0 && <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ember-400 text-xs font-bold text-forest-900">{cap.n}</span>}
-                    {cap.text}
-                  </p>
-                ) : null}
-              </div>
+        <div className="relative grid gap-6 p-3 sm:p-8 lg:grid-cols-[1fr_290px] lg:items-center lg:gap-10 lg:p-12">
+          <div className="min-w-0" aria-hidden="true">
+            <div key={chapter.key}>{frame}</div>
+            {/* Telefonda adım başlığı sahnenin altında */}
+            <div className="mt-3 flex h-[52px] items-center justify-center px-1 lg:hidden">
+              <p key={step.text} className="tour-swap flex items-center gap-2.5 text-[15px] font-semibold leading-snug text-white">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ember-400 text-xs font-bold text-forest-900">{stepIdx + 1}</span>
+                {step.text}
+              </p>
             </div>
-          ) : (
-          <div key={chapter.key} className="flex min-w-0 items-center justify-center sm:aspect-[16/10.75]">
-            {"phone" in chapter ? (
-              <div className="relative flex h-full justify-center">
-                {/* Masaüstünde telefonun iki yanında bildirimler (videodaki anla aynı) */}
-                <div className="pointer-events-none absolute right-full top-[16%] z-10 mr-8 hidden w-[250px] lg:block">
-                  <div className="m-float"><Toast icon="bell" title="Vardiya programı yayınlandı" text="12-18 Ekim haftanız hazır." className="tour-swap w-full" style={{ animationDelay: "350ms" }} /></div>
-                </div>
-                <div className="pointer-events-none absolute bottom-[18%] left-full z-10 ml-8 hidden w-[230px] lg:block">
-                  <div className="m-float" style={{ animationDelay: "2.5s" }}><Toast icon="swap" title="Değiştirmek mi gerekti?" text="Arkadaşına tek dokunuşla teklif eder." className="tour-swap w-full" style={{ animationDelay: "650ms" }} /></div>
-                </div>
-                <div className="tour-swap h-full rounded-[2.6rem] bg-slate-950 p-2.5 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10" style={{ aspectRatio: "410 / 780" }}>
-                  <div className="relative h-full overflow-hidden rounded-[2.1rem] bg-cream">
-                    {video}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="tour-swap w-full overflow-hidden rounded-2xl bg-white shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
-                <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/90 px-4 py-2.5">
-                  <div className="flex gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-                  </div>
-                  <span className="truncate text-[11px] font-medium text-slate-400">{chapter.window}</span>
-                </div>
-                <div className="relative bg-white" style={{ aspectRatio: "16 / 10" }}>
-                  {video}
-                </div>
-              </div>
-            )}
           </div>
-          )}
 
-          {/* Bölüm açıklaması */}
-          <div key={`${chapter.key}-text`} className="tour-swap min-h-[188px] px-2 pb-3 text-white sm:min-h-0 sm:px-0 sm:pb-0">
+          {/* Bölüm açıklaması + adımlar */}
+          <div key={`${chapter.key}-text`} className="tour-swap px-2 pb-3 text-white sm:px-0 sm:pb-0">
             <p className="text-xs font-semibold text-ember-300">{active + 1} / {CHAPTERS.length}</p>
             <h3 className="mt-2 font-serif text-2xl font-semibold leading-tight sm:text-3xl">{chapter.title}</h3>
             <p className="mt-3 text-[15px] leading-relaxed text-forest-100/80">{chapter.text}</p>
+            <ol className="mt-6 hidden space-y-2.5 lg:block">
+              {scene.steps.map((s, i) => (
+                <li key={s.text} className={cn("flex items-start gap-2.5 text-[14px] leading-snug transition-colors duration-300", i === stepIdx ? "text-white" : i < stepIdx ? "text-forest-100/50" : "text-forest-100/30")}>
+                  <span className={cn("mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors duration-300", i === stepIdx ? "bg-ember-400 text-forest-900" : "bg-white/10 text-white/60")}>{i + 1}</span>
+                  {s.text}
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
-      </div>
-      <div className="mt-6 text-center">
-        <Link href="/videolar" className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-forest-800 ring-1 ring-forest-900/15 transition-colors hover:bg-white">
-          Bütün özellik videoları <ArrowRight size={15} />
-        </Link>
       </div>
     </div>
   );

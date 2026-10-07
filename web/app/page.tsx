@@ -115,14 +115,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Ürün turu: gerçek ekran kayıtları ───────────────────── */}
+      {/* ─── Ürün turu: adım adım ekranlar ───────────────────── */}
       <section id="tur" className="pt-20 sm:pt-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
-            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Gerçek ekranlar</p>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Ürün turu</p>
             <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Uygulamayı iş başında görün.</h2>
             <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(160)}>
-              Görüntüler uygulamanın kendisinden: örnek bir kafenin bir haftası, plandan izinlere kadar.
+              Örnek bir kafenin bir haftası, plandan izinlere kadar adım adım.
             </p>
           </Reveal>
           <ProductTour />

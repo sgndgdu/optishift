@@ -318,4 +318,8 @@
 @supports (animation-timeline: view()) {
   .tour-stage { animation: tour-in linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
 }
-@media (prefers-reduced-motion: reduce) { .tour-stage, .tour-swap { animation: none !important; } }
+/* Tur sahneleri (TourScenes): belirerek yerine oturan öğe, basılan düğmede parmak halkası */
+.sc-pop { animation: m-pop 0.45s cubic-bezier(0.3, 1.35, 0.5, 1) both; }
+@keyframes tap-dot { from { opacity: 0.9; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.4); } }
+.tap-dot { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; border-radius: 9999px; background: rgb(251 146 60 / 0.5); pointer-events: none; animation: tap-dot 0.6s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .tour-stage, .tour-swap, .sc-pop, .tap-dot { animation: none !important; } }

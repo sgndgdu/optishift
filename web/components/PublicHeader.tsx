@@ -17,7 +17,7 @@ import { BRAND } from "@/lib/brand";
  * bilinçli olarak bunu kullanmıyor, o sayfalar odaklanmış form akışı için
  * minimal/farklı bir kalıba sahip (sektör standardı, dikkat dağıtıcı nav yok).
  */
-export default function PublicHeader({ active }: { active?: "pricing" | "videos" }) {
+export default function PublicHeader({ active }: { active?: "pricing" }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -30,7 +30,6 @@ export default function PublicHeader({ active }: { active?: "pricing" | "videos"
 
         <div className="hidden md:flex items-center gap-10">
           <Link href="/#features" className="text-sm font-bold text-slate-600 hover:text-primary transition-colors">Özellikler</Link>
-          <Link href="/videolar" className={active === "videos" ? "text-sm font-black text-primary" : "text-sm font-bold text-slate-600 hover:text-primary transition-colors"}>Videolar</Link>
           <Link href="/pricing" className={active === "pricing" ? "text-sm font-black text-primary" : "text-sm font-bold text-slate-600 hover:text-primary transition-colors"}>Fiyatlar</Link>
         </div>
 
@@ -56,7 +55,6 @@ export default function PublicHeader({ active }: { active?: "pricing" | "videos"
       {mobileMenuOpen && (
         <div className="md:hidden bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-4 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
           <Link href="/#features" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Özellikler</Link>
-          <Link href="/videolar" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Videolar</Link>
           <Link href="/pricing" onClick={() => setMobileMenuOpen(false)} className="flex items-center h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Fiyatlar</Link>
           <div className="pt-2 flex flex-col gap-2">
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center h-11 px-4 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">Giriş yap</Link>
