@@ -14,7 +14,7 @@ import { addDays, businessNow, businessWallTime, formatDateTR } from "@/lib/date
 import { leaveTypeLabel } from "@/lib/leave";
 import { coverFor, findConflicts } from "@/lib/leaveConflicts";
 import { rankCandidates } from "@/lib/openShiftCandidates";
-import { departmentScope, hasPerm } from "@/lib/userAccess";
+import { departmentScope, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
 import { sendPushToPersonnel } from "@/lib/notifications";
 
 export type Suggestion = {
@@ -151,16 +151,24 @@ export async function buildSuggestions(db: any, auth: AuthUser, locationId: stri
 }
 
 /**
- * Şubenin sorumlularına (şube sorumlusu, hesap sahibi) bildirim + telefon bildirimi.
+ * Şubenin sorumlularına (şube sorumlusu, bölge sorumlusu, hesap sahibi) bildirim + telefon bildirimi.
+ * Sadece işi yapma yetkisi (perm) olan ve departman sorumlusu olmayanlar alır.
  * Sadece çalışan kaydı olan hesaplar bildirim alır (bildirim tablosu kişiye bağlı).
  */
-export async function notifyBranchManagers(db: any, orgId: string, locationId: string, n: { type: string; title: string; message: string; link: string }) {
-  const managers = await db.prepare(`
-    SELECT DISTINCT personnel_id FROM users
+export async function notifyBranchManagers(db: any, orgId: string, locationId: string, perm: Perm, n: { type: string; title: string; message: string; link: string }) {
+  const rows = await db.prepare(`
+    SELECT personnel_id, role, permissions FROM users
     WHERE org_id = ? AND personnel_id IS NOT NULL AND COALESCE(approval_status, 'active') = 'active'
       AND (role = 'admin' OR (role = 'manager' AND location_id = ?)
         OR (role = 'supervisor' AND (managed_location_ids IS NULL OR managed_location_ids = '' OR managed_location_ids = '[]' OR managed_location_ids LIKE ?)))
-  `).all(orgId, locationId, `%"${locationId}"%`) as { personnel_id: string }[];
+  `).all(orgId, locationId, `%"${locationId}"%`) as { personnel_id: string; role: string; permissions: string | null }[];
+  const seen = new Set<string>();
+  const managers = rows.filter(r => {
+    const u = { role: r.role, access: parseAccess(r.permissions) };
+    if (seen.has(r.personnel_id) || departmentScope(u) || !hasPerm(u, perm)) return false;
+    seen.add(r.personnel_id);
+    return true;
+  });
   const now = Math.floor(Date.now() / 1000);
   await Promise.allSettled(managers.map(async m => {
     await db.prepare(`

@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
         const sug = await openShiftSuggestion(db, os).catch(() => null);
         const soon = os && os.date <= addDays(businessToday(), 2);
         const who = await db.prepare(`SELECT name FROM personnel WHERE id = ?`).get(absentPersonnelId) as any;
-        await notifyBranchManagers(db, org_id, location_id, {
+        await notifyBranchManagers(db, org_id, location_id, "plan_settings", {
           type: "open_shift",
           title: "Vardiyasına gelemeyecek",
           message: sug

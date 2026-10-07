@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
         const pRow = await rawDb.prepare(`SELECT name, org_id FROM personnel WHERE id = ?`).get(personnel_id) as any;
         const sug = await leaveSuggestion(rawDb, pRow.org_id, personnelRow.primary_location_id, Number(result.id)).catch(() => null);
         const head = `${pRow?.name ?? "Bir ekip üyesi"}: ${leaveTypeLabel(type)} · ${start_date}${end_date !== start_date ? ` - ${end_date}` : ""}`;
-        await notifyBranchManagers(rawDb, pRow.org_id, personnelRow.primary_location_id, {
+        await notifyBranchManagers(rawDb, pRow.org_id, personnelRow.primary_location_id, "approvals", {
           type: "leave_request",
           title: "Yeni izin talebi",
           message: sug ? `${sug.title} ${sug.detail} Ana Sayfa'dan tek dokunuşla onaylayabilirsiniz.` : head,
