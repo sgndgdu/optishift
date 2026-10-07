@@ -45,7 +45,7 @@ export function ComingSoonFeature({ feature, icon: Icon, title, description, que
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
             {title}
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">Yakında</span>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[12px] font-bold text-amber-800">Yakında</span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
         </div>
@@ -57,7 +57,7 @@ export function ComingSoonFeature({ feature, icon: Icon, title, description, que
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs text-slate-600 flex-1 min-w-[12rem]">{question}</p>
             <button type="button" onClick={() => setOpen(true)}
-              className="px-3 min-h-[36px] rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90">İsterim</button>
+              className="px-3 min-h-[36px] rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90">İsterim</button>
             <button type="button" onClick={() => send("no")} disabled={busy}
               className="px-3 min-h-[36px] rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50">Gerek yok</button>
           </div>
@@ -70,7 +70,7 @@ export function ComingSoonFeature({ feature, icon: Icon, title, description, que
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setOpen(false)} className="px-3 min-h-[36px] rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100">Vazgeç</button>
               <button type="button" onClick={() => send("want")} disabled={busy}
-                className="px-3 min-h-[36px] rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 disabled:opacity-50">Gönder</button>
+                className="px-3 min-h-[36px] rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">Gönder</button>
             </div>
           </div>
         )}

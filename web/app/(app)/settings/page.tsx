@@ -1092,7 +1092,7 @@ export default function SettingsPage() {
                         <p className="text-xs text-slate-500">Vardiyalarınız ve ayarlarınız değişmez. Görev listesi ve öneriler yeni türe göre güncellenir.</p>
                         <div className="flex flex-wrap items-center gap-2">
                           <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty || !industryChanged}
-                            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
+                            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
                           <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
                           {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
                         </div>
@@ -1112,7 +1112,7 @@ export default function SettingsPage() {
                     {industryChanged && (
                       <div className="flex flex-wrap items-center gap-2 mt-3">
                         <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
                         <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
                         {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
                       </div>
@@ -1246,7 +1246,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
                   <p className="text-sm font-semibold text-slate-700 min-w-0">{summarizeOperatingHours(locationData.operating_hours)}</p>
                   <button type="button" onClick={() => setHoursOpen(o => !o)} aria-expanded={hoursOpen}
-                    className="text-xs font-bold text-forest-700 hover:text-forest-900 shrink-0">
+                    className="text-xs font-semibold text-forest-700 hover:text-forest-900 shrink-0">
                     {hoursOpen ? "Kapat" : "Düzenle"}
                   </button>
                 </div>
@@ -1698,7 +1698,7 @@ export default function SettingsPage() {
                             setKioskLinkCopied(true);
                             setTimeout(() => setKioskLinkCopied(false), 2000);
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
                         >
                           {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
                         </button>
@@ -2042,7 +2042,7 @@ export default function SettingsPage() {
                           placeholder="Günlük ciro (₺)"
                           className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 focus:outline-none focus:border-forest-400 focus:bg-white"
                         />
-                        <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                        <button type="button" onClick={handleAddSalesData} disabled={!newSalesDate || !newSalesRevenue} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">Ekle</button>
                       </div>
                       {salesDataError && <p className="text-xs text-red-600">{salesDataError}</p>}
                       {salesData.length > 0 && (
@@ -2065,7 +2065,7 @@ export default function SettingsPage() {
                   on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)}>
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">Tüm Vardiyalar İçin Ortak Görevler</label>
+                        <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Tüm Vardiyalar İçin Ortak Görevler</label>
                         <textarea
                           rows={3}
                           placeholder={"Her satıra bir görev, örn:\nKasa Sayımı\nMutfak Temizliği"}
@@ -2076,7 +2076,7 @@ export default function SettingsPage() {
                       </div>
                       {(locationData?.shift_definitions ?? []).map((sd: ShiftDefinition) => (
                         <div key={sd.id}>
-                          <label className="text-xs font-bold text-slate-600 mb-1.5 block">{sd.name} Vardiyasına Özel Görevler</label>
+                          <label className="text-xs font-semibold text-slate-600 mb-1.5 block">{sd.name} Vardiyasına Özel Görevler</label>
                           <textarea
                             rows={2}
                             placeholder="Her satıra bir görev"

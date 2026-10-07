@@ -120,7 +120,7 @@ export function TimeRangeSlider({
     <div className="space-y-2 select-none">
       {/* Gece geçişi uyarısı */}
       {crossesMidnight && (
-        <div className="flex items-center gap-1.5 text-[10px] text-forest-600 font-semibold bg-forest-50 border border-forest-100 rounded-lg px-2 py-1">
+        <div className="flex items-center gap-1.5 text-[11px] text-forest-600 font-semibold bg-forest-50 border border-forest-100 rounded-lg px-2 py-1">
           <span>🌙</span>
           <span>Vardiya gece yarısını geçiyor, ertesi gün bitiyor</span>
         </div>
@@ -156,7 +156,7 @@ export function TimeRangeSlider({
           style={{ left: `${startPct}%`, transform: "translateX(-50%)" }}
         >
           {/* Tooltip */}
-          <div className={`absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold bg-slate-800 text-white rounded px-1.5 py-0.5 pointer-events-none transition-opacity ${dragging === "start" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+          <div className={`absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold bg-slate-800 text-white rounded px-1.5 py-0.5 pointer-events-none transition-opacity ${dragging === "start" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
             {minToHHMM(startMin)}
           </div>
           <div
@@ -171,7 +171,7 @@ export function TimeRangeSlider({
           style={{ left: `${endPct}%`, transform: "translateX(-50%)" }}
         >
           {/* Tooltip */}
-          <div className={`absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold bg-slate-800 text-white rounded px-1.5 py-0.5 pointer-events-none transition-opacity ${dragging === "end" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+          <div className={`absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold bg-slate-800 text-white rounded px-1.5 py-0.5 pointer-events-none transition-opacity ${dragging === "end" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
             {minToHHMM(endMin, endMin >= 1440)}
           </div>
           <div
@@ -182,9 +182,9 @@ export function TimeRangeSlider({
       </div>
 
       {/* Time labels */}
-      <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium px-0.5">
+      <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium px-0.5">
         <span>{trackLabel(trackMin, trackMin, trackMax)}</span>
-        <span className="text-primary font-bold text-xs">{durationLabel}</span>
+        <span className="text-primary font-semibold text-xs">{durationLabel}</span>
         <span>{trackLabel(trackMax, trackMin, trackMax)}</span>
       </div>
     </div>

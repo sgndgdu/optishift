@@ -162,7 +162,7 @@ export function SetupChat({ onProposal, onManual }: { onProposal: (p: SetupPropo
 
       {userCount === 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold text-slate-400">Örnekler (dokunun, kendi bilginize göre değiştirin)</p>
+          <p className="text-xs font-semibold text-slate-400">Örnekler (dokunun, kendi bilginize göre değiştirin)</p>
           <div className="flex flex-col gap-2">
             {EXAMPLES.map(e => (
               <button key={e} type="button" onClick={() => setInput(e)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[13px] text-slate-600 hover:bg-slate-50">{e}</button>

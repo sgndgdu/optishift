@@ -387,7 +387,7 @@ function HistoryView({
 
             <div className="w-14 text-right shrink-0">
               <p className="text-sm font-bold text-slate-700 tabular-nums">{formatScore(latest)}p</p>
-              <p className={cn("text-xs font-bold", trendCls)}>{trend}</p>
+              <p className={cn("text-xs font-semibold", trendCls)}>{trend}</p>
             </div>
           </div>
         );

@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Sparkles, CalendarCheck, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
+import { Sparkles, Smartphone, ClipboardCheck, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SCENES } from "@/components/marketing/TourScenes";
 
 /**
- * Ürün turu: kodla çizilmiş sahneler (TourScenes), video yok. Tek saat (t) sahneyi yürütür;
+ * Ürün turu (planın hazırlanması girişte, StepsShowcase HeroPlan): kodla çizilmiş sahneler (TourScenes), video yok. Tek saat (t) sahneyi yürütür;
  * bölüm sekmeleri ilerleme çubuğuyla sırayla oynar, ekran dışındayken durur.
  * Hareketi azalt açıksa sahne son hâliyle durur.
  */
 const CHAPTERS = [
-  { key: "plan", icon: CalendarCheck, title: "Planın hazırlanması", text: "Uygulama ekibin uygunluğuna bakar ve her vardiyaya gereken sayıda kişi yazar. Siz planı kontrol edip yayınlarsınız.", window: "Moda Şube · Vardiya Planı" },
   { key: "phone", icon: Smartphone, title: "Ekibin telefonu", phone: true, text: "Plan yayınlanınca ekibe bildirim gider. Herkes kendi vardiyalarını ve aynı vardiyada kimlerle çalışacağını telefonundan görür." },
   { key: "approvals", icon: ClipboardCheck, title: "İzin ve değişiklik onayı", text: "Uygulama her isteği kurallara göre kontrol eder. Kurala uymayan bir istek varsa siz onaylamadan önce nedenini gösterir.", window: "Moda Şube · Onaylar" },
   { key: "cover", icon: LifeBuoy, title: "Gelemeyen kişiye yedek", text: "Uygulama o vardiyaya uygun kişileri nedenleriyle birlikte sıralar. Seçtiğiniz kişiyi atarsınız, ona bildirim gider.", window: "Moda Şube · Bugün" },
@@ -109,7 +108,7 @@ export function ProductTour() {
     <div>
       {/* Bölümler */}
       <div ref={stripRef} className="relative -mx-4 mb-6 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:mb-8 sm:px-0 [&::-webkit-scrollbar]:hidden">
-        <div role="tablist" aria-label="Uygulamadan bölümler" className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-5 sm:gap-3">
+        <div role="tablist" aria-label="Uygulamadan bölümler" className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-4 sm:gap-3">
           {CHAPTERS.map((c, i) => {
             const on = i === active;
             const Icon = c.icon;

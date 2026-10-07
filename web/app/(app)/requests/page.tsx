@@ -271,7 +271,7 @@ export default function ManagerRequestsPage() {
       <PageHeader title="Onaylar" description={totalPending > 0 ? `${totalPending} bekleyen talep` : "Bekleyen talep yok"} actions={
         <button
           onClick={() => setShowHistory(v => !v)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
             showHistory ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-600 hover:bg-slate-50"
           }`}
         >
@@ -326,7 +326,7 @@ export default function ManagerRequestsPage() {
                     {s.note && <p className="text-xs text-slate-400 mt-1 italic">"{s.note}"</p>}
                     {pending && Array.isArray(s.violations) && s.violations.length > 0 && (
                       <div className="mt-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2">
-                        <p className="text-xs font-bold text-red-700 mb-1">Onaylanırsa kurallara aykırı olur</p>
+                        <p className="text-xs font-semibold text-red-700 mb-1">Onaylanırsa kurallara aykırı olur</p>
                         <ul className="text-xs text-red-700 space-y-0.5 list-disc pl-4">
                           {s.violations.map((v: string) => <li key={v}>{v}</li>)}
                         </ul>
@@ -434,7 +434,7 @@ export default function ManagerRequestsPage() {
                         : `${formatDateTR(l.start_date, { weekday: false })} → ${formatDateTR(l.end_date, { weekday: false })} (${l.days} gün)`}
                     </p>
                     {pending && leaveBalances[l.personnel_id] && isAnnualLeaveType(l.type) && (
-                      <p className={`text-xs font-bold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
+                      <p className={`text-xs font-semibold mt-1 ${leaveBalances[l.personnel_id].remaining < (l.days ?? 0) ? "text-red-600" : "text-emerald-700"}`}>
                         Kalan yıllık izni: {leaveBalances[l.personnel_id].remaining} gün
                         {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
                       </p>
@@ -496,7 +496,7 @@ export default function ManagerRequestsPage() {
                 {pending && leaveOpen[l.id] && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
                   // Sorumlu onaylamadan önce görsün: o vardiyada kim kalıyor, yerine kim gelebilir (seçerse vardiya ona geçer)
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2.5">
-                    <p className="text-xs font-bold text-amber-800">Onaylarsanız bu vardiyalar plandan çıkar. İsterseniz yerine birini seçin:</p>
+                    <p className="text-xs font-semibold text-amber-800">Onaylarsanız bu vardiyalar plandan çıkar. İsterseniz yerine birini seçin:</p>
                     {leaveConflicts[l.id].map((c: any) => {
                       const picked = leaveSubs[l.id]?.[c.id] ?? "";
                       return (
@@ -518,7 +518,7 @@ export default function ManagerRequestsPage() {
                                     picked === x.personnel_id ? "border-primary bg-primary/10 text-primary font-bold"
                                     : x.ok ? "border-slate-200 bg-white text-slate-700 hover:border-primary/40" : "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"}`}>
                                   <span className="block font-semibold">{picked === x.personnel_id ? "✓ " : ""}{x.name}</span>
-                                  {x.note && <span className="block text-[11px] opacity-80">{x.note}</span>}
+                                  {x.note && <span className="block text-[12px] opacity-80">{x.note}</span>}
                                 </button>
                               ))}
                             </div>
@@ -636,7 +636,7 @@ export default function ManagerRequestsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}

@@ -59,10 +59,10 @@ export function SuggestionsCard({ suggestions }: { suggestions: Suggestion[] }) 
                     {st.status === "failed" && <p className="text-xs font-semibold text-red-600">{st.message}</p>}
                     <div className="flex flex-wrap items-center gap-2">
                       <button onClick={() => run(s)} disabled={st.status === "busy"}
-                        className={cn("inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:bg-primary/90 disabled:opacity-60")}>
+                        className={cn("inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-60")}>
                         <Check size={14} /> {st.status === "busy" ? "Uygulanıyor…" : st.status === "failed" ? "Tekrar dene" : "Uygula"}
                       </button>
-                      <Link href={s.href} className="inline-flex min-h-[40px] items-center rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">
+                      <Link href={s.href} className="inline-flex min-h-[40px] items-center rounded-xl bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">
                         Kendim bakarım
                       </Link>
                     </div>

@@ -111,13 +111,13 @@ function NotifCard({
             <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => onProposalRespond(notif.id, notif.link, "rejected")}
-                className="flex-1 bg-white border border-red-200 text-red-600 py-1.5 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors"
+                className="flex-1 bg-white border border-red-200 text-red-600 py-1.5 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors"
               >
                 Reddet
               </button>
               <button
                 onClick={() => onProposalRespond(notif.id, notif.link, "accepted")}
-                className="flex-1 bg-sky-600 text-white py-1.5 text-xs font-bold rounded-lg hover:bg-sky-700 transition-colors"
+                className="flex-1 bg-sky-600 text-white py-1.5 text-xs font-semibold rounded-lg hover:bg-sky-700 transition-colors"
               >
                 Kabul Et
               </button>
@@ -127,8 +127,8 @@ function NotifCard({
           {notif.responded === "rejected" && <p className="text-xs text-red-500 font-semibold mt-2">✗ Reddedildi</p>}
           {!notif.is_read && notif.type === "trade_request" && (
             <div className="flex gap-2 mt-3">
-              <button className="flex-1 bg-white border border-slate-200 text-slate-600 py-1.5 text-xs font-bold rounded-lg hover:bg-slate-50">Reddet</button>
-              <button className="flex-1 bg-forest-600 text-white py-1.5 text-xs font-bold rounded-lg hover:bg-forest-700">İncele</button>
+              <button className="flex-1 bg-white border border-slate-200 text-slate-600 py-1.5 text-xs font-semibold rounded-lg hover:bg-slate-50">Reddet</button>
+              <button className="flex-1 bg-forest-600 text-white py-1.5 text-xs font-semibold rounded-lg hover:bg-forest-700">İncele</button>
             </div>
           )}
         </div>

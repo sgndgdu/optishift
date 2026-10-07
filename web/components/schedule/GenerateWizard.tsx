@@ -98,7 +98,7 @@ export default function GenerateWizard({
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start md:items-center justify-center p-3 md:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Planı Oluştur">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto">
         <div className="flex items-center justify-between px-5 md:px-8 pt-5 md:pt-6">
-          <p className="text-xs font-bold text-slate-400">Planı Oluştur · {weekLabel}</p>
+          <p className="text-xs font-semibold text-slate-400">Planı Oluştur · {weekLabel}</p>
           <button onClick={onClose} disabled={generating} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30" aria-label="Kapat">
             <X size={18} />
           </button>
@@ -141,7 +141,7 @@ export default function GenerateWizard({
                   </CheckRow>
                 ) : demandGaps.length > 0 ? (
                   <CheckRow tone="danger" action={onFillGaps && (
-                    <button onClick={onFillGaps} className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-800 hover:bg-red-100">Boş günleri doldur</button>
+                    <button onClick={onFillGaps} className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-800 hover:bg-red-100">Boş günleri doldur</button>
                   )}>
                     <p className="font-bold text-red-800">Bazı günlere kaç kişi gerektiği girilmedi</p>
                     <p className="text-xs text-red-700 mt-1">{demandGaps.join(" · ")}. Bu günlere herkes haftalık sınırına kadar yazılır, açılış ya da kapanış boş kalabilir.</p>
@@ -155,7 +155,7 @@ export default function GenerateWizard({
                 {availabilityEnabled && (noAvailCount > 0 ? (
                   <CheckRow tone="warn" action={
                     <button onClick={() => { onRemindAvailability(); setReminded(true); }} disabled={reminded}
-                      className="shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 disabled:opacity-60">
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 disabled:opacity-60">
                       {reminded ? <><Check size={12} /> Gönderildi</> : <><Bell size={12} /> Hatırlat</>}
                     </button>
                   }>

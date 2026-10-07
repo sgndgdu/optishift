@@ -127,7 +127,7 @@ function ResetPasswordForm() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">
+                  <label className="text-xs font-semibold text-slate-700 mb-2 block">
                     Yeni şifre
                   </label>
                   <div className="relative">
@@ -158,7 +158,7 @@ function ResetPasswordForm() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">
+                  <label className="text-xs font-semibold text-slate-700 mb-2 block">
                     Yeni şifre (tekrar)
                   </label>
                   <div className="relative">

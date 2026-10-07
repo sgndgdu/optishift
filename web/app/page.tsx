@@ -7,7 +7,9 @@ import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 import { BRAND } from "@/lib/brand";
 import { SECTORS } from "@/components/marketing/sectors";
-import { AppWindow, ScheduleBoard, PhoneMock } from "@/components/marketing/Mockups";
+import { PhoneMock } from "@/components/marketing/Mockups";
+import { HeroPlan, StepsShowcase } from "@/components/marketing/StepsShowcase";
+import { SetupScene, PilotScene, FairnessScene, CoverScene, AssistantMiniScene, BranchesScene } from "@/components/marketing/FeatureScenes";
 import { Reveal } from "@/components/marketing/Reveal";
 import { ProductTour } from "@/components/marketing/ProductTour";
 
@@ -16,31 +18,13 @@ import { ProductTour } from "@/components/marketing/ProductTour";
 const KAFE = SECTORS[0];
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
-const STEPS = [
-  {
-    n: "1",
-    title: "İşletmenizi anlatın",
-    text: "Yapay zekâ birkaç soru sorar, departmanları, vardiyaları ve her gün kaç kişi gerektiğini doldurur. Kâğıttaki çizelgenizin fotoğrafını da ekleyebilirsiniz.",
-  },
-  {
-    n: "2",
-    title: "Uygulama planı hazırlar",
-    text: "Plan, ekibin uygunluğuna, İş Kanunu kurallarına ve herkesin iş yüküne göre birkaç saniyede hazırlanır. İstediğiniz vardiyayı elle değiştirebilirsiniz.",
-  },
-  {
-    n: "3",
-    title: "Planı yayınlarsınız",
-    text: "Yayınladığınızda ekibinizin telefonuna bildirim gider. İzin ve değişiklik istekleri size gelir.",
-  },
-];
-
 const FEATURES = [
-  { icon: Sparkles, title: "Yapay zekâ ile kurulum", text: "İşletmenizi kendi cümlelerinizle anlatırsınız, kurulum birkaç dakikada biter." },
-  { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı her hafta taslak olarak hazırlanır. Siz yayınlamadan ekibe gitmez." },
-  { icon: Scale, title: "Adalet puanı", text: "Hafta sonu ve zor vardiyalar kişiler arasında sırayla dağıtılır." },
-  { icon: Users, title: "Biri gelemezse yedek", text: "Kurallara uyan en uygun kişiler bulunur, vardiya tek dokunuşla devredilir." },
-  { icon: MessageSquareText, title: "İşletme Asistanı", text: "Planınız, ekibiniz ve izinler hakkındaki sorularınızı yazarak sorarsınız." },
-  { icon: Building2, title: "Birden çok şube", text: "Bir kişi birden çok şubede çalışabilir, saatleri bütün şubelerde birlikte hesaplanır." },
+  { icon: Sparkles, title: "Fotoğraftan kurulum", text: "Kâğıttaki çizelgenin fotoğrafını eklersiniz. Ekip, departmanlar ve vardiyalar okunur.", Scene: SetupScene },
+  { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı her hafta taslak olarak hazırlanır. Siz yayınlamadan ekibe gitmez.", Scene: PilotScene },
+  { icon: Scale, title: "Adalet puanı", text: "Hafta sonu ve zor vardiyalar kişiler arasında sırayla dağıtılır.", Scene: FairnessScene },
+  { icon: Users, title: "Biri gelemezse yedek", text: "Kurallara uyan en uygun kişiler sıralanır. Vardiya tek dokunuşla devredilir.", Scene: CoverScene },
+  { icon: MessageSquareText, title: "İşletme Asistanı", text: "Planınız, ekibiniz ve izinler hakkındaki sorularınızı yazarak sorarsınız.", Scene: AssistantMiniScene },
+  { icon: Building2, title: "Birden çok şube", text: "Bir kişi birden çok şubede çalışabilir. Saatleri bütün şubelerde birlikte hesaplanır.", Scene: BranchesScene },
 ];
 
 const TEAM_POINTS = [
@@ -82,10 +66,7 @@ export default function LandingPage() {
 
           <div className="relative mx-auto w-full min-w-0 max-w-[660px] lg:mr-0">
             <div className="m-up relative" style={d(150)}>
-              <AppWindow title={`${KAFE.location} · Vardiya Planı`}>
-                <div className="sm:hidden"><ScheduleBoard sector={KAFE} compact animate /></div>
-                <div className="hidden sm:block"><ScheduleBoard sector={KAFE} animate /></div>
-              </AppWindow>
+              <HeroPlan />
             </div>
           </div>
         </div>
@@ -94,20 +75,10 @@ export default function LandingPage() {
       {/* ─── Nasıl çalışır ────────────────────────────────────── */}
       <section id="nasil" className="scroll-mt-20 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <Reveal className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planı üç adımda yayınlarsınız.</h2>
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <h2 className="m-up font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-6xl">Planı üç adımda yayınlarsınız.</h2>
           </Reveal>
-          <div className="grid gap-5 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <Reveal key={s.n} className="flex">
-                <div className="m-up flex w-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8" style={d(i * 120)}>
-                  <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-forest-700 font-serif text-lg font-semibold text-white">{s.n}</span>
-                  <h3 className="text-xl font-semibold text-slate-900">{s.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{s.text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <StepsShowcase />
         </div>
       </section>
 
@@ -115,9 +86,9 @@ export default function LandingPage() {
       <section id="tur" className="scroll-mt-20 bg-white py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Uygulamayı adım adım görün.</h2>
-            <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(100)}>
-              Örnek bir kafede planın hazırlanması, ekibin telefonu, onaylar ve yedek bulma.
+            <h2 className="m-up font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-6xl">Plan yayınlandıktan sonra</h2>
+            <p className="m-up mt-4 text-lg text-slate-600 sm:text-xl" style={d(100)}>
+              Ekibin telefonu, izin onayları, gelemeyen kişiye yedek ve asistan, örnek bir kafede.
             </p>
           </Reveal>
           <ProductTour />
@@ -128,17 +99,20 @@ export default function LandingPage() {
       <section id="features" className="scroll-mt-20 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">Planı uygulama hazırlar, son kararı siz verirsiniz.</h2>
+            <h2 className="m-up font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-6xl">Planı uygulama hazırlar, son kararı siz verirsiniz.</h2>
           </Reveal>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, text }, i) => (
+            {FEATURES.map(({ icon: Icon, title, text, Scene }, i) => (
               <Reveal key={title} className="flex">
-                <div className="m-up flex w-full gap-4 rounded-3xl bg-white p-6 ring-1 ring-slate-900/5 sm:p-7" style={d((i % 3) * 100)}>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"><Icon size={20} /></span>
-                  <span>
-                    <span className="block text-lg font-semibold text-slate-900">{title}</span>
-                    <span className="mt-1 block text-[15px] leading-relaxed text-slate-600">{text}</span>
-                  </span>
+                <div className="m-up flex w-full flex-col rounded-3xl bg-white p-5 ring-1 ring-slate-900/5 transition-shadow duration-300 hover:shadow-[0_24px_60px_-30px_rgba(10,33,30,0.45)] sm:p-6" style={d((i % 3) * 100)}>
+                  <Scene />
+                  <div className="mt-5 flex gap-3.5">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"><Icon size={19} /></span>
+                    <span>
+                      <span className="block text-lg font-semibold text-slate-900">{title}</span>
+                      <span className="mt-1 block text-[15px] leading-relaxed text-slate-600">{text}</span>
+                    </span>
+                  </div>
                 </div>
               </Reveal>
             ))}

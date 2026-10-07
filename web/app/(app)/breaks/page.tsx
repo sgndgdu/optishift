@@ -160,7 +160,7 @@ function BreaksPageInner() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Coffee size={14} className="text-amber-500" />
-          <h2 className="text-xs font-bold text-slate-500">Şu An Molada</h2>
+          <h2 className="text-xs font-semibold text-slate-500">Şu An Molada</h2>
         </div>
         {loading && <p className="text-sm text-slate-400">Yükleniyor…</p>}
         {!loading && active.length === 0 && (
@@ -205,7 +205,7 @@ function BreaksPageInner() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Users size={14} className="text-emerald-500" />
-          <h2 className="text-xs font-bold text-slate-500">Aktif Personel</h2>
+          <h2 className="text-xs font-semibold text-slate-500">Aktif Personel</h2>
           <span className="text-xs text-slate-400">(Mola başlat)</span>
         </div>
         {!loading && available.length === 0 && (
@@ -220,7 +220,7 @@ function BreaksPageInner() {
               onClick={() => startBreak(p)}
               className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all group text-left"
             >
-              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0">
+              <div className="w-9 h-9 rounded-full bg-forest-100 flex items-center justify-center text-xs font-semibold text-forest-600 shrink-0">
                 {p.name.charAt(0)}
               </div>
               <div className="min-w-0 flex-1">
@@ -238,17 +238,17 @@ function BreaksPageInner() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 size={14} className="text-slate-400" />
-            <h2 className="text-xs font-bold text-slate-500">Bugünkü Molalar</h2>
+            <h2 className="text-xs font-semibold text-slate-500">Bugünkü Molalar</h2>
           </div>
           <div className="space-y-1.5">
             {done.map(s => (
               <div key={s.id} className="bg-white rounded-xl border border-slate-100 px-4 py-2.5 flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
+                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-500 shrink-0">
                   {s.personnel_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <Link href="/personnel" className="text-sm font-semibold text-slate-700 flex-1 hover:underline hover:text-primary">{s.personnel_name}</Link>
                 <p className="text-xs text-slate-400">{formatHM(s.start_at)} – {formatHM(s.end_at)}</p>
-                <span className="text-xs font-bold text-slate-500">{s.duration_min} dk</span>
+                <span className="text-xs font-semibold text-slate-500">{s.duration_min} dk</span>
               </div>
             ))}
           </div>
@@ -257,7 +257,7 @@ function BreaksPageInner() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}

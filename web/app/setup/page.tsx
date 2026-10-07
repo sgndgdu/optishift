@@ -178,7 +178,7 @@ function SetupForm() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Ad Soyad
               </label>
               <div className="relative">
@@ -195,7 +195,7 @@ function SetupForm() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Telefon <span className="text-slate-400 font-normal normal-case">(isteğe bağlı)</span>
               </label>
               <div className="relative">
@@ -211,11 +211,11 @@ function SetupForm() {
             </div>
 
             <div className="border-t border-slate-100 pt-5">
-              <p className="text-xs font-bold text-slate-400 mb-4">Yeni Şifreniz</p>
+              <p className="text-xs font-semibold text-slate-400 mb-4">Yeni Şifreniz</p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">
+                  <label className="text-xs font-semibold text-slate-700 mb-2 block">
                     Şifre
                   </label>
                   <div className="relative">
@@ -248,7 +248,7 @@ function SetupForm() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-2 block">
+                  <label className="text-xs font-semibold text-slate-700 mb-2 block">
                     Şifre Tekrar
                   </label>
                   <div className="relative">

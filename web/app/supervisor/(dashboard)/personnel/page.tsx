@@ -231,7 +231,7 @@ function SupervisorPersonnelInner() {
       </Sheet>
 
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
       )}
     </Page>
   );

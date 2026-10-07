@@ -124,7 +124,7 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
                     <BellRing size={18} className="shrink-0 text-forest-700" />
                     <p className="flex-1 text-xs text-forest-900">Biri izin istediğinde ya da vardiyasına gelemeyeceğinde telefonunuza hemen haber gelsin.</p>
                     <button onClick={enablePush} disabled={push === "saving"}
-                      className="min-h-[36px] shrink-0 rounded-lg bg-forest-700 px-3 text-xs font-bold text-white hover:bg-forest-800 disabled:opacity-60">
+                      className="min-h-[36px] shrink-0 rounded-lg bg-forest-700 px-3 text-xs font-semibold text-white hover:bg-forest-800 disabled:opacity-60">
                       {push === "saving" ? "Açılıyor…" : "Telefon bildirimlerini aç"}
                     </button>
                   </div>

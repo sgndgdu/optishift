@@ -304,13 +304,13 @@ export default function PortalDashboard() {
           {/* label */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-forest-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
+              <div className="flex items-center gap-1.5 text-forest-200 text-xs font-semibold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
                 {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
                 {isCheckedIn ? "Şu an çalışıyorsunuz" : isCompleted ? `${words.Shift} bitti` : "Bugün"}
               </div>
             </div>
             {todayShift && (
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
                 isCompleted ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" :
                 isCheckedIn ? "bg-amber-400/20 text-amber-200 border-amber-400/30 animate-pulse" :
                               "bg-white/10 text-white/80 border-white/20"
@@ -321,7 +321,7 @@ export default function PortalDashboard() {
           </div>
 
           {todayOnCall && !dataLoading && (
-            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-bold text-violet-50"
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-semibold text-violet-50"
               title="Nöbet: evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
               Bugün nöbetçisin · {todayOnCall.start_time}–{todayOnCall.end_time}
             </div>
@@ -415,7 +415,7 @@ export default function PortalDashboard() {
       {/* ── Önceki vardiyadan devir notu ─────────────────────────────────── */}
       {todayShift && !isCompleted && handoverNotes.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
-          <p className="text-xs font-bold text-amber-800">📋 Önceki Vardiyadan Devir Notu</p>
+          <p className="text-xs font-semibold text-amber-800">📋 Önceki Vardiyadan Devir Notu</p>
           {handoverNotes.map((n, i) => (
             <div key={i} className="bg-white/70 rounded-xl px-3 py-2">
               <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
@@ -428,7 +428,7 @@ export default function PortalDashboard() {
       {/* ── Görevlerim (rules.task_management_enabled) ──────────────────── */}
       {todayShift && shiftTasks.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
-          <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
             <ClipboardList size={14} /> Görevlerim
             <span className="ml-auto text-slate-400 font-bold normal-case">
               {shiftTasks.filter(t => t.is_completed).length}/{shiftTasks.length}
@@ -506,7 +506,7 @@ export default function PortalDashboard() {
               <span className="block text-sm font-bold text-slate-800">Yaklaşan {words.shift}larınız</span>
               <span className="block text-xs font-semibold text-slate-400">Bu hafta {shifts.length} {words.shift} · {totalHours.toFixed(0)} saat</span>
             </span>
-            <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">Tümü <ChevronRight size={13} /></Link>
+            <Link href="/portal/calendar" className="text-xs font-semibold text-primary flex items-center gap-0.5">Tümü <ChevronRight size={13} /></Link>
           </div>
           <div className="divide-y divide-slate-50">
             {nextShifts.map(s => {
@@ -514,7 +514,7 @@ export default function PortalDashboard() {
               return (
                 <Link key={s.id} href="/portal/calendar" className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
                   <div className="w-11 shrink-0 text-center rounded-xl py-1 bg-slate-100 text-slate-600">
-                    <p className="text-xs font-bold">{SHORT[s.day]}</p>
+                    <p className="text-xs font-semibold">{SHORT[s.day]}</p>
                     <p className="text-sm font-bold leading-none mt-0.5">{Number(addDays(s.week_start, Number(s.day)).slice(8))}</p>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -534,13 +534,13 @@ export default function PortalDashboard() {
         {/* Uygunluk uyarı kutusu çıkıyorsa kısayol tekrar etmez */}
         {availEnabled === true && !(nextWeekAvail === false && !nextWeekPublished) && (
           <Link href="/portal/availability"
-            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
             <Clock size={13} /> Uygunluk
           </Link>
         )}
         {openShiftsEnabled && openShiftCount > 0 && (
           <Link href="/portal/open-shifts"
-            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
             <Megaphone size={13} /> {words.OpenShifts} ({openShiftCount})
           </Link>
         )}
@@ -588,7 +588,7 @@ export default function PortalDashboard() {
             <p className="text-xs text-ember-600 mt-0.5">Gelemeyeceğiniz günleri işaretleyin. Bütün günler uygunsa da bir kez kaydedin.</p>
           </div>
           <Link href="/portal/availability"
-            className="text-xs font-bold text-ember-700 bg-white border border-ember-200 px-4 min-h-[44px] inline-flex items-center rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">
+            className="text-xs font-semibold text-ember-700 bg-white border border-ember-200 px-4 min-h-[44px] inline-flex items-center rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">
             Aç
           </Link>
         </div>

@@ -276,7 +276,7 @@ export default function OpenShiftsPage() {
                             className="shrink-0 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                             {assigning === selected.id ? "Atanıyor…" : "Ata"}
                           </button>
-                          ) : <span className="shrink-0 text-[10px] text-slate-400 text-right leading-tight">İlan ona<br />duyuruldu</span>}
+                          ) : <span className="shrink-0 text-[11px] text-slate-400 text-right leading-tight">İlan ona<br />duyuruldu</span>}
                         </li>
                       ))}
                     </List>
@@ -335,7 +335,7 @@ export default function OpenShiftsPage() {
       </Sheet>
 
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-[60] animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-[60] animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}
@@ -353,7 +353,7 @@ function DateBadge({ date }: { date: string }) {
   return (
     <span aria-hidden className="w-10 h-10 shrink-0 rounded-xl bg-slate-100 flex flex-col items-center justify-center leading-none">
       <span className="text-sm font-bold text-slate-900">{d.getDate()}</span>
-      <span className="text-[10px] font-medium text-slate-500 mt-0.5">{d.toLocaleDateString("tr-TR", { month: "short" })}</span>
+      <span className="text-[11px] font-medium text-slate-500 mt-0.5">{d.toLocaleDateString("tr-TR", { month: "short" })}</span>
     </span>
   );
 }

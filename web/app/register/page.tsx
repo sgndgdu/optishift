@@ -312,19 +312,19 @@ export default function RegisterPage() {
                       </div>
                     </div>
                     {promoCheck.status === "valid" && (
-                      <p className="text-xs font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-emerald-600 mt-1.5 flex items-center gap-1">
                         <Check size={12} /> Kod geçerli, {promoCheck.freeMonths} ay ücretsiz Pro paket!
                       </p>
                     )}
                     {promoCheck.status === "invalid" && (
-                      <p className="text-xs font-bold text-red-500 mt-1.5">Bu kod geçersiz veya süresi dolmuş.</p>
+                      <p className="text-xs font-semibold text-red-500 mt-1.5">Bu kod geçersiz veya süresi dolmuş.</p>
                     )}
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowPromoField(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-ember-600 transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-ember-600 transition-colors"
                   >
                     <Gift size={13} /> Kampanya kodunuz var mı?
                   </button>

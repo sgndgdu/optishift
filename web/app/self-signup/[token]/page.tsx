@@ -139,7 +139,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Ad Soyad
               </label>
               <div className="relative">
@@ -156,7 +156,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Telefon <span className="text-slate-400 font-normal normal-case">(isteğe bağlı)</span>
               </label>
               <div className="relative">
@@ -172,7 +172,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Şifre
               </label>
               <div className="relative">
@@ -197,7 +197,7 @@ export default function SelfSignupPage({ params }: { params: Promise<{ token: st
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-2 block">
+              <label className="text-xs font-semibold text-slate-700 mb-2 block">
                 Şifre Tekrar
               </label>
               <div className="relative">

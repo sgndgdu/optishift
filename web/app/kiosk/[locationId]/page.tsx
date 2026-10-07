@@ -190,7 +190,7 @@ export default function KioskPage({ params }: { params: Promise<{ locationId: st
                     key={key}
                     onClick={() => pressKey(key)}
                     disabled={submitting}
-                    className="text-white/40 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 py-6 disabled:opacity-40"
+                    className="text-white/40 text-xs font-semibold rounded-2xl bg-white/5 hover:bg-white/10 py-6 disabled:opacity-40"
                   >
                     TEMİZLE
                   </button>

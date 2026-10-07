@@ -87,7 +87,7 @@ function TimePicker({ currentMin, isEnd, statusCfg, onApply, onClose }: {
 
         {/* Saat */}
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs font-bold text-slate-400">Saat</span>
+          <span className="text-xs font-semibold text-slate-400">Saat</span>
           <button onClick={() => setHour(h => Math.min(maxHour, h + 1))}
             className="w-9 h-9 bg-white rounded-xl shadow-sm text-slate-600 font-bold text-lg flex items-center justify-center active:scale-95 transition-transform">+</button>
           <div className="text-center min-w-[52px]">
@@ -104,7 +104,7 @@ function TimePicker({ currentMin, isEnd, statusCfg, onApply, onClose }: {
 
         {/* Dakika — 4 pill */}
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs font-bold text-slate-400">Dakika</span>
+          <span className="text-xs font-semibold text-slate-400">Dakika</span>
           <div className="grid grid-cols-2 gap-1.5">
             {[0, 15, 30, 45].map(m => (
               <button key={m} onClick={() => setMin(m)}
@@ -192,7 +192,7 @@ function RangeSlider({ start, end, status, onChange }: {
           <div className="text-2xl font-bold text-slate-800 tabular-nums leading-none">{displayTime(sMin)}</div>
         </button>
 
-        <div className={`text-xs font-bold px-2.5 py-1 rounded-full mb-0.5 ${cfg.light} ${cfg.ltext}`}>
+        <div className={`text-xs font-semibold px-2.5 py-1 rounded-full mb-0.5 ${cfg.light} ${cfg.ltext}`}>
           {durLabel}
         </div>
 
@@ -432,7 +432,7 @@ export default function PortalAvailability() {
             className="p-2 rounded-xl text-slate-500 hover:bg-white disabled:opacity-30 transition-all">
             <ChevronLeft size={15} />
           </button>
-          <span className="text-xs font-bold text-slate-600 px-1.5 min-w-[72px] text-center">
+          <span className="text-xs font-semibold text-slate-600 px-1.5 min-w-[72px] text-center">
             {weekOffset === 0 ? "Bu hafta" : weekOffset === 1 ? "Gelecek hafta" : `${weekOffset} hafta sonra`}
           </span>
           <button onClick={() => setWeekOffset(o => o + 1)}
@@ -451,7 +451,7 @@ export default function PortalAvailability() {
             <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da vardiya değiştirme isteyebilirsiniz.</p>
           </div>
           <Link href="/portal/requests"
-            className="text-xs font-bold text-sky-700 bg-white border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-50 transition-colors shrink-0">
+            className="text-xs font-semibold text-sky-700 bg-white border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-50 transition-colors shrink-0">
             Talepler
           </Link>
         </div>
@@ -487,7 +487,7 @@ export default function PortalAvailability() {
           <div className="flex items-center justify-between gap-2 px-1">
             {hasPrevWeek ? (
             <button onClick={copyLastWeek}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">
               <Copy size={13} /> Geçen haftanın aynısı
             </button>
             ) : <span />}
@@ -517,7 +517,7 @@ export default function PortalAvailability() {
                         const active = d.status === s;
                         return (
                           <button key={s} onClick={() => setStatus(i, s)}
-                            className={`flex items-center justify-center gap-1 flex-1 min-h-[44px] px-1 rounded-xl text-xs font-bold transition-all ${
+                            className={`flex items-center justify-center gap-1 flex-1 min-h-[44px] px-1 rounded-xl text-xs font-semibold transition-all ${
                               active
                                 ? `${c.bg} ${c.text} shadow-sm`
                                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -533,14 +533,14 @@ export default function PortalAvailability() {
                   {/* Saat seçimi: Tüm gün (varsayılan) · belirli vardiya · özel saat. İstenirse açılır. */}
                   {d.status !== "unavailable" && !expanded.has(i) && !d.start && (
                     <button onClick={() => setExpanded(prev => new Set(prev).add(i))}
-                      className="mt-1 min-h-[44px] text-xs font-bold text-slate-500 hover:text-primary">
+                      className="mt-1 min-h-[44px] text-xs font-semibold text-slate-500 hover:text-primary">
                       + Saat sınırı ekle
                     </button>
                   )}
                   {d.status !== "unavailable" && (expanded.has(i) || !!d.start) && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {(() => {
-                        const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                        const chip = (active: boolean) => `flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                           active ? `${cfg.bg} ${cfg.text} border-transparent shadow-sm` : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`;
                         return (
                           <>

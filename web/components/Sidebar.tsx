@@ -360,7 +360,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
       {/* Location Selector (Custom Dropdown) */}
       <div className="px-3 mb-8 [@media(max-height:860px)]:mb-4">
         {/* Tek şubeli işletme "şube" kavramını görmez */}
-        <p className="text-xs font-bold text-slate-400 mb-2">{scope === "all" || locations.length > 1 || orgBranchCount > 1 ? "Şube" : "İşletme"}</p>
+        <p className="text-xs font-semibold text-slate-400 mb-2">{scope === "all" || locations.length > 1 || orgBranchCount > 1 ? "Şube" : "İşletme"}</p>
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -436,7 +436,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
             <button
               onClick={toggleMore}
               aria-expanded={open}
-              className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              className="w-full flex items-center gap-2 px-3 pt-4 pb-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
             >
               Daha Fazla
               <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />

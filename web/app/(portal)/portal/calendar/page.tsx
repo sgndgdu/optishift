@@ -162,7 +162,7 @@ export default function PortalCalendar() {
                     onClick={shift && date >= fixFrom ? () => setPicked({ id: shift.id, past: isPast, label: `${DAYS[d]} ${shift.start_time}–${shift.end_time}` }) : undefined}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${isToday ? "border-primary/40 bg-primary/5" : "border-slate-100 bg-white"} ${isPast ? "opacity-50" : ""} ${shift && date >= fixFrom ? "cursor-pointer active:bg-slate-50" : ""}`}>
                     <div className={`w-12 shrink-0 text-center rounded-xl py-1.5 ${isToday ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>
-                      <p className="text-xs font-bold uppercase">{DAY_SHORT[d]}</p>
+                      <p className="text-xs font-semibold uppercase">{DAY_SHORT[d]}</p>
                       <p className="text-sm font-bold leading-none mt-0.5">{Number(date.slice(8))}</p>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ export default function PortalCalendar() {
                         </>
                       )}
                       {onCall && (
-                        <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
+                        <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700"
                           title="Evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
                           Nöbet · {onCall.start_time}–{onCall.end_time}
                         </p>
@@ -250,7 +250,7 @@ export default function PortalCalendar() {
                       <div className="divide-y divide-slate-50">
                         {[...groups.values()].map(g => (
                           <div key={g[0].id} className="px-4 py-2.5">
-                            <p className="text-xs font-bold text-slate-500 tabular-nums">
+                            <p className="text-xs font-semibold text-slate-500 tabular-nums">
                               {g[0].shift_name ? `${g[0].shift_name} · ` : ""}{g[0].start_time}–{g[0].end_time}
                             </p>
                             <div className="mt-1 flex flex-wrap gap-1.5">

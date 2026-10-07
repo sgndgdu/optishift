@@ -66,7 +66,7 @@ function AlertRow({ alert }: { alert: WeekAlert }) {
         {alert.detail && open && <div className={cn("text-xs mt-1", t.sub)}>{alert.detail}</div>}
       </div>
       {alert.action && (
-        <button onClick={alert.action.onClick} className={cn("text-xs font-bold underline shrink-0", t.btn)}>
+        <button onClick={alert.action.onClick} className={cn("text-xs font-semibold underline shrink-0", t.btn)}>
           {alert.action.label}
         </button>
       )}
@@ -141,7 +141,7 @@ export default function WeekCopilot({ alerts, snapshot, insights, onAction, onJu
                         )}
                       </div>
                       {i.action && (
-                        <button onClick={() => onAction(i.action!)} className="text-xs font-bold text-forest-700 underline shrink-0 self-start">
+                        <button onClick={() => onAction(i.action!)} className="text-xs font-semibold text-forest-700 underline shrink-0 self-start">
                           {ACTION_LABEL[i.action]}
                         </button>
                       )}

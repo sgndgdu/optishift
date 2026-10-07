@@ -367,7 +367,7 @@ export default function OnboardingWizard() {
                 {/* İsteğe bağlı bölümler: alt türün önerileri, seçilen departman olarak açılır */}
                 {[...new Set([...(getVariant(getIndustry(industry)!, variant).departments ?? []), ...pickedDepts])].length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-400">Bölümleriniz <span className="font-normal">(isteğe bağlı; her birine kaç kişi gerektiğini ayrı girersiniz)</span></p>
+                    <p className="text-xs font-semibold text-slate-400">Bölümleriniz <span className="font-normal">(isteğe bağlı; her birine kaç kişi gerektiğini ayrı girersiniz)</span></p>
                     <div className="flex flex-wrap gap-2">
                       {[...new Set([...(getVariant(getIndustry(industry)!, variant).departments ?? []), ...pickedDepts])].map(d => {
                         const on = pickedDepts.includes(d);
@@ -386,7 +386,7 @@ export default function OnboardingWizard() {
                   <div className="space-y-2.5">
                     {nameEdit || !(branches[0] ?? "").trim() ? (
                       <>
-                        <p className="text-xs font-bold text-slate-400">İşletmenizin adı</p>
+                        <p className="text-xs font-semibold text-slate-400">İşletmenizin adı</p>
                         <input
                           value={branches[0] ?? ""}
                           onChange={e => updateBranch(0, e.target.value)}
@@ -406,10 +406,10 @@ export default function OnboardingWizard() {
                   </div>
                 ) : (
                 <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-slate-400">Şubeler (sonradan da eklenebilir)</p>
+                  <p className="text-xs font-semibold text-slate-400">Şubeler (sonradan da eklenebilir)</p>
                   {branches.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
+                      <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-xs font-semibold text-slate-500 shrink-0">
                         {i + 1}
                       </div>
                       <input
@@ -455,7 +455,7 @@ export default function OnboardingWizard() {
                         <input type="time" value={s.start}
                           onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
-                        <span className="text-slate-400 text-xs font-bold">–</span>
+                        <span className="text-slate-400 text-xs font-semibold">–</span>
                         <input type="time" value={s.end}
                           onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-white" />
@@ -494,7 +494,7 @@ export default function OnboardingWizard() {
                   {demandKeys.map(dept => (
                     <div key={dept || "_"}>
                       {dept && <p className="mb-2 text-sm font-bold text-slate-800">{dept}</p>}
-                      <div className="grid gap-1 text-[12px]" style={{ gridTemplateColumns: "minmax(64px,1.2fr) repeat(7, minmax(0,1fr))" }}>
+                      <div className="grid gap-1 text-[13px]" style={{ gridTemplateColumns: "minmax(64px,1.2fr) repeat(7, minmax(0,1fr))" }}>
                         <div />
                         {DAY_SHORT.map((d, i) => <div key={d} className={`text-center font-semibold ${i >= 5 ? "text-ember-600" : "text-slate-400"}`}>{d}</div>)}
                         {shifts.filter(s => s.name.trim()).map(s => (

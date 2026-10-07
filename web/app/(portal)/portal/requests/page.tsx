@@ -618,7 +618,7 @@ export default function PortalRequests() {
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <Clock size={14} className="text-forest-600" />
-                <h2 className="text-xs font-bold text-slate-500">Fazla Mesai Onayları</h2>
+                <h2 className="text-xs font-semibold text-slate-500">Fazla Mesai Onayları</h2>
                 <CountBadge tone="brand" className="ml-1" count={overtimePending.length} />
               </div>
               {overtimePending.map((r: any) => (
@@ -641,19 +641,19 @@ export default function PortalRequests() {
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => respondOvertime(r.id, "accepted", "paid")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <CheckCircle2 size={14} /> Kabul · Zamlı Ücret
                     </button>
                     <button
                       onClick={() => respondOvertime(r.id, "accepted", "time_off")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/5 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-semibold hover:bg-primary/5 transition-colors"
                     >
                       <CalendarOff size={14} /> Kabul · Serbest Zaman
                     </button>
                     <button
                       onClick={() => respondOvertime(r.id, "declined")}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-semibold text-slate-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <XCircle size={14} /> Reddet
                     </button>
@@ -669,7 +669,7 @@ export default function PortalRequests() {
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <ShieldAlert size={14} className="text-amber-600" />
-                <h2 className="text-xs font-bold text-slate-500">Zorunlu Atama Talepleri</h2>
+                <h2 className="text-xs font-semibold text-slate-500">Zorunlu Atama Talepleri</h2>
                 <CountBadge tone="attention" className="ml-1" count={forceAssigns.length} />
               </div>
               {forceAssigns.map((fa: any) => (
@@ -700,7 +700,7 @@ export default function PortalRequests() {
             {(forceAssigns.length > 0 || overtimePending.length > 0) && (
               <div className="flex items-center gap-1.5">
                 <ArrowLeftRight size={14} className="text-slate-400" />
-                <h2 className="text-xs font-bold text-slate-500">Gelen Vardiya Değiştirme Teklifleri</h2>
+                <h2 className="text-xs font-semibold text-slate-500">Gelen Vardiya Değiştirme Teklifleri</h2>
               </div>
             )}
           {swapsIn.length === 0 ? (
@@ -800,7 +800,7 @@ export default function PortalRequests() {
           {/* ── GELEMİYORUM: vardiyayı ekibe duyur (açık vardiya ilanı) ── */}
           {openShiftsEnabled && newType === "giveaway" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2">
-              <p className="text-xs font-bold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
+              <p className="text-xs font-semibold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
               {myShifts.length === 0 && (
                 <div className="text-sm text-slate-500 text-center py-6 space-y-2">
                   <p>Yaklaşan yayınlanmış vardiyanız yok.</p>
@@ -813,7 +813,7 @@ export default function PortalRequests() {
                 return busy
                   ? <div key={s.id} className="opacity-50 pointer-events-none relative">
                       <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
                     </div>
                   : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
               })}
@@ -836,7 +836,7 @@ export default function PortalRequests() {
               {/* Progress */}
               <div className="flex border-b border-slate-100">
                 {["Vardiyan", "Kiminle", "Onun vardiyası", "Onay"].map((s, i) => (
-                  <div key={i} className={`flex-1 py-2.5 text-center text-xs sm:text-xs font-bold transition-colors px-1 ${
+                  <div key={i} className={`flex-1 py-2.5 text-center text-xs sm:text-xs font-semibold transition-colors px-1 ${
                     swapStep === i ? "bg-primary text-white" : swapStep > i ? "bg-primary/10 text-primary" : "text-slate-400"
                   }`}>{s}</div>
                 ))}
@@ -845,14 +845,14 @@ export default function PortalRequests() {
               <div className="p-4">
                 {swapStep === 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Değiştirmek istediğiniz vardiyayı seçin:</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-3">Değiştirmek istediğiniz vardiyayı seçin:</p>
                     {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyanız yok. Sorumlunuz planı yayınlayınca vardiyalarınız burada görünür.</p>}
                     {myShifts.map(s => {
                       const busy = shiftBusy(s);
                       return busy
                         ? <div key={s.id} className="opacity-50 pointer-events-none relative">
                             <ShiftOption shift={s} names={shiftNames} selected={false} onSelect={() => {}} />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">{busy}</span>
                           </div>
                         : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
                     })}
@@ -862,7 +862,7 @@ export default function PortalRequests() {
 
                 {swapStep === 1 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Kiminle değiştirmek istiyorsunuz?</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-3">Kiminle değiştirmek istiyorsunuz?</p>
                     {matesLoading && <p className="text-sm text-slate-400 text-center py-6">Yükleniyor…</p>}
                     {!matesLoading && teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Bu vardiyayı alabilecek ekip arkadaşı yok.</p>}
                     {teammates.map(p => {
@@ -878,7 +878,7 @@ export default function PortalRequests() {
                           : selMate?.id === p.id ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-forest-100 flex items-center justify-center text-xs font-semibold text-forest-600 shrink-0">
                           {p.name.charAt(0)}
                         </div>
                         <div>
@@ -901,7 +901,7 @@ export default function PortalRequests() {
 
                 {swapStep === 2 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını size versin?</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını size versin?</p>
                     {theirShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan vardiyaları yok.</p>}
                     {theirShifts.map(s => (s.problems?.length ?? 0) > 0
                       ? <div key={s.id} className="opacity-60 pointer-events-none">
@@ -925,7 +925,7 @@ export default function PortalRequests() {
                       <p><span className="font-bold">Teklif alıcı:</span> {selMate?.name}</p>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 mb-1.5 block">Not (isteğe bağlı)</label>
+                      <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Not (isteğe bağlı)</label>
                       <textarea
                         value={swapNote}
                         onChange={e => setSwapNote(e.target.value)}
@@ -959,7 +959,7 @@ export default function PortalRequests() {
           {editRequestsEnabled && newType === "edit" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğiniz vardiyayı seçin:</p>
+                <p className="text-xs font-semibold text-slate-500 mb-2">Düzenlemek istediğiniz vardiyayı seçin:</p>
                 {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyanız yok. Sorumlunuz planı yayınlayınca vardiyalarınız burada görünür.</p>}
                 <div className="space-y-2">
                   {myShifts.map(s => (
@@ -970,7 +970,7 @@ export default function PortalRequests() {
               {editShift && (
                 <>
                   <div>
-                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsunuz?</label>
+                    <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsunuz?</label>
                     <textarea
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
@@ -1026,7 +1026,7 @@ export default function PortalRequests() {
 
               {/* Şube kuralları ayrı kutuda gösterilmez: mazeret zorunluysa not alanı söyler, tek gün ise tek tarih alanı çıkar */}
               <div>
-                <label className="text-xs font-bold text-slate-400 mb-1.5 block">İzin Türü</label>
+                <label className="text-xs font-semibold text-slate-400 mb-1.5 block">İzin Türü</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {LEAVE_TYPES.filter(t => leaveOther || MAIN_LEAVE_TYPES.includes(t) || leaveType === t).map(t => (
                     <button
@@ -1054,7 +1054,7 @@ export default function PortalRequests() {
               {/* Tarih alanları — çoklu gün kapalıysa bitiş = başlangıç */}
               <div className={leavePolicy?.allow_multi_day === false ? "" : "grid grid-cols-2 gap-3"}>
                 <div>
-                  <label className="text-xs font-bold text-slate-400 mb-1.5 block">
+                  <label className="text-xs font-semibold text-slate-400 mb-1.5 block">
                     {leavePolicy?.allow_multi_day === false ? "İzin Tarihi" : "Başlangıç"}
                   </label>
                   <input
@@ -1069,7 +1069,7 @@ export default function PortalRequests() {
                 </div>
                 {leavePolicy?.allow_multi_day !== false && (
                   <div>
-                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Bitiş</label>
+                    <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Bitiş</label>
                     <input type="date" value={leaveEnd} min={leaveStart}
                       onChange={e => setLeaveEnd(e.target.value)}
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-primary transition-colors" />
@@ -1083,7 +1083,7 @@ export default function PortalRequests() {
               )}
 
               <div>
-                <label className="text-xs font-bold text-slate-400 mb-1.5 block">
+                <label className="text-xs font-semibold text-slate-400 mb-1.5 block">
                   Mazeret / Açıklama {leavePolicy?.require_reason && <span className="text-red-500">*</span>}
                 </label>
                 <textarea
@@ -1118,7 +1118,7 @@ export default function PortalRequests() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-28 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 whitespace-nowrap ${
+        <div className={`fixed bottom-28 left-1/2 -translate-x-1/2 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 whitespace-nowrap ${
           toast.type === "error" ? "bg-red-600" : "bg-slate-900"
         }`}>
           {toast.msg}
@@ -1135,7 +1135,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-slate-400">{icon}</span>
-        <h2 className="text-xs font-bold text-slate-500">{title}</h2>
+        <h2 className="text-xs font-semibold text-slate-500">{title}</h2>
       </div>
       <div className="space-y-2">{children}</div>
     </div>
@@ -1185,7 +1185,7 @@ function SwapSteps({ status }: { status: string }) {
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${dotCls[states[i]]}`}>
               {states[i] === "done" ? "✓" : states[i] === "failed" ? "✕" : i + 1}
             </span>
-            <span className={`text-xs font-bold ${labelCls[states[i]]}`}>{label}</span>
+            <span className={`text-xs font-semibold ${labelCls[states[i]]}`}>{label}</span>
           </div>
           {i < STEPS.length - 1 && (
             <div className={`flex-1 h-px mx-1 ${states[i] === "done" ? "bg-emerald-200" : "bg-slate-100"}`} />

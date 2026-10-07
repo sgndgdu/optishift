@@ -340,19 +340,19 @@ export default function PersonnelPage() {
                 <input readOnly value={url} className="flex-1 min-w-[200px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-600" />
                 <button
                   onClick={() => { navigator.clipboard.writeText(url); setSelfSignupCopied(true); setTimeout(() => setSelfSignupCopied(false), 2000); }}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${selfSignupCopied ? "bg-emerald-500 text-white" : "bg-forest-600 hover:bg-forest-700 text-white"}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${selfSignupCopied ? "bg-emerald-500 text-white" : "bg-forest-600 hover:bg-forest-700 text-white"}`}
                 >
                   {selfSignupCopied ? <Check size={13} /> : <Copy size={13} />} {selfSignupCopied ? "Kopyalandı" : "Kopyala"}
                 </button>
                 <button onClick={() => handleSelfSignup("generate")} disabled={selfSignupLoading} className="p-2 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-xl transition-colors disabled:opacity-50" title="Linki Yenile (eskisi geçersiz olur)">
                   {selfSignupLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                 </button>
-                <button onClick={() => handleSelfSignup("disable")} disabled={selfSignupLoading} className="px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50">
+                <button onClick={() => handleSelfSignup("disable")} disabled={selfSignupLoading} className="px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50">
                   Kapat
                 </button>
               </div>
             ) : (
-              <button onClick={() => handleSelfSignup("generate")} disabled={selfSignupLoading} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+              <button onClick={() => handleSelfSignup("generate")} disabled={selfSignupLoading} className="flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
                 {selfSignupLoading ? <Loader2 size={14} className="animate-spin" /> : <Link size={14} />} Kayıt Linki Oluştur
               </button>
             )}
@@ -472,15 +472,15 @@ export default function PersonnelPage() {
               {locations.length <= 1 ? null : useMultiSelect ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600">Şube(ler) *</label>
+                    <label className="text-xs font-semibold text-slate-600">Şube(ler) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => { setSelLocIds(locations.map(l => l.id)); setSelDeptIds([]); }} className="text-xs font-semibold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => { setSelLocIds([]); setSelDeptIds([]); }} className="text-xs font-semibold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     {locations.length === 0 ? <span className="text-xs text-slate-400">Şube bulunamadı</span> : locations.map(l => (
-                      <button key={l.id} type="button" onClick={() => toggleLoc(l.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                      <button key={l.id} type="button" onClick={() => toggleLoc(l.id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1 ${selLocIds.includes(l.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                         {selLocIds.includes(l.id) && <Check size={10} />}{l.name}
                       </button>
                     ))}
@@ -500,15 +500,15 @@ export default function PersonnelPage() {
               {useMultiSelect && selLocIds.length > 0 && allSelectedDepts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-600">Departman(lar) *</label>
+                    <label className="text-xs font-semibold text-slate-600">Departman(lar) *</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-xs font-bold text-forest-600 hover:underline">Tümünü Seç</button>
-                      <button type="button" onClick={() => setSelDeptIds([])} className="text-xs font-bold text-slate-400 hover:underline">Temizle</button>
+                      <button type="button" onClick={() => setSelDeptIds(allSelectedDepts.map(d => d.id))} className="text-xs font-semibold text-forest-600 hover:underline">Tümünü Seç</button>
+                      <button type="button" onClick={() => setSelDeptIds([])} className="text-xs font-semibold text-slate-400 hover:underline">Temizle</button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     {allSelectedDepts.length === 0 ? <span className="text-xs text-slate-400">Seçili şubeler için departman bulunamadı</span> : allSelectedDepts.map(d => (
-                      <button key={d.id} type="button" onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                      <button key={d.id} type="button" onClick={() => setSelDeptIds(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1 ${selDeptIds.includes(d.id) ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                         {selDeptIds.includes(d.id) && <Check size={10} />}{d.label}
                       </button>
                     ))}
@@ -547,7 +547,7 @@ export default function PersonnelPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 max-w-xs">{toast}</div>
       )}
     </Page>
   );

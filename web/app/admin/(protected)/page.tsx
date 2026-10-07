@@ -296,7 +296,7 @@ export default function AdminOverviewPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span
-                      className="text-xs font-bold tabular-nums"
+                      className="text-xs font-semibold tabular-nums"
                       style={{
                         color:
                           org.health_score >= 60

@@ -191,7 +191,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start md:items-center justify-center p-3 md:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Yeni Şube Aç">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl my-auto">
         <div className="flex items-center justify-between px-5 md:px-8 pt-5 md:pt-6">
-          <p className="text-xs font-bold text-slate-400">Yeni Şube Aç</p>
+          <p className="text-xs font-semibold text-slate-400">Yeni Şube Aç</p>
           <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30" aria-label="Kapat">
             <X size={18} />
           </button>
@@ -215,14 +215,14 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
                     {highlights.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-slate-500 mb-1.5">Bu şube için açılan özellikler</p>
+                        <p className="text-xs font-semibold text-slate-500 mb-1.5">Bu şube için açılan özellikler</p>
                         <div className="flex flex-wrap gap-1.5">
                           {highlights.map(h => <StatusPill key={h} tone="brand">{h}</StatusPill>)}
                         </div>
                       </div>
                     )}
                     <div>
-                      <p className="text-xs font-bold text-slate-500 mb-1.5">İlk adımlar</p>
+                      <p className="text-xs font-semibold text-slate-500 mb-1.5">İlk adımlar</p>
                       <ul className="space-y-1">
                         {ind.nudges.firstSteps.map(t => <li key={t} className="text-sm text-slate-700 flex gap-2"><Check size={14} className="text-forest-600 shrink-0 mt-0.5" />{t}</li>)}
                       </ul>
@@ -241,7 +241,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   </div>
                   <p className="text-xs text-slate-500">Bu bilgileri sorumluya iletin. İlk girişte kendi şifresini belirleyecek. Şifre bir daha gösterilmez.</p>
                   <button onClick={copyCredentials}
-                    className={cn("flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors", copied ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
+                    className={cn("flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors", copied ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
                     {copied ? <><Check size={13} /> Kopyalandı</> : <><Copy size={13} /> Bilgileri Kopyala</>}
                   </button>
                 </div>
@@ -266,18 +266,18 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                     </p>
                   )}
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Şube adı</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Şube adı</label>
                     <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="örn. Kadıköy Şube" className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Şehir / ilçe <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Şehir / ilçe <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
                     <div className="relative">
                       <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={city} onChange={e => setCity(e.target.value)} placeholder="İstanbul, Kadıköy" className={cn(inputCls, "pl-10")} />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">İşletme türü</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">İşletme türü</label>
                     <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
                   </div>
                 </WizardStep>
@@ -301,7 +301,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                           placeholder="Vardiya adı" className="flex-1 min-w-[120px] text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-primary" />
                         <input type="time" value={s.start} onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-primary" />
-                        <span className="text-slate-400 text-xs font-bold">→</span>
+                        <span className="text-slate-400 text-xs font-semibold">→</span>
                         <input type="time" value={s.end} onChange={e => setShifts(p => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
                           className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-primary" />
                         <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))} aria-label="Vardiyayı sil"
@@ -335,11 +335,11 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                   {addManager ? (
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">Ad soyad</label>
+                        <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Ad soyad</label>
                         <input value={managerName} onChange={e => setManagerName(e.target.value)} placeholder="örn. Ayşe Yılmaz" className={inputCls} />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">Telefon <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
+                        <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Telefon <span className="font-normal text-slate-400">(isteğe bağlı)</span></label>
                         <input value={managerPhone} onChange={e => setManagerPhone(e.target.value)} placeholder="05xx xxx xx xx" inputMode="tel" className={inputCls} />
                       </div>
                     </div>

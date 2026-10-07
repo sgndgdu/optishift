@@ -270,7 +270,7 @@ export default function SupervisorReports() {
                       }
                       trailing={<span className="text-right">
                         <span className="block text-sm font-semibold text-slate-700 tabular-nums">{formatScore(p.prev_score)}</span>
-                        <span className="block text-[11px] text-slate-400">{scoreVsAverageText(p.prev_score, branchAvg)}</span>
+                        <span className="block text-[12px] text-slate-400">{scoreVsAverageText(p.prev_score, branchAvg)}</span>
                       </span>}
                     />
                   ))),

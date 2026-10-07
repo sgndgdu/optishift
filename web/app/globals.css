@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 @theme {
+  /* Yazı ölçüsü (2026-10-07): küçük yazılar okunmuyordu; xs 12→13 px, sm 14→15 px */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+
   --font-sans: var(--font-inter);
   --font-serif: var(--font-fraunces);
 
@@ -248,8 +254,8 @@
 
 .field-input {
   width: 100%;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   background: #f8fafc;

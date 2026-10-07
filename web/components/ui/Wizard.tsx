@@ -37,7 +37,7 @@ export function WizardProgress({ steps, current, className = "" }: {
               }`}>
                 {done ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}
               </div>
-              <span className={`text-xs font-bold hidden sm:block ${
+              <span className={`text-xs font-semibold hidden sm:block ${
                 active ? "text-primary" : done ? "text-slate-600" : "text-slate-400"
               }`}>{s.label}</span>
             </div>

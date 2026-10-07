@@ -2511,14 +2511,14 @@ loading ? (
                 {departments.length === 0 && (locRules as Record<string, unknown>).industry === "callcenter" && (
                   <div className="px-5 py-3 border-t border-slate-100 bg-sky-50/50">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p className="flex-1 text-xs font-bold text-sky-900">Çağrı yoğunluğundan hesapla (Erlang C)</p>
+                      <p className="flex-1 text-xs font-semibold text-sky-900">Çağrı yoğunluğundan hesapla (Erlang C)</p>
                       {!callFormOpen && (
-                        <button onClick={openCallForm} className="text-xs font-bold px-3 py-2 rounded-lg text-sky-800 border border-sky-200 hover:bg-sky-100">Hesapla</button>
+                        <button onClick={openCallForm} className="text-xs font-semibold px-3 py-2 rounded-lg text-sky-800 border border-sky-200 hover:bg-sky-100">Hesapla</button>
                       )}
                     </div>
-                    {callSummary && !callFormOpen && <p className="text-[11px] text-sky-800 mt-1">{callSummary}</p>}
+                    {callSummary && !callFormOpen && <p className="text-[12px] text-sky-800 mt-1">{callSummary}</p>}
                     {callFormOpen && (
-                      <div className="mt-2 space-y-2 text-[11px] text-slate-700">
+                      <div className="mt-2 space-y-2 text-[12px] text-slate-700">
                         <div className="grid grid-cols-7 gap-1">
                           {DAYS.map((d, i) => (
                             <label key={d} className="flex flex-col items-center gap-0.5 font-semibold">
@@ -2568,16 +2568,16 @@ loading ? (
                   return (
                     <div className={cn("px-5 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3", demandEmpty ? "bg-forest-50/70" : "bg-white")}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-forest-800 flex items-center gap-1.5">
+                        <p className="text-xs font-semibold text-forest-800 flex items-center gap-1.5">
                           <Sparkles size={13} className="text-forest-600 shrink-0" />
                           {demandSuggestion.source === "history"
                             ? `Öneri: son ${demandSuggestion.history_weeks} yayınlanmış haftanın ortalaması`
                             : "Başlangıç önerisi: açık her gün, her vardiyaya 1 kişi"}
                         </p>
-                        {demandSuggestion.notes.map(n => <p key={n} className="text-[11px] text-slate-500 mt-0.5">{n}</p>)}
+                        {demandSuggestion.notes.map(n => <p key={n} className="text-[12px] text-slate-500 mt-0.5">{n}</p>)}
                       </div>
                       <button onClick={() => applyDemandSuggestion()}
-                        className={cn("shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors",
+                        className={cn("shrink-0 text-xs font-semibold px-3 py-2 rounded-lg transition-colors",
                           demandEmpty ? "bg-forest-600 text-white hover:bg-forest-700" : "text-forest-700 border border-forest-200 hover:bg-forest-50")}>
                         {demandEmpty ? "Tabloya uygula" : "Öneriyle değiştir"}
                       </button>
@@ -2587,9 +2587,9 @@ loading ? (
                 {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
                 {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
-                  <span className="text-[10px] font-bold text-slate-400 shrink-0">Kayıtlı tablolar</span>
+                  <span className="text-[11px] font-bold text-slate-400 shrink-0">Kayıtlı tablolar</span>
                   {Object.keys(demandTemplates).length === 0 && (
-                    <span className="text-[11px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
+                    <span className="text-[12px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
                   )}
                   {Object.keys(demandTemplates).map(name => (
                     <span key={name} className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg pl-2 pr-1 py-1">
@@ -2597,7 +2597,7 @@ loading ? (
                         onClick={() => handleTemplateApply(name)}
                         disabled={tplBusy}
                         title="Bu kayıtlı tabloyu uygula"
-                        className="text-[11px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
+                        className="text-[12px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
                       >
                         {name}
                       </button>
@@ -2616,12 +2616,12 @@ loading ? (
                       onChange={e => setTplName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") handleTemplateSave(); }}
                       placeholder="Tablo adı (örn. Bayram haftası)…"
-                      className="w-32 text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-forest-400"
+                      className="w-32 text-[12px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-forest-400"
                     />
                     <button
                       onClick={handleTemplateSave}
                       disabled={!tplName.trim() || tplBusy}
-                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors disabled:opacity-40 shrink-0"
+                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors disabled:opacity-40 shrink-0"
                     >
                       Bu tabloyu kaydet
                     </button>
@@ -2634,19 +2634,19 @@ loading ? (
                       <span className="font-bold">Bazı günler boş:</span> {demandGaps.join(" · ")}. Bu günlere kaç kişi gerektiği girilmezse herkes haftalık sınırına kadar yazılır.
                     </p>
                     <button type="button" onClick={fillAllDemand}
-                      className="shrink-0 text-xs font-bold px-3 py-2 rounded-lg bg-forest-600 text-white hover:bg-forest-700">Boş günleri doldur</button>
+                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-forest-600 text-white hover:bg-forest-700">Boş günleri doldur</button>
                   </div>
                 )}
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left py-2.5 px-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
                       {DAYS.map((d, i) => {
                         const isWeekend = i === 5 || i === 6;
                         return (
-                          <th key={d} className={cn("text-center py-2.5 px-2 text-[11px] font-bold uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
+                          <th key={d} className={cn("text-center py-2.5 px-2 text-[12px] font-bold uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
                             <div>{d}</div>
-                            <div className={cn("text-[10px] font-semibold mt-0.5", isWeekend ? "text-forest-300" : "text-slate-300")}>{dates[i]}</div>
+                            <div className={cn("text-[11px] font-semibold mt-0.5", isWeekend ? "text-forest-300" : "text-slate-300")}>{dates[i]}</div>
                           </th>
                         );
                       })}
@@ -2658,8 +2658,8 @@ loading ? (
                         <tr key={def.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                           <td className="py-2.5 px-5">
                             <span className="text-sm font-semibold text-slate-700">{def.name}</span>
-                            <span className="text-[10px] text-slate-400 ml-2">{def.start}–{def.end}</span>
-                            <span className="text-[10px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
+                            <span className="text-[11px] text-slate-400 ml-2">{def.start}–{def.end}</span>
+                            <span className="text-[11px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
                           </td>
                           {Array.from({ length: 7 }, (_, day) => {
                             const val = demandMatrix[def.id]?.[day] ?? 0;
@@ -2689,17 +2689,17 @@ loading ? (
                                     )}
                                   />
                                   {overLimit ? (
-                                    <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
+                                    <span className="text-[11px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
                                   ) : val > 0 && cellCount > 0 ? (
                                     // Atanan/gereken sadece plan varken anlamlı (boş haftada her kutu kırmızı "0/1" oluyordu)
                                     <span className={cn(
-                                      "text-[10px] font-bold leading-tight",
+                                      "text-[11px] font-bold leading-tight",
                                       coverState === "under" && "text-red-500",
                                       coverState === "ok"    && "text-emerald-600",
                                       coverState === "over"  && "text-sky-500",
                                     )}>{assigned}/{val}</span>
                                   ) : forecastMatrix[def.id]?.[day] != null ? (
-                                    <span className="text-[10px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
+                                    <span className="text-[11px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
                                   ) : null}
                                 </div>
                               </td>
@@ -2716,8 +2716,8 @@ loading ? (
                             <td colSpan={8} className="px-5 py-2">
                               <div className="flex items-center gap-2">
                                 <div className="w-0.5 h-4 rounded-full bg-forest-400 shrink-0" />
-                                <span className="text-xs font-bold text-slate-700">{departmentLabel(departments, dept)}</span>
-                                <span className="text-[10px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
+                                <span className="text-xs font-semibold text-slate-700">{departmentLabel(departments, dept)}</span>
+                                <span className="text-[11px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
                               </div>
                             </td>
                           </tr>
@@ -2726,8 +2726,8 @@ loading ? (
                             return (
                               <tr key={`${dept.id}-${def.id}`} className="border-b border-slate-50 hover:bg-slate-50/50">
                                 <td className="py-2.5 pl-8 pr-4">
-                                  <span className="text-[12px] font-semibold text-slate-600">{def.name}</span>
-                                  <span className="text-[10px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
+                                  <span className="text-[13px] font-semibold text-slate-600">{def.name}</span>
+                                  <span className="text-[11px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
                                 </td>
                                 {Array.from({ length: 7 }, (_, day) => {
                                   const val = deptRow[day] ?? 0;
@@ -2760,16 +2760,16 @@ loading ? (
                                           )}
                                         />
                                         {overLimit ? (
-                                          <span className="text-[10px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
+                                          <span className="text-[11px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
                                         ) : val > 0 && cellCount > 0 ? (
                                           <span className={cn(
-                                            "text-[10px] font-bold leading-tight",
+                                            "text-[11px] font-bold leading-tight",
                                             coverState === "under" && "text-red-500",
                                             coverState === "ok"    && "text-emerald-600",
                                             coverState === "over"  && "text-sky-500",
                                           )}>{assigned}/{val}</span>
                                         ) : forecastMatrix[def.id]?.[day] != null ? (
-                                          <span className="text-[10px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
+                                          <span className="text-[11px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
                                         ) : null}
                                       </div>
                                     </td>
@@ -2786,7 +2786,7 @@ loading ? (
                 </table>
                 {Object.keys(demandTemplates).length === 0 && !tplOpen && (
                   <button onClick={() => setTplOpen(true)}
-                    className="px-5 py-2.5 text-[11px] font-bold text-forest-600 hover:text-forest-800 transition-colors">
+                    className="px-5 py-2.5 text-[12px] font-bold text-forest-600 hover:text-forest-800 transition-colors">
                     Bu tabloyu kaydet (sonra tek dokunuşla uygula)
                   </button>
                 )}
@@ -2890,7 +2890,7 @@ loading ? (
 
             {/* Otomatik kayıt göstergesi */}
             {!isPublishedWeek && saveState !== "idle" && (
-              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
+              <span className="text-[12px] font-semibold text-slate-400 flex items-center gap-1 whitespace-nowrap">
                 {saveState === "saving" ? "Kaydediliyor…" : <><Check size={11} className="text-emerald-500" /> Kaydedildi</>}
               </span>
             )}
@@ -2954,15 +2954,15 @@ loading ? (
                     </a>
                     <div className="my-1 border-t border-slate-100" />
                     <button onClick={undo} disabled={!canUndo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[10px] text-slate-300 hidden sm:inline">Ctrl+Z</span>
+                      <Undo2 size={13} className="text-slate-400" /> Geri Al <span className="ml-auto text-[11px] text-slate-300 hidden sm:inline">Ctrl+Z</span>
                     </button>
                     <button onClick={redo} disabled={!canRedo} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[10px] text-slate-300 hidden sm:inline">Ctrl+Y</span>
+                      <Redo2 size={13} className="text-slate-400" /> Yeniden Yap <span className="ml-auto text-[11px] text-slate-300 hidden sm:inline">Ctrl+Y</span>
                     </button>
                     <div className="my-1 border-t border-slate-100" />
                     {/* Seyrek kullanılanlar: varsayılan kapalı */}
                     <button onClick={() => setAdvancedOpen(o => !o)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 transition-colors">
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors">
                       <ChevronDown size={13} className={cn("text-slate-400 transition-transform", !advancedOpen && "-rotate-90")} /> Gelişmiş
                     </button>
                     {advancedOpen && (
@@ -2989,9 +2989,9 @@ loading ? (
 
               {/* Birincil aksiyon: boş hafta → Planı Oluştur, taslak → Yayınla, yayınlanmış → Düzenle */}
               {viewOnly ? (
-                <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Sadece görüntüleme</span>
+                <span className="px-3 py-2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-xl">Sadece görüntüleme</span>
               ) : !canPublish && isPublishedWeek ? (
-                <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl">Yayınlandı</span>
+                <span className="px-3 py-2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-xl">Yayınlandı</span>
               ) : isPublishedWeek && !editUnlocked ? (
                 <button onClick={() => setEditUnlocked(true)}
                   className="px-4 py-2 text-xs md:text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
@@ -3005,7 +3005,7 @@ loading ? (
               ) : !canPublish ? (
                 chefDept && cellCount > 0 ? (
                   myDeptStatus?.submitted ? (
-                    <span className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl">✓ Onaya gönderildi</span>
+                    <span className="px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl">✓ Onaya gönderildi</span>
                   ) : (
                     <button onClick={handleSubmitForApproval} disabled={submitting}
                       className="px-4 py-2 text-xs md:text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50">
@@ -3013,7 +3013,7 @@ loading ? (
                     </button>
                   )
                 ) : (
-                  <span className="px-3 py-2 text-xs font-bold text-slate-500 bg-slate-100 rounded-xl" title="Planı yayınlama yetkiniz yok">Yayını sorumlunuz yapar</span>
+                  <span className="px-3 py-2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-xl" title="Planı yayınlama yetkiniz yok">Yayını sorumlunuz yapar</span>
                 )
               ) : (
                 <button onClick={handlePublish} disabled={publishLoading}
@@ -3122,7 +3122,7 @@ loading ? (
                     <span>{EVENT_TYPE_CONFIG[ev.type]?.emoji ?? "📌"}</span>
                     <span className="font-bold">{ev.title}</span>
                     {ev.note && <span className="opacity-60">({ev.note})</span>}
-                    <span className="text-[9px] opacity-50">haftalık</span>
+                    <span className="text-[10.5px] opacity-50">haftalık</span>
                     <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Sil"><X size={11} /></button>
                   </div>
                 ))}
@@ -3134,7 +3134,7 @@ loading ? (
           {demandOpen && !wizardOpen && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
-                <p className="flex-1 text-[11px] font-bold text-slate-500">Kaç kişi gerekli?</p>
+                <p className="flex-1 text-[12px] font-bold text-slate-500">Kaç kişi gerekli?</p>
                 <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
               </div>
               {demandTableEl}
@@ -3150,8 +3150,8 @@ loading ? (
                 <p className="text-xs text-amber-700 mt-0.5">{Object.keys(cellMap).length} adet vardiya üzerine yazılacak.</p>
               </div>
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => setConfirmCopy(false)} className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">İptal</button>
-                <button onClick={doCopyPrevWeek} className="px-3 py-1.5 text-xs font-bold text-white bg-forest-600 rounded-lg hover:bg-forest-700 transition-colors">Evet, Kopyala</button>
+                <button onClick={() => setConfirmCopy(false)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">İptal</button>
+                <button onClick={doCopyPrevWeek} className="px-3 py-1.5 text-xs font-semibold text-white bg-forest-600 rounded-lg hover:bg-forest-700 transition-colors">Evet, Kopyala</button>
               </div>
             </div>
           )}
@@ -3170,7 +3170,7 @@ loading ? (
                 <ul className="space-y-2">
                   {violationModal.problems.map(pr => (
                     <li key={pr.id}>
-                      <p className={cn("text-xs font-bold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
+                      <p className={cn("text-xs font-semibold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
                       <ul className={cn("text-xs space-y-0.5 list-disc list-inside", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>
                         {pr.lines.slice(0, 5).map((l, li) => {
                           const tg = pr.targets?.[li];
@@ -3184,13 +3184,13 @@ loading ? (
                 <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Bu uyarılar yayınlamayı engellemez, isterseniz düzeltebilirsiniz."}</p>
               </div>
               <div className="flex gap-2 shrink-0 sm:flex-col w-full sm:w-auto">
-                <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
+                <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
                 <button onClick={() => {
                   // İlk düzeltilebilir soruna götürür (eskiden sadece pencereyi kapatıyordu)
                   const first = violationModal.problems.flatMap(pr => pr.targets ?? []).find(Boolean);
                   setViolationModal(null);
                   if (first) jumpTo(first);
-                }} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap">Düzelt</button>
+                }} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap">Düzelt</button>
               </div>
             </div>
             ); })()
@@ -3211,10 +3211,10 @@ loading ? (
                   const got = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                   return (
                     <button key={i} onClick={() => setMobileDay(i)}
-                      className={cn("relative flex flex-col items-center py-1.5 rounded-lg text-[10px] font-bold transition-colors",
+                      className={cn("relative flex flex-col items-center py-1.5 rounded-lg text-[11px] font-bold transition-colors",
                         mobileDay === i ? "bg-forest-700 text-white" : "bg-white text-slate-600 border border-slate-200")}>
                       {DAYS[i]}
-                      <span className={cn("text-[9px] font-semibold", mobileDay === i ? "text-forest-100" : "text-slate-400")}>{dates[i]?.split(" ")[0]}</span>
+                      <span className={cn("text-[10.5px] font-semibold", mobileDay === i ? "text-forest-100" : "text-slate-400")}>{dates[i]?.split(" ")[0]}</span>
                       {need > 0 && got < need && isoDates[i] >= businessToday() && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />}
                     </button>
                   );
@@ -3226,10 +3226,10 @@ loading ? (
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-200">
                     <th className="sticky left-0 bg-white z-30 px-2 sm:px-3 py-3 text-left w-32 sm:w-44 align-bottom">
-                      <span className="text-[10px] font-bold text-slate-400">
+                      <span className="text-[11px] font-bold text-slate-400">
                         Ekip {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
-                      {showScores && <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal">İsimlerin altındaki çubuk Adalet Puanını gösterir</span>}
+                      {showScores && <span className="block text-[10.5px] font-medium text-slate-400 normal-case tracking-normal">İsimlerin altındaki çubuk Adalet Puanını gösterir</span>}
                     </th>
                     {Array.from({ length: 7 }, (_, i) => {
                       const isWeekend = i === 5 || i === 6;
@@ -3241,20 +3241,20 @@ loading ? (
                       const totalAssigned = Object.values(assignedCounts).reduce((sum, dm) => sum + (dm[i] ?? 0), 0);
                       return (
                         <th key={i} className={cn("py-2 px-1 text-center min-w-[80px] align-top", isWeekend ? "bg-forest-50/50" : "", mobileDay !== i && "hidden sm:table-cell")}>
-                          <div className={cn("text-[11px] font-bold", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
-                          <div className={cn("text-[10px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
+                          <div className={cn("text-[12px] font-bold", isWeekend ? "text-forest-600" : "text-slate-700")}>{DAYS[i]}</div>
+                          <div className={cn("text-[11px] mt-0.5 font-semibold", isWeekend ? "text-forest-400" : "text-slate-400")}>{dates[i]}</div>
                           {holiday && (
-                            <div className="mt-1 text-[9px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
+                            <div className="mt-1 text-[10.5px] bg-red-50 text-red-600 border border-red-100 rounded px-1 py-0.5 leading-tight font-semibold truncate" title={holiday}>
                               🎌 {holiday.length > 12 ? holiday.slice(0, 10) + "…" : holiday}
                             </div>
                           )}
                           {dayEvents.map(ev => (
-                            <div key={ev.id} className={cn("mt-0.5 text-[9px] rounded px-1 py-0.5 leading-tight font-semibold truncate border", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-50 text-slate-500 border-slate-100")} title={ev.title}>
+                            <div key={ev.id} className={cn("mt-0.5 text-[10.5px] rounded px-1 py-0.5 leading-tight font-semibold truncate border", EVENT_TYPE_CONFIG[ev.type]?.color ?? "bg-slate-50 text-slate-500 border-slate-100")} title={ev.title}>
                               {EVENT_TYPE_CONFIG[ev.type]?.emoji} {ev.title.length > 9 ? ev.title.slice(0, 7) + "…" : ev.title}
                             </div>
                           ))}
                           {weather[isoDate] && (
-                            <div className="text-[10px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
+                            <div className="text-[11px] text-slate-400 font-medium mt-0.5">{weather[isoDate].icon} {weather[isoDate].temp}°</div>
                           )}
                           {totalNeeded > 0 && cellCount > 0 && (
                             <div className="mt-1 w-fit mx-auto">
@@ -3301,8 +3301,8 @@ loading ? (
                             >
                               <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-200 group-hover:text-slate-600", isCollapsed && "-rotate-90")} />
                               <div className="w-2 h-2 rounded-full bg-forest-400 shrink-0" />
-                              <span className="text-xs font-bold text-slate-700">{row.dept.name}</span>
-                              <span className="text-[10px] text-slate-400 font-semibold">{byDeptCount[deptId]?.length ?? 0} kişi</span>
+                              <span className="text-xs font-semibold text-slate-700">{row.dept.name}</span>
+                              <span className="text-[11px] text-slate-400 font-semibold">{byDeptCount[deptId]?.length ?? 0} kişi</span>
                             </button>
                           </td>
                         </tr>
@@ -3321,7 +3321,7 @@ loading ? (
                       <tr key={p.id} data-person-row={p.id} className="border-t border-slate-100 hover:bg-slate-50/40 transition-colors group h-14">
                         <td className="sticky left-0 bg-white group-hover:bg-slate-50/40 z-10 px-2 sm:px-3 py-2 h-14">
                           <div className="flex items-center gap-2">
-                            <div className="hidden sm:flex w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            <div className="hidden sm:flex w-7 h-7 rounded-full bg-forest-100 text-forest-700 text-xs font-semibold flex items-center justify-center shrink-0">
                               {p.name.charAt(0)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -3340,7 +3340,7 @@ loading ? (
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
                                   <div className={cn("h-full rounded-full", fairnessBarColor(score, avgScore))} style={{ width: scoreBarWidth }} />
                                 </div>
-                                <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: kişinin son haftalarda ne kadar çalıştığını gösterir. Yüksek puan daha çok çalıştığı anlamına gelir.">{Math.round(score * 10) / 10}</span>
+                                <span className="text-[11px] text-slate-400 tabular-nums" title="Adalet Puanı: kişinin son haftalarda ne kadar çalıştığını gösterir. Yüksek puan daha çok çalıştığı anlamına gelir.">{Math.round(score * 10) / 10}</span>
                               </div>}
                             </div>
                             <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -3387,7 +3387,7 @@ loading ? (
                               title={readOnlyWeek
                                 ? "Nöbet: çağrıldıysa çalıştığı saati girmek için tıklayın"
                                 : `Nöbet ${ocDef.start}–${ocDef.end}: kişi evde bekler, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
-                              className="mt-0.5 mx-auto w-full max-w-[112px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
+                              className="mt-0.5 mx-auto w-full max-w-[112px] text-[10.5px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
                             >
                               {ocCallMin > 0
                                 ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} saat çağrıldı`
@@ -3407,8 +3407,8 @@ loading ? (
                                 title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlanmış haftada tıklayıp başka birine verebilirsiniz."
                                 className={cn("mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
                               >
-                                <div className="text-[10px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
-                                <div className="text-[9px] text-red-500">{label}</div>
+                                <div className="text-[11px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
+                                <div className="text-[10.5px] text-red-500">{label}</div>
                               </div>
                             );
                           }) : null;
@@ -3418,8 +3418,8 @@ loading ? (
                           const awayChip = away.length > 0 ? away.map((e, ai) => (
                             <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var. Bu vardiya o şubenin planından değiştirilir.`}
                               className="mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
-                              <div className="text-[10px] font-bold text-slate-600 truncate">{e.location_name}</div>
-                              <div className="text-[9px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
+                              <div className="text-[11px] font-bold text-slate-600 truncate">{e.location_name}</div>
+                              <div className="text-[10.5px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
                             </div>
                           )) : null;
 
@@ -3436,11 +3436,11 @@ loading ? (
                                     cell.id && "cursor-pointer hover:shadow-sm",
                                     forceData ? "bg-amber-50 border-amber-200" : cellIsNight ? "bg-indigo-50 border-indigo-200/70" : "bg-forest-50 border-forest-200/70"
                                   )}>
-                                    {matchedDef && <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>{matchedDef.name}</div>}
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
+                                    {matchedDef && <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>{matchedDef.name}</div>}
+                                    <div className={cn("text-[10.5px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
-                                    {otherDeptName(p, cell) && <div className="text-[9px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
+                                    {otherDeptName(p, cell) && <div className="text-[10.5px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
                                   </div>
                                 ) : !ocDef ? (
                                   <div className="flex items-center justify-center h-full">
@@ -3469,14 +3469,14 @@ loading ? (
                                     {cell.pinned && (
                                       <Pin size={10} aria-label="Korunuyor" className="absolute top-0.5 right-0.5 text-forest-600 rotate-45" />
                                     )}
-                                    <div className={cn("text-[11px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>
+                                    <div className={cn("text-[12px] font-bold truncate", forceData ? "text-amber-700" : cellIsNight ? "text-indigo-700" : "text-forest-700")}>
                                       {matchedDef ? matchedDef.name : "Özel"}
                                     </div>
-                                    <div className={cn("text-[9px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
+                                    <div className={cn("text-[10.5px]", forceData ? "text-amber-500" : cellIsNight ? "text-indigo-400" : "text-forest-400")}>
                                       {normTime(minToHHMM(cell.startMin))}–{normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}
                                     </div>
                                     {/* Joker başka departmana yazıldıysa o departmanın adı */}
-                                    {otherDeptName(p, cell) && <div className="text-[9px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
+                                    {otherDeptName(p, cell) && <div className="text-[10.5px] font-bold text-sky-700 truncate">{otherDeptName(p, cell)}</div>}
                                     {forceData && (
                                       <div className="text-[8px] text-amber-600 font-semibold">
                                         {forceData.status === "pending" ? "⏳" : forceData.status === "accepted" ? "✓" : "✗"}
@@ -3486,17 +3486,17 @@ loading ? (
                                 </DraggableShift>
                               ) : isOnLeave ? (
                                 <div className="w-full h-11 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center" title="Onaylı izin">
-                                  <span className="text-[10px] font-bold text-sky-600">İzinli</span>
+                                  <span className="text-[11px] font-bold text-sky-600">İzinli</span>
                                 </div>
                               ) : isWeeklyOff ? (
                                 <div className="w-full h-11 rounded-lg bg-amber-50 border border-amber-100 flex flex-col items-center justify-center gap-0.5">
-                                  <span className="text-[9px] font-bold text-amber-400">Haftalık</span>
-                                  <span className="text-[9px] font-bold text-amber-400">İzin</span>
+                                  <span className="text-[10.5px] font-bold text-amber-400">Haftalık</span>
+                                  <span className="text-[10.5px] font-bold text-amber-400">İzin</span>
                                 </div>
                               ) : isUnavailable ? (
                                 <div className="w-full h-11 rounded-lg bg-red-50 border border-red-200 flex flex-col items-center justify-center gap-0.5" title="Kesinlikle uygun değil">
                                   <X size={12} className="text-red-400" />
-                                  <span className="text-[9px] font-bold text-red-400">Gelemem</span>
+                                  <span className="text-[10.5px] font-bold text-red-400">Gelemem</span>
                                 </div>
                               ) : isPrefNot ? (
                                 <button
@@ -3504,9 +3504,9 @@ loading ? (
                                   className="w-full h-11 rounded-lg bg-amber-50 border border-amber-300 hover:border-amber-400 hover:bg-amber-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                   title={avail?.start && avail.end ? `Tercih etmiyor, ${avail.start}–${avail.end} arası gelebilir` : "Tercih etmiyor (gerekirse gelebilir)"}
                                 >
-                                  <span className="text-[10px] font-bold text-amber-600">~ Tercih etmem</span>
+                                  <span className="text-[11px] font-bold text-amber-600">~ Tercih etmem</span>
                                   {avail?.start && avail.end && (
-                                    <span className="text-[9px] text-amber-400">{avail.start}–{avail.end}</span>
+                                    <span className="text-[10.5px] text-amber-400">{avail.start}–{avail.end}</span>
                                   )}
                                   <Plus size={10} className="text-amber-400 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
                                 </button>
@@ -3516,9 +3516,9 @@ loading ? (
                                   className="w-full h-11 rounded-lg bg-emerald-50 border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                   title={avail?.start && avail.end ? `Uygun, ${avail.start}–${avail.end}` : "Uygun"}
                                 >
-                                  <span className="text-[10px] font-bold text-emerald-600 group-hover:opacity-0 transition-opacity">✓ Uygun</span>
+                                  <span className="text-[11px] font-bold text-emerald-600 group-hover:opacity-0 transition-opacity">✓ Uygun</span>
                                   {avail?.start && avail.end && (
-                                    <span className="text-[9px] text-emerald-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
+                                    <span className="text-[10.5px] text-emerald-400 group-hover:opacity-0 transition-opacity">{avail.start}–{avail.end}</span>
                                   )}
                                   <Plus size={13} className="text-emerald-500 opacity-0 group-hover:opacity-100 absolute transition-opacity" />
                                 </button>
@@ -3660,13 +3660,13 @@ loading ? (
                         </table>
                         {x.problems.length > 0 ? (
                           <div className="space-y-1.5">
-                            <p className="text-[11px] font-semibold text-slate-500">Senaryoda dikkat</p>
+                            <p className="text-[12px] font-semibold text-slate-500">Senaryoda dikkat</p>
                             {x.problems.slice(0, 5).map(pr => (
                               <p key={pr.id} className={cn("text-xs", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>• {pr.title}</p>
                             ))}
                           </div>
                         ) : <p className="text-xs text-emerald-700">Senaryoda kural sorunu görünmüyor.</p>}
-                        <p className="text-[11px] text-slate-400">İki plan da baştan aynı kurallarla hazırlandı. Mevcut planınız değişmedi. Bu değişikliği uygulamak isterseniz önce değişikliği yapın, sonra Planı Oluştur&apos;a basın.</p>
+                        <p className="text-[12px] text-slate-400">İki plan da baştan aynı kurallarla hazırlandı. Mevcut planınız değişmedi. Bu değişikliği uygulamak isterseniz önce değişikliği yapın, sonra Planı Oluştur&apos;a basın.</p>
                       </div>
                     );
                   })()}
@@ -3695,22 +3695,22 @@ loading ? (
                   <p className="text-xs text-slate-500">O gün uygun kimse yok (vardiyası, izni ya da &quot;gelemem&quot; günü olmayan). Vardiyayı ilana çıkarıp ekibe duyurabilirsiniz.</p>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold text-slate-500">Önerilen yedekler</p>
+                    <p className="text-[12px] font-semibold text-slate-500">Önerilen yedekler</p>
                     {[...absenceCands.filter(c => !c.other_branch).slice(0, 5), ...absenceCands.filter(c => c.other_branch)].map((c, i, arr) => (
                       <Fragment key={c.personnel_id}>
-                      {c.other_branch && !arr[i - 1]?.other_branch && <p className="text-[11px] font-semibold text-slate-500 pt-1">Diğer şubelerden</p>}
+                      {c.other_branch && !arr[i - 1]?.other_branch && <p className="text-[12px] font-semibold text-slate-500 pt-1">Diğer şubelerden</p>}
                       <div className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-400 w-4">{i + 1}</span>
+                          <span className="text-[12px] font-bold text-slate-400 w-4">{i + 1}</span>
                           <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</span>
                           {/* Başka şubenin çalışanını sadece patron/bölge müdürü atar; şube müdürü ilanla duyurur */}
                           {(!c.other_branch || viewerRole === "admin" || viewerRole === "supervisor") ? (
                             <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
-                              className="text-xs font-bold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
-                          ) : <span className="text-[10px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />ona da duyurulur</span>}
+                              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
+                          ) : <span className="text-[11px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />ona da duyurulur</span>}
                         </div>
-                        {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[11px] text-slate-500 ml-6">✓ {r}</p>)}
-                        {c.warnings.map(w => <p key={w} className="text-[11px] text-amber-700 ml-6">! {w}</p>)}
+                        {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[12px] text-slate-500 ml-6">✓ {r}</p>)}
+                        {c.warnings.map(w => <p key={w} className="text-[12px] text-amber-700 ml-6">! {w}</p>)}
                       </div>
                       </Fragment>
                     ))}
@@ -3737,11 +3737,11 @@ loading ? (
                   </div>
                 ))}
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] font-semibold text-slate-600">Başlangıç
+                  <label className="text-[12px] font-semibold text-slate-600">Başlangıç
                     <input type="time" value={calloutForm.start} onChange={e => setCalloutForm(f => ({ ...f, start: e.target.value }))}
                       className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
                   </label>
-                  <label className="text-[11px] font-semibold text-slate-600">Bitiş
+                  <label className="text-[12px] font-semibold text-slate-600">Bitiş
                     <input type="time" value={calloutForm.end} onChange={e => setCalloutForm(f => ({ ...f, end: e.target.value }))}
                       className="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
                   </label>
@@ -3824,13 +3824,13 @@ loading ? (
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{s.name}</span>
                     <span className="flex items-center gap-1">
-                      {wknd > 0 && <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} hafta sonu</span>}
-                      {nght > 0 && <span className="text-[9px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght} gece</span>}
-                      {prfn > 0 && <span className="text-[9px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn} istemediği gün</span>}
-                      <span className="text-xs font-bold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.score, avgScore)}>{formatScore(s.score)}</span>
+                      {wknd > 0 && <span className="text-[10.5px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} hafta sonu</span>}
+                      {nght > 0 && <span className="text-[10.5px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght} gece</span>}
+                      {prfn > 0 && <span className="text-[10.5px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn} istemediği gün</span>}
+                      <span className="text-xs font-semibold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.score, avgScore)}>{formatScore(s.score)}</span>
                     </span>
                   </div>
-                  {s.score > 0 && avgScore > 0 && <p className="text-[10px] text-slate-400 -mt-0.5 mb-1">{scoreVsAverageText(s.score, avgScore)}</p>}
+                  {s.score > 0 && avgScore > 0 && <p className="text-[11px] text-slate-400 -mt-0.5 mb-1">{scoreVsAverageText(s.score, avgScore)}</p>}
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all duration-300", fairnessBarColor(s.score, avgScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
                   </div>
@@ -3840,7 +3840,7 @@ loading ? (
             </div>
           )}
         </div>
-        <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
+        <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[11px] text-slate-400 leading-relaxed">
           <p>Puan, kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını gösterir. Puanı yüksek olan daha çok çalışmıştır. Otomatik plan önce puanı düşük olana vardiya verir.</p>
           <p>Kırmızı çubuk puanı ortalamanın belirgin üstünde, mavi çubuk altında olan kişiyi gösterir. Kesin puan plan yayınlanınca hesaplanır.</p>
         </div>
@@ -3864,7 +3864,7 @@ loading ? (
           {shiftDefs.length === 0 && (
             <div className="mb-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
               <BookOpen size={13} className="text-amber-500 shrink-0" />
-              <p className="text-[11px] text-amber-700">Tanımlı vardiya yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
+              <p className="text-[12px] text-amber-700">Tanımlı vardiya yok. <a href="/settings" className="font-bold underline" onClick={() => setPopover(null)}>Ayarlar&apos;dan ekle</a></p>
             </div>
           )}
           {hasExisting && (() => {
@@ -3884,10 +3884,10 @@ loading ? (
             if (!lines.length) return null;
             return (
               <details className="mb-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
-                <summary className="text-[11px] font-bold text-slate-600 cursor-pointer select-none">Neden bu kişi?</summary>
+                <summary className="text-[12px] font-bold text-slate-600 cursor-pointer select-none">Neden bu kişi?</summary>
                 <ul className="mt-1.5 space-y-1">
                   {lines.map(l => (
-                    <li key={l.text} className={cn("text-[11px] leading-snug", l.tone === "warn" ? "text-amber-700" : l.tone === "ok" ? "text-slate-700" : "text-slate-500")}>
+                    <li key={l.text} className={cn("text-[12px] leading-snug", l.tone === "warn" ? "text-amber-700" : l.tone === "ok" ? "text-slate-700" : "text-slate-500")}>
                       {l.tone === "warn" ? "! " : l.tone === "ok" ? "✓ " : "· "}{l.text}
                     </li>
                   ))}
@@ -3897,7 +3897,7 @@ loading ? (
           })()}
           {shiftDefs.some(d => !d.on_call) && (
             <div className="mb-3">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Vardiya</p>
+              <p className="text-[11px] text-slate-400 font-medium mb-1.5">Vardiya</p>
               <div className="flex flex-wrap gap-1.5">
                 {shiftDefs.filter(d => !d.on_call).map(def => {
                   const ds = hhmmToMin(def.start);
@@ -3943,14 +3943,14 @@ loading ? (
                 {isWknd && <StatusPill tone="attention">Hf. sonu</StatusPill>}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
                 {isPrfN && <StatusPill tone="attention">Tercih etmem</StatusPill>}
-                <span className="text-[10px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
+                <span className="text-[11px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
               </div>
             );
           })()}
           {popoverWarnings.length > 0 && (
             <div className="mt-2 space-y-1">
               {popoverWarnings.map((w, i) => (
-                <div key={i} className={cn("flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium", w.type === 'error' ? "bg-red-50 text-red-700 border border-red-100" : "bg-amber-50 text-amber-700 border border-amber-100")}>
+                <div key={i} className={cn("flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium", w.type === 'error' ? "bg-red-50 text-red-700 border border-red-100" : "bg-amber-50 text-amber-700 border border-amber-100")}>
                   <AlertCircle size={11} className="mt-0.5 shrink-0" />{w.msg}
                 </div>
               ))}
@@ -3993,7 +3993,7 @@ loading ? (
           {/* Birden çok departmanı olan kişi: bu vardiyada hangi departmanda çalışacak (sayaç o departmana sayar) */}
           {(popoverPerson?.department_ids?.length ?? 0) > 1 && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Bu vardiyada hangi departmanda?</p>
+              <p className="text-[11px] text-slate-400 font-medium mb-1.5">Bu vardiyada hangi departmanda?</p>
               <div className="flex flex-wrap gap-1.5">
                 {(popoverPerson!.department_ids as string[]).map(id => {
                   const active = (popover!.deptId ?? popoverPerson!.department_id) === id;
@@ -4010,7 +4010,7 @@ loading ? (
           )}
           {shiftDefs.some(d => d.on_call) && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Nöbet (evde bekler, çağrılırsa gelir)</p>
+              <p className="text-[11px] text-slate-400 font-medium mb-1.5">Nöbet (evde bekler, çağrılırsa gelir)</p>
               <div className="flex flex-wrap gap-1.5">
                 {[null, ...shiftDefs.filter(d => d.on_call)].map(def => {
                   const current = onCallMap[`${popover!.personnelId}-${popover!.day}`]?.defId ?? null;
@@ -4048,7 +4048,7 @@ loading ? (
 
             {/* Mevcut vardiya */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
-              <p className="text-[10px] font-bold text-slate-400 mb-1">Mevcut Vardiya</p>
+              <p className="text-[11px] font-bold text-slate-400 mb-1">Mevcut Vardiya</p>
               <p className="text-sm font-semibold text-slate-700">
                 {(() => {
                   const d = new Date(proposalModal.currentDate);
@@ -4060,14 +4060,14 @@ loading ? (
 
             {/* Önerilen gün */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 mb-2">Önerilen Gün</p>
+              <p className="text-[11px] font-bold text-slate-400 mb-2">Önerilen Gün</p>
               <div className="flex gap-1">
                 {DAYS.map((d, i) => (
                   <button
                     key={i}
                     onClick={() => setProposalDay(i)}
                     className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-colors",
+                      "flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-colors",
                       proposalDay === i
                         ? "bg-primary text-white border-primary"
                         : "bg-white text-slate-500 border-slate-200 hover:border-sky-300 hover:text-sky-600"
@@ -4077,13 +4077,13 @@ loading ? (
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-1 text-center">{isoDates[proposalDay]}</p>
+              <p className="text-[11px] text-slate-400 mt-1 text-center">{isoDates[proposalDay]}</p>
             </div>
 
             {/* Önerilen vardiya — şablondan seç */}
             {shiftDefs.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold text-slate-400 mb-2">Önerilen Vardiya</p>
+                <p className="text-[11px] font-bold text-slate-400 mb-2">Önerilen Vardiya</p>
                 <div className="flex flex-wrap gap-1.5">
                   {shiftDefs.map(def => {
                     const ds = hhmmToMin(def.start);
@@ -4100,7 +4100,7 @@ loading ? (
                         )}
                       >
                         {def.name}
-                        <span className="ml-1 opacity-60 font-normal text-[10px]">{def.start}–{def.end}</span>
+                        <span className="ml-1 opacity-60 font-normal text-[11px]">{def.start}–{def.end}</span>
                       </button>
                     );
                   })}
@@ -4129,7 +4129,7 @@ loading ? (
 
             {/* Not */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 mb-1.5">Not <span className="font-normal normal-case">(isteğe bağlı)</span></p>
+              <p className="text-[11px] font-bold text-slate-400 mb-1.5">Not <span className="font-normal normal-case">(isteğe bağlı)</span></p>
               <input
                 type="text" value={proposalNote} onChange={e => setProposalNote(e.target.value)}
                 placeholder="Neden değişiklik istiyorsunuz?"
@@ -4171,7 +4171,7 @@ loading ? (
                   </div>
                 </div>
               )}
-              {newEventScope === "week" && <p className="text-[11px] text-slate-400">Bu not bütün hafta için geçerlidir ve planın üstünde görünür.</p>}
+              {newEventScope === "week" && <p className="text-[12px] text-slate-400">Bu not bütün hafta için geçerlidir ve planın üstünde görünür.</p>}
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Tür</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -4193,7 +4193,7 @@ loading ? (
 
       <DragOverlay>
         {activeDragData?.type === "grid" ? (
-          <div className="p-2 px-3 bg-white border-2 border-forest-500 rounded-lg shadow-xl opacity-90 scale-105 text-xs font-bold z-[9999]">Taşınıyor...</div>
+          <div className="p-2 px-3 bg-white border-2 border-forest-500 rounded-lg shadow-xl opacity-90 scale-105 text-xs font-semibold z-[9999]">Taşınıyor...</div>
         ) : null}
       </DragOverlay>
     </DndContext>

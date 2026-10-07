@@ -162,7 +162,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
         <table className="w-full text-xs border-collapse min-w-[680px]">
           <thead>
             <tr className="border-b-2 border-slate-200">
-              <th className="py-3 px-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-40 sticky left-0 bg-white z-10">
+              <th className="py-3 px-5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-40 sticky left-0 bg-white z-10">
                 Ekip
               </th>
               {columnDates.map((col, i) => (
@@ -170,7 +170,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                   key={i}
                   className={`py-3 px-1 text-center min-w-[88px] ${WEEKEND_DAYS.includes(i) ? "bg-forest-50/60" : ""}`}
                 >
-                  <div className={`text-[10px] font-semibold ${WEEKEND_DAYS.includes(i) ? "text-forest-500" : "text-slate-400"}`}>
+                  <div className={`text-[11px] font-semibold ${WEEKEND_DAYS.includes(i) ? "text-forest-500" : "text-slate-400"}`}>
                     {col.abbr}
                   </div>
                   <div className={`text-lg font-bold leading-none ${WEEKEND_DAYS.includes(i) ? "text-forest-600" : "text-slate-700"}`}>
@@ -178,7 +178,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                   </div>
                 </th>
               ))}
-              <th className="py-3 px-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16">
+              <th className="py-3 px-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-16">
                 Saat
               </th>
             </tr>
@@ -193,7 +193,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                 /* Departman başlık satırı */
                 <tr key={`d-${deptId}`}>
                   <td colSpan={9} className="py-2 px-5 bg-slate-100/80 border-t border-b border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500">
+                    <span className="text-[11px] font-bold text-slate-500">
                       {dept?.name ?? "Diğer"}
                     </span>
                   </td>
@@ -212,9 +212,9 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                       <td className="py-2.5 px-5 sticky left-0 bg-white z-10">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{p.name.charAt(0)}</span>
+                            <span className="text-[11px] font-bold text-slate-500 uppercase">{p.name.charAt(0)}</span>
                           </div>
-                          <span className="font-semibold text-slate-800 text-[11px] truncate max-w-[90px]">{p.name}</span>
+                          <span className="font-semibold text-slate-800 text-[12px] truncate max-w-[90px]">{p.name}</span>
                         </div>
                       </td>
 
@@ -231,8 +231,8 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                           <td key={d} className={`py-1.5 px-1 text-center align-middle ${WEEKEND_DAYS.includes(d) ? "bg-forest-50/30" : ""}`}>
                             {cell ? (
                               <div className={`rounded-lg py-1 px-1.5 border ${color ? color.chip : "bg-slate-100 text-slate-700 border-slate-200"}`}>
-                                <div className="font-bold text-[10px] leading-snug">{sd?.name ?? "Özel"}</div>
-                                <div className="text-[9px] opacity-70 leading-snug">{cell.startTime}–{cell.endTime}</div>
+                                <div className="font-bold text-[11px] leading-snug">{sd?.name ?? "Özel"}</div>
+                                <div className="text-[10.5px] opacity-70 leading-snug">{cell.startTime}–{cell.endTime}</div>
                               </div>
                             ) : (
                               <span className="text-slate-200 text-base">·</span>
@@ -243,7 +243,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
 
                       {/* Toplam saat */}
                       <td className="py-1 px-3 text-center">
-                        <span className={`text-[11px] font-bold ${weekHours >= 40 ? "text-emerald-600" : weekHours > 0 ? "text-slate-600" : "text-slate-300"}`}>
+                        <span className={`text-[12px] font-bold ${weekHours >= 40 ? "text-emerald-600" : weekHours > 0 ? "text-slate-600" : "text-slate-300"}`}>
                           {weekHours > 0 ? `${Number.isInteger(weekHours) ? weekHours : weekHours.toFixed(1)}s` : "—"}
                         </span>
                       </td>
@@ -257,7 +257,7 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
           {/* Günlük özet */}
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td className="py-2.5 px-5 text-[10px] font-bold text-slate-400 sticky left-0 bg-slate-50 z-10">
+              <td className="py-2.5 px-5 text-[11px] font-bold text-slate-400 sticky left-0 bg-slate-50 z-10">
                 Günlük
               </td>
               {Array.from({ length: 7 }, (_, d) => {
@@ -267,17 +267,17 @@ function SnapshotGrid({ snapshot, weekStart }: { snapshot: Snapshot; weekStart: 
                   <td key={d} className={`py-2.5 px-1 text-center ${WEEKEND_DAYS.includes(d) ? "bg-forest-50/50" : ""}`}>
                     {dayAssignments.length > 0 ? (
                       <div>
-                        <div className="text-[10px] font-bold text-slate-700">{dayAssignments.length} kişi</div>
-                        <div className="text-[9px] text-slate-400">{Math.round(dayHours)}s</div>
+                        <div className="text-[11px] font-bold text-slate-700">{dayAssignments.length} kişi</div>
+                        <div className="text-[10.5px] text-slate-400">{Math.round(dayHours)}s</div>
                       </div>
                     ) : (
-                      <span className="text-slate-300 text-[10px]">—</span>
+                      <span className="text-slate-300 text-[11px]">—</span>
                     )}
                   </td>
                 );
               })}
               <td className="py-2.5 px-3 text-center">
-                <div className="text-[11px] font-bold text-slate-700">{Math.round(totalPersonHours)}s</div>
+                <div className="text-[12px] font-bold text-slate-700">{Math.round(totalPersonHours)}s</div>
               </td>
             </tr>
           </tfoot>

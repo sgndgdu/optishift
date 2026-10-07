@@ -466,7 +466,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                       const on = extraDepts.includes(d.id);
                       return (
                         <button key={d.id} type="button" onClick={() => setExtraDepts(v => (on ? v.filter(x => x !== d.id) : [...v, d.id]))}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                           {on && <Check size={10} className="inline mr-1" />}{departmentLabel(depts, d)}
                         </button>
                       );
@@ -580,7 +580,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                       {requiredDocStates.map(({ spec, state }) => (
                         <button key={spec.id} type="button" onClick={() => state !== "valid" && setNewDocType(spec.label)}
                           title={state === "valid" ? "Geçerli" : state === "expired" ? "Süresi dolmuş, yenisini ekleyin" : spec.strict ? "Zorunlu belge girilmemiş, bu kişi ilgili göreve yazılamaz" : "Girilmemiş"}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold border ${
+                          className={`px-2 py-1 rounded-lg text-xs font-semibold border ${
                             state === "valid" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                             : state === "expired" || spec.strict ? "bg-red-50 text-red-700 border-red-100"
                             : "bg-amber-50 text-amber-700 border-amber-100"}`}>
@@ -614,7 +614,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                       </datalist>
                     )}
                     <input type="date" value={newDocExpiry} onChange={e => setNewDocExpiry(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-xs bg-white focus:outline-none focus:border-forest-400" />
-                    <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                    <button type="button" onClick={handleAddDoc} disabled={!newDocType.trim() || !newDocExpiry} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">Ekle</button>
                   </div>
                   {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
                 </div>
@@ -634,7 +634,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                         return (
                           <button key={b.id} type="button" disabled={!canCrossBranch || isPrimary}
                             onClick={() => setBranchIds(ids => on ? ids.filter(x => x !== b.id) : [...ids, b.id])}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors disabled:cursor-default ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors disabled:cursor-default ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
                             {on && <Check size={10} className="inline mr-1" />}{b.name}{isPrimary && <span className="font-normal opacity-80"> (ana)</span>}
                           </button>
                         );
@@ -702,7 +702,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                       {teammates.filter(t => !pairs.some(x => x.otherId === t.id)).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                     <button type="button" onClick={addPair} disabled={!newPairWith}
-                      className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">Ekle</button>
+                      className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">Ekle</button>
                   </div>
                   {pairError && <p className="text-xs text-red-600 mt-1">{pairError}</p>}
                 </div>
@@ -725,7 +725,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                         inputMode="numeric"
                         className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-forest-400"
                       />
-                      <button type="button" onClick={handleSetKioskPin} disabled={!/^\d{4}$/.test(newKioskPin) || kioskPinSaving} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl hover:bg-forest-700">
+                      <button type="button" onClick={handleSetKioskPin} disabled={!/^\d{4}$/.test(newKioskPin) || kioskPinSaving} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">
                         {kioskPinSaving ? "..." : "Ata"}
                       </button>
                     </div>

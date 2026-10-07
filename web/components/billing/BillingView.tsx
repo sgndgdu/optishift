@@ -120,14 +120,14 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
           <Shield size={20} />
         </div>
         <div>
-          <p className="text-xs font-bold text-slate-400">Mevcut Plan</p>
+          <p className="text-xs font-semibold text-slate-400">Mevcut Plan</p>
           <p className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
             {getPlan(currentPlan).name}
             {currentPlan === "pro" && <StatusPill tone="positive">Aktif</StatusPill>}
           </p>
         </div>
         {!isStripeConfigured && (
-          <div className="ml-auto flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-bold text-amber-700">
+          <div className="ml-auto flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-semibold text-amber-700">
             <AlertCircle size={13} />
             Online ödeme yakında. Paket yükseltmek için bize e-postayla yazın.
           </div>
@@ -148,7 +148,7 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
               }`}
             >
               {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
                   Mevcut Plan
                 </div>
               )}
@@ -207,7 +207,7 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-24 right-4 lg:bottom-8 md:right-8 bg-slate-900 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-4 max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}

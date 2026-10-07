@@ -30,19 +30,19 @@ export default function QuickSetup({ shiftDefsCount, personnelCount, demandFille
       <div className="bg-forest-50/70 border border-forest-100 rounded-2xl px-4 py-3.5">
         <div className="flex items-center gap-2 mb-2.5">
           <Sparkles size={14} className="text-forest-500" />
-          <p className="text-xs font-bold text-forest-700">Hızlı Kurulum · {steps.filter(s => s.done).length}/3</p>
+          <p className="text-xs font-semibold text-forest-700">Hızlı Kurulum · {steps.filter(s => s.done).length}/3</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           {steps.map((s, i) => (
             <div key={s.key} className={`flex-1 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${s.done ? "bg-white border-emerald-200" : "bg-white border-slate-200"}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"}`}>
                 {s.done ? <Check size={13} /> : i + 1}
               </div>
               <span className={`text-xs font-semibold flex-1 ${s.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{s.label}</span>
               {!s.done && (
                 <button
                   onClick={s.action}
-                  className="text-xs font-bold text-forest-600 bg-forest-50 hover:bg-forest-100 border border-forest-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                  className="text-xs font-semibold text-forest-600 bg-forest-50 hover:bg-forest-100 border border-forest-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
                 >
                   Başla
                 </button>

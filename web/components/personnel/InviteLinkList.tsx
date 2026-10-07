@@ -45,13 +45,13 @@ export default function InviteLinkList({ results }: { results: InviteResult[] })
             <a
               href={`https://wa.me/?text=${encodeURIComponent(message(r))}`}
               target="_blank" rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
             >
               WhatsApp ile gönder
             </a>
             <button
               onClick={() => copy(link(r.invite_token), i)}
-              className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-colors", copied === i ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", copied === i ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100")}
             >
               {copied === i ? "Kopyalandı" : "Kopyala"}
             </button>

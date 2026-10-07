@@ -77,14 +77,14 @@ export default function IndustryPicker({ industry, variant, onChange, compact = 
 
       {selected && selected.variants.length > 1 && (
         <div>
-          <p className="text-xs font-bold text-slate-600 mb-1.5">Çalışma düzeni</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1.5">Çalışma düzeni</p>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Çalışma düzeni">
             {selected.variants.map(v => {
               const active = v.key === variant;
               return (
                 <button key={v.key} type="button" role="radio" aria-checked={active} title={v.description}
                   onClick={() => onChange(selected.key, v.key)}
-                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors",
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors",
                     active ? "border-primary bg-primary text-white" : "border-slate-200 text-slate-600 hover:border-slate-300")}>
                   {active && <Check size={12} />} {v.label}
                 </button>

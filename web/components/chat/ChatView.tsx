@@ -64,7 +64,7 @@ function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact |
       className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
         isSelected ? "bg-primary/5 border-r-2 border-primary" : "hover:bg-slate-50"
       }`}>
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 relative ${
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 relative ${
         c.type === "group" ? "bg-ember-100 text-ember-700" :
         c.accent ? "bg-amber-100 text-amber-700" : "bg-forest-100 text-forest-700"
       }`}>
@@ -365,7 +365,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
             <>
               {groupContacts.length > 0 && (
                 <>
-                  <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
+                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
                   {groupContacts.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
@@ -373,7 +373,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
               )}
               {individualContacts.length > 0 && (
                 <>
-                  <p className="text-xs font-bold text-slate-400 px-4 pt-3 pb-1">Kişiler</p>
+                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">Kişiler</p>
                   {individualContacts.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
@@ -405,8 +405,8 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
               {clearConfirm ? (
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs text-slate-500">Sohbet silinsin mi?</span>
-                  <button onClick={clearConversation} className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors">Sil</button>
-                  <button onClick={() => setClearConfirm(false)} className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors">İptal</button>
+                  <button onClick={clearConversation} className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors">Sil</button>
+                  <button onClick={() => setClearConfirm(false)} className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors">İptal</button>
                 </div>
               ) : (
                 <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
@@ -428,7 +428,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
                 <div key={date}>
                   <div className="flex items-center gap-3 my-3">
                     <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-xs font-bold text-slate-400">{date}</span>
+                    <span className="text-xs font-semibold text-slate-400">{date}</span>
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
                   <div className="space-y-1.5">
@@ -439,13 +439,13 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
                       return (
                         <div key={m.id} className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
                           {!isMe && (
-                            <div className="w-7 h-7 rounded-full bg-forest-100 flex items-center justify-center text-xs font-bold text-forest-600 shrink-0 mt-0.5">
+                            <div className="w-7 h-7 rounded-full bg-forest-100 flex items-center justify-center text-xs font-semibold text-forest-600 shrink-0 mt-0.5">
                               {name?.charAt(0)?.toUpperCase() ?? "?"}
                             </div>
                           )}
                           <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
                             {!isMe && selected.type === "group" && (
-                              <span className="text-xs font-bold text-slate-500 px-1">{name}</span>
+                              <span className="text-xs font-semibold text-slate-500 px-1">{name}</span>
                             )}
                             <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                               isMe
@@ -474,7 +474,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
 
             {newMsgCount > 0 && (
               <button onClick={scrollToBottom}
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg hover:bg-primary/90 transition-colors z-10">
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-primary/90 transition-colors z-10">
                 <ArrowDown size={12} />
                 {newMsgCount} yeni mesaj
               </button>

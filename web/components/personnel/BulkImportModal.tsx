@@ -152,11 +152,11 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
         ) : !rows ? (
           <div className="space-y-4 overflow-y-auto">
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-bold text-slate-600 mb-2">1. Şablonu indirin</p>
+              <p className="text-xs font-semibold text-slate-600 mb-2">1. Şablonu indirin</p>
               <p className="text-xs text-slate-500 mb-3">Sütunlar: <strong>İsim</strong> (zorunlu), Departman, Telefon, E-posta (isteğe bağlı).</p>
               <div className="flex flex-wrap gap-2">
-                <a href={tpl("xlsx")} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-forest-50 text-forest-700 hover:bg-forest-100"><Download size={14} /> Excel şablonu</a>
-                <a href={tpl("csv")} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><Download size={14} /> CSV şablonu</a>
+                <a href={tpl("xlsx")} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-forest-50 text-forest-700 hover:bg-forest-100"><Download size={14} /> Excel şablonu</a>
+                <a href={tpl("csv")} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><Download size={14} /> CSV şablonu</a>
               </div>
             </div>
             <div
@@ -165,7 +165,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) readFile(f); }}
             >
               <FileSpreadsheet size={28} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-600">2. Doldurduğunuz dosyayı yükleyin</p>
+              <p className="text-xs font-semibold text-slate-600">2. Doldurduğunuz dosyayı yükleyin</p>
               <p className="text-xs text-slate-400 mt-1">.xlsx ya da .csv · sürükleyip bırakabilirsiniz</p>
               <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt" className="hidden" aria-label="Ekip dosyası"
                 onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = ""; }} />
@@ -182,7 +182,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                 <div className="mt-2 space-y-2">
                   <textarea value={paste} onChange={e => setPaste(e.target.value)} placeholder={"İsim\tDepartman\tTelefon\nAyşe Kaya\tMutfak\t05321112233"}
                     className="w-full min-h-[140px] border border-slate-200 rounded-xl p-3 text-xs font-mono whitespace-pre focus:outline-none focus:border-forest-400" />
-                  <button onClick={usePaste} disabled={!paste.trim()} className="text-xs font-bold px-3 py-2 rounded-lg bg-slate-800 text-white disabled:opacity-40">Önizle</button>
+                  <button onClick={usePaste} disabled={!paste.trim()} className="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white disabled:opacity-40">Önizle</button>
                 </div>
               )}
             </div>

@@ -19,11 +19,11 @@ type Turn = { role: "user" | "assistant"; text: string; actions?: ProposedAction
 function ActionCard({ action, state, onApply, onSkip }: { action: ProposedAction; state: ActionState; onApply: () => void; onSkip: () => void }) {
   return (
     <div className="rounded-xl border border-forest-200 bg-white px-3 py-2.5 space-y-2">
-      <p className="text-xs font-bold text-forest-800">Önerilen işlem</p>
+      <p className="text-xs font-semibold text-forest-800">Önerilen işlem</p>
       <p className="text-sm text-slate-800">{action.title}</p>
       {state.status === "idle" && (
         <div className="flex gap-2">
-          <button onClick={onApply} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-700 text-white text-xs font-bold hover:bg-forest-800">
+          <button onClick={onApply} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-700 text-white text-xs font-semibold hover:bg-forest-800">
             <Check size={14} /> Uygula
           </button>
           <button onClick={onSkip} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50">Vazgeç</button>
