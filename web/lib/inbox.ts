@@ -63,7 +63,7 @@ export type InboxInput = {
   industrySelected?: boolean;
   /** Otomatik pilot (lib/autopilotRules): drafted = gelecek haftanın taslağını otomatik pilot hazırladı;
    *  upcoming = henüz hazırlamadı ama bu hafta hazırlayacak (gün gelmedi, ihtiyaç tablosu dolu). */
-  autopilot?: { drafted: boolean; upcoming: boolean; dayName: string };
+  autopilot?: { drafted: boolean; upcoming: boolean; when: string }; // when: "Perşembe 08:00"
 };
 
 const ORDER: Record<InboxSeverity, number> = { critical: 0, today: 1, week: 2 };
@@ -195,7 +195,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
         ? {
             id: "next-week",
             severity: "week",
-            title: `Gelecek haftanın planı ${ap.dayName} sabahı otomatik hazırlanacak`,
+            title: `Gelecek haftanın planı ${ap.when} saatinde otomatik hazırlanacak`,
             detail: pub ? "Siz kontrol edip yayınlarsınız. İsterseniz planı şimdi de oluşturabilirsiniz." : "Siz kontrol edip onaya gönderirsiniz. İsterseniz planı şimdi de oluşturabilirsiniz.",
             action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
           }

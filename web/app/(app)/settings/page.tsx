@@ -14,7 +14,7 @@ import type { Location, ShiftDefinition, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { sortDepartments } from "@/lib/departments";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
-import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, autopilotSettings } from "@/lib/autopilotRules";
+import { AUTOPILOT_DAY_NAMES, AUTOPILOT_DEFAULT_DAY, AUTOPILOT_DEFAULT_HOUR, autopilotSettings } from "@/lib/autopilotRules";
 import { isCategoryLocked, LOCK_NOTE, type LockCategory } from "@/lib/ruleLocks";
 import { hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
 import BranchAccountTab from "@/components/BranchAccountTab";
@@ -309,9 +309,10 @@ export default function SettingsPage() {
   // Bildirim state
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDay, setReminderDay] = useState("0");
-  // Otomatik pilot (lib/autopilotRules): varsayılan açık, Perşembe
+  // Otomatik pilot (lib/autopilotRules): varsayılan açık, Perşembe 08:00
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
   const [autopilotDay, setAutopilotDay] = useState(String(AUTOPILOT_DEFAULT_DAY));
+  const [autopilotHour, setAutopilotHour] = useState(String(AUTOPILOT_DEFAULT_HOUR));
   const [reminderTime, setReminderTime] = useState("18:00");
 
   // Lokasyon state
@@ -486,6 +487,7 @@ export default function SettingsPage() {
           const ap = autopilotSettings(loc.rules);
           setAutopilotEnabled(ap.enabled);
           setAutopilotDay(String(ap.day));
+          setAutopilotHour(String(ap.hour));
           const ar = loc.rules?.availability_reminder;
           if (ar) {
             setReminderEnabled(!!ar.enabled);
@@ -593,6 +595,7 @@ export default function SettingsPage() {
             reminderTime: loc.rules?.availability_reminder?.time ?? "18:00",
             autopilotEnabled: autopilotSettings(loc.rules).enabled,
             autopilotDay: String(autopilotSettings(loc.rules).day),
+            autopilotHour: String(autopilotSettings(loc.rules).hour),
             editRequestsEnabled: loc.rules?.edit_requests_enabled !== false,
             checkinRequired: !!loc.rules?.checkin_required,
             chatEnabled: loc.rules?.chat_enabled !== false,
@@ -653,7 +656,7 @@ export default function SettingsPage() {
       hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
-      reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
+      reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
       editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
@@ -671,7 +674,7 @@ export default function SettingsPage() {
     hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
-    reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
+    reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
     editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
@@ -826,6 +829,7 @@ export default function SettingsPage() {
               ...((baseRules.autopilot as Record<string, unknown> | undefined) ?? {}),
               enabled: autopilotEnabled,
               day: parseInt(autopilotDay),
+              hour: parseInt(autopilotHour),
             },
             // Müdür bu alanı gönderse de sunucu yok sayar (applyRuleLocks)
             edit_requests_enabled:              editRequestsEnabled,
@@ -876,7 +880,7 @@ export default function SettingsPage() {
         hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
-        reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
+        reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
         editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,
@@ -1459,14 +1463,14 @@ export default function SettingsPage() {
                 Çoğu işletme bu ayarları hiç değiştirmeden kullanır. Açmak için başlığa dokunun.
               </p>
               <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-              <SettingsGroup id="autopilot" title="Otomatik Pilot" description="Gelecek haftanın planını her hafta taslak olarak hazırlama" open={!!openGroups["autopilot"]} onToggle={toggleGroup}>
+              <SettingsGroup id="autopilot" title="Otomatik Pilot" description="Gelecek haftanın planını her hafta seçtiğiniz gün ve saatte taslak olarak hazırlama" open={!!openGroups["autopilot"]} onToggle={toggleGroup}>
               <div className="space-y-4">
                 <SectionCard title="Otomatik Pilot">
                   <RuleRow
                     label="Planı her hafta otomatik hazırla"
                     description={
                       <span>
-                        Gelecek haftanın planı seçtiğiniz gün sabah taslak olarak hazırlanır. Siz kontrol edip yayınlarsınız.
+                        Gelecek haftanın planı seçtiğiniz gün ve saatte taslak olarak hazırlanır. Siz kontrol edip yayınlarsınız.
                         Ekip taslağı görmez. O haftanın planını kendiniz hazırlamaya başladıysanız otomatik taslak hazırlanmaz.
                         {autopilotEnabled && (
                           <span className="flex flex-wrap items-center gap-2 mt-2">
@@ -1478,7 +1482,15 @@ export default function SettingsPage() {
                             >
                               {AUTOPILOT_DAY_NAMES.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
                             </select>
-                            <span>sabahı</span>
+                            <span>günü saat</span>
+                            <select
+                              value={autopilotHour}
+                              onChange={e => setAutopilotHour(e.target.value)}
+                              aria-label="Saat"
+                              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-forest-400 bg-white tabular-nums"
+                            >
+                              {Array.from({ length: 24 }, (_, h) => <option key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</option>)}
+                            </select>
                           </span>
                         )}
                       </span>

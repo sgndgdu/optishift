@@ -12,6 +12,7 @@ import { addDays, businessNow } from "@/lib/date";
 import { DAY_SHORT } from "@/lib/constants";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import { industryFromRules } from "@/lib/templates";
+import { autopilotSettings, autopilotWhen } from "@/lib/autopilotRules";
 import { hasPerm } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 import { buildWeekCalendar, calendarLines } from "@/lib/weekCalendar";
@@ -39,7 +40,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   if (defs.length) out.push(`Vardiyalar: ${defs.map(d => `${d.name} ${d.start}-${d.end}${d.on_call ? " (icap)" : ""}`).join(", ")}`);
   out.push(`Kurallar: haftalık en fazla ${rules.max_weekly_hours ?? 45} saat, iki vardiya arası en az ${rules.min_rest_hours ?? 11} saat dinlenme, en fazla ${rules.max_consecutive_days ?? 6} gün üst üste`);
   const ap = rules.autopilot ?? {};
-  out.push(`Otomatik pilot: ${ap.enabled === false ? "kapalı" : `açık (${["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"][Number.isInteger(ap.day) ? ap.day : 3]} sabahı)`}`);
+  out.push(`Otomatik pilot: ${ap.enabled === false ? "kapalı" : `açık (her hafta ${autopilotWhen(autopilotSettings(rules))})`}`);
 
   // Personel
   const people = await db.prepare(`

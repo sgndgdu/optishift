@@ -20,7 +20,7 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 const FEATURES = [
   { icon: Sparkles, title: "Fotoğraftan kurulum", text: "Kâğıttaki çizelgenin fotoğrafını eklersiniz. Ekip, departmanlar ve vardiyalar okunur.", Scene: SetupScene },
-  { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı her hafta taslak olarak hazırlanır. Siz yayınlamadan ekibe gitmez.", Scene: PilotScene },
+  { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı her hafta seçtiğiniz gün ve saatte taslak olarak hazırlanır. Siz yayınlamadan ekibinize gitmez.", Scene: PilotScene },
   { icon: Scale, title: "Adalet puanı", text: "Hafta sonu ve zor vardiyalar kişiler arasında sırayla dağıtılır.", Scene: FairnessScene },
   { icon: Users, title: "Biri gelemezse yedek", text: "Kurallara uyan en uygun kişiler sıralanır. Vardiya tek dokunuşla devredilir.", Scene: CoverScene },
   { icon: MessageSquareText, title: "İşletme Asistanı", text: "Planınız, ekibiniz ve izinler hakkındaki sorularınızı yazarak sorarsınız.", Scene: AssistantMiniScene },
@@ -49,7 +49,7 @@ export default function LandingPage() {
             <h1 className="font-serif text-[44px] font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-[74px]">
               <span className="m-up block" style={d(80)}>Haftalık vardiya planı</span>
               <span className="m-up block italic text-ember-300" style={d(180)}>saniyeler içinde</span>
-              <span className="m-up block" style={d(280)}>hazır olur.</span>
+              <span className="m-up block" style={d(280)}>hazır!</span>
             </h1>
             <p className="m-up mt-7 max-w-lg text-[17px] leading-relaxed text-forest-100/80 sm:text-lg" style={d(400)}>
               Her gün kaç kişiye ihtiyacınız olduğunu bir kez yazarsınız. {BRAND.name} ekibinizin uygunluğuna ve İş Kanunu kurallarına göre planı hazırlar.
@@ -88,7 +88,7 @@ export default function LandingPage() {
           <Reveal className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
             <h2 className="m-up font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-6xl">Plan yayınlandıktan sonra</h2>
             <p className="m-up mt-4 text-lg text-slate-600 sm:text-xl" style={d(100)}>
-              Ekibin telefonu, izin onayları, gelemeyen kişiye yedek ve asistan, örnek bir kafede.
+              Örnek bir kafede ekibinizin gördüğü ekranı, izin onaylarını, gelemeyen kişinin yerine yedek bulmayı ve asistanı inceleyin.
             </p>
           </Reveal>
           <ProductTour />
@@ -129,9 +129,9 @@ export default function LandingPage() {
       <section className="bg-white py-20 sm:py-28">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
           <Reveal className="order-2 lg:order-1">
-            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl">Ekibiniz vardiyalarını telefonundan takip eder.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl">Ekibiniz vardiyalarını anında görür.</h2>
             <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(100)}>
-              Bir şey indirmeleri gerekmez. Giriş bağlantısını WhatsApp ile gönderirsiniz.
+              Giriş bağlantısını WhatsApp ile gönderirsiniz. Ekibiniz bağlantıyla giriş yapar ve planı yayınladığınız anda görür.
             </p>
             <ul className="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
               {TEAM_POINTS.map(({ icon: Icon, t, x }, i) => (
@@ -163,7 +163,7 @@ export default function LandingPage() {
           <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">İlk planınızı bugün hazırlayın.</h2>
           <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(100)}>14 gün boyunca bütün özellikleri ücretsiz kullanabilirsiniz.</p>
           <ul className="m-up mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-600" style={d(160)}>
-            {["Kurulumu yapay zekâ yapar", "İş Kanunu kuralları kurulu gelir", "Telefondan da kullanılır"].map((t) => (
+            {["Kurulumu yapay zekâ yapar", "İş Kanunu kuralları kurulu gelir", "Ekibiniz planı anında görür"].map((t) => (
               <li key={t} className="flex items-center gap-1.5"><Check size={15} className="text-forest-600" strokeWidth={2.5} /> {t}</li>
             ))}
           </ul>

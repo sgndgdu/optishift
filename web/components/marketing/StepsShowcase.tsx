@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Check, ShieldCheck, Smartphone } from "lucide-react";
+import { Bell, Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SCENES } from "@/components/marketing/TourScenes";
 import { SetupDemo } from "@/components/marketing/SetupDemo";
@@ -85,7 +85,7 @@ function ChecksScene({ restartKey }: { restartKey?: unknown }) {
   );
 }
 
-/* ─── 3. adım: yayınlanınca ekibin telefonuna bildirim düşer ─── */
+/* ─── 3. adım: yayınlanınca ekibe bildirim düşer ─── */
 const NOTES = [
   { title: "Yeni haftanın planı yayında", text: "13-19 Ekim vardiyalarınız hazır." },
   { title: "Bu hafta 5 vardiyanız var", text: "İlki pazartesi 07:00, sizinle Mert ve Can." },
@@ -111,7 +111,6 @@ function PublishScene({ restartKey }: { restartKey?: unknown }) {
               </div>
             ))}
           </div>
-          <p className="absolute inset-x-0 bottom-5 flex items-center justify-center gap-1.5 text-[11px] text-forest-100/60"><Smartphone size={12} /> Uygulama indirmeden, tarayıcıdan</p>
         </div>
       </div>
     </div>
@@ -120,8 +119,8 @@ function PublishScene({ restartKey }: { restartKey?: unknown }) {
 
 const STEPS = [
   { n: 1, title: "İşletmenizi anlatın", text: "Yapay zekâ birkaç soru sorar. Departmanları, vardiyaları ve her gün kaç kişi gerektiğini kendisi doldurur. Kâğıttaki çizelgenizin fotoğrafını da ekleyebilirsiniz." },
-  { n: 2, title: "Plan kurallara göre hazırlanır", text: "Ekibin uygunluğu, İş Kanunu'ndaki dinlenme ve saat sınırları ve herkesin iş yükü birlikte hesaplanır. Plan birkaç saniyede hazır olur." },
-  { n: 3, title: "Yayınlarsınız, ekip telefondan görür", text: "Yayınladığınız anda herkese bildirim gider. Kişiler vardiyalarını, kimlerle çalışacaklarını görür, izin ve değişiklik isteklerini size gönderir." },
+  { n: 2, title: "Plan kurallara göre hazırlanır", text: "Ekibinizin uygunluğu, İş Kanunu'ndaki dinlenme ve saat sınırları ve herkesin iş yükü birlikte hesaplanır. Plan birkaç saniyede hazır olur." },
+  { n: 3, title: "Yayınlarsınız, ekibiniz anında görür", text: "Yayınladığınız anda herkese bildirim gider. Kişiler vardiyalarını, kimlerle çalışacaklarını görür, izin ve değişiklik isteklerini size gönderir." },
 ];
 
 function StepScene({ i, restartKey }: { i: number; restartKey?: unknown }) {

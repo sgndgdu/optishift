@@ -43,7 +43,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Tek şubeli küçük işletmeler için.",
     maxLocations: 1,
     maxPersonnel: 10,
-    features: ["1 şube", "10 kişiye kadar", "Otomatik planlama", "Ekip uygulamayı telefondan kullanır"],
+    features: ["1 şube", "10 kişiye kadar", "Otomatik planlama", "Ekibiniz planı anında görür"],
   },
   {
     id: "pro",
@@ -53,7 +53,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Tek şubeli ve çok şubeli bütün işletmeler için.",
     maxLocations: null,
     maxPersonnel: null,
-    features: ["Sınırsız şube ve kişi", "Yapay zekâ ile kurulum ve İşletme Asistanı", "Otomatik Pilot", "Bir kişi birden çok şubede çalışabilir", "Ekip uygulamayı telefondan kullanır"],
+    features: ["Sınırsız şube ve kişi", "Yapay zekâ ile kurulum ve İşletme Asistanı", "Otomatik Pilot", "Bir kişi birden çok şubede çalışabilir", "Ekibiniz planı anında görür"],
   },
   {
     id: "enterprise",

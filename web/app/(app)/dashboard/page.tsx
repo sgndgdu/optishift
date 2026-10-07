@@ -20,7 +20,7 @@ import { buildInbox, greeting, type InboxItem, type NextWeekState } from "@/lib/
 import { canPublishPlan, departmentScope } from "@/lib/userAccess";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
+import { AUTOPILOT_DEFAULT_HOUR, autopilotWhen } from "@/lib/autopilotRules";
 import { industryFromRules } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [rules, setRules] = useState<Record<string, unknown>>({});
-  const [autopilot, setAutopilot] = useState<{ enabled: boolean; day: number; upcoming: boolean; last_draft_week: string | null } | null>(null);
+  const [autopilot, setAutopilot] = useState<{ enabled: boolean; day: number; hour?: number; upcoming: boolean; last_draft_week: string | null } | null>(null);
   const [todayTasks, setTodayTasks] = useState<any[]>([]);
   const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -345,7 +345,7 @@ export default function DashboardPage() {
     autopilot: autopilot?.enabled ? {
       drafted: autopilot.last_draft_week === getNextWeekStart(),
       upcoming: autopilot.upcoming,
-      dayName: AUTOPILOT_DAY_NAMES[autopilot.day],
+      when: autopilotWhen({ day: autopilot.day, hour: autopilot.hour ?? AUTOPILOT_DEFAULT_HOUR }),
     } : undefined,
   });
 

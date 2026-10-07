@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getDB } from "@/lib/db/client";
-import { addDays, businessNow } from "@/lib/date";
+import { addDays, businessHour, businessNow } from "@/lib/date";
 import { autopilotDecision, autopilotSettings, matrixHasDemand, type AutopilotRules } from "@/lib/autopilotRules";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadLocDefs, syncDraftWeek, type DraftShiftRow } from "@/lib/draftSync";
@@ -12,6 +12,7 @@ export * from "@/lib/autopilotRules";
  * Otomatik pilot: her hafta belirlenen gün gelecek haftanın planını TASLAK olarak hazırlar,
  * müdür kontrol edip yayınlar. Personel taslağı görmez.
  * Ayar: locations.rules.autopilot = { enabled?: boolean (varsayılan açık), day?: 0-6 (Pzt=0, varsayılan Perşembe),
+ *   hour?: 0-23 (Türkiye saati, varsayılan 8), claim?: { week, at } (süren çalışma, çift taslak olmasın),
  *   last_run_week?: bu haftanın pazartesisi (haftada bir kez), last_draft_week?: hazırlanan haftanın pazartesisi }
  */
 async function markRun(db: any, loc: any, rules: any, patch: Partial<AutopilotRules>) {
@@ -47,7 +48,7 @@ async function decide(db: any, locId: string, row: any, rules: any, at: Date) {
     : matrixHasDemand(row.demand_matrix);
 
   const inputs = {
-    rules, todayIdx: dayIdx, weekStart, nextWeekRows: Number(cnt?.n ?? 0), hasDemand,
+    rules, todayIdx: dayIdx, hour: businessHour(at), nowMs: at.getTime(), weekStart, nextWeekRows: Number(cnt?.n ?? 0), hasDemand,
     hasSetup: defs.length > 0 && Number(staff?.n ?? 0) > 0,
   };
   return { dayIdx, weekStart, defs, inputs, decision: autopilotDecision(inputs) };
@@ -63,17 +64,18 @@ export async function autopilotStatus(loc: { id: string; org_id: string }, at: D
   return {
     ...s,
     // Gün gelmedi ama gün gelse çalışacak (kurulum, ihtiyaç tablosu tamam, hafta boş): taslak hazırlanacak
-    upcoming: !decision.run && decision.reason === "not_due" && autopilotDecision({ ...inputs, todayIdx: 6 }).run,
+    upcoming: !decision.run && decision.reason === "not_due" && autopilotDecision({ ...inputs, todayIdx: 6, hour: 23 }).run,
     last_draft_week: (rules?.autopilot?.last_draft_week as string | undefined) ?? null,
   };
 }
 
 export type AutopilotResult = { location_id: string; status: string; synced?: number; error?: string };
 
-/** Tek şube için çalıştırır. Hata olursa işaretlemez: ertesi gün tekrar denenir. */
+/** Tek şube için çalıştırır. Hata olursa işaretlemez: sahiplik süresi dolunca sonraki saatlik çalışmada tekrar denenir. */
 export async function runAutopilotForLocation(loc: { id: string; org_id: string; name?: string }, at: Date = new Date()): Promise<AutopilotResult> {
   const db = getDB();
-  const { row, rules } = await loadRules(db, loc);
+  const { row, rules: loaded } = await loadRules(db, loc);
+  let rules = loaded;
   if (!row) return { location_id: loc.id, status: "not_found" };
 
   const { weekStart, defs, decision } = await decide(db, loc.id, row, rules, at);
@@ -82,6 +84,13 @@ export async function runAutopilotForLocation(loc: { id: string; org_id: string;
     if (decision.reason === "week_started") await markRun(db, loc, rules, { last_run_week: weekStart });
     return { location_id: loc.id, status: decision.reason };
   }
+
+  // Sahiplen: rules okunduğundan beri değişmediyse yaz (iki çalıştırıcı aynı anda gelirse biri kazanır)
+  const claimed = { ...rules, autopilot: { ...(rules?.autopilot ?? {}), claim: { week: weekStart, at: at.getTime() } } };
+  const won = await db.prepare(`UPDATE locations SET rules = ? WHERE id = ? AND org_id = ? AND rules IS NOT DISTINCT FROM ? RETURNING id`)
+    .run(JSON.stringify(claimed), loc.id, loc.org_id, row.rules ?? null);
+  if (!won.changes) return { location_id: loc.id, status: "running" };
+  rules = claimed;
 
   const gen = await generatePlan(loc.org_id, loc.id, decision.targetWeek, {});
   if (gen.status !== 200 || gen.body?.error) {

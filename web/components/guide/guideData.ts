@@ -46,7 +46,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
           "Ekip sayfasından kişileri ekleyin (isim ve telefon yeter).",
           "Her kişiye giriş bağlantısını WhatsApp ile gönderin.",
           "Vardiya Planı'nda Planı Oluştur'a basın, kaç kişi gerektiğini girin.",
-          "Planı kontrol edip yayınlayın; ekip telefonundan görür.",
+          "Planı kontrol edip yayınlayın; ekibiniz anında görür.",
         ],
       },
       {
@@ -150,7 +150,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Başlarken",
         icon: Rocket,
         paragraphs: [
-          "İşyeriniz size bir giriş bağlantısı gönderir. Bağlantıyı açıp Google ile devam edersiniz ya da bir şifre belirlersiniz. Sonra telefonunuzdan giriş yaparsınız. Tarayıcının \"Ana Ekrana Ekle\" seçeneğiyle uygulamayı telefonunuzun ana ekranına ekleyebilirsiniz.",
+          "İşyeriniz size bir giriş bağlantısı gönderir. Bağlantıyı açıp Google ile devam edersiniz ya da bir şifre belirlersiniz. Sonra uygulamaya giriş yaparsınız.",
         ],
       },
       {

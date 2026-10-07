@@ -1,0 +1,20 @@
+name: Otomatik Pilot (saatlik)
+
+# Vercel Hobby planı cron'ları günde 1'le sınırlıyor. Şubeler Otomatik Pilot için
+# gün + saat seçtiği için taslak hazırlığı her saat başı buradan tetiklenir
+# (web/app/api/cron/autopilot, ?only=autopilot). Gerekli gizli: CRON_SECRET (Vercel'deki ile aynı).
+on:
+  schedule:
+    - cron: "3 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Otomatik pilotu çalıştır
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS --max-time 320 -H "Authorization: Bearer $CRON_SECRET" \
+            -w "\nHTTP %{http_code}\n" "https://web-nine-drab-19.vercel.app/api/cron/autopilot?only=autopilot"

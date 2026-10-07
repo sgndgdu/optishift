@@ -72,6 +72,11 @@ export function businessNow(at: Date = new Date()): { date: string; dayIdx: numb
   return { date, dayIdx: dayIndexOf(date), weekStart: weekStartOf(date) };
 }
 
+// Türkiye saatiyle şu anki saat (0-23)
+export function businessHour(at: Date = new Date()): number {
+  return wallParts(at).hour % 24;
+}
+
 // Türkiye saatiyle "YYYY-MM-DD HH:MM" anını gerçek bir Date'e çevirir
 export function businessWallTime(dateStr: string, hhmm: string): Date {
   const [y, mo, d] = dateStr.split("-").map(Number);

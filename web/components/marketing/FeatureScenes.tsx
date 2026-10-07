@@ -21,7 +21,8 @@ function Stage({ innerRef, children, className }: { innerRef: React.Ref<HTMLDivE
 }
 
 /* ─── Yapay zekâ ile kurulum: kâğıttaki çizelgenin fotoğrafı okunur ─── */
-const SETUP_PEOPLE = [["Elif K.", "Salon"], ["Mert Y.", "Salon"], ["Burak T.", "Bar"], ["Can B.", "Mutfak"]] as const;
+// 3 satır: altındaki "okundu" satırı kartın içinde kalsın (4 satırda kesiliyordu)
+const SETUP_PEOPLE = [["Elif K.", "Salon"], ["Burak T.", "Bar"], ["Can B.", "Mutfak"]] as const;
 export function SetupScene() {
   const D = 7600;
   const { ref, t } = useSceneClock(D);
@@ -57,7 +58,7 @@ export function SetupScene() {
   );
 }
 
-/* ─── Otomatik Pilot: perşembe sabahı taslak kendiliğinden hazırlanır ─── */
+/* ─── Otomatik Pilot: seçilen gün ve saatte (örnekte Perşembe 08:00) taslak kendiliğinden hazırlanır ─── */
 const WEEK = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 export function PilotScene() {
   const D = 7000;
@@ -74,7 +75,7 @@ export function PilotScene() {
       </div>
       <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-600">
         <CalendarClock size={14} className="text-forest-600" />
-        {t < 2600 ? "Perşembe sabahını bekliyor" : progress < 1 ? "Gelecek haftanın planı hazırlanıyor" : "Hazırlandı, yayınlanmadı"}
+        {t < 2600 ? "Perşembe saat 08:00 bekleniyor" : progress < 1 ? "Gelecek haftanın planı hazırlanıyor" : "Hazırlandı, yayınlanmadı"}
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
         <div className="h-full rounded-full bg-ember-400" style={{ width: `${progress * 100}%` }} />

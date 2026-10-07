@@ -11,7 +11,7 @@ import { SCENES } from "@/components/marketing/TourScenes";
  * Hareketi azalt açıksa sahne son hâliyle durur.
  */
 const CHAPTERS = [
-  { key: "phone", icon: Smartphone, title: "Ekibin telefonu", phone: true, text: "Plan yayınlanınca ekibe bildirim gider. Herkes kendi vardiyalarını ve aynı vardiyada kimlerle çalışacağını telefonundan görür." },
+  { key: "phone", icon: Smartphone, title: "Ekibinizin ekranı", phone: true, text: "Plan yayınlanınca ekibinize bildirim gider. Herkes kendi vardiyalarını ve aynı vardiyada kimlerle çalışacağını görür." },
   { key: "approvals", icon: ClipboardCheck, title: "İzin ve değişiklik onayı", text: "Uygulama her isteği kurallara göre kontrol eder. Kurala uymayan bir istek varsa siz onaylamadan önce nedenini gösterir.", window: "Moda Şube · Onaylar" },
   { key: "cover", icon: LifeBuoy, title: "Gelemeyen kişiye yedek", text: "Uygulama o vardiyaya uygun kişileri nedenleriyle birlikte sıralar. Seçtiğiniz kişiyi atarsınız, ona bildirim gider.", window: "Moda Şube · Bugün" },
   { key: "assistant", icon: Sparkles, title: "İşletme Asistanı", text: "İşletmenizle ilgili bir soru yazarsınız. Asistan cevabı planınızdaki ve kayıtlarınızdaki bilgilere göre verir.", window: "Moda Şube · Asistan" },

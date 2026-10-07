@@ -20,7 +20,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
       "İşletme Asistanı işlem önerir: izin ekler, talepleri karara bağlar, gelemeyen kişinin yerine birini bulur",
       "Hazır çözümler: biri izin isteyince ya da gelemeyeceğini söyleyince yerine uygun kişi seçilmiş olarak gelir, tek dokunuşla onaylanır",
-      "Sorumlu ve işletme sahibi için bildirim zili ve telefon bildirimi",
+      "Sorumlu ve işletme sahibi için anlık bildirim",
       "Aylık özet: kaç planın otomatik hazırlandığı, boşalan vardiyaların kaçının dolduğu, kural aşımı olup olmadığı ve fazla mesainin önceki aya göre değişimi",
       "Hiçbir kayıt sizin onayınız olmadan değişmez",
     ],
@@ -29,7 +29,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
     icon: CalendarDays, title: "Planlama",
     items: [
       "Gereken kişi sayısına göre otomatik plan",
-      "Otomatik Pilot: her hafta taslak plan hazırlanır",
+      "Otomatik Pilot: her hafta seçtiğiniz gün ve saatte taslak plan hazırlanır",
       "Geçmiş haftalardan ihtiyaç önerisi",
       "Normal hafta ve kampanya haftası için kayıtlı ihtiyaç tabloları",
       "Elle düzenlediğiniz vardiyalar korunur",
@@ -76,7 +76,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
     ],
   },
   {
-    icon: Smartphone, title: "Ekibin telefonu",
+    icon: Smartphone, title: "Ekibiniz için",
     items: [
       "Uygunluk bildirme",
       "İzin isteği",
@@ -91,7 +91,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
   {
     icon: Clock, title: "Vardiya günü",
     items: [
-      "Telefondan giriş-çıkış",
+      "Uygulamadan giriş-çıkış",
       "Konum doğrulamalı giriş ya da ortak tablet",
       "Geç kalan ve gelmeyen kişi için uyarı",
       "Gelemeyen kişi için uygun yedek önerisi",
