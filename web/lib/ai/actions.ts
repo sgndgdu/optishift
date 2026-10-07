@@ -35,7 +35,9 @@ export function splitAssistantReply(text: string): { answer: string; raw: unknow
       raw.push(...(Array.isArray(v) ? v : [v]));
     } catch { /* bozuk blok: yok sayılır */ }
     return "";
-  }).replace(/<\/?islem>/gi, "").trim();
+  }).replace(/<\/?islem>/gi, "")
+    // Bağlamdaki iç numaralar ([v12], [izin 5], [takas 3]) kullanıcıya gösterilmez
+    .replace(/\s*\(?\[(?:v\d+|izin \d+|takas \d+)\]\)?/g, "").trim();
   return { answer, raw };
 }
 
@@ -208,7 +210,7 @@ export const ACTIONS_PROMPT = [
   "- {\"type\":\"review_swap\",\"swap_id\":3,\"decision\":\"approve | reject\"}  (veride [takas 3] yazan talep)",
   "- {\"type\":\"absence\",\"assignment_id\":45,\"reason\":\"sick | emergency\",\"replacement\":\"Ad Soyad ya da boş\"}  (veride [v45] yazan YAYINLANMIŞ vardiya; kişi gelemiyor. replacement boşsa vardiya en uygun 3 kişiye teklif edilir)",
   "- {\"type\":\"open_shift\",\"date\":\"YYYY-MM-DD\",\"start_time\":\"HH:MM\",\"end_time\":\"HH:MM\",\"note\":\"kısa açıklama\"}  (ek kişi gereken bir saat için ilan)",
-  "Kurallar: Numaraları ve isimleri sadece veriden al, uydurma. Tarihleri bugüne ve plan satırlarındaki gün.ay bilgisine göre YYYY-MM-DD yaz.",
+  "Kurallar: Numaraları ve isimleri sadece veriden al, uydurma. [v12] gibi numaraları cevap metnine yazma, sadece blokta kullan. Kişilerden \"ekip üyesi\" diye söz et, \"personel\" deme. Tarihleri bugüne ve plan satırlarındaki gün.ay bilgisine göre YYYY-MM-DD yaz.",
   "Yerine birini önerirken o gün boş olan, izinli olmayan ve haftalık saati sınıra yakın olmayan kişiyi seç; seçimini bir cümleyle açıkla.",
   "Bilgi eksikse (hangi gün, hangi kişi) blok ekleme, önce kısa bir soru sor. Taslak planı düzenleme, plan oluşturma ve ayar değiştirme yapamazsın; bunlar için ilgili sayfayı söyle.",
   "Örnek cevap sonu: <islem>[{\"type\":\"absence\",\"assignment_id\":45,\"reason\":\"sick\",\"replacement\":\"Mehmet Kaya\"}]</islem>",

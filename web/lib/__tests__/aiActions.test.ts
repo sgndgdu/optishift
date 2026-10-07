@@ -16,6 +16,10 @@ describe("splitAssistantReply", () => {
     expect(r.answer).toBe("Cevap");
     expect(r.raw).toEqual([]);
   });
+  it("iç numaraları cevap metninden siler", () => {
+    expect(splitAssistantReply("Batuhan Yazıcı'nın izin talebi ([izin 3625]) bekliyor. Pzt vardiyası [v12] boş.").answer)
+      .toBe("Batuhan Yazıcı'nın izin talebi bekliyor. Pzt vardiyası boş.");
+  });
   it("blok yoksa metin aynen kalır", () => {
     expect(splitAssistantReply("Bu hafta 3 kişi izinli.")).toEqual({ answer: "Bu hafta 3 kişi izinli.", raw: [] });
   });
