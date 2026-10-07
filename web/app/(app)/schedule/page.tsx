@@ -10,7 +10,7 @@ import { useSearchParams } from "next/navigation";
 import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, Plus, BookOpen, Sparkles, Copy,
-  Undo2, Redo2, Search, Trash2, CalendarCheck, MoreHorizontal, BarChart2, CalendarPlus,
+  Undo2, Redo2, Search, Trash2, MoreHorizontal, BarChart2, CalendarPlus,
   History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, AlertTriangle, Pin, PinOff, Lock,
 } from "lucide-react";
 import Link from "next/link";
@@ -363,7 +363,6 @@ function SchedulePageInner() {
   const [keepPinned, setKeepPinned]               = useState(true); // Planı Oluştur: elle düzeltilenleri koru
   // En az değişiklik: mevcut planı olabildiğince koru (yayınlanmış haftada varsayılan açık; sihirbaz açılınca ayarlanır)
   const [minimizeChanges, setMinimizeChanges]     = useState(false);
-  const [changedCount, setChangedCount]           = useState<number | null>(null);
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   // Açık ilanlar (Plan Kontrolü: ilandaki eksik "acil" sayılmaz)
   const [openListings, setOpenListings]           = useState<{ date: string; start_time: string; end_time: string }[]>([]);
@@ -1033,7 +1032,6 @@ function SchedulePageInner() {
     }
     setDemandAutoFilled(false);
     setMinimizeChanges(dbShiftCount > 0 && (!isDraftWeek || (!chefDept && deptStatus.some(d => d.submitted))));
-    setChangedCount(null);
     setWizardOpen(true);
   };
 
@@ -1638,7 +1636,6 @@ function SchedulePageInner() {
         })
       : [];
     const before = { ...cellMap };
-    setChangedCount(null);
     try {
       await demandSaveChain.current; // ihtiyaç tablosunun bekleyen kayıtları motordan önce yazılsın
       const res = await fetch("/api/generate", {
@@ -1670,16 +1667,6 @@ function SchedulePageInner() {
       // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
       for (const [key, val] of pinned) newCellMap[key] = val;
       for (const [key, val] of pinnedOnCall) newOnCall[key] = val;
-      // Kaç hücre değişti (eklenen + silinen + saati değişen)
-      if (Object.keys(before).length > 0) {
-        const keys = new Set([...Object.keys(before), ...Object.keys(newCellMap)]);
-        let n = 0;
-        for (const k of keys) {
-          const a = before[k], b = newCellMap[k];
-          if (!a || !b || a.startMin !== b.startMin || a.endMin !== b.endMin) n++;
-        }
-        setChangedCount(n);
-      }
       pushCellMap(newCellMap);
       setOnCallMap(newOnCall);
       setDbShiftCount(0); // OR-Tools taslağı — henüz yayınlanmadı
@@ -2041,28 +2028,7 @@ function SchedulePageInner() {
     }
   };
 
-  // Satır hızlı işlemleri: tüm uygun günleri doldur / temizle
-  const fillPersonRow = (personId: string) => {
-    if (!shiftDefs.length) { showToast("Önce Ayarlar'dan vardiya tanımlayın.", "error"); return; }
-    const def = shiftDefs[0];
-    const ds = hhmmToMin(def.start);
-    let de = hhmmToMin(def.end);
-    if (de <= ds) de += 1440;
-    const newMap = { ...cellMap };
-    let added = 0;
-    const person = personnel.find((p: any) => p.id === personId);
-    for (let day = 0; day < 7; day++) {
-      const key = `${personId}-${day}`;
-      const isWeekOff = person?.weekly_off_day !== null && person?.weekly_off_day !== undefined && Number(person.weekly_off_day) === day;
-      if (!newMap[key] && availMap[personId]?.[day]?.status !== 'unavailable' && !isWeekOff) {
-        newMap[key] = { startMin: ds, endMin: de, points: cellBurden(ds, de, day, availMap, personId, locRules, shiftDefs), pinned: true };
-        added++;
-      }
-    }
-    if (added === 0) { showToast("Eklenecek uygun gün bulunamadı.", "info"); return; }
-    pushCellMap(newMap);
-  };
-
+  // Satır hızlı işlemi: kişinin haftasını temizle
   const clearPersonRow = (personId: string) => {
     const newMap = { ...cellMap };
     let removed = 0;
@@ -2196,6 +2162,10 @@ function SchedulePageInner() {
       .filter(([k]) => k.startsWith(`${popover.personnelId}-`))
       .reduce((sum, [, v]) => sum + cellWorkHours(v.startMin, v.endMin, shiftDefs), 0) - existHours;
     const projHours = weekBase + cellWorkHours(popover.startMin, popover.endMin, shiftDefs);
+    // Haftalık izin günü: eklenebilir ama uyarılır (Gelemem uyarısı aşağıda, uygunluk durumunda)
+    if (popoverPerson.weekly_off_day !== null && popoverPerson.weekly_off_day !== undefined && Number(popoverPerson.weekly_off_day) === popover.day)
+      popoverWarnings.push({ type: 'warn', msg: "Bu gün haftalık izin günü" });
+
     const maxH = effectiveWeeklyLimit(popoverPerson.max_weekly_hours, (() => { const v = (locRules as Record<string, unknown>)?.max_weekly_hours; return typeof v === "number" ? v : 45; })());
     if (projHours > maxH) {
       popoverWarnings.push({ type: 'error', msg: `Haftalık sınır aşılır: ${trNum(projHours)} / ${maxH} saat` });
@@ -2224,7 +2194,7 @@ function SchedulePageInner() {
     const pAvail = availMap[popover.personnelId];
     const dayAvail = pAvail?.[popover.day];
     if (dayAvail?.status === 'unavailable') {
-      popoverWarnings.push({ type: 'error', msg: 'Bu gün kesinlikle uygun değil (kırmızı)' });
+      popoverWarnings.push({ type: 'error', msg: 'Bu gün gelemeyeceğini bildirdi' });
     } else if (dayAvail?.status === 'preferred_not') {
       popoverWarnings.push({ type: 'warn', msg: 'Bu günü "tercih etmem" dedi: mümkünse çalışmak istemiyor' });
     } else if (!pAvail && availCollectionEnabled) {
@@ -3349,9 +3319,6 @@ loading ? (
                               </div>}
                             </div>
                             <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => fillPersonRow(p.id)} title="Tüm uygun günleri doldur" className="p-1 text-slate-300 hover:text-forest-500 transition-colors">
-                                <CalendarCheck size={13} />
-                              </button>
                               <button onClick={() => clearPersonRow(p.id)} title="Temizle" className="p-1 text-slate-300 hover:text-red-400 transition-colors">
                                 <Trash2 size={13} />
                               </button>
@@ -3494,15 +3461,23 @@ loading ? (
                                   <span className="text-[11px] font-bold text-sky-600">İzinli</span>
                                 </div>
                               ) : isWeeklyOff ? (
-                                <div className="w-full h-11 rounded-lg bg-amber-50 border border-amber-100 flex flex-col items-center justify-center gap-0.5">
+                                <button
+                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
+                                  className="w-full h-11 rounded-lg bg-amber-50 border border-amber-100 hover:border-amber-300 transition-all flex flex-col items-center justify-center gap-0.5"
+                                  title="Haftalık izin günü. Yine de vardiya eklemek için tıklayın."
+                                >
                                   <span className="text-[10.5px] font-bold text-amber-400">Haftalık</span>
                                   <span className="text-[10.5px] font-bold text-amber-400">İzin</span>
-                                </div>
+                                </button>
                               ) : isUnavailable ? (
-                                <div className="w-full h-11 rounded-lg bg-red-50 border border-red-200 flex flex-col items-center justify-center gap-0.5" title="Kesinlikle uygun değil">
+                                <button
+                                  onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
+                                  className="w-full h-11 rounded-lg bg-red-50 border border-red-200 hover:border-red-400 transition-all flex flex-col items-center justify-center gap-0.5"
+                                  title="Bu gün gelemeyeceğini bildirdi. Yine de vardiya eklemek için tıklayın."
+                                >
                                   <X size={12} className="text-red-400" />
                                   <span className="text-[10.5px] font-bold text-red-400">Gelemem</span>
-                                </div>
+                                </button>
                               ) : isPrefNot ? (
                                 <button
                                   onClick={(e: React.MouseEvent) => handleCellClick(e, p.id, day)}
@@ -3582,7 +3557,6 @@ loading ? (
               pinnedCount={Object.values(cellMap).filter(c => c.pinned).length}
               minimizeChanges={minimizeChanges}
               onMinimizeChangesChange={setMinimizeChanges}
-              changedCount={changedCount}
               keepPinned={keepPinned}
               onKeepPinnedChange={setKeepPinned}
               generating={generating}
@@ -3591,7 +3565,6 @@ loading ? (
               seniorViolationCount={seniorViolations.length}
               excludedCount={excludedCompliance.length}
               onGenerate={async () => { await runGenerate(); }}
-              onPublish={canPublish ? handlePublish : undefined}
               onClose={() => setWizardOpen(false)}
             />
           )}

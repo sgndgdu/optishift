@@ -37,8 +37,8 @@ function CheckRow({ tone, children, action }: { tone: "ok" | "warn" | "danger" |
 export default function GenerateWizard({
   weekLabel, demandTable, demandEmpty, demandAutoFilled, demandGaps = [], onFillGaps, pastDayCount = 0, capacityWarnings, personnelCount,
   availabilityEnabled, noAvailCount, onRemindAvailability,
-  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, changedCount, generating, error, generatedCount, seniorViolationCount, excludedCount,
-  onGenerate, onPublish, onClose,
+  existingCellCount, pinnedCount, keepPinned, onKeepPinnedChange, minimizeChanges, onMinimizeChangesChange, generating, error, generatedCount, seniorViolationCount, excludedCount,
+  onGenerate, onClose,
 }: {
   weekLabel: string;
   demandTable: ReactNode;
@@ -64,7 +64,6 @@ export default function GenerateWizard({
   minimizeChanges: boolean;
   onMinimizeChangesChange: (v: boolean) => void;
   /** Oluşturma sonrası değişen hücre sayısı (mevcut plan varsa) */
-  changedCount: number | null;
   generating: boolean;
   error: string | null;
   generatedCount: number;
@@ -72,7 +71,6 @@ export default function GenerateWizard({
   excludedCount: number;
   onGenerate: () => Promise<void>;
   /** "Planı yayınlama" yetkisi yoksa (lib/userAccess) boş geçilir; düğme gizlenir. */
-  onPublish?: () => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
@@ -217,7 +215,7 @@ export default function GenerateWizard({
               ) : (
                 <div className="space-y-3">
                   <CheckRow tone="ok">
-                    <span className="font-bold">{generatedCount} vardiya yazıldı{changedCount !== null ? `, ${changedCount} hücre değişti` : ""}.</span> Plan taslak olarak kaydedildi, ekip {onPublish ? "siz yayınlayana" : "plan yayınlanana"} kadar göremez.
+                    <span className="font-bold">{generatedCount} vardiya yazıldı.</span> Plan taslak olarak kaydedildi. Ekibiniz plan yayınlanana kadar göremez. Önce planı inceleyin, uygunsa yayınlayın.
                   </CheckRow>
                   {seniorViolationCount > 0 && (
                     <CheckRow tone="warn">{seniorViolationCount} vardiyada kıdemli kimse bulunamadı. Ayrıntılar planın üstündeki uyarılarda.</CheckRow>
@@ -225,11 +223,9 @@ export default function GenerateWizard({
                   {excludedCount > 0 && (
                     <CheckRow tone="warn">{excludedCount} kişi geçersiz belge nedeniyle plana alınmadı.</CheckRow>
                   )}
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button onClick={onClose} className="sm:flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Taslak olarak bırak</button>
-                    {onPublish && (
-                      <button onClick={() => { onClose(); onPublish(); }} className="sm:flex-1 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Şimdi Yayınla</button>
-                    )}
+                  {/* Yayınla burada yok: sorumlu önce planı görsün (kullanıcı kararı 2026-10-07) */}
+                  <div className="pt-2">
+                    <button onClick={onClose} className="w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Plana bak</button>
                   </div>
                 </div>
               )}
