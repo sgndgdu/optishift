@@ -28,7 +28,7 @@ export async function notifyChefsOfPlan(db: Db, opts: { orgId: string; locationI
   for (const c of withDept) {
     if (submitted.has(c.dept!)) continue;
     const dept = names.get(c.dept!) ?? "Departmanın";
-    const message = `${opts.byName ?? "Hesap sahibi"} ${range} planını oluşturdu, ${dept} vardiyaları da yazıldı. Kontrol edebilirsin.`;
+    const message = `${opts.byName ?? "Hesap sahibi"} ${range} planını oluşturdu, ${dept} vardiyaları da yazıldı. Kontrol edebilirsiniz.`;
     // Aynı hafta için bir kez
     const dup = await db.prepare(`SELECT id FROM notifications WHERE personnel_id = ? AND type = 'dept_plan' AND message LIKE ? LIMIT 1`).get(c.personnel_id, `%${range}%`);
     if (dup) continue;

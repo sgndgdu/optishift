@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
             const prevEndAdj = prevEnd <= toMin(prevShift.start_time) ? prevEnd + 1440 : prevEnd;
             const gap = (newStart + 1440) - prevEndAdj;
             if (gap < minRest) {
-              const msg = `${personnel_id} için dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`;
+              const msg = `${personnel_id} için dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} saat).`;
               if (!forcePublish) { errors.push(msg); continue; }
               else errors.push(msg);
             }
@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
             const curEndAdj = newEnd <= newStart ? newEnd + 1440 : newEnd;
             const gap = (nextStart + 1440) - curEndAdj;
             if (gap < minRest) {
-              const msg = `${personnel_id} için ertesi gün vardiyasıyla dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} sa).`;
+              const msg = `${personnel_id} için ertesi gün vardiyasıyla dinlenme süresi ${minRest / 60} saatin altında (${Math.round(gap / 60 * 10) / 10} saat).`;
               if (!forcePublish) { errors.push(msg); continue; }
               else errors.push(msg);
             }
@@ -385,7 +385,7 @@ export async function POST(req: NextRequest) {
                   VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', false, ?)
                 `).run(
                   personnel_id,
-                  `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Son dakika değişikliği için +${compPts} telafi puanı hesabına eklendi.`,
+                  `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Bu değişiklik için Adalet Puanınıza +${compPts} puan eklendi.`,
                   now
                 );
                 compensations.push({ personnel_id, points: compPts });
@@ -483,7 +483,7 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
-        `Sorumlun seni ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. İzinli olduğun için onayın gerekiyor. Kabul edersen +${fn.points} puan alırsın.`,
+        `Sorumlunuz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. O gün izinli olduğunuz için onayınız gerekiyor. Kabul ederseniz +${fn.points} puan alırsınız.`,
         now,
       );
     }

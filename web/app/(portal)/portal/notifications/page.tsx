@@ -186,7 +186,7 @@ export default function NotificationsPage() {
       markRead(notifId);
     } catch {
       setNotifs(prev => prev.map(n => n.id === notifId ? { ...n, responded: undefined } : n));
-      alert("İşlem başarısız, tekrar dene.");
+      alert("İşlem başarısız, tekrar deneyin.");
     }
   }, [markRead]);
 

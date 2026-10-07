@@ -313,7 +313,7 @@ export default function PortalDashboard() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-forest-200 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
                 {isCheckedIn ? <Timer size={12} /> : <Clock size={12} />}
-                {isCheckedIn ? "Şu an çalışıyorsun" : isCompleted ? `${words.Shift} bitti` : "Bugün"}
+                {isCheckedIn ? "Şu an çalışıyorsunuz" : isCompleted ? `${words.Shift} bitti` : "Bugün"}
               </div>
             </div>
             {todayShift && (
@@ -329,7 +329,7 @@ export default function PortalDashboard() {
 
           {todayOnCall && !dataLoading && (
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-300/40 bg-violet-400/20 px-3 py-1 text-xs font-bold text-violet-50"
-              title="Nöbet: evden beklersin, çağrılırsan gelirsin. Çalıştığın saat sorumlun tarafından kaydedilir.">
+              title="Nöbet: evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
               Bugün nöbetçisin · {todayOnCall.start_time}–{todayOnCall.end_time}
             </div>
           )}
@@ -365,7 +365,7 @@ export default function PortalDashboard() {
               </p>
               {todayMates.length > 0 && (
                 <p className="text-sm text-forest-100 mt-2">
-                  <span className="text-forest-200/70">Bugün seninle:</span> {todayMates.slice(0, 5).join(", ")}{todayMates.length > 5 ? ` +${todayMates.length - 5}` : ""}
+                  <span className="text-forest-200/70">Bugün sizinle:</span> {todayMates.slice(0, 5).join(", ")}{todayMates.length > 5 ? ` +${todayMates.length - 5}` : ""}
                 </p>
               )}
             </div>
@@ -487,7 +487,7 @@ export default function PortalDashboard() {
 
       {/* ── Çıkış devir notu ──────────────────────────────────────────── */}
       <Sheet open={checkoutModal !== null} onClose={() => setCheckoutModal(null)} title="Vardiyadan çıkış"
-        description="Sonraki vardiyaya iletmek istediğin bir not var mı? (isteğe bağlı)"
+        description="Sonraki vardiyaya iletmek istediğiniz bir not var mı? (isteğe bağlı)"
         footer={checkoutModal !== null && <>
           <button onClick={() => handleCheckOut(checkoutModal)} className={sheetSecondaryClass}>Notsuz çık</button>
           <button onClick={() => handleCheckOut(checkoutModal, handoverDraft)} disabled={!handoverDraft.trim()} className={sheetPrimaryClass}>Notu bırak ve çık</button>
@@ -594,7 +594,7 @@ export default function PortalDashboard() {
 
       <Sheet open={emergencyOpen} onClose={() => { if (!emergencySending) setEmergencyOpen(false); }}
         title={emergencySent ? "Bildirim gönderildi" : "Acil durum bildir"}
-        description={emergencySent ? "Sorumlularına anında ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Tüm sorumlularına anında bildirim gider."}
+        description={emergencySent ? "Bildirim sorumlularınıza ulaştı." : "İş yerindeki kaza, yangın, sağlık sorunu gibi gerçek acil durumlar için. Bütün sorumlularınıza hemen bildirim gider."}
         footer={emergencySent ? (
           <button onClick={() => setEmergencyOpen(false)} className={sheetSecondaryClass}>Kapat</button>
         ) : <>
@@ -630,8 +630,8 @@ export default function PortalDashboard() {
             <AlertCircle size={18} className="text-ember-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-ember-800">Gelecek haftan için uygunluğunu gir</p>
-            <p className="text-xs text-ember-600 mt-0.5">Gelemeyeceğin günleri işaretle; hepsi uygunsa da bir kez kaydet.</p>
+            <p className="text-sm font-bold text-ember-800">Gelecek hafta için uygunluğunuzu girin</p>
+            <p className="text-xs text-ember-600 mt-0.5">Gelemeyeceğiniz günleri işaretleyin. Bütün günler uygunsa da bir kez kaydedin.</p>
           </div>
           <Link href="/portal/availability"
             className="text-xs font-bold text-ember-700 bg-white border border-ember-200 px-4 min-h-[44px] inline-flex items-center rounded-xl whitespace-nowrap hover:bg-ember-50 transition-colors shrink-0">

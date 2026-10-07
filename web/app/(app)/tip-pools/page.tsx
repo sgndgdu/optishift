@@ -140,7 +140,7 @@ export default function TipPoolsPage() {
         <PageHeader title="Bahşiş Havuzu" />
         {/* Yakında (lib/moduleVisibility COMING_SOON): eski bağlantıyla gelen de soruyu görür */}
         <ComingSoonFeature feature="tips" icon={Wallet} title="Bahşiş ve Prim Dağıtımı"
-          description="Toplanan bahşişi ve primi ekibe sizin kurallarınızla paylaştırmak."
+          description="Bu özellik toplanan bahşişi ve primi ekibe sizin belirlediğiniz kurala göre dağıtacak."
           question="Böyle bir özellik ister misiniz? İşletmenizde bahşiş nasıl dağıtılıyor?"
           placeholder="Örn: Bahşiş kutusu haftada bir açılır, mutfak ve salon ayrı pay alır, şef iki pay alır." />
       </Page>

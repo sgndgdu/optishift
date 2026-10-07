@@ -123,7 +123,7 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', false, ?)
       `).run(
         shiftRow.personnel_id,
-        `${dateLabel}${timeStr} vardiyasını kabul ettin. Bu vardiyanın puanına +${points} bonus eklenecek.`,
+        `${dateLabel}${timeStr} vardiyasını kabul ettiniz. Bu vardiya için +${points} ek puan alacaksınız.`,
         now,
       );
 
@@ -159,7 +159,7 @@ export async function PATCH(req: NextRequest) {
       VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/portal/calendar', false, ?)
     `).run(
       shiftRow.personnel_id,
-      `${dateLabel}${timeStr} zorunlu atamasını reddedин. Sorumlun bilgilendirildi.`,
+      `${dateLabel}${timeStr} zorunlu atamasını reddettiniz. Sorumlunuza bilgi verildi.`,
       now,
     );
 

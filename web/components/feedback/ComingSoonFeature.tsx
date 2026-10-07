@@ -52,7 +52,7 @@ export function ComingSoonFeature({ feature, icon: Icon, title, description, que
       </div>
       <div className="mt-3 pt-3 border-t border-slate-200">
         {sent ? (
-          <p className="text-xs font-semibold text-emerald-700">Teşekkürler, cevabın bize ulaştı. Bu özelliği buna göre yapacağız.</p>
+          <p className="text-xs font-semibold text-emerald-700">Teşekkürler, cevabınız bize ulaştı. Bu özelliği buna göre yapacağız.</p>
         ) : !open ? (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs text-slate-600 flex-1 min-w-[12rem]">{question}</p>

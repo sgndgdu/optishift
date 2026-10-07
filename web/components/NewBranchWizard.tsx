@@ -259,7 +259,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
               {step === 0 && (
                 <WizardStep icon={<Building2 size={24} />} color="bg-ember-100 text-ember-600"
-                  title="Şube ve işletme türü" sub="İşletme türünü seçin; vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
+                  title="Şube ve işletme türü" sub="İşletme türünü seçin. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
                   {planLimited && (
                     <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
                       {limitMessage("locations")}
@@ -285,7 +285,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
 
               {step === 1 && (
                 <WizardStep icon={<CalendarClock size={24} />} color="bg-forest-100 text-forest-700"
-                  title="Vardiya saatleri" sub="Seçtiğiniz çalışma düzenine göre hazırlandı. Saatleri burada düzeltebilir ya da mevcut bir şubenin saatlerini kopyalayabilirsiniz.">
+                  title="Vardiya saatleri" sub="Bu vardiyalar seçtiğiniz işletme türüne göre hazırlandı. Saatleri burada düzeltebilir ya da mevcut bir şubenin saatlerini kopyalayabilirsiniz.">
                   <select value={source} onChange={e => pickSource(e.target.value)} className={inputCls}>
                     <option value="template">Önerilen: {getVariant(getIndustry(industry)!, variant).label}</option>
                     {copySources.length > 0 && (

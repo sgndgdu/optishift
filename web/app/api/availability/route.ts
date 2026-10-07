@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       const maxYellow = await getMaxPreferredNotDays(auth.location_id);
       if (yellowCount > maxYellow) {
         return NextResponse.json({
-          error: `Haftada en fazla ${maxYellow} gün "Tercih etmem" seçilebilir (şu an ${yellowCount} gün seçili). Gelemeyeceğin günler için "Gelemem" kullan.`,
+          error: `Haftada en fazla ${maxYellow} gün "Tercih etmem" seçilebilir (şu an ${yellowCount} gün seçili). Gelemeyeceğiniz günler için "Gelemem" seçin.`,
           max_preferred_not_days: maxYellow,
         }, { status: 400 });
       }
@@ -162,7 +162,7 @@ export async function DELETE(req: NextRequest) {
     .limit(1);
 
   if (existing?.is_locked) {
-    return NextResponse.json({ error: "Deadline geçtiği için geri alınamaz." }, { status: 403 });
+    return NextResponse.json({ error: "Son tarih geçtiği için geri alınamaz." }, { status: 403 });
   }
 
   await db

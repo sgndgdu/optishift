@@ -183,8 +183,8 @@ export async function PATCH(req: NextRequest) {
     `).run(
       request.personnel_id,
       isApproved ? "leave_approved" : "leave_rejected",
-      isApproved ? "İzin talebin onaylandı" : "İzin talebin reddedildi",
-      `${range} tarihli izin talebin ${isApproved ? "onaylandı" : "reddedildi"}.`,
+      isApproved ? "İzin talebiniz onaylandı" : "İzin talebiniz reddedildi",
+      `${range} tarihli izin talebiniz ${isApproved ? "onaylandı" : "reddedildi"}.`,
       now,
     );
 
@@ -210,7 +210,7 @@ export async function PATCH(req: NextRequest) {
               await db.prepare(`
                 INSERT INTO notifications (personnel_id, type, title, message, is_read, link, created_at)
                 VALUES (?, 'schedule', ?, ?, false, '/portal/calendar', ?)
-              `).run(sub, "Sana yeni bir vardiya verildi", `${formatDateTR(c.date)} ${c.start_time}–${c.end_time} vardiyası ${request.p_name} izinli olduğu için sana verildi.`, now);
+              `).run(sub, "Size yeni bir vardiya verildi", `${formatDateTR(c.date)} ${c.start_time}–${c.end_time} vardiyası ${request.p_name} izinli olduğu için size verildi.`, now);
             }
             continue;
           }

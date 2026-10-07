@@ -23,7 +23,7 @@ export function buildInsights(snap: WeekSnapshot, budgets: WeekBudgets = {}): In
     list.push({
       id: "no-availability", severity: "info", action: "remind-availability",
       title: `${noAvail.length} kişi uygunluk girmedi`,
-      lines: ["Otomatik planlamada tamamen uygun sayılırlar, plan engellenmez."],
+      lines: ["Otomatik planda bütün günlerde uygun sayılırlar. Bu durum planı engellemez."],
     });
   }
 
@@ -58,7 +58,7 @@ export function buildInsights(snap: WeekSnapshot, budgets: WeekBudgets = {}): In
     list.push({
       id: "no-demand", severity: "info", action: "open-demand",
       title: "Kaç kişi gerektiği girilmemiş",
-      lines: ["Hangi gün kaç kişi gerektiğini girerseniz eksik ve fazla vardiyaları da gösterebilirim."],
+      lines: ["Hangi gün kaç kişi gerektiğini girerseniz eksik ve fazla vardiyalar da gösterilir."],
     });
   }
 

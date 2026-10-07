@@ -110,7 +110,7 @@ export default function GenerateWizard({
           {step === 0 && (
             <WizardStep icon={<Users size={24} />} color="bg-forest-100 text-forest-700"
               title="Kaç kişi gerekli?"
-              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Bir günü yazıp “Boş günleri doldur” ile tüm haftaya kopyalayabilirsiniz; tablo haftadan haftaya aynı kalır.">
+              sub="Her gün, her vardiya için kaç kişiye ihtiyacınız olduğunu girin. Bir günü yazıp “Boş günleri doldur” ile tüm haftaya kopyalayabilirsiniz. Tablo sonraki haftalarda da aynı kalır.">
               <div className="rounded-2xl border border-slate-200 overflow-hidden">{demandTable}</div>
               {demandAutoFilled && !demandEmpty && (
                 <p className="text-xs text-forest-700 font-medium">Tablo boştu, öneriyle dolduruldu. Sayıları işletmenize göre değiştirebilirsiniz.</p>
@@ -124,7 +124,7 @@ export default function GenerateWizard({
           {step === 1 && (
             <WizardStep icon={<ClipboardCheck size={24} />} color="bg-sky-100 text-sky-700"
               title="Oluşturmadan önce kontrol"
-              sub="Sorun varsa şimdi görün, sonradan değil.">
+              sub="Plan oluşturulmadan önce sorunlar burada gösterilir.">
               <div className="space-y-2.5">
                 <CheckRow tone="ok">{personnelCount} kişi planlanacak.</CheckRow>
                 {pastDayCount > 0 && pastDayCount < 7 && (
@@ -159,7 +159,7 @@ export default function GenerateWizard({
                       {reminded ? <><Check size={12} /> Gönderildi</> : <><Bell size={12} /> Hatırlat</>}
                     </button>
                   }>
-                    <span className="font-bold">{noAvailCount} kişi uygunluk girmedi.</span> Plan engellenmez, bu kişiler tamamen uygun sayılır.
+                    <span className="font-bold">{noAvailCount} kişi uygunluk girmedi.</span> Bu durum planı engellemez. Uygunluk girmeyen kişiler bütün günlerde uygun sayılır.
                   </CheckRow>
                 ) : (
                   <CheckRow tone="ok">Herkes bu hafta için uygunluğunu girdi.</CheckRow>
@@ -226,7 +226,7 @@ export default function GenerateWizard({
                     <CheckRow tone="warn">{excludedCount} kişi geçersiz belge nedeniyle plana alınmadı.</CheckRow>
                   )}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button onClick={onClose} className="sm:flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Taslak Olarak Bırak, Gözden Geçir</button>
+                    <button onClick={onClose} className="sm:flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Taslak olarak bırak</button>
                     {onPublish && (
                       <button onClick={() => { onClose(); onPublish(); }} className="sm:flex-1 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Şimdi Yayınla</button>
                     )}

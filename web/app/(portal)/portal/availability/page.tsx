@@ -316,7 +316,7 @@ export default function PortalAvailability() {
     if (s === "preferred_not") {
       const usedYellow = days.filter((d, j) => j !== i && d.status === "preferred_not").length;
       if (usedYellow >= maxYellow) {
-        setYellowWarn(`Haftada en fazla ${maxYellow} gün "Tercih etmem" seçebilirsin. Gelemeyeceğin günler için "Gelemem"i kullan.`);
+        setYellowWarn(`Haftada en fazla ${maxYellow} gün "Tercih etmem" seçebilirsiniz. Gelemeyeceğiniz günler için "Gelemem"i seçin.`);
         setTimeout(() => setYellowWarn(null), 4000);
         return;
       }
@@ -349,12 +349,12 @@ export default function PortalAvailability() {
       const d = await r.json();
       if (d?.exists && Array.isArray(d.days)) {
         setDays(d.days.map((x: any) => ({ status: x.status || "available", start: x.start || "", end: x.end || "" })));
-        setCopyMsg("Geçen haftanın uygunluğu kopyalandı. Kontrol edip gönder.");
+        setCopyMsg("Geçen haftanın uygunluğu kopyalandı. Kontrol edip gönderin.");
       } else {
         setCopyMsg("Geçen hafta için girilmiş uygunluk yok.");
       }
     } catch {
-      setCopyMsg("Kopyalanamadı, tekrar dene.");
+      setCopyMsg("Kopyalanamadı, tekrar deneyin.");
     }
     setTimeout(() => setCopyMsg(null), 4000);
   };
@@ -401,9 +401,9 @@ export default function PortalAvailability() {
           <div className="w-12 h-12 rounded-2xl bg-forest-50 flex items-center justify-center">
             <CalendarCheck size={22} className="text-forest-500" />
           </div>
-          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları sorumlun planlıyor</p>
+          <p className="text-lg font-bold text-slate-900 tracking-tight">Bu işletmede vardiyaları sorumlunuz planlıyor</p>
           <p className="text-sm text-slate-500 max-w-xs">
-            Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarını Vardiyalar sayfasından görebilirsin.
+            Uygunluk girişi bu işletmede kapalı. Yayınlanan vardiyalarınızı Vardiyalar sayfasından görebilirsiniz.
           </p>
           <Link href="/portal/calendar"
             className="mt-2 text-sm font-bold text-white bg-forest-600 hover:bg-forest-700 px-5 py-2.5 rounded-xl transition-colors">
@@ -448,7 +448,7 @@ export default function PortalAvailability() {
           <CalendarCheck size={18} className="text-sky-600 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-sky-800">Bu haftanın planı yayınlandı</p>
-            <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da vardiya değiştirme isteyebilirsin.</p>
+            <p className="text-xs text-sky-700">Değişiklik için Talepler&apos;den izin ya da vardiya değiştirme isteyebilirsiniz.</p>
           </div>
           <Link href="/portal/requests"
             className="text-xs font-bold text-sky-700 bg-white border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-50 transition-colors shrink-0">
@@ -463,7 +463,7 @@ export default function PortalAvailability() {
           <Check size={18} className="text-emerald-600 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-emerald-800">Uygunluk gönderildi</p>
-            <p className="text-xs text-emerald-600">Değiştirmek istersen aşağıdaki &quot;Düzenle&quot;ye bas.</p>
+            <p className="text-xs text-emerald-600">Değiştirmek isterseniz aşağıdaki &quot;Düzenle&quot;ye basın.</p>
           </div>
         </div>
       )}
@@ -482,7 +482,7 @@ export default function PortalAvailability() {
             </div>
           )}
           <p className="text-xs text-slate-500 px-1">
-            Varsayılan olarak her gün uygunsun. Sadece gelemeyeceğin ya da tercih etmediğin günleri değiştir.
+            Başlangıçta bütün günler uygun olarak işaretlidir. Sadece gelemeyeceğiniz ya da çalışmayı tercih etmediğiniz günleri değiştirin.
           </p>
           <div className="flex items-center justify-between gap-2 px-1">
             {hasPrevWeek ? (

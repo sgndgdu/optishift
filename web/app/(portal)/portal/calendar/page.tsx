@@ -188,7 +188,7 @@ export default function PortalCalendar() {
                       )}
                       {onCall && (
                         <p className="mt-1 inline-flex items-center rounded-lg border border-dashed border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
-                          title="Evden beklersin, çağrılırsan gelirsin. Çalıştığın saat sorumlun tarafından kaydedilir.">
+                          title="Evde beklersiniz, çağrılırsanız gelirsiniz. Çalıştığınız saati sorumlunuz kaydeder.">
                           Nöbet · {onCall.start_time}–{onCall.end_time}
                         </p>
                       )}
@@ -245,7 +245,7 @@ export default function PortalCalendar() {
                     <div key={dayIndex} className={`bg-white rounded-2xl border overflow-hidden ${date === today ? "border-primary/40" : "border-slate-100"} ${date < today ? "opacity-60" : ""}`}>
                       <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                         <span className="text-sm font-bold text-slate-800">{dayName}{date === today && <span className="text-primary"> · Bugün</span>}</span>
-                        <span className="text-xs text-slate-400 font-medium">{iWork ? "Çalışıyorsun · " : ""}{formatDateTR(date, { weekday: false })}</span>
+                        <span className="text-xs text-slate-400 font-medium">{iWork ? "Çalışıyorsunuz · " : ""}{formatDateTR(date, { weekday: false })}</span>
                       </div>
                       <div className="divide-y divide-slate-50">
                         {[...groups.values()].map(g => (
@@ -276,12 +276,12 @@ export default function PortalCalendar() {
         </div>
       )}
       {picked && (
-        <Sheet open onClose={() => setPicked(null)} title={picked.label} description="Bu vardiya için ne yapmak istiyorsun?">
+        <Sheet open onClose={() => setPicked(null)} title={picked.label} description="Bu vardiya için ne yapmak istiyorsunuz?">
           <div className="space-y-2">
             {[
-              ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", Icon: UserX }] : []),
-              ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşına vardiya değiştirmeyi teklif et", Icon: ArrowLeftRight }] : []),
-              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Sorumludan saat düzeltme iste", Icon: FileEdit }] : []),
+              ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", Icon: UserX }] : []),
+              ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", Icon: ArrowLeftRight }] : []),
+              ...(reqFlags.edit ? [{ type: "edit", label: "Saatte hata var", hint: "Sorumludan saat düzeltmesi isteyin", Icon: FileEdit }] : []),
             ].map(o => (
               <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}
                 className="w-full flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3.5 text-left hover:bg-slate-50 min-h-[56px]">
@@ -292,7 +292,7 @@ export default function PortalCalendar() {
                 </span>
               </button>
             ))}
-            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Vardiya talepleri kapalı. Sorumlunla konuş.</p>}
+            {!reqFlags.giveaway && !reqFlags.swap && !reqFlags.edit && <p className="text-sm text-slate-500">Bu işletmede vardiya talepleri kapalı. Sorumlunuzla konuşun.</p>}
           </div>
         </Sheet>
       )}

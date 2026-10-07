@@ -50,7 +50,7 @@ export default function PortalOpenShiftsPage() {
         body: JSON.stringify({ id: shift.id, claimed_by: user.personnel_id, claimed_by_name: user.name }),
       });
       const data = await r.json().catch(() => ({}));
-      if (r.ok) { showToast("Vardiyayı üstlendin. Teşekkürler!"); await load(); }
+      if (r.ok) { showToast("Vardiyayı aldınız. Teşekkürler!"); await load(); }
       else { showToast(violationText(data, "Üstlenilemedi")); }
     } finally { setBusyId(null); }
   }
@@ -64,7 +64,7 @@ export default function PortalOpenShiftsPage() {
         body: JSON.stringify({ id: shift.id, withdraw: true }),
       });
       const data = await r.json().catch(() => ({}));
-      if (r.ok) { showToast("İlan geri çekildi, vardiya sende kalmaya devam ediyor."); await load(); }
+      if (r.ok) { showToast("İlan geri çekildi. Vardiya sizde kalıyor."); await load(); }
       else { showToast(data.error || "İlan geri çekilemedi"); }
     } finally { setBusyId(null); }
   }
@@ -73,7 +73,7 @@ export default function PortalOpenShiftsPage() {
 
   return (
     <Page>
-      <PageHeader title={words.OpenShifts} description="Boştaki vardiyalar. Üstlenmek istediğine dokun." />
+      <PageHeader title={words.OpenShifts} description="Boşta kalan vardiyalar. Almak istediğiniz vardiyaya dokunun." />
 
       {loading && <p className="text-sm text-slate-400 text-center py-8">Yükleniyor…</p>}
 
@@ -89,11 +89,11 @@ export default function PortalOpenShiftsPage() {
           if (s.released_by && s.released_by === user?.personnel_id) {
             return (
               <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
-                <StatusPill tone="neutral">Senin ilanın</StatusPill>
+                <StatusPill tone="neutral">Sizin ilanınız</StatusPill>
                 <div>
                   <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
-                  <p className="text-xs text-slate-500 mt-1">Biri üstlenene kadar bu vardiya sende kalır.</p>
+                  <p className="text-xs text-slate-500 mt-1">Biri alana kadar bu vardiya sizde kalır.</p>
                 </div>
                 {s.source_assignment_id && (
                   <button
@@ -111,7 +111,7 @@ export default function PortalOpenShiftsPage() {
             <div key={s.id} className={`bg-white rounded-2xl border p-5 space-y-3 ${(s.problems?.length ?? 0) > 0 ? "border-slate-200" : "border-amber-200"}`}>
               <div className="flex flex-wrap items-center gap-2">
                 {s.other_branch && <StatusPill tone="info">{s.location_name} şubesi</StatusPill>}
-                {s.invited && <StatusPill tone="brand">Sana özel davet</StatusPill>}
+                {s.invited && <StatusPill tone="brand">Size özel davet</StatusPill>}
                 {s.hero_bonus_multiplier > 0 && (
                   <StatusPill tone="attention">
                     <Star size={9} /> +{s.hero_bonus_multiplier} puan
@@ -127,17 +127,17 @@ export default function PortalOpenShiftsPage() {
               {(s.problems?.length ?? 0) > 0 ? (
                 // Üstlenemez: neden baştan yazılır, düğme yok
                 <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-600">
-                  <p className="font-bold text-slate-700">Bu vardiyayı alamazsın</p>
+                  <p className="font-bold text-slate-700">Bu vardiyayı alamazsınız</p>
                   {s.problems.map((p: string, i: number) => <p key={i}>{p}</p>)}
                 </div>
               ) : confirmId === s.id ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-800">{formatDate(s.date)} {s.start_time} – {s.end_time} senin olsun mu?</p>
+                  <p className="text-sm font-semibold text-slate-800">{formatDate(s.date)} {s.start_time} – {s.end_time} vardiyasını almak istiyor musunuz?</p>
                   <div className="flex gap-2">
                     <button onClick={() => setConfirmId(null)} disabled={busyId === s.id}
                       className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50">Vazgeç</button>
                     <button disabled={busyId === s.id} onClick={() => { setConfirmId(null); handleClaim(s); }}
-                      className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50">Evet, üstlen</button>
+                      className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50">Evet, vardiyayı al</button>
                   </div>
                 </div>
               ) : (

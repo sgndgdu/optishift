@@ -239,7 +239,7 @@ describe("fairnessLabel", () => {
     expect(fairnessLabel(50).level).toBe("ok");
     expect(fairnessLabel(25).level).toBe("ok");
     expect(fairnessLabel(10).level).toBe("high");
-    expect(fairnessLabel(10).text).toContain("Çok yüklü");
+    expect(fairnessLabel(10).text).toContain("Çok çalıştı");
   });
 });
 
@@ -278,11 +278,11 @@ describe("fairnessLabelFromAverage", () => {
   it("puanlar birbirine yakınsa kimse çok yüklü değil", () => {
     // Kafe örneği: 319-372 arası, ortalama ~345
     for (const b of [319, 330, 345, 360, 372]) expect(fairnessLabelFromAverage(b, 345).level).toBe("ok");
-    expect(fairnessLabelFromAverage(372, 345).text).toBe("Ortalamanın üstü yük");
+    expect(fairnessLabelFromAverage(372, 345).text).toBe("Ortalamanın üstünde çalıştı");
   });
   it("±%20 dışı: az yüklü / çok yüklü (çubuk rengiyle aynı eşik)", () => {
     expect(fairnessLabelFromAverage(79, 100)).toMatchObject({ level: "low" });
-    expect(fairnessLabelFromAverage(121, 100)).toMatchObject({ level: "high", text: "Çok yüklü, yük azaltılmalı" });
+    expect(fairnessLabelFromAverage(121, 100)).toMatchObject({ level: "high", text: "Çok çalıştı, daha az vardiya verilmeli" });
     expect(fairnessLabelFromAverage(100, 100).text).toBe("Takım ortalamasında");
   });
   it("eşit puan eşit etiket; ortalama 0 ise nötr", () => {
@@ -293,7 +293,7 @@ describe("fairnessLabelFromAverage", () => {
 
 describe("fairnessLabelForEmployee", () => {
   it("personele hitap eder, müdüre yönelik cümle yok", () => {
-    expect(fairnessLabelForEmployee(130, 100)).toEqual({ text: "Son haftalarda fazla yük aldın", level: "high" });
+    expect(fairnessLabelForEmployee(130, 100)).toEqual({ text: "Son haftalarda ekibe göre fazla çalıştınız", level: "high" });
     expect(fairnessLabelForEmployee(110, 100).text).toBe("Ortalamanın biraz üstünde");
     expect(fairnessLabelForEmployee(100, 100).text).toBe("Ekip ortalamasında");
     expect(fairnessLabelForEmployee(70, 100).level).toBe("low");

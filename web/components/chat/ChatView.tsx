@@ -421,7 +421,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
               className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-2 bg-slate-50/50">
               {grouped.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-300">
-                  <p className="text-sm font-medium">İlk mesajı gönder!</p>
+                  <p className="text-sm font-medium">İlk mesajı gönderin.</p>
                 </div>
               )}
               {grouped.map(({ date, msgs }) => (

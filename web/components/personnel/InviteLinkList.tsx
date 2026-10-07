@@ -16,7 +16,7 @@ export default function InviteLinkList({ results }: { results: InviteResult[] })
   const [copied, setCopied] = useState<number | "all" | null>(null);
   const link = (t: string) => `${typeof window !== "undefined" ? window.location.origin : ""}/setup?token=${t}`;
   const message = (r: InviteResult) =>
-    `Merhaba ${firstName(r.name)}, vardiyalarını OptiShift'ten görebilirsin. Bu bağlantıyı aç, Google ile ya da kendi şifrenle gir: ${link(r.invite_token)}`;
+    `Merhaba ${firstName(r.name)}, vardiyalarınızı OptiShift'ten görebilirsiniz. Bu bağlantıyı açın, Google ile ya da kendi şifrenizle giriş yapın: ${link(r.invite_token)}`;
   const copy = (text: string, key: number | "all") => {
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(key);
@@ -30,7 +30,7 @@ export default function InviteLinkList({ results }: { results: InviteResult[] })
       <p className="text-xs text-slate-500">Her kişiye giriş bağlantısını gönderin. Kişi bağlantıyı açıp Google ile ya da kendi şifresiyle girer. Bağlantı 7 gün geçerli.</p>
       {results.length > 1 && (
         <button
-          onClick={() => copy(`OptiShift giriş bağlantıları (bağlantını aç, Google ile ya da kendi şifrenle gir):\n${allText}`, "all")}
+          onClick={() => copy(`OptiShift giriş bağlantıları (bağlantınızı açın, Google ile ya da kendi şifrenizle giriş yapın):\n${allText}`, "all")}
           className={cn("w-full py-2.5 rounded-lg text-sm font-bold transition-colors", copied === "all" ? "bg-emerald-500 text-white" : "bg-forest-700 text-white hover:bg-forest-800")}
         >
           {copied === "all" ? "Hepsi kopyalandı" : `${results.length} bağlantının hepsini tek mesajda kopyala`}

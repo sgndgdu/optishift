@@ -362,7 +362,7 @@ export default function RegisterPage() {
               <div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hesabınız hazır</h2>
                 <p className="text-slate-500 mt-3 font-medium leading-relaxed">
-                  Şimdi işletme türünüzü seçin, vardiyalar hazır gelsin. Dilerseniz vardiyalarınızı özelleştirebilir, yeni vardiyalar ekleyebilirsiniz.
+                  Şimdi işletme türünüzü seçin. Vardiyalar bu türe göre kurulur, sonra istediğiniz gibi değiştirebilir ya da yeni vardiya ekleyebilirsiniz.
                 </p>
               </div>
               {promoResult?.trial_ends_at && (

@@ -236,7 +236,7 @@ export async function PATCH(req: NextRequest) {
     }
     const chefFamily = await chefDepartmentIds(db, auth);
     if (chefFamily && body.department_id !== undefined && !chefFamily.includes(body.department_id)) {
-      return NextResponse.json({ error: "Personeli başka departmana sadece şube sorumlusu taşıyabilir" }, { status: 403 });
+      return NextResponse.json({ error: "Kişiyi başka departmana sadece şube sorumlusu taşıyabilir" }, { status: 403 });
     }
     // Not: prev_score body'den kabul edilmez — türetilmiş önbellektir, tek yazarı
     // lib/scoring.ts recompute'udur. Elle düzeltme için score_adjustments (type: manual).
@@ -332,7 +332,7 @@ export async function PATCH(req: NextRequest) {
         // Bölge müdürü sadece kendi şubelerini ekleyip çıkarabilir
         if (auth.role === "supervisor" && auth.managed_location_ids?.length) {
           const changed = [...want.filter(l => !assigned.includes(l)), ...assigned.filter(l => !want.includes(l))];
-          if (changed.some(l => !auth.managed_location_ids!.includes(l))) return NextResponse.json({ error: "Sadece sorumlu olduğun şubeleri değiştirebilirsin" }, { status: 403 });
+          if (changed.some(l => !auth.managed_location_ids!.includes(l))) return NextResponse.json({ error: "Sadece sorumlu olduğunuz şubeleri değiştirebilirsiniz" }, { status: 403 });
         }
         if (!want.includes(existing.primary_location_id)) want.unshift(existing.primary_location_id);
         assigned = want;
@@ -359,8 +359,8 @@ export async function PATCH(req: NextRequest) {
       }
       if (body.branch_rotation !== undefined) {
         const rot = body.branch_rotation === null ? null : parseBranchRotation(body.branch_rotation);
-        if (body.branch_rotation !== null && !rot) return NextResponse.json({ error: "Rotasyon için en az iki şube ve geçerli bir sıklık seçin" }, { status: 400 });
-        if (rot && rot.order.some(l => !assigned.includes(l))) return NextResponse.json({ error: "Rotasyondaki şubeler kişinin çalıştığı şubeler arasında olmalı" }, { status: 400 });
+        if (body.branch_rotation !== null && !rot) return NextResponse.json({ error: "Şubeler arasında sırayla çalışma için en az iki şube ve geçerli bir sıklık seçin" }, { status: 400 });
+        if (rot && rot.order.some(l => !assigned.includes(l))) return NextResponse.json({ error: "Sıradaki şubeler kişinin çalıştığı şubeler arasında olmalı" }, { status: 400 });
         await db.prepare("UPDATE personnel SET branch_rotation = ? WHERE id = ?").run(rot ? JSON.stringify(rot) : null, id);
       }
     }
@@ -412,7 +412,7 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'alert', 'Sistem Rolünüz Güncellendi', ?, '/portal', false, ?)
       `).run(
         id,
-        `Sistem rolünüz "${newLabel}" olarak güncellendi. Yeni yetkileriniz için çıkış yapıp tekrar giriş yapın.`,
+        `Hesap türünüz "${newLabel}" olarak güncellendi. Yeni yetkileriniz için çıkış yapıp tekrar giriş yapın.`,
         now
       );
     }

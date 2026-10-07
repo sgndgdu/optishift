@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (!user.password_hash) {
       // Google ile kayıtlı hesap — şifre yok, kullanıcı "Google ile Giriş Yap"a yönlendirilmeli
       return NextResponse.json(
-        { error: "Bu hesap Google ile bağlı. Lütfen 'Google ile Giriş Yap' seçeneğini kullanın." },
+        { error: "Bu hesap Google ile bağlı. Lütfen 'Google ile devam et' düğmesini kullanın." },
         { status: 401 }
       );
     }

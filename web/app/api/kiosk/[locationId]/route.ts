@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   const db = getDB();
   const loc = await kioskLocation(db, locationId);
   if (!loc) return NextResponse.json({ error: "Şube bulunamadı" }, { status: 404 });
-  if (!loc.enabled) return NextResponse.json({ error: "Kiosk modu bu şubede kapalı" }, { status: 403 });
+  if (!loc.enabled) return NextResponse.json({ error: "Ortak tablet girişi bu şubede kapalı" }, { status: 403 });
 
   const person = await verifyKioskPin(db, locationId, pin);
   if (!person) return NextResponse.json({ error: "Geçersiz PIN" }, { status: 401 });
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ loc
   ).get(person.id, locationId, weekStart, day) as any;
 
   if (!shift) {
-    return NextResponse.json({ error: `${person.name}: bugün için planlanmış vardiyan yok` }, { status: 404 });
+    return NextResponse.json({ error: `${person.name}: bugün için planlanmış vardiyanız yok` }, { status: 404 });
   }
 
   if (action === "checkin") {

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     }
     const now = Math.floor(Date.now() / 1000);
     if (inv.expires_at < now) {
-      return NextResponse.json({ error: "Bu davet linkinin süresi dolmuş (7 gün)" }, { status: 410 });
+      return NextResponse.json({ error: "Bu davet bağlantısının süresi dolmuş (7 gün)" }, { status: 410 });
     }
     if (!inv.user_id) {
       return NextResponse.json({ error: "Bağlı kullanıcı bulunamadı" }, { status: 404 });
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     // Şifre belirlenince (POST /api/auth/setup) o ana kadarki davetler kapanır (used_at). Yöneticinin sonradan
     // ürettiği yeni bağlantı ise şifre yenileme gibi çalışır.
     if (inv.used_at && !user.is_temp_password) {
-      return NextResponse.json({ error: "Bu hesap zaten kurulmuş. Kullanıcı adınız ve şifrenizle giriş yapın." }, { status: 410 });
+      return NextResponse.json({ error: "Bu hesap zaten kurulmuş. Giriş sayfasından giriş yapın." }, { status: 410 });
     }
 
     const sessionToken = await signToken({

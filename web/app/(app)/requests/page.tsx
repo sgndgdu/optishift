@@ -199,7 +199,7 @@ export default function ManagerRequestsPage() {
     });
     if (r.ok) {
       const d = await r.json().catch(() => ({}));
-      const subNote = (d.replaced > 0 ? ` ${d.replaced} vardiya seçtiğin kişiye verildi.` : "") + (d.skipped?.length ? ` ${d.skipped.join("; ")}.` : "");
+      const subNote = (d.replaced > 0 ? ` ${d.replaced} vardiya seçtiğiniz kişiye verildi.` : "") + (d.skipped?.length ? ` ${d.skipped.join("; ")}.` : "");
       showToast(status === "rejected" ? "İzin reddedildi."
         : subNote && !(d.opened > 0) && !(d.removed > 0) ? `İzin onaylandı.${subNote}`
         : subNote ? `İzin onaylandı.${subNote} Kalan ${d.opened > 0 ? `${d.opened} vardiya ilana çevrildi` : `${d.removed} vardiya plandan çıktı`}.`
@@ -320,7 +320,7 @@ export default function ManagerRequestsPage() {
                     {s.note && <p className="text-xs text-slate-400 mt-1 italic">"{s.note}"</p>}
                     {pending && Array.isArray(s.violations) && s.violations.length > 0 && (
                       <div className="mt-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2">
-                        <p className="text-xs font-bold text-red-700 mb-1">Onaylanırsa kurallara uymuyor</p>
+                        <p className="text-xs font-bold text-red-700 mb-1">Onaylanırsa kurallara aykırı olur</p>
                         <ul className="text-xs text-red-700 space-y-0.5 list-disc pl-4">
                           {s.violations.map((v: string) => <li key={v}>{v}</li>)}
                         </ul>
@@ -464,7 +464,7 @@ export default function ManagerRequestsPage() {
                       {t.others.map((o: any, i: number) => (
                         <p key={i}>{o.name}: {formatDateTR(o.start_date, { weekday: false })}{o.end_date !== o.start_date ? ` – ${formatDateTR(o.end_date, { weekday: false })}` : ""}{o.pending ? " (onay bekliyor)" : ""}</p>
                       ))}
-                      {(leaveConflicts[l.id]?.length ?? 0) === 0 && <p className="text-slate-500">Bu günlerde planlanmış vardiyası yok. Plan sonra hazırlanırsa bu günlere yazılmaz.</p>}
+                      {(leaveConflicts[l.id]?.length ?? 0) === 0 && <p className="text-slate-500">Bu günlerde planlanmış vardiyası yok. Plan sonra hazırlanırsa bu kişiye bu günlerde vardiya yazılmaz.</p>}
                     </div>
                   );
                 })()}
@@ -518,13 +518,13 @@ export default function ManagerRequestsPage() {
                           onClick={() => reviewLeave(l.id, "approved", undefined, "remove")}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-sm font-bold hover:bg-primary/5 transition-colors"
                         >
-                          Onayla, sadece çıkar
+                          Onayla, vardiyaları plandan çıkar
                         </button>
                         <button
                           onClick={() => reviewLeave(l.id, "approved", undefined, "open")}
                           className="flex-[1.3] flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
                         >
-                          <CheckCircle2 size={15} /> Onayla, ilana çevir
+                          <CheckCircle2 size={15} /> Onayla, vardiyaları ilana çıkar
                         </button>
                       </>
                     ) : (

@@ -40,7 +40,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Rocket,
         paragraphs: [
           "Kayıt olduktan sonra işletme türünüzü seçersiniz (kafe, restoran, mağaza, fabrika gibi). İsterseniz mutfak, salon gibi bölümlerinizi de işaretlersiniz. Ardından türünüze uygun hazır vardiya saatleri gelir; değiştirebilir ya da olduğu gibi bırakabilirsiniz.",
-          "Kurulum bitince Vardiya Planı açılır. Üstteki Hızlı Kurulum bandı üç adımda yol gösterir: vardiyalar, ekip ve her vardiyaya kaç kişi gerektiği.",
+          "Kurulum bitince Vardiya Planı açılır. Üstteki Hızlı Kurulum bölümü üç adımı sırayla gösterir: vardiyalar, ekip ve her vardiyaya kaç kişi gerektiği.",
         ],
         steps: [
           "Ekip sayfasından kişileri ekleyin (isim ve telefon yeter).",
@@ -55,7 +55,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         icon: Users,
         paragraphs: [
           "Ekip sayfasında herkes tek listede: en üstte siz, sonra sorumlular, sonra ekip. Bir kişiye dokununca kartı açılır; departmanı, çalışma saatleri ve izin bilgisi oradan değişir.",
-          "Bölümleriniz (departmanlar) varsa her kişinin bir ana departmanı olmalı; departmanı olmayan kişi otomatik plana girmez. Birden çok bölümde çalışabilen kişiye kartından ek departman seçersiniz; plan onu o bölümlerin eksiğine de yazar. Listede kırmızı uyarı çıkar, \"Departmanlara dağıt\" ile hepsini tek ekranda atarsınız.",
+          "Bölümleriniz (departmanlar) varsa her kişinin bir ana departmanı olmalı; departmanı olmayan kişi otomatik plana girmez. Birden çok bölümde çalışabilen kişiye kartından ek departman seçersiniz; otomatik plan bu kişiyi gerektiğinde o departmanlara da yazar. Listede kırmızı uyarı çıkar, \"Departmanlara dağıt\" ile hepsini tek ekranda atarsınız.",
           "Sorumlu ekle ile ekipten birine ya da yeni birine yetki verirsiniz. Neyi yönetecek (tüm işletme ya da tek bir departman) ve neleri yapabilecek (planı hazırlama, yayınlama, onaylar, ekip, plan ayarları, ücret) tek tek seçilir. Ekipten seçilen sorumlu vardiyada çalışmaya devam eder.",
         ],
       },
@@ -64,9 +64,9 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Vardiya Planı",
         icon: CalendarClock,
         paragraphs: [
-          "Planı Oluştur üç adımdır: kaç kişi gerekli, kontrol, oluştur. İlk seferde tablo öneriyle dolar; bir günü yazıp \"Boş günleri doldur\" ile tüm haftaya kopyalayabilirsiniz. Boş gün bırakırsanız o günlere herkes yazılır, sihirbaz bunu uyarır.",
+          "Planı Oluştur üç adımdan oluşur: kaç kişi gerektiğini girme, kontrol ve oluşturma. İlk seferde tablo öneriyle dolar; bir günü yazıp \"Boş günleri doldur\" ile tüm haftaya kopyalayabilirsiniz. Boş gün bırakırsanız o günlere herkes yazılır, sihirbaz bunu uyarır.",
           "Plan önce taslaktır; ekip görmez. Kontrol edip Yayınla'ya basınca herkese bildirim gider. Plan Kontrolü kartı eksik kişi, dinlenme süresi ve haftalık sınır gibi sorunları listeler; maddeye dokununca ilgili kutuya gider.",
-          "Bir kutuya dokunarak elle vardiya ekler ya da değiştirirsiniz. Yayınlanmış bir vardiyaya dokununca \"Gelemiyor\" ile vardiyayı açık ilana çevirip yerine kişi bulabilirsiniz.",
+          "Bir kutuya dokunarak elle vardiya ekler ya da değiştirirsiniz. Yayınlanmış bir vardiyaya dokununca \"Gelemiyor\" ile vardiyayı ilana çıkarıp yerine kişi bulabilirsiniz.",
         ],
       },
       {
@@ -143,14 +143,14 @@ export const ROLE_GUIDES: RoleGuide[] = [
     key: "employee",
     label: "Ekip üyesi",
     shortLabel: "Ekip üyesi",
-    description: "Vardiyanı görmek, uygunluk girmek ve talep oluşturmak için.",
+    description: "Vardiyalarınızı görmek, uygunluk girmek ve talep oluşturmak için.",
     sections: [
       {
         id: "ekip-baslarken",
         title: "Başlarken",
         icon: Rocket,
         paragraphs: [
-          "İşyerin sana bir giriş bağlantısı gönderir. Bağlantıyı açıp şifreni belirlersin, sonra kullanıcı adın ve şifrenle telefonundan girersin. Tarayıcının \"Ana Ekrana Ekle\" seçeneğiyle uygulama gibi telefonuna ekleyebilirsin.",
+          "İşyeriniz size bir giriş bağlantısı gönderir. Bağlantıyı açıp Google ile devam edersiniz ya da bir şifre belirlersiniz. Sonra telefonunuzdan giriş yaparsınız. Tarayıcının \"Ana Ekrana Ekle\" seçeneğiyle uygulamayı telefonunuzun ana ekranına ekleyebilirsiniz.",
         ],
       },
       {
@@ -158,7 +158,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Ana Sayfa",
         icon: Home,
         paragraphs: [
-          "Bugünkü vardiyan, bu haftanın özeti ve son bildirimler burada. Açık ilan varsa \"Açık Vardiyalar\" kısayolu çıkar.",
+          "Ana Sayfa'da bugünkü vardiyanız, bu haftanın özeti ve son bildirimler görünür. Açık ilan varsa \"Açık Vardiyalar\" kısayolu çıkar.",
         ],
       },
       {
@@ -166,7 +166,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Vardiyalarım",
         icon: CalendarClock,
         paragraphs: [
-          "Sadece yayınlanmış plan görünür; taslak plan sana görünmez. Bir vardiyaya dokununca \"Gelemeyeceğim\", \"Biriyle değiştir\" ya da \"Saatte hata var\" seçeneklerini görürsün.",
+          "Sadece yayınlanmış plan görünür; taslak plan size görünmez. Bir vardiyaya dokununca \"Gelemeyeceğim\", \"Biriyle değiştir\" ya da \"Saatte hata var\" seçeneklerini görürsün.",
         ],
       },
       {
@@ -174,7 +174,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Uygunluk",
         icon: Clock,
         paragraphs: [
-          "Varsayılan olarak her gün uygunsun. Gelemeyeceğin günü \"Gelemem\", istemediğin günü \"Tercih etmem\" diye işaretleyip gönderirsin. \"Gelemem\" dediğin güne vardiya yazılmaz.",
+          "Başlangıçta bütün günler uygun olarak işaretlidir. Gelemeyeceğiniz günü \"Gelemem\", çalışmak istemediğiniz günü \"Tercih etmem\" olarak işaretleyip gönderirsiniz. \"Gelemem\" dediğiniz güne vardiya yazılmaz.",
         ],
       },
       {
@@ -182,8 +182,8 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Talepler",
         icon: Inbox,
         paragraphs: [
-          "İzin istemek, vardiyana gelemeyeceğini bildirmek, biriyle vardiya değiştirmek ya da saat hatası bildirmek için \"Yeni talep\"e dokun. Gelemeyeceğin vardiya ekibe duyurulur; biri üstlenene kadar sende kalır.",
-          "Vardiya değiştirmede önce arkadaşın kabul eder, sonra sorumlun onaylar. Kurallara uymayan bir vardiya değiştirme isteği (ör. dinlenme süresi yetmiyorsa) gönderilemez; nedeni ekranda yazar.",
+          "İzin istemek, vardiyanıza gelemeyeceğinizi bildirmek, biriyle vardiya değiştirmek ya da saat hatası bildirmek için \"Yeni talep\"e dokunun. Gelemeyeceğiniz vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır.",
+          "Vardiya değiştirmede önce arkadaşınız kabul eder, sonra sorumlunuz onaylar. Kurallara uymayan bir vardiya değiştirme isteği (ör. dinlenme süresi yetmiyorsa) gönderilemez; nedeni ekranda yazar.",
         ],
       },
       {
@@ -191,7 +191,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Açık vardiyalar",
         icon: Megaphone,
         paragraphs: [
-          "Boşalan bir vardiyayı üstlenebilirsin; üstlenene ek puan yazılır, sonraki planlarda yükün hafifler.",
+          "Boşalan bir vardiyayı alabilirsiniz. Vardiyayı alan kişi ek puan kazanır ve sonraki planlarda ona daha az vardiya verilir.",
         ],
       },
       {
@@ -199,7 +199,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Mesajlar ve hesabım",
         icon: MessageSquare,
         paragraphs: [
-          "Mesajlar açıksa ekip sohbeti ve sorumlunla yazışma buradadır. Hesabım'dan şifreni değiştirirsin. Gerçek bir acil durumda Ana Sayfa'nın en altındaki \"Acil durum bildir\" sorumlularına haber verir.",
+          "Mesajlar açıksa ekip sohbeti ve sorumlunuzla yazışma buradadır. Şifrenizi Hesabım sayfasından değiştirirsiniz. Gerçek bir acil durumda Ana Sayfa'nın en altındaki \"Acil durum bildir\" sorumlularınıza haber verir.",
         ],
       },
     ],
@@ -212,27 +212,27 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Adalet Puanı neyi ölçüyor?",
     answer:
-      "Kimin son haftalarda ne kadar ve ne kadar zor çalıştığını. Hafta sonu ve istemediğin günde çalışmak daha çok puan getirir. Puanı yüksek olana sonraki planlarda daha az yük verilir; amaç hep aynı kişilerin zor vardiyalara yazılmaması.",
+      "Adalet Puanı, kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını ölçer. Hafta sonu ve çalışmak istemediğiniz günde çalışmak daha çok puan getirir. Puanı yüksek olana sonraki planlarda daha az vardiya verilir. Böylece zor vardiyalar hep aynı kişilere yazılmaz.",
   },
   {
     question: "Uygunluk girmek zorunlu mu?",
     answer:
-      "Hayır. Sorumlun uygunluk toplamayı kapatabilir. Açıksa ve girmezsen her gün uygun sayılırsın; \"Gelemem\" dediğin güne ise vardiya yazılmaz.",
+      "Hayır. Sorumlunuz uygunluk toplamayı kapatabilir. Açıksa ve siz girmezseniz bütün günlerde uygun sayılırsınız. \"Gelemem\" dediğiniz güne ise vardiya yazılmaz.",
   },
   {
     question: "Vardiya değiştirme nasıl onaylanır?",
     answer:
-      "Önce teklif ettiğin kişi kabul eder, sonra sorumlu onaylar. İkisi olmadan vardiya değişmez.",
+      "Önce teklif ettiğiniz kişi kabul eder, sonra sorumlu onaylar. İkisi olmadan vardiya değişmez.",
   },
   {
     question: "Yayınlanmış bir vardiya sonradan değişebilir mi?",
     answer:
-      "Evet, sorumlu gerektiğinde değiştirebilir. Değişiklik sana bildirim olarak düşer ve Adalet Puanı'na küçük bir telafi eklenir.",
+      "Evet, sorumlu gerektiğinde değiştirebilir. Değişiklik size bildirim olarak gelir ve Adalet Puanınıza birkaç puan eklenir.",
   },
   {
     question: "Bir vardiyaya gelemeyeceğimi anlarsam ne yapmalıyım?",
     answer:
-      "Vardiyalarım'da vardiyaya dokunup \"Gelemeyeceğim\"i seç. Vardiya ekibe duyurulur, biri üstlenince senden düşer ve sana bildirim gelir.",
+      "Vardiyalarım'da vardiyaya dokunup \"Gelemeyeceğim\"i seçin. Vardiya ekibe duyurulur. Biri alınca vardiya sizden düşer ve size bildirim gelir.",
   },
   {
     question: "Departman eklediğimde neden kişiler plana girmiyor?",

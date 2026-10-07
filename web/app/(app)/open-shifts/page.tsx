@@ -207,7 +207,7 @@ export default function OpenShiftsPage() {
 
   return (
     <Page width="narrow">
-      <PageHeader title="Açık Vardiyalar" description="Boş kalan vardiyayı ilan et, gönüllü biri üstlensin." actions={
+      <PageHeader title="Açık Vardiyalar" description="Boş kalan vardiyayı ilan edin, isteyen biri alsın." actions={
         <button onClick={() => setShowForm(true)} className={pageActionClass}>
           <Plus size={16} /> Yeni İlan
         </button>
@@ -215,7 +215,7 @@ export default function OpenShiftsPage() {
 
       <List>
         {loading ? <ListEmpty>Yükleniyor…</ListEmpty> : shifts.length === 0 ? (
-          <ListEmpty>Açık vardiya ilanı yok. Biri gelemeyince ilan aç, ekibe anında bildirim gider.</ListEmpty>
+          <ListEmpty>Açık vardiya ilanı yok. Biri gelemediğinde ilan açın, ekibe hemen bildirim gider.</ListEmpty>
         ) : <>
           <ListSection title="Açık" count={openShifts.length} />
           {openShifts.length === 0 ? <ListEmpty>Şu an açık ilan yok.</ListEmpty> : openShifts.map(row)}
@@ -251,10 +251,10 @@ export default function OpenShiftsPage() {
               <section className="space-y-2">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Uygun adaylar</h3>
-                  <p className="text-xs text-slate-500">Ekibe bildirim gitti. Beklemeden birini sen de atayabilirsin. En az yüklü önce.</p>
+                  <p className="text-xs text-slate-500">Ekibe bildirim gitti. Beklemeden birini siz de atayabilirsiniz. Liste en az çalışan kişiden başlar.</p>
                 </div>
                 {candidates[selected.id]?.loading ? <p className="text-xs text-slate-500">Hesaplanıyor…</p>
-                  : (candidates[selected.id]?.list.length ?? 0) === 0 ? <p className="text-xs text-slate-500">Uygun aday yok, herkes o gün dolu, izinli ya da çalışamıyor.</p>
+                  : (candidates[selected.id]?.list.length ?? 0) === 0 ? <p className="text-xs text-slate-500">Uygun kimse yok. Herkesin o gün vardiyası ya da izni var veya o gün çalışamıyor.</p>
                   : (
                     <List>
                       {candidates[selected.id].list.map((c: any) => (

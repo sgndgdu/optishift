@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       `SELECT id FROM open_shifts WHERE source_assignment_id IN (?, ?) AND status = 'open' LIMIT 1`
     ).get(requester_shift_id, target_shift_id);
     if (listed) {
-      return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Vardiya değiştirmek için önce ilanı geri çek." }, { status: 409 });
+      return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Vardiya değiştirmek için önce ilanı geri çekin." }, { status: 409 });
     }
 
     // Takas departman içinde: herkes alacağı vardiyanın departmanında çalışabilmeli (ana departman ya da joker)
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     const deptOf = (id: unknown) => shiftDepts.find(r => String(r.id) === String(id))?.dept ?? null;
     const fits = (pid: string, dept: string | null) => { const set = deptSet(pid); return !dept || set.size === 0 || set.has(dept); };
     if (!fits(requester_id, deptOf(target_shift_id)) || !fits(target_id, deptOf(requester_shift_id))) {
-      return NextResponse.json({ error: "Sadece aynı departmandaki arkadaşınla vardiya değiştirebilirsin." }, { status: 400 });
+      return NextResponse.json({ error: "Sadece aynı departmandaki bir arkadaşınızla vardiya değiştirebilirsiniz." }, { status: 400 });
     }
 
     // Vardiyalar gerçekten iki tarafa ait, yayınlanmış ve aynı işletmede olmalı
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
       `SELECT id FROM shift_assignments WHERE id IN (?, ?) AND kind = 'on_call' LIMIT 1`
     ).get(requester_shift_id, target_shift_id);
     if (onCallRow) {
-      return NextResponse.json({ error: "İcap nöbeti değiştirilemez." }, { status: 400 });
+      return NextResponse.json({ error: "Nöbet değiştirilemez." }, { status: 400 });
     }
 
     // Takas sonrası iki tarafın planı kurallara uymalı (aynı gün iki vardiya, dinlenme, haftalık sınır)
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
       VALUES (?, 'trade_request', 'Vardiya Değiştirme Teklifi', ?, false, '/portal/requests', ?)
     `).run(
       target_id,
-      `${rName} seninle vardiya değiştirmek istiyor. Talepler'den yanıtla.`,
+      `${rName} sizinle vardiya değiştirmek istiyor. Talepler sayfasından yanıtlayın.`,
       now
     );
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
@@ -315,7 +315,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({
           error: result.newStatus === "manager_approved"
             ? "Bu vardiya değiştirme çalışma kurallarına uymuyor. Yine de onaylamak için sorunları görüp onaylayın."
-            : "Bu vardiya değiştirmeyi kabul edersen çalışma kurallarına uymayan bir plan oluşur.",
+            : "Bu vardiya değiştirmeyi kabul ederseniz çalışma kurallarına uymayan bir plan oluşur.",
           violations: problems,
           can_force: result.newStatus === "manager_approved",
         }, { status: 409 });

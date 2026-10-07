@@ -409,7 +409,7 @@ export default function ScheduleArchivePage() {
         {loading ? (
           <List><ListEmpty>Arşiv yükleniyor…</ListEmpty></List>
         ) : publications.length === 0 ? (
-          <List><ListEmpty>Henüz yayınlanmış hafta yok. Planı yayınladığında burada görünür.</ListEmpty></List>
+          <List><ListEmpty>Henüz yayınlanmış hafta yok. Planı yayınladığınızda burada görünür.</ListEmpty></List>
         ) : (
           <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
             {publications.map(pub => {
@@ -470,7 +470,7 @@ export default function ScheduleArchivePage() {
                           ) : currentSnap === null ? (
                             <div className="flex items-center justify-center py-10 gap-2 text-slate-400">
                               <AlertCircle size={16} />
-                              <span className="text-sm">Anlık görüntü bulunamadı.</span>
+                              <span className="text-sm">Bu haftanın kaydı bulunamadı.</span>
                             </div>
                           ) : currentSnap ? (
                             <SnapshotGrid snapshot={currentSnap} weekStart={pub.week_start} />

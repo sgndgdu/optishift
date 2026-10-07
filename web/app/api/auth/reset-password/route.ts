@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
       if (!row) {
         return NextResponse.json(
-          { error: "Geçersiz veya süresi dolmuş link. Lütfen yeni bir sıfırlama talebi oluşturun." },
+          { error: "Bu bağlantı geçersiz ya da süresi dolmuş. Yeni bir şifre sıfırlama isteği gönderin." },
           { status: 400 }
         );
       }

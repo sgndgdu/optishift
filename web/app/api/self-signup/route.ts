@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const loc = await db.prepare(
       "SELECT id, org_id, name FROM locations WHERE self_signup_token = ?"
     ).get(token) as any;
-    if (!loc) return NextResponse.json({ error: "Geçersiz veya kapatılmış kayıt linki" }, { status: 404 });
+    if (!loc) return NextResponse.json({ error: "Bu kayıt bağlantısı geçersiz ya da kapatılmış" }, { status: 404 });
 
     const org = await db.prepare("SELECT name FROM organizations WHERE id = ?").get(loc.org_id) as any;
     return NextResponse.json({ valid: true, org_name: org?.name ?? "", location_name: loc.name });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const loc = await db.prepare(
       "SELECT id, org_id FROM locations WHERE self_signup_token = ?"
     ).get(token) as any;
-    if (!loc) return NextResponse.json({ error: "Geçersiz veya kapatılmış kayıt linki" }, { status: 404 });
+    if (!loc) return NextResponse.json({ error: "Bu kayıt bağlantısı geçersiz ya da kapatılmış" }, { status: 404 });
 
     const passwordHash = await bcrypt.hash(password, 10);
     await createSelfSignupAccount(db, loc, { name, phone, passwordHash });
@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Şube bulunamadı" }, { status: 404 });
     }
     if (managerOutsideBranch(auth, location_id)) {
-      return NextResponse.json({ error: "Sadece kendi şubeniz için link yönetebilirsiniz" }, { status: 403 });
+      return NextResponse.json({ error: "Sadece kendi şubenizin kayıt bağlantısını yönetebilirsiniz" }, { status: 403 });
     }
 
     const newToken = action === "generate" ? crypto.randomBytes(20).toString("hex") : null;

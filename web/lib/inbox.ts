@@ -106,7 +106,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "fatigue",
       severity: fatigue.critical > 0 ? "critical" : "week",
       title: `Yorgunluk uyarısı: ${parts}`,
-      detail: "Üst üste gece, kapanıştan açılışa ya da yüksek mesai.",
+      detail: "Üst üste gece çalışan, kapanıştan sonra açılışa yazılan ya da çok fazla mesai yapan kişiler var.",
       action: { label: "Kimler?", kind: "expand" },
     });
   }
@@ -144,7 +144,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "not-joined",
       severity: "today",
       title: `${input.notJoined} kişi henüz uygulamaya girmedi`,
-      detail: "Giriş bağlantılarını gönderin, yoksa vardiyalarını göremezler.",
+      detail: "Giriş bağlantılarını gönderin. Bağlantıyı almayan kişi vardiyalarını göremez.",
       action: { label: "Bağlantıları Gönder", href: "/personnel?notJoined=1" },
     });
   }
@@ -196,14 +196,14 @@ export function buildInbox(input: InboxInput): InboxItem[] {
             id: "next-week",
             severity: "week",
             title: `Gelecek haftanın planı ${ap.dayName} sabahı otomatik hazırlanacak`,
-            detail: pub ? "Size sadece kontrol edip yayınlamak kalır. İsterseniz şimdi de oluşturabilirsiniz." : "Size sadece kontrol edip onaya göndermek kalır. İsterseniz şimdi de oluşturabilirsiniz.",
+            detail: pub ? "Siz kontrol edip yayınlarsınız. İsterseniz planı şimdi de oluşturabilirsiniz." : "Siz kontrol edip onaya gönderirsiniz. İsterseniz planı şimdi de oluşturabilirsiniz.",
             action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
           }
         : {
           id: "next-week",
           severity: urgent ? "critical" : "week",
           title: "Gelecek haftanın planı henüz hazır değil",
-          detail: pub ? "Ekip kendi planını yapabilsin diye erken yayınlayın." : "Hazırlayıp onaya gönderin, sorumlu yayınlar.",
+          detail: pub ? "Planı erken yayınlarsanız ekip de kendi haftasını önceden planlayabilir." : "Hazırlayıp onaya gönderin, sorumlu yayınlar.",
           action: { label: "Planı Oluştur", href: "/schedule?week=next&wizard=1" },
         })
       : ap?.drafted
@@ -235,7 +235,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
         id: "availability",
         severity: "week",
         title: `${input.availability.missing} kişi gelecek hafta için uygunluk girmedi`,
-        detail: "Girmeyenler otomatik planlamada tamamen uygun sayılır.",
+        detail: "Uygunluk girmeyen kişiler otomatik planda bütün günlerde uygun sayılır.",
         action: { label: "Hatırlat", kind: "remind-availability" },
       });
     }
@@ -247,7 +247,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "certifications",
       severity: "critical",
       title: `${cert.expired} kişinin belgesinin süresi doldu`,
-      detail: "Bu belgeyi gerektiren görevlere otomatik planlamada atanmazlar.",
+      detail: "Bu kişiler, belgeyi gerektiren görevlere otomatik planda yazılmaz.",
       action: { label: "Ekibe Git", href: "/personnel" },
     });
   } else if (cert?.enabled && cert.expiring > 0) {
@@ -274,7 +274,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "industry",
       severity: "week",
       title: "İşletme türünüzü seçin",
-      detail: "Görev listesi, belge kontrolü ve öneriler işletmenize göre gelsin.",
+      detail: "Görev listesi, belge kontrolü ve öneriler seçtiğiniz işletme türüne göre hazırlanır.",
       action: { label: "Seç", href: "/settings" },
     });
   }

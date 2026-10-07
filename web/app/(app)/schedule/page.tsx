@@ -1454,9 +1454,9 @@ function SchedulePageInner() {
         else showToast(`${pick.name} vardiyaya atandı ve bilgilendirildi.`, "success");
       } else if (mode === "top") {
         const names: string[] = Array.isArray(d.notified) ? d.notified : [];
-        showToast(names.length ? `${names.join(", ")} kişilerine teklif gitti; ilk kabul eden alır.` : "Uygun aday bulunamadı; vardiya açık ilanda.", names.length ? "success" : "info");
+        showToast(names.length ? `${names.join(", ")} kişilerine teklif gönderildi. Vardiyayı ilk kabul eden alır.` : "Uygun kimse bulunamadı. Vardiya açık vardiya olarak ekibe duyuruldu.", names.length ? "success" : "info");
       } else {
-        showToast("Vardiya açık ilana çıktı, tüm ekibe duyuruldu.", "success");
+        showToast("Vardiya açık vardiya olarak bütün ekibe duyuruldu.", "success");
       }
       setAbsence(null);
       setReloadTick(t => t + 1);
@@ -1540,7 +1540,7 @@ function SchedulePageInner() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { showToast(d.error ?? "Kaydedilemedi", "error"); return; }
-      showToast("Çağrı kaydedildi; çalışma süresine ve mesaiye sayılır.", "success");
+      showToast("Çağrı kaydedildi. Bu süre çalışma süresine ve fazla mesaiye eklenir.", "success");
       setCalloutForm({ start: "", end: "", note: "" });
       await reloadCallouts();
     } finally { setCalloutBusy(false); }
@@ -1701,7 +1701,7 @@ function SchedulePageInner() {
         const unique = [...new Set(names)];
         showToast(
           unique.length > 0
-            ? `Tüm vardiyalar yayınlandı. (${unique.join(", ")} için 11s dinlenme uyarısı)`
+            ? `Tüm vardiyalar yayınlandı. (${unique.join(", ")} için 11 saat dinlenme uyarısı var)`
             : "Tüm vardiyalar yayınlandı.",
           "info"
         );
@@ -2156,14 +2156,14 @@ function SchedulePageInner() {
     const projHours = weekBase + (popover.endMin - popover.startMin) / 60;
     const maxH = effectiveWeeklyLimit(popoverPerson.max_weekly_hours, (() => { const v = (locRules as Record<string, unknown>)?.max_weekly_hours; return typeof v === "number" ? v : 45; })());
     if (projHours > maxH) {
-      popoverWarnings.push({ type: 'error', msg: `Haftalık limit aşılacak: ${Math.round(projHours * 10) / 10}s / ${maxH}s` });
+      popoverWarnings.push({ type: 'error', msg: `Haftalık saat sınırı aşılacak: ${Math.round(projHours * 10) / 10} saat / ${maxH} saat` });
     }
     // 11 saatlik dinlenme — önceki gün
     const prevCell = popover.day > 0 ? cellMap[`${popover.personnelId}-${popover.day - 1}`] : null;
     if (prevCell) {
       const gapFromPrev = (popover.startMin + 1440) - prevCell.endMin;
       if (gapFromPrev < 11 * 60) {
-        popoverWarnings.push({ type: 'error', msg: `Önceki vardiyadan ${Math.round(gapFromPrev / 60 * 10) / 10}s dinlenme (min 11s)` });
+        popoverWarnings.push({ type: 'error', msg: `Önceki vardiyadan sonra sadece ${Math.round(gapFromPrev / 60 * 10) / 10} saat dinlenme kalır (en az 11 saat olmalı)` });
       }
       // Gececi→Sabahçı uyarısı
       if (prevCell.endMin >= 23 * 60 && popover.startMin <= 12 * 60) {
@@ -2175,7 +2175,7 @@ function SchedulePageInner() {
     if (nextCell) {
       const gapToNext = (nextCell.startMin + 1440) - popover.endMin;
       if (gapToNext < 11 * 60) {
-        popoverWarnings.push({ type: 'error', msg: `Ertesi gün başlangıcına ${Math.round(gapToNext / 60 * 10) / 10}s dinlenme kalır (min 11s)` });
+        popoverWarnings.push({ type: 'error', msg: `Ertesi günkü vardiyaya kadar sadece ${Math.round(gapToNext / 60 * 10) / 10} saat dinlenme kalır (en az 11 saat olmalı)` });
       }
     }
     // Uygunluk durumu
@@ -2467,7 +2467,7 @@ function SchedulePageInner() {
 loading ? (
               <div className="p-4 space-y-2 border-t border-slate-100">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}</div>
             ) : shiftDefs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Vardiya tanımlı değil. Yukarıdaki Hızlı Kurulum bandından ekleyin.</div>
+              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Henüz vardiya tanımlı değil. Vardiyaları yukarıdaki Hızlı Kurulum bölümünden ekleyin.</div>
             ) : (
               <div className="overflow-x-auto">
                 {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
@@ -2500,7 +2500,7 @@ loading ? (
                               {Object.entries(CURVES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
                             </select>
                           </label>
-                          <label className="flex items-center gap-1">Ort. görüşme
+                          <label className="flex items-center gap-1">Ortalama görüşme süresi
                             <input type="number" min={10} value={callForm.ahtSec} onChange={e => setCallForm(f => ({ ...f, ahtSec: Math.max(10, Number(e.target.value) || 0) }))}
                               className="w-16 border border-slate-200 rounded-md px-1 py-1 bg-white" /> sn
                           </label>
@@ -2586,7 +2586,7 @@ loading ? (
                       disabled={!tplName.trim() || tplBusy}
                       className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors disabled:opacity-40 shrink-0"
                     >
-                      Mevcut Planı Kaydet
+                      Bu tabloyu kaydet
                     </button>
                   </span>
                 </div>
@@ -2783,7 +2783,7 @@ loading ? (
     }] : []),
     ...(revokedSkills.length > 0 ? [{
       id: "revoked-skills", tone: "warning" as const,
-      title: `${new Set(revokedSkills.map(r => r.id)).size} kişi belge nedeniyle bazı görevlere atanmadı`,
+      title: `${new Set(revokedSkills.map(r => r.id)).size} kişi, belgesinin süresi dolduğu için bazı görevlere atanmadı`,
       detail: <>{revokedSkills.map(r => `${r.name}: ${r.skill} (${r.document} ${r.reason === "expired" ? "süresi dolmuş" : "girilmemiş"})`).join(" · ")}</>,
     }] : []),
     ...(noDeptPeople.length > 0 ? [{
@@ -2794,7 +2794,7 @@ loading ? (
     }] : []),
     ...(excludedCompliance.length > 0 ? [{
       id: "compliance", tone: "warning" as const,
-      title: `${excludedCompliance.length} kişi geçersiz belge nedeniyle plana alınmadı`,
+      title: `${excludedCompliance.length} kişi, belgesi geçerli olmadığı için plana alınmadı`,
       detail: <>{excludedCompliance.map(p => `${p.name} (${p.doc_type})`).join(", ")}</>,
     }] : []),
     ...(isPublishedWeek && !editUnlocked && editRequestStatus === "pending" ? [{
@@ -2805,7 +2805,7 @@ loading ? (
     ...(isPublishedWeek && editUnlocked && editRequestStatus === "approved" ? [{
       id: "edit-approved", tone: "success" as const,
       title: `Düzenleme modu açık${editRequestReviewer ? ` (${editRequestReviewer} onayladı)` : ""}`,
-      detail: "Yayınlayınca kapanır.",
+      detail: "Planı yayınladığınızda düzenleme modu kapanır.",
     }] : []),
   ];
 
@@ -3012,13 +3012,13 @@ loading ? (
                 ))}
                 {ownDepts.map(d => (
                   <StatusPill key={d.id} tone={plannedIds.has(d.id) ? "positive" : "attention"}>
-                    {departmentLabel(departments, d)} {plannedIds.has(d.id) ? "planlı ✓" : "boş (sorumlusu yok, sizde)"}
+                    {departmentLabel(departments, d)} {plannedIds.has(d.id) ? "planlı ✓" : "boş (sorumlusu yok, planı siz hazırlarsınız)"}
                   </StatusPill>
                 ))}
                 {chefsReady && ownReady ? (
                   <span className="text-xs font-semibold text-emerald-700">Hepsi hazır. Kontrol edip yayınlayabilirsiniz.</span>
                 ) : chefsReady && (
-                  <span className="text-xs text-slate-500">Sorumlusu olmayan bölümleri Planı Oluştur ile ekleyin: sorumluların planları korunur.</span>
+                  <span className="text-xs text-slate-500">Sorumlusu olmayan departmanların planını Planı Oluştur ile hazırlayın. Sorumluların hazırladığı planlar değişmez.</span>
                 )}
               </div>
             );
@@ -3147,7 +3147,7 @@ loading ? (
                     </li>
                   ))}
                 </ul>
-                <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Plan engellenmez; isterseniz düzeltin."}</p>
+                <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Bu uyarılar yayınlamayı engellemez, isterseniz düzeltebilirsiniz."}</p>
               </div>
               <div className="flex gap-2 shrink-0 sm:flex-col w-full sm:w-auto">
                 <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
@@ -3195,7 +3195,7 @@ loading ? (
                       <span className="text-[10px] font-bold text-slate-400">
                         Ekip {filteredPersonnel.length > 0 && <span className="font-normal text-slate-300">({filteredPersonnel.length})</span>}
                       </span>
-                      {showScores && <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal">Çubuk: Adalet Puanı</span>}
+                      {showScores && <span className="block text-[9px] font-medium text-slate-400 normal-case tracking-normal">İsimlerin altındaki çubuk Adalet Puanını gösterir</span>}
                     </th>
                     {Array.from({ length: 7 }, (_, i) => {
                       const isWeekend = i === 5 || i === 6;
@@ -3306,7 +3306,7 @@ loading ? (
                                 <div className="h-1.5 bg-slate-100 rounded-full w-10 overflow-hidden">
                                   <div className={cn("h-full rounded-full", fairnessBarColor(score, avgScore))} style={{ width: scoreBarWidth }} />
                                 </div>
-                                <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: son haftalarda aldığı yük (yüksek = daha yüklü)">{Math.round(score * 10) / 10}</span>
+                                <span className="text-[10px] text-slate-400 tabular-nums" title="Adalet Puanı: kişinin son haftalarda ne kadar çalıştığını gösterir. Yüksek puan daha çok çalıştığı anlamına gelir.">{Math.round(score * 10) / 10}</span>
                               </div>}
                             </div>
                             <div className="hidden sm:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -3352,11 +3352,11 @@ loading ? (
                                 : (e: React.MouseEvent) => handleCellClick(e, p.id, day)}
                               title={readOnlyWeek
                                 ? "Nöbet: çağrıldıysa çalıştığı saati girmek için tıklayın"
-                                : `Nöbet ${ocDef.start}–${ocDef.end}: evden, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
+                                : `Nöbet ${ocDef.start}–${ocDef.end}: kişi evde bekler, çağrılırsa gelir. Çalışma saatine sayılmaz.`}
                               className="mt-0.5 mx-auto w-full max-w-[112px] text-[9px] font-bold rounded-md px-1 py-0.5 text-center truncate bg-violet-50 text-violet-700 border border-dashed border-violet-300 cursor-pointer hover:border-violet-500"
                             >
                               {ocCallMin > 0
-                                ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} s çağrıldı`
+                                ? `Nöbet · ${(Math.round(ocCallMin / 6) / 10).toLocaleString("tr-TR")} saat çağrıldı`
                                 : `Nöbet · ${ocDef.name}`}
                             </div>
                           ) : null;
@@ -3370,7 +3370,7 @@ loading ? (
                             return (
                               <div key={x.id ?? label}
                                 onClick={readOnlyWeek && x.id ? () => openAbsence(x.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${label}`) : undefined}
-                                title="Aynı gün ikinci vardiya: dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlı haftada tıklayıp başkasına verebilirsiniz."
+                                title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık saat kurallarına uymayabilir. Yayınlanmış haftada tıklayıp başka birine verebilirsiniz."
                                 className={cn("mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-red-50 border-red-300", readOnlyWeek && x.id && "cursor-pointer hover:border-red-500")}
                               >
                                 <div className="text-[10px] font-bold text-red-700 truncate">⚠ {xDef?.name ?? "2. vardiya"}</div>
@@ -3382,7 +3382,7 @@ loading ? (
                           // Başka şubedeki vardiya: gri, sadece bilgi (o şubenin planında değiştirilir)
                           const away = elsewhere.filter(e => e.personnel_id === p.id && Number(e.day) === day);
                           const awayChip = away.length > 0 ? away.map((e, ai) => (
-                            <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var; orada değiştirilir`}
+                            <div key={`away-${ai}`} title={`${e.location_name} şubesinde vardiyası var. Bu vardiya o şubenin planından değiştirilir.`}
                               className="mt-0.5 mx-auto w-full max-w-[112px] rounded-lg px-1 py-0.5 text-center border bg-slate-100 border-slate-200">
                               <div className="text-[10px] font-bold text-slate-600 truncate">{e.location_name}</div>
                               <div className="text-[9px] text-slate-500">{normTime(e.start_time)}–{normTime(e.end_time)}</div>
@@ -3396,7 +3396,7 @@ loading ? (
                                 {cell ? (
                                   <div
                                     onClick={cell.id && !viewOnly && canPublish ? () => openAbsence(cell.id!, p.id, `${p.name} · ${DAY_NAMES[day]} ${normTime(minToHHMM(cell.startMin))}–${normTime(minToHHMM(cell.endMin, cell.endMin >= 1440))}`) : undefined}
-                                    title={cell.id ? "Gelemiyorsa tıklayın: uygun yedek önerilir" : undefined}
+                                    title={cell.id ? "Kişi gelemiyorsa tıklayın, uygun yedekler önerilir" : undefined}
                                     className={cn(
                                     "mx-auto w-full max-w-[112px] rounded-lg px-1 py-1 text-center border",
                                     cell.id && "cursor-pointer hover:shadow-sm",
@@ -3604,7 +3604,7 @@ loading ? (
                   </div>
                   <button onClick={runScenario} disabled={scnBusy || (!scnAbsent.pid && scnExtra === 0 && scnDemandPct === 0)}
                     className="w-full py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 disabled:opacity-40">
-                    {scnBusy ? "Çözülüyor…" : "Senaryoyu çöz"}
+                    {scnBusy ? "Çözülüyor…" : "Planları karşılaştır"}
                   </button>
                   {scnResult && (scnResult.scn.error || scnResult.base.error) && (
                     <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
@@ -3632,7 +3632,7 @@ loading ? (
                             ))}
                           </div>
                         ) : <p className="text-xs text-emerald-700">Senaryoda kural sorunu görünmüyor.</p>}
-                        <p className="text-[11px] text-slate-400">İki sütun da aynı motorla baştan kuruldu; mevcut planınız değişmedi. Uygulamak isterseniz ilgili değişikliği yapıp Planı Oluştur&apos;u çalıştırın.</p>
+                        <p className="text-[11px] text-slate-400">İki plan da baştan aynı kurallarla hazırlandı. Mevcut planınız değişmedi. Bu değişikliği uygulamak isterseniz önce değişikliği yapın, sonra Planı Oluştur&apos;a basın.</p>
                       </div>
                     );
                   })()}
@@ -3658,7 +3658,7 @@ loading ? (
                 {absenceCands === null ? (
                   <p className="text-xs text-slate-400">Uygun kişiler hesaplanıyor…</p>
                 ) : absenceCands.length === 0 ? (
-                  <p className="text-xs text-slate-500">O gün uygun kimse yok (vardiyası, izni ya da &quot;gelemem&quot; günü olmayan). Vardiyayı açık ilana çıkarabilirsiniz.</p>
+                  <p className="text-xs text-slate-500">O gün uygun kimse yok (vardiyası, izni ya da &quot;gelemem&quot; günü olmayan). Vardiyayı ilana çıkarıp ekibe duyurabilirsiniz.</p>
                 ) : (
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold text-slate-500">Önerilen yedekler</p>
@@ -3682,7 +3682,7 @@ loading ? (
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Teklifte ilk kabul eden vardiyayı alır ve ek puan kazanır; diğer şubelerden uygun kişilere de duyurulur. Vardiya planından kaldırılıp açık ilana dönüşür.</p>
+                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar. İlan diğer şubelerdeki uygun kişilere de gider. İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
               </div>
             </Sheet>
           )}
@@ -3695,7 +3695,7 @@ loading ? (
                 <button onClick={saveCallout} disabled={calloutBusy || !calloutForm.start || !calloutForm.end} className={sheetPrimaryClass}>Çağrıyı kaydet</button>
               </>}>
               <div className="space-y-4">
-                <p className="text-xs text-slate-500">Çağrılıp çalışılan saat çalışma süresine ve mesaiye sayılır; bekleme süresi sayılmaz.</p>
+                <p className="text-xs text-slate-500">Çağrılan kişinin çalıştığı saat çalışma süresine ve fazla mesaiye sayılır. Evde beklediği süre sayılmaz.</p>
                 {callouts.filter(c => c.assignment_id === calloutModal.assignmentId).map(c => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
                     <span className="font-semibold text-violet-800">{c.start_time}–{c.end_time}{c.note ? ` · ${c.note}` : ""}</span>
@@ -3807,8 +3807,8 @@ loading ? (
           )}
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400 leading-relaxed">
-          <p>Puan, kişinin son haftalarda ne kadar ve ne kadar zor çalıştığını gösterir. Yüksek = daha çok yük aldı; otomatik plan önce puanı düşük olana vardiya verir.</p>
-          <p>Kırmızı çubuk ortalamanın belirgin üstü, mavi altı. Kesin puan yayında hesaplanır.</p>
+          <p>Puan, kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını gösterir. Puanı yüksek olan daha çok çalışmıştır. Otomatik plan önce puanı düşük olana vardiya verir.</p>
+          <p>Kırmızı çubuk puanı ortalamanın belirgin üstünde, mavi çubuk altında olan kişiyi gösterir. Kesin puan plan yayınlanınca hesaplanır.</p>
         </div>
       </div>
 
@@ -3976,7 +3976,7 @@ loading ? (
           )}
           {shiftDefs.some(d => d.on_call) && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Nöbet (evden, çağrılırsa gelir)</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1.5">Nöbet (evde bekler, çağrılırsa gelir)</p>
               <div className="flex flex-wrap gap-1.5">
                 {[null, ...shiftDefs.filter(d => d.on_call)].map(def => {
                   const current = onCallMap[`${popover!.personnelId}-${popover!.day}`]?.defId ?? null;
@@ -4137,7 +4137,7 @@ loading ? (
                   </div>
                 </div>
               )}
-              {newEventScope === "week" && <p className="text-[11px] text-slate-400">Bu haftanın tamamı için not, sütun başlıklarında değil üstte görünür.</p>}
+              {newEventScope === "week" && <p className="text-[11px] text-slate-400">Bu not bütün hafta için geçerlidir ve planın üstünde görünür.</p>}
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Tür</label>
                 <div className="flex flex-wrap gap-1.5">

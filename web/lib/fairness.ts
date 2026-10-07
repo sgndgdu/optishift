@@ -329,9 +329,9 @@ export function fairnessBarColor(burden: number, teamAvg: number): string {
 export function fairnessLabelFromAverage(burden: number, teamAvg: number): { text: string; level: "low" | "ok" | "high" } {
   if (!(teamAvg > 0)) return { text: "Takım ortalamasında", level: "ok" };
   const ratio = burden / teamAvg;
-  if (ratio < 0.8) return { text: "Az yüklü, sıra sende", level: "low" };
-  if (ratio > 1.2) return { text: "Çok yüklü, yük azaltılmalı", level: "high" };
-  if (ratio > 1.05) return { text: "Ortalamanın üstü yük", level: "ok" };
+  if (ratio < 0.8) return { text: "Az çalıştı, sıradaki vardiyalar önce ona", level: "low" };
+  if (ratio > 1.2) return { text: "Çok çalıştı, daha az vardiya verilmeli", level: "high" };
+  if (ratio > 1.05) return { text: "Ortalamanın üstünde çalıştı", level: "ok" };
   return { text: "Takım ortalamasında", level: "ok" };
 }
 
@@ -342,8 +342,8 @@ export function fairnessLabelFromAverage(burden: number, teamAvg: number): { tex
 export function fairnessLabelForEmployee(burden: number, teamAvg: number): { text: string; level: "low" | "ok" | "high" } {
   const { level } = fairnessLabelFromAverage(burden, teamAvg);
   const ratio = teamAvg > 0 ? burden / teamAvg : 1;
-  if (level === "low") return { text: "Ekibe göre hafif yük", level };
-  if (level === "high") return { text: "Son haftalarda fazla yük aldın", level };
+  if (level === "low") return { text: "Ekibe göre daha az çalıştınız", level };
+  if (level === "high") return { text: "Son haftalarda ekibe göre fazla çalıştınız", level };
   return { text: ratio > 1.05 ? "Ortalamanın biraz üstünde" : "Ekip ortalamasında", level };
 }
 
@@ -352,10 +352,10 @@ export function fairnessLabelForEmployee(burden: number, teamAvg: number): { tex
  * percentile: 0-100, yüksek = takımda az yüklü.
  */
 export function fairnessLabel(percentile: number): { text: string; level: "low" | "ok" | "high" } {
-  if (percentile >= 75) return { text: "Az yüklü, sıra sende", level: "low" };
+  if (percentile >= 75) return { text: "Az çalıştı, sıradaki vardiyalar önce ona", level: "low" };
   if (percentile >= 40) return { text: "Takım ortalamasında", level: "ok" };
-  if (percentile >= 20) return { text: "Ortalamanın üstü yük", level: "ok" };
-  return { text: "Çok yüklü, yük azaltılmalı", level: "high" };
+  if (percentile >= 20) return { text: "Ortalamanın üstünde çalıştı", level: "ok" };
+  return { text: "Çok çalıştı, daha az vardiya verilmeli", level: "high" };
 }
 
 /**

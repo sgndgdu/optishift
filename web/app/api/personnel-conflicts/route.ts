@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "location_id, personnel_id_a ve personnel_id_b zorunlu" }, { status: 400 });
   }
   if (personnel_id_a === personnel_id_b) {
-    return NextResponse.json({ error: "Bir personel kendisiyle çakışamaz" }, { status: 400 });
+    return NextResponse.json({ error: "Bir kişi kendisiyle eşleştirilemez" }, { status: 400 });
   }
 
   const db = getDB();

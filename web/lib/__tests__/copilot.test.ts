@@ -140,7 +140,7 @@ describe("içgörüler", () => {
     input.assignments = [a("ali", 5, "s-sabah"), a("ali", 6, "s-sabah"), a("ayse", 0, "s-sabah"), a("can", 1, "s-sabah")];
     const f = buildInsights(buildWeekSnapshot(input)).find(i => i.id === "fairness")!;
     expect(f.lines[0]).toContain("Ali");
-    expect(f.lines[1]).toBe("Daha az yüklü olanlar: Ayşe (0) ve Can (0)");
+    expect(f.lines[1]).toBe("Daha az çalışmış olanlar: Ayşe (0) ve Can (0)");
   });
 });
 
@@ -152,7 +152,7 @@ describe("hazır sorular", () => {
     input.assignments = [a("ali", 0, "s-sabah"), a("ayse", 0, "s-sabah")];
     const ans = answerQuestion(buildWeekSnapshot(input), "extra-shift")!;
     expect(ans.lines[0]).toMatch(/^Can: 0 saat çalışıyor/);
-    expect(ans.lines[0]).toContain("sıra onda");
+    expect(ans.lines[0]).toContain("sıradaki vardiya ona verilebilir");
   });
 
   it("ihtiyaç girilmemişse eksik günler yerine günlük sayı", () => {
@@ -319,7 +319,7 @@ describe("neden bu kişi", () => {
     expect(texts[0]).toBe("Elle düzenlendi; yeniden oluşturmada korunuyor");
     expect(texts).toContain("Bu gün için uygun olduğunu girmiş");
     expect(texts.some(t => t.startsWith("Bu hafta 8 saat"))).toBe(true);
-    expect(lines.find(l => l.text.startsWith("O gün boşta ve daha az yüklü"))!.text).toContain("Can");
+    expect(lines.find(l => l.text.startsWith("O gün boşta ve daha az çalışmış"))!.text).toContain("Can");
   });
 
   it("gerekli rolü ve dinlenme uyarısını gösterir", () => {
@@ -342,9 +342,9 @@ describe("çapraz eğitim", () => {
     // Gece 7 gün açık (Ayşe tek Bakım Teknisyeni), Ali ve Can gecede çalışıyor
     input.assignments = [0, 1, 2, 3, 4, 5, 6].map(d => a(d % 2 ? "ali" : "can", d, "s-gece"));
     const hit = crossTrainingInsight(buildWeekSnapshot(input), defs)!;
-    expect(hit.title).toBe('"Bakım Teknisyeni" görevinde darboğaz var');
+    expect(hit.title).toBe('"Bakım Teknisyeni" görevini yapabilen kişi az');
     expect(hit.lines[0]).toContain("haftada 7 vardiyada gerekiyor, 1 kişide var; bu hafta 7 vardiyada eksik");
-    expect(hit.lines[0]).toContain("Eğitilirse fayda sağlar: Can, Ali"); // Can gecede daha çok çalışıyor
+    expect(hit.lines[0]).toContain("Bu görev için eğitilebilecek kişiler: Can, Ali"); // Can gecede daha çok çalışıyor
   });
 
   it("rolü yeterince kişi taşıyorsa öneri yok", () => {

@@ -18,7 +18,7 @@ export const PERM_LIST: { key: Perm; label: string; description: string }[] = [
   { key: "team", label: "Ekip", description: "Kişi ekler, çıkarır, kişi kartını ve belgeleri düzenler." },
   { key: "plan_settings", label: "Plan ayarları", description: "Vardiya saatleri, çalışma kuralları, açık vardiya ve Adalet Puanı." },
   { key: "budget", label: "Ücretler ve maliyet", description: "Kişilerin saatlik ücretini görür ve değiştirir, maaş için çalışma saatleri dökümünü alır." },
-  { key: "cross_branch", label: "Başka şubeden kişi", description: "Çalışanı başka şubelerde de çalıştırır, şube rotasyonu belirler." },
+  { key: "cross_branch", label: "Başka şubeden kişi", description: "Çalışanı başka şubelerde de çalıştırır, şubeler arasında sırayla çalışma düzeni kurar." },
   { key: "delegate", label: "Başkasına yetki verme", description: "Kendi kapsamında başkasını sorumlu yapar, en fazla kendi yetkilerini verir." },
 ];
 

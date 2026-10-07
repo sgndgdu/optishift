@@ -579,7 +579,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {requiredDocStates.map(({ spec, state }) => (
                         <button key={spec.id} type="button" onClick={() => state !== "valid" && setNewDocType(spec.label)}
-                          title={state === "valid" ? "Geçerli" : state === "expired" ? "Süresi dolmuş, yenisini ekleyin" : spec.strict ? "Kritik belge girilmemiş: ilgili role atanamaz" : "Girilmemiş"}
+                          title={state === "valid" ? "Geçerli" : state === "expired" ? "Süresi dolmuş, yenisini ekleyin" : spec.strict ? "Zorunlu belge girilmemiş, bu kişi ilgili göreve yazılamaz" : "Girilmemiş"}
                           className={`px-2 py-1 rounded-lg text-xs font-bold border ${
                             state === "valid" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                             : state === "expired" || spec.strict ? "bg-red-50 text-red-700 border-red-100"
@@ -655,10 +655,10 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                     {branchIds.length >= 2 && (
                       <div className="mt-3 rounded-xl border border-slate-200 px-3 py-2.5 space-y-2">
                         <label className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-medium text-slate-800">Şube rotasyonu</span>
+                          <span className="text-sm font-medium text-slate-800">Şubeler arasında sırayla çalışma</span>
                           <input type="checkbox" disabled={!canCrossBranch} checked={rotOn} onChange={e => setRotOn(e.target.checked)} className="h-5 w-5 accent-forest-600" />
                         </label>
-                        {!rotOn && <p className="text-xs text-slate-500">Kapalı: her hafta seçili şubelerin hepsinde planlanabilir.</p>}
+                        {!rotOn && <p className="text-xs text-slate-500">Kapalıyken kişi her hafta seçili şubelerin hepsinde planlanabilir.</p>}
                         {rotOn && (
                           <>
                             <div className="flex items-center gap-2 text-xs text-slate-600">
@@ -671,7 +671,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                             </div>
                             <p className="text-xs text-slate-500">
                               Bu hafta: <b>{name(rotationBranchForWeek(rot, getWeekStart(0)) ?? "")}</b> · Gelecek hafta: <b>{name(rotationBranchForWeek(rot, getWeekStart(1)) ?? "")}</b>.
-                              Sırayı değiştirmek için şubeleri istediğin sırada seç.
+                              Sırayı değiştirmek için şubeleri istediğiniz sırada seçin.
                             </p>
                           </>
                         )}
@@ -710,7 +710,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               {kioskModeEnabled && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Ortak Tablet PIN&apos;i</label>
-                  <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak Tablet Modu açıkken geçerlidir.</p>
+                  <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak tablet girişi açıkken geçerlidir.</p>
                   {pinSet ? (
                     <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
                       <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>

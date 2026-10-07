@@ -225,7 +225,7 @@ export default function SupervisorReports() {
         </List>
       ) : activeTab === "hours" ? (
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Bu hafta kim kaç saat çalışıyor. İki şubede çalışanın saatleri toplanır. Sınır kişinin ana şubesinin haftalık sınırı (yarı zamanlıda kişinin kendi sınırı); aşan kırmızı, %90&apos;ına gelen sarı.</p>
+          <p className="text-xs text-slate-500">Bu tablo bu hafta kimin kaç saat çalıştığını gösterir. İki şubede çalışan kişinin saatleri toplanır. Sınır, kişinin ana şubesindeki haftalık sınırdır (yarı zamanlı çalışanda kişinin kendi sınırı). Sınırı aşan kırmızı, sınırın %90&apos;ına gelen sarı gösterilir.</p>
           <List>
             {working.length === 0 ? <ListEmpty>Bu hafta plan yok.</ListEmpty>
               : working.map(w => {

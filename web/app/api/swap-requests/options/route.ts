@@ -101,15 +101,15 @@ export async function GET(req: NextRequest) {
           const problems: string[] = [];
           if (busy.has(Number(t.id))) problems.push("Bu vardiya ilanda ya da başka bir vardiya değiştirme isteğinde");
           const tDept = t.department_id ?? t.owner_dept;
-          if (tDept && myDepts.size > 0 && !myDepts.has(tDept)) problems.push("Bu vardiya senin departmanında değil");
-          if (dateOf(t) === dateOf(mine) && t.start_time === mine.start_time && t.end_time === mine.end_time) problems.push("Seninkiyle aynı vardiya");
+          if (tDept && myDepts.size > 0 && !myDepts.has(tDept)) problems.push("Bu vardiya sizin departmanınızda değil");
+          if (dateOf(t) === dateOf(mine) && t.start_time === mine.start_time && t.end_time === mine.end_time) problems.push("Sizinkiyle aynı vardiya");
           if (problems.length === 0) {
             const tShift = toShift(t);
             const forMe = findAssignmentProblems([...myAfter.map(toShift), tShift], [tShift], myRules);
             const forThem = findAssignmentProblems([...theirs.filter(x => Number(x.id) !== Number(t.id)).map(toShift), mineShift], [mineShift], theirRules);
             problems.push(...forMe.map(x => `Sen: ${x}`), ...forThem.map(x => `${m.name.split(" ")[0]}: ${x}`));
-            if (unavailable(auth.personnel_id!, t)) problems.push("Bu günü uygunlukta \"Gelemem\" olarak işaretlemişsin");
-            if (unavailable(m.id, mine)) problems.push(`${m.name.split(" ")[0]} senin vardiyanın gününü "Gelemem" olarak işaretlemiş`);
+            if (unavailable(auth.personnel_id!, t)) problems.push("Bu günü uygunlukta \"Gelemem\" olarak işaretlemişsiniz");
+            if (unavailable(m.id, mine)) problems.push(`${m.name.split(" ")[0]} sizin vardiyanızın olduğu günü "Gelemem" olarak işaretlemiş`);
           }
           return { id: t.id, week_start: t.week_start, day: Number(t.day), start_time: t.start_time, end_time: t.end_time, shift_id: t.shift_id, problems };
         });

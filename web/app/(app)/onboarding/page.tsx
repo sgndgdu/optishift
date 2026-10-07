@@ -309,7 +309,7 @@ export default function OnboardingWizard() {
             {step === 1 && (
               <WizardStep icon={<CalendarClock size={24} />} color="bg-ember-100 text-ember-600"
                 title="Vardiya Tanımları"
-                sub="Sektörünüze özel öneriler yüklendi, saatleri işletmenize göre düzenlemeniz yeterli.">
+                sub="İşletme türünüze uygun vardiyalar eklendi. Saatleri kendi işletmenize göre düzenleyin.">
                 <div className="space-y-3">
                   {shifts.map((s, i) => (
                     <div key={i} className="flex flex-wrap md:grid md:grid-cols-[1fr_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-3">

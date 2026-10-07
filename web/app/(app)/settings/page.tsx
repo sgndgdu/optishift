@@ -1071,7 +1071,7 @@ export default function SettingsPage() {
                       <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Belge kontrolü, yasal notlar ve öneriler buna göre çalışır.
+                      Belge kontrolü, yasal uyarılar ve öneriler seçtiğiniz işletme türüne göre yapılır.
                       {viewerRole === "admin" && !industryDraft && (
                         <> <button type="button" onClick={() => setIndustryDraft({ industry: savedIndustry.key, variant: savedVariant ?? savedIndustry.variants[0].key })}
                           className="font-semibold text-forest-700 hover:underline">Değiştir</button></>
@@ -1081,7 +1081,7 @@ export default function SettingsPage() {
                       <div className="mt-3 space-y-3">
                         <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
                           onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
-                        <p className="text-xs text-slate-500">Vardiyalarınız ve ayarlarınız değişmez; görev listesi ve öneriler yeni türe göre olur.</p>
+                        <p className="text-xs text-slate-500">Vardiyalarınız ve ayarlarınız değişmez. Görev listesi ve öneriler yeni türe göre güncellenir.</p>
                         <div className="flex flex-wrap items-center gap-2">
                           <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty || !industryChanged}
                             className="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
@@ -1283,7 +1283,7 @@ export default function SettingsPage() {
               {/* 2. Vardiya Tanımları */}
               <div>
                 <SectionLabel>Vardiya Tanımları</SectionLabel>
-                <p className="text-xs text-slate-400 mb-3">Her vardiya bloğunun adını, saatlerini ve zorluk ağırlığını tanımlayın.</p>
+                <p className="text-xs text-slate-400 mb-3">Her vardiyanın adını, saatlerini ve ne kadar zor olduğunu belirleyin.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(locationData.shift_definitions ?? []).map((shift: ShiftDefinition, idx: number) => (
                     <div key={shift.id} className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-white space-y-3">
@@ -1322,7 +1322,7 @@ export default function SettingsPage() {
                         {shift.on_call && (
                         <button
                           type="button"
-                          title="Nöbet: evden beklenir, çağrılırsa gelir. Çalışma saatine sayılmaz, aynı gün normal vardiyayla birlikte verilebilir."
+                          title="Nöbet: kişi evde bekler, çağrılırsa işe gelir. Nöbet çalışma saatine sayılmaz ve aynı gün normal vardiyayla birlikte verilebilir."
                           onClick={() => {
                             const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
                               i === idx ? { ...s, on_call: !s.on_call } : s
@@ -1367,7 +1367,7 @@ export default function SettingsPage() {
                       </div>
                       {shift.on_call && (
                         <div className="flex flex-wrap items-center gap-2 text-xs text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-2 py-1.5">
-                          <span className="flex-1 min-w-[180px]">Nöbet: evden beklenir, çalışma saatine ve mesaiye sayılmaz. Çağrılınca çalışılan saat Vardiya Planı&apos;ndan girilir.</span>
+                          <span className="flex-1 min-w-[180px]">Nöbet: kişi evde bekler. Nöbet çalışma saatine ve fazla mesaiye sayılmaz. Kişi çağrılırsa çalıştığı saat Vardiya Planı&apos;ndan girilir.</span>
                           <label className="flex items-center gap-1 font-semibold">
                             Nöbet ücreti
                             <input type="number" min={0} step={50} value={shift.on_call_pay ?? ""} placeholder="0"
@@ -1396,7 +1396,7 @@ export default function SettingsPage() {
                             }}
                             className="w-16 border border-slate-200 rounded-md px-1.5 py-0.5 bg-white text-slate-800" />
                           <span>saat</span>
-                          <span className="text-slate-400 basis-full sm:basis-auto">Planlama AETR sürüş sınırlarını uygular: günde 9 saat (haftada 2 kez 10), haftada 56, iki haftada 90.</span>
+                          <span className="text-slate-400 basis-full sm:basis-auto">Plan AETR sürüş sınırlarına uyar: günde en fazla 9 saat (haftada 2 gün 10 saat), haftada 56 saat, iki haftada 90 saat.</span>
                         </label>
                       )}
                       {(shift.driving_hours ?? 0) > DAILY_DRIVING_EXTENDED_HOURS && (
@@ -1458,8 +1458,8 @@ export default function SettingsPage() {
                     label="Planı her hafta otomatik hazırla"
                     description={
                       <span>
-                        Gelecek haftanın planı seçtiğiniz gün sabah taslak olarak hazırlanır, size sadece kontrol edip yayınlamak kalır.
-                        Ekip taslağı görmez. Siz o haftaya zaten başladıysanız dokunulmaz.
+                        Gelecek haftanın planı seçtiğiniz gün sabah taslak olarak hazırlanır. Siz kontrol edip yayınlarsınız.
+                        Ekip taslağı görmez. O haftanın planını kendiniz hazırlamaya başladıysanız otomatik taslak hazırlanmaz.
                         {autopilotEnabled && (
                           <span className="flex flex-wrap items-center gap-2 mt-2">
                             <span>Her</span>
@@ -1491,7 +1491,7 @@ export default function SettingsPage() {
                   {availabilityCollectionEnabled && (
                     <RuleRow
                       label='Haftalık "Tercih Etmem" Hakkı'
-                      description="Ekip üyesi haftada en fazla bu kadar günü &quot;Tercih etmem&quot; (gerekirse gelirim) diye işaretler."
+                      description="Ekip üyesi haftada en fazla bu kadar günü &quot;Tercih etmem&quot; olarak işaretleyebilir. Bu işaret, gerekirse gelebileceği anlamına gelir."
                       right={<NumberInput value={maxPreferredNotDays} onChange={setMaxPreferredNotDays} min={0} max={7} suffix="gün" />}
                     />
                   )}
@@ -1529,7 +1529,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     label="Vardiya Değişiklik Talebi"
-                    description="Ekip üyesi vardiya saatinde hata varsa düzeltme ister."
+                    description="Ekip üyesi vardiya saatinde hata görürse düzeltme isteği gönderir."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
                 </SectionCard>
@@ -1574,12 +1574,12 @@ export default function SettingsPage() {
                   </>)}
                   {(shiftWorkBusiness || balancingPeriodWeeks > 0) && <RuleRow
                     lock="rules" label="Denkleştirme Dönemi"
-                    description="0 = kapalı. 2-8 hafta seçilirse yoğun haftalar hafif haftalarla dengelenir; bir hafta en çok 66 saat olur (İş K. m.63)."
+                    description="0 kapalı demektir. 2-8 hafta seçerseniz yoğun haftalardaki fazla saat, aynı dönemdeki hafif haftalarla dengelenir. Bir haftada en fazla 66 saat çalışılabilir (İş K. m.63)."
                     right={<NumberInput value={balancingPeriodWeeks} onChange={setBalancingPeriodWeeks} min={0} max={8} suffix="hafta" />}
                   />}
                   <RuleRow
-                    lock="rules" label="Maks. Ardışık Çalışma"
-                    description="Arka arkaya en fazla bu kadar gün çalışılır. Haftada 1 gün izin her zaman korunur."
+                    lock="rules" label="Arka Arkaya En Fazla Çalışma Günü"
+                    description="Kimse arka arkaya bu kadar günden fazla çalışmaz. Haftada 1 gün izin her zaman verilir."
                     right={<NumberInput value={maxConsecutiveDays} onChange={setMaxConsecutiveDays} min={1} max={7} suffix="gün" />}
                   />
                   {(locationData?.shift_definitions ?? []).some((d: ShiftDefinition) => d.on_call) && (
@@ -1612,7 +1612,7 @@ export default function SettingsPage() {
                   />
                   <RuleRow
                     lock="rules" label="Gece 7,5 Saat Uyarısı"
-                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya editöründe ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
+                    description="Gece işaretli vardiya 7,5 saati aşarsa vardiya düzenleme penceresinde ve yayın öncesi kontrolde uyarı gösterilir (yasal sınır). Sadece bilgilendirir, engellemez."
                     right={<Toggle on={nightLegalWarning} onToggle={() => setNightLegalWarning(v => !v)} />}
                   />
                 </SectionCard>
@@ -1638,9 +1638,9 @@ export default function SettingsPage() {
                   <div className="py-4 space-y-2">
                     <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
                     {([
-                      { id: "phone", label: "Kendi telefonundan", desc: "Portaldaki vardiya kartından ya da işyerine asılan QR kodu okutarak." },
+                      { id: "phone", label: "Kendi telefonundan", desc: "Ekip üyesi telefonundaki vardiya kartından ya da işyerine asılan QR kodu okutarak giriş yapar." },
                       { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "İşyerine belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
-                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Oturum açılmaz, 4 haneli PIN'le girer ve çıkar." },
+                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Ekip üyesi hesabına girmeden, 4 haneli PIN ile giriş ve çıkış yapar." },
                     ] as const).map(opt => {
                       const current = kioskModeEnabled ? "kiosk" : gpsCheckinRequired ? "gps" : "phone";
                       const on = current === opt.id;
@@ -1682,12 +1682,12 @@ export default function SettingsPage() {
                         >
                           {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
                         </button>
-                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. PIN'ler Ekip sayfasında kişinin ayrıntısında.</p>
+                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. Kişilerin PIN'leri Ekip sayfasında, kişinin kartında yazar.</p>
                       </div>
                     )}
                   </div>
                   <RuleRow
-                    label="Geç Kalan → Otomatik Açık Vardiya"
+                    label="Geç kalanın vardiyası açık vardiyaya dönsün"
                     description={
                       <span>
                         Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş yapmayan kişinin vardiyası otomatik açık vardiyaya dönüşür.
@@ -1750,7 +1750,7 @@ export default function SettingsPage() {
                 <RuleRow
                   wide
                   label="Konum"
-                  description="Konumlu giriş ve plan ekranındaki hava durumu için."
+                  description="Konum doğrulamalı giriş ve plan ekranındaki hava durumu bu konumu kullanır."
                   right={
                     <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
                       {/* Mevcut konum göstergesi */}
@@ -1812,7 +1812,7 @@ export default function SettingsPage() {
                 />
               </SectionCard>
               </SettingsGroup>
-              <SettingsGroup id="fairness" title="Adalet Puanı" description="Yükün herkese eşit dağılması" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
+              <SettingsGroup id="fairness" title="Adalet Puanı" description="Vardiyaların ekibe eşit dağıtılması" open={!!openGroups["fairness"]} onToggle={toggleGroup}>
                 <LockArea cat="rules">
 
                 {/* Açıklama: puanın ne olduğu ve neye yaradığı, tek örnekle */}
@@ -1820,7 +1820,7 @@ export default function SettingsPage() {
                   <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   <div className="space-y-1.5 text-xs text-forest-700">
                     <p className="text-sm font-semibold text-forest-800">Adalet Puanı nedir?</p>
-                    <p>Her çalışılan vardiya kişiye puan yazar. Puanı yüksek olan çok yük taşımış demektir. Otomatik plan, puanı düşük olana daha çok, yüksek olana daha az vardiya vererek yükü eşitler.</p>
+                    <p>Kişi çalıştığı her vardiyadan puan alır. Puanı yüksek olan kişi çok çalışmış demektir. Otomatik plan, puanı düşük olana daha çok, puanı yüksek olana daha az vardiya vererek iş yükünü eşitler.</p>
                     <p>Örnek: orta zorlukta 8 saatlik vardiya 8 puandır. Vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndan gelir. Aşağıdakiler bunun üstüne eklenen puanlardır.</p>
                   </div>
                 </div>
@@ -1847,7 +1847,7 @@ export default function SettingsPage() {
                 </SectionCard>
                 {/* Vardiya dışı olaylarla yazılan puanlar (eski adı "Bonus Puanları") */}
                 <SectionCard title="Ekibe kolaylık sağlayana ek puan">
-                  <p className="text-xs text-slate-500 pt-4 pb-3">Bu durumlarda kişiye fazladan puan yazılır. Puanı yükselen kişi sonraki planlarda daha az yük alır, yani bu bir teşekkürdür. 0 yazarsanız kapanır.</p>
+                  <p className="text-xs text-slate-500 pt-4 pb-3">Bu durumlarda kişiye fazladan puan yazılır. Puanı yükselen kişiye sonraki planlarda daha az vardiya verilir. Böylece ekibe kolaylık sağlayan kişi ödüllendirilir. 0 yazarsanız kapanır.</p>
                   <RuleRow
                     label="Boşta kalan vardiyayı üstlenince"
                     description="Açık Vardiyalar'dan gönüllü olarak bir vardiya alan kişiye."
@@ -1874,7 +1874,7 @@ export default function SettingsPage() {
                 <SectionCard title="Ne kadar geriye bakılsın?">
                   <RuleRow
                     label="Son kaç hafta sayılsın?"
-                    description={<>Puan, son bu kadar haftanın toplamıdır; daha eski haftalar unutulur. Örnek: 4 hafta seçiliyse, son 4 haftada çok çalışan kişi sıradaki planda daha az yük alır. Kısa seçerseniz hızlı, uzun seçerseniz daha uzun dönemde dengeler.</>}
+                    description={<>Puan, son bu kadar haftanın toplamıdır. Daha eski haftalar hesaba katılmaz. Örnek: 4 hafta seçiliyse son 4 haftada çok çalışan kişiye sıradaki planda daha az vardiya verilir.</>}
                     right={<NumberInput value={fairnessWindowWeeks} onChange={setFairnessWindowWeeks} min={1} max={12} suffix="hafta" />}
                   />
                 </SectionCard>
@@ -1883,10 +1883,10 @@ export default function SettingsPage() {
               {/* Postalar (A/B/C vardiya grupları) ve vardiya rotasyonu 2026-10-04'te kaldırıldı (kullanıcı kararı);
                   kişi başı çalış/dinlen döngüsü kalır. "Rotasyon" artık şubeler arası (kişinin kartında). */}
               {(shiftWorkBusiness || !!workCycle?.pattern) && (
-              <SettingsGroup id="cycle" title="Çalışma Döngüsü" description="Çalış / dinlen deseni (örn. 4 gün çalış, 4 gün dinlen)" open={!!openGroups["cycle"]} onToggle={toggleGroup}>
+              <SettingsGroup id="cycle" title="Çalışma Döngüsü" description="Çalışma ve dinlenme sırası (örn. 4 gün çalış, 4 gün dinlen)" open={!!openGroups["cycle"]} onToggle={toggleGroup}>
                 <SectionCard title="Çalışma döngüsü">
                   <div className="p-4 space-y-3">
-                    <p className="text-xs text-slate-500">Kişiler desene eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Planlama boş günlerde kimseyi yazmaz, gündüz/gece günlerinde sadece o vardiyayı verir. Değişiklik anında kaydedilir.</p>
+                    <p className="text-xs text-slate-500">Kişiler bu sıraya eşit dağıtılır, böylece her gün benzer sayıda kişi çalışır. Dinlenme günlerinde kimseye vardiya yazılmaz, gündüz ya da gece günlerinde sadece o vardiya verilir. Değişiklik anında kaydedilir.</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <select value={workCycle?.pattern ?? ""} disabled={cycleSaving}
                         onChange={e => saveWorkCycle(e.target.value)}
@@ -1958,18 +1958,18 @@ export default function SettingsPage() {
               const card = {
                   chat: (
                 <FeatureCard icon={MessageSquare} title="Mesajlar"
-                  description="Ekip içi sohbet."
+                  description="Ekip üyeleri ve sorumlular uygulama içinden mesajlaşır."
                   on={chatEnabled} onToggle={() => setChatEnabled(v => !v)} />
                   ),
                   openShifts: (
                 <FeatureCard icon={Megaphone} title="Açık Vardiyalar"
-                  description="Boşalan vardiyayı ilan edin, ekipten biri üstlensin. Geç kalanların vardiyası da buraya düşebilir."
+                  description="Boşalan vardiyayı ekibe duyurursunuz, isteyen biri alır. Geç kalan kişinin vardiyası da buraya eklenebilir."
                   on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />
                   ),
                   // Devir-teslim TEK özellik: eski "Vardiya Devri Notu" (handover_notes_enabled) ile onaylı defter (handover_log_enabled) birleşti
                   handover: (
                 <FeatureCard icon={BookOpen} title="Devir-Teslim Notu"
-                  description="Çıkışta sonraki vardiyaya not bırakılır, sonraki vardiya okur."
+                  description="Vardiyadan çıkan kişi sonraki vardiyaya not bırakır. Sonraki vardiyadakiler bu notu okur."
                   on={handoverNotesEnabled || handoverLogEnabled}
                   onToggle={() => {
                     if (handoverNotesEnabled || handoverLogEnabled) { setHandoverNotesEnabled(false); setHandoverLogEnabled(false); }
@@ -1999,7 +1999,7 @@ export default function SettingsPage() {
                   ),
                   fatigue: (
                 <FeatureCard icon={AlertTriangle} title="Yorgunluk Uyarısı"
-                  description="Üst üste gece, kapanıştan açılışa ya da yüksek mesai yapanları Ana Sayfa'da ve planda uyarır."
+                  description="Üst üste gece çalışan, kapanıştan sonra açılışa yazılan ya da çok fazla mesai yapan kişiler için Ana Sayfa'da ve planda uyarı gösterir."
                   on={fatigueRadarEnabled} onToggle={() => setFatigueRadarEnabled(v => !v)} />
                   ),
                   compliance: (
@@ -2041,7 +2041,7 @@ export default function SettingsPage() {
                   ),
                   tasks: (
                 <FeatureCard icon={ListChecks} title="Görev ve Kontrol Listeleri"
-                  description="Her vardiyaya otomatik görev listesi eklenir, ekip uygulamada işaretler."
+                  description="Her vardiyaya görev listesi eklenir. Ekip yaptığı görevleri uygulamada işaretler."
                   on={taskManagementEnabled} onToggle={() => setTaskManagementEnabled(v => !v)}>
                     <div className="space-y-3">
                       <div>
@@ -2071,7 +2071,7 @@ export default function SettingsPage() {
                   ),
                   overtime: (
                 <FeatureCard icon={Timer} title="Fazla Mesai Takibi"
-                  description="Yayınlanan planlardan fazla mesai kaydı çıkarılır, onay akışına girer ve yıllık sınır izlenir."
+                  description="Yayınlanan plandaki fazla mesai saatleri kaydedilir ve onayınıza gelir. Yıllık fazla mesai sınırı da takip edilir."
                   on={overtimeTrackingEnabled} onToggle={() => setOvertimeTrackingEnabled(v => !v)} />
                   ),
               };

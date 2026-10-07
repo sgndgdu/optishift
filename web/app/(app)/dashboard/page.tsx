@@ -522,7 +522,7 @@ export default function DashboardPage() {
                         <button
                           onClick={() => convertToOpenShift(s, false)}
                           className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                          title="Vardiyayı açık ilana dönüştür, ekip üstlenebilir"
+                          title="Vardiyayı ilana çıkarın, ekipten biri alabilir"
                         >
                           İlana çevir
                         </button>

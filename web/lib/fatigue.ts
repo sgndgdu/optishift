@@ -83,19 +83,19 @@ export function computeFatigueRisk(
 
   if (clopeningCountInWindow >= CLOPENING_DANGER_COUNT) {
     escalate("danger");
-    reasons.push(`Son günlerde ${clopeningCountInWindow} kez yetersiz dinlenmeli geçiş (clopening)`);
+    reasons.push(`Son günlerde ${clopeningCountInWindow} kez kapanıştan sonra yeterince dinlenmeden açılışa yazıldı`);
   } else if (clopeningCountInWindow === 1) {
     escalate("warning");
-    reasons.push("Yetersiz dinlenmeli bir vardiya geçişi (clopening)");
+    reasons.push("Kapanıştan sonra yeterince dinlenmeden açılışa yazıldı");
   }
 
   if (overtimeThresholdHours > 0 && weeklyOvertimeHours > 0) {
     if (weeklyOvertimeHours >= overtimeThresholdHours + OVERTIME_DANGER_MARGIN_HOURS) {
       escalate("danger");
-      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (eşik: ${overtimeThresholdHours}s)`);
+      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours} saat)`);
     } else if (weeklyOvertimeHours >= overtimeThresholdHours) {
       escalate("warning");
-      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (eşik: ${overtimeThresholdHours}s)`);
+      reasons.push(`Bu hafta ${Math.round(weeklyOvertimeHours)} saat çalıştı (fazla mesai eşiği ${overtimeThresholdHours} saat)`);
     }
   }
 

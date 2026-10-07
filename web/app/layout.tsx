@@ -21,8 +21,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "OptiShift – Vardiya Yönetimi",
-  description: "Akıllı, Adil ve Entegre Vardiya Yönetimi",
+  title: "OptiShift · Vardiya Yönetimi",
+  description: "Vardiya planını otomatik hazırlayan ve vardiyaları ekibe eşit dağıtan uygulama",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

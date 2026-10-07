@@ -140,8 +140,8 @@ export async function PATCH(req: NextRequest) {
         record.personnel_id,
         status === "approved" ? "Fazla Mesai Onaylandı ✓" : "Fazla Mesai Reddedildi",
         status === "approved"
-          ? `${record.overtime_hours} saatlik fazla mesain sorumlun tarafından onaylandı.`
-          : `${record.overtime_hours} saatlik fazla mesai kaydın onaylanmadı.`,
+          ? `${record.overtime_hours} saatlik fazla mesainiz sorumlunuz tarafından onaylandı.`
+          : `${record.overtime_hours} saatlik fazla mesai kaydınız onaylanmadı.`,
         Math.floor(Date.now() / 1000),
       );
     }

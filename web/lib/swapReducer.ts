@@ -152,13 +152,13 @@ export function swapReducer(
               type: "NOTIFY",
               personnel_id: swap.requester_id,
               title: "Vardiya değiştirme onaylandı",
-              message: "Sorumlun vardiya değiştirmeyi onayladı.",
+              message: "Sorumlunuz vardiya değiştirmeyi onayladı.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
               title: "Vardiya değiştirme onaylandı",
-              message: "Sorumlun vardiya değiştirmeyi onayladı.",
+              message: "Sorumlunuz vardiya değiştirmeyi onayladı.",
             },
           ],
         };
@@ -173,13 +173,13 @@ export function swapReducer(
               type: "NOTIFY",
               personnel_id: swap.requester_id,
               title: "Vardiya değiştirme reddedildi",
-              message: "Sorumlun vardiya değiştirmeyi reddetti.",
+              message: "Sorumlunuz vardiya değiştirmeyi reddetti.",
             },
             {
               type: "NOTIFY",
               personnel_id: swap.target_id,
               title: "Vardiya değiştirme reddedildi",
-              message: "Sorumlun vardiya değiştirmeyi reddetti.",
+              message: "Sorumlunuz vardiya değiştirmeyi reddetti.",
             },
           ],
         };

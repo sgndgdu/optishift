@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ).all(auth.org_id, id, existing.primary_location_id, `%"${existing.primary_location_id}"%`) as any[];
     for (const c of candidates) {
       if (await bcrypt.compare(pin, c.kiosk_pin)) {
-        return NextResponse.json({ error: "Bu PIN aynı şubede başka bir personel tarafından kullanılıyor" }, { status: 409 });
+        return NextResponse.json({ error: "Bu PIN aynı şubede başka bir kişi tarafından kullanılıyor" }, { status: 409 });
       }
     }
 

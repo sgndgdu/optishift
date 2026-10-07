@@ -297,7 +297,7 @@ export default function PortalRequests() {
         body: JSON.stringify({ convert_assignment_id: selMyShift.id }),
       });
       if (r.ok) {
-        showToast("Ekibe duyuruldu. Biri üstlenene kadar vardiya sende kalır.");
+        showToast("Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır.");
         resetSwapWizard(); setActiveTab("sent"); setNewType(null);
         await loadData();
       } else {
@@ -375,10 +375,10 @@ export default function PortalRequests() {
     if (!leaveType || !leaveStart || !leaveEnd || !user?.personnel_id) return;
     // Client-side policy kontrolü
     if (leavePolicy?.require_reason && !leaveNote.trim()) {
-      showToast("İzin talebi için açıklama yazman gerekiyor.", "error"); return;
+      showToast("İzin talebi için açıklama yazmanız gerekiyor.", "error"); return;
     }
     if (leavePolicy && !leavePolicy.allow_multi_day && leaveStart !== leaveEnd) {
-      showToast("Sadece tek günlük izin isteyebilirsin.", "error"); return;
+      showToast("Sadece tek günlük izin isteyebilirsiniz.", "error"); return;
     }
     setLoading(true);
     try {
@@ -430,7 +430,7 @@ export default function PortalRequests() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, withdraw: true }),
       }).catch(() => null);
-      if (r?.ok) showToast("İlan geri çekildi, vardiya sende kalmaya devam ediyor.");
+      if (r?.ok) showToast("İlan geri çekildi. Vardiya sizde kalıyor.");
       else showToast("İlan geri çekilemedi.", "error");
       await loadData();
       return;
@@ -542,14 +542,14 @@ export default function PortalRequests() {
             </button>
           )}
           {myListings.length === 0 && swapsSent.length === 0 && editReqs.length === 0 && leaveReqs.length === 0 && (
-            <Empty text="Henüz bir talebin yok. İzin istemek ya da gelemeyeceğin bir günü bildirmek için “Yeni talep”e dokun." />
+            <Empty text="Henüz bir talebiniz yok. İzin istemek ya da gelemeyeceğiniz bir günü bildirmek için “Yeni talep”e dokunun." />
           )}
           {myListings.length > 0 && (
             <Section title="Bıraktığım vardiyalar" icon={<Megaphone size={14} />}>
               {myListings.map((o: any) => (
                 <RequestCard key={o.id}
-                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşın"} üstlendi` : "Ekip görüyor, henüz üstlenen yok"}
-                  sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri üstlenene kadar vardiya sende" : ""}`}
+                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşınız"} aldı` : "Ekip görüyor, henüz alan yok"}
+                  sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri alana kadar vardiya sizde" : ""}`}
                   status={o.status}
                   canCancel={o.status === "open"}
                   onCancel={() => setCancelConfirm({ kind: "listing", id: o.id })}
@@ -680,7 +680,7 @@ export default function PortalRequests() {
                       body: JSON.stringify({ shift_id: fa.id, action }),
                     });
                     if (r.ok) {
-                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} bonus puan kazandın.` : "Reddedildi. Sorumlun bilgilendirildi.");
+                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} ek puan kazandınız.` : "Reddedildi. Sorumlun bilgilendirildi.");
                     } else {
                       const err = await r.json().catch(() => ({}));
                       showToast(err.error || "İşlem başarısız.", "error");
@@ -714,7 +714,7 @@ export default function PortalRequests() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Bir arkadaşın"} sana vardiya değiştirmeyi teklif etti</p>
+                        <p className="text-sm font-bold text-slate-900">{s.requester_name ?? "Bir arkadaşınız"} size vardiya değiştirmeyi teklif etti</p>
                         <StatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -730,7 +730,7 @@ export default function PortalRequests() {
                   <SwapSteps status={s.status} />
                   {isPending && (s.violations?.length ?? 0) > 0 && (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700 space-y-0.5">
-                      <p className="font-bold">Bu vardiya değiştirmeyi kabul edemezsin:</p>
+                      <p className="font-bold">Bu vardiya değiştirmeyi kabul edemezsiniz:</p>
                       {s.violations.map((v: string, i: number) => <p key={i}>{v}</p>)}
                     </div>
                   )}
@@ -766,9 +766,9 @@ export default function PortalRequests() {
           {newType === null && (() => {
             const typeOptions: { id: NewType; label: string; hint: string; icon: typeof CalendarOff }[] = [
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
-              ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Ekibe duyurulur, biri üstlenene kadar sende kalır", icon: UserX }] : []),
-              ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Belirli bir arkadaşına vardiya değiştirmeyi teklif et", icon: ArrowLeftRight }] : []),
-              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Sorumludan saat düzeltme iste (son 2 hafta da olur)", icon: FileEdit }] : []),
+              ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır", icon: UserX }] : []),
+              ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", icon: ArrowLeftRight }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiya saatimde hata var", hint: "Sorumludan saat düzeltmesi isteyin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
@@ -800,8 +800,8 @@ export default function PortalRequests() {
               <p className="text-xs font-bold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
               {myShifts.length === 0 && (
                 <div className="text-sm text-slate-500 text-center py-6 space-y-2">
-                  <p>Yaklaşan yayınlanmış vardiyan yok.</p>
-                  {availabilityOn && <p className="text-xs">Plan henüz yayınlanmadıysa gelemeyeceğin günü <Link href="/portal/availability" className="font-semibold text-forest-700 underline">Uygunluk</Link>&apos;tan işaretle.</p>}
+                  <p>Yaklaşan yayınlanmış vardiyanız yok.</p>
+                  {availabilityOn && <p className="text-xs">Plan henüz yayınlanmadıysa gelemeyeceğiniz günü <Link href="/portal/availability" className="font-semibold text-forest-700 underline">Uygunluk</Link>&apos;tan işaretleyin.</p>}
                 </div>
               )}
               {myShifts.map(s => {
@@ -815,7 +815,7 @@ export default function PortalRequests() {
                   : <ShiftOption key={s.id} shift={s} names={shiftNames} selected={selMyShift?.id === s.id} onSelect={() => setSelMyShift(s)} />;
               })}
               <p className="text-xs text-slate-400 leading-relaxed pt-1">
-                Vardiyan ekibe duyurulur. Biri üstlenene kadar vardiya sende kalır, üstlenen olunca sana bildirim gelir.
+                Vardiyanız ekibe duyurulur. Biri alana kadar vardiya sizde kalır. Biri aldığında size bildirim gelir.
               </p>
               {myShifts.length > 0 && <button
                 disabled={!selMyShift || loading}
@@ -842,8 +842,8 @@ export default function PortalRequests() {
               <div className="p-4">
                 {swapStep === 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Değiştirmek istediğin vardiyayı seç:</p>
-                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
+                    <p className="text-xs font-bold text-slate-500 mb-3">Değiştirmek istediğiniz vardiyayı seçin:</p>
+                    {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yayınlanmış vardiyanız yok. Sorumlunuz planı yayınlayınca vardiyalarınız burada görünür.</p>}
                     {myShifts.map(s => {
                       const busy = shiftBusy(s);
                       return busy
@@ -859,7 +859,7 @@ export default function PortalRequests() {
 
                 {swapStep === 1 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">Kiminle değiştirmek istiyorsun?</p>
+                    <p className="text-xs font-bold text-slate-500 mb-3">Kiminle değiştirmek istiyorsunuz?</p>
                     {matesLoading && <p className="text-sm text-slate-400 text-center py-6">Yükleniyor…</p>}
                     {!matesLoading && teammates.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Bu vardiyayı alabilecek ekip arkadaşı yok.</p>}
                     {teammates.map(p => {
@@ -882,8 +882,8 @@ export default function PortalRequests() {
                           <p className={`text-sm font-bold ${selMate?.id === p.id ? "text-primary" : "text-slate-800"}`}>{p.name}</p>
                           <p className="text-xs text-slate-400">
                             {none
-                              ? (p.shifts?.length ?? 0) === 0 ? "Yaklaşan vardiyası yok" : "Seninle değişebileceği vardiyası yok"
-                              : `${p.ok_count} vardiyası seninkiyle değişebilir`}
+                              ? (p.shifts?.length ?? 0) === 0 ? "Yaklaşan vardiyası yok" : "Sizinle değiştirebileceği vardiyası yok"
+                              : `${p.ok_count} vardiyası sizinkiyle değiştirilebilir`}
                           </p>
                         </div>
                       </button>
@@ -898,7 +898,7 @@ export default function PortalRequests() {
 
                 {swapStep === 2 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını sana versin?</p>
+                    <p className="text-xs font-bold text-slate-500 mb-3">{selMate?.name} hangi vardiyasını size versin?</p>
                     {theirShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Yaklaşan vardiyaları yok.</p>}
                     {theirShifts.map(s => (s.problems?.length ?? 0) > 0
                       ? <div key={s.id} className="opacity-60 pointer-events-none">
@@ -927,7 +927,7 @@ export default function PortalRequests() {
                         value={swapNote}
                         onChange={e => setSwapNote(e.target.value)}
                         rows={2}
-                        placeholder="Arkadaşına bir not..."
+                        placeholder="Arkadaşınıza bir not..."
                         className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                       />
                     </div>
@@ -956,8 +956,8 @@ export default function PortalRequests() {
           {editRequestsEnabled && newType === "edit" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğin vardiyayı seç:</p>
-                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyan yok. Sorumlun planı yayınlayınca burada görünür.</p>}
+                <p className="text-xs font-bold text-slate-500 mb-2">Düzenlemek istediğiniz vardiyayı seçin:</p>
+                {myShifts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Yayınlanmış vardiyanız yok. Sorumlunuz planı yayınlayınca vardiyalarınız burada görünür.</p>}
                 <div className="space-y-2">
                   {myShifts.map(s => (
                     <ShiftOption key={s.id} shift={s} names={shiftNames} selected={editShift?.id === s.id} onSelect={() => setEditShift(s)} />
@@ -967,12 +967,12 @@ export default function PortalRequests() {
               {editShift && (
                 <>
                   <div>
-                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsun?</label>
+                    <label className="text-xs font-bold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsunuz?</label>
                     <textarea
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
                       rows={3}
-                      placeholder="Sorumluna kısa bir açıklama yaz..."
+                      placeholder="Sorumlunuza kısa bir açıklama yazın..."
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
@@ -997,7 +997,7 @@ export default function PortalRequests() {
                   <CalendarOff size={15} className="text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     Sabit izin günün: <strong>{["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][weeklyOffDay]}</strong>.
-                    Bu gün her hafta senin için otomatik olarak kapalı tutulur, ayrıca izin talebi oluşturmana gerek yok.
+                    Bu gün her hafta sizin izin gününüzdür. Ayrıca izin talebi oluşturmanız gerekmez.
                   </p>
                 </div>
               )}
@@ -1044,7 +1044,7 @@ export default function PortalRequests() {
               </div>
               {(overtimeMe?.comp_time_balance_hours ?? 0) > 0 && (
                 <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                  Ayrıca <b>{overtimeMe.comp_time_balance_hours} saat</b> fazla mesai karşılığı serbest zamanın var; sorumlunla planlayabilirsin.
+                  Ayrıca <b>{overtimeMe.comp_time_balance_hours} saat</b> fazla mesai karşılığı serbest zamanınız var. Bunu sorumlunuzla planlayabilirsiniz.
                 </p>
               )}
 
@@ -1285,7 +1285,7 @@ function ForceAssignCard({ item, onRespond }: { item: any; onRespond: (action: "
       <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
         <Star size={13} className="text-amber-500 shrink-0" />
         <p className="text-xs text-amber-800">
-          Kabul edersen <strong>+{item.force_bonus_multiplier ?? 5} bonus puan</strong> kazanırsın.
+          Kabul edersen <strong>+{item.force_bonus_multiplier ?? 5} bonus puan</strong> kazanırsınız.
         </p>
       </div>
 

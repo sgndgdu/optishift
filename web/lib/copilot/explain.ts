@@ -37,7 +37,7 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
   else if (p.unavailableDays.includes(day)) out.push({ tone: "warn", text: "Bu gün için \"gelemem\" demiş" });
   else if (p.preferredNotDays.includes(day)) out.push({ tone: "warn", text: "Bu günü tercih etmiyor (gerekirse gelir)" });
   else if (p.hasAvailability) out.push({ tone: "ok", text: "Bu gün için uygun olduğunu girmiş" });
-  else out.push({ tone: "info", text: "Uygunluk girmemiş; tamamen uygun sayıldı" });
+  else out.push({ tone: "info", text: "Uygunluk girmemiş, bütün günlerde uygun sayıldı" });
 
   // Çalışma döngüsü
   if (extras.cycleState === "O") out.push({ tone: "warn", text: "Çalışma döngüsüne göre dinlenme günü" });
@@ -52,9 +52,9 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
 
   // Adalet
   const pct = Math.round(p.loadRatio * 100);
-  if (p.loadRatio < 0.9) out.push({ tone: "ok", text: `Son haftalarda ekibe göre daha az yük almış (ortalamanın %${pct}'i)` });
-  else if (p.loadRatio > 1.2) out.push({ tone: "warn", text: `Son haftalarda ekip ortalamasından fazla yük almış (%${pct})` });
-  else out.push({ tone: "info", text: "Yükü ekip ortalamasında" });
+  if (p.loadRatio < 0.9) out.push({ tone: "ok", text: `Son haftalarda ekibe göre daha az çalışmış (ortalamanın %${pct}'i)` });
+  else if (p.loadRatio > 1.2) out.push({ tone: "warn", text: `Son haftalarda ekip ortalamasından fazla çalışmış (%${pct})` });
+  else out.push({ tone: "info", text: "Ekip ortalaması kadar çalışmış" });
 
   // Saat ve dinlenme
   if (p.hours > p.maxHours) out.push({ tone: "warn", text: `Bu hafta ${fmt(p.hours)} saat, sınır ${fmt(p.maxHours)} saat` });
@@ -81,7 +81,7 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
     out.push({
       tone: lighter.length ? "warn" : "info",
       text: lighter.length
-        ? `O gün boşta ve daha az yüklü: ${lighter.slice(0, 3).map(x => x.name).join(", ")}`
+        ? `O gün boşta ve daha az çalışmış: ${lighter.slice(0, 3).map(x => x.name).join(", ")}`
         : `O gün boşta: ${names}${free.length > 3 ? ` +${free.length - 3}` : ""}`,
     });
   }

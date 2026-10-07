@@ -49,7 +49,7 @@ async function callEngine(payload: unknown): Promise<any> {
   } catch (err: any) {
     if (err.name === "AbortError") {
       throw new Error(
-        "Planlama beklenenden uzun sürdü. Sistem uyanıyor olabilir ya da ekip ve kurallar çok yüklü, lütfen birkaç saniye sonra tekrar deneyin."
+        "Plan hazırlama beklenenden uzun sürdü. Birkaç saniye sonra tekrar deneyin."
       );
     }
     throw err;
@@ -608,7 +608,7 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // gösteren açıklayıcı bir yanıt dön.
     if (personnelData.length === 0 && excludedCompliance.length > 0) {
       return { status: 200, body: {
-        error: "Bu haftaki herkesin zorunlu belgesi süresi dolmuş olduğu için plan oluşturulamadı.",
+        error: "Bu haftaki herkesin zorunlu belgesinin süresi dolduğu için plan oluşturulamadı.",
         excluded_compliance: excludedCompliance,
       } };
     }

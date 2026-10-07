@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
           VALUES (?, 'overtime', ?, ?, '/portal/requests', false, ?)
         `).run(
           d.personnelId,
-          "Fazla Mesai Onayın Gerekiyor ⏰",
-          `${weekRangeTR(week_start)} haftasında ${d.overtimeHours} saat fazla mesain planlandı. Talepler sayfasından onayla ve telafi türünü seç (zamlı ücret / serbest zaman).`,
+          "Fazla mesai onayınız gerekiyor",
+          `${weekRangeTR(week_start)} haftasında ${d.overtimeHours} saat fazla mesainiz planlandı. Talepler sayfasından onaylayın ve karşılığını seçin (zamlı ücret ya da serbest zaman).`,
           Math.floor(Date.now() / 1000),
         );
       }
@@ -81,15 +81,15 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'schedule', ?, ?, '/portal/calendar', false, ?)
       `).run(
         p.id,
-        "Vardiya Programı Yayınlandı 📅",
-        `${weekRangeTR(week_start)} haftasının vardiya programı hazır. Takvimini kontrol et!`,
+        "Vardiya planı yayınlandı",
+        `${weekRangeTR(week_start)} haftasının vardiya planı yayınlandı. Vardiyalarınızı kontrol edin.`,
         Math.floor(Date.now() / 1000),
       );
-      if (p.phone)  await sendSMS(p.phone, `Merhaba ${p.name}, ${weekRangeTR(week_start)} vardiya programın yayınlandı.`);
-      if (p.email)  await sendEmail(p.email, "Yeni Vardiya Programı Yayınlandı", `Merhaba ${p.name},\n\n${weekRangeTR(week_start)} vardiya programın sisteme yüklendi.`);
+      if (p.phone)  await sendSMS(p.phone, `Merhaba ${p.name}, ${weekRangeTR(week_start)} vardiya planınız yayınlandı.`);
+      if (p.email)  await sendEmail(p.email, "Yeni vardiya planı yayınlandı", `Merhaba ${p.name},\n\n${weekRangeTR(week_start)} vardiya planınız yayınlandı.`);
       await sendPushToPersonnel(p.id, auth.org_id, {
-        title: "Vardiya Programın Yayınlandı 📅",
-        body: `${weekRangeTR(week_start)} vardiya programın hazır. Kontrol et!`,
+        title: "Vardiya planınız yayınlandı",
+        body: `${weekRangeTR(week_start)} vardiya planınız yayınlandı. Vardiyalarınızı kontrol edin.`,
         url: "/portal/calendar",
       });
       sentCount++;
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
     } else {
       await db.prepare("DELETE FROM plan_submissions WHERE location_id = ? AND week_start = ?").run(location_id, week_start);
     }
-    return NextResponse.json({ success: true, message: `${sentCount} personele bildirim gönderildi.`, revision });
+    return NextResponse.json({ success: true, message: `${sentCount} kişiye bildirim gönderildi.`, revision });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { assignment_id, start_time, end_time, note } = body ?? {};
   if (!assignment_id || !HHMM.test(start_time ?? "") || !HHMM.test(end_time ?? "")) {
-    return NextResponse.json({ error: "İcap, başlangıç ve bitiş saati (SS:DD) zorunlu" }, { status: 400 });
+    return NextResponse.json({ error: "Nöbet, başlangıç ve bitiş saati (SS:DD) zorunlu" }, { status: 400 });
   }
   if (start_time === end_time) return NextResponse.json({ error: "Başlangıç ve bitiş aynı olamaz" }, { status: 400 });
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   if (!asg || asg.kind !== "on_call") return NextResponse.json({ error: "İcap nöbeti bulunamadı" }, { status: 404 });
   if (!(await canManage(db, auth, asg.location_id))) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   if (asg.publication_status !== "published") {
-    return NextResponse.json({ error: "Çağrı kaydı yayınlanmış plandaki icaba girilir" }, { status: 400 });
+    return NextResponse.json({ error: "Çağrı kaydı sadece yayınlanmış plandaki nöbete girilebilir" }, { status: 400 });
   }
 
   const now = Math.floor(Date.now() / 1000);

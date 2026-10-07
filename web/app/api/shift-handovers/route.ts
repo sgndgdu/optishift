@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
-  if (!auth.personnel_id) return NextResponse.json({ error: "Bu işlem personel hesabı gerektirir" }, { status: 403 });
+  if (!auth.personnel_id) return NextResponse.json({ error: "Bu işlem için ekip üyesi hesabı gerekir" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const { shift_id, note } = body;

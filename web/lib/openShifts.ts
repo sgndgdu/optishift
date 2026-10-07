@@ -31,7 +31,7 @@ export async function claimOpenShift(
   if (os.date < businessToday()) return { ok: false, status: 409, error: "Bu vardiyanın tarihi geçti" };
   // Vardiyası ilana düşen kişi kendi ilanını üstlenip kahraman bonusu alamaz (devir ilanını geri çekebilir)
   if (os.released_by && os.released_by === claimedBy) {
-    return { ok: false, status: 409, error: "Kendi bıraktığın vardiyayı üstlenemezsin. İlanı geri çekebilirsin." };
+    return { ok: false, status: 409, error: "Kendi bıraktığınız vardiyayı alamazsınız. İlanı geri çekebilirsiniz." };
   }
 
   const dt = new Date(os.date + "T00:00:00Z");
@@ -57,7 +57,7 @@ export async function claimOpenShift(
       ok: false, status: 409, violations: problems, can_force: !!opts.assignedByManager,
       error: opts.assignedByManager
         ? "Bu atama çalışma kurallarına uymuyor. Yine de atamak için sorunları görüp onaylayın."
-        : "Bu vardiyayı alırsan çalışma kurallarına uymayan bir plan oluşur.",
+        : "Bu vardiyayı alırsanız çalışma kurallarına uymayan bir plan oluşur.",
     };
   }
 
@@ -76,7 +76,7 @@ export async function claimOpenShift(
     RETURNING id
   `).all(claimedBy, claimedByName ?? null, now, openShiftId);
   if (!won || (Array.isArray(won) && won.length === 0)) {
-    return { ok: false, status: 409, error: "Bu vardiyayı az önce başkası üstlendi" };
+    return { ok: false, status: 409, error: "Bu vardiyayı az önce başkası aldı" };
   }
 
   // Kahraman bonusu: claimed_by = personnel_id
@@ -94,7 +94,7 @@ export async function claimOpenShift(
     `).run(
       os.released_by,
       "Vardiyan devredildi",
-      `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyanı ${claimedByName ?? "bir ekip arkadaşın"} üstlendi, artık takviminde değil.`,
+      `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyanızı ${claimedByName ?? "bir ekip arkadaşınız"} aldı. Bu vardiya artık sizin planınızda değil.`,
       now,
     );
   }
@@ -133,10 +133,10 @@ export async function claimOpenShift(
   `).run(
     claimedBy,
     "hero_bonus",
-    opts.assignedByManager ? "📋 Açık Vardiyaya Atandın" : "✅ Vardiyayı üstlendin",
+    opts.assignedByManager ? "Açık vardiyaya atandınız" : "Vardiyayı aldınız",
     opts.assignedByManager
-      ? `Sorumlun seni ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsın, sonraki planlarda yükün hafifler.`
-      : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını üstlendin. Teşekkürler! Ek puan aldın, sonraki planlarda yükün hafifler.`,
+      ? `Sorumlunuz sizi ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsınız ve sonraki planlarda size daha az vardiya verilir.`
+      : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını aldınız. Teşekkürler! Ek puan aldınız, sonraki planlarda size daha az vardiya verilir.`,
     now,
   );
 
@@ -200,18 +200,18 @@ export async function publishOpenShift(
     const link = p.away && osId ? `/portal/open-shifts?invite=${osId}` : "/portal/open-shifts";
     await insertNotif.run(
       p.id,
-      p.away ? `${branchName} şubesinde yardım aranıyor · ${dateLabel}` : notify === "top" ? `Senin için uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
+      p.away ? `${branchName} şubesinde yardım aranıyor · ${dateLabel}` : notify === "top" ? `Size uygun bir vardiya · ${dateLabel}` : `Açık Vardiya · ${dateLabel}`,
       p.away
-        ? `${branchName} şubesinde ${o.start_time}–${o.end_time} vardiyası boş ve o gün boşsun. İstersen üstlenebilirsin; üstlenene +${heroPoints} puan.`
+        ? `${branchName} şubesinde ${o.start_time}–${o.end_time} vardiyası boş ve sizin o gün vardiyanız yok. İsterseniz bu vardiyayı alabilirsiniz. Vardiyayı alan kişi +${heroPoints} puan kazanır.`
         : notify === "top"
-        ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisin. İlk kabul eden alır; üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`
-        : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Üstlenene +${heroPoints} puan (sonraki planlarda yükün hafifler).`,
+        ? `${o.start_time}–${o.end_time} vardiyası için en uygun kişilerden birisiniz. Vardiyayı ilk kabul eden alır ve +${heroPoints} puan kazanır.`
+        : `${o.start_time}–${o.end_time} vardiyası için gönüllü aranıyor. Vardiyayı alan kişi +${heroPoints} puan kazanır.`,
       link,
       now,
     );
     await sendPushToPersonnel(p.id, o.org_id, {
       title: p.away ? `${branchName} şubesinde yardım aranıyor` : `Açık Vardiya · ${dateLabel}`,
-      body: `${dateLabel} ${o.start_time}–${o.end_time}: gönüllü aranıyor. Üstlenene +${heroPoints} puan.`,
+      body: `${dateLabel} ${o.start_time}–${o.end_time}: gönüllü aranıyor. Vardiyayı alan kişi +${heroPoints} puan kazanır.`,
       url: link,
     });
   }));

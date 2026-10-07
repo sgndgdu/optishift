@@ -197,7 +197,7 @@ export default function OvertimeReport() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">Haftalık eşiği aşan çalışma. Kayıtlar yayınlanan plandan çıkar, kararlar Onaylar&apos;da verilir.</p>
+        <p className="text-sm text-slate-500">Haftalık fazla mesai eşiğini aşan çalışmalar. Kayıtlar yayınlanan plandan oluşturulur, kararlar Onaylar&apos;da verilir.</p>
         <button onClick={() => setShowForm(true)} className={pageActionClass}>
           <Plus size={16} />
           Elle kayıt
@@ -325,7 +325,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
       });
     }
 
-    // Yüksek mesai frekansı: son 4 haftada 3+ onaylı mesai kaydı
+    // Sık fazla mesai: son 4 haftada 3+ onaylı mesai kaydı
     const recentApproved = history.filter(
       r => r.personnel_id === p.id && r.status === "approved" &&
         r.created_at > Math.floor(Date.now() / 1000) - 28 * 86400
@@ -334,7 +334,7 @@ function buildWarnings(personnel: any[], history: any[], maxYtd: number): Warnin
       list.push({
         id: `freq-${p.id}`,
         level: "info",
-        title: "Yüksek mesai frekansı",
+        title: "Sık fazla mesai",
         detail: `Son 28 günde ${recentApproved.length} onaylı mesai kaydı`,
         personnelName: p.name,
       });
@@ -438,7 +438,7 @@ function PendingTab({ pending, history, onDecision, onCompTime, wageById }: {
             ) : <>
               {isCompTime && !open.comp_time_used_at && (
                 <button onClick={() => act(() => onCompTime(open.id, true))} className={sheetSecondaryClass}
-                  title="Serbest zaman iznini kullandırdığını işaretle, bakiyeden düşer">İzin kullandırıldı</button>
+                  title="Serbest zaman iznini kullandırdığınızı işaretleyin, bakiyeden düşer">İzin kullandırıldı</button>
               )}
               <button onClick={() => act(() => onDecision(open.id, "pending"))} className={sheetSecondaryClass}
                 title="Kayıt tekrar beklemeye düşer, yıllık toplam yeniden hesaplanır">

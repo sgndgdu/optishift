@@ -154,7 +154,7 @@ function SetupForm() {
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Hesabınızı Kurun</h1>
           <p className="text-slate-500 text-sm">
             Hoş geldiniz, <span className="font-semibold text-slate-700">{setupUser.name}</span>!<br />
-            Google ile devam edin ya da bir şifre belirleyin, vardiyalarınızı hemen görün.
+            Google ile devam edin ya da bir şifre belirleyin. Sonra vardiyalarınızı görebilirsiniz.
           </p>
         </div>
 

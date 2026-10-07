@@ -297,8 +297,8 @@ export default function PersonnelPage() {
               <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-1.5">
                 {[
                   { icon: Plus, title: "Tek kişi ekle", sub: "İsim ve telefonla hesap açılır", on: () => { resetAddForm(); setShowAddModal(true); } },
-                  { icon: Upload, title: "Excel'den toplu ekle", sub: "Şablonu doldurup tüm ekibi bir kerede", on: () => setShowBulkModal(true) },
-                  { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Kişiler kendisi kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
+                  { icon: Upload, title: "Excel'den toplu ekle", sub: "Excel şablonunu doldurup bütün ekibi bir kerede ekleyin", on: () => setShowBulkModal(true) },
+                  { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Kişiler kendileri kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
                   ...(canManageManagers ? [{
                     icon: UserCog, title: branchMgr ? "Departman sorumlusu ata" : "Sorumlu ekle",
                     sub: branchMgr ? "Bir departmanın planını yapacak kişi" : "Planı ve ekibi sizin yerinize yönetecek kişi",
@@ -381,7 +381,7 @@ export default function PersonnelPage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-amber-900">{notJoined.length} kişi henüz uygulamaya girmedi</p>
-            <p className="text-xs text-amber-800 mt-0.5">Giriş bağlantılarını gönderin, yoksa vardiyalarını göremezler.</p>
+            <p className="text-xs text-amber-800 mt-0.5">Giriş bağlantılarını gönderin. Bağlantıyı almayan kişi vardiyalarını göremez.</p>
           </div>
           <button onClick={() => prepareNotJoinedLinks(notJoined)} disabled={preparingLinks}
             className="shrink-0 flex items-center justify-center gap-2 bg-forest-700 hover:bg-forest-800 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">

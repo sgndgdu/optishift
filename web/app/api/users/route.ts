@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       : (department_id ? [department_id] : []);
 
     if (isEmployee && !existing) {
-      if (!effLocIds.length) return NextResponse.json({ error: "Personel için en az bir şube seçmelisiniz" }, { status: 400 });
+      if (!effLocIds.length) return NextResponse.json({ error: "Ekip üyesi için en az bir şube seçmelisiniz" }, { status: 400 });
       // Departman seçimi sadece seçili şube(ler)de gerçekten departman tanımlıysa zorunlu —
       // departmansız (Basit Mod) şubelerde department_id null kalır.
       if (!effDeptIds.length) {
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
           `SELECT id FROM departments WHERE location_id IN (${placeholders}) LIMIT 1`
         ).all(effLocIds);
         if (existingDepts.length) {
-          return NextResponse.json({ error: "Personel için en az bir departman seçmelisiniz" }, { status: 400 });
+          return NextResponse.json({ error: "Ekip üyesi için en az bir departman seçmelisiniz" }, { status: 400 });
         }
       }
     }
@@ -377,7 +377,7 @@ export async function PATCH(req: NextRequest) {
     if (body.make_employee === true) {
       if (target.role !== "manager" && target.role !== "supervisor") return NextResponse.json({ error: "Kişi zaten ekip üyesi" }, { status: 400 });
       if (!target.personnel_id) {
-        return NextResponse.json({ error: "Bu sorumlunun ekipte çalışan kaydı yok; hesabı silinebilir" }, { status: 400 });
+        return NextResponse.json({ error: "Bu sorumlunun ekipte kaydı yok. Hesabını silebilirsiniz." }, { status: 400 });
       }
       await db.prepare("UPDATE users SET role = 'employee', permissions = NULL, display_title = NULL, managed_location_ids = NULL WHERE id = ?").run(id);
       // Çalışan her zaman plandadır (vardiya dışı kalma sadece yöneticiler için)

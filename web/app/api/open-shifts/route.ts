@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         const sameDay = await db0.prepare(`
           SELECT sa.start_time, sa.end_time, l.name AS loc FROM shift_assignments sa LEFT JOIN locations l ON l.id = sa.location_id
           WHERE sa.personnel_id = ? AND sa.week_start = ? AND sa.day = ? AND COALESCE(sa.kind, 'regular') = 'regular' LIMIT 1`).get(auth.personnel_id, ws, day) as any;
-        if (sameDay) return { ...r, problems: [`O gün zaten vardiyan var (${sameDay.start_time}–${sameDay.end_time}${sameDay.loc && r.location_name !== sameDay.loc ? `, ${sameDay.loc}` : ""})`] };
+        if (sameDay) return { ...r, problems: [`O gün zaten vardiyanız var (${sameDay.start_time}–${sameDay.end_time}${sameDay.loc && r.location_name !== sameDay.loc ? `, ${sameDay.loc}` : ""})`] };
         const problems = await checkPersonChange(db0, auth.personnel_id!, r.location_id, {
           add: [{ week_start: ws, day, start_time: r.start_time, end_time: r.end_time }],
         }).catch(() => []);
@@ -151,14 +151,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Vardiya ataması bulunamadı" }, { status: 404 });
       }
       if (asg.kind === "on_call") {
-        return NextResponse.json({ error: "İcap nöbeti açık vardiyaya çevrilemez; icabı Vardiya Planı'ndan başka birine verin." }, { status: 400 });
+        return NextResponse.json({ error: "Nöbet ilana çıkarılamaz. Nöbeti Vardiya Planı'ndan başka birine verin." }, { status: 400 });
       }
       if (auth.role === "employee") {
         if (asg.personnel_id !== auth.personnel_id) {
-          return NextResponse.json({ error: "Sadece kendi vardiyanı bırakabilirsin" }, { status: 403 });
+          return NextResponse.json({ error: "Sadece kendi vardiyanızı bırakabilirsiniz" }, { status: 403 });
         }
         if (asg.publication_status !== "published") {
-          return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar pazar yerine bırakılabilir" }, { status: 400 });
+          return NextResponse.json({ error: "Sadece yayınlanmış vardiyalar ilana çıkarılabilir" }, { status: 400 });
         }
       }
       const dt = new Date(asg.week_start + "T00:00:00Z");
@@ -190,10 +190,10 @@ export async function POST(req: NextRequest) {
           `SELECT id FROM shift_swap_requests WHERE (requester_shift_id = ? OR target_shift_id = ?) AND status IN ('pending', 'peer_accepted') LIMIT 1`
         ).get(convert_assignment_id, convert_assignment_id) as any;
         if (pendingSwap) {
-          return NextResponse.json({ error: "Bu vardiya için bekleyen bir vardiya değiştirme talebin var. Önce onu geri çek." }, { status: 409 });
+          return NextResponse.json({ error: "Bu vardiya için bekleyen bir vardiya değiştirme talebiniz var. Önce onu geri çekin." }, { status: 409 });
         }
         sourceAssignmentId = Number(convert_assignment_id);
-        note = body.note ?? `${asg.p_name} bu vardiyayı devretmek istiyor`;
+        note = body.note ?? `${asg.p_name} bu vardiyayı başka birine vermek istiyor`;
       } else {
         // Müdür kararı (Gelemiyor / gelmedi): atama hemen kalkar, vardiya ilan havuzuna düşer
         await db.prepare(`DELETE FROM shift_assignments WHERE id = ?`).run(convert_assignment_id);
@@ -205,10 +205,10 @@ export async function POST(req: NextRequest) {
           VALUES (?, 'shift_change', ?, ?, ?)
         `).run(
           asg.personnel_id,
-          "Vardiyan ilana çevrildi",
+          "Vardiyanız ilana çıkarıldı",
           reason === "no_show"
-            ? `${formatDateTR(date)} ${start_time}–${end_time} vardiyana gelmediğin için vardiya açık ilana dönüştürüldü. Bir yanlışlık olduğunu düşünüyorsan sorumlunla iletişime geç.`
-            : `${formatDateTR(date)} ${start_time}–${end_time} vardiyan sorumlun tarafından açık ilana dönüştürüldü, artık takviminde değil.`,
+            ? `${formatDateTR(date)} ${start_time}–${end_time} vardiyanıza gelmediğiniz için vardiya ilana çıkarıldı. Bir yanlışlık olduğunu düşünüyorsanız sorumlunuzla konuşun.`
+            : `${formatDateTR(date)} ${start_time}–${end_time} vardiyanız sorumlunuz tarafından ilana çıkarıldı. Bu vardiya artık sizin planınızda değil.`,
           Math.floor(Date.now() / 1000)
         );
       }
@@ -268,7 +268,7 @@ export async function PATCH(req: NextRequest) {
     if (claimed_by && assigned_by_manager && auth.role === "manager") {
       const target = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(claimed_by, auth.org_id) as any;
       if (!String(target?.assigned_location_ids ?? "").includes(`"${auth.location_id}"`)) {
-        return NextResponse.json({ error: "Başka şubenin çalışanını sadece hesap sahibi ya da bölge sorumlusu atar. İlan bu kişiye duyuruldu, kendisi üstlenebilir." }, { status: 403 });
+        return NextResponse.json({ error: "Başka şubenin çalışanını sadece hesap sahibi ya da bölge sorumlusu atar. İlan bu kişiye duyuruldu, kendisi alabilir." }, { status: 403 });
       }
     }
     if (claimed_by) {

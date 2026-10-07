@@ -163,7 +163,7 @@ function WorkHoursReport() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
-            title="Kişi-gün bazlı giriş/çıkış puantajı, bordro ve muhasebe aktarımı için CSV"
+            title="Her kişinin her günkü giriş ve çıkış saatleri. Bordro ve muhasebe programına aktarmak için CSV dosyası."
             className={downloadClass}
           >
             <Download size={15} /> Puantaj
@@ -183,7 +183,7 @@ function WorkHoursReport() {
           <p className="text-xs text-slate-500">
             {periodLock
               ? `${periodLock.locked_by_name ?? "Sorumlu"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`
-              : "Puantajı onaylayınca kilitleyin, geçmiş veri değişmesin."}
+              : "Puantajı onayladıktan sonra ayı kilitleyin. Böylece geçmiş kayıtlar değiştirilemez."}
           </p>
         </div>
         {periodLock ? (

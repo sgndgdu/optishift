@@ -139,7 +139,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("understaffed", "critical",
     `${short.length} vardiyada toplam ${short.reduce((s, c) => s + (c.demand! - c.assigned), 0)} kişi eksik`,
     short.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}`, day: c.day })));
-  add("listed", "warning", `${onListing.length} vardiya açık ilanda, üstlenen bekleniyor`,
+  add("listed", "warning", `${onListing.length} vardiya ilanda, alacak kişi bekleniyor`,
     onListing.map(c => ({ text: `${DAY_NAMES[c.day]} ${c.shiftName}: ${c.assigned}/${c.demand}, ilan ekibe duyuruldu`, day: c.day })));
 
   if (rules.nightLegalWarning) {
@@ -213,9 +213,9 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   const heavy = working.filter(p => p.loadRatio > 1.2 && p.hardShifts >= 2 && p.hardShifts >= snap.avgHard + 1);
   const light = snap.people.filter(p => p.loadRatio < 0.8 && p.hardShifts < snap.avgHard);
   if (heavy.length > 0 && light.length > 0) {
-    add("fairness", "warning", "Zor vardiyalar zaten yüklü kişilere gitmiş", [
+    add("fairness", "warning", "Zor vardiyalar zaten çok çalışmış kişilere yazılmış", [
       ...heavy.map(p => `${p.name}: Adalet Puanı yüksek, bu hafta ${p.hardShifts} zor vardiya`),
-      `Daha az yüklü olanlar: ${nameList(light.map(p => `${p.name} (${p.hardShifts})`), 4)}`,
+      `Daha az çalışmış olanlar: ${nameList(light.map(p => `${p.name} (${p.hardShifts})`), 4)}`,
     ]);
   }
 

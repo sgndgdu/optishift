@@ -140,7 +140,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     }
     const maxH = effectiveWeeklyLimit(p.max_weekly_hours, ruleMax);
     const newTotalH = Math.round((weekMin / 60 + osDurationH) * 10) / 10;
-    if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH}s olur (limit ${maxH}s)`); blocking = true; }
+    if (newTotalH > maxH) { warnings.push(`Haftalık ${newTotalH} saate çıkar (sınır ${maxH} saat)`); blocking = true; }
     else reasons.push(`Bu hafta ${Math.round(weekMin / 6) / 10} saat çalışıyor, sınırı aşmaz`);
 
     const prevA = mine.find(a => Number(a.day) === dayIdx - 1);
@@ -149,7 +149,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (pe !== null && ps !== null) {
         const prevEnd = pe <= ps ? pe + 1440 : pe;
         const gap = (osStart + 1440) - prevEnd;
-        if (gap < 11 * 60) { warnings.push(`Önceki günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Önceki günle arasında ${Math.round(gap / 6) / 10} saat dinlenme kalır (en az 11 saat olmalı)`); blocking = true; }
       }
     }
     const nextA = mine.find(a => Number(a.day) === dayIdx + 1);
@@ -157,7 +157,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       const ns = toMin(nextA.start_time);
       if (ns !== null) {
         const gap = (ns + 1440) - osEnd;
-        if (gap < 11 * 60) { warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10}s dinlenme kalır (min 11s)`); blocking = true; }
+        if (gap < 11 * 60) { warnings.push(`Ertesi günle arasında ${Math.round(gap / 6) / 10} saat dinlenme kalır (en az 11 saat olmalı)`); blocking = true; }
       }
     }
 
@@ -182,7 +182,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     (Number(b.role_match) - Number(a.role_match)) ||
     (a.prev_score - b.prev_score));
   // Adalet sırası gerekçesi: uyarısızlar arasında en az yük taşıyanlar
-  candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az yük)`));
+  candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az çalışan önce)`));
 
   // Diğer şubelerden en fazla 5 uyarısız aday (liste uzamasın)
   const local = candidates.filter(c => !c.other_branch);
