@@ -14,7 +14,7 @@ async function call(model: string, system: string, text: string, thinking: strin
     signal: AbortSignal.timeout(40_000),
   }).catch(e => ({ status: -1, text: async () => String(e) } as unknown as Response));
   const body = await res.text().catch(() => "");
-  return { model, thinking, ms: Date.now() - t0, status: res.status, out: body.slice(0, 300), len: body.length };
+  return { model, thinking, ms: Date.now() - t0, status: res.status, out: (() => { try { const d = JSON.parse(body); return (d.steps ?? []).filter((x: {type?: string}) => x.type === "model_output").flatMap((x: {content?: {text?: string}[]}) => (x.content ?? []).map(c => c.text ?? "")).join(""); } catch { return body.slice(0, 300); } })(), len: body.length };
 }
 
 export async function GET(req: NextRequest) {
@@ -23,12 +23,11 @@ export async function GET(req: NextRequest) {
   if (auth.role !== "admin") return NextResponse.json({ error: "x" }, { status: 403 });
   const q = "12 kişilik bir kafeyiz, her gün 07-23 açığız, salon bar mutfak var.";
   const full = setupSystemPrompt("Test");
+  const conv = "Kullanıcı: " + q + "\nSen: {\"ask\": \"Hangi günler daha yoğun?\"}\nKullanıcı: Cumartesi ve pazar çok yoğun, neredeyse iki katı kişi lazım.";
   const results = await Promise.all([
-    call("gemini-3.8-flash", "Kısa cevap ver.", q, "low"),
-    call("gemini-3.8-flash", full, q, "low"),
-    call("gemini-flash-latest", full, q, "low"),
-    call("gemini-3.5-flash", full, q, "low"),
     call("gemini-flash-lite-latest", full, q, "low"),
+    call("gemini-flash-lite-latest", full + "\n\nArtık soru sorma. Eldeki bilgilerle hemen proposal yaz.", conv, "low"),
   ]);
+  const text = (r: { out: string }) => r.out;
   return NextResponse.json(results);
 }
