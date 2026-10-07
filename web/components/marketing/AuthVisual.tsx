@@ -27,7 +27,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
               İlk planınızı<br />bugün yayınlayabilirsiniz.
             </h2>
             <ul className="m-up mt-6 space-y-3" style={{ "--d": "120ms" } as React.CSSProperties}>
-              {["İşletme türünüzü seçin, vardiyalar buna göre kurulur", "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin", "Kaç kişi gerektiğini yazın, uygulama planı hazırlar"].map((t, i) => (
+              {["İşletmenizi anlatın, kurulumu yapay zekâ yapsın", "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin", "Kaç kişi gerektiğini yazın, uygulama planı hazırlar"].map((t, i) => (
                 <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[12px] font-semibold text-ember-300">{i + 1}</span>
                   {t}

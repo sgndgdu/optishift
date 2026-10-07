@@ -90,6 +90,15 @@ export function CalendarMock({ className }: { className?: string }) {
 /* ─── Bütün özellikler ─────────────────────────────────────── */
 export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[] }[] = [
   {
+    icon: Sparkles, title: "Yapay zekâ",
+    items: [
+      "İşletmenizi anlatarak kurulum",
+      "Departman, vardiya ve günlük kişi sayısı önerisi",
+      "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
+      "Hiçbir kayıt sizin onayınız olmadan değişmez",
+    ],
+  },
+  {
     icon: CalendarDays, title: "Planlama",
     items: [
       "Gereken kişi sayısına göre otomatik plan",
@@ -191,7 +200,6 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "Nöbet (sağlık, fabrika, güvenlik)",
       "Sürüş süresi sınırları (lojistik)",
       "Çağrı yoğunluğundan kişi hesabı (çağrı merkezi)",
-      "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
     ],
   },
 ];

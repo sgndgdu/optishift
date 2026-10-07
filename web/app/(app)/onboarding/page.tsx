@@ -3,9 +3,11 @@
 
 import { getPlan, limitMessage } from "@/lib/plans";
 import { DifficultyPicker } from "@/components/ui/DifficultyPicker";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
-import { Store, CalendarClock, Plus, Trash2 } from "lucide-react";
+import { Store, CalendarClock, Plus, Trash2, Users, Sparkles } from "lucide-react";
+import { SetupChat } from "@/components/onboarding/SetupChat";
+import type { SetupProposal } from "@/lib/ai/setupAssistant";
 import { buildIndustryDefaults, getIndustry, getVariant } from "@/lib/templates";
 import IndustryPicker from "@/components/IndustryPicker";
 import type { ShiftDefinition } from "@/lib/types";
@@ -17,10 +19,14 @@ import { AuthLogo } from "@/components/AuthLogo";
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
 
 
-const STEPS = [
+const BASE_STEPS = [
   { label: "İşletmeniz", icon: Store },
   { label: "Vardiyalar", icon: CalendarClock },
 ];
+// Yapay zekâ önerisi kaç kişi gerektiğini de getirdiyse üçüncü adımda gösterilir
+const DEMAND_STEP = { label: "Kaç kişi", icon: Users };
+const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+const DIFFICULTY_POINTS = { easy: 3, medium: 5, hard: 8 } as const;
 
 // ─── Bileşen ─────────────────────────────────────────────────────────────────
 
@@ -46,6 +52,18 @@ export default function OnboardingWizard() {
   // İsteğe bağlı bölümler (alt türün önerileri): seçilenler kurulumda departman olarak açılır
   const [pickedDepts, setPickedDepts] = useState<string[]>([]);
   const multi = multiOpen || branches.length > 1;
+
+  // Yapay zekâ ile kurulum (components/onboarding/SetupChat): anahtar varsa sihirbaz sohbetle başlar
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
+  const [mode, setMode] = useState<"ai" | "form">("form");
+  const [aiApplied, setAiApplied] = useState(false);
+  const [aiSummary, setAiSummary] = useState("");
+  // Yapay zekâ türü seçtiyse uzun tür listesi kapalı gelir, "Değiştir" ile açılır
+  const [typeEdit, setTypeEdit] = useState(false);
+  // Önerinin çalışma saatleri ve kaç kişi gerektiği: departman adı ("" = departmansız) → vardiya id → 7 gün
+  const [opHours, setOpHours] = useState<{ open: string; close: string; closedDays: number[] } | null>(null);
+  const [demand, setDemand] = useState<Record<string, Record<string, number[]>>>({});
+  const STEPS = aiApplied ? [...BASE_STEPS, DEMAND_STEP] : BASE_STEPS;
 
   // Adım 1 — Vardiya tanımları (sektör preset'inden dolu gelir, düzenlenebilir)
   const [shifts, setShifts] = useState<ShiftDefinition[]>(() => getVariant(getIndustry("hospitality")!, "cafe").shifts.map(d => ({ ...d })));
@@ -89,6 +107,55 @@ export default function OnboardingWizard() {
       })
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/onboarding/assistant").then(r => (r.ok ? r.json() : null)).then(d => {
+      const on = !!d?.enabled;
+      setAiEnabled(on);
+      if (on) setMode("ai");
+    }).catch(() => setAiEnabled(false));
+  }, [user]);
+
+  // Yapay zekâ önerisini formlara yazar; kayıt yine sahibin onayıyla, son adımda yapılır
+  const applyProposal = (p: SetupProposal) => {
+    setIndustry(p.industry);
+    setVariant(p.variant);
+    setPickedDepts(p.departments);
+    const defs: ShiftDefinition[] = p.shifts.map((s, i) => ({ id: `s-${i + 1}`, name: s.name, start: s.start, end: s.end, base_points: DIFFICULTY_POINTS[s.difficulty] }));
+    setShifts(defs);
+    setOpHours({ open: p.open, close: p.close, closedDays: p.closedDays });
+    const byName = new Map(defs.map(d => [d.name, d.id]));
+    const dm: Record<string, Record<string, number[]>> = {};
+    for (const [dept, m] of Object.entries(p.demand)) {
+      dm[dept] = {};
+      for (const [shiftName, days] of Object.entries(m)) { const id = byName.get(shiftName); if (id) dm[dept][id] = [...days]; }
+    }
+    setDemand(dm);
+    setAiSummary(p.summary);
+    setAiApplied(true);
+    setMode("form");
+    setStep(0);
+  };
+
+  // Departman seçimi değişse de kaç kişi tablosu uyumlu kalsın: seçili departmanlar (yoksa tek tablo)
+  const demandKeys = pickedDepts.length ? pickedDepts : [""];
+  const demandFor = (dept: string, shiftId: string): number[] => {
+    const direct = demand[dept]?.[shiftId];
+    if (direct) return direct;
+    // Departman kaldırıldıysa ya da yeni eklendiyse: tek tabloda bütün departmanların toplamı, yeni departmanda 1
+    if (dept === "") {
+      const rows = Object.values(demand).map(m => m[shiftId]).filter(Boolean) as number[][];
+      if (rows.length) return Array.from({ length: 7 }, (_, d) => rows.reduce((t, r) => t + r[d], 0));
+    }
+    return Array.from({ length: 7 }, (_, d) => (opHours?.closedDays.includes(d) ? 0 : 1));
+  };
+  const setDemandCell = (dept: string, shiftId: string, day: number, v: number) =>
+    setDemand(prev => {
+      const row = [...demandFor(dept, shiftId)];
+      row[day] = Math.max(0, Math.min(50, Math.round(v) || 0));
+      return { ...prev, [dept]: { ...(prev[dept] ?? {}), [shiftId]: row } };
+    });
 
   // İşletme türü / çalışma düzeni değişince vardiya önerisi güncellenir
   const pickIndustry = (ind: string, v: string) => {
@@ -163,7 +230,9 @@ export default function OnboardingWizard() {
             body: JSON.stringify({
               shift_definitions: shifts.filter(s => s.name.trim()),
               // Yarım kalmış şubede elle girilmiş değerler korunur (PATCH rules'u değiştirir, birleştirmez)
-              operating_hours: prev && !isEmpty(prev.operating_hours) ? parse(prev.operating_hours) : defaults.operating_hours,
+              operating_hours: prev && !isEmpty(prev.operating_hours) ? parse(prev.operating_hours)
+                : opHours ? Object.fromEntries(Array.from({ length: 7 }, (_, d) => [d, { isOpen: !opHours.closedDays.includes(d), open: opHours.open, close: opHours.close }]))
+                : defaults.operating_hours,
               rules: { ...defaults.rules, ...((prev ? parse(prev.rules) : null) as object ?? {}) },
               task_templates: prev && !isEmpty(prev.task_templates) ? parse(prev.task_templates) : defaults.task_templates,
             }),
@@ -173,9 +242,21 @@ export default function OnboardingWizard() {
       if (results.some(ok => !ok)) throw new Error("Şube ayarları kaydedilemedi, lütfen tekrar deneyin.");
 
       // Seçilen bölümler yeni şubelerde departman olarak açılır (isteğe bağlı)
+      const toMatrix = (dept: string) => Object.fromEntries(shifts.filter(s => s.name.trim()).map(s => [s.id, Object.fromEntries(demandFor(dept, s.id).map((n, d) => [d, n]))]));
       for (const id of newLocationIds) {
         for (const name of pickedDepts) {
-          await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: id, name }) }).catch(() => null);
+          const dep = await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: id, name }) })
+            .then(r => (r.ok ? r.json() : null)).catch(() => null);
+          // Yapay zekâ önerisindeki kaç kişi tablosu departmana yazılır
+          if (aiApplied && dep?.id) {
+            await fetch(`/api/departments?id=${dep.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demand_matrix: toMatrix(name) }) }).catch(() => null);
+          }
+        }
+      }
+      // Departmansız kurulumda tablo şubeye yazılır
+      if (aiApplied && pickedDepts.length === 0) {
+        for (const { id } of targets) {
+          await fetch(`/api/locations?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demand_matrix: toMatrix("") }) }).catch(() => null);
         }
       }
 
@@ -206,7 +287,7 @@ export default function OnboardingWizard() {
       setError(limitMessage("locations"));
       return;
     }
-    if (step === 1) await saveAll();
+    if (step === STEPS.length - 1) await saveAll();
     else setStep(s => s + 1);
   };
 
@@ -217,26 +298,52 @@ export default function OnboardingWizard() {
       <div className="w-full max-w-2xl">
         <AuthLogo className="mb-6" />
 
+        {mode === "ai" ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 md:p-8">
+            <SetupChat onProposal={applyProposal} onManual={() => setMode("form")} />
+          </div>
+        ) : (<>
         {/* Progress bar */}
         {<WizardProgress steps={STEPS} current={step} className="mb-6 md:mb-8" />}
 
         {/* Kart */}
         <div className="bg-white rounded-2xl border border-slate-200">
           <div className="p-5 md:p-8 lg:p-10">
+            {aiApplied && (
+              <div className="mb-6 flex items-start gap-3 rounded-2xl bg-forest-50 px-4 py-3 ring-1 ring-forest-100">
+                <Sparkles size={18} className="mt-0.5 shrink-0 text-forest-700" />
+                <div className="text-sm leading-relaxed text-forest-900">
+                  <p className="font-semibold">Yapay zekâ bu bilgileri sizin anlattıklarınıza göre doldurdu.</p>
+                  {aiSummary && step === 0 && <p className="mt-1 text-forest-800/80">{aiSummary}</p>}
+                  <p className="mt-1 text-forest-800/80">Kontrol edin, istediğinizi değiştirin. Siz onaylayınca kaydedilir.</p>
+                </div>
+              </div>
+            )}
+            {!aiApplied && aiEnabled && step === 0 && (
+              <button type="button" onClick={() => setMode("ai")} className="mb-6 flex w-full items-center gap-3 rounded-2xl bg-forest-700 px-4 py-3 text-left text-white hover:bg-forest-800">
+                <Sparkles size={18} className="shrink-0 text-ember-300" />
+                <span className="text-sm"><span className="font-semibold">Yapay zekâ ile kurun.</span> İşletmenizi anlatın, bu adımları asistan doldursun.</span>
+              </button>
+            )}
 
             {/* ── Adım 0: Sektör + Şubeler ── */}
             {step === 0 && (
               <WizardStep icon={<Store size={24} />} color="bg-forest-100 text-forest-600"
                 title="İşletmenizi Tanıyalım"
                 sub="İşletme türünüzü seçin. Vardiyalar, yasal kurallar ve gereken özellikler buna göre hazırlanır.">
-                <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
+                {aiApplied && !typeEdit ? (
+                  <p className="text-sm text-slate-600">İşletme türü: <span className="font-semibold text-slate-900">{getIndustry(industry)?.label} · {getVariant(getIndustry(industry)!, variant).label}</span>{" "}
+                    <button type="button" onClick={() => setTypeEdit(true)} className="text-sm font-semibold text-forest-700 hover:underline">Değiştir</button></p>
+                ) : (
+                  <IndustryPicker industry={industry} variant={variant} onChange={pickIndustry} />
+                )}
 
                 {/* İsteğe bağlı bölümler: alt türün önerileri, seçilen departman olarak açılır */}
-                {(getVariant(getIndustry(industry)!, variant).departments ?? []).length > 0 && (
+                {[...new Set([...(getVariant(getIndustry(industry)!, variant).departments ?? []), ...pickedDepts])].length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-400">Bölümleriniz <span className="font-normal">(isteğe bağlı; her birine kaç kişi gerektiğini ayrı girersiniz)</span></p>
                     <div className="flex flex-wrap gap-2">
-                      {(getVariant(getIndustry(industry)!, variant).departments ?? []).map(d => {
+                      {[...new Set([...(getVariant(getIndustry(industry)!, variant).departments ?? []), ...pickedDepts])].map(d => {
                         const on = pickedDepts.includes(d);
                         return (
                           <button key={d} type="button" onClick={() => setPickedDepts(p => on ? p.filter(x => x !== d) : [...p, d])}
@@ -352,6 +459,37 @@ export default function OnboardingWizard() {
               </WizardStep>
             )}
 
+            {/* ── Adım 2: Kaç kişi (yapay zekâ önerisinden) ── */}
+            {step === 2 && aiApplied && (
+              <WizardStep icon={<Users size={24} />} color="bg-forest-100 text-forest-600"
+                title="Her gün kaç kişi gerekli?"
+                sub="Yapay zekâ anlattıklarınıza göre doldurdu. Plan bu sayılara göre hazırlanır. İstediğiniz kutuyu değiştirin.">
+                <div className="space-y-5">
+                  {demandKeys.map(dept => (
+                    <div key={dept || "_"}>
+                      {dept && <p className="mb-2 text-sm font-bold text-slate-800">{dept}</p>}
+                      <div className="grid gap-1 text-[12px]" style={{ gridTemplateColumns: "minmax(64px,1.2fr) repeat(7, minmax(0,1fr))" }}>
+                        <div />
+                        {DAY_SHORT.map((d, i) => <div key={d} className={`text-center font-semibold ${i >= 5 ? "text-ember-600" : "text-slate-400"}`}>{d}</div>)}
+                        {shifts.filter(s => s.name.trim()).map(s => (
+                          <Fragment key={s.id}>
+                            <div className="flex items-center truncate pr-1 font-semibold text-slate-600">{s.name}</div>
+                            {demandFor(dept, s.id).map((n, d) => (
+                              <input key={d} type="number" inputMode="numeric" min={0} max={50} value={n}
+                                aria-label={`${dept ? dept + " " : ""}${s.name} ${DAY_SHORT[d]}`}
+                                onChange={e => setDemandCell(dept, s.id, d, Number(e.target.value))}
+                                className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white text-center text-[14px] font-semibold text-slate-800 focus:border-primary focus:outline-none" />
+                            ))}
+                          </Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400">Bu tabloyu sonra Vardiya Planı sayfasından da değiştirebilirsiniz.</p>
+              </WizardStep>
+            )}
+
             {/* Hata */}
             {error && (
               <div className="mt-4 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600 font-medium">
@@ -360,12 +498,11 @@ export default function OnboardingWizard() {
             )}
 
             {/* Navigasyon */}
-            {step < 2 && (
-              <WizardNav current={step} total={STEPS.length} busy={saving}
-                onBack={() => setStep(s => s - 1)} onNext={next} finishLabel="Tamamla ve Başla" />
-            )}
+            <WizardNav current={step} total={STEPS.length} busy={saving}
+              onBack={() => setStep(s => s - 1)} onNext={next} finishLabel="Onayla ve Başla" />
           </div>
         </div>
+        </>)}
 
         <p className="text-center text-xs text-slate-400 mt-6 font-medium">
           Departman, kural ve diğer tüm detayları istediğiniz zaman Ayarlar sayfasından ekleyebilirsiniz.

@@ -53,7 +53,7 @@ export const PLANS: PlanInfo[] = [
     desc: "Tek şubeli ve çok şubeli bütün işletmeler için.",
     maxLocations: null,
     maxPersonnel: null,
-    features: ["Sınırsız şube ve kişi", "Otomatik Pilot ve İşletme Asistanı", "Bir kişi birden çok şubede çalışabilir", "Ekip uygulamayı telefondan kullanır"],
+    features: ["Sınırsız şube ve kişi", "Yapay zekâ ile kurulum ve İşletme Asistanı", "Otomatik Pilot", "Bir kişi birden çok şubede çalışabilir", "Ekip uygulamayı telefondan kullanır"],
   },
   {
     id: "enterprise",

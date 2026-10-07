@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight, Check, Scale, FileSpreadsheet, HelpCircle, Repeat, CalendarCheck, GitCompare,
-  Smartphone, ArrowLeftRight, Megaphone, CalendarClock, Siren, Building2, Users, Layers, StickyNote,
+  Smartphone, ArrowLeftRight, Megaphone, CalendarClock, Siren, Building2, Users, Layers, StickyNote, Sparkles,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -13,7 +13,7 @@ import {
 } from "@/components/marketing/Mockups";
 import { SectorShowcase } from "@/components/marketing/SectorShowcase";
 import { Reveal } from "@/components/marketing/Reveal";
-import { TypedDay } from "@/components/marketing/TypedDay";
+import { SetupDemo } from "@/components/marketing/SetupDemo";
 import { AssistantDemo } from "@/components/marketing/AssistantDemo";
 import { ProductTour } from "@/components/marketing/ProductTour";
 import { DepartmentsMock, CalendarMock, FeatureCatalog } from "@/components/marketing/FeatureShowcase";
@@ -24,8 +24,8 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 const STEPS = [
   {
     n: "1",
-    title: "Kaç kişi gerektiğini yazın",
-    text: "Her gün ve her vardiya için kaç kişi gerektiğini bir kez yazarsınız. Sonraki haftalarda aynı sayılar kullanılır, istediğiniz zaman değiştirebilirsiniz.",
+    title: "İşletmenizi anlatın",
+    text: "Yapay zekâ birkaç soru sorar, departmanları, vardiyaları ve her gün kaç kişi gerektiğini doldurur. Siz kontrol edip onaylarsınız, istediğiniz zaman değiştirebilirsiniz.",
   },
   {
     n: "2",
@@ -55,10 +55,9 @@ export default function LandingPage() {
 
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.12fr] lg:gap-10 lg:pb-32 lg:pt-24">
           <div className="min-w-0 max-w-xl">
-            <Link href="#pilot" className="m-up group mb-8 flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-white/10 py-1 pl-1 pr-3.5 leading-snug sm:rounded-full text-[13px] text-forest-100 ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/15">
+            <Link href="#yapay-zeka" className="m-up group mb-8 flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-white/10 py-1 pl-1 pr-3.5 leading-snug sm:rounded-full text-[13px] text-forest-100 ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/15">
               <span className="rounded-full bg-ember-400 px-2.5 py-0.5 text-[11px] font-bold text-forest-900">Yeni</span>
-              <span className="sr-only">Otomatik Pilot gelecek haftanın planını seçtiğiniz gün hazırlar</span>
-              <span aria-hidden="true" className="min-w-0">Otomatik Pilot gelecek haftanın planını her <TypedDay /> hazırlar</span>
+              <span className="min-w-0">İşletmenizi anlatın, kurulumu yapay zekâ yapsın</span>
               <ArrowRight size={14} className="shrink-0 text-forest-200 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <h1 className="font-serif text-[44px] font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-[74px]">
@@ -78,7 +77,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <ul className="m-up mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-forest-100/70" style={d(600)}>
-              {["Denemede bütün özellikler açık", "İş Kanunu kuralları kurulu gelir", "Telefondan da kullanılır"].map((t) => (
+              {["Kurulumu yapay zekâ yapar", "İş Kanunu kuralları kurulu gelir", "Telefondan da kullanılır"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <Check size={15} className="text-ember-300" strokeWidth={2.5} /> {t}
                 </li>
@@ -101,6 +100,38 @@ export default function LandingPage() {
               <div className="m-float" style={{ animationDelay: "2.5s" }}><WhyCard /></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ─── Yapay zekâ ile kurulum ───────────────────────────── */}
+      <section id="yapay-zeka" className="scroll-mt-20 pt-20 sm:pt-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <Reveal>
+            <p className="m-up mb-3 inline-flex items-center gap-2 rounded-full bg-forest-700 px-3 py-1 text-sm font-semibold text-ember-300"><Sparkles size={14} /> Yapay zekâ</p>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>İşletmenizi anlatın, kurulumu yapay zekâ yapsın.</h2>
+            <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(160)}>
+              Form doldurmanız gerekmez. İşletmenizi kendi cümlelerinizle yazarsınız, yapay zekâ eksik kalan birkaç şeyi sorar.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {[
+                "İşletme türünüzü ve departmanlarınızı anlar.",
+                "Vardiya saatlerini ve çalışma günlerini çıkarır.",
+                "Her gün, her vardiyada kaç kişi gerektiğini önerir.",
+                "Siz kontrol edip onaylamadan hiçbir şey kaydedilmez.",
+              ].map((t, i) => (
+                <li key={t} className="m-up flex items-start gap-3 text-[15px] leading-relaxed text-slate-700" style={d(220 + i * 80)}>
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700"><Check size={13} strokeWidth={3} /></span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+            <Link href="/register" className="m-up mt-9 inline-flex items-center gap-2 rounded-2xl bg-forest-700 px-6 py-3.5 text-[15px] font-bold text-white hover:bg-forest-800" style={d(560)}>
+              Yapay zekâ ile kurun <ArrowRight size={17} />
+            </Link>
+          </Reveal>
+          <Reveal threshold={0.25}>
+            <div className="m-up" style={d(150)}><SetupDemo /></div>
+          </Reveal>
         </div>
       </section>
 
