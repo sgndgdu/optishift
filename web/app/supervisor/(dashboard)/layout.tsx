@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import SystemBanner from "@/components/SystemBanner";
 import { MobileBrand } from "@/components/MobileBrand";
 import MobileTabBar from "@/components/MobileTabBar";
+import NotificationBell from "@/components/NotificationBell";
 import AssistantPanel from "@/components/AssistantPanel";
 
 export default function SupervisorLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
             <Menu size={24} />
           </button>
           <MobileBrand />
+          <NotificationBell placement="topbar" />
         </div>
 
         <div className="flex-1 overflow-auto">

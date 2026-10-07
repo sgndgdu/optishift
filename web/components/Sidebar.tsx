@@ -81,6 +81,7 @@ import { canSeePage, departmentScope, hasPerm, parseAccess } from "@/lib/userAcc
 import { titleLabel } from "@/components/personnel/people";
 import { openEmployeeView } from "@/lib/employeeView";
 import { CountBadge } from "@/components/ui/StatusPill";
+import NotificationBell from "@/components/NotificationBell";
 
 // group: "main"  → her zaman görünen 4 ana bağlantı (üstte)
 // group: "more"  → ikincil sayfalar; 4'ten fazlaysa katlanır "Daha Fazla" grubu (kapalı başlar)
@@ -344,6 +345,8 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
             {scope === "all" && <p className="text-xs font-medium text-slate-400 mt-1">Tüm şubeler</p>}
           </div>
         </Link>
+        {/* Bildirim zili masaüstünde burada, telefonda üst çubukta (layout) */}
+        <div className="hidden lg:block"><NotificationBell placement="sidebar" /></div>
         {onClose && (
           <button
             onClick={onClose}

@@ -51,6 +51,31 @@ export async function sendPushToPersonnel(
   );
 }
 
+/**
+ * Yönetim paneli hesabının (sorumlu, hesap sahibi) telefon bildirimi abonelikleri (push_subscriptions.user_id).
+ * Geçersiz abonelik silinir.
+ */
+export async function sendPushToUser(
+  userId: string,
+  orgId: string,
+  payload: { title: string; body: string; url?: string },
+) {
+  if (!process.env.VAPID_PRIVATE_KEY) return;
+  const db = getDB();
+  type Sub = { endpoint: string; p256dh: string; auth: string };
+  const subs = await db.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ? AND org_id = ?").all(userId, orgId).catch(() => []) as Sub[];
+  await Promise.allSettled(subs.map(async (sub) => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify({ title: payload.title, body: payload.body, url: payload.url ?? "/dashboard" }),
+      );
+    } catch {
+      await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(sub.endpoint);
+    }
+  }));
+}
+
 export async function sendSMS(phone: string, message: string) {
   // Twilio / Netgsm SDK integration here
   console.log(`\n===========================================`);

@@ -5,19 +5,32 @@ import { requireAuth } from "@/lib/auth";
 
 
 // POST: Yeni push subscription kaydet (veya mevcut olanı güncelle)
-// Body: { personnel_id, subscription: { endpoint, keys: { p256dh, auth } } }
+// Ekip üyesi: { personnel_id, subscription }. Yönetim paneli (sorumlu, hesap sahibi): { scope: "user", subscription }
+// hesaba bağlanır (push_subscriptions.user_id), çalışan kaydı gerekmez. Aynı cihaz son kaydedilen hesaba gider.
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
   const db = getDB();
   try {
-    const { personnel_id, subscription } = await req.json();
-
-    if (!personnel_id || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    const { personnel_id, subscription, scope } = await req.json();
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
     }
 
+    if (scope === "user") {
+      if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      await db.prepare(`
+        INSERT INTO push_subscriptions (user_id, personnel_id, org_id, endpoint, p256dh, auth)
+        VALUES (?, NULL, ?, ?, ?, ?)
+        ON CONFLICT(endpoint) DO UPDATE SET
+          user_id = excluded.user_id, personnel_id = NULL, org_id = excluded.org_id,
+          p256dh = excluded.p256dh, auth = excluded.auth
+      `).run(auth.id, auth.org_id, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth);
+      return NextResponse.json({ success: true });
+    }
+
+    if (!personnel_id) return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
     // Personel bu org'a ait mi?
     const person = await db.prepare("SELECT id FROM personnel WHERE id = ? AND org_id = ?").get(personnel_id, auth.org_id);
     if (!person) {
@@ -29,7 +42,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO push_subscriptions (personnel_id, org_id, endpoint, p256dh, auth)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(endpoint) DO UPDATE SET
-        personnel_id = excluded.personnel_id,
+        personnel_id = excluded.personnel_id, user_id = NULL,
         p256dh = excluded.p256dh,
         auth = excluded.auth
     `).run(personnel_id, auth.org_id, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth);

@@ -341,9 +341,10 @@ export const openShifts = pgTable("open_shifts", {
 // ─── Push Subscriptions (Web Push VAPID) ─────────────────────────────────────
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
+  // Ekip üyesi aboneliği personnel_id, sorumlu/hesap sahibi aboneliği user_id ile (2026-10-07)
   personnel_id: text("personnel_id")
-    .notNull()
     .references(() => personnel.id),
+  user_id: text("user_id"),
   org_id: text("org_id").notNull(),
   endpoint: text("endpoint").notNull().unique(),
   p256dh: text("p256dh").notNull(), // subscription.keys.p256dh
@@ -576,9 +577,10 @@ export const overtimeRecords = pgTable("overtime_records", {
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
+  // Ekip üyesine giden bildirim personnel_id, yönetim paneline (sorumlu, hesap sahibi) giden user_id ile (2026-10-07)
   personnel_id: text("personnel_id")
-    .notNull()
     .references(() => personnel.id),
+  user_id: text("user_id"),
   type: text("type").notNull(), // schedule | leave_approved | leave_rejected | trade_request | alert
   title: text("title").notNull(),
   message: text("message").notNull(),

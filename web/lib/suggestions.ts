@@ -15,7 +15,7 @@ import { leaveTypeLabel } from "@/lib/leave";
 import { coverFor, findConflicts } from "@/lib/leaveConflicts";
 import { rankCandidates } from "@/lib/openShiftCandidates";
 import { departmentScope, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
-import { sendPushToPersonnel } from "@/lib/notifications";
+import { sendPushToUser } from "@/lib/notifications";
 
 export type Suggestion = {
   id: string;
@@ -151,30 +151,27 @@ export async function buildSuggestions(db: any, auth: AuthUser, locationId: stri
 }
 
 /**
- * Şubenin sorumlularına (şube sorumlusu, bölge sorumlusu, hesap sahibi) bildirim + telefon bildirimi.
- * Sadece işi yapma yetkisi (perm) olan ve departman sorumlusu olmayanlar alır.
- * Sadece çalışan kaydı olan hesaplar bildirim alır (bildirim tablosu kişiye bağlı).
+ * Şubenin sorumlularına (şube sorumlusu, bölge sorumlusu, hesap sahibi) yönetim paneli bildirimi + telefon bildirimi.
+ * Sadece işi yapma yetkisi (perm) olan ve departman sorumlusu olmayanlar alır. Bildirim hesaba (user_id) yazılır:
+ * çalışan kaydı olmayan sahip de alır, bildirim zilinde görür (components/NotificationBell).
  */
 export async function notifyBranchManagers(db: any, orgId: string, locationId: string, perm: Perm, n: { type: string; title: string; message: string; link: string }) {
   const rows = await db.prepare(`
-    SELECT personnel_id, role, permissions FROM users
-    WHERE org_id = ? AND personnel_id IS NOT NULL AND COALESCE(approval_status, 'active') = 'active'
+    SELECT id, role, permissions FROM users
+    WHERE org_id = ? AND COALESCE(approval_status, 'active') = 'active'
       AND (role = 'admin' OR (role = 'manager' AND location_id = ?)
         OR (role = 'supervisor' AND (managed_location_ids IS NULL OR managed_location_ids = '' OR managed_location_ids = '[]' OR managed_location_ids LIKE ?)))
-  `).all(orgId, locationId, `%"${locationId}"%`) as { personnel_id: string; role: string; permissions: string | null }[];
-  const seen = new Set<string>();
+  `).all(orgId, locationId, `%"${locationId}"%`) as { id: string; role: string; permissions: string | null }[];
   const managers = rows.filter(r => {
     const u = { role: r.role, access: parseAccess(r.permissions) };
-    if (seen.has(r.personnel_id) || departmentScope(u) || !hasPerm(u, perm)) return false;
-    seen.add(r.personnel_id);
-    return true;
+    return !departmentScope(u) && hasPerm(u, perm);
   });
   const now = Math.floor(Date.now() / 1000);
   await Promise.allSettled(managers.map(async m => {
     await db.prepare(`
-      INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+      INSERT INTO notifications (user_id, type, title, message, link, is_read, created_at)
       VALUES (?, ?, ?, ?, ?, false, ?)
-    `).run(m.personnel_id, n.type, n.title, n.message, n.link, now);
-    await sendPushToPersonnel(m.personnel_id, orgId, { title: n.title, body: n.message, url: n.link }).catch(() => {});
+    `).run(m.id, n.type, n.title, n.message, n.link, now);
+    await sendPushToUser(m.id, orgId, { title: n.title, body: n.message, url: n.link }).catch(() => {});
   }));
 }

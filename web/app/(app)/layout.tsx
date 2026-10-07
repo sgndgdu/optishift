@@ -7,6 +7,7 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SystemBanner from "@/components/SystemBanner";
 import { MobileBrand } from "@/components/MobileBrand";
 import MobileTabBar from "@/components/MobileTabBar";
+import NotificationBell from "@/components/NotificationBell";
 import AssistantPanel from "@/components/AssistantPanel";
 import OwnerBranchBanner from "@/components/OwnerBranchBanner";
 
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={24} />
           </button>
           <MobileBrand />
+          <NotificationBell placement="topbar" />
         </div>
 
         <OwnerBranchBanner />
