@@ -18,7 +18,7 @@ export default function PricingPage() {
         <div className="pointer-events-none absolute -right-40 -top-40 h-[620px] w-[620px] rounded-full bg-ember-500/25 blur-[140px]" />
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h1 className="font-serif text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-            <span className="m-up block">Sürpriz ücret yok.</span>
+            <span className="m-up block">Paketler ve fiyatlar</span>
             <span className="m-up block italic text-ember-300" style={d(120)}>{TRIAL_DAYS} gün ücretsiz deneyin.</span>
           </h1>
           <p className="m-up mx-auto mt-6 max-w-xl text-base text-forest-100/80 sm:text-lg" style={d(220)}>

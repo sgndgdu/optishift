@@ -39,7 +39,7 @@ export function DepartmentsMock({ className }: { className?: string }) {
               <div key={n} className="flex items-center justify-between gap-2 text-[13px]">
                 <span className="truncate text-slate-700">
                   {n}
-                  {"joker" in dp && dp.joker === n && <span className="ml-1.5 text-[11.5px] text-slate-400">Salon ekibinden, bugün Bar&apos;da</span>}
+                  {"joker" in dp && dp.joker === n && <span className="ml-1.5 text-[11.5px] text-slate-400">Salon çalışanı, bugün Bar&apos;da</span>}
                 </span>
                 <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold", TONE[c])}>{l}</span>
               </div>
@@ -92,14 +92,14 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
   {
     icon: CalendarDays, title: "Planlama",
     items: [
-      "İhtiyaca göre saniyeler içinde plan",
-      "Otomatik Pilot: her hafta taslak hazır",
+      "Gereken kişi sayısına göre otomatik plan",
+      "Otomatik Pilot: her hafta taslak plan hazırlanır",
       "Geçmiş haftalardan ihtiyaç önerisi",
-      "Kayıtlı ihtiyaç tabloları (normal, kampanya haftası)",
+      "Normal hafta ve kampanya haftası için kayıtlı ihtiyaç tabloları",
       "Elle düzenlediğiniz vardiyalar korunur",
-      "Planı bozmadan yeniden kurma",
-      "Ya şöyle olursa? karşılaştırması",
-      "Neden bu kişi? açıklaması",
+      "Mevcut planı olabildiğince koruyarak yeniden hazırlama",
+      "İzin ya da ihtiyaç değişirse planın nasıl değişeceğini görme",
+      "Bir kişinin vardiyaya neden yazıldığını görme",
       "Yayından önce kural kontrolü",
     ],
   },
@@ -117,23 +117,23 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
     icon: Layers, title: "Departmanlar ve şubeler",
     items: [
       "Departmanlar ve alt departmanlar",
-      "Departman başına ihtiyaç ve sayaç",
+      "Her departman için ayrı kişi sayısı",
       "Birden çok departmanda çalışabilen kişi",
-      "Departman sorumlusu kendi planını hazırlar, onaya gönderir",
+      "Departman sorumlusu kendi planını hazırlayıp onaya gönderir",
       "Birden çok şubede çalışma",
-      "Planlı şube değiştirme",
+      "Şubeler arasında sırayla çalışma",
       "Başka şubeden yedek",
-      "Bütün şubeler tek ekranda",
+      "Bütün şubelerin durumu tek ekranda",
     ],
   },
   {
     icon: ShieldCheck, title: "Kurallar ve adalet",
     items: [
-      "İş Kanunu kuralları hazır: haftalık saat, dinlenme, hafta tatili",
-      "Gece en fazla 7,5 saat; gebe, emziren ve 18 yaş altına gece yok",
+      "İş Kanunu kuralları kurulu gelir: haftalık saat, dinlenme, hafta tatili",
+      "Gece vardiyası en fazla 7,5 saat; gebe, emziren ve 18 yaşından küçüklere gece vardiyası yazılmaz",
       "Denkleştirme dönemi",
       "Yıllık izin hakkı kıdeme göre hesaplanır",
-      "Adalet Puanı: zor vardiyalar sırayla döner",
+      "Adalet Puanı: zor vardiyalar sırayla dağıtılır",
       "Birlikte çalışamaz kişiler",
       "Yorgunluk ve kaza riski uyarısı",
       "Dönüşümlü çalışma düzeni (ör. 4 gün çalış, 2 gün izin)",
@@ -145,9 +145,9 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "Uygunluk bildirme",
       "İzin isteği",
       "Arkadaşıyla vardiya değiştirme",
-      "Gelemeyeceğim deyip vardiyayı ilana çıkarma",
+      "Gelemeyeceği vardiyayı ekibe duyurma",
       "Açık vardiya üstlenme",
-      "Kiminle çalışacağını görme",
+      "Aynı vardiyada kimlerle çalışacağını görme",
       "Anlık bildirim ve ekip sohbeti",
       "Acil durum bildirimi",
     ],
@@ -157,8 +157,8 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
     items: [
       "Telefondan giriş-çıkış",
       "Konum doğrulamalı giriş ya da ortak tablet",
-      "Geç kalan ve gelmeyen uyarısı",
-      "Biri gelemezse en uygun yedek",
+      "Geç kalan ve gelmeyen kişi için uyarı",
+      "Gelemeyen kişi için uygun yedek önerisi",
       "Devir-teslim notu",
       "Belge ve sertifika süresi takibi",
     ],
@@ -166,8 +166,8 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
   {
     icon: FileSpreadsheet, title: "Rapor ve maliyet",
     items: [
-      "Puantaj, Excel olarak",
-      "Fazla mesai, çalışanın onayıyla",
+      "Excel olarak indirilen puantaj",
+      "Çalışanın onayladığı fazla mesai kaydı",
       "Haftalık personel maliyeti ve sınırı",
       "Aylık rapor ve ay kilitleme",
       "Adalet raporu",
@@ -176,22 +176,22 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
   {
     icon: Users, title: "Hesaplar ve yetki",
     items: [
-      "Sorumlulara madde madde yetki",
-      "Davet bağlantısı, WhatsApp ile",
-      "Kalıcı kayıt bağlantısı",
+      "Sorumlulara tek tek seçilen yetkiler",
+      "WhatsApp ile gönderilen davet bağlantısı",
+      "Ekibin kendisinin kaydolabileceği bağlantı",
       "Excel'den toplu ekleme",
       "Telefon, e-posta ya da Google ile giriş",
     ],
   },
   {
-    icon: Sparkles, title: "Sektöre göre hazır",
+    icon: Sparkles, title: "İşletme türüne göre ayarlar",
     items: [
       "Kafe, restoran, otel, perakende, fabrika, lojistik, sağlık, güvenlik, çağrı merkezi",
       "Sektöre göre vardiyalar ve kurallar",
       "Nöbet (sağlık, fabrika, güvenlik)",
       "Sürüş süresi sınırları (lojistik)",
       "Çağrı yoğunluğundan kişi hesabı (çağrı merkezi)",
-      "İşletme Asistanı: işletmenizi sorun",
+      "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
     ],
   },
 ];

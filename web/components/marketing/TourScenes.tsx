@@ -65,7 +65,7 @@ function PlanScene({ t, small }: SceneProps) {
           <Btn pressed={between(t, 1500, 1900)} className="bg-forest-700 text-white"><Sparkles size={14} /> Planı oluştur</Btn>
         ) : t < built ? (
           <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-medium text-slate-600">
-            <span className="m-pulse-dot h-2 w-2 rounded-full bg-ember-500" /> Plan kuruluyor
+            <span className="m-pulse-dot h-2 w-2 rounded-full bg-ember-500" /> Plan hazırlanıyor
           </span>
         ) : !published ? (
           <Btn pressed={between(t, P_PUBLISH - 350, P_PUBLISH + 250)} className="m-enter bg-ember-400 text-forest-900">Yayınla</Btn>
@@ -371,7 +371,7 @@ function AssistantScene({ t }: SceneProps) {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-forest-700 text-ember-300"><Sparkles size={16} /></span>
         <span>
           <span className="block text-[14px] font-semibold text-slate-900">İşletme Asistanı</span>
-          <span className="block text-[12px] text-slate-400">Planınızı, ekibinizi ve onayları bilir</span>
+          <span className="block text-[12px] text-slate-400">Planınıza, ekibinize ve onaylara bakarak cevap verir</span>
         </span>
       </div>
       <div className="flex-1 space-y-3 overflow-hidden bg-slate-50/70 px-4 py-4 sm:px-5">
@@ -417,11 +417,11 @@ export const SCENES: Record<"plan" | "phone" | "approvals" | "cover" | "assistan
     duration: 11500,
     Component: PlanScene,
     steps: [
-      { t: 0, text: "Ekip uygunluğunu girdi, hafta boş" },
+      { t: 0, text: "Ekip uygunluğunu girdi, plan henüz boş" },
       { t: 1500, text: "Planı oluştur'a basarsınız" },
-      { t: P_BUILD, text: "Kurallara ve ihtiyaca göre kurulur" },
-      { t: 6300, text: "Her gün ihtiyaç karşılandı" },
-      { t: P_PUBLISH - 500, text: "Tek dokunuşla yayınlarsınız" },
+      { t: P_BUILD, text: "Plan kurallara ve ihtiyaca göre hazırlanır" },
+      { t: 6300, text: "Her günde gereken kişi sayısı tamam" },
+      { t: P_PUBLISH - 500, text: "Planı yayınlarsınız, ekibe bildirim gider" },
     ],
   },
   phone: {
@@ -429,9 +429,9 @@ export const SCENES: Record<"plan" | "phone" | "approvals" | "cover" | "assistan
     Component: PhoneScene,
     steps: [
       { t: 0, text: "Plan yayınlanınca bildirim gelir" },
-      { t: 2900, text: "Haftası tek ekranda" },
-      { t: 5700, text: "Kiminle çalışacağını görür" },
-      { t: 8300, text: "Değiştirmek tek dokunuş" },
+      { t: 2900, text: "Haftanın bütün vardiyaları tek ekranda" },
+      { t: 5700, text: "Aynı vardiyada kimlerle çalışacağı görünür" },
+      { t: 8300, text: "Değiştirme isteği tek dokunuşla gönderilir" },
     ],
   },
   approvals: {
@@ -440,9 +440,9 @@ export const SCENES: Record<"plan" | "phone" | "approvals" | "cover" | "assistan
     steps: [
       { t: 0, text: "İzin isteği kurallara göre kontrol edilir" },
       { t: 2700, text: "Sorun yoksa onaylarsınız" },
-      { t: 4200, text: "Kural dışı değiştirme önceden yakalanır" },
-      { t: 7000, text: "Gerekçesiyle reddedersiniz" },
-      { t: 8200, text: "Kalan istek de bir dokunuşta" },
+      { t: 4200, text: "Kurala uymayan değişiklik isteği işaretlenir" },
+      { t: 7000, text: "Reddedersiniz, kişiye nedeni iletilir" },
+      { t: 8200, text: "Son isteği de onaylarsınız" },
     ],
   },
   cover: {
@@ -451,8 +451,8 @@ export const SCENES: Record<"plan" | "phone" | "approvals" | "cover" | "assistan
     steps: [
       { t: 0, text: "Biri son anda gelemeyeceğini yazar" },
       { t: 2000, text: "Vardiya boşta kalır" },
-      { t: 3700, text: "En uygun yedekler gerekçesiyle sıralanır" },
-      { t: 6600, text: "Tek dokunuşla atarsınız, kişiye bildirim gider" },
+      { t: 3700, text: "Uygun kişiler nedenleriyle sıralanır" },
+      { t: 6600, text: "Seçtiğiniz kişiyi atarsınız, ona bildirim gider" },
     ],
   },
   assistant: {
@@ -460,7 +460,7 @@ export const SCENES: Record<"plan" | "phone" | "approvals" | "cover" | "assistan
     Component: AssistantScene,
     steps: [
       { t: 0, text: "Sorunuzu yazın" },
-      { t: 2800, text: "Cevap planınızdan gelir" },
+      { t: 2800, text: "Asistan cevabı planınızdan verir" },
       { t: 5200, text: "Gelecek haftayı da sorabilirsiniz" },
     ],
   },

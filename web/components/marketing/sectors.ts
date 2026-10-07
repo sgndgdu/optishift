@@ -36,7 +36,7 @@ export const SECTORS: Sector[] = [
     label: "Kafe & Restoran",
     short: "Kafe",
     image: "/marketing/sector-kafe.webp",
-    headline: "Cumartesi akşamı servis, eksik kişiyle başlamasın.",
+    headline: "Hafta sonu yoğunluğunda her vardiyada yeterli kişi olur.",
     location: "Moda Şube",
     shifts: [
       { code: "A", label: "Açılış", time: "07:00 - 15:00", tone: "forest" },
@@ -56,7 +56,7 @@ export const SECTORS: Sector[] = [
     label: "Otel & Konaklama",
     short: "Otel",
     image: "/marketing/sector-otel.webp",
-    headline: "Resepsiyon 7/24 açık, gece vardiyası hep aynı kişide kalmasın.",
+    headline: "Gece vardiyaları ekip içinde sırayla dağıtılır.",
     location: "Ön Büro",
     shifts: [
       { code: "S", label: "Sabah", time: "07:00 - 15:00", tone: "forest" },
@@ -76,7 +76,7 @@ export const SECTORS: Sector[] = [
     label: "Perakende & Mağaza",
     short: "Perakende",
     image: "/marketing/sector-perakende.webp",
-    headline: "Elli mağazanın planı, tek ekranda ve aynı kurallarla.",
+    headline: "Bütün mağazaların planlarını tek ekrandan, aynı kurallarla yönetirsiniz.",
     location: "Kanyon Mağaza",
     shifts: [
       { code: "S", label: "Sabah", time: "09:30 - 17:30", tone: "forest" },
@@ -96,7 +96,7 @@ export const SECTORS: Sector[] = [
     label: "Üretim & Fabrika",
     short: "Üretim",
     image: "/marketing/sector-uretim.webp",
-    headline: "Üç vardiya, gece kuralları hazır, her hat dolu.",
+    headline: "Üç vardiyalı düzen ve gece çalışma kuralları kurulu gelir.",
     location: "Hat 2 · Montaj",
     shifts: [
       { code: "1", label: "Sabah", time: "08:00 - 16:00", tone: "forest" },

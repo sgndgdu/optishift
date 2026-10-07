@@ -24,18 +24,18 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 const STEPS = [
   {
     n: "1",
-    title: "İhtiyacı bir kez girin",
-    text: "Hangi gün, hangi vardiyada kaç kişi gerektiğini bir kez yazın. Sonraki haftalarda bu sayılarla devam edilir, dilerseniz değiştirebilirsiniz.",
+    title: "Kaç kişi gerektiğini yazın",
+    text: "Her gün ve her vardiya için kaç kişi gerektiğini bir kez yazarsınız. Sonraki haftalarda aynı sayılar kullanılır, istediğiniz zaman değiştirebilirsiniz.",
   },
   {
     n: "2",
-    title: "Plan saniyeler içinde hazır",
-    text: "Kurallar ve ekibin iş yükleri birlikte gözetilir. Uygun olmadığını düşündüğünüz planı elle değiştirin.",
+    title: "Uygulama planı hazırlar",
+    text: "Uygulama kuralları ve herkesin iş yükünü gözeterek planı birkaç saniyede hazırlar. Uygun bulmadığınız vardiyayı elle değiştirebilirsiniz.",
   },
   {
     n: "3",
-    title: "Yayınlayın, ekip telefondan görsün",
-    text: "Yayınladığınız an ekibinize bildirim gider.",
+    title: "Planı yayınlarsınız",
+    text: "Planı yayınladığınızda ekibinizin telefonuna bildirim gider.",
   },
 ];
 
@@ -57,17 +57,17 @@ export default function LandingPage() {
           <div className="min-w-0 max-w-xl">
             <Link href="#pilot" className="m-up group mb-8 flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-white/10 py-1 pl-1 pr-3.5 leading-snug sm:rounded-full text-[13px] text-forest-100 ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/15">
               <span className="rounded-full bg-ember-400 px-2.5 py-0.5 text-[11px] font-bold text-forest-900">Yeni</span>
-              <span className="sr-only">Otomatik Pilot: gelecek haftanın planı seçtiğiniz gün hazır</span>
-              <span aria-hidden="true" className="min-w-0">Otomatik Pilot: gelecek haftanın planı her <TypedDay /> hazır</span>
+              <span className="sr-only">Otomatik Pilot gelecek haftanın planını seçtiğiniz gün hazırlar</span>
+              <span aria-hidden="true" className="min-w-0">Otomatik Pilot gelecek haftanın planını her <TypedDay /> hazırlar</span>
               <ArrowRight size={14} className="shrink-0 text-forest-200 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <h1 className="font-serif text-[44px] font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-[74px]">
-              <span className="m-up block" style={d(80)}>Vardiya planı,</span>
+              <span className="m-up block" style={d(80)}>Haftalık vardiya planı</span>
               <span className="m-up block italic text-ember-300" style={d(180)}>saniyeler içinde</span>
-              <span className="m-up block" style={d(280)}>oluşsun.</span>
+              <span className="m-up block" style={d(280)}>hazır olur.</span>
             </h1>
             <p className="m-up mt-7 max-w-lg text-[17px] leading-relaxed text-forest-100/80 sm:text-lg" style={d(400)}>
-              Hangi gün, hangi vardiyada kaç kişiye ihtiyacınız olduğunu bir kez yazın. {BRAND.name} haftanın planını adil şekilde oluştursun.
+              Hangi gün, hangi vardiyada kaç kişiye ihtiyacınız olduğunu bir kez yazarsınız. {BRAND.name} ekibinizin uygunluğuna ve İş Kanunu kurallarına göre haftanın planını hazırlar, vardiyaları ekibe eşit dağıtır.
             </p>
             <div className="m-up mt-9 flex flex-col gap-3 sm:flex-row" style={d(500)}>
               <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ember-400 px-7 py-4 text-base font-bold text-forest-900 shadow-[0_14px_40px_-12px_rgba(232,135,58,0.8)] transition-colors hover:bg-ember-300">
@@ -78,7 +78,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <ul className="m-up mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-forest-100/70" style={d(600)}>
-              {["Bütün özellikler açık", "İş Kanunu kuralları hazır", "Telefondan da yönetilir"].map((t) => (
+              {["Denemede bütün özellikler açık", "İş Kanunu kuralları kurulu gelir", "Telefondan da kullanılır"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <Check size={15} className="text-ember-300" strokeWidth={2.5} /> {t}
                 </li>
@@ -109,9 +109,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Ürün turu</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Uygulamayı iş başında görün.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Uygulama nasıl kullanılır, adım adım görün.</h2>
             <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(160)}>
-              Örnek bir kafenin bir haftası, plandan izinlere kadar adım adım.
+              Örnek bir kafede planın hazırlanmasını, ekibin telefonunu, onayları ve yedek bulmayı gösteriyoruz.
             </p>
           </Reveal>
           <ProductTour />
@@ -122,10 +122,10 @@ export default function LandingPage() {
       <section id="sektorler" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-10 max-w-2xl text-center">
-            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Sektörünüze göre</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Her işletmenin vardiyası farklı.</h2>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">İşletme türünüze göre</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Vardiyalar ve kurallar işletme türünüze göre kurulur.</h2>
             <p className="m-up mt-4 text-base text-slate-600 sm:text-lg" style={d(160)}>
-              İşletme türünüzü seçin, vardiya saatleri ve kurallar hazır gelsin. Sonrasında dilediğiniz gibi değiştirebilirsiniz.
+              Kayıt olurken işletme türünüzü seçersiniz. Vardiya saatleri ve kurallar bu türe göre kurulur, sonra istediğiniz gibi değiştirebilirsiniz.
             </p>
           </Reveal>
           <Reveal threshold={0.15}><SectorShowcase /></Reveal>
@@ -137,7 +137,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mb-14 max-w-2xl">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Nasıl çalışır</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Pazar akşamı Excel başında oturmaya son.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Planı üç adımda yayınlarsınız.</h2>
           </Reveal>
           <div className="grid gap-6 md:grid-cols-3">
             {STEPS.map((s, i) => (
@@ -168,7 +168,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-14 max-w-2xl text-center">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Özellikler</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Planı siz yapmayın, siz karar verin.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Planı uygulama hazırlar, son kararı siz verirsiniz.</h2>
           </Reveal>
 
           <div className="grid gap-5 lg:grid-cols-3">
@@ -179,7 +179,7 @@ export default function LandingPage() {
                   <FeatureIcon icon={Repeat} dark />
                   <h3 className="mt-5 font-serif text-2xl font-semibold sm:text-3xl">Otomatik Pilot</h3>
                   <p className="mt-3 text-[15px] leading-relaxed text-forest-100/80">
-                    Her hafta seçtiğiniz gün, gelecek haftanın taslağı kendiliğinden hazırlanır. Siz bakıp yayınlarsınız, kendi kendine yayınlamaz.
+                    Uygulama her hafta seçtiğiniz gün gelecek haftanın planını taslak olarak hazırlar. Taslak, siz yayınlamadan ekibe gönderilmez.
                   </p>
                   <PilotCard className="m-up mt-8 w-full max-w-[300px] sm:mt-auto" />
                 </div>
@@ -191,28 +191,28 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Bento icon={HelpCircle} title="Neden bu kişi?" text="Plandaki her isme dokunun, o vardiyaya neden onun yazıldığını görün. Ekip sorduğunda cevabınız hazır.">
+            <Bento icon={HelpCircle} title="Neden bu kişi?" text="Plandaki bir isme dokunduğunuzda o kişinin o vardiyaya neden yazıldığını görürsünüz. Ekipten biri sorduğunda bu nedeni gösterebilirsiniz.">
               <WhyCard className="w-full shadow-none ring-slate-900/10" />
             </Bento>
 
-            <Bento icon={CalendarCheck} title="Uygunluk toplama" text="Ekibiniz gelemeyeceği ve tercih etmediği günleri telefondan bildirir. Plan buna göre kurulur, hatırlatmayı uygulama yapar.">
+            <Bento icon={CalendarCheck} title="Uygunluk toplama" text="Ekibiniz gelemeyeceği ve çalışmayı tercih etmediği günleri telefondan bildirir. Plan bu bilgilere göre hazırlanır. Bildirmeyenlere uygulama hatırlatma gönderir.">
               <AvailabilityMini />
             </Bento>
 
-            <Bento icon={Scale} title="Adalet puanı" text="Kim kaç hafta sonu ve kaç zor vardiya çalıştı sayılır. Zor vardiyalar sırayla döner, kimse sürekli aynı yükü taşımaz.">
+            <Bento icon={Scale} title="Adalet puanı" text="Uygulama kimin kaç hafta sonu ve kaç zor vardiyada çalıştığını sayar. Zor vardiyalar kişiler arasında sırayla dağıtılır.">
               <FairnessCard animate className="w-full shadow-none ring-slate-900/10" />
             </Bento>
 
-            <Bento icon={GitCompare} title="Ya şöyle olursa?" text="Biri izne çıksa ya da ihtiyaç artsa plan nasıl değişir? Yayınlamadan önce iki planı yan yana görün.">
+            <Bento icon={GitCompare} title="Ya şöyle olursa?" text="Biri izne çıkarsa ya da daha çok kişi gerekirse planın nasıl değişeceğini görürsünüz. Mevcut plan ile yeni plan yan yana gösterilir.">
               <ScenarioMini />
             </Bento>
 
-            <Bento icon={FileSpreadsheet} title="Puantaj ve fazla mesai" text="Çalışılan saat, geç kalma, fazla mesai ve izinler ay sonunda raporda. Excel olarak indirilir." />
+            <Bento icon={FileSpreadsheet} title="Puantaj ve fazla mesai" text="Çalışılan saatler, geç kalmalar, fazla mesai ve izinler aylık raporda toplanır. Raporu Excel olarak indirebilirsiniz." />
 
             <Reveal className="lg:col-span-2">
               <div className="m-up flex h-full flex-col justify-center rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-9">
-                <p className="text-sm font-semibold text-slate-900">Ve dahası</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Departmanlar, bayramlar ve güne düşülen notlar, İş Kanunu kuralları, puantaj, giriş-çıkış ve çok daha fazlası.</p>
+                <p className="text-sm font-semibold text-slate-900">Diğer özellikler</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Departmanlar, resmî tatiller, güne eklenen notlar, İş Kanunu kuralları, puantaj ve giriş-çıkış gibi bütün özellikleri listede bulabilirsiniz.</p>
                 <a href="#tum-ozellikler" className="mt-5 inline-flex items-center gap-2 self-start rounded-full bg-forest-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-800">
                   Bütün özellikleri görün <ArrowRight size={15} />
                 </a>
@@ -226,15 +226,15 @@ export default function LandingPage() {
       <section id="departmanlar" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="m-up mb-3 text-sm font-semibold text-ember-600">İşletmenize göre</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Plan işletmenizin düzenini bilir.</h2>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Departmanlar ve takvim</p>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Departmanlarınız ve özel günleriniz planda görünür.</h2>
           </Reveal>
           <div className="grid gap-5 lg:grid-cols-2">
             <Reveal>
               <div className="m-up flex h-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8">
                 <FeatureIcon icon={Layers} />
                 <h3 className="mt-5 text-xl font-semibold text-slate-900">Departmanlar</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Salon, mutfak, bar gibi departmanlar ve alt departmanlar. İhtiyaç her departman için ayrı sayılır. Birden çok departmanda çalışabilen kişi gerektiğinde öbürüne yazılır. Departman sorumlusu kendi planını hazırlayıp onaya gönderir.</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">İşletmenizi salon, mutfak, bar gibi departmanlara ve bunların altındaki bölümlere ayırabilirsiniz. Her departman için kaç kişi gerektiğini ayrı yazarsınız. Birden çok departmanda çalışabilen biri gerektiğinde diğer departmana da yazılır. Departman sorumlusu kendi departmanının planını hazırlayıp onayınıza gönderir.</p>
                 <div className="mt-7 flex-1 rounded-2xl bg-cream p-4"><DepartmentsMock /></div>
               </div>
             </Reveal>
@@ -242,7 +242,7 @@ export default function LandingPage() {
               <div className="m-up flex h-full flex-col rounded-3xl bg-white p-7 ring-1 ring-slate-900/5 sm:p-8" style={d(120)}>
                 <FeatureIcon icon={StickyNote} />
                 <h3 className="mt-5 text-xl font-semibold text-slate-900">Bayramlar ve notlar</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Resmî tatiller ve bayramlar planda kendiliğinden görünür. Kampanya, etkinlik, denetim ya da kapalı gün gibi notları bir güne veya bütün haftaya düşün, plana bakan herkes görsün.</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-600">Resmî tatiller ve bayramlar planda kendiliğinden görünür. Bir güne ya da bütün haftaya not ekleyebilirsiniz, örneğin kampanya, etkinlik, denetim ya da kapalı gün. Notu planı açan herkes görür.</p>
                 <div className="mt-7 flex-1 rounded-2xl bg-cream p-4"><CalendarMock /></div>
               </div>
             </Reveal>
@@ -255,7 +255,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Reveal className="mx-auto mb-12 max-w-2xl text-center">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Bütün özellikler</p>
-            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Neler yapabildiği, tek listede.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Uygulamanın bütün özellikleri</h2>
           </Reveal>
           <Reveal threshold={0.05}><FeatureCatalog /></Reveal>
         </div>
@@ -267,11 +267,11 @@ export default function LandingPage() {
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <Reveal>
             <p className="m-up mb-3 text-sm font-semibold text-ember-300">Yapay zekâ</p>
-            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl" style={d(80)}>İşletmenizi sorun, cevap hemen gelsin.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-5xl" style={d(80)}>İşletmenizle ilgili sorularınızı asistana sorabilirsiniz.</h2>
             <p className="m-up mt-5 max-w-lg text-base leading-relaxed text-forest-100/80 sm:text-lg" style={d(160)}>
-              İşletme Asistanı planınızı, ekibinizi, izinleri ve onayları bilir. Sorunuzu yazın, saniyeler içinde cevap versin.
+              İşletme Asistanı planınızdaki, ekibinizdeki, izinlerdeki ve bekleyen onaylardaki bilgileri kullanır. Sorunuzu yazdığınızda birkaç saniye içinde cevap verir.
             </p>
-            <p className="m-up mt-4 text-sm text-forest-100/55" style={d(220)}>Asistan sadece bilgi ve öneri verir.</p>
+            <p className="m-up mt-4 text-sm text-forest-100/55" style={d(220)}>Asistan kayıtlarınızı değiştirmez, sadece bilgi ve öneri verir.</p>
             <div className="m-up relative mt-10 hidden aspect-[4/3] max-w-sm overflow-hidden rounded-3xl lg:block" style={d(300)}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marketing/assistant.webp" alt="Telefonundan asistana soru soran restoran sorumlusu" className="h-full w-full object-cover" loading="lazy" />
@@ -295,16 +295,16 @@ export default function LandingPage() {
             <RotationBoard className="m-up relative z-10 mx-auto -mt-24 w-[88%] max-w-[340px] sm:absolute sm:-bottom-10 sm:-right-4 sm:mt-0 sm:w-[320px] lg:-right-8" />
           </Reveal>
           <Reveal>
-            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Çok şube</p>
-            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Bir kişi, birden çok şube.</h2>
+            <p className="m-up mb-3 text-sm font-semibold text-ember-600">Birden çok şube</p>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Bir kişi birden çok şubede çalışabilir.</h2>
             <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(160)}>
-              Ekibiniz şubeler arasında çalışabilir. Saatleri, dinlenmesi ve hafta tatili bütün şubelerde birlikte sayılır.
+              Bir kişinin bütün şubelerdeki çalışma saatleri, dinlenme süresi ve hafta tatili birlikte hesaplanır.
             </p>
             <ul className="mt-9 space-y-6">
               {[
-                { icon: Building2, t: "Birden çok şubede çalışır", x: "Kişinin çalıştığı şubeleri seçin. Bir şubedeki vardiyası öbür şubenin planında görünür, aynı güne iki şube yazılmaz." },
-                { icon: Repeat, t: "Planlı şube değiştirir", x: "İki haftada bir Moda, sonra Kadıköy gibi bir sıra kurun. Kişi sırası gelen şubenin planına kendiliğinden girer." },
-                { icon: Users, t: "Başka şubeden yedek gelir", x: "Biri gelemezse diğer şubelerdeki uygun kişilere de haber gider. Üstlenen kişi o şubenin planına eklenir." },
+                { icon: Building2, t: "Birden çok şubede çalışma", x: "Kişinin çalıştığı şubeleri seçersiniz. Bir şubedeki vardiyası diğer şubenin planında da görünür ve aynı gün iki şubeye yazılmaz." },
+                { icon: Repeat, t: "Şubeler arasında sırayla çalışma", x: "Örneğin iki hafta Moda, sonraki iki hafta Kadıköy şubesi gibi bir sıra kurarsınız. Kişi o hafta sırası gelen şubenin planına otomatik eklenir." },
+                { icon: Users, t: "Başka şubeden yedek", x: "Biri gelemediğinde diğer şubelerdeki uygun kişilere de bildirim gider. Vardiyayı alan kişi o şubenin planına eklenir." },
               ].map(({ icon: Icon, t, x }, i) => (
                 <li key={t} className="m-up flex gap-4" style={d(240 + i * 100)}>
                   <FeatureIcon icon={Icon} />
@@ -324,16 +324,16 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
           <Reveal className="order-2 lg:order-1">
             <p className="m-up mb-3 text-sm font-semibold text-ember-600">Ekibiniz için</p>
-            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>WhatsApp grubunda vardiya kovalamak yok.</h2>
+            <h2 className="m-up font-serif text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl" style={d(80)}>Ekibiniz vardiyalarını telefonundan takip eder.</h2>
             <p className="m-up mt-5 text-base leading-relaxed text-slate-600 sm:text-lg" style={d(160)}>
-              Ekip üyeleri telefonun tarayıcısından girer. Bağlantıyı WhatsApp ile gönderirsiniz, Google hesabıyla tek dokunuşta bağlanırlar.
+              Ekip üyeleri uygulamayı telefonlarının tarayıcısından açar, bir şey indirmeleri gerekmez. Giriş bağlantısını WhatsApp ile gönderirsiniz. İsteyen Google hesabıyla giriş yapar.
             </p>
             <ul className="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
               {[
-                { icon: Smartphone, t: "Vardiyasını görür", x: "Haftası, kiminle çalıştığı, sıradaki vardiyası." },
-                { icon: CalendarClock, t: "Gelemeyeceği günü bildirir", x: "Uygunluğunu girer, plan buna göre kurulur." },
-                { icon: ArrowLeftRight, t: "Vardiya değiştirme ve izin ister", x: "Kurala uymayan isteği gönderilmeden önce uyarır." },
-                { icon: Megaphone, t: "Açık vardiyayı alır", x: "Biri gelemezse uygun olanlara anında haber gider." },
+                { icon: Smartphone, t: "Vardiyalarını görür", x: "Haftanın vardiyalarını, sıradaki vardiyasını ve aynı vardiyada kimlerle çalışacağını görür." },
+                { icon: CalendarClock, t: "Gelemeyeceği günleri bildirir", x: "Uygun olmadığı günleri girer, plan buna göre hazırlanır." },
+                { icon: ArrowLeftRight, t: "Vardiya değiştirme ve izin ister", x: "Kurala uymayan bir istek için göndermeden önce uyarı görür." },
+                { icon: Megaphone, t: "Boşta kalan vardiyayı alır", x: "Biri gelemediğinde vardiyayı alabilecek kişilere bildirim gider." },
               ].map(({ icon: Icon, t, x }, i) => (
                 <li key={t} className="m-up flex gap-3.5" style={d(220 + i * 80)}>
                   <FeatureIcon icon={Icon} />
@@ -345,12 +345,12 @@ export default function LandingPage() {
               ))}
             </ul>
             <p className="m-up mt-7 flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-900/5" style={d(560)}>
-              <Siren size={17} className="shrink-0 text-red-500" /> Acil bir durumda tek dokunuşla sorumluya haber verir.
+              <Siren size={17} className="shrink-0 text-red-500" /> Acil bir durumda tek dokunuşla sorumluya bildirim gönderir.
             </p>
             <div className="m-up mt-8 flex flex-wrap items-center gap-3" style={d(640)}>
               <StoreBadge store="App Store" />
               <StoreBadge store="Google Play" />
-              <span className="text-[13px] text-slate-500">Ekip uygulaması yakında mağazalarda.</span>
+              <span className="text-[13px] text-slate-500">Ekip uygulaması yakında App Store ve Google Play&apos;de olacak.</span>
             </div>
           </Reveal>
           <Reveal className="relative order-1 lg:order-2">
@@ -432,7 +432,7 @@ function DemandRow({ label, values, offset }: { label: string; values: number[];
 function ChecksMini() {
   return (
     <div className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-900/5" aria-hidden="true">
-      {["Her vardiyada ihtiyaç kadar kişi", "11 saat dinlenme herkes için", "Haftalık sınırı aşan yok", "Hafta sonları dengeli dağıldı"].map((t, i) => (
+      {["Her vardiyada gereken sayıda kişi var", "Herkes iki vardiya arasında 11 saat dinleniyor", "Kimse haftalık saat sınırını aşmıyor", "Hafta sonu vardiyaları eşit dağıldı"].map((t, i) => (
         <div key={t} className="m-up flex items-center gap-2.5 text-[13px] text-slate-700" style={d(600 + i * 220)}>
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-forest-100 text-forest-700">
             <Check size={11} strokeWidth={3} />

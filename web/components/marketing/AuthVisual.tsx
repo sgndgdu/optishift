@@ -18,16 +18,16 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
         {variant === "login" ? (
           <>
             <h2 className="m-up max-w-[460px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
-              Haftanın planı hazır,<br />ekibiniz de haberdar.
+              Planı yayınladığınızda<br />ekibinize bildirim gider.
             </h2>
           </>
         ) : (
           <>
             <h2 className="m-up max-w-[480px] font-serif text-[40px] font-semibold leading-[1.08] tracking-tight text-white">
-              İlk planınız<br />bugün yayında olsun.
+              İlk planınızı<br />bugün yayınlayabilirsiniz.
             </h2>
             <ul className="m-up mt-6 space-y-3" style={{ "--d": "120ms" } as React.CSSProperties}>
-              {["İşletme türünüzü seçin, vardiyalar hazır gelsin", "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin", "Kaç kişi gerektiğini yazın, plan kurulsun"].map((t, i) => (
+              {["İşletme türünüzü seçin, vardiyalar buna göre kurulur", "Ekibinizi ekleyin, bağlantıyı WhatsApp ile gönderin", "Kaç kişi gerektiğini yazın, uygulama planı hazırlar"].map((t, i) => (
                 <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[12px] font-semibold text-ember-300">{i + 1}</span>
                   {t}
@@ -65,7 +65,7 @@ export function AuthVisual({ variant }: { variant: "login" | "register" }) {
           </div>
         ) : (
           <ul className="m-up mt-16 space-y-2.5" style={{ "--d": "400ms" } as React.CSSProperties}>
-            {["Adil dağıtım, herkesin yükü dengede", "İzin ve vardiya değiştirme istekleri tek yerde", "İş Kanunu dinlenme kuralları dahil"].map((t) => (
+            {["Vardiyalar ekibe eşit dağıtılır", "İzin ve vardiya değiştirme istekleri tek ekranda toplanır", "İş Kanunu dinlenme kuralları uygulanır"].map((t) => (
               <li key={t} className="flex items-center gap-3 text-[15px] text-forest-50/90">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ember-500/20 text-ember-300">
                   <Check size={12} strokeWidth={3} />

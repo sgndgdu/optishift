@@ -11,11 +11,11 @@ import { SCENES } from "@/components/marketing/TourScenes";
  * Hareketi azalt açıksa sahne son hâliyle durur.
  */
 const CHAPTERS = [
-  { key: "plan", icon: CalendarCheck, title: "Plan saniyeler içinde", text: "Ekibin uygunluğuna bakar, ihtiyacı karşılayan planı kurar. Kontrol edip tek dokunuşla yayınlarsınız.", window: "Moda Şube · Vardiya Planı" },
-  { key: "phone", icon: Smartphone, title: "Ekip telefondan görür", phone: true, text: "Yayınladığınız an bildirim gider. Herkes vardiyasını ve kiminle çalışacağını görür." },
-  { key: "approvals", icon: ClipboardCheck, title: "Onaylar tek ekranda", text: "İzin ve vardiya değiştirme isteklerini kurallara göre kontrol eder, sorun varsa önceden söyler.", window: "Moda Şube · Onaylar" },
-  { key: "cover", icon: LifeBuoy, title: "Biri gelemezse", text: "En uygun yedekleri gerekçesiyle sıralar. Tek dokunuşla atarsınız, kişiye bildirim gider.", window: "Moda Şube · Bugün" },
-  { key: "assistant", icon: Sparkles, title: "İşletme Asistanı", text: "İşletmenizle ilgili sorunuzu yazın, cevabı planınızdan ve kayıtlarınızdan gelsin.", window: "Moda Şube · Asistan" },
+  { key: "plan", icon: CalendarCheck, title: "Planın hazırlanması", text: "Uygulama ekibin uygunluğuna bakar ve her vardiyaya gereken sayıda kişi yazar. Siz planı kontrol edip yayınlarsınız.", window: "Moda Şube · Vardiya Planı" },
+  { key: "phone", icon: Smartphone, title: "Ekibin telefonu", phone: true, text: "Plan yayınlanınca ekibe bildirim gider. Herkes kendi vardiyalarını ve aynı vardiyada kimlerle çalışacağını telefonundan görür." },
+  { key: "approvals", icon: ClipboardCheck, title: "İzin ve değişiklik onayı", text: "Uygulama her isteği kurallara göre kontrol eder. Kurala uymayan bir istek varsa siz onaylamadan önce nedenini gösterir.", window: "Moda Şube · Onaylar" },
+  { key: "cover", icon: LifeBuoy, title: "Gelemeyen kişiye yedek", text: "Uygulama o vardiyaya uygun kişileri nedenleriyle birlikte sıralar. Seçtiğiniz kişiyi atarsınız, ona bildirim gider.", window: "Moda Şube · Bugün" },
+  { key: "assistant", icon: Sparkles, title: "İşletme Asistanı", text: "İşletmenizle ilgili bir soru yazarsınız. Asistan cevabı planınızdaki ve kayıtlarınızdaki bilgilere göre verir.", window: "Moda Şube · Asistan" },
 ] as const;
 
 /** Medya sorgusu: sunucuda false, tarayıcıda canlı */

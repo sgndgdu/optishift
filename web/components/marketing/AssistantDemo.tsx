@@ -78,7 +78,7 @@ export function AssistantDemo() {
           </span>
           <span>
             <span className="block text-[13px] font-semibold">İşletme Asistanı</span>
-            <span className="block text-[11px] text-slate-400">Planınızı, ekibinizi ve onayları bilir</span>
+            <span className="block text-[11px] text-slate-400">Planınıza, ekibinize ve onaylara bakarak cevap verir</span>
           </span>
         </div>
 

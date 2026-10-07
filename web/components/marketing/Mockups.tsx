@@ -41,7 +41,7 @@ export function ScheduleBoard({ sector, compact = false, animate = false }: { se
         <div className="relative flex items-center">
           {animate && (
             <span className="m-out absolute right-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600" style={{ "--d": `${doneAt}ms` } as React.CSSProperties}>
-              <span className="m-pulse-dot h-1.5 w-1.5 rounded-full bg-ember-500" /> Plan kuruluyor
+              <span className="m-pulse-dot h-1.5 w-1.5 rounded-full bg-ember-500" /> Plan hazırlanıyor
             </span>
           )}
           <span className={cn("inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700", animate && "m-pop")} style={{ "--d": `${doneAt + 150}ms` } as React.CSSProperties}>
