@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  resolveHardDayRules,
+  weekDayExtraPoints,
   calcAssignmentPoints,
   calcWeeklyPoints,
   calcCumulativeWindow,
@@ -310,5 +312,49 @@ describe("fairnessBarColor", async () => {
     expect(fairnessBarColor(7, 10)).toBe("bg-emerald-500");
     expect(fairnessBarColor(13, 10)).toBe("bg-red-400");
     expect(fairnessBarColor(0, 0)).toBe("bg-blue-400");
+  });
+});
+
+describe("zor günler: her güne ayrı puan, tatil, özel gün (2026-10-07)", () => {
+  const input = { start_time: "08:00", end_time: "16:00", base_points: 5 };
+  const rules = {
+    hard_day_points: [0, 0, 0, 0, 2, 4, 4],
+    holiday_points: 8,
+    pref_not_points: 3,
+    special_date_points: [{ date: "2026-12-31", name: "Yılbaşı gecesi", points: 6 }],
+  };
+
+  it("haftanın günü kendi puanını alır", () => {
+    expect(calcAssignmentPoints({ ...input, day: 4 }, rules).points).toBe(10);
+    expect(calcAssignmentPoints({ ...input, day: 0 }, rules).points).toBe(8);
+  });
+
+  it("resmi tatil: 29 Ekim 2026 Perşembe → +8", () => {
+    const r = calcAssignmentPoints({ ...input, day: 3, date: "2026-10-29" }, rules);
+    expect(r.points).toBe(16);
+    expect(r.hardReasons[0].label).toContain("Cumhuriyet");
+  });
+
+  it("özel gün: 31 Aralık 2026 Perşembe → +6", () => {
+    expect(calcAssignmentPoints({ ...input, day: 3, date: "2026-12-31" }, rules).points).toBe(14);
+  });
+
+  it("birden fazla neden: en yüksek puan yazılır, toplanmaz", () => {
+    // Cuma (2) + tercih etmem (3) → 3
+    const r = calcAssignmentPoints({ ...input, day: 4, is_pref_not: true }, rules);
+    expect(r.hardPoints).toBe(3);
+    expect(r.hardReasons.map(x => x.points)).toEqual([3, 2]);
+  });
+
+  it("eski ayar (tek puan + bayraklar) aynı sonucu verir", () => {
+    const hr = resolveHardDayRules({ hard_shift_points: 5, hard_shift_weekend: true, hard_shift_preferred_not: false });
+    expect(hr.dayPoints).toEqual([0, 0, 0, 0, 0, 5, 5]);
+    expect(hr.prefNotPoints).toBe(0);
+    expect(hr.holidayPoints).toBe(0);
+  });
+
+  it("haftalık motor puanları tarihleri çözer", () => {
+    // 2026-10-26 Pazartesi haftası: 29 Ekim Perşembe bayram
+    expect(weekDayExtraPoints("2026-10-26", rules)).toEqual([0, 0, 0, 8, 2, 4, 4]);
   });
 });

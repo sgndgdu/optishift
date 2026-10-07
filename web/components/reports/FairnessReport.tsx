@@ -11,7 +11,8 @@ import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { DetailRow } from "@/components/ui/Sheet";
 import { formatDateTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { fairnessBarColor, fairnessLabelFromAverage, formatScore } from "@/lib/fairness";
+import { fairnessBarColor, fairnessLabelFromAverage, formatScore, resolveHardDayRules } from "@/lib/fairness";
+import { DAY_SHORT } from "@/lib/constants";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
 
@@ -155,8 +156,21 @@ export default function FairnessReport() {
           </a>
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2">
-          <DetailRow label="Zor gün (hafta sonu, tercih etmem günü)">+{rules.hard_shift_points ?? 4}</DetailRow>
-          <DetailRow label="Açık vardiyayı üstlenme">+{rules.hero_bonus_points ?? 6}</DetailRow>
+          {(() => {
+            const hr = resolveHardDayRules(rules);
+            const days = hr.dayPoints.map((p, i) => (p > 0 ? `${DAY_SHORT[i]} +${p}` : "")).filter(Boolean);
+            return (
+              <>
+                <DetailRow label="Zor günler">{days.length ? days.join(" · ") : "Yok"}</DetailRow>
+                {hr.holidayPoints > 0 && <DetailRow label="Resmi tatil ve bayram">+{hr.holidayPoints}</DetailRow>}
+                {hr.prefNotPoints > 0 && <DetailRow label="Tercih etmem günü">+{hr.prefNotPoints}</DetailRow>}
+                {hr.specialDates.length > 0 && (
+                  <DetailRow label="Özel günler">{hr.specialDates.map(d => `${d.name || formatDateTR(d.date)} +${d.points}`).join(" · ")}</DetailRow>
+                )}
+              </>
+            );
+          })()}
+          <DetailRow label="Boşta kalan vardiyayı alma">+{rules.hero_bonus_points ?? 6}</DetailRow>
           <DetailRow label="İzinliyken zorunlu atama">+{rules.force_bonus_points ?? 5}</DetailRow>
           <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
           {shiftDefs.length > 0 && (
@@ -166,7 +180,7 @@ export default function FairnessReport() {
           )}
         </div>
         <p className="text-xs text-slate-500">
-          Puan = saat × zorluk ÷ 5 + zor vardiya puanı (bir vardiyada bir kez) + bonuslar. Çarpan zinciri yok, düz toplam.
+          Puan = saat × zorluk ÷ 5 + zor gün puanı + ek puanlar. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır.
         </p>
       </section>
     </div>

@@ -24,7 +24,7 @@ import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText } from "@/lib/fairness";
+import { calcAssignmentPoints, weekDayExtraPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
@@ -81,10 +81,12 @@ function cellBurden(
   startMin: number, endMin: number, day: number,
   am: AvailMap, pid: string,
   rules: FairnessRules, defs: ShiftDefinition[],
+  weekStart?: string,
 ): number {
   const def = matchShiftDef(startMin, endMin, defs);
   const r = calcAssignmentPoints({
     day,
+    date: weekStart ? addDays(weekStart, day) : undefined,
     start_time: minToHHMM(startMin),
     end_time: minToHHMM(endMin % 1440),
     base_points: def?.base_points ?? 5,
@@ -266,6 +268,7 @@ function scheduleSnapshot(a: {
       balancingPeriodWeeks: num("balancing_period_weeks", 0),
       nightLegalWarning: isModuleOn(a.locRules, "night_legal_warning_enabled"),
       availabilityCollection: a.availCollectionEnabled,
+      hardDayPoints: weekDayExtraPoints(a.weekStart, a.locRules as FairnessRules),
     },
     personnel: a.personnel.map(p => ({
       id: p.id, name: p.name,
@@ -832,7 +835,7 @@ function SchedulePageInner() {
               const startMin = hhmmToMin(s.start_time);
               const rawEnd   = hhmmToMin(s.end_time);
               const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-              const cellData: CellData = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs), id: s.id, ...(s.pinned ? { pinned: true } : {}), ...(s.department_id ? { deptId: s.department_id } : {}) };
+              const cellData: CellData = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, newAvailMap, s.personnel_id, parsedRules, weekDefs, weekStart), id: s.id, ...(s.pinned ? { pinned: true } : {}), ...(s.department_id ? { deptId: s.department_id } : {}) };
               if (newCellMap[key]) { (newExtra[key] ??= []).push(cellData); continue; }
               newCellMap[key] = cellData;
               if (s.publication_status === "draft") hasDraft = true;
@@ -1407,7 +1410,7 @@ function SchedulePageInner() {
       [key]: {
         startMin: popover.startMin,
         endMin:   popover.endMin,
-        points:   cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs),
+        points:   cellBurden(popover.startMin, popover.endMin, popover.day, availMap, popover.personnelId, locRules, shiftDefs, weekStart),
         pinned:   true,
         ...(popover.deptId ? { deptId: popover.deptId } : {}),
       },
@@ -1672,7 +1675,7 @@ function SchedulePageInner() {
           const startMin = hhmmToMin(a.start_time);
           const rawEnd   = hhmmToMin(a.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd; // gece geçişi
-          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs), ...(a.department_id ? { deptId: a.department_id } : {}) };
+          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, a.day, availMap, a.personnelId, locRules, shiftDefs, weekStart), ...(a.department_id ? { deptId: a.department_id } : {}) };
         }
       }
       // Korunan hücreler aynen kalır (özel saatliler motor çıktısında yok)
@@ -2024,7 +2027,7 @@ function SchedulePageInner() {
           const startMin = hhmmToMin(s.start_time);
           const rawEnd   = hhmmToMin(s.end_time);
           const endMin   = rawEnd <= startMin ? rawEnd + 1440 : rawEnd;
-          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, availMap, s.personnel_id, locRules, shiftDefs) };
+          newCellMap[key] = { startMin, endMin, points: cellBurden(startMin, endMin, s.day, availMap, s.personnel_id, locRules, shiftDefs, weekStart) };
         }
       }
       pushCellMap(newCellMap);
@@ -2425,7 +2428,7 @@ function SchedulePageInner() {
     const joker = groupId !== "__all__" && groupId !== "__none__" && person?.department_id !== groupId;
     pushCellMap({
       ...cellMap,
-      [`${pid}-${day}`]: { startMin, endMin, points: cellBurden(startMin, endMin, day, availMap, pid, locRules, shiftDefs), pinned: true, ...(joker ? { deptId: groupId } : {}) },
+      [`${pid}-${day}`]: { startMin, endMin, points: cellBurden(startMin, endMin, day, availMap, pid, locRules, shiftDefs, weekStart), pinned: true, ...(joker ? { deptId: groupId } : {}) },
     });
   };
 
@@ -2489,7 +2492,7 @@ function SchedulePageInner() {
     newMap[targetId] = {
       ...rest,
       ...(srcDept && targetPerson?.department_ids?.includes(srcDept) ? { deptId: srcDept } : {}),
-      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs),
+      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs, weekStart),
       pinned: true,
     };
     delete newMap[sourceId];
@@ -3713,18 +3716,22 @@ loading ? (
           </div>
           {(() => {
             const matchedDef = matchShiftDef(popover.startMin, popover.endMin, shiftDefs);
-            const isWknd = (popover.day === 5 || popover.day === 6) && locRules.hard_shift_weekend !== false;
+            const pts = calcAssignmentPoints({
+              day: popover.day, date: addDays(weekStart, popover.day),
+              start_time: minToHHMM(popover.startMin), end_time: minToHHMM(popover.endMin % 1440),
+              base_points: matchedDef?.base_points ?? 5, is_night: matchedDef?.is_night ?? false,
+              is_pref_not: availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not",
+            }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
             const isNght = matchedDef?.is_night ?? false;
-            const isPrfN = availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not" && locRules.hard_shift_preferred_not !== false;
-            if (!isWknd && !isNght && !isPrfN) return null;
-            const hardCount = [isWknd, isNght, isPrfN].filter(Boolean).length;
+            if (!pts.hardPoints && !isNght) return null;
             return (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {isWknd && <StatusPill tone="attention">Hf. sonu</StatusPill>}
+                {pts.hardReasons.map(r => <StatusPill key={r.label} tone="attention">{r.label}</StatusPill>)}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
-                {isPrfN && <StatusPill tone="attention">Tercih etmem</StatusPill>}
-                <span className="text-[11px] text-slate-400">→ +{locRules.hard_shift_points ?? 4} puan{hardCount > 1 ? " (tek sefer)" : ""}</span>
+                {pts.hardPoints > 0 && (
+                  <span className="text-[11px] text-slate-400">→ +{pts.hardPoints} puan{pts.hardReasons.length > 1 ? " (en yükseği)" : ""}</span>
+                )}
               </div>
             );
           })()}

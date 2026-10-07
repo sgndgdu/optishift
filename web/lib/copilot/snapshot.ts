@@ -34,6 +34,8 @@ export interface CopilotInput {
     balancingPeriodWeeks: number;
     nightLegalWarning: boolean;
     availabilityCollection: boolean;
+    /** Haftanın 7 günü için zor gün puanı (lib/fairness weekDayExtraPoints). Yoksa hafta sonu zor sayılır. */
+    hardDayPoints?: number[];
   };
   /** Şubenin aktif personeli (atanmamış olanlar dahil). */
   personnel: {
@@ -241,7 +243,7 @@ export function buildWeekSnapshot(input: CopilotInput): WeekSnapshot {
       hours: round1(shifts.reduce((s, x) => s + x.hours, 0)),
       nights: shifts.filter(s => s.night).length,
       weekendShifts: shifts.filter(s => s.day >= 5).length,
-      hardShifts: shifts.filter(s => s.night || s.day >= 5).length,
+      hardShifts: shifts.filter(s => s.night || (input.rules.hardDayPoints ? input.rules.hardDayPoints[s.day] > 0 : s.day >= 5)).length,
       longestStreak: longest,
       minRestHours: minRest === null ? null : round1(minRest),
       restGaps,

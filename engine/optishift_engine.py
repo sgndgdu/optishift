@@ -277,10 +277,25 @@ def _is_hard_shift_time(day: int, shift_id: int) -> bool:
     return is_weekend or is_night
 
 
+def _max_hard_points() -> float:
+    """Bir vardiyaya eklenebilecek en yüksek zor gün puanı (arama sınırı için)."""
+    day_extra = RULES.get("day_extra_points")
+    if isinstance(day_extra, list) and len(day_extra) == 7:
+        return max([float(x or 0) for x in day_extra] + [float(RULES.get("pref_not_points", 0) or 0)])
+    return RULES.get("hard_shift_points", 4)
+
+
 def effective_points(person_id, day: int, shift_id: int) -> int:
-    """Kişiye özel toplam puan: taban + zor vardiya bonusu. Hafta sonu/gece/sarı gün
-    OR'lanır — biri veya birden fazlası geçerli olsa da bonus SADECE BİR KEZ eklenir."""
+    """Kişiye özel toplam puan: taban + zor gün puanı.
+
+    Web (lib/fairness) haftanın her günü için zor gün puanını hazır gönderir (day_extra_points:
+    haftanın günü, resmi tatil, özel gün) ve tercih etmem puanını (pref_not_points). Birden fazlası
+    geçerliyse EN YÜKSEĞİ yazılır. Bu alanlar yoksa eski tek puan + bayrak modeli kullanılır."""
     base = shift_points(day, shift_id)
+    day_extra = RULES.get("day_extra_points")
+    if isinstance(day_extra, list) and len(day_extra) == 7:
+        pref = RULES.get("pref_not_points", 0) if get_avail(person_id, day) == "preferred_not" else 0
+        return int(round(base + max(float(day_extra[day] or 0), float(pref or 0))))
     is_pref_not = RULES.get("hard_shift_preferred_not", True) and get_avail(person_id, day) == "preferred_not"
     is_hard = _is_hard_shift_time(day, shift_id) or is_pref_not
     pts = base + (RULES.get("hard_shift_points", 4) if is_hard else 0)
@@ -914,7 +929,7 @@ def build_model():
     # kapsar, aksi halde sabit 0 tabanı modeli hatalı biçimde INFEASIBLE yapardı.
     max_single_shift_pts = int(round(
         max((shift_points(0, s) for s in range(NUM_SHIFTS)), default=0)
-        + RULES.get("hard_shift_points", 4)
+        + _max_hard_points()
     ))
     max_weekly_pts = NUM_DAYS * max(max_single_shift_pts, 0)
 

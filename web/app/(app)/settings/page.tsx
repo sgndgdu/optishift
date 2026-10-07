@@ -1,7 +1,7 @@
 "use client";
 
 import TimeSelect from "@/components/ui/TimeInput";
-import { formatDateTR } from "@/lib/date";
+import { businessToday, formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
 import { FEATURES } from "@/lib/features";
 import { isModuleOn } from "@/lib/moduleVisibility";
@@ -32,6 +32,9 @@ import { DAY_SHORT } from "@/lib/constants";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { DayPointsGrid, SpecialDatesEditor } from "@/components/settings/HardDays";
+import { resolveHardDayRules, type HardDayRules } from "@/lib/fairness";
+import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -329,9 +332,7 @@ export default function SettingsPage() {
   const [minRestHours, setMinRestHours]                           = useState(11);
   const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
   // Adalet puanı — additive model (2026-09-20): tek "zor vardiya" puanı + bonuslar, 0 = kapalı
-  const [hardShiftPoints, setHardShiftPoints]                     = useState(4);
-  const [hardShiftWeekend, setHardShiftWeekend]                   = useState(true);
-  const [hardShiftPreferredNot, setHardShiftPreferredNot]         = useState(true);
+  const [hardDays, setHardDays]                                   = useState<HardDayRules>(() => resolveHardDayRules({}));
   const [heroBonusPoints, setHeroBonusPoints]                     = useState(6);
   const [forceBonusPoints, setForceBonusPoints]                   = useState(5);
 
@@ -472,9 +473,7 @@ export default function SettingsPage() {
           if (typeof loc.rules?.max_weekly_hours === "number")          setMaxWeeklyHours(loc.rules.max_weekly_hours);
           if (typeof loc.rules?.min_rest_hours === "number")            setMinRestHours(loc.rules.min_rest_hours);
           if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
-          if (typeof loc.rules?.hard_shift_points === "number")         setHardShiftPoints(loc.rules.hard_shift_points);
-          setHardShiftWeekend(loc.rules?.hard_shift_weekend !== false);
-          setHardShiftPreferredNot(loc.rules?.hard_shift_preferred_not !== false);
+          setHardDays(resolveHardDayRules(loc.rules));
           if (typeof loc.rules?.hero_bonus_points === "number")         setHeroBonusPoints(loc.rules.hero_bonus_points);
           if (typeof loc.rules?.force_bonus_points === "number")        setForceBonusPoints(loc.rules.force_bonus_points);
 
@@ -579,9 +578,7 @@ export default function SettingsPage() {
             maxWeeklyHours: typeof loc.rules?.max_weekly_hours === "number" ? loc.rules.max_weekly_hours : 45,
             minRestHours: typeof loc.rules?.min_rest_hours === "number" ? loc.rules.min_rest_hours : 11,
             changeCompensationPoints: typeof loc.rules?.change_compensation_points === "number" ? loc.rules.change_compensation_points : 2,
-            hardShiftPoints: typeof loc.rules?.hard_shift_points === "number" ? loc.rules.hard_shift_points : 4,
-            hardShiftWeekend: loc.rules?.hard_shift_weekend !== false,
-            hardShiftPreferredNot: loc.rules?.hard_shift_preferred_not !== false,
+            hardDays: resolveHardDayRules(loc.rules),
             heroBonusPoints: typeof loc.rules?.hero_bonus_points === "number" ? loc.rules.hero_bonus_points : 6,
             forceBonusPoints: typeof loc.rules?.force_bonus_points === "number" ? loc.rules.force_bonus_points : 5,
             clopeningEnabled: loc.rules?.clopening_enabled !== false,
@@ -650,7 +647,7 @@ export default function SettingsPage() {
       ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
-      hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+      hardDays, heroBonusPoints, forceBonusPoints,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -668,7 +665,7 @@ export default function SettingsPage() {
     ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
-    hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+    hardDays, heroBonusPoints, forceBonusPoints,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -807,9 +804,10 @@ export default function SettingsPage() {
             max_weekly_hours:             maxWeeklyHours,
             min_rest_hours:               minRestHours,
             change_compensation_points:         changeCompensationPoints,
-            hard_shift_points:                  hardShiftPoints,
-            hard_shift_weekend:                 hardShiftWeekend,
-            hard_shift_preferred_not:           hardShiftPreferredNot,
+            hard_day_points:                    hardDays.dayPoints,
+            holiday_points:                     hardDays.holidayPoints,
+            pref_not_points:                    hardDays.prefNotPoints,
+            special_date_points:                hardDays.specialDates.filter(d => d.date && d.points > 0).map(d => ({ ...d, name: d.name.trim() })),
             hero_bonus_points:                  heroBonusPoints,
             force_bonus_points:                 forceBonusPoints,
             clopening_enabled:                  true, // "Mümkünse en az dinlenme" ayarı kaldırıldı: varsayılan 13 saat, hep açık
@@ -874,7 +872,7 @@ export default function SettingsPage() {
         ensureSeniorPerShift, maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
-        hardShiftPoints, hardShiftWeekend, hardShiftPreferredNot, heroBonusPoints, forceBonusPoints,
+        hardDays, heroBonusPoints, forceBonusPoints,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -967,6 +965,9 @@ export default function SettingsPage() {
   // Anında kaydedilir (departmanlar gibi); kaydetme barından bağımsızdır. Taze rules
   // üzerine yazılır, sonra sayfa yeniden yüklenir; kaydedilmemiş değişiklik varken kapalıdır.
   const savedIndustry = industryFromRules(locationData?.rules);
+  // Zor günler: sıradaki resmi tatil ve özel gün önerileri için bugünün tarihi (Türkiye saati)
+  const todayIso = businessToday();
+  const nextHoliday = TURKISH_HOLIDAYS.find(h => h.date >= todayIso) ?? null;
   // Vardiyalı (7/24, dönüşümlü) çalışan sektörler: çalışma döngüsü ve denkleştirme sadece bunlarda (ya da zaten ayarlıysa) görünür
   const shiftWorkBusiness = !savedIndustry || ["manufacturing", "healthcare", "security", "logistics", "callcenter"].includes(savedIndustry.key);
   // Gece vardiyası var mı: işaretli, 22:00 ve sonrası başlayan ya da gece yarısını geçen
@@ -1864,25 +1865,31 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <SectionCard title="Zor günler">
-                  <RuleRow
-                    label="Zor güne ek puan"
-                    description={<>Aşağıda seçili günlerde çalışan kişiye bu kadar puan eklenir. Böylece zor günler herkese sırayla düşer. Örnek: 4 yazarsanız Cumartesi 8 saat çalışan 8 yerine 12 puan alır. 0 yazarsanız kapanır.</>}
-                    right={<NumberInput value={hardShiftPoints} onChange={setHardShiftPoints} min={0} max={20} suffix="puan" />}
+                  <p className="text-xs text-slate-500 pt-4">Zor sayılan günde çalışan kişiye ek puan yazılır. Böylece bu günler ekibe sırayla düşer. 0 yazılan gün zor sayılmaz. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır, puanlar toplanmaz. Örnek: Pazar 4, bayram 8 puansa Pazar&apos;a denk gelen bayramda 8 puan yazılır.</p>
+                  <RuleRow wide
+                    label="Haftanın günleri"
+                    description="Her güne ayrı puan verin. Örnek: Cuma 2, Cumartesi 4, Pazar 4. Cumartesi 8 saat çalışan kişi 8 yerine 12 puan alır."
+                    right={<div className="w-full sm:w-[22rem]"><DayPointsGrid value={hardDays.dayPoints} onChange={v => setHardDays(h => ({ ...h, dayPoints: v }))} /></div>}
                   />
                   <RuleRow
-                    label="Hangi günler zor sayılsın?"
-                    description="Hafta sonu: Cumartesi ve Pazar. Tercih etmem: kişinin uygunluk girerken &quot;mümkünse çalışmam&quot; dediği gün."
-                    right={
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Toggle on={hardShiftWeekend} onToggle={() => setHardShiftWeekend(v => !v)} /> Hafta sonu
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Toggle on={hardShiftPreferredNot} onToggle={() => setHardShiftPreferredNot(v => !v)} /> Tercih etmem
-                        </label>
-                      </div>
-                    }
+                    label="Resmi tatil ve bayram günleri"
+                    description={<>Türkiye resmi tatil takvimine göre otomatik uygulanır.{nextHoliday && <> Sıradaki: {nextHoliday.name} ({formatDateTR(nextHoliday.date)}).</>}</>}
+                    right={<NumberInput value={hardDays.holidayPoints} onChange={v => setHardDays(h => ({ ...h, holidayPoints: v }))} min={0} max={20} suffix="puan" />}
                   />
+                  <RuleRow
+                    label="Kişinin tercih etmem dediği gün"
+                    description="Kişi uygunluk girerken &quot;mümkünse çalışmam&quot; dediği günde çalışırsa."
+                    right={<NumberInput value={hardDays.prefNotPoints} onChange={v => setHardDays(h => ({ ...h, prefNotPoints: v }))} min={0} max={20} suffix="puan" />}
+                  />
+                  <RuleRow wide
+                    label="İşletmenize özel günler"
+                    description="Belirli bir tarihe ek puan verin. Örnek: yerel festival, yılbaşı gecesi, büyük bir maç günü. Aşağıdaki öneriler takvimdeki yaklaşan günlerdir."
+                    right={null}
+                  />
+                  <div className="pb-4 -mt-1 border-t-0">
+                    <SpecialDatesEditor value={hardDays.specialDates} onChange={v => setHardDays(h => ({ ...h, specialDates: v }))}
+                      industry={savedIndustry?.key ?? null} today={todayIso} />
+                  </div>
                 </SectionCard>
                 {/* Vardiya dışı olaylarla yazılan puanlar (eski adı "Bonus Puanları") */}
                 <SectionCard title="Ekibe kolaylık sağlayana ek puan">

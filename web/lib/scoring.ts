@@ -194,7 +194,7 @@ export async function rescoreWeek(
   const rules = parseJSON<Rules>(loc[0].rules, {});
 
   const { assignments, availRows } = await loadWeekInputs(locationId, weekStart);
-  const breakdowns = calcWeeklyPoints(assignments, shiftDefs, availRows, rules);
+  const breakdowns = calcWeeklyPoints(assignments, shiftDefs, availRows, rules, weekStart);
 
   // Personel adları + sayaçları (score_history snapshot kolonları için)
   const pids = breakdowns.map(b => b.personnel_id);
@@ -353,5 +353,5 @@ export async function computeWeekBreakdowns(
   const shiftDefs = parseJSON<ShiftDef[]>(loc[0].shift_definitions, []);
   const rules = parseJSON<Rules>(loc[0].rules, {});
   const { assignments, availRows } = await loadWeekInputs(locationId, weekStart);
-  return calcWeeklyPoints(assignments, shiftDefs, availRows, rules);
+  return calcWeeklyPoints(assignments, shiftDefs, availRows, rules, weekStart);
 }

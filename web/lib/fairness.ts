@@ -2,10 +2,11 @@
  * Adalet motoru — additive rewrite (2026-09-20).
  *
  * Formüller:
- *   puan        = saat × (base_points/5) + (zor_vardiya_mi ? hard_shift_points : 0)
+ *   puan        = saat × (base_points/5) + zor_gün_puanı
  *                 + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
- *   zor_vardiya_mi = (hafta_sonu AND hard_shift_weekend) OR (sarı_gün AND hard_shift_preferred_not)
- *                    — OR'lanır, asla iki kez eklenmez
+ *   zor_gün_puanı = max(haftanın günü puanı, resmi tatil puanı, işletmenin özel günü puanı, tercih etmem puanı)
+ *                   — her biri ayrı ayarlanır (2026-10-07), birden fazlası geçerliyse EN YÜKSEĞİ yazılır, toplanmaz.
+ *                   Eski tek puan + iki bayrak (hard_shift_points/weekend/preferred_not) resolveHardDayRules'ta çevrilir.
  *   Gece vardiyasının zorluğu SADECE vardiya tanımındaki zorluktan (base_points) gelir (2026-10-03,
  *   tek yer kuralı); eski hard_shift_night bayrağı okunmaz.
  *   kümülatif   = Σ(son N hafta puanı) + Σ(o pencerede score_adjustments.points)   — decay YOK, düz toplam
@@ -14,6 +15,8 @@
  * Clopening artık puanı hiç etkilemez — sadece yayın öncesi kural ihlali uyarısında
  * kullanılan ayrı bir mekanizmadır (rules.clopening_min_rest_hours).
  */
+
+import { getHolidaysForDate } from "@/lib/holidays";
 
 export interface ShiftDef {
   id: string;
@@ -24,11 +27,19 @@ export interface ShiftDef {
   is_night?: boolean;
 }
 
+/** İşletmenin kendi belirlediği ek puanlı gün (örn. yerel festival, yılbaşı gecesi) */
+export interface SpecialDatePoints { date: string; name: string; points: number }
+
 export interface Rules {
-  // Zor vardiya tanımı — tek puan, üç kapsam bayrağı
-  hard_shift_points?: number;          // varsayılan 4, 0 = kapalı
-  hard_shift_weekend?: boolean;        // varsayılan true
-  hard_shift_preferred_not?: boolean;  // varsayılan true
+  // Zor günler (2026-10-07): her güne ayrı puan, 0 = zor sayılmaz
+  hard_day_points?: number[];          // 7 eleman, 0=Pzt … 6=Paz
+  holiday_points?: number;             // resmi tatil ve bayram günleri
+  pref_not_points?: number;            // kişinin "tercih etmem" dediği gün
+  special_date_points?: SpecialDatePoints[];
+  // Eski model (sadece okunur, yeni alanlar yoksa çevrilir)
+  hard_shift_points?: number;
+  hard_shift_weekend?: boolean;
+  hard_shift_preferred_not?: boolean;
   // Bonuslar — düz puan, 0 = kapalı
   hero_bonus_points?: number;          // varsayılan 6
   force_bonus_points?: number;         // varsayılan 5
@@ -130,6 +141,65 @@ export function isClopeningGap(prevDayEndTime: string, startTime: string, rules:
   return gap >= legalMinRest && gap < clOpenMinRest;
 }
 
+// ─── Zor günler ───────────────────────────────────────────────────────────────
+
+export interface HardDayRules {
+  dayPoints: number[];      // 0=Pzt … 6=Paz
+  holidayPoints: number;
+  prefNotPoints: number;
+  specialDates: SpecialDatePoints[];
+}
+
+const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : d);
+
+/** Zor gün ayarlarını tek biçime çevirir. Yeni alanlar yoksa eski tek puan + iki bayrak modelinden türetilir. */
+export function resolveHardDayRules(rules: Rules | null | undefined): HardDayRules {
+  const r = rules ?? {};
+  const legacy = num(r.hard_shift_points, 4);
+  const legacyWeekend = r.hard_shift_weekend !== false ? legacy : 0;
+  const dayPoints = Array.isArray(r.hard_day_points) && r.hard_day_points.length === 7
+    ? r.hard_day_points.map(v => num(v, 0))
+    : [0, 0, 0, 0, 0, legacyWeekend, legacyWeekend];
+  return {
+    dayPoints,
+    holidayPoints: num(r.holiday_points, 0),
+    prefNotPoints: num(r.pref_not_points, r.hard_shift_preferred_not !== false ? legacy : 0),
+    specialDates: Array.isArray(r.special_date_points)
+      ? r.special_date_points.filter(x => x && /^\d{4}-\d{2}-\d{2}$/.test(x.date) && num(x.points, 0) > 0)
+      : [],
+  };
+}
+
+export const DAY_NAMES_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+
+export type HardDayReason = { label: string; points: number };
+
+/**
+ * Bir günün (kişiden bağımsız) zor gün puanı ve gerekçeleri. `date` verilmezse sadece haftanın günü bakılır.
+ * Gerekçeler puana göre büyükten küçüğe; yazılan puan ilkinin puanıdır.
+ */
+export function dayHardReasons(day: number, date: string | undefined, hr: HardDayRules): HardDayReason[] {
+  const out: HardDayReason[] = [];
+  if (hr.dayPoints[day] > 0) out.push({ label: DAY_NAMES_TR[day], points: hr.dayPoints[day] });
+  if (date) {
+    const hol = getHolidaysForDate(date)[0];
+    if (hol && hr.holidayPoints > 0) out.push({ label: hol.name, points: hr.holidayPoints });
+    for (const s of hr.specialDates) if (s.date === date) out.push({ label: s.name || "Özel gün", points: s.points });
+  }
+  return out.sort((a, b) => b.points - a.points);
+}
+
+/** Haftanın 7 günü için kişiden bağımsız zor gün puanı (motora bu gönderilir). */
+export function weekDayExtraPoints(weekStart: string, rules: Rules | null | undefined): number[] {
+  const hr = resolveHardDayRules(rules);
+  return Array.from({ length: 7 }, (_, d) => dayHardReasons(d, isoAddDays(weekStart, d), hr)[0]?.points ?? 0);
+}
+
+function isoAddDays(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
 // ─── Ana Hesaplama ────────────────────────────────────────────────────────────
 
 export interface AssignmentPointsInput {
@@ -137,6 +207,7 @@ export interface AssignmentPointsInput {
   start_time: string;           // "HH:MM"
   end_time: string;             // "HH:MM"
   base_points: number;          // vardiya zorluğu (1–10)
+  date?: string;                // "YYYY-MM-DD" — resmi tatil ve özel gün için (yoksa sadece haftanın günü)
   is_night?: boolean;
   is_pref_not?: boolean;        // o gün sarı (preferred_not) işaretli mi
   is_hero?: boolean;
@@ -148,32 +219,40 @@ export interface AssignmentPoints {
   hours: number;
   points: number; // toplam puan
   flags: { weekend: boolean; night: boolean; prefNot: boolean; hard: boolean; hero: boolean; force: boolean };
+  /** Zor gün gerekçeleri (büyükten küçüğe); yazılan ek puan `hardPoints` */
+  hardReasons: HardDayReason[];
+  hardPoints: number;
 }
 
 /**
  * TEK vardiyanın puanı — resmi formülün çekirdeği. calcWeeklyPoints ve
  * schedule sayfasının canlı hücre hesabı aynı fonksiyonu kullanır.
- * "Zor vardiya" bayrakları (hafta sonu/gece/sarı gün) OR'lanır — bir vardiya
- * birden fazla kategoriye girse bile hard_shift_points SADECE BİR KEZ eklenir.
+ * Zor gün puanı: haftanın günü, resmi tatil, özel gün ve "tercih etmem" ayrı ayrı puanlanır;
+ * birden fazlası geçerliyse EN YÜKSEĞİ yazılır (toplanmaz).
  */
 export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules): AssignmentPoints {
-  const hardShiftPoints = rules.hard_shift_points ?? 4;
+  const hr = resolveHardDayRules(rules);
   const heroBonusPoints = input.hero_points ?? rules.hero_bonus_points ?? 6;
   const forceBonusPoints = input.force_points ?? rules.force_bonus_points ?? 5;
 
   const hours = durationHours(input.start_time, input.end_time);
   const base = hours * (input.base_points / 5);
 
-  const isWeekend = (input.day === 5 || input.day === 6) && rules.hard_shift_weekend !== false;
+  const reasons = dayHardReasons(input.day, input.date, hr);
+  const isPrefNot = (input.is_pref_not ?? false) && hr.prefNotPoints > 0;
+  if (isPrefNot) reasons.push({ label: "Tercih etmem günü", points: hr.prefNotPoints });
+  reasons.sort((a, b) => b.points - a.points);
+  const hardPoints = reasons[0]?.points ?? 0;
+
+  const isWeekend = (input.day === 5 || input.day === 6) && hr.dayPoints[input.day] > 0;
   // Gece bayrağı bilgi içindir; puana zorluk (base_points) üzerinden yansır
   const isNight = input.is_night ?? false;
-  const isPrefNot = (input.is_pref_not ?? false) && rules.hard_shift_preferred_not !== false;
-  const isHard = isWeekend || isPrefNot;
+  const isHard = hardPoints > 0;
   const isHero = input.is_hero ?? false;
   const isForce = typeof input.force_points === "number" && input.force_points > 0;
 
   const points = base
-    + (isHard ? hardShiftPoints : 0)
+    + hardPoints
     + (isHero ? heroBonusPoints : 0)
     + (isForce ? forceBonusPoints : 0);
 
@@ -181,6 +260,8 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
     hours,
     points,
     flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, hard: isHard, hero: isHero, force: isForce },
+    hardReasons: reasons,
+    hardPoints,
   };
 }
 
@@ -192,6 +273,7 @@ export function calcWeeklyPoints(
   shiftDefs: ShiftDef[],
   availability: AvailabilityInput[],
   rules: Rules,
+  weekStart?: string,
 ): BurdenBreakdown[] {
   const defById = Object.fromEntries(shiftDefs.map(d => [d.id, d]));
   const availById = Object.fromEntries(availability.map(a => [a.personnel_id, a]));
@@ -223,6 +305,7 @@ export function calcWeeklyPoints(
 
       const result = calcAssignmentPoints({
         day: a.day,
+        date: weekStart ? isoAddDays(weekStart, a.day) : undefined,
         start_time: a.start_time,
         end_time: a.end_time,
         base_points: def?.base_points ?? 5,
