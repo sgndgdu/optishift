@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, Check, Scale, Repeat, Building2, MessageSquareText, Sun, BarChart3,
+  ArrowRight, Check, Scale, Repeat, Building2, Megaphone, Sun, BarChart3,
 } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -9,7 +9,7 @@ import { HeroPlan, StepsShowcase } from "@/components/marketing/StepsShowcase";
 import { SectorMarquee } from "@/components/marketing/SectorMarquee";
 import { Reveal } from "@/components/marketing/Reveal";
 
-// Sadeleştirme 2 (2026-10-07): uygulamanın ne yaptığı tek bir dört adımlı akışta anlatılır (StepsShowcase,
+// Sadeleştirme 2 (2026-10-07): uygulamanın ne yaptığı tek bir beş adımlı akışta anlatılır (StepsShowcase,
 // sahneler sektör fotoğraflarının üstünde). Ürün turu ve ekip bölümü bu akışa katıldı, özellik kartları
 // animasyonsuz kısa bir listeye indi. Bütün özellik listesi /ozellikler sayfasında.
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
@@ -17,7 +17,7 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 const FEATURES = [
   { icon: Repeat, title: "Otomatik Pilot", text: "Gelecek haftanın planı seçtiğiniz gün ve saatte taslak olarak hazırlanır. Siz yayınlamadan ekibinize gitmez." },
   { icon: Scale, title: "Adalet puanı", text: "Hafta sonu ve zor vardiyalar kişiler arasında sırayla dağıtılır." },
-  { icon: MessageSquareText, title: "İşletme Asistanı", text: "Planınız, ekibiniz ve izinler hakkındaki sorularınızı yazarak sorarsınız." },
+  { icon: Megaphone, title: "Vardiya ilanı", text: "Boşta kalan bir vardiyayı uygun kişilere ilan edersiniz. Ekibinizden biri ilanı alır." },
   { icon: Building2, title: "Birden çok şube", text: "Bir kişi birden çok şubede çalışabilir. Çalışma süresi bütün şubelerde birlikte hesaplanır." },
   { icon: Sun, title: "Sabah özeti", text: "Her sabah o gün kimin çalıştığı ve karar bekleyen işler size tek bildirimle gelir." },
   { icon: BarChart3, title: "Aylık özet", text: "Her ay başında geçen ay yayınlanan planlar, onaylanan istekler ve fazla mesai özetlenir." },

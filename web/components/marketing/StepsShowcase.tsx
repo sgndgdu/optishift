@@ -9,7 +9,7 @@ import { useMedia, useSceneClock } from "@/components/marketing/useSceneClock";
 
 /**
  * Tanıtım: giriş bölümündeki canlı plan (HeroPlan) ve "Nasıl çalışır" adımları (StepsShowcase).
- * Dört adım; her adımın sahnesi karartılmış bir sektör fotoğrafının üstünde oynar.
+ * Beş adım; her adımın sahnesi karartılmış bir sektör fotoğrafının üstünde oynar.
  * Adımlar masaüstünde sayfa kaydırıldıkça sırayla oynar (sağda yapışkan sahne), telefonda her adımın
  * altında kendi sahnesi oynar. Saat: useSceneClock (ekrandayken, hareketi azaltta son hâl).
  */
@@ -86,8 +86,9 @@ function ChecksScene({ restartKey }: { restartKey?: unknown }) {
   );
 }
 
-/* ─── 3. ve 4. adım: ürün turundaki telefon ve yedek sahneleri ─── */
-function TourStage({ k, restartKey }: { k: "phone" | "cover"; restartKey?: unknown }) {
+/* ─── 3-5. adım: ürün turundaki telefon, yedek ve asistan sahneleri ─── */
+const WINDOW = { cover: "Moda Kahve · Bugün", assistant: "Moda Kahve · Asistan" };
+function TourStage({ k, restartKey }: { k: "phone" | "cover" | "assistant"; restartKey?: unknown }) {
   const scene = SCENES[k];
   const small = useMedia("(max-width: 639px)");
   const { ref, t } = useSceneClock(scene.duration + 1500, { restartKey });
@@ -110,7 +111,7 @@ function TourStage({ k, restartKey }: { k: "phone" | "cover"; restartKey?: unkno
               <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
               <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
             </div>
-            <span className="truncate text-[11px] font-medium text-slate-400">Moda Kahve · Bugün</span>
+            <span className="truncate text-[11px] font-medium text-slate-400">{WINDOW[k]}</span>
           </div>
           <div className="relative h-[440px] bg-white sm:h-[470px]"><Scene t={time} small={small} /></div>
         </div>
@@ -128,13 +129,15 @@ const STEPS = [
   { n: 2, photo: "/marketing/pilot.webp", title: "Plan kurallara göre hazırlanır", text: "Ekibinizin uygunluğu, İş Kanunu'ndaki dinlenme ve çalışma süresi sınırları ve herkesin iş yükü birlikte hesaplanır. Plan birkaç saniyede hazır olur." },
   { n: 3, photo: "/marketing/briefing.webp", title: "Yayınlarsınız, ekibiniz telefonundan görür", text: "Herkese bildirim gider. Kişiler kendi vardiyalarını ve kimlerle çalışacaklarını görür. Gelemeyecekleri günleri ve izin isteklerini size buradan gönderirler." },
   { n: 4, photo: "/marketing/sector-restoran.webp", title: "Hafta boyunca değişiklikleri yönetirsiniz", text: "Biri gelemezse uygulama uygun kişileri sıralar, siz birini seçersiniz. İzin ve değişiklik isteklerini kurallara uyup uymadığını görerek onaylarsınız." },
+  { n: 5, photo: "/marketing/rotation.webp", title: "Merak ettiğinizi asistana sorarsınız", text: "İşletme Asistanı'na planınız, ekibiniz ve izinler hakkında yazarak soru sorarsınız. Cevabı sizin kayıtlarınıza göre verir. Gerekirse bir işlem önerir, siz onaylarsanız uygulanır." },
 ];
 
 function StepScene({ i, restartKey }: { i: number; restartKey?: unknown }) {
   if (i === 0) return <SetupDemo />;
   if (i === 1) return <ChecksScene restartKey={restartKey} />;
   if (i === 2) return <TourStage k="phone" restartKey={restartKey} />;
-  return <TourStage k="cover" restartKey={restartKey} />;
+  if (i === 3) return <TourStage k="cover" restartKey={restartKey} />;
+  return <TourStage k="assistant" restartKey={restartKey} />;
 }
 
 /** Fotoğraflı sahne zemini: fotoğraf karartılır, üstünde uygulama ekranı oynar */
