@@ -5,12 +5,14 @@
  * özel günler, işletmenin aynı gündeki geçmişi ve hava durumu. Haftada özel bir şey yoksa hiç görünmez.
  */
 import { useEffect, useState } from "react";
-import { CalendarDays, CloudRain } from "lucide-react";
+import { CalendarDays, ChevronDown, CloudRain } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatDateTR } from "@/lib/date";
 import type { CalendarItem } from "@/lib/weekCalendar";
 
 export default function WeekCalendarCard({ locationId, weekStart }: { locationId: string; weekStart: string }) {
   const [data, setData] = useState<{ key: string; items: CalendarItem[] } | null>(null);
+  const [open, setOpen] = useState(false);
   const key = `${locationId}|${weekStart}`;
 
   useEffect(() => {
@@ -25,23 +27,31 @@ export default function WeekCalendarCard({ locationId, weekStart }: { locationId
   const items = data?.key === key ? data.items : [];
   if (!items.length) return null;
 
+  // Sadeleştirme (2026-10-07): kapalı başlar, başlıkta ilk özel gün
+  const first = items[0];
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
-      <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-        <CalendarDays size={16} className="text-forest-600 shrink-0" /> Bu haftanın takvimi
-      </p>
-      <div className="divide-y divide-slate-100">
-        {items.map((it, i) => (
-          <div key={i} className="py-2 first:pt-0 last:pb-0">
-            <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-              {it.kind === "weather" && <CloudRain size={13} className="text-sky-500 shrink-0" />}
-              {formatDateTR(it.date)} · {it.title}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">{it.detail}</p>
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-slate-400">Bu günlerde kaç kişi gerektiğini İşlemler › Kaç Kişi Gerekli? tablosundan değiştirebilirsiniz.</p>
+    <div className="bg-white border border-slate-200 rounded-xl">
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center gap-2.5 px-4 py-3 text-left">
+        <CalendarDays size={15} className="text-forest-600 shrink-0" />
+        <span className="text-sm font-bold text-slate-900 shrink-0">Takvim</span>
+        <span className="text-xs font-semibold text-slate-500 truncate">
+          {formatDateTR(first.date)} · {first.title}{items.length > 1 ? ` ve ${items.length - 1} gün daha` : ""}
+        </span>
+        <ChevronDown size={15} className={cn("ml-auto text-slate-400 transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="divide-y divide-slate-100 border-t border-slate-100 px-4">
+          {items.map((it, i) => (
+            <div key={i} className="py-2.5">
+              <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                {it.kind === "weather" && <CloudRain size={13} className="text-sky-500 shrink-0" />}
+                {formatDateTR(it.date)} · {it.title}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{it.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

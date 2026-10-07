@@ -182,7 +182,7 @@ export default function PortalCalendar() {
                           {(() => {
                             const mates = coworkers(shift);
                             if (mates.length === 0) return null;
-                            return <p className="text-xs text-slate-500 truncate" title={mates.join(", ")}>Seninle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>;
+                            return <p className="text-xs text-slate-500 truncate" title={mates.join(", ")}>Sizinle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>;
                           })()}
                         </>
                       )}

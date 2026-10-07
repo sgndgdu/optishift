@@ -39,7 +39,6 @@ export function SuggestionsCard({ suggestions }: { suggestions: Suggestion[] }) 
           <CardTitle className="text-base font-bold">Hazır çözümler</CardTitle>
           {open > 0 && <Badge variant="secondary">{open}</Badge>}
         </div>
-        <p className="text-xs text-slate-500 mt-1">Karar bekleyen işler için en uygun çözüm hazırlandı. Uygun görürseniz tek dokunuşla uygulayın.</p>
       </CardHeader>
       <CardContent className="p-0">
         <ul className="divide-y divide-slate-100">

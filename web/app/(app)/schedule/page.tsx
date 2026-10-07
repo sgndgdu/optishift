@@ -2858,7 +2858,7 @@ loading ? (
         <div className="space-y-4">
 
           {/* ── Sayfa başlığı ── */}
-          <PageHeader title="Vardiya Planı" description="Bir kutuya tıklayarak vardiya ekleyin, değişiklikler otomatik kaydedilir." />
+          <PageHeader title="Vardiya Planı" />
 
           {/* ── Üst bant ── */}
           <div className="flex flex-wrap items-center gap-2">
@@ -2911,14 +2911,7 @@ loading ? (
                 </div>
               )}
 
-              {/* Adalet dağılımı toggle */}
-              <button
-                onClick={() => setFairnessOpen(o => !o)} title="Adalet Dağılımı" aria-label="Adalet Dağılımı"
-                className={cn("px-3 py-2 rounded-xl border text-xs md:text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors", fairnessOpen ? "bg-forest-50 border-forest-200 text-forest-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50")}
-              >
-                <BarChart2 size={15} /> Adalet
-              </button>
-
+              {/* Adalet dağılımı İşlemler menüsünde (sadeleştirme 2026-10-07) */}
               {/* ⋯ İşlemler menüsü */}
               <div className="relative" data-actions-menu>
                 <button
@@ -2951,6 +2944,10 @@ loading ? (
                         <Bell size={13} className="text-amber-500" /> Uygunluk İste
                       </button>
                     )}
+                    <button onClick={() => { setActionsOpen(false); setFairnessOpen(o => !o); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                      <BarChart2 size={13} className="text-slate-400" /> {fairnessOpen ? "Adalet Dağılımını Gizle" : "Adalet Dağılımı"}
+                    </button>
                     <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <Download size={13} className="text-slate-400" /> Excel İndir
@@ -3063,18 +3060,12 @@ loading ? (
 
           {/* ── Otomatik pilotun hazırladığı taslak: müdüre kalan iş kontrol + Yayınla ── */}
           {!loading && autopilotDraftWeek === weekStart && !isPublishedWeek && cellCount > 0 && (
-            <div className="bg-forest-50 border border-forest-200 rounded-xl px-4 py-3 flex items-start gap-3">
-              <Sparkles size={16} className="text-forest-600 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0 text-sm">
-                <p className="font-bold text-forest-800">
-                  Bu plan otomatik hazırlandı
-                </p>
-                <p className="text-forest-700/80 text-xs mt-0.5">
-                  {canPublish
-                    ? <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Yayınla&apos;ya basın. Ekip yayınlanınca görür.</>
-                    : <>Uyarılara göz atın, gerekirse bir kutuya tıklayıp düzeltin, sonra Onaya Gönder&apos;e basın. Sorumlunuz kontrol edip yayınlar.</>}
-                </p>
-              </div>
+            <div className="bg-forest-50 border border-forest-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <Sparkles size={16} className="text-forest-600 shrink-0" />
+              <p className="flex-1 min-w-0 text-sm text-forest-800">
+                <span className="font-bold">Bu plan otomatik hazırlandı.</span>{" "}
+                {canPublish ? "Kontrol edip yayınlayın." : "Kontrol edip onaya gönderin."}
+              </p>
             </div>
           )}
 

@@ -47,14 +47,23 @@ const ACTION_LABEL: Record<InsightAction, string> = {
   "open-demand": "Tabloyu Aç",
 };
 
+// Sadeleştirme (2026-10-07): ayrıntı kapalı başlar, başlığa dokununca açılır
 function AlertRow({ alert }: { alert: WeekAlert }) {
   const t = ALERT_TONE[alert.tone];
+  const [open, setOpen] = useState(false);
   return (
     <div className={cn("rounded-lg border px-3 py-2.5 flex items-start gap-2.5", t.box)}>
       <t.Icon size={15} className={cn("shrink-0 mt-0.5", t.sub)} />
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-bold", t.text)}>{alert.title}</p>
-        {alert.detail && <div className={cn("text-xs mt-0.5", t.sub)}>{alert.detail}</div>}
+        {alert.detail ? (
+          <button onClick={() => setOpen(o => !o)} aria-expanded={open} className={cn("text-left text-sm font-bold flex items-center gap-1", t.text)}>
+            {alert.title}
+            <ChevronDown size={14} className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+          </button>
+        ) : (
+          <p className={cn("text-sm font-bold", t.text)}>{alert.title}</p>
+        )}
+        {alert.detail && open && <div className={cn("text-xs mt-1", t.sub)}>{alert.detail}</div>}
       </div>
       {alert.action && (
         <button onClick={alert.action.onClick} className={cn("text-xs font-bold underline shrink-0", t.btn)}>

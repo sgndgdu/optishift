@@ -59,6 +59,7 @@ export default function ManagerRequestsPage() {
   const [leaveConflicts, setLeaveConflicts] = useState<Record<number, any[]>>({}); // izin id → o günlere düşen vardiyalar
   const [leaveTeam, setLeaveTeam] = useState<Record<number, any>>({}); // izin id → departmanın o günlerdeki durumu
   const [leaveSubs, setLeaveSubs] = useState<Record<number, Record<number, string>>>({}); // izin id → vardiya id → yerine gelecek kişi
+  const [leaveOpen, setLeaveOpen] = useState<Record<number, boolean>>({}); // izin kartında ayrıntılar açık mı (sadeleştirme 2026-10-07)
   const [overtimes, setOvertimes] = useState<any[]>([]);
   // "all": bekleyen her şey tek akışta (varsayılan); diğerleri tür filtresi
   const [activeTab, setActiveTab] = useState<"all" | "swap" | "edit" | "leave" | "overtime">("all");
@@ -454,7 +455,26 @@ export default function ManagerRequestsPage() {
                     <span className="text-xs text-slate-400 shrink-0">{timeAgo(l.created_at)}</span>
                   )}
                 </div>
-                {pending && leaveTeam[l.id] && (() => {
+                {pending && (leaveTeam[l.id] || (leaveConflicts[l.id]?.length ?? 0) > 0) && (() => {
+                  // Sadeleştirme (2026-10-07): tek satırlık özet; ekip durumu ve yedek seçimi "Ayrıntılar"da
+                  const t = leaveTeam[l.id];
+                  const n = leaveConflicts[l.id]?.length ?? 0;
+                  const left = t ? Math.max(0, t.size - 1 - t.others.length) : null;
+                  const open = leaveOpen[l.id] ?? false;
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className={left !== null && left <= 1 ? "font-semibold text-red-700" : "text-slate-600"}>
+                        {n > 0 ? `Bu tarihlerde ${n} vardiyası var.` : "Bu tarihlerde vardiyası yok."}
+                        {left !== null && ` Onaylanırsa ${t.scope ? "departmanda" : "şubede"} en az ${left} kişi kalır.`}
+                      </span>
+                      <button type="button" onClick={() => setLeaveOpen(p => ({ ...p, [l.id]: !open }))} aria-expanded={open}
+                        className="font-bold text-primary underline underline-offset-2">
+                        {open ? "Ayrıntıları gizle" : n > 0 ? "Ayrıntılar ve yedek seçimi" : "Ayrıntılar"}
+                      </button>
+                    </div>
+                  );
+                })()}
+                {pending && leaveOpen[l.id] && leaveTeam[l.id] && (() => {
                   // Plan yokken de öngörü: departmanda kaç kişi var, aynı günlerde kim izinli
                   const t = leaveTeam[l.id];
                   const away = t.others.length;
@@ -473,10 +493,10 @@ export default function ManagerRequestsPage() {
                     </div>
                   );
                 })()}
-                {pending && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
+                {pending && leaveOpen[l.id] && (leaveConflicts[l.id]?.length ?? 0) > 0 && (
                   // Sorumlu onaylamadan önce görsün: o vardiyada kim kalıyor, yerine kim gelebilir (seçerse vardiya ona geçer)
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2.5">
-                    <p className="text-xs font-bold text-amber-800">Bu tarihlerde {leaveConflicts[l.id].length} vardiyası var. Onaylarsan plandan çıkar; istersen yerine birini seç:</p>
+                    <p className="text-xs font-bold text-amber-800">Onaylarsanız bu vardiyalar plandan çıkar. İsterseniz yerine birini seçin:</p>
                     {leaveConflicts[l.id].map((c: any) => {
                       const picked = leaveSubs[l.id]?.[c.id] ?? "";
                       return (

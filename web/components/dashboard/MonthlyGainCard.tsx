@@ -24,15 +24,16 @@ export function MonthlyGainCard({ locationId }: { locationId: string | null }) {
     return () => { stale = true; };
   }, [locationId]);
   if (!data) return null;
+  // Sadeleştirme (2026-10-07): tek satır; maddelerin tamamı raporda
   return (
-    <div className="rounded-2xl bg-forest-50 px-5 py-4 ring-1 ring-forest-100">
-      <p className="mb-2 flex items-center gap-2 text-sm font-bold text-forest-900"><Sparkles size={16} className="text-ember-500" /> {data.label} özeti</p>
-      <ul className="space-y-1.5 text-sm leading-relaxed text-forest-900/90">
-        {data.highlights.slice(0, 3).map(h => <li key={h} className="flex gap-2"><span className="text-forest-500">•</span><span>{h}</span></li>)}
-      </ul>
-      <Link href={`/reports?tab=ozet&month=${data.month}`} className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-forest-800 ring-1 ring-forest-200 hover:bg-forest-50">
-        Raporun tamamı <ArrowRight size={13} />
-      </Link>
-    </div>
+    <Link href={`/reports?tab=ozet&month=${data.month}`}
+      className="flex items-center gap-3 rounded-2xl bg-forest-50 px-5 py-3.5 ring-1 ring-forest-100 transition-colors hover:bg-forest-100/60">
+      <Sparkles size={16} className="shrink-0 text-ember-500" />
+      <span className="min-w-0 flex-1 text-sm text-forest-900">
+        <span className="font-bold">{data.label} özeti hazır.</span>{" "}
+        <span className="text-forest-900/80">{data.highlights[0]}</span>
+      </span>
+      <ArrowRight size={15} className="shrink-0 text-forest-700" />
+    </Link>
   );
 }

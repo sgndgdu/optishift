@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Clock, Calendar as CalIcon, Check, Megaphone,
+  Clock, Check, Megaphone,
   MapPin, AlertCircle, Timer, ChevronRight,
   Zap, ClipboardList, PlayCircle, StopCircle,
 } from "lucide-react";
@@ -12,7 +12,6 @@ import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
 import { getWeekStart, timeAgo, addDays, formatDateTR } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
-import { getNotifHref as _getNotifHref } from "@/lib/notif";
 
 import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
@@ -54,7 +53,6 @@ export default function PortalDashboard() {
   const { user, mounted } = usePortalAuth();
   const [shifts,        setShifts]        = useState<any[]>([]);
   const [onCalls,       setOnCalls]       = useState<any[]>([]);
-  const [notifs,        setNotifs]        = useState<any[]>([]);
   const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
   const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
   const [handoverDraft, setHandoverDraft]  = useState("");
@@ -92,9 +90,8 @@ export default function PortalDashboard() {
     const ws  = getWeekStart(0);
     const nws = getWeekStart(1);
     try {
-      const [shiftData, notifData, availData] = await Promise.all([
+      const [shiftData, availData] = await Promise.all([
         fetch(`/api/shifts?personnel_id=${user.personnel_id}&week_start=${ws}&include_on_call=1`).then(r => r.json()),
-        fetch(`/api/notifications?personnel_id=${user.personnel_id}`).then(r => r.json()),
         fetch(`/api/availability?personnel_id=${user.personnel_id}&week_start=${nws}`).then(r => r.json()),
       ]);
       // Bu ve gelecek hafta, çalıştığı TÜM şubelerde yayınlanmış plan (/api/shifts/team): bugün kimle çalışıyorum,
@@ -111,7 +108,6 @@ export default function PortalDashboard() {
       const rows = Array.isArray(shiftData) ? shiftData : [];
       setShifts(rows.filter((s: any) => s.kind !== "on_call"));
       setOnCalls(rows.filter((s: any) => s.kind === "on_call"));
-      setNotifs(Array.isArray(notifData) ? notifData.slice(0, 3) : []);
       setNextWeekAvail(availData?.exists ?? false);
     } catch {} finally { setDataLoading(false); }
   }, [user?.personnel_id, user?.location_id]);
@@ -276,10 +272,7 @@ export default function PortalDashboard() {
 
   if (!mounted) return <div className="p-5 space-y-5" />;
 
-  const getNotifHref = (n: any) => _getNotifHref(n) ?? "/portal/notifications";
-
   // computed
-  const shiftDays     = new Set(shifts.map((s: any) => s.day));
   const totalHours    = shifts.reduce((acc: number, s: any) => acc + shiftDur(s), 0);
   const upcomingShifts = shifts.filter(s => s.day >= todayIdx).sort((a, b) => a.day - b.day);
   const isCheckedIn   = !!todayShift?.check_in_at && !todayShift?.check_out_at;
@@ -502,56 +495,17 @@ export default function PortalDashboard() {
         />
       </Sheet>
 
-      {/* ── Bu Hafta mini takvim ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <span className="text-sm font-bold text-slate-800">Bu Hafta</span>
-          {!dataLoading && (
-            <span className="text-xs font-bold text-slate-400">
-              {shifts.length} {words.shift} · {totalHours.toFixed(0)} saat
-            </span>
-          )}
-        </div>
-        <div className="px-3 pb-3 grid grid-cols-7 gap-1.5">
-          {dataLoading
-            ? Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
-              ))
-            : Array.from({ length: 7 }).map((_, i) => {
-                const hasShift = shiftDays.has(i);
-                const isToday  = i === todayIdx;
-                const dayShift = shifts.find(s => s.day === i);
-                return (
-                  <div key={i} onClick={() => router.push("/portal/calendar")}
-                    className={`flex flex-col items-center gap-1 py-2.5 px-0.5 rounded-xl cursor-pointer transition-all active:scale-95 ${
-                      isToday  ? "bg-primary text-white shadow-md shadow-primary/25" :
-                      hasShift ? "bg-forest-50 text-forest-700" :
-                                 "bg-slate-50 text-slate-400"
-                    }`}>
-                    <span className={`text-xs font-bold ${isToday ? "text-forest-200" : "opacity-60"}`}>
-                      {SHORT[i]}
-                    </span>
-                    {hasShift ? (
-                      <span className={`text-xs font-bold leading-none ${isToday ? "text-white" : "text-forest-600"}`}>
-                        {dayShift?.start_time?.slice(0, 5) ?? ""}
-                      </span>
-                    ) : (
-                      <div className={`w-1 h-1 rounded-full ${isToday ? "bg-white/40" : "bg-slate-300"}`} />
-                    )}
-                  </div>
-                );
-              })
-          }
-        </div>
-      </div>
-
       </div>
       <div className="space-y-6 min-w-0">
       {/* ── Yaklaşan vardiyalar: nerede, kimle ─────────────────────────── */}
       {!dataLoading && nextShifts.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <span className="text-sm font-bold text-slate-800">Yaklaşan {words.shift}ların</span>
+            {/* Sadeleştirme (2026-10-07): "Bu Hafta" şeridi kalktı, haftanın toplamı burada */}
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-slate-800">Yaklaşan {words.shift}larınız</span>
+              <span className="block text-xs font-semibold text-slate-400">Bu hafta {shifts.length} {words.shift} · {totalHours.toFixed(0)} saat</span>
+            </span>
             <Link href="/portal/calendar" className="text-xs font-bold text-primary flex items-center gap-0.5">Tümü <ChevronRight size={13} /></Link>
           </div>
           <div className="divide-y divide-slate-50">
@@ -566,7 +520,7 @@ export default function PortalDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-slate-900 tabular-nums">{s.start_time}–{s.end_time}</p>
                     {multiBranch && s.location_name && <p className="text-xs font-semibold text-violet-700 truncate">{s.location_name}</p>}
-                    {mates.length > 0 && <p className="text-xs text-slate-500 truncate">Seninle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>}
+                    {mates.length > 0 && <p className="text-xs text-slate-500 truncate">Sizinle: {mates.slice(0, 4).join(", ")}{mates.length > 4 ? ` +${mates.length - 4}` : ""}</p>}
                   </div>
                 </Link>
               );
@@ -606,9 +560,9 @@ export default function PortalDashboard() {
         </>}>
         {!emergencySent && (
           <p className="text-xs text-slate-500 mb-2">
-            Vardiyaya gelemeyecek ya da geç kalacaksan bunu{" "}
+            Vardiyaya gelemeyecek ya da geç kalacaksanız bunu{" "}
             <Link href="/portal/requests" className="font-semibold text-primary hover:underline">Talepler › Yeni talep</Link>{" "}
-            ile bildir.
+            ile bildirin.
           </p>
         )}
         {!emergencySent && (
@@ -640,44 +594,7 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* Yaklaşan vardiyalar ayrı liste olarak gösterilmez: üstteki "Bu Hafta" şeridi ve Vardiyalarım aynı bilgiyi verir */}
-      {/* ── Son Bildirimler (boşken gizli: zil ikonu aynı işi yapıyor) ───── */}
-      {(dataLoading || notifs.length > 0) && <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-slate-900 text-base">Bildirimler</h3>
-          <Link href="/portal/notifications" className="text-xs font-bold text-primary flex items-center gap-0.5">
-            Tümünü Gör <ChevronRight size={13} />
-          </Link>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          {dataLoading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
-            </div>
-          ) : notifs.length === 0 ? (
-            <p className="px-4 py-5 text-center text-sm text-slate-500">Yeni bildirim yok.</p>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {notifs.map(n => (
-                <Link key={n.id} href={getNotifHref(n)}
-                  className={`flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors ${!n.is_read ? "bg-forest-50/40" : ""}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                    n.type === "schedule" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
-                  }`}>
-                    {n.type === "schedule" ? <CalIcon size={14} /> : <AlertCircle size={14} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold leading-tight ${!n.is_read ? "text-slate-800" : "text-slate-600"}`}>{n.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{n.message}</p>
-                  </div>
-                  <span className="text-xs text-slate-400 shrink-0 mt-0.5 whitespace-nowrap">{timeAgo(n.created_at)}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>}
-
+      {/* Bildirimler listesi kalktı (sadeleştirme 2026-10-07): üstteki zil aynı işi yapıyor */}
       {/* Acil durum: gerçek acil durumlar için, sayfanın en altında sade bir bağlantı */}
       <div className="flex justify-center pt-2">
         <button onClick={() => setEmergencyOpen(true)}

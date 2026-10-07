@@ -8,8 +8,8 @@ import { addDays, businessToday, formatDateTR } from "@/lib/date";
 import { useState, useEffect, useRef } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
-  Users, AlertTriangle, Check, ArrowRight, RefreshCw, CheckCircle2,
-  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, CalendarCheck, FileWarning, Store,
+  Users, AlertTriangle, Check, ArrowRight, CheckCircle2,
+  CalendarClock, ClipboardList, Megaphone, UserPlus, BookOpen, Timer, Bell, ChevronDown, FileWarning, Store,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -22,7 +22,6 @@ import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { AUTOPILOT_DAY_NAMES } from "@/lib/autopilotRules";
 import { industryFromRules } from "@/lib/templates";
-import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { SuggestionsCard } from "@/components/dashboard/SuggestionsCard";
@@ -72,7 +71,6 @@ export default function DashboardPage() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [handoverUnread, setHandoverUnread] = useState(0);
   const [certAttention, setCertAttention] = useState<{ expired: number; expiring: number }>({ expired: 0, expiring: 0 });
-  const [publishLead, setPublishLead] = useState<number | null>(null);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent">("idle");
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
@@ -81,6 +79,7 @@ export default function DashboardPage() {
   const [todayTasks, setTodayTasks] = useState<any[]>([]);
   const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showAllToday, setShowAllToday] = useState(false);
   const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
@@ -122,14 +121,13 @@ export default function DashboardPage() {
       const loc = u.location_id;
       const weekStart = getTodayWeekStart();
       const canApproveAccounts = u.role === "admin" || u.role === "supervisor";
-      const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, publishStatsData, locData,
+      const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, locData,
              leaves, swaps, edits, overtimes, accounts, autopilotData, unreadData] = await Promise.all([
         json(`/api/personnel?location_id=${loc}`),
         json(`/api/shifts?location_id=${loc}&week_start=${weekStart}`),
         json(`/api/open-shifts?location_id=${loc}`),
         json(`/api/availability/team?location_id=${loc}&week_start=${getNextWeekStart()}`),
         json(`/api/shifts?location_id=${loc}&week_start=${getNextWeekStart()}`),
-        json(`/api/schedule/publish-stats?location_id=${loc}`),
         json(`/api/locations?id=${loc}`),
         // Onaylar sayfasının "bekleyen" saydığı dört kalem (aynı filtreler requests/page.tsx'te)
         json(`/api/leave-requests?location_id=${loc}`),
@@ -162,7 +160,6 @@ export default function DashboardPage() {
         : next.some((s: any) => !s.publication_status || s.publication_status === "published") ? "published"
         : "draft"
       );
-      setPublishLead(typeof publishStatsData?.avg_lead_days === "number" ? publishStatsData.avg_lead_days : null);
       setPendingApprovals(
         list(leaves).filter((l: any) => l.status === "pending").length +
         list(swaps).filter((s: any) => s.status === "peer_accepted").length +
@@ -352,14 +349,9 @@ export default function DashboardPage() {
     } : undefined,
   });
 
-  // Ekip sayfasıyla aynı sayı: plana giren aktif kişiler (sadece yöneten sorumlu sayılmaz)
-  const activeCount = personnel.filter(p => p.status === "active" && p.schedulable !== false).length;
+  // Sadeleştirme (2026-10-07): üstte tek bilgi; ekip sayısı Ekip'te, yayın ortalaması Raporlar'da
   const summary = [
-    { icon: Users,        text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi çalışıyor` : "Bugün kimse çalışmıyor" },
-    { icon: CheckCircle2, text: `${activeCount} kişilik ekip` },
-    ...(publishLead !== null
-      ? [{ icon: CalendarCheck, text: formatPublishLead(publishLead).sentence! }]
-      : []),
+    { icon: Users, text: todayShifts.length > 0 ? `Bugün ${todayShifts.length} kişi çalışıyor` : "Bugün kimse çalışmıyor" },
   ];
 
   const renderAction = (item: InboxItem) => {
@@ -480,6 +472,11 @@ export default function DashboardPage() {
         const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s) && (checkinTracked || shiftPhase(s) === "before"));
         const untracked  = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "during");
         const ended      = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "after");
+        // Sadeleştirme (2026-10-07): önce dikkat isteyenler (gelmedi, bekleniyor), ilk 5 satır; gerisi "Tümünü göster"
+        const rank = (s: any) => (s.check_out_at ? 4 : s.check_in_at ? 2 : isLate(s) ? 0 : (checkinTracked ? "before" : shiftPhase(s)) === "after" ? 3 : (checkinTracked ? "before" : shiftPhase(s)) === "during" ? 2 : 1);
+        const sorted = [...todayShifts].sort((a, b) => rank(a) - rank(b) || String(a.start_time).localeCompare(String(b.start_time)));
+        const TODAY_LIMIT = 5;
+        const visible = showAllToday ? sorted : sorted.slice(0, TODAY_LIMIT);
         return (
           <Card id="bugun" className="stripe-card border-0 shadow-none scroll-mt-6">
             <CardHeader className="border-b border-border/40 pb-4">
@@ -497,16 +494,12 @@ export default function DashboardPage() {
                     </span>
                   ))}
                 </div>
-                <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                  <RefreshCw size={11} />
-                  {now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {/* Satır listesi (DESIGN.md §2): kişi başına kart değil, çizgiyle ayrılan satır */}
               <ul className="divide-y divide-slate-100">
-                {todayShifts.map((s: any) => {
+                {visible.map((s: any) => {
                   const p            = personnel.find(px => px.id === s.personnel_id);
                   const isCheckedIn  = !!s.check_in_at;
                   const isCheckedOut = !!s.check_out_at;
@@ -549,6 +542,13 @@ export default function DashboardPage() {
                   );
                 })}
               </ul>
+              {sorted.length > TODAY_LIMIT && (
+                <button onClick={() => setShowAllToday(v => !v)}
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-slate-100 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                  {showAllToday ? "Daha az göster" : `Tümünü göster (${sorted.length})`}
+                  <ChevronDown size={13} className={cn("transition-transform", showAllToday && "rotate-180")} />
+                </button>
+              )}
             </CardContent>
           </Card>
         );

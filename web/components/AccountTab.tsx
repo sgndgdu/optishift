@@ -142,25 +142,12 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
                     placeholder="Ad Soyad"
                   />
                 </div>
-                <div>
-                  <label className="field-label">Kullanıcı Adı</label>
-                  <input
-                    className="field-input"
-                    value={profile.username}
-                    onChange={e => setProfile(p => ({ ...p, username: e.target.value }))}
-                    placeholder="kullanici_adi"
-                  />
-                </div>
               </>
             ) : (
               <>
                 <div>
                   <label className="field-label">Ad Soyad</label>
                   <div className="field-input bg-slate-50 text-slate-500 cursor-default select-none">{profile.name || "—"}</div>
-                </div>
-                <div>
-                  <label className="field-label">Kullanıcı Adı</label>
-                  <div className="field-input bg-slate-50 text-slate-500 cursor-default select-none">{profile.username || "—"}</div>
                 </div>
               </>
             )}

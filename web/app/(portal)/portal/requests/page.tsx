@@ -529,7 +529,7 @@ export default function PortalRequests() {
       ) : (
         <Tabs fill value={activeTab === "incoming" ? "incoming" : "sent"} onChange={id => { setActiveTab(id); resetSwapWizard(); }} items={[
           { id: "sent",     label: "Taleplerim" },
-          { id: "incoming", label: "Sana Gelen", count: incomingPendingCount },
+          { id: "incoming", label: "Size Gelen", count: incomingPendingCount },
         ] as const} />
       )}
 
@@ -540,7 +540,7 @@ export default function PortalRequests() {
             <button onClick={() => setActiveTab("incoming")}
               className="w-full flex items-center gap-3 bg-ember-50 border border-ember-200 rounded-2xl px-4 py-3.5 text-left hover:bg-ember-100 transition-colors">
               <AlertCircle size={18} className="text-ember-600 shrink-0" />
-              <span className="flex-1 text-sm font-bold text-ember-800">Sana gelen {incomingPendingCount} talep cevabını bekliyor</span>
+              <span className="flex-1 text-sm font-bold text-ember-800">Size gelen {incomingPendingCount} talep cevabını bekliyor</span>
               <ChevronRight size={16} className="text-ember-600" />
             </button>
           )}
@@ -1011,7 +1011,7 @@ export default function PortalRequests() {
                   <CalendarOff size={15} className={`shrink-0 mt-0.5 ${leaveBalance.remaining <= 0 ? "text-amber-600" : "text-emerald-600"}`} />
                   <div className="text-xs">
                     <p className={`font-bold ${leaveBalance.remaining <= 0 ? "text-amber-800" : "text-emerald-800"}`}>
-                      Kalan yıllık iznin: {leaveBalance.remaining} gün
+                      Kalan yıllık izniniz: {leaveBalance.remaining} gün
                     </p>
                     <p className="text-slate-500 mt-0.5">
                       {leaveBalance.firstEligibleDate

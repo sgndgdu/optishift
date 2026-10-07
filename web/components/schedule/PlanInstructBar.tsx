@@ -8,11 +8,11 @@
 import { useState } from "react";
 import { Sparkles, Undo2, X } from "lucide-react";
 import type { PlanOverride } from "@/lib/planOverrides";
+import { cn } from "@/lib/utils";
 
 type Parsed = { summary: string[]; dropped: string[]; overrides: PlanOverride[]; ask?: string };
 export type RebuildResult = { ok: boolean; error?: string; changes: string[] };
 
-const EXAMPLES = ["Ayşe bu hafta sadece sabah çalışsın", "Mehmet cuma gelemiyor", "Cumartesi akşam 4 kişi olsun"];
 
 export default function PlanInstructBar({ locationId, weekStart, onRebuild, onUndo }: {
   locationId: string; weekStart: string;
@@ -58,31 +58,24 @@ export default function PlanInstructBar({ locationId, weekStart, onRebuild, onUn
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Sparkles size={16} className="text-ember-500 shrink-0" />
-        <p className="text-sm font-bold text-slate-900 flex-1">Planı yazarak değiştirin</p>
-        {(parsed || result || error) && (
-          <button onClick={reset} aria-label="Kapat" title="Kapat" className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X size={15} /></button>
-        )}
-      </div>
+    // Sadeleştirme (2026-10-07): başlık ve örnek düğmeleri kalktı, tek satırlık kutu; örnek yer tutucuda
+    <div className={cn("bg-white border border-slate-200 rounded-2xl", parsed || result || error ? "p-4 space-y-3" : "p-2")}>
       <form onSubmit={e => { e.preventDefault(); parse(text); }} className="flex items-center gap-2">
+        <Sparkles size={16} className="text-ember-500 shrink-0 ml-2" aria-hidden />
         <input value={text} onChange={e => setText(e.target.value)} maxLength={600} disabled={!!busy}
-          placeholder="Ör. Ayşe bu hafta sadece sabah çalışsın, Mehmet cuma gelemiyor"
-          className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-forest-400" />
-        <button type="submit" disabled={!!busy || !text.trim()}
-          className="shrink-0 px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-bold disabled:opacity-40">
-          {busy === "parse" ? "Okunuyor…" : "Devam"}
-        </button>
+          aria-label="Planı yazarak değiştirin"
+          placeholder="Planı yazarak değiştirin. Örneğin: Mehmet cuma gelemiyor"
+          className="flex-1 min-w-0 rounded-xl px-2 py-2 text-sm focus:outline-none" />
+        {text.trim() && (
+          <button type="submit" disabled={!!busy}
+            className="shrink-0 px-4 py-2 rounded-xl bg-forest-700 text-white text-sm font-bold disabled:opacity-40">
+            {busy === "parse" ? "Okunuyor…" : "Devam"}
+          </button>
+        )}
+        {(parsed || result || error) && (
+          <button onClick={reset} type="button" aria-label="Kapat" title="Kapat" className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X size={15} /></button>
+        )}
       </form>
-      {!parsed && !result && !error && !busy && (
-        <div className="flex flex-wrap gap-1.5">
-          {EXAMPLES.map(e => (
-            <button key={e} onClick={() => setText(e)}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50">{e}</button>
-          ))}
-        </div>
-      )}
       {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
 
       {parsed && (
