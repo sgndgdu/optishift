@@ -22,7 +22,7 @@ export async function claimOpenShift(
   openShiftId: number,
   claimedBy: string,
   claimedByName: string | null,
-  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean } = {},
+  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean; autoCover?: boolean } = {},
 ): Promise<ClaimOutcome> {
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
@@ -133,8 +133,10 @@ export async function claimOpenShift(
   `).run(
     claimedBy,
     "hero_bonus",
-    opts.assignedByManager ? "Açık vardiyaya atandınız" : "Vardiyayı aldınız",
-    opts.assignedByManager
+    opts.autoCover ? "Size bir vardiya yazıldı" : opts.assignedByManager ? "Açık vardiyaya atandınız" : "Vardiyayı aldınız",
+    opts.autoCover
+      ? `Bir ekip arkadaşınız gelemediği için ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyası size yazıldı. O gün için uygun olduğunuzu girmiştiniz ve kurallara en uygun kişi sizdiniz. Gelemiyorsanız Vardiyalarım'dan bildirin. Bu vardiya için ek puan alırsınız.`
+      : opts.assignedByManager
       ? `Sorumlunuz sizi ${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasına atadı. Bu vardiya için ek puan alırsınız ve sonraki planlarda size daha az vardiya verilir.`
       : `${formatDateTR(os.date)} tarihli ${os.start_time}–${os.end_time} vardiyasını aldınız. Teşekkürler! Ek puan aldınız, sonraki planlarda size daha az vardiya verilir.`,
     now,
@@ -171,7 +173,21 @@ export async function publishOpenShift(
     INSERT INTO open_shifts (org_id, location_id, date, start_time, end_time, note, hero_bonus_multiplier, status, created_at, released_by, source_assignment_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(o.org_id, o.location_id, o.date, o.start_time, o.end_time, o.note, heroPoints, now, o.releasedBy ?? null, o.sourceAssignmentId ?? null);
+  const osId = result.lastInsertRowid ?? null;
+  const notified = await announceOpenShift(db, { ...o, id: osId, heroPoints: heroPoints ?? 6, notify });
+  return { id: osId, notified };
+}
 
+/** İlanı ekibe duyurur (publishOpenShift; kendiliğinden yedek bulunamayınca ayrıca çağrılır) */
+export async function announceOpenShift(
+  db: any,
+  o: {
+    id: number | null; org_id: string; location_id: string; date: string; start_time: string; end_time: string;
+    heroPoints: number; releasedBy?: string | null; notify: "all" | "top" | "none";
+  },
+): Promise<string[]> {
+  const { notify, heroPoints } = o;
+  const now = Math.floor(Date.now() / 1000);
   let targets: { id: string; name?: string; away?: boolean }[] = [];
   if (notify === "all" || notify === "top") {
     const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });
@@ -190,7 +206,7 @@ export async function publishOpenShift(
   }
   const dateLabel = formatDateTR(o.date);
   const branchName = (await db.prepare(`SELECT name FROM locations WHERE id = ?`).get(o.location_id) as any)?.name ?? "";
-  const osId = result.lastInsertRowid ?? null;
+  const osId = o.id;
   const insertNotif = await db.prepare(`
     INSERT INTO notifications (personnel_id, type, title, message, link, created_at)
     VALUES (?, 'open_shift', ?, ?, ?, ?)
@@ -215,5 +231,5 @@ export async function publishOpenShift(
       url: link,
     });
   }));
-  return { id: osId, notified: targets.map(p => (p.away ? `${p.name ?? p.id} (başka şube)` : p.name ?? p.id)) };
+  return targets.map(p => (p.away ? `${p.name ?? p.id} (başka şube)` : p.name ?? p.id));
 }

@@ -33,6 +33,8 @@ export interface Candidate {
   other_branch?: string;
   /** Üstlenirse çalışma kuralı bozulur (dinlenme ya da haftalık sınır): üstlenme sunucuda reddedilir */
   blocking?: boolean;
+  /** O gün için uygunluk girip "uygunum" demiş (lib/autoCover sadece bunlara kendiliğinden yazar) */
+  said_available?: boolean;
 }
 
 const toMin = (t?: string | null) => {
@@ -173,6 +175,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     const local = isLocal(p);
     if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
     candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0, blocking,
+      said_available: !!availByPerson[p.id] && dayStatus(p.id) === "available",
       ...(local ? {} : { other_branch: p.home_name ?? "Başka şube" }) });
   }
 

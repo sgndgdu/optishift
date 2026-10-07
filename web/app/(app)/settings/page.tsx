@@ -363,6 +363,8 @@ export default function SettingsPage() {
   const [gpsCheckinRequired, setGpsCheckinRequired]               = useState(false);
   const [checkinRadiusM, setCheckinRadiusM]                       = useState(150);
   const [autoOpenShiftOnLate, setAutoOpenShiftOnLate]             = useState(true);
+  const [autoCoverEnabled, setAutoCoverEnabled]                   = useState(true);
+  const [morningBriefEnabled, setMorningBriefEnabled]             = useState(true);
   const [lateThresholdMin, setLateThresholdMin]                   = useState(30);
   const [maxConcurrentBreaks, setMaxConcurrentBreaks]             = useState(2);
   const [changeCompensationEnabled, setChangeCompensationEnabled] = useState(true);
@@ -506,6 +508,8 @@ export default function SettingsPage() {
           setGpsCheckinRequired(!!loc.rules?.gps_checkin_required);
           if (typeof loc.rules?.checkin_radius_m === "number")           setCheckinRadiusM(loc.rules.checkin_radius_m);
           setAutoOpenShiftOnLate(loc.rules?.auto_open_shift_on_late !== false);
+          setAutoCoverEnabled(loc.rules?.auto_cover_enabled !== false);
+          setMorningBriefEnabled(loc.rules?.morning_brief_enabled !== false);
           if (typeof loc.rules?.late_threshold_min === "number")        setLateThresholdMin(loc.rules.late_threshold_min);
           if (typeof loc.rules?.max_concurrent_breaks === "number")     setMaxConcurrentBreaks(loc.rules.max_concurrent_breaks);
           setChangeCompensationEnabled(loc.rules?.change_compensation_enabled !== false);
@@ -606,6 +610,8 @@ export default function SettingsPage() {
             gpsCheckinRequired: !!loc.rules?.gps_checkin_required,
             checkinRadiusM: typeof loc.rules?.checkin_radius_m === "number" ? loc.rules.checkin_radius_m : 150,
             autoOpenShiftOnLate: loc.rules?.auto_open_shift_on_late !== false,
+            autoCoverEnabled: loc.rules?.auto_cover_enabled !== false,
+            morningBriefEnabled: loc.rules?.morning_brief_enabled !== false,
             lateThresholdMin: typeof loc.rules?.late_threshold_min === "number" ? loc.rules.late_threshold_min : 30,
             maxConcurrentBreaks: typeof loc.rules?.max_concurrent_breaks === "number" ? loc.rules.max_concurrent_breaks : 2,
             maxBreakDurationMin: typeof loc.rules?.max_break_duration_min === "number" ? loc.rules.max_break_duration_min : 15,
@@ -648,7 +654,7 @@ export default function SettingsPage() {
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
-      editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+      editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
       chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
       maxConcurrentBreaks,
       maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -666,7 +672,7 @@ export default function SettingsPage() {
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
-    editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+    editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
     chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
     maxConcurrentBreaks,
     maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -838,6 +844,8 @@ export default function SettingsPage() {
             gps_checkin_required:               gpsCheckinRequired,
             checkin_radius_m:                   checkinRadiusM,
             auto_open_shift_on_late:            autoOpenShiftOnLate,
+            auto_cover_enabled:                 autoCoverEnabled,
+            morning_brief_enabled:              morningBriefEnabled,
             late_threshold_min:                 lateThresholdMin,
             max_concurrent_breaks:              maxConcurrentBreaks,
             change_compensation_enabled:        changeCompensationEnabled,
@@ -869,7 +877,7 @@ export default function SettingsPage() {
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay,
-        editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, lateThresholdMin,
+        editRequestsEnabled, checkinRequired, gpsCheckinRequired, checkinRadiusM, autoOpenShiftOnLate, autoCoverEnabled, morningBriefEnabled, lateThresholdMin,
         chatEnabled, leaveRequestsEnabled, overtimeTrackingEnabled, openShiftsEnabled, personnelConflictsEnabled, complianceTrackingEnabled, taskManagementEnabled, kioskModeEnabled, forecastingEnabled, handoverLogEnabled, fatigueRadarEnabled, taskTemplates,
         maxConcurrentBreaks,
         maxBreakDurationMin, fairnessWindowWeeks, clopeningPenaltyWeight,
@@ -1477,6 +1485,11 @@ export default function SettingsPage() {
                     }
                     right={<Toggle on={autopilotEnabled} onToggle={() => setAutopilotEnabled(v => !v)} />}
                   />
+                  <RuleRow
+                    label="Sabah özeti"
+                    description="Her sabah 08.00'de tek bildirim: bugün kimler çalışıyor, kim izinde, hangi işler kararınızı bekliyor ve çözümleri. Bugün planı ve bekleyen işi olmayan günde gönderilmez."
+                    right={<Toggle on={morningBriefEnabled} onToggle={() => setMorningBriefEnabled(v => !v)} />}
+                  />
                 </SectionCard>
               </div>
               </SettingsGroup>
@@ -1532,6 +1545,13 @@ export default function SettingsPage() {
                     description="Ekip üyesi vardiya saatinde hata görürse düzeltme isteği gönderir."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
+                  {openShiftsEnabled && (
+                    <RuleRow
+                      label="Gelemeyenin yerine kendiliğinden yedek"
+                      description="Biri vardiyasına gelemeyeceğini bildirdiğinde ve vardiya 24 saat içindeyse, o gün için uygun olduğunu girmiş ve kurallara uyan en uygun kişi kendiliğinden yazılır. Size sadece sonuç bildirilir. Uygun kimse yoksa vardiya ekibe duyurulur."
+                      right={<Toggle on={autoCoverEnabled} onToggle={() => setAutoCoverEnabled(v => !v)} />}
+                    />
+                  )}
                 </SectionCard>
                 <SectionCard title="İzin Politikası">
                   <RuleRow
