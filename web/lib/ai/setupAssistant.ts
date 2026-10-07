@@ -9,6 +9,8 @@ import { INDUSTRIES, getIndustry, getVariant } from "@/lib/templates";
 export type SetupShift = { name: string; start: string; end: string; difficulty: "easy" | "medium" | "hard" };
 /** Fotoğraftan ya da yazılan listeden okunan ekip üyesi; department önerideki departmanlardan biri ya da "" */
 export type SetupPerson = { name: string; department: string; phone: string };
+/** Kişinin çizelgedeki haftası: 7 gün (Pzt..Paz) vardiya adı ya da "" (izin/boş) */
+type PersonWeek = { department: string; week: string[] };
 export type SetupProposal = {
   industry: string;
   variant: string;
@@ -59,6 +61,7 @@ Fotoğraf eklendiyse (kâğıt ya da Excel vardiya çizelgesi, ekip listesi, ekr
 - Üzerindeki kişi adlarını "team" listesine yaz. Okuyamadığın adı uydurma, atla. Aynı kişiyi bir kez yaz.
 - Bölüm başlığı ya da sütunu varsa (Mutfak, Salon, Kasa) bunları departman yap ve kişiyi bağla.
 - Çizelgedeki vardiya saatlerini "shifts"e yaz. Her gün her vardiyada kaç kişi yazılıysa "demand"e o sayıyı koy.
+- Çizelgede kişinin her gün hangi vardiyada olduğu görünüyorsa team'deki kişiye "week" ekle: Pazartesi'den Pazar'a 7 eleman, her biri shifts'teki vardiya ADI ya da izin/boş için "". Satırları dikkatle hizala, her ad kendi satırındaki saatlerle eşleşir.
 - Telefon numarası görünüyorsa "phone"a yaz, yoksa boş bırak.
 - teamSize, team listesindeki kişi sayısından az olamaz.
 - Fotoğraftan yeterli bilgi çıktıysa soru sorma, hemen proposal yaz. Fotoğraf okunamıyorsa bunu söyleyip daha net bir fotoğraf iste.
@@ -76,7 +79,7 @@ Bilgiler yeterli olunca:
   "open": "07:00", "close": "23:00", "closedDays": [6],
   "teamSize": 12,
   "demand": {"Salon": {"Açılış": [2,2,2,2,3,4,3]}, "Mutfak": {"Açılış": [1,1,1,1,1,2,2]}},
-  "team": [{"name": "Ayşe Demir", "department": "Salon", "phone": ""}],
+  "team": [{"name": "Ayşe Demir", "department": "Salon", "phone": "", "week": ["Açılış","Açılış","","Açılış","","Açılış","Açılış"]}],
   "summary": "Sahibe gösterilecek 2-3 cümlelik özet"
 }}
 demand anahtarları departman adlarıdır; departman yoksa tek anahtar "" kullan. team sadece kişi adları biliniyorsa doldurulur, yoksa boş dizi. Diziler Pazartesi'den Pazar'a 7 sayıdır, kapalı günlerde 0.`;
@@ -103,7 +106,7 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
   const variant = getVariant(industry, typeof r.variant === "string" ? r.variant : null);
 
   const departments = Array.isArray(r.departments)
-    ? [...new Set(r.departments.filter((d): d is string => typeof d === "string").map(d => d.trim().slice(0, 40)).filter(Boolean))].slice(0, 8)
+    ? [...new Set(r.departments.filter((d): d is string => typeof d === "string").map(d => titleCaseIfShouting(d.trim().slice(0, 40))).filter(Boolean))].slice(0, 8)
     : [];
 
   let shifts: SetupShift[] = Array.isArray(r.shifts)
@@ -130,6 +133,9 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
     ? [...new Set(r.closedDays.map(d => clampInt(d, -1, 6, -1)).filter(d => d >= 0))].slice(0, 6)
     : [];
   const team = normalizeTeam(r.team, departments);
+  // Çizelgeden kişi-gün vardiyaları okunduysa kaç kişi tablosu KODLA sayılır (modelin kendi sayımı yerine)
+  const weeks = personWeeks(r.team, departments, shifts);
+  const counted = weeks.length >= Math.max(2, Math.ceil(team.length / 2));
   let teamSize = r.teamSize == null ? null : clampInt(r.teamSize, 1, 500, 0) || null;
   if (team.length && (teamSize ?? 0) < team.length) teamSize = team.length;
 
@@ -140,6 +146,14 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
     Object.keys(obj).find(k => k.trim().toLocaleLowerCase("tr") === want.toLocaleLowerCase("tr"));
   const demand: SetupProposal["demand"] = {};
   for (const dk of deptKeys) {
+    if (counted) {
+      demand[dk] = {};
+      for (const s of shifts) {
+        demand[dk][s.name] = Array.from({ length: 7 }, (_, d) =>
+          closedDays.includes(d) ? 0 : weeks.filter(w => (dk === "" || w.department === dk) && w.week[d] === s.name).length);
+      }
+      continue;
+    }
     const src = (() => {
       const k = findKey(rawDemand, dk) ?? (deptKeys.length === 1 ? Object.keys(rawDemand)[0] : undefined);
       const v = k !== undefined ? rawDemand[k] : undefined;
@@ -154,7 +168,8 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
     }
   }
   // Ekip büyüklüğü verildiyse bir günde çalışan toplam kişi ekibi aşmasın (orantılı küçült)
-  if (teamSize) {
+  // (çizelgeden sayıldıysa gerçek sayıdır, küçültülmez)
+  if (teamSize && !counted) {
     for (let d = 0; d < 7; d++) {
       const cells: number[][] = Object.values(demand).flatMap(m => Object.values(m));
       const total = cells.reduce((t, c) => t + c[d], 0);
@@ -169,6 +184,39 @@ export function normalizeProposal(raw: unknown): SetupProposal | null {
 }
 
 const MAX_TEAM = 200;
+
+/** "SALON" → "Salon" (çizelge başlıkları çoğu zaman büyük harf); karışık yazılmış ada dokunulmaz */
+export function titleCaseIfShouting(v: string): string {
+  if (v.length < 2 || v !== v.toLocaleUpperCase("tr") || v === v.toLocaleLowerCase("tr")) return v;
+  return v.toLocaleLowerCase("tr").replace(/(^|\s)(\p{L})/gu, (_, sp: string, ch: string) => sp + ch.toLocaleUpperCase("tr"));
+}
+
+/** Kişilerin çizelgedeki haftaları: vardiya adı ya da "08-16" gibi saatle eşleşir, eşleşmeyen gün "" */
+function personWeeks(raw: unknown, departments: string[], shifts: SetupShift[]): PersonWeek[] {
+  if (!Array.isArray(raw)) return [];
+  const lower = (x: string) => x.trim().toLocaleLowerCase("tr");
+  const hh = (t: string) => t.slice(0, 2);
+  const shiftOf = (v: unknown): string => {
+    const t = typeof v === "string" ? lower(v) : "";
+    if (!t) return "";
+    const byName = shifts.find(s => lower(s.name) === t);
+    if (byName) return byName.name;
+    const m = t.match(/(\d{1,2})[:.]?\d{0,2}\s*[-–]\s*(\d{1,2})/);
+    if (m) {
+      const [a, b] = [m[1].padStart(2, "0"), m[2].padStart(2, "0")];
+      const byTime = shifts.find(s => hh(s.start) === a && hh(s.end) === b);
+      if (byTime) return byTime.name;
+    }
+    return "";
+  };
+  return raw.flatMap((item): PersonWeek[] => {
+    const x = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    if (!Array.isArray(x.week) || x.week.length !== 7) return [];
+    const want = typeof x.department === "string" ? lower(x.department) : "";
+    const department = departments.find(d => lower(d) === want) ?? "";
+    return [{ department, week: x.week.map(shiftOf) }];
+  });
+}
 /** Ekip listesi: ad 2-60 harf, aynı ad bir kez, departman önerideki departmanlardan biri (değilse ""), telefon sadece rakam */
 export function normalizeTeam(raw: unknown, departments: string[]): SetupPerson[] {
   if (!Array.isArray(raw)) return [];
