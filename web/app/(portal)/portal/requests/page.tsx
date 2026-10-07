@@ -683,7 +683,7 @@ export default function PortalRequests() {
                       body: JSON.stringify({ shift_id: fa.id, action }),
                     });
                     if (r.ok) {
-                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} ek puan kazandınız.` : "Reddedildi. Sorumlun bilgilendirildi.");
+                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} ek puan kazandınız.` : "Reddedildi. Sorumlunuz bilgilendirildi.");
                     } else {
                       const err = await r.json().catch(() => ({}));
                       showToast(err.error || "İşlem başarısız.", "error");

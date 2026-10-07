@@ -329,3 +329,12 @@
 @keyframes tap-dot { from { opacity: 0.9; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.4); } }
 .tap-dot { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; border-radius: 9999px; background: rgb(251 146 60 / 0.5); pointer-events: none; animation: tap-dot 0.6s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .tour-stage, .tour-swap, .sc-pop, .tap-dot { animation: none !important; } }
+
+/* Tanıtım: sektör fotoğrafları şeridi (SectorMarquee) */
+@keyframes m-marquee { from { transform: translateX(0); } to { transform: translateX(calc(-50% - 0.5rem)); } }
+.m-marquee { animation: m-marquee 60s linear infinite; }
+.m-marquee-wrap:hover .m-marquee { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .m-marquee { animation: none; }
+  .m-marquee-wrap { overflow-x: auto; }
+}
