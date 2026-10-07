@@ -4,7 +4,7 @@ import { addDays, businessNow } from "@/lib/date";
 import { autopilotDecision, autopilotSettings, matrixHasDemand, type AutopilotRules } from "@/lib/autopilotRules";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadLocDefs, syncDraftWeek, type DraftShiftRow } from "@/lib/draftSync";
-import { sendPushToPersonnel } from "@/lib/notifications";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
 
 export * from "@/lib/autopilotRules";
 
@@ -21,18 +21,8 @@ async function markRun(db: any, loc: any, rules: any, patch: Partial<AutopilotRu
 }
 
 async function notifyManagers(db: any, loc: any, title: string, message: string, url: string) {
-  const recipients = await db.prepare(`
-    SELECT DISTINCT personnel_id FROM users
-    WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
-  `).all(loc.id) as any[];
-  const now = Math.floor(Date.now() / 1000);
-  for (const r of recipients) {
-    await db.prepare(`
-      INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-      VALUES (?, 'schedule', ?, ?, ?, false, ?)
-    `).run(r.personnel_id, title, message, url, now);
-    await sendPushToPersonnel(r.personnel_id, loc.org_id, { title, body: message, url }).catch(() => {});
-  }
+  // Yönetim paneli bildirimi (hesaba bağlı, lib/managerNotifications): planı yayınlayabilen sorumlular
+  await notifyBranchManagers(db, loc.org_id, loc.id, "publish", { type: "schedule", title, message, link: url });
 }
 
 async function loadRules(db: any, loc: { id: string; org_id: string }) {

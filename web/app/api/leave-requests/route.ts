@@ -7,7 +7,8 @@ import { leaveRequests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch, canActOnPersonnel } from "@/lib/access";
-import { leaveSuggestion, notifyBranchManagers } from "@/lib/suggestions";
+import { leaveSuggestion } from "@/lib/suggestions";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
 
 // GET: Personelin izin taleplerini listele (veya location'daki tüm personelin)
 export async function GET(req: NextRequest) {

@@ -5,7 +5,7 @@
  *  - Bekleyen izin talebi: o günlerdeki vardiyalara en uygun yedek seçilmiş "onayla" önerisi.
  *  - Bugün/yarın/öbür gün kimsenin almadığı ilan (çalışanın "Gelemeyeceğim" dediği vardiya dahil):
  *    en uygun kişiye verme önerisi.
- * Talep geldiği anda sorumluya giden bildirim de aynı metni kullanır (notifyBranchManagers).
+ * Talep geldiği anda sorumluya giden bildirim de aynı metni kullanır (lib/managerNotifications).
  * Kurallar yeni değil: yedek seçimi lib/openShiftCandidates, izin çakışmaları lib/leaveConflicts.
  */
 import type { AuthUser } from "@/lib/auth";
@@ -14,8 +14,7 @@ import { addDays, businessNow, businessWallTime, formatDateTR } from "@/lib/date
 import { leaveTypeLabel } from "@/lib/leave";
 import { coverFor, findConflicts } from "@/lib/leaveConflicts";
 import { rankCandidates } from "@/lib/openShiftCandidates";
-import { departmentScope, hasPerm, parseAccess, type Perm } from "@/lib/userAccess";
-import { sendPushToUser } from "@/lib/notifications";
+import { departmentScope, hasPerm } from "@/lib/userAccess";
 
 export type Suggestion = {
   id: string;
@@ -148,30 +147,4 @@ export async function buildSuggestions(db: any, auth: AuthUser, locationId: stri
     }
   }
   return out.sort((a, b) => Number(b.urgent) - Number(a.urgent));
-}
-
-/**
- * Şubenin sorumlularına (şube sorumlusu, bölge sorumlusu, hesap sahibi) yönetim paneli bildirimi + telefon bildirimi.
- * Sadece işi yapma yetkisi (perm) olan ve departman sorumlusu olmayanlar alır. Bildirim hesaba (user_id) yazılır:
- * çalışan kaydı olmayan sahip de alır, bildirim zilinde görür (components/NotificationBell).
- */
-export async function notifyBranchManagers(db: any, orgId: string, locationId: string, perm: Perm, n: { type: string; title: string; message: string; link: string }) {
-  const rows = await db.prepare(`
-    SELECT id, role, permissions FROM users
-    WHERE org_id = ? AND COALESCE(approval_status, 'active') = 'active'
-      AND (role = 'admin' OR (role = 'manager' AND location_id = ?)
-        OR (role = 'supervisor' AND (managed_location_ids IS NULL OR managed_location_ids = '' OR managed_location_ids = '[]' OR managed_location_ids LIKE ?)))
-  `).all(orgId, locationId, `%"${locationId}"%`) as { id: string; role: string; permissions: string | null }[];
-  const managers = rows.filter(r => {
-    const u = { role: r.role, access: parseAccess(r.permissions) };
-    return !departmentScope(u) && hasPerm(u, perm);
-  });
-  const now = Math.floor(Date.now() / 1000);
-  await Promise.allSettled(managers.map(async m => {
-    await db.prepare(`
-      INSERT INTO notifications (user_id, type, title, message, link, is_read, created_at)
-      VALUES (?, ?, ?, ?, ?, false, ?)
-    `).run(m.id, n.type, n.title, n.message, n.link, now);
-    await sendPushToUser(m.id, orgId, { title: n.title, body: n.message, url: n.link }).catch(() => {});
-  }));
 }

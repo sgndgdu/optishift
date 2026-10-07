@@ -6,6 +6,7 @@
  * dönünce tazelenir. Pencerede "Telefon bildirimlerini aç" (lib/pushClient, hesaba bağlı abonelik).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Bell, BellRing, Check, X } from "lucide-react";
 import { timeAgo } from "@/lib/date";
@@ -95,7 +96,8 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
         )}
       </button>
 
-      {open && (
+      {/* Sayfanın en üst katmanına: kenar menünün kapsayıcısı (transform) fixed pencereyi kendi içine hapsediyordu */}
+      {open && createPortal(
         <>
           <div className="fixed inset-0 z-[60] bg-black/20 lg:bg-transparent" onClick={() => setOpen(false)} />
           <div role="dialog" aria-label="Bildirimler"
@@ -153,7 +155,8 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </>
   );

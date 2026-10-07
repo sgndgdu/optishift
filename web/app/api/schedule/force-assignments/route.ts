@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { managerOutsideBranch } from "@/lib/access";
 import { rescoreWeek } from "@/lib/scoring";
 
@@ -128,23 +129,10 @@ export async function PATCH(req: NextRequest) {
       );
 
       // Müdüre bildirim — lokasyondaki manager/admin kullanıcıları bul
-      const managers = await db.prepare(`
-        SELECT u.personnel_id FROM users u
-        WHERE u.org_id = ? AND u.role IN ('manager', 'admin') AND u.location_id = ?
-      `).all(auth.org_id, shiftRow.location_id) as any[];
-
-      for (const m of managers) {
-        if (m.personnel_id) {
-          await db.prepare(`
-            INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-            VALUES (?, 'alert', 'Zorunlu Atama Kabul Edildi', ?, '/schedule', false, ?)
-          `).run(
-            m.personnel_id,
-            `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`,
-            now,
-          );
-        }
-      }
+      // Yönetim paneli bildirimi (hesaba bağlı, lib/managerNotifications)
+      await notifyBranchManagers(db, auth.org_id, shiftRow.location_id, null, {
+        type: "alert", title: "Zorunlu Atama Kabul Edildi", message: `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`, link: "/schedule",
+      });
       return NextResponse.json({ success: true, action: "accepted", bonus_points: points });
     }
 
@@ -164,23 +152,10 @@ export async function PATCH(req: NextRequest) {
     );
 
     // Müdüre bildirim
-    const managers2 = await db.prepare(`
-      SELECT u.personnel_id FROM users u
-      WHERE u.org_id = ? AND u.role IN ('manager', 'admin') AND u.location_id = ?
-    `).all(auth.org_id, shiftRow.location_id) as any[];
-
-    for (const m of managers2) {
-      if (m.personnel_id) {
-        await db.prepare(`
-          INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-          VALUES (?, 'alert', 'Zorunlu Atama Reddedildi', ?, '/', false, ?)
-        `).run(
-          m.personnel_id,
-          `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını reddetti. İlgili vardiya açık bırakıldı.`,
-          now,
-        );
-      }
-    }
+    // Yönetim paneli bildirimi (hesaba bağlı, lib/managerNotifications)
+    await notifyBranchManagers(db, auth.org_id, shiftRow.location_id, null, {
+      type: "alert", title: "Zorunlu Atama Reddedildi", message: `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını reddetti. İlgili vardiya açık bırakıldı.`, link: "/schedule",
+    });
     return NextResponse.json({ success: true, action: "rejected" });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

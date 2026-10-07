@@ -2,6 +2,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { managerOutsideBranch } from "@/lib/access";
 import { swapReducer, toSwapEvent, SwapStatus } from "@/lib/swapReducer";
 import { sendPushToPersonnel } from "@/lib/notifications";
@@ -360,25 +361,11 @@ export async function PATCH(req: NextRequest) {
 
       // Factor 7: akış duraklar → müdürü bul → bildir (Launch/Pause → insana araç gibi sor)
       if (effect.type === "NOTIFY_MANAGER") {
-        const managers = await db.prepare(`
-          SELECT personnel_id FROM users
-          WHERE location_id = ? AND role IN ('manager', 'admin') AND personnel_id IS NOT NULL
-        `).all(effect.location_id) as any[];
-
-        for (const mgr of managers) {
-          await db.prepare(`
-            INSERT INTO notifications (personnel_id, type, title, message, is_read, created_at)
-            VALUES (?, 'trade_request', ?, ?, false, ?)
-          `).run(mgr.personnel_id, effect.title, effect.message, now);
-
-          pushPromises.push(
-            sendPushToPersonnel(mgr.personnel_id, auth.org_id, {
-              title: effect.title,
-              body: effect.message,
-              url: "/requests",
-            })
-          );
-        }
+        // Yönetim paneli bildirimi (hesaba bağlı, lib/managerNotifications): onay yetkisi olan sorumlular
+        // Beklenir: yanıt döndükten sonra sunucusuz işlev kesilebilir, bildirim kaybolmasın
+        await notifyBranchManagers(db, auth.org_id, effect.location_id, "approvals", {
+          type: "trade_request", title: effect.title, message: effect.message, link: "/requests",
+        }).catch(e => console.error("[swap-requests] sorumlu bildirimi", e));
       }
     }
 

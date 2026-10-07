@@ -5,7 +5,8 @@ import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
 import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
-import { notifyBranchManagers, openShiftSuggestion } from "@/lib/suggestions";
+import { openShiftSuggestion } from "@/lib/suggestions";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { checkPersonChange } from "@/lib/assignmentCheck";
 
 

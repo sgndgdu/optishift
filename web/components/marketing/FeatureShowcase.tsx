@@ -97,6 +97,8 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "Departman, vardiya ve günlük kişi sayısı önerisi",
       "İşletme Asistanı: işletmenizle ilgili sorulara cevap verir",
       "İşletme Asistanı işlem önerir: izin ekler, talepleri karara bağlar, gelemeyen kişinin yerine birini bulur",
+      "Hazır çözümler: biri izin isteyince ya da gelemeyeceğini söyleyince yerine uygun kişi seçilmiş olarak gelir, tek dokunuşla onaylanır",
+      "Sorumlu ve işletme sahibi için bildirim zili ve telefon bildirimi",
       "Hiçbir kayıt sizin onayınız olmadan değişmez",
     ],
   },
