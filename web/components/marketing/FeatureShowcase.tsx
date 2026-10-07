@@ -99,6 +99,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "İşletme Asistanı işlem önerir: izin ekler, talepleri karara bağlar, gelemeyen kişinin yerine birini bulur",
       "Hazır çözümler: biri izin isteyince ya da gelemeyeceğini söyleyince yerine uygun kişi seçilmiş olarak gelir, tek dokunuşla onaylanır",
       "Sorumlu ve işletme sahibi için bildirim zili ve telefon bildirimi",
+      "Aylık özet: kaç planın otomatik hazırlandığı, boşalan vardiyaların kaçının dolduğu, kural aşımı olup olmadığı ve fazla mesainin önceki aya göre değişimi",
       "Hiçbir kayıt sizin onayınız olmadan değişmez",
     ],
   },

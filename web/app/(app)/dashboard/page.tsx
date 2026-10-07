@@ -26,6 +26,7 @@ import { formatPublishLead } from "@/lib/publishLead";
 import { cn } from "@/lib/utils";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { SuggestionsCard } from "@/components/dashboard/SuggestionsCard";
+import { MonthlyGainCard } from "@/components/dashboard/MonthlyGainCard";
 import type { Suggestion } from "@/lib/suggestions";
 
 const ITEM_ICON: Record<string, any> = {
@@ -404,6 +405,7 @@ export default function DashboardPage() {
       </div>
 
       <SuggestionsCard suggestions={suggestions} />
+      <MonthlyGainCard locationId={user.location_id ?? null} />
 
       {/* Bekleyen işler */}
       <Card className="stripe-card border-0 shadow-none">

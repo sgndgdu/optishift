@@ -2,11 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDB } from "@/lib/db/client";
 import { runAutopilotForLocation, type AutopilotResult } from "@/lib/autopilot";
+import { sendMonthlyGainReports } from "@/lib/monthlyGain";
 
 // Motor şube başına ~10 sn (soğuksa +25 sn) sürer: şubeler sırayla, süre bütçesi içinde işlenir.
 // Bütçeye sığmayan şube işaretlenmez, ertesi günkü çalışmada telafi edilir (lib/autopilot autopilotDecision).
 export const maxDuration = 300;
-const BUDGET_MS = 240_000;
+const BUDGET_MS = 200_000; // aylık özet için 40 sn ayrıldı
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
   }
   const started = Date.now();
   const db = getDB();
+  // Ay başı (ilk 3 gün): geçen ayın kazanç özeti sorumlulara (lib/monthlyGain). Ayrı zamanlanmış görev yok:
+  // ücretsiz pakette günde bir görev sınırı var, otomatik pilotla aynı günlük çalışmada yapılır.
+  const monthly = await sendMonthlyGainReports(db, 40_000).catch(e => { console.error("[cron] aylık özet", e); return { sent: 0, checked: 0 }; });
   const locations = await db.prepare(`SELECT id, org_id, name FROM locations`).all() as any[];
   // Motoru önceden uyandır (Render ücretsiz katman uyur)
   const engineUrl = process.env.ENGINE_URL;
@@ -30,5 +34,5 @@ export async function GET(req: NextRequest) {
     }
   }
   const drafted = results.filter(r => r.status === "drafted").length;
-  return NextResponse.json({ locationsChecked: locations.length, drafted, results });
+  return NextResponse.json({ locationsChecked: locations.length, drafted, monthlyReports: monthly.sent, results });
 }

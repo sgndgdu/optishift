@@ -3,9 +3,10 @@
 import { trNum } from "@/lib/format";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet, Timer } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet, Timer, Sparkles } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
 import OvertimeReport from "@/components/reports/OvertimeReport";
+import MonthlyGainReport from "@/components/reports/MonthlyGainReport";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -296,6 +297,8 @@ function WorkHoursReport() {
 // ?tab=adalet derin linki desteklenir (eski /fairness adresi buraya yönlendirir).
 
 const REPORT_TABS = [
+  // Aylık Özet (lib/monthlyGain) ilk ve varsayılan: ay başı bildirimi buraya açılır (?tab=ozet&month=)
+  { id: "ozet",    label: "Aylık Özet",       icon: Sparkles },
   { id: "saatler", label: "Çalışma Saatleri", icon: Clock },
   { id: "adalet",  label: "Adalet Puanı",     icon: Scale },
   { id: "mesai",   label: "Fazla Mesai",      icon: Timer },
@@ -315,7 +318,7 @@ function ReportsPageInner() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReportTab>(() => {
     const t = searchParams.get("tab");
-    return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "saatler";
+    return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "ozet";
   });
 
   // Fazla mesai sekmesi sadece Fazla Mesai Takibi açıkken
@@ -344,7 +347,8 @@ function ReportsPageInner() {
 
       <Tabs items={REPORT_TABS.filter(t => t.id !== "mesai" || overtimeOn)} value={tab} onChange={selectTab} />
 
-      {tab === "saatler" ? <WorkHoursReport /> : tab === "mesai" && overtimeOn ? <OvertimeReport /> : <FairnessReport />}
+      {tab === "ozet" ? <MonthlyGainReport initialMonth={searchParams.get("month")} />
+        : tab === "saatler" ? <WorkHoursReport /> : tab === "mesai" && overtimeOn ? <OvertimeReport /> : <FairnessReport />}
     </Page>
   );
 }
