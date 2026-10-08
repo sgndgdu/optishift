@@ -12,8 +12,7 @@ import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
 import { checkPersonChange } from "@/lib/assignmentCheck";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
-import { canApproveLoan, declinedIds, userCanApproveLoan, wasInvited, worksAt, type Viewer } from "@/lib/loans";
-import { orgSettings } from "@/lib/orgSettings";
+import { canApproveLoan, declinedIds, worksAt, type Viewer } from "@/lib/loans";
 
 export type ClaimOutcome =
   | { ok: true; pending?: boolean }
@@ -43,27 +42,20 @@ export async function claimOpenShift(
     return { ok: false, status: 409, error: "Kendi bıraktığınız vardiyayı alamazsınız. İlanı geri çekebilirsiniz." };
   }
 
-  // Ödünç (lib/loans): başka şubeden kişi. Kendisi alıyorsa davet edilmiş olmalı. İşletme ayarı açıksa (lib/orgSettings)
-  // kişinin şubesinin sorumlusu onaylayınca kesinleşir; yazan / ilanı açan o şube için de karar verebiliyorsa onay gerekmez.
-  // Sorumlunun doğrudan atama yetkisi route'ta (canBorrow) süzülür.
+  // Ödünç (lib/loans): başka şubenin çalışanını sadece sorumlu yazar (yetki route'ta, canBorrow); kişinin şubesinin
+  // sorumlusu onaylayınca kesinleşir. Yazan o şube için de karar verebiliyorsa onay gerekmez. Ekip üyesi başka
+  // şubenin ilanını alamaz.
   const person = await db.prepare(`SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?`).get(claimedBy, orgId) as any;
   if (!person) return { ok: false, status: 404, error: "Kişi bulunamadı" };
   const away = !worksAt(person, os.location_id);
   const home: string | null = person.primary_location_id ?? null;
   let needsLoanApproval = false;
   if (away && !opts.loanApproval) {
+    if (!opts.assignedByManager) return { ok: false, status: 403, error: "Bu vardiya başka bir şubenin." };
     if (declinedIds(os).includes(claimedBy)) {
       return { ok: false, status: 409, error: "Bu vardiya için kişinin şubesinin sorumlusu onay vermedi." };
     }
-    const { loan_approval } = await orgSettings(db, orgId);
-    if (opts.assignedByManager) {
-      needsLoanApproval = loan_approval && !!home && !canApproveLoan(opts.assigner, home);
-    } else {
-      if (!(await wasInvited(db, claimedBy, openShiftId))) {
-        return { ok: false, status: 403, error: "Bu vardiya başka bir şubenin ilanı. Sadece davet edilen kişiler alabilir." };
-      }
-      needsLoanApproval = loan_approval && !!home && !(await userCanApproveLoan(db, os.created_by, home));
-    }
+    needsLoanApproval = !!home && !canApproveLoan(opts.assigner, home);
   }
 
   const dt = new Date(os.date + "T00:00:00Z");
@@ -112,7 +104,7 @@ export async function claimOpenShift(
     if (!held || (Array.isArray(held) && held.length === 0)) {
       return { ok: false, status: 409, error: "Bu vardiyayı az önce başkası aldı" };
     }
-    await notifyLoanRequested(db, orgId, os, claimedBy, claimedByName, person.primary_location_id, !!opts.assignedByManager);
+    await notifyLoanRequested(db, orgId, os, claimedBy, claimedByName, person.primary_location_id);
     return { ok: true, pending: true };
   }
 
@@ -171,7 +163,7 @@ export async function claimOpenShift(
     await db.prepare(`UPDATE personnel SET assigned_location_ids = ? WHERE id = ?`).run(JSON.stringify([...assigned, os.location_id]), claimedBy);
   }
 
-  // Onaysız ödünç (ayar kapalı ya da yazan iki şube için de karar verebiliyor): kişinin şubesine sadece haber
+  // Onaysız ödünç (yazan iki şube için de karar verebiliyor): kişinin şubesine sadece haber
   if (away && !opts.loanApproval && home && home !== os.location_id) {
     const there = await branchName(db, os.location_id);
     await notifyBranchManagers(db, orgId, home, "approvals", {
@@ -208,33 +200,22 @@ async function branchName(db: any, locationId: string | null | undefined): Promi
   return ((await db.prepare(`SELECT name FROM locations WHERE id = ?`).get(locationId)) as any)?.name ?? "";
 }
 
-/** Ödünç onaya düştü: kişiye, ana şubesinin sorumlularına ve ilanı açan şubenin sorumlularına haber */
-async function notifyLoanRequested(db: any, orgId: string, os: any, personnelId: string, name: string | null, homeId: string, byManager: boolean) {
+/** Ödünç onaya düştü: kişiye ve kişinin şubesinin sorumlularına haber */
+async function notifyLoanRequested(db: any, orgId: string, os: any, personnelId: string, name: string | null, homeId: string) {
   const when = `${formatDateTR(os.date)} ${os.start_time}–${os.end_time}`;
-  const [there, home] = await Promise.all([branchName(db, os.location_id), branchName(db, homeId)]);
+  const there = await branchName(db, os.location_id);
   const who = name ?? "Bir ekip üyeniz";
-  const now = Math.floor(Date.now() / 1000);
   await db.prepare(`
     INSERT INTO notifications (personnel_id, type, title, message, link, created_at)
     VALUES (?, 'open_shift', ?, ?, '/portal/open-shifts', ?)
   `).run(personnelId, "Onay bekleniyor",
-    byManager
-      ? `${there} şubesi sizi ${when} vardiyasına yazmak istiyor. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`
-      : `${there} şubesindeki ${when} vardiyasını aldınız. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`, now);
+    `${there} şubesi sizi ${when} vardiyasına yazmak istiyor. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`,
+    Math.floor(Date.now() / 1000));
   await notifyBranchManagers(db, orgId, homeId, "approvals", {
     type: "open_shift", title: "Başka şubeye yardım isteği",
-    message: byManager
-      ? `${there} şubesi ${who} kişisini ${when} vardiyasına yazmak istiyor. Onaylarsanız vardiya planına yazılır.`
-      : `${who}, ${there} şubesindeki ${when} vardiyasını almak istiyor. Onaylarsanız vardiya planına yazılır.`,
+    message: `${there} şubesi ${who} kişisini ${when} vardiyasına yazmak istiyor. Onaylarsanız vardiya planına yazılır.`,
     link: "/requests",
   }).catch(() => 0);
-  if (!byManager) {
-    await notifyBranchManagers(db, orgId, os.location_id, "plan_settings", {
-      type: "open_shift", title: "İlan alındı, onay bekleniyor",
-      message: `${who} (${home}) ${when} vardiyasını aldı. ${home} şubesinin sorumlusu onaylayınca vardiya planınıza yazılır.`,
-      link: "/open-shifts",
-    }).catch(() => 0);
-  }
 }
 
 /**
@@ -260,7 +241,7 @@ export async function declineLoan(db: any, orgId: string, openShiftId: number, b
     VALUES (?, 'open_shift', ?, ?, ?)
   `).run(os.claimed_by, "Vardiya size verilmedi",
     by === "home"
-      ? `Sorumlunuz ${there} şubesindeki ${when} vardiyasını almanızı onaylamadı. Kendi planınız değişmedi.`
+      ? `Sorumlunuz ${there} şubesindeki ${when} vardiyasına gitmenizi onaylamadı. Kendi planınız değişmedi.`
       : `${there} şubesi ${when} vardiyası için başka birini arıyor. Kendi planınız değişmedi.`, now);
   if (by === "home") {
     await notifyBranchManagers(db, orgId, os.location_id, "plan_settings", {
@@ -281,8 +262,8 @@ export async function publishOpenShift(
   o: {
     org_id: string; location_id: string; date: string; start_time: string; end_time: string; note: string | null;
     heroPoints?: number; releasedBy?: string | null; sourceAssignmentId?: number | null; notify?: "all" | "top" | "none";
-    /** İlanı açan hesap (users.id) ve başka şubelere de duyurulsun mu (lib/loans canBorrow) */
-    createdBy?: string | null; crossBranch?: boolean;
+    /** İlanı açan hesap (users.id) */
+    createdBy?: string | null;
   },
 ): Promise<{ id: number | null; notified: string[] }> {
   const notify = o.notify ?? "all";
@@ -303,7 +284,7 @@ export async function publishOpenShift(
     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)
   `).run(o.org_id, o.location_id, o.date, o.start_time, o.end_time, o.note, heroPoints, now, o.releasedBy ?? null, o.sourceAssignmentId ?? null, o.createdBy ?? null);
   const osId = result.lastInsertRowid ?? null;
-  const notified = await announceOpenShift(db, { ...o, id: osId, heroPoints: heroPoints ?? 6, notify, crossBranch: !!o.crossBranch });
+  const notified = await announceOpenShift(db, { ...o, id: osId, heroPoints: heroPoints ?? 6, notify });
   return { id: osId, notified };
 }
 
@@ -312,12 +293,12 @@ export async function announceOpenShift(
   db: any,
   o: {
     id: number | null; org_id: string; location_id: string; date: string; start_time: string; end_time: string;
-    heroPoints: number; releasedBy?: string | null; notify: "all" | "top" | "none"; crossBranch?: boolean;
+    heroPoints: number; releasedBy?: string | null; notify: "all" | "top" | "none";
   },
 ): Promise<string[]> {
   const { notify, heroPoints } = o;
   const now = Math.floor(Date.now() / 1000);
-  let targets: { id: string; name?: string; away?: boolean }[] = [];
+  let targets: { id: string; name?: string }[] = [];
   if (notify === "all" || notify === "top") {
     const { candidates } = await rankCandidates(db, { location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, excludePersonnelId: o.releasedBy ?? undefined });
     if (notify === "all") {
@@ -329,14 +310,6 @@ export async function announceOpenShift(
       targets = local.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
       if (targets.length === 0) targets = local.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
     }
-    // Ödünç: diğer şubelere de davet gider, portalda ilanı görüp alabilir. Sadece ilanı "Başka şubeden kişi"
-    // yetkisiyle açan sorumluda (lib/loans canBorrow)
-    // "Herkese duyur": diğer şubelerde alabilecek herkes; "İlk 3": diğer şubelerden en uygun 3 kişi (sorumlunun seçimi)
-    if (o.crossBranch) {
-      const away = candidates.filter(c => c.other_branch && !c.blocking);
-      targets.push(...(notify === "all" ? away : away.filter(c => c.warnings.length === 0).slice(0, 3))
-        .map(c => ({ id: c.personnel_id, name: c.name, away: true })));
-    }
   }
   const dateLabel = formatDateTR(o.date);
   const branchLabel = await branchName(db, o.location_id);
@@ -347,10 +320,6 @@ export async function announceOpenShift(
   `);
   // Bildirimler paralel: sırayla gönderilince kalabalık şubede ilan saniyelerce sürüyordu
   await Promise.allSettled(targets.map(async p => {
-    if (p.away && osId) {
-      await sendAwayInvite(db, { id: osId, org_id: o.org_id, location_id: o.location_id, date: o.date, start_time: o.start_time, end_time: o.end_time, hero_bonus_multiplier: heroPoints }, p.id, branchLabel);
-      return;
-    }
     const link = "/portal/open-shifts";
     await insertNotif.run(
       p.id,
@@ -367,36 +336,5 @@ export async function announceOpenShift(
       url: link,
     });
   }));
-  return targets.map(p => (p.away ? `${p.name ?? p.id} (başka şube)` : p.name ?? p.id));
-}
-
-/**
- * Başka şubedeki bir kişiye ilan daveti (bildirim + telefon bildirimi). Davet edilen kişi ilanı portalda görür ve
- * alabilir (lib/loans wasInvited bu bildirimin bağlantısına bakar). Duyuru ve sorumlunun "Davet et" düğmesi kullanır.
- */
-export async function sendAwayInvite(
-  db: any,
-  os: { id: number; org_id: string; location_id: string; date: string; start_time: string; end_time: string; hero_bonus_multiplier: number },
-  personnelId: string,
-  branchLabel?: string,
-): Promise<void> {
-  const name = branchLabel ?? await branchName(db, os.location_id);
-  const dateLabel = formatDateTR(os.date);
-  const link = `/portal/open-shifts?invite=${os.id}`;
-  const points = Number(os.hero_bonus_multiplier) || 0;
-  await db.prepare(`
-    INSERT INTO notifications (personnel_id, type, title, message, link, created_at)
-    VALUES (?, 'open_shift', ?, ?, ?, ?)
-  `).run(
-    personnelId,
-    `${name} şubesinde yardım aranıyor · ${dateLabel}`,
-    `${name} şubesinde ${os.start_time}–${os.end_time} vardiyası boş ve sizin o gün vardiyanız yok. İsterseniz bu vardiyayı alabilirsiniz, kendi sorumlunuz onaylayınca planınıza yazılır.${points > 0 ? ` Vardiyayı alan kişi +${points} puan kazanır.` : ""}`,
-    link,
-    Math.floor(Date.now() / 1000),
-  );
-  await sendPushToPersonnel(personnelId, os.org_id, {
-    title: `${name} şubesinde yardım aranıyor`,
-    body: `${dateLabel} ${os.start_time}–${os.end_time}: gönüllü aranıyor.`,
-    url: link,
-  });
+  return targets.map(p => p.name ?? p.id);
 }

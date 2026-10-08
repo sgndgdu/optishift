@@ -1,5 +1,5 @@
 export function getNotifHref(notif: { type?: string; link?: string | null }): string | null {
-  // Bildirimin kendi bağlantısı varsa o (örn. başka şubeden davet: /portal/open-shifts?invite=12)
+  // Bildirimin kendi bağlantısı varsa o (örn. /requests)
   if (notif.link && notif.link.startsWith("/portal")) return notif.link;
   switch (notif.type) {
     case "schedule":      return "/portal/calendar";

@@ -29,9 +29,8 @@ export default function PortalOpenShiftsPage() {
     if (!user?.location_id) { setLoading(false); return; }
     setLoading(true);
     try {
-      // Çalıştığı tüm şubeler + bildirimdeki davet (?invite=<id>, başka şubeden yardım isteği)
-      const invite = new URLSearchParams(window.location.search).get("invite");
-      const shiftsData = await fetch(`/api/open-shifts?mine=1${invite ? `&invite=${encodeURIComponent(invite)}` : ""}`).then(r => r.json());
+      // Çalıştığı tüm şubeler + kendi sorumlusunun onayını bekleyen başka şube vardiyaları
+      const shiftsData = await fetch(`/api/open-shifts?mine=1`).then(r => r.json());
       setShifts(Array.isArray(shiftsData) ? shiftsData : []);
     } finally {
       setLoading(false);
@@ -50,8 +49,7 @@ export default function PortalOpenShiftsPage() {
         body: JSON.stringify({ id: shift.id, claimed_by: user.personnel_id, claimed_by_name: user.name }),
       });
       const data = await r.json().catch(() => ({}));
-      // Başka şubenin vardiyası: kendi sorumlusu onaylayınca planına yazılır (lib/loans)
-      if (r.ok) { showToast(data.pending ? "Vardiyayı aldınız. Kendi sorumlunuz onaylayınca planınıza yazılır." : "Vardiyayı aldınız. Teşekkürler!"); await load(); }
+      if (r.ok) { showToast("Vardiyayı aldınız. Teşekkürler!"); await load(); }
       else { showToast(violationText(data, "Vardiya alınamadı")); }
     } finally { setBusyId(null); }
   }
@@ -108,7 +106,7 @@ export default function PortalOpenShiftsPage() {
               </div>
             );
           }
-          // Aldığım başka şube vardiyası, kendi sorumlumun onayını bekliyor
+          // Başka şubenin beni yazdığı vardiya, kendi sorumlumun onayını bekliyor
           if (s.awaiting_approval) {
             return (
               <div key={s.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
@@ -119,7 +117,7 @@ export default function PortalOpenShiftsPage() {
                 <div>
                   <p className="text-sm font-bold text-slate-900">{formatDate(s.date)}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{s.start_time} – {s.end_time}</p>
-                  <p className="text-xs text-slate-500 mt-1">Bu vardiyayı aldınız. Kendi sorumlunuz onaylayınca planınıza yazılır, size bildirim gelir.</p>
+                  <p className="text-xs text-slate-500 mt-1">Bu şube sizi vardiyaya yazmak istiyor. Kendi sorumlunuz onaylayınca planınıza yazılır, size bildirim gelir.</p>
                 </div>
               </div>
             );
@@ -128,7 +126,6 @@ export default function PortalOpenShiftsPage() {
             <div key={s.id} className={`bg-white rounded-2xl border p-5 space-y-3 ${(s.problems?.length ?? 0) > 0 ? "border-slate-200" : "border-amber-200"}`}>
               <div className="flex flex-wrap items-center gap-2">
                 {s.other_branch && <StatusPill tone="info">{s.location_name} şubesi</StatusPill>}
-                {s.invited && <StatusPill tone="brand">Size özel davet</StatusPill>}
                 {s.hero_bonus_multiplier > 0 && (
                   <StatusPill tone="attention">
                     <Star size={9} /> +{s.hero_bonus_multiplier} puan
@@ -150,7 +147,6 @@ export default function PortalOpenShiftsPage() {
               ) : confirmId === s.id ? (
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-slate-800">{formatDate(s.date)} {s.start_time} – {s.end_time} vardiyasını almak istiyor musunuz?</p>
-                  {s.invited && <p className="text-xs text-slate-500">Bu vardiya başka bir şubede. Kendi sorumlunuz onaylayınca planınıza yazılır.</p>}
                   <div className="flex gap-2">
                     <button onClick={() => setConfirmId(null)} disabled={busyId === s.id}
                       className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50">Vazgeç</button>

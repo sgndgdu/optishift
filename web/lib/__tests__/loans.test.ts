@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { canApproveLoan, canBorrow, declinedIds, worksAt } from "@/lib/loans";
-import { parseOrgSettings } from "@/lib/orgSettings";
 import { canBendRules, RULE_CHECK_IDS } from "@/lib/ruleBend";
 import { readFileSync } from "fs";
 import { missingPerm, parseAccess } from "@/lib/userAccess";
@@ -19,13 +18,6 @@ describe("loans: şubeler arası ödünç kuralları", () => {
     expect(canBorrow(mgrA(["plan_settings", "cross_branch"]))).toBe(true);
     expect(canBorrow(mgrA(["prepare", "team"], "d1"))).toBe(false); // departman sorumlusu
     expect(canBorrow(employee)).toBe(false);
-  });
-
-  it("işletme ayarı: veren şubenin onayı varsayılan açık, kapatılabilir", () => {
-    expect(parseOrgSettings(null).loan_approval).toBe(true);
-    expect(parseOrgSettings("bozuk").loan_approval).toBe(true);
-    expect(parseOrgSettings({ loan_approval: false }).loan_approval).toBe(false);
-    expect(parseOrgSettings('{"loan_approval":true}').loan_approval).toBe(true);
   });
 
   it("kuralı sadece hesap sahibi esnetir", () => {

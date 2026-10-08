@@ -218,7 +218,7 @@ export default function OpenShiftsPage() {
       leading={<DateBadge date={s.date} />}
       title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
       subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} aldı`
-        : s.status === "loan_pending" ? `${s.claimed_by_name ?? "Başka şubeden biri"} aldı, kendi sorumlusunun onayı bekleniyor`
+        : s.status === "loan_pending" ? `${s.claimed_by_name ?? "Başka şubeden biri"} yazıldı, kendi sorumlusunun onayı bekleniyor`
         : s.note || (s.hero_bonus_multiplier > 0 ? `Alana +${s.hero_bonus_multiplier} puan` : "Bonus yok")}
       trailing={<StatusBadge status={s.status} expired={s.status === "open" && s.date < todayISO} />}
     />
@@ -265,7 +265,7 @@ export default function OpenShiftsPage() {
               {selected.status === "claimed" && selected.claimed_by_name && (
                 <DetailRow label="Alan"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
               )}
-              {selected.status === "loan_pending" && <DetailRow label="Alan">{selected.claimed_by_name ?? "Başka şubeden biri"}</DetailRow>}
+              {selected.status === "loan_pending" && <DetailRow label="Yazılan">{selected.claimed_by_name ?? "Başka şubeden biri"}</DetailRow>}
             </div>
 
             {selected.status === "loan_pending" && isLive(selected) && (

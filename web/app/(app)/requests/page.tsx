@@ -448,7 +448,7 @@ export default function ManagerRequestsPage() {
                     <StatusPill tone="attention">Onayınızı bekliyor</StatusPill>
                   </div>
                   <p className="text-xs text-slate-500">{l.location_name} şubesi · {formatDateTR(l.date)} {l.start_time}–{l.end_time}</p>
-                  <p className="text-xs text-slate-600 mt-1.5">{l.location_name} şubesinin ilanını aldı. Onaylarsanız bu vardiya kişinin planına yazılır. Reddederseniz kişinin planı değişmez, ilan yeniden açılır.</p>
+                  <p className="text-xs text-slate-600 mt-1.5">{l.location_name} şubesi bu kişiyi vardiyaya yazmak istiyor. Onaylarsanız bu vardiya kişinin planına yazılır. Reddederseniz kişinin planı değişmez, ilan yeniden açılır.</p>
                 </div>
                 {l.claimed_at && <span className="text-xs text-slate-400 shrink-0">{timeAgo(l.claimed_at)}</span>}
               </div>

@@ -2,7 +2,6 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { parseOrgSettings } from "@/lib/orgSettings";
 
 
 // GET /api/admin/organizations — oturumdaki işletme ([org] dizisi; eski ekranlar ?id= gönderir, yok sayılır)
@@ -45,12 +44,6 @@ export async function PATCH(req: NextRequest) {
 
     if (body.connected_erp !== undefined) { updates.push("connected_erp = ?"); values.push(body.connected_erp); }
     if (body.erp_mapped_fields !== undefined) { updates.push("erp_mapped_fields = ?"); values.push(JSON.stringify(body.erp_mapped_fields)); }
-    // İşletme geneli ayarlar (lib/orgSettings): gelen anahtarlar mevcut ayarların üstüne yazılır
-    if (body.settings && typeof body.settings === "object") {
-      const cur = await db.prepare(`SELECT settings FROM organizations WHERE id = ?`).get(auth.org_id) as any;
-      const merged = parseOrgSettings({ ...parseOrgSettings(cur?.settings), ...body.settings });
-      updates.push("settings = ?"); values.push(JSON.stringify(merged));
-    }
     // Paket buradan değişmez (ödeme ya da God Mode değiştirir); eskiden her sahip kendini Pro yapabiliyordu
 
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });

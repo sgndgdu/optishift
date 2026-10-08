@@ -9,7 +9,7 @@ import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@
 import { openShiftSuggestion } from "@/lib/suggestions";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { checkPersonChange } from "@/lib/assignmentCheck";
-import { canBorrow, declinedIds, wasInvited, worksAt } from "@/lib/loans";
+import { canBorrow, worksAt } from "@/lib/loans";
 import { canBendRules, EXCEPTION_SENT_MESSAGE, requestRuleException } from "@/lib/ruleExceptions";
 
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  // Çalışan portalı (?mine=1): çalıştığı TÜM şubelerin açık ilanları + davet edildiği başka şube ilanı (?invite=<id>)
+  // Çalışan portalı (?mine=1): çalıştığı TÜM şubelerin açık ilanları + kendi sorumlusunun onayını bekleyen başka şube vardiyaları
   if (searchParams.get("mine") === "1" && auth.personnel_id) {
     const db0 = getDB();
     try {
@@ -38,17 +38,7 @@ export async function GET(req: NextRequest) {
         SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
         WHERE os.org_id = ? AND os.status = 'open' AND os.date >= ? AND os.location_id IN (${locs.map(() => "?").join(",")})
         ORDER BY os.date ASC, os.start_time ASC`).all(auth.org_id, today, ...locs) as any[] : [];
-      // Onay alamadığı ilan listede görünmez (lib/loans declineLoan)
-      for (let i = rows.length - 1; i >= 0; i--) if (declinedIds(rows[i]).includes(auth.personnel_id)) rows.splice(i, 1);
-      // Davet: sadece bu kişiye davet bildirimi gittiyse (ilan numarasını bilen herkes göremez)
-      const invite = Number(searchParams.get("invite"));
-      if (invite && !rows.some(r => Number(r.id) === invite) && await wasInvited(db0, auth.personnel_id, invite)) {
-        const inv = await db0.prepare(`
-          SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
-          WHERE os.id = ? AND os.org_id = ? AND os.status = 'open' AND os.date >= ?`).get(invite, auth.org_id, today) as any;
-        if (inv && !declinedIds(inv).includes(auth.personnel_id)) rows.unshift({ ...inv, invited: true });
-      }
-      // Aldığı, kendi sorumlusunun onayını bekleyen başka şube vardiyaları
+      // Başka şubenin kendisini yazdığı, kendi sorumlusunun onayını bekleyen vardiyalar
       const waiting = await db0.prepare(`
         SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
         WHERE os.org_id = ? AND os.status = 'loan_pending' AND os.claimed_by = ? AND os.date >= ?
@@ -233,12 +223,11 @@ export async function POST(req: NextRequest) {
     }
 
     const employeeRelease = auth.role === "employee" && !!sourceAssignmentId;
-    // Başka şubelere davet sadece "Başka şubeden kişi" yetkisiyle (lib/loans); ekip üyesinin bıraktığı vardiya kendi şubesinde kalır
     const published = await publishOpenShift(db, {
       org_id, location_id, date, start_time, end_time, note: note ?? null,
       heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
       releasedBy: absentPersonnelId, sourceAssignmentId, notify,
-      createdBy: auth.id, crossBranch: canBorrow(auth),
+      createdBy: auth.id,
     });
     // Çalışan vardiyasını bıraktı ("Gelemeyeceğim"): sorumlulara en uygun yedekle birlikte haber ver (lib/suggestions)
     if (employeeRelease) {

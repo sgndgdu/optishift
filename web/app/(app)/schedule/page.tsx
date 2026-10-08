@@ -369,7 +369,6 @@ function SchedulePageInner() {
   // "Gelemiyor" (hastalık/acil) penceresi: yayınlanmış vardiya için akıllı yedek (lib/openShiftCandidates)
   const [absence, setAbsence] = useState<{ assignmentId: number; personId: string; title: string } | null>(null);
   const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string; assignable?: boolean }[] | null>(null);
-  const [absenceCrossBranch, setAbsenceCrossBranch] = useState(false); // ilan başka şubelere de duyurulur (lib/loans canBorrow)
   const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
   const [absenceBusy, setAbsenceBusy] = useState(false);
   // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
@@ -1398,7 +1397,7 @@ function SchedulePageInner() {
     setAbsenceReason("sick");
     fetch(`/api/open-shifts/candidates?assignment_id=${assignmentId}`)
       .then(r => r.json())
-      .then(d => { setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []); setAbsenceCrossBranch(d?.cross_branch === true); })
+      .then(d => setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []))
       .catch(() => setAbsenceCands([]));
   };
 
@@ -3499,7 +3498,7 @@ loading ? (
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar.{absenceCrossBranch ? " İlan diğer şubelerdeki uygun kişilere de gider." : ""} İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
+                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar. Başka şubeden birini atarsanız kendi şubesinin sorumlusu onaylar. İlanı ilk kabul eden vardiyayı alır ve ek puan kazanır.</p>
               </div>
             </Sheet>
           )}

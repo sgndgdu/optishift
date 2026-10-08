@@ -28,7 +28,7 @@ export const organizations = pgTable("organizations", {
   notes: text("notes"),                           // admin iç notu
   feature_flags: text("feature_flags").default("{}"), // JSON
   max_personnel: integer("max_personnel"),        // null = sınırsız
-  // İşletme geneli ayarlar (JSON, lib/orgSettings): { loan_approval } (2026-10-08)
+  // İşletme geneli ayarlar için ayrıldı (JSON); şu an kullanılmıyor (ödünç onay ayarı 2026-10-08 kaldırıldı)
   settings: text("settings"),
   created_at: bigint("created_at", { mode: "number" }),
   last_activity_at: bigint("last_activity_at", { mode: "number" }),

@@ -55,11 +55,11 @@ export async function GET(req: NextRequest) {
       };
     }
     const { candidates, is_night } = await rankCandidates(db, slot);
-    // Başka şubelerdeki adaylar sadece "Başka şubeden kişi" yetkisiyle (lib/loans). assignable: onaysız doğrudan atanabilir
+    // Başka şubelerdeki adaylar sadece "Başka şubeden kişi" yetkisiyle (lib/loans); atanırsa kişinin sorumlusu onaylar
     const borrow = canBorrow(auth);
     // Uygun olan herkes (sayı sınırı yok, kullanıcı kararı 2026-10-08): önce kendi şubesi, sonra diğer şubeler
     const list = candidates.filter(c => !declined.includes(c.personnel_id) && (!c.other_branch || borrow));
-    return NextResponse.json({ candidates: list, is_night, cross_branch: borrow, can_bend_rules: auth.role === "admin" });
+    return NextResponse.json({ candidates: list, is_night });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
