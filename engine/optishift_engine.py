@@ -1030,8 +1030,9 @@ def build_model():
     # kırmızı günler kapatmışsa plan kilitlenmez (soft).
     ot_penalty_term = sum(flag * w for flag, w in overtime_distribution_penalties) if overtime_distribution_penalties else 0
 
+    # fairness_weight: varsayılan 100. Sadece karşılaştırma denemesinde 0 verilir (adalet motoru kapalı plan).
     model.minimize(
-        fairness_gap * 100
+        fairness_gap * int(RULES.get("fairness_weight", 100))
         - total_assignments
         + sum(preferred_not_penalties) * 10
         + sum(window_penalties) * WINDOW_SOFT_PENALTY
