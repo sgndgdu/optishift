@@ -64,7 +64,7 @@ export default function FairnessReport() {
         fetch(`/api/locations?id=${lid}`),
         fetch(`/api/personnel?location_id=${lid}`),
         fetch(`/api/open-shifts?location_id=${lid}`),
-        fetch(`/api/score-history?location_id=${lid}&weeks=8`),
+        fetch(`/api/score-history?location_id=${lid}&weeks=8&all_branches=1`),
         fetch(`/api/score-adjustments?location_id=${lid}`),
       ]);
       const locData  = await locRes.json();

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { db } from "@/lib/db";
-import { locations, scoreAdjustments } from "@/lib/db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { locations, personnel, scoreAdjustments } from "@/lib/db/schema";
+import { and, eq, desc, inArray, like, or } from "drizzle-orm";
 
 /**
- * GET /api/score-adjustments?location_id=... — lokasyonun puan olayları (müdür görünümü).
+ * GET /api/score-adjustments?location_id=... — bu şubede çalışan kişilerin puan olayları (müdür görünümü).
+ * Puan kişiye ait olduğu için kişinin başka şubelerdeki olayları da gelir (lib/scoring recomputeLocationFairness).
  * Fairness sayfasındaki kişi bazlı kırılımda "neden bu puan?" sorusunun olay ayağı.
  */
 export async function GET(req: NextRequest) {
@@ -33,10 +34,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
     }
 
+    const people = await db
+      .select({ id: personnel.id })
+      .from(personnel)
+      .where(and(
+        eq(personnel.org_id, auth.org_id),
+        or(eq(personnel.primary_location_id, location_id), like(personnel.assigned_location_ids, `%"${location_id}"%`)),
+      ));
+    const pids = people.map(p => p.id);
+
     const rows = await db
       .select()
       .from(scoreAdjustments)
-      .where(eq(scoreAdjustments.location_id, location_id))
+      .where(pids.length
+        ? or(eq(scoreAdjustments.location_id, location_id), inArray(scoreAdjustments.personnel_id, pids))
+        : eq(scoreAdjustments.location_id, location_id))
       .orderBy(desc(scoreAdjustments.created_at))
       .limit(200);
 
