@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
 import { verifyGodToken } from "./lib/god-auth";
+import { requestHasForeignScope } from "./lib/orgScope";
 import { CHEF_BLOCKED_ERROR, EMPLOYEE_VIEW_HEADER, isChefBlocked, isViewOnly, missingPerm, permError, VIEW_ONLY_ERROR } from "./lib/userAccess";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
@@ -150,6 +151,10 @@ export async function proxy(req: NextRequest) {
   // Yöneticinin seçilmiş yetki maddeleri (lib/userAccess PERM_ROUTES): eksik maddede yazma kesilir
   const missing = missingPerm(user, req.method, pathname);
   if (missing) return NextResponse.json({ error: permError(missing) }, { status: 403 });
+  // İstekteki şube/departman kimlikleri bu işletmenin olmalı (lib/orgScope)
+  if (await requestHasForeignScope(req, user.org_id)) {
+    return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+  }
 
   return NextResponse.next({ request: { headers } });
 }

@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = await db.prepare(
-      "SELECT name, phone FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'"
-    ).all(`%"${location_id}"%`) as { name: string; phone: string | null }[];
+      "SELECT name, phone FROM personnel WHERE assigned_location_ids LIKE ? AND org_id = ? AND status = 'active'"
+    ).all(`%"${location_id}"%`, auth.org_id) as { name: string; phone: string | null }[];
     const checked = checkRows(clean, { departments, existing, createDepartments: create_departments === true });
 
     const org_id = auth.org_id;

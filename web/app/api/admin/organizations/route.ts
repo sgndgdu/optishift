@@ -4,40 +4,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 
-// GET /api/admin/organizations — tüm organizasyonları listele veya ?id= ile tek org
+// GET /api/admin/organizations — oturumdaki işletme ([org] dizisi; eski ekranlar ?id= gönderir, yok sayılır)
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  // Supervisor kendi org'unu görebilir; admin tümünü
   if (auth.role !== "admin" && auth.role !== "supervisor") {
     return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
   }
 
   const db = getDB();
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    // Supervisor sadece kendi org'una erişebilir
-    if (auth.role === "supervisor") {
-      const org = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(auth.org_id) as any;
-      return NextResponse.json(org ? [org] : []);
-    }
-
-    if (id) {
-      const org = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(id) as any;
-      return NextResponse.json(org ? [org] : []);
-    }
-
-    const orgs = await db.prepare(`SELECT * FROM organizations ORDER BY rowid DESC`).all() as any[];
-    const result = await Promise.all(orgs.map(async (org) => {
-      const locations = await db.prepare(`SELECT id, name FROM locations WHERE org_id = ?`).all(org.id);
-      const userCountRow = await db.prepare(`SELECT count(*) as cnt FROM users WHERE org_id = ?`).get(org.id) as any;
-      const personnelCountRow = await db.prepare(`SELECT count(*) as cnt FROM personnel WHERE org_id = ? AND status='active'`).get(org.id) as any;
-      return { ...org, locations, userCount: userCountRow?.cnt ?? 0, personnelCount: personnelCountRow?.cnt ?? 0 };
-    }));
-    return NextResponse.json(result);
+    // Herkes sadece kendi işletmesini görür. Eskiden "admin" platform yöneticisi sayılıyordu ve ?id= ile her işletmeyi
+    // okuyabiliyordu; artık her işletme sahibi admin (platform yönetimi God Mode'da).
+    const org = await db.prepare(`SELECT * FROM organizations WHERE id = ?`).get(auth.org_id) as any;
+    return NextResponse.json(org ? [org] : []);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -63,10 +44,11 @@ export async function PATCH(req: NextRequest) {
 
     if (body.connected_erp !== undefined) { updates.push("connected_erp = ?"); values.push(body.connected_erp); }
     if (body.erp_mapped_fields !== undefined) { updates.push("erp_mapped_fields = ?"); values.push(JSON.stringify(body.erp_mapped_fields)); }
-    if (body.plan !== undefined) { updates.push("plan = ?"); values.push(body.plan); }
+    // Paket buradan değişmez (ödeme ya da God Mode değiştirir); eskiden her sahip kendini Pro yapabiliyordu
 
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
-    values.push(id);
+    if (id !== auth.org_id) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    values.push(auth.org_id);
     await db.prepare(`UPDATE organizations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
     return NextResponse.json({ success: true });
   } catch (err: any) {
@@ -88,8 +70,9 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id zorunlu" }, { status: 400 });
 
-    // Mark all personnel as inactive
-    await db.prepare("UPDATE personnel SET status='inactive' WHERE org_id=?").run(id);
+    // Sadece kendi işletmesi (eskiden her işletmenin personeli pasife alınabiliyordu)
+    if (id !== auth.org_id) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+    await db.prepare("UPDATE personnel SET status='inactive' WHERE org_id=?").run(auth.org_id);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

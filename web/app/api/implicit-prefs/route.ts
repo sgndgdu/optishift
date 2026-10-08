@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
   try {
     let defs: any[] = [];
     try { defs = typeof loc.shift_definitions === "string" ? JSON.parse(loc.shift_definitions) : (loc.shift_definitions ?? []); } catch { defs = []; }
-    const people = await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`)
-      .all(`%"${location_id}"%`) as any[];
+    const people = await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND org_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
+      .all(`%"${location_id}"%`, auth.org_id) as any[];
     return NextResponse.json(await loadImplicitPrefs(db, people.map(p => p.id), week_start,
       Object.fromEntries(defs.map(d => [String(d.id), String(d.name ?? "")]))));
   } catch (err: any) {

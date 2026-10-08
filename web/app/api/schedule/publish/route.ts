@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
     const chefDept = departmentScope(auth);
     const chefFamily = await chefDepartmentIds(db, auth);
     const activePersonnel = (await db.prepare(`
-      SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active'
-    `).all(`%"${location_id}"%`) as any[]).filter((p: any) => !chefFamily || chefFamily.includes(p.department_id));
+      SELECT * FROM personnel WHERE assigned_location_ids LIKE ? AND org_id = ? AND status = 'active'
+    `).all(`%"${location_id}"%`, auth.org_id) as any[]).filter((p: any) => !chefFamily || chefFamily.includes(p.department_id));
 
     // Kişi başı bildirimler paralel: sırayla gidince yayın kalabalık şubede ~11 sn sürüyordu (Test 3)
     let sentCount = 0;

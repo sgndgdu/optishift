@@ -44,8 +44,8 @@ export async function GET(req: NextRequest) {
 
     // /api/generate ile aynı kişi kümesi: şubenin aktif ve planlanabilir personeli
     const people = (department_id
-      ? await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND department_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
-          .all(`%"${location_id}"%`, department_id)
+      ? await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND org_id = ? AND department_id = ? AND status = 'active' AND schedulable IS NOT FALSE`)
+          .all(`%"${location_id}"%`, auth.org_id, department_id)
       : await db.prepare(`SELECT id FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`)
           .all(`%"${location_id}"%`)) as any[];
 

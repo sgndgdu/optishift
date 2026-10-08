@@ -46,8 +46,8 @@ export async function GET(req: NextRequest) {
     // Gece tek kural lib/legal isNightTime (vardiya saatinden)
 
     const personnelRows = await db.prepare(
-      `SELECT id, name FROM personnel WHERE assigned_location_ids LIKE ? AND status = 'active' AND schedulable IS NOT FALSE`
-    ).all(`%"${location_id}"%`) as any[];
+      `SELECT id, name FROM personnel WHERE assigned_location_ids LIKE ? AND org_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
+    ).all(`%"${location_id}"%`, auth.org_id) as any[];
     if (personnelRows.length === 0) return NextResponse.json({ enabled: true, at_risk: [] });
 
     const today = businessToday();

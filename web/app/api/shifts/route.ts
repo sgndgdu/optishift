@@ -383,7 +383,7 @@ export async function POST(req: NextRequest) {
                 compAffectedLocations.add(location_id);
                 await db.prepare(`
                   INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
-                  VALUES (?, 'alert', 'Vardiyan Güncellendi', ?, '/portal/calendar', false, ?)
+                  VALUES (?, 'alert', 'Vardiyanız güncellendi', ?, '/portal/calendar', false, ?)
                 `).run(
                   personnel_id,
                   `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Bu değişiklik için Adalet Puanınıza +${compPts} puan eklendi.`,

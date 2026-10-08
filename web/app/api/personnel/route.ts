@@ -52,14 +52,14 @@ export async function GET(req: NextRequest) {
       if (!dept) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = await db.prepare(`${baseSelect} WHERE p.department_id = ? ORDER BY p.name ASC`).all(department_id);
+      rows = await db.prepare(`${baseSelect} WHERE p.department_id = ? AND p.org_id = ? ORDER BY p.name ASC`).all(department_id, auth.org_id);
     } else if (location_id) {
       // Lokasyonun bu org'a ait olduğunu doğrula
       const loc = await db.prepare("SELECT id FROM locations WHERE id = ? AND org_id = ?").get(location_id, auth.org_id);
       if (!loc) {
         return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
       }
-      rows = await db.prepare(`${baseSelect} WHERE p.assigned_location_ids LIKE ? ORDER BY p.name ASC`).all(`%"${location_id}"%`);
+      rows = await db.prepare(`${baseSelect} WHERE p.assigned_location_ids LIKE ? AND p.org_id = ? ORDER BY p.name ASC`).all(`%"${location_id}"%`, auth.org_id);
     } else {
       // org_id token'dan gelir — query param'a güvenilmez
       rows = await db.prepare(`${baseSelect} WHERE p.org_id = ? ORDER BY p.name ASC`).all(auth.org_id);

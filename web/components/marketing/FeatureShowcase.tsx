@@ -83,7 +83,7 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
       "İzin isteği",
       "Arkadaşıyla vardiya değiştirme",
       "Gelemeyeceği vardiyayı ekibe duyurma",
-      "Açık vardiya üstlenme",
+      "Açık vardiyayı alma",
       "Aynı vardiyada kimlerle çalışacağını görme",
       "Anlık bildirim ve ekip sohbeti",
       "Acil durum bildirimi",

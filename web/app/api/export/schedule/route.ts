@@ -11,6 +11,7 @@ const DAY_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cum
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
+  if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 }); // sorumlu ekranı; ekip üyesi başkalarının kaydını görmez
 
   const { searchParams } = new URL(req.url);
   const location_id = searchParams.get("location_id");

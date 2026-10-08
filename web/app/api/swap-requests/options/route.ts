@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
             const tShift = toShift(t);
             const forMe = findAssignmentProblems([...myAfter.map(toShift), tShift], [tShift], myRules);
             const forThem = findAssignmentProblems([...theirs.filter(x => Number(x.id) !== Number(t.id)).map(toShift), mineShift], [mineShift], theirRules);
-            problems.push(...forMe.map(x => `Sen: ${x}`), ...forThem.map(x => `${m.name.split(" ")[0]}: ${x}`));
+            problems.push(...forMe.map(x => `Siz: ${x}`), ...forThem.map(x => `${m.name.split(" ")[0]}: ${x}`));
             if (unavailable(auth.personnel_id!, t)) problems.push("Bu günü uygunlukta \"Gelemem\" olarak işaretlemişsiniz");
             if (unavailable(m.id, mine)) problems.push(`${m.name.split(" ")[0]} sizin vardiyanızın olduğu günü "Gelemem" olarak işaretlemiş`);
           }

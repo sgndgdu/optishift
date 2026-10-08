@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
 
     // Get all personnel for this location
     const all = await db.prepare(
-      `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
-    ).all(location_id) as any[];
+      `SELECT id, name, title, department_id FROM personnel WHERE primary_location_id = ? AND org_id = ? AND status = 'active' AND schedulable IS NOT FALSE`
+    ).all(location_id, auth.org_id) as any[];
     // Departman şefi sadece kendi ekibini görür (Ekip ve Ana Sayfa ile aynı sayı)
     const team = await departmentPersonnelIds(db, auth, location_id);
     const personnel = team ? all.filter(p => team.includes(p.id)) : all;

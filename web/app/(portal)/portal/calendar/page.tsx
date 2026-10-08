@@ -258,7 +258,7 @@ export default function PortalCalendar() {
                                 const isMe = t.personnel_id === user?.personnel_id;
                                 return (
                                   <span key={t.id} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${isMe ? "bg-primary text-white" : "bg-slate-100 text-slate-700"}`}>
-                                    {isMe ? "Sen" : t.personnel_name}
+                                    {isMe ? "Siz" : t.personnel_name}
                                     {t.department_name && <span className={isMe ? "text-white/70" : "text-slate-400"}>· {t.department_name}</span>}
                                   </span>
                                 );

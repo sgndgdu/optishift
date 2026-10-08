@@ -93,7 +93,7 @@ export async function claimOpenShift(
       VALUES (?, 'shift_change', ?, ?, ?)
     `).run(
       os.released_by,
-      "Vardiyan devredildi",
+      "Vardiyanız devredildi",
       `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyanızı ${claimedByName ?? "bir ekip arkadaşınız"} aldı. Bu vardiya artık sizin planınızda değil.`,
       now,
     );

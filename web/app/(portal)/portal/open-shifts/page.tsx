@@ -51,7 +51,7 @@ export default function PortalOpenShiftsPage() {
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok) { showToast("Vardiyayı aldınız. Teşekkürler!"); await load(); }
-      else { showToast(violationText(data, "Üstlenilemedi")); }
+      else { showToast(violationText(data, "Vardiya alınamadı")); }
     } finally { setBusyId(null); }
   }
 
@@ -146,7 +146,7 @@ export default function PortalOpenShiftsPage() {
                 onClick={() => setConfirmId(s.id)}
                 className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {busyId === s.id ? "Üstleniliyor…" : "Üstlen"}
+                {busyId === s.id ? "Alınıyor…" : "Vardiyayı al"}
               </button>
               )}
 

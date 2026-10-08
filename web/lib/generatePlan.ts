@@ -130,9 +130,9 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
     // Aktif ve planlanabilir personeli çek (vardiya yapmayan yönetici: personnel.schedulable = false, kişinin kartından)
     const allPersonnelRows = (await db
       .prepare(
-        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND status = 'active' AND schedulable IS NOT FALSE`
+        `SELECT * FROM personnel WHERE assigned_location_ids LIKE $1 AND org_id = $2 AND status = 'active' AND schedulable IS NOT FALSE`
       )
-      .all(`%"${branchId}"%`)) as any[];
+      .all(`%"${branchId}"%`, orgIdIn)) as any[];
     // Şube rotasyonu (lib/branchRotation): rotasyonu olan kişi o hafta sadece sırası gelen şubeye yazılır
     const personnelRows = allPersonnelRows.filter((p: any) => plannedInBranch(p.branch_rotation, branchId, week_start));
 

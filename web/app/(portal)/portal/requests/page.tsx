@@ -63,6 +63,10 @@ function otWeekLabel(iso: string) {
 }
 
 // ─── main page ─────────────────────────────────────────────────────────────
+// Vardiyaları tarih ve saate göre sıralar
+const byShiftTime = (a: any, b: any) =>
+  `${addDays(a.week_start, Number(a.day ?? 0))} ${a.start_time}`.localeCompare(`${addDays(b.week_start, Number(b.day ?? 0))} ${b.start_time}`);
+
 export default function PortalRequests() {
   const router = useRouter();
   const { user, mounted } = usePortalAuth();
@@ -239,7 +243,7 @@ export default function PortalRequests() {
         )
       );
       const all = weeks.flat().filter((s: any) => Array.isArray(s) ? false : s?.id && s.kind !== "on_call" && isUpcoming(s));
-      setMyShifts(all);
+      setMyShifts(all.sort(byShiftTime)); // sonradan alınan vardiya listenin sonuna düşmesin
     })();
   }, [activeTab, newType, user]);
 
@@ -254,7 +258,7 @@ export default function PortalRequests() {
         )
       );
       const from = addDays(businessToday(), -14);
-      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && addDays(s.week_start, Number(s.day ?? 0)) >= from));
+      setMyShifts(weeks.flat().filter((s: any) => s?.id && s.kind !== "on_call" && addDays(s.week_start, Number(s.day ?? 0)) >= from).sort(byShiftTime));
     })();
   }, [activeTab, newType, user]);
 
@@ -298,8 +302,8 @@ export default function PortalRequests() {
       });
       if (r.ok) {
         showToast("Vardiya ekibe duyuruldu. Biri alana kadar vardiya sizde kalır.");
+        await loadData(); // liste dolmadan sekme değişmesin ("talebiniz yok" görünmesin)
         resetSwapWizard(); setActiveTab("sent"); setNewType(null);
-        await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
         showToast(err.error || "Vardiya bırakılamadı.", "error");
@@ -334,9 +338,9 @@ export default function PortalRequests() {
       });
       if (r.ok) {
         showToast("Vardiya değiştirme teklifi gönderildi.");
+        await loadData();
         resetSwapWizard();
         setActiveTab("sent"); setNewType(null);
-        await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
         // Kural hatası ekranda kalır: kişi hangi vardiyayı değiştirmesi gerektiğini okuyabilsin
@@ -361,9 +365,9 @@ export default function PortalRequests() {
       });
       if (r.ok) {
         showToast("Saat düzeltme isteği gönderildi.");
+        await loadData();
         setEditShift(null); setEditReason("");
         setActiveTab("sent"); setNewType(null);
-        await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
         showToast(err.error || "Talep gönderilemedi.", "error");
@@ -395,9 +399,9 @@ export default function PortalRequests() {
       });
       if (r.ok) {
         showToast("İzin talebi gönderildi!");
+        await loadData();
         setLeaveStart(""); setLeaveEnd(""); setLeaveNote("");
         setActiveTab("sent"); setNewType(null);
-        await loadData();
       } else {
         const err = await r.json().catch(() => ({}));
         showToast(err.error || "Talep gönderilemedi.", "error");
@@ -721,7 +725,7 @@ export default function PortalRequests() {
                         Onda: {shiftLabel({ week_start: s.req_week_start, day: s.req_day, start_time: s.req_start, end_time: s.req_end })}
                       </p>
                       <p className="text-xs text-slate-500">
-                        Sende: {shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}
+                        Sizde: {shiftLabel({ week_start: s.tgt_week_start, day: s.tgt_day, start_time: s.tgt_start, end_time: s.tgt_end })}
                       </p>
                       {s.note && <p className="text-xs text-slate-400 mt-1 italic">"{s.note}"</p>}
                     </div>
@@ -797,7 +801,7 @@ export default function PortalRequests() {
           {/* ── GELEMİYORUM: vardiyayı ekibe duyur (açık vardiya ilanı) ── */}
           {openShiftsEnabled && newType === "giveaway" && (
             <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2">
-              <p className="text-xs font-semibold text-slate-500 mb-3">Hangi vardiyana gelemeyeceksin?</p>
+              <p className="text-xs font-semibold text-slate-500 mb-3">Hangi vardiyanıza gelemeyeceksiniz?</p>
               {myShifts.length === 0 && (
                 <div className="text-sm text-slate-500 text-center py-6 space-y-2">
                   <p>Yaklaşan yayınlanmış vardiyanız yok.</p>
@@ -832,7 +836,7 @@ export default function PortalRequests() {
             <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
               {/* Progress */}
               <div className="flex border-b border-slate-100">
-                {["Vardiyan", "Kiminle", "Onun vardiyası", "Onay"].map((s, i) => (
+                {["Vardiyanız", "Kiminle", "Onun vardiyası", "Onay"].map((s, i) => (
                   <div key={i} className={`flex-1 py-2.5 text-center text-xs sm:text-xs font-semibold transition-colors px-1 ${
                     swapStep === i ? "bg-primary text-white" : swapStep > i ? "bg-primary/10 text-primary" : "text-slate-400"
                   }`}>{s}</div>
@@ -1087,7 +1091,7 @@ export default function PortalRequests() {
                   value={leaveNote}
                   onChange={e => setLeaveNote(e.target.value)}
                   rows={2}
-                  placeholder={leavePolicy?.require_reason ? "Zorunlu: nedenini yaz..." : "Sorumluna not..."}
+                  placeholder={leavePolicy?.require_reason ? "Zorunlu: nedenini yazın..." : "Sorumlunuza not..."}
                   className={`w-full text-sm bg-slate-50 border rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none ${
                     leavePolicy?.require_reason && !leaveNote.trim() ? "border-red-200" : "border-slate-200"
                   }`}

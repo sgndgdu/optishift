@@ -249,7 +249,7 @@ export default function OpenShiftsPage() {
               <DetailRow label="Alana ek puan">{selected.hero_bonus_multiplier > 0 ? `+${selected.hero_bonus_multiplier} puan` : "Yok"}</DetailRow>
               {selected.note && <DetailRow label="Not">{selected.note}</DetailRow>}
               {selected.status === "claimed" && selected.claimed_by_name && (
-                <DetailRow label="Üstlenen"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
+                <DetailRow label="Alan"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
               )}
             </div>
 

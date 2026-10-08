@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
       // kabul düğmesi kapanır (kullanıcı kararı 2026-10-05: çakışan teklifi kabul edemesin)
       for (const r of rows) {
         r.violations = await swapProblems(db, r.requester_shift_id, r.target_shift_id,
-          { requester: r.requester_name, target: "Sen" }).catch(() => []);
+          { requester: r.requester_name, target: "Siz" }).catch(() => []);
       }
     } else {
       return NextResponse.json({ error: "requester_id, target_id veya location_id+status zorunlu" }, { status: 400 });
