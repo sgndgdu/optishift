@@ -60,10 +60,12 @@ export function windowStart(weekStart: string, windowWeeks: number): string {
 
 /** Pencere içindeki adjustment toplamları: { personnel_id → { week_start → Σ points } } */
 export async function getAdjustmentsByWeek(
-  locationId: string,
+  locationId: string | null,
   fromWeek: string,
   toWeek: string,
+  personnelIds?: string[],
 ): Promise<Record<string, Record<string, number>>> {
+  if (personnelIds && personnelIds.length === 0) return {};
   const rows = await db
     .select({
       personnel_id: scoreAdjustments.personnel_id,
@@ -72,7 +74,8 @@ export async function getAdjustmentsByWeek(
     })
     .from(scoreAdjustments)
     .where(and(
-      eq(scoreAdjustments.location_id, locationId),
+      locationId ? eq(scoreAdjustments.location_id, locationId) : undefined,
+      personnelIds ? inArray(scoreAdjustments.personnel_id, personnelIds) : undefined,
       gte(scoreAdjustments.week_start, fromWeek),
       lte(scoreAdjustments.week_start, toWeek),
     ));
@@ -117,6 +120,9 @@ export async function recomputeLocationFairness(
   if (locPeople.length === 0) return {};
   const pids = locPeople.map(p => p.id);
 
+  // Puan KİŞİYE aittir (2026-10-08): kişinin bütün şubelerdeki haftaları ve puan olayları birlikte sayılır.
+  // Eskiden sadece bu şubenin satırları sayılıyordu; iki şubede çalışan kişi her şubede "az çalışmış" görünüp daha
+  // çok zor vardiya alıyordu. Bir haftada birden çok şubede çalıştıysa o haftanın puanları toplanır.
   const histRows = await db
     .select({
       personnel_id: scoreHistory.personnel_id,
@@ -125,21 +131,20 @@ export async function recomputeLocationFairness(
     })
     .from(scoreHistory)
     .where(and(
-      eq(scoreHistory.location_id, locationId),
       inArray(scoreHistory.personnel_id, pids),
       gte(scoreHistory.week_start, fromWeek),
       lte(scoreHistory.week_start, asOfWeek),
     ))
     .orderBy(scoreHistory.week_start);
 
-  const adjByPid = await getAdjustmentsByWeek(locationId, fromWeek, asOfWeek);
+  const adjByPid = await getAdjustmentsByWeek(null, fromWeek, asOfWeek, pids);
 
   const histByPid: Record<string, { week_start: string; burden_score: number }[]> = {};
   for (const h of histRows) {
-    (histByPid[h.personnel_id] ??= []).push({
-      week_start: h.week_start,
-      burden_score: h.burden_score ?? 0,
-    });
+    const list = (histByPid[h.personnel_id] ??= []);
+    const same = list.find(x => x.week_start === h.week_start);
+    if (same) same.burden_score += h.burden_score ?? 0;
+    else list.push({ week_start: h.week_start, burden_score: h.burden_score ?? 0 });
   }
 
   const cumulativeByPid: Record<string, number> = {};
@@ -164,9 +169,11 @@ export async function recomputeLocationFairness(
     const cumulative = cumulativeByPid[pid] ?? 0;
     const percentile = ranks[pid]?.percentile ?? 0;
     result[pid] = { cumulative, percentile };
+    // Toplam her şubede aynıdır; ekibe göre sıra (percentile) kişinin ana şubesinin hesabından yazılır
+    const isHome = locPeople.find(p => p.id === pid)?.primary === locationId;
     await db
       .update(personnel)
-      .set({ prev_score: cumulative, fairness_z_score: percentile })
+      .set(isHome ? { prev_score: cumulative, fairness_z_score: percentile } : { prev_score: cumulative })
       .where(eq(personnel.id, pid));
   }
   return result;
@@ -298,6 +305,13 @@ export async function loadWeekInputs(
     heroByKey[`${os.claimed_by}|${dayIdx}|${os.start_time}`] = os.hero_bonus_multiplier ?? 6;
   }
 
+  // Ana şubesi bu şube olmayan kişinin vardiyası "başka şubede" sayılır (rules.away_shift_points)
+  const saPids = [...new Set(saRows.map(r => r.personnel_id))];
+  const homeRows = saPids.length
+    ? await db.select({ id: personnel.id, primary: personnel.primary_location_id }).from(personnel).where(inArray(personnel.id, saPids))
+    : [];
+  const homeById = new Map(homeRows.map(h => [h.id, h.primary]));
+
   const assignments: AssignmentInput[] = saRows
     .filter(r => r.start_time && r.end_time)
     .map(r => {
@@ -315,6 +329,7 @@ export async function loadWeekInputs(
         is_hero: heroPts !== undefined,
         hero_points: heroPts,
         force_points: forcePts,
+        is_away: !!homeById.get(r.personnel_id) && homeById.get(r.personnel_id) !== locationId,
       };
     });
 

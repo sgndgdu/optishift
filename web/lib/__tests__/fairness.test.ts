@@ -365,3 +365,16 @@ describe("weekDayExtraPoints hafta bilinmezken", () => {
     expect(weekDayExtraPoints("", null)).toHaveLength(7);
   });
 });
+
+describe("başka şubede çalışma puanı (2026-10-08)", () => {
+  const base = { day: 1, start_time: "09:00", end_time: "17:00", base_points: 5 };
+  it("ana şubesi dışında çalışılan vardiyaya ek puan yazılır, 0 kapatır", async () => {
+    const { calcAssignmentPoints } = await import("@/lib/fairness");
+    const home = calcAssignmentPoints(base, {}).points;
+    const away = calcAssignmentPoints({ ...base, is_away: true }, {});
+    expect(away.points - home).toBe(3);
+    expect(away.flags.away).toBe(true);
+    expect(calcAssignmentPoints({ ...base, is_away: true }, { away_shift_points: 5 }).points - home).toBe(5);
+    expect(calcAssignmentPoints({ ...base, is_away: true }, { away_shift_points: 0 }).points).toBe(home);
+  });
+});

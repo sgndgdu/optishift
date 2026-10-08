@@ -4,6 +4,7 @@
  * Formüller:
  *   puan        = saat × (base_points/5) + zor_gün_puanı
  *                 + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
+ *                 + (başka_şubede_mi ? away_shift_points : 0)   — 2026-10-08
  *   zor_gün_puanı = max(haftanın günü puanı, resmi tatil puanı, işletmenin özel günü puanı, tercih etmem puanı)
  *                   — her biri ayrı ayarlanır (2026-10-07), birden fazlası geçerliyse EN YÜKSEĞİ yazılır, toplanmaz.
  *                   Eski tek puan + iki bayrak (hard_shift_points/weekend/preferred_not) resolveHardDayRules'ta çevrilir.
@@ -44,6 +45,7 @@ export interface Rules {
   // Bonuslar — düz puan, 0 = kapalı
   hero_bonus_points?: number;          // varsayılan 6
   force_bonus_points?: number;         // varsayılan 5
+  away_shift_points?: number;          // başka şubede çalışılan her vardiya (kendi şubesi dışı), varsayılan 3
   // Sadece yayın öncesi kural ihlali uyarısı için (puanı etkilemez)
   clopening_min_rest_hours?: number;   // varsayılan 13
   // Kümülatif pencere
@@ -59,6 +61,7 @@ export interface AssignmentInput {
   is_hero?: boolean;
   hero_points?: number;  // open_shift bazlı override (os.hero_bonus_multiplier — artık düz puan tutar)
   force_points?: number; // kabul edilmiş zorunlu atama bonusu (force_bonus_multiplier — artık düz puan tutar)
+  is_away?: boolean;     // kişinin ana şubesi dışındaki şubede (ödünç, şubeler arası rotasyon, ortak çalışan)
 }
 
 export interface AvailabilityInput {
@@ -216,12 +219,13 @@ export interface AssignmentPointsInput {
   is_hero?: boolean;
   hero_points?: number;         // open_shift bazlı override
   force_points?: number;        // kabul edilmiş zorunlu atama bonusu
+  is_away?: boolean;            // ana şubesi dışında çalışılan vardiya: rules.away_shift_points
 }
 
 export interface AssignmentPoints {
   hours: number;
   points: number; // toplam puan
-  flags: { weekend: boolean; night: boolean; prefNot: boolean; hard: boolean; hero: boolean; force: boolean };
+  flags: { weekend: boolean; night: boolean; prefNot: boolean; hard: boolean; hero: boolean; force: boolean; away: boolean };
   /** Zor gün gerekçeleri (büyükten küçüğe); yazılan ek puan `hardPoints` */
   hardReasons: HardDayReason[];
   hardPoints: number;
@@ -237,6 +241,7 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
   const hr = resolveHardDayRules(rules);
   const heroBonusPoints = input.hero_points ?? rules.hero_bonus_points ?? 6;
   const forceBonusPoints = input.force_points ?? rules.force_bonus_points ?? 5;
+  const awayPoints = rules.away_shift_points ?? 3;
 
   const hours = durationHours(input.start_time, input.end_time);
   const base = hours * (input.base_points / 5);
@@ -253,16 +258,18 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
   const isHard = hardPoints > 0;
   const isHero = input.is_hero ?? false;
   const isForce = typeof input.force_points === "number" && input.force_points > 0;
+  const isAway = (input.is_away ?? false) && awayPoints > 0;
 
   const points = base
     + hardPoints
     + (isHero ? heroBonusPoints : 0)
-    + (isForce ? forceBonusPoints : 0);
+    + (isForce ? forceBonusPoints : 0)
+    + (isAway ? awayPoints : 0);
 
   return {
     hours,
     points,
-    flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, hard: isHard, hero: isHero, force: isForce },
+    flags: { weekend: isWeekend, night: isNight, prefNot: isPrefNot, hard: isHard, hero: isHero, force: isForce, away: isAway },
     hardReasons: reasons,
     hardPoints,
   };
@@ -317,6 +324,7 @@ export function calcWeeklyPoints(
         is_hero: a.is_hero ?? false,
         hero_points: a.hero_points,
         force_points: a.force_points,
+        is_away: a.is_away ?? false,
       }, rules);
 
       totalHours += result.hours;

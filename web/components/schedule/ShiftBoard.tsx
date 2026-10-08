@@ -286,6 +286,8 @@ export default function ShiftBoard({
         const list = (g?.members ?? [])
           .map(p => ({ p, st: statusOf(p.id, picker.day), busy: busy.get(p.id) }))
           .sort((a, b) => Number(!!a.busy || a.st === "away") - Number(!!b.busy || b.st === "away") || STATUS_ORDER[a.st] - STATUS_ORDER[b.st] || weekHours(a.p.id) - weekHours(b.p.id));
+        // En uygun kişi: o gün boşta, "gelemem"/izin/tercih etmem demeyen ve bu hafta en az çalışan (liste zaten böyle sıralı)
+        const bestId = list.find(x => !x.busy && !["unavailable", "leave", "weekly_off", "away", "preferred_not"].includes(x.st))?.p.id;
         return (
           <div ref={pickerRef} className="fixed z-50 w-[280px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl" style={{ left: picker.x, top: picker.y }}>
             <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
@@ -305,7 +307,9 @@ export default function ShiftBoard({
                       onClick={() => { onAssign(p.id, picker.day, picker.def, picker.groupId); setPicker(null); }}
                       className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45">
                       <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-semibold text-slate-800">{p.name}</span>
+                        <span className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-slate-800">{p.name}
+                          {p.id === bestId && <span className="shrink-0 rounded-full bg-forest-50 px-1.5 py-px text-[11px] font-semibold text-forest-700">Önerilen</span>}
+                        </span>
                         <span className="block text-[11px] text-slate-400">{b ? picker.def.on_call ? "Bu gün zaten nöbetçi" : `Bu gün ${b.def?.name ?? timeLabel(b.cell)} vardiyasında` : `Bu hafta ${trNum(weekHours(p.id))} saat`}</span>
                       </span>
                       {!b && STATUS_LABEL[st] && (

@@ -86,6 +86,7 @@ function cellBurden(
 ): number {
   const def = matchShiftDef(startMin, endMin, defs);
   const r = calcAssignmentPoints({
+    is_away: awayPeople.has(pid),
     day,
     date: weekStart ? addDays(weekStart, day) : undefined,
     start_time: minToHHMM(startMin),
@@ -95,6 +96,13 @@ function cellBurden(
     is_pref_not: am[pid]?.[day]?.status === "preferred_not",
   }, rules);
   return Math.round(r.points * 10) / 10;
+}
+
+/** Ana şubesi bu şube olmayan kişiler (başka şubede çalışma puanı, lib/fairness away_shift_points). Sayfa yükleyince doldurur. */
+const awayPeople = new Set<string>();
+function fillAwayPeople(list: { id: string; primary_location_id?: string | null }[], locationId: string) {
+  awayPeople.clear();
+  for (const p of list) if (locationId && p.primary_location_id && p.primary_location_id !== locationId) awayPeople.add(p.id);
 }
 
 /** Bir hücrenin başlangıç/bitiş dakikalarını shift tanımlarıyla eşleştirir (±10 dk tolerans). */
@@ -331,6 +339,9 @@ function SchedulePageInner() {
 
   const [activeLocationId, setActiveLocationId]   = useState("");
   const [personnel, setPersonnel]                 = useState<any[]>([]);
+  // Başka şubeden gelenler: hücre puanında "başka şubede" ek puanı (cellBurden, awayPeople)
+  useEffect(() => { fillAwayPeople(personnel, activeLocationId); }, [personnel, activeLocationId]);
+
   const [departments, setDepartments]             = useState<any[]>([]);
   const [cellMap, setCellMap]                     = useState<CellMap>({});
   // Aynı kişi-gün için ek vardiyalar (takas/açık vardiya/çakışma); tablo tek hücre düzenler, bunlar salt okunur gösterilir
@@ -765,6 +776,7 @@ function SchedulePageInner() {
         // Şube rotasyonunda bu hafta başka şubede olan kişi de satır olarak görünmez (lib/branchRotation)
         // Paylaşılan personel tabloda bu şubedeki departmanının altında görünür (lib/branchRotation departmentInBranch)
         const branchDeptIds = new Set<string>(deptArr.map((d: any) => d.id));
+        if (Array.isArray(pData)) fillAwayPeople(pData, activeLocationId); // hücre puanları aşağıda hesaplanmadan önce
         setPersonnel(Array.isArray(pData) ? pData.filter((p: any) => p.status === "active"
           && ((p.schedulable !== false && plannedInBranch(p.branch_rotation, activeLocationId, weekStart)) || assignedIds.has(p.id)))
           // department_ids: bu şubedeki tüm departmanları (ana departman başta); joker birden çok departmana yazılabilir
@@ -3715,14 +3727,16 @@ loading ? (
               start_time: minToHHMM(popover.startMin), end_time: minToHHMM(popover.endMin % 1440),
               base_points: matchedDef?.base_points ?? 5, is_night: isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440)),
               is_pref_not: availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not",
+              is_away: awayPeople.has(popover.personnelId),
             }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
             const isNght = isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440));
-            if (!pts.hardPoints && !isNght) return null;
+            if (!pts.hardPoints && !isNght && !pts.flags.away) return null;
             return (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {pts.hardReasons.map(r => <StatusPill key={r.label} tone="attention">{r.label}</StatusPill>)}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
+                {pts.flags.away && <StatusPill tone="info">Başka şubeden, +{locRules.away_shift_points ?? 3} puan</StatusPill>}
                 {pts.hardPoints > 0 && (
                   <span className="text-[11px] text-slate-400">→ +{pts.hardPoints} puan{pts.hardReasons.length > 1 ? " (en yükseği)" : ""}</span>
                 )}

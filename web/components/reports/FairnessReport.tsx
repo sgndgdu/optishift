@@ -172,6 +172,7 @@ export default function FairnessReport() {
           })()}
           <DetailRow label="Boşta kalan vardiyayı alma">+{rules.hero_bonus_points ?? 6}</DetailRow>
           <DetailRow label="İzinliyken zorunlu atama">+{rules.force_bonus_points ?? 5}</DetailRow>
+          <DetailRow label="Başka şubede çalışılan vardiya">+{rules.away_shift_points ?? 3}</DetailRow>
           <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
           {shiftDefs.length > 0 && (
             <DetailRow label="Vardiya zorluğu">

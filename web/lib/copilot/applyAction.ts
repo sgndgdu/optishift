@@ -60,7 +60,22 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
     case "assign_open_shift": {
       const r = await call("/api/open-shifts", "PATCH", { id: a.open_shift_id, claimed_by: a.personnel_id, claimed_by_name: a.name, assigned_by_manager: true });
       if (!r.ok) return { ok: false, message: `${a.name} atanamadı: ${violationText(r.data, "işlem yapılamadı")} Açık Vardiyalar'dan başka birini seçin.` };
+      if (r.data?.pending) return { ok: true, message: `${a.name} yazıldı. Başka şubeden olduğu için kendi sorumlusu onaylayınca kesinleşir.` };
       return { ok: true, message: `Vardiya ${a.name} adına yazıldı, kendisine bildirim gitti.` };
+    }
+    case "fill_gap": {
+      // Eksik vardiya: sessiz ilan açılır (kimseye duyurulmaz) ve kişiye verilir; kural ve ödünç kontrolleri ilan yolundakiyle aynı
+      const os = await call("/api/open-shifts", "POST", {
+        location_id: a.location_id, date: a.date, start_time: a.start_time, end_time: a.end_time, note: "Eksik vardiya", notify: "none",
+      });
+      if (!os.ok || !os.data?.id) return { ok: false, message: err(os.data, "Vardiya açılamadı.") };
+      const r = await call("/api/open-shifts", "PATCH", { id: os.data.id, claimed_by: a.personnel_id, claimed_by_name: a.name, assigned_by_manager: true });
+      if (!r.ok) {
+        await call(`/api/open-shifts?id=${os.data.id}`, "DELETE", undefined);
+        return { ok: false, message: `${a.name} yazılamadı: ${violationText(r.data, "işlem yapılamadı")} Vardiya Planı'ndan başka birini seçin.` };
+      }
+      if (r.data?.pending) return { ok: true, message: `${a.name} yazıldı. Başka şubeden olduğu için kendi sorumlusu onaylayınca kesinleşir.` };
+      return { ok: true, message: `${a.name} vardiyaya yazıldı, kendisine bildirim gitti.` };
     }
     case "request_leave": {
       const r = await call("/api/leave-requests", "POST", {

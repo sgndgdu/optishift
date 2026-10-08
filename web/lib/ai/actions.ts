@@ -24,6 +24,8 @@ export type ProposedAction =
   | { kind: "open_shift"; title: string; location_id: string; date: string; start_time: string; end_time: string; note: string }
   /** Kimsenin almadığı ilanı bir kişiye vermek (lib/suggestions hazır çözümü) */
   | { kind: "assign_open_shift"; title: string; open_shift_id: number; personnel_id: string; name: string }
+  /** Yayınlanmış planda eksik kalan vardiyaya bir kişi yazmak (lib/suggestions hazır çözümü) */
+  | { kind: "fill_gap"; title: string; location_id: string; date: string; start_time: string; end_time: string; personnel_id: string; name: string }
   /** Ekip üyesinin asistanı (lib/ai/teamActions): kendi adına */
   | { kind: "request_leave"; title: string; personnel_id: string; type: string; start_date: string; end_date: string; days: number; note: string }
   | { kind: "release_shift"; title: string; assignment_id: number }
