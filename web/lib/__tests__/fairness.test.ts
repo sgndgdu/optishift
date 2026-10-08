@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   resolveHardDayRules,
   weekDayExtraPoints,
+  weekShiftExtraPoints,
   calcAssignmentPoints,
   calcWeeklyPoints,
   calcCumulativeWindow,
@@ -383,5 +384,28 @@ describe("ek puanlar açılıp kapanır (2026-10-08)", () => {
     expect(calcAssignmentPoints({ ...base, is_hero: true }, {}).points - home).toBe(6);
     expect(calcAssignmentPoints({ ...base, is_hero: true }, { hero_bonus_enabled: false }).points).toBe(home);
     expect(calcAssignmentPoints({ ...base, force_points: 5 }, { force_bonus_enabled: false }).points).toBe(home);
+  });
+});
+
+describe("vardiyaya özel ve tekrar eden özel gün (2026-10-08)", () => {
+  const rules = { hard_day_points: [0, 0, 0, 0, 0, 0, 0], special_date_points: [
+    { date: "2026-10-31", name: "Ay sonu", points: 5, shift_ids: ["aksam"], repeat: "monthly_last" as const },
+    { date: "2026-10-15", name: "Festival", points: 3 },
+  ] };
+  const pts = (date: string, day: number, shift_id: string) =>
+    calcAssignmentPoints({ day, date, shift_id, start_time: "16:00", end_time: "24:00", base_points: 5 }, rules).hardPoints;
+  it("sadece seçilen vardiya ek puan alır", () => {
+    expect(pts("2026-10-31", 5, "aksam")).toBe(5);
+    expect(pts("2026-10-31", 5, "sabah")).toBe(0);
+  });
+  it("her ayın son günü tekrar eder, başlangıçtan önce saymaz", () => {
+    expect(pts("2026-11-30", 0, "aksam")).toBe(5);
+    expect(pts("2026-09-30", 2, "aksam")).toBe(0);
+    expect(pts("2026-11-29", 6, "aksam")).toBe(0);
+  });
+  it("gün geneli özel gün bütün vardiyalara gider, motora vardiya bazlı puan ayrı gider", () => {
+    expect(pts("2026-10-15", 3, "sabah")).toBe(3);
+    expect(weekDayExtraPoints("2026-10-26", rules)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(weekShiftExtraPoints("2026-10-26", rules)).toEqual({ aksam: [0, 0, 0, 0, 0, 5, 0] });
   });
 });

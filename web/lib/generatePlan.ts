@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { resolveHardDayRules, weekDayExtraPoints, type Rules as FairnessRules } from "@/lib/fairness";
+import { resolveHardDayRules, weekDayExtraPoints, weekShiftExtraPoints, type Rules as FairnessRules } from "@/lib/fairness";
 import { addDays, businessToday } from "@/lib/date";
 import { applyOverrides, sanitizeOverrides } from "@/lib/planOverrides";
 import { isModuleOn } from "@/lib/moduleVisibility";
@@ -749,7 +749,12 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         ...(() => {
           let lr: FairnessRules = {};
           try { lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {}; } catch { /* varsayılan */ }
-          return { day_extra_points: weekDayExtraPoints(week_start, lr), pref_not_points: resolveHardDayRules(lr).prefNotPoints };
+          return {
+            day_extra_points: weekDayExtraPoints(week_start, lr),
+            // Sadece belirli vardiyalara ait özel günler: { vardiya kimliği → 7 gün }
+            shift_day_extra_points: weekShiftExtraPoints(week_start, lr),
+            pref_not_points: resolveHardDayRules(lr).prefNotPoints,
+          };
         })(),
       },
     };

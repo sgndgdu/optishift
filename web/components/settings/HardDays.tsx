@@ -7,7 +7,7 @@
 import { Plus, X } from "lucide-react";
 import { DAY_SHORT } from "@/lib/constants";
 import { formatDateTR } from "@/lib/date";
-import type { SpecialDatePoints } from "@/lib/fairness";
+import type { SpecialDatePoints, SpecialDateRepeat } from "@/lib/fairness";
 import { specialDaysInRange } from "@/lib/specialDays";
 
 const clamp = (v: number) => Math.min(20, Math.max(0, Math.round(v)));
@@ -36,12 +36,24 @@ export function DayPointsGrid({ value, onChange }: { value: number[]; onChange: 
   );
 }
 
-/** İşletmenin kendi ek puanlı günleri; takvimdeki yaklaşan özel günler tek dokunuşla eklenir */
-export function SpecialDatesEditor({ value, onChange, industry, today }: {
+const selectCls = "rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-forest-500";
+
+const REPEAT_OPTIONS: { value: SpecialDateRepeat; label: string }[] = [
+  { value: "none", label: "Bir kez" },
+  { value: "monthly_day", label: "Her ay bu gün" },
+  { value: "monthly_last", label: "Her ayın son günü" },
+];
+
+/**
+ * İşletmenin kendi ek puanlı günleri; takvimdeki yaklaşan özel günler tek dokunuşla eklenir.
+ * Ek puan bütün vardiyalara ya da tek vardiyaya verilir (ör. sadece akşam vardiyası), istenirse her ay tekrar eder.
+ */
+export function SpecialDatesEditor({ value, onChange, industry, today, shifts }: {
   value: SpecialDatePoints[];
   onChange: (v: SpecialDatePoints[]) => void;
   industry?: string | null;
   today: string;
+  shifts: { id: string; name: string }[];
 }) {
   const yearLater = `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`;
   const taken = new Set(value.map(v => v.date));
@@ -61,6 +73,16 @@ export function SpecialDatesEditor({ value, onChange, industry, today }: {
                 className={`${inputCls} w-[9.5rem] px-2 font-semibold`} />
               <input value={v.name} onChange={e => update(i, { name: e.target.value })} placeholder="Günün adı" aria-label="Günün adı"
                 className="min-w-[8rem] flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-forest-500" />
+              <select value={v.shift_ids?.[0] ?? ""} aria-label="Hangi vardiya"
+                onChange={e => update(i, { shift_ids: e.target.value ? [e.target.value] : undefined })} className={selectCls}>
+                <option value="">Bütün vardiyalar</option>
+                {shifts.map(sh => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+                {v.shift_ids?.[0] && !shifts.some(sh => sh.id === v.shift_ids![0]) && <option value={v.shift_ids[0]}>Silinmiş vardiya</option>}
+              </select>
+              <select value={v.repeat ?? "none"} aria-label="Tekrar"
+                onChange={e => update(i, { repeat: e.target.value === "none" ? undefined : e.target.value as SpecialDateRepeat })} className={selectCls}>
+                {REPEAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
               <span className="flex items-center gap-1.5">
                 <PointsInput value={v.points} onChange={p => update(i, { points: p })} label="Ek puan" className="w-16" />
                 <span className="text-xs font-semibold text-slate-400">puan</span>

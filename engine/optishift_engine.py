@@ -281,7 +281,9 @@ def _max_hard_points() -> float:
     """Bir vardiyaya eklenebilecek en yüksek zor gün puanı (arama sınırı için)."""
     day_extra = RULES.get("day_extra_points")
     if isinstance(day_extra, list) and len(day_extra) == 7:
-        return max([float(x or 0) for x in day_extra] + [float(RULES.get("pref_not_points", 0) or 0)])
+        shift_extra = RULES.get("shift_day_extra_points") or {}
+        per_shift = [float(x or 0) for v in shift_extra.values() if isinstance(v, list) for x in v] if isinstance(shift_extra, dict) else []
+        return max([float(x or 0) for x in day_extra] + per_shift + [float(RULES.get("pref_not_points", 0) or 0)])
     return RULES.get("hard_shift_points", 4)
 
 
@@ -295,7 +297,14 @@ def effective_points(person_id, day: int, shift_id: int) -> int:
     day_extra = RULES.get("day_extra_points")
     if isinstance(day_extra, list) and len(day_extra) == 7:
         pref = RULES.get("pref_not_points", 0) if get_avail(person_id, day) == "preferred_not" else 0
-        return int(round(base + max(float(day_extra[day] or 0), float(pref or 0))))
+        extra = float(day_extra[day] or 0)
+        # Sadece belirli vardiyalara ait özel gün: {vardiya id: 7 gün}, gün geneli puanı da içerir
+        shift_extra = RULES.get("shift_day_extra_points") or {}
+        sid = SHIFTS[shift_id].get("id") if shift_id < len(SHIFTS) else None
+        per_shift = shift_extra.get(sid) if isinstance(shift_extra, dict) and sid is not None else None
+        if isinstance(per_shift, list) and len(per_shift) == 7:
+            extra = max(extra, float(per_shift[day] or 0))
+        return int(round(base + max(extra, float(pref or 0))))
     is_pref_not = RULES.get("hard_shift_preferred_not", True) and get_avail(person_id, day) == "preferred_not"
     is_hard = _is_hard_shift_time(day, shift_id) or is_pref_not
     pts = base + (RULES.get("hard_shift_points", 4) if is_hard else 0)
@@ -1668,6 +1677,8 @@ def api_mode(payload: dict):
     if shifts_from_payload and isinstance(shifts_from_payload, list) and len(shifts_from_payload) > 0:
         SHIFTS = [
             {
+                # Kimlik: vardiyaya özel zor gün puanı (shift_day_extra_points) bununla eşleşir
+                "id":          s.get("id"),
                 "name":        s.get("name", f"Vardiya {i + 1}"),
                 "start":       s.get("start", "08:00"),
                 "end":         s.get("end",   "16:00"),

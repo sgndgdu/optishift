@@ -29,8 +29,13 @@ export interface ShiftDef {
   is_night?: boolean;
 }
 
-/** İşletmenin kendi belirlediği ek puanlı gün (örn. yerel festival, yılbaşı gecesi) */
-export interface SpecialDatePoints { date: string; name: string; points: number }
+/**
+ * İşletmenin kendi belirlediği ek puanlı gün (örn. yerel festival, yılbaşı gecesi).
+ * shift_ids boşsa günün bütün vardiyaları, doluysa sadece o vardiyalar ek puan alır (2026-10-08).
+ * repeat: "monthly_day" her ay aynı gün (ay kısaysa son gün), "monthly_last" her ayın son günü; tarih başlangıçtır.
+ */
+export type SpecialDateRepeat = "none" | "monthly_day" | "monthly_last";
+export interface SpecialDatePoints { date: string; name: string; points: number; shift_ids?: string[]; repeat?: SpecialDateRepeat }
 
 export interface Rules {
   // Zor günler (2026-10-07): her güne ayrı puan, 0 = zor sayılmaz
@@ -186,21 +191,52 @@ export type HardDayReason = { label: string; points: number };
  * Bir günün (kişiden bağımsız) zor gün puanı ve gerekçeleri. `date` verilmezse sadece haftanın günü bakılır.
  * Gerekçeler puana göre büyükten küçüğe; yazılan puan ilkinin puanıdır.
  */
-export function dayHardReasons(day: number, date: string | undefined, hr: HardDayRules): HardDayReason[] {
+export function dayHardReasons(day: number, date: string | undefined, hr: HardDayRules, shiftId?: string | null): HardDayReason[] {
   const out: HardDayReason[] = [];
   if (hr.dayPoints[day] > 0) out.push({ label: DAY_NAMES_TR[day], points: hr.dayPoints[day] });
   if (date) {
     const hol = getHolidaysForDate(date)[0];
     if (hol && hr.holidayPoints > 0) out.push({ label: hol.name, points: hr.holidayPoints });
-    for (const s of hr.specialDates) if (s.date === date) out.push({ label: s.name || "Özel gün", points: s.points });
+    for (const s of hr.specialDates) {
+      if (!specialDateOn(s, date)) continue;
+      // Vardiyaya özel gün: vardiya bilinmiyorsa (gün geneli hesap) sayılmaz
+      if (s.shift_ids?.length && !(shiftId && s.shift_ids.includes(shiftId))) continue;
+      out.push({ label: s.name || "Özel gün", points: s.points });
+    }
   }
   return out.sort((a, b) => b.points - a.points);
 }
 
-/** Haftanın 7 günü için kişiden bağımsız zor gün puanı (motora bu gönderilir). */
+/** Özel gün bu tarihe denk geliyor mu (tek sefer ya da her ay tekrar). */
+export function specialDateOn(s: SpecialDatePoints, date: string): boolean {
+  const repeat = s.repeat ?? "none";
+  if (repeat === "none") return s.date === date;
+  if (date < s.date) return false;
+  const [y, m, d] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  if (repeat === "monthly_last") return d === lastDay;
+  const want = Number(s.date.slice(8, 10));
+  return d === Math.min(want, lastDay);
+}
+
+/** Haftanın 7 günü için kişiden ve vardiyadan bağımsız zor gün puanı (motora bu gönderilir). */
 export function weekDayExtraPoints(weekStart: string, rules: Rules | null | undefined): number[] {
   const hr = resolveHardDayRules(rules);
   return Array.from({ length: 7 }, (_, d) => dayHardReasons(d, isoAddDays(weekStart, d), hr)[0]?.points ?? 0);
+}
+
+/**
+ * Sadece belirli vardiyalara ait özel günlerin haftalık puanı: { vardiya kimliği → 7 gün }.
+ * Değer o vardiyanın o gündeki en yüksek zor gün puanıdır (gün geneli puan dahil). Motora gönderilir.
+ */
+export function weekShiftExtraPoints(weekStart: string, rules: Rules | null | undefined): Record<string, number[]> {
+  const hr = resolveHardDayRules(rules);
+  const ids = new Set(hr.specialDates.flatMap(s => s.shift_ids ?? []));
+  const out: Record<string, number[]> = {};
+  for (const id of ids) {
+    out[id] = Array.from({ length: 7 }, (_, d) => dayHardReasons(d, isoAddDays(weekStart, d), hr, id)[0]?.points ?? 0);
+  }
+  return out;
 }
 
 // Hafta henüz bilinmiyorsa (sayfanın ilk çizimi weekStart = "") tarih yok, sadece haftanın günü bakılır
@@ -218,6 +254,7 @@ export interface AssignmentPointsInput {
   end_time: string;             // "HH:MM"
   base_points: number;          // vardiya zorluğu (1–10)
   date?: string;                // "YYYY-MM-DD" — resmi tatil ve özel gün için (yoksa sadece haftanın günü)
+  shift_id?: string | null;     // vardiyaya özel günler için (shift_definitions id)
   is_night?: boolean;
   is_pref_not?: boolean;        // o gün sarı (preferred_not) işaretli mi
   is_hero?: boolean;
@@ -250,7 +287,7 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
   const hours = durationHours(input.start_time, input.end_time);
   const base = hours * (input.base_points / 5);
 
-  const reasons = dayHardReasons(input.day, input.date, hr);
+  const reasons = dayHardReasons(input.day, input.date, hr, input.shift_id);
   const isPrefNot = (input.is_pref_not ?? false) && hr.prefNotPoints > 0;
   if (isPrefNot) reasons.push({ label: "Tercih etmem günü", points: hr.prefNotPoints });
   reasons.sort((a, b) => b.points - a.points);
@@ -320,6 +357,7 @@ export function calcWeeklyPoints(
       const result = calcAssignmentPoints({
         day: a.day,
         date: weekStart ? isoAddDays(weekStart, a.day) : undefined,
+        shift_id: def?.id ?? null,
         start_time: a.start_time,
         end_time: a.end_time,
         base_points: def?.base_points ?? 5,

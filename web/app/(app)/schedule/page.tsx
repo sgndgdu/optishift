@@ -87,6 +87,7 @@ function cellBurden(
   const def = matchShiftDef(startMin, endMin, defs);
   const r = calcAssignmentPoints({
     is_away: awayPeople.has(pid),
+    shift_id: def?.id ?? null,
     day,
     date: weekStart ? addDays(weekStart, day) : undefined,
     start_time: minToHHMM(startMin),
@@ -3728,6 +3729,7 @@ loading ? (
               base_points: matchedDef?.base_points ?? 5, is_night: isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440)),
               is_pref_not: availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not",
               is_away: awayPeople.has(popover.personnelId),
+              shift_id: matchedDef?.id ?? null,
             }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
             const isNght = isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440));
