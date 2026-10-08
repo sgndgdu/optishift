@@ -12,7 +12,8 @@ import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
 import { checkPersonChange } from "@/lib/assignmentCheck";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
-import { declinedIds, userCanApproveLoan, wasInvited, worksAt } from "@/lib/loans";
+import { canApproveLoan, declinedIds, userCanApproveLoan, wasInvited, worksAt, type Viewer } from "@/lib/loans";
+import { orgSettings } from "@/lib/orgSettings";
 
 export type ClaimOutcome =
   | { ok: true; pending?: boolean }
@@ -24,7 +25,9 @@ export async function claimOpenShift(
   openShiftId: number,
   claimedBy: string,
   claimedByName: string | null,
-  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean; loanApproval?: boolean } = {},
+  /** assigner: doğrudan atayan sorumlu (ödüncte kişinin şubesi adına da karar verebiliyor mu, lib/loans).
+   *  force: kurala uymayan atama. Sadece hesap sahibi ya da onun onayladığı istisna geçirir (route'lar, lib/ruleExceptions). */
+  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean; loanApproval?: boolean; assigner?: Viewer | null } = {},
 ): Promise<ClaimOutcome> {
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
@@ -40,20 +43,27 @@ export async function claimOpenShift(
     return { ok: false, status: 409, error: "Kendi bıraktığınız vardiyayı alamazsınız. İlanı geri çekebilirsiniz." };
   }
 
-  // Ödünç (lib/loans): başka şubeden üstlenen kişi davet edilmiş olmalı; ana şubesinin sorumlusu onaylayınca kesinleşir.
-  // Sorumlunun doğrudan ataması route'ta yetkiyle (canAssignFrom) süzülür, onay gerekmez.
+  // Ödünç (lib/loans): başka şubeden kişi. Kendisi alıyorsa davet edilmiş olmalı. İşletme ayarı açıksa (lib/orgSettings)
+  // kişinin şubesinin sorumlusu onaylayınca kesinleşir; yazan / ilanı açan o şube için de karar verebiliyorsa onay gerekmez.
+  // Sorumlunun doğrudan atama yetkisi route'ta (canBorrow) süzülür.
   const person = await db.prepare(`SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?`).get(claimedBy, orgId) as any;
   if (!person) return { ok: false, status: 404, error: "Kişi bulunamadı" };
   const away = !worksAt(person, os.location_id);
+  const home: string | null = person.primary_location_id ?? null;
   let needsLoanApproval = false;
-  if (away && !opts.assignedByManager && !opts.loanApproval) {
+  if (away && !opts.loanApproval) {
     if (declinedIds(os).includes(claimedBy)) {
-      return { ok: false, status: 409, error: "Bu vardiya için şubenizin sorumlusu onay vermedi." };
+      return { ok: false, status: 409, error: "Bu vardiya için kişinin şubesinin sorumlusu onay vermedi." };
     }
-    if (!(await wasInvited(db, claimedBy, openShiftId))) {
-      return { ok: false, status: 403, error: "Bu vardiya başka bir şubenin ilanı. Sadece davet edilen kişiler alabilir." };
+    const { loan_approval } = await orgSettings(db, orgId);
+    if (opts.assignedByManager) {
+      needsLoanApproval = loan_approval && !!home && !canApproveLoan(opts.assigner, home);
+    } else {
+      if (!(await wasInvited(db, claimedBy, openShiftId))) {
+        return { ok: false, status: 403, error: "Bu vardiya başka bir şubenin ilanı. Sadece davet edilen kişiler alabilir." };
+      }
+      needsLoanApproval = loan_approval && !!home && !(await userCanApproveLoan(db, os.created_by, home));
     }
-    needsLoanApproval = !!person.primary_location_id && !(await userCanApproveLoan(db, os.created_by, person.primary_location_id));
   }
 
   const dt = new Date(os.date + "T00:00:00Z");
@@ -69,14 +79,15 @@ export async function claimOpenShift(
   `).get(claimedBy, week_start, dayIdx);
   if (sameDay) return { ok: false, status: 409, error: "Bu kişinin o gün zaten vardiyası var" };
 
-  // Dinlenme ve haftalık sınır (lib/assignmentCheck). Personel ihlali geçemez;
-  // müdür ataması sorunları görüp açıkça onaylarsa (force) yapılır.
+  // Dinlenme ve haftalık sınır (lib/assignmentCheck). Ekip üyesi kuralı aşamaz; sorumlu ataması ya da ödünç onayı
+  // force ile geçer (force'u sadece hesap sahibi ya da onun onayladığı istisna gönderir, lib/ruleExceptions).
   const problems = await checkPersonChange(db, claimedBy, os.location_id, {
     add: [{ week_start, day: dayIdx, start_time: os.start_time, end_time: os.end_time }],
   });
-  if (problems.length > 0 && !(opts.assignedByManager && opts.force)) {
+  const bendable = !!opts.assignedByManager || !!opts.loanApproval;
+  if (problems.length > 0 && !(bendable && opts.force)) {
     return {
-      ok: false, status: 409, violations: problems, can_force: !!opts.assignedByManager,
+      ok: false, status: 409, violations: problems, can_force: bendable,
       error: opts.assignedByManager
         ? "Bu atama çalışma kurallarına uymuyor. Yine de atamak için sorunları görüp onaylayın."
         : "Bu vardiyayı alırsanız çalışma kurallarına uymayan bir plan oluşur.",
@@ -101,7 +112,7 @@ export async function claimOpenShift(
     if (!held || (Array.isArray(held) && held.length === 0)) {
       return { ok: false, status: 409, error: "Bu vardiyayı az önce başkası aldı" };
     }
-    await notifyLoanRequested(db, orgId, os, claimedBy, claimedByName, person.primary_location_id);
+    await notifyLoanRequested(db, orgId, os, claimedBy, claimedByName, person.primary_location_id, !!opts.assignedByManager);
     return { ok: true, pending: true };
   }
 
@@ -160,6 +171,16 @@ export async function claimOpenShift(
     await db.prepare(`UPDATE personnel SET assigned_location_ids = ? WHERE id = ?`).run(JSON.stringify([...assigned, os.location_id]), claimedBy);
   }
 
+  // Onaysız ödünç (ayar kapalı ya da yazan iki şube için de karar verebiliyor): kişinin şubesine sadece haber
+  if (away && !opts.loanApproval && home && home !== os.location_id) {
+    const there = await branchName(db, os.location_id);
+    await notifyBranchManagers(db, orgId, home, "approvals", {
+      type: "open_shift", title: "Ekibinizden biri başka şubede çalışacak",
+      message: `${claimedByName ?? "Bir ekip üyeniz"}, ${there} şubesinde ${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyasına yazıldı.`,
+      link: "/schedule",
+    }).catch(() => 0);
+  }
+
   // Kahraman bonusu (düz puan, hero_bonus_multiplier kolonunda tutulur) puan formülünde uygulanır —
   // prev_score'a doğrudan yazılmaz, hafta deterministik olarak yeniden puanlanır.
   await rescoreWeek(orgId, os.location_id, week_start);
@@ -188,7 +209,7 @@ async function branchName(db: any, locationId: string | null | undefined): Promi
 }
 
 /** Ödünç onaya düştü: kişiye, ana şubesinin sorumlularına ve ilanı açan şubenin sorumlularına haber */
-async function notifyLoanRequested(db: any, orgId: string, os: any, personnelId: string, name: string | null, homeId: string) {
+async function notifyLoanRequested(db: any, orgId: string, os: any, personnelId: string, name: string | null, homeId: string, byManager: boolean) {
   const when = `${formatDateTR(os.date)} ${os.start_time}–${os.end_time}`;
   const [there, home] = await Promise.all([branchName(db, os.location_id), branchName(db, homeId)]);
   const who = name ?? "Bir ekip üyeniz";
@@ -197,17 +218,23 @@ async function notifyLoanRequested(db: any, orgId: string, os: any, personnelId:
     INSERT INTO notifications (personnel_id, type, title, message, link, created_at)
     VALUES (?, 'open_shift', ?, ?, '/portal/open-shifts', ?)
   `).run(personnelId, "Onay bekleniyor",
-    `${there} şubesindeki ${when} vardiyasını aldınız. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`, now);
+    byManager
+      ? `${there} şubesi sizi ${when} vardiyasına yazmak istiyor. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`
+      : `${there} şubesindeki ${when} vardiyasını aldınız. Kendi sorumlunuz onaylayınca vardiya planınıza yazılır, size bildirim gelir.`, now);
   await notifyBranchManagers(db, orgId, homeId, "approvals", {
     type: "open_shift", title: "Başka şubeye yardım isteği",
-    message: `${who}, ${there} şubesindeki ${when} vardiyasını almak istiyor. Onaylarsanız vardiya planına yazılır.`,
+    message: byManager
+      ? `${there} şubesi ${who} kişisini ${when} vardiyasına yazmak istiyor. Onaylarsanız vardiya planına yazılır.`
+      : `${who}, ${there} şubesindeki ${when} vardiyasını almak istiyor. Onaylarsanız vardiya planına yazılır.`,
     link: "/requests",
   }).catch(() => 0);
-  await notifyBranchManagers(db, orgId, os.location_id, "plan_settings", {
-    type: "open_shift", title: "İlan alındı, onay bekleniyor",
-    message: `${who} (${home}) ${when} vardiyasını aldı. ${home} şubesinin sorumlusu onaylayınca vardiya planınıza yazılır.`,
-    link: "/open-shifts",
-  }).catch(() => 0);
+  if (!byManager) {
+    await notifyBranchManagers(db, orgId, os.location_id, "plan_settings", {
+      type: "open_shift", title: "İlan alındı, onay bekleniyor",
+      message: `${who} (${home}) ${when} vardiyasını aldı. ${home} şubesinin sorumlusu onaylayınca vardiya planınıza yazılır.`,
+      link: "/open-shifts",
+    }).catch(() => 0);
+  }
 }
 
 /**
@@ -302,10 +329,14 @@ export async function announceOpenShift(
       targets = local.filter(c => c.warnings.length === 0).slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
       if (targets.length === 0) targets = local.slice(0, 3).map(c => ({ id: c.personnel_id, name: c.name }));
     }
-    // Ödünç (2026-10-04): diğer şubelerden en uygun 3 kişiye de davet gider; portalda ilanı görüp üstlenebilir.
-    // Sadece ilanı "Başka şubeden kişi" yetkisiyle açan sorumluda (lib/loans canBorrow, 2026-10-08)
-    if (o.crossBranch) targets.push(...candidates.filter(c => c.other_branch && c.warnings.length === 0).slice(0, 3)
-      .map(c => ({ id: c.personnel_id, name: c.name, away: true })));
+    // Ödünç: diğer şubelere de davet gider, portalda ilanı görüp alabilir. Sadece ilanı "Başka şubeden kişi"
+    // yetkisiyle açan sorumluda (lib/loans canBorrow)
+    // "Herkese duyur": diğer şubelerde alabilecek herkes; "İlk 3": diğer şubelerden en uygun 3 kişi (sorumlunun seçimi)
+    if (o.crossBranch) {
+      const away = candidates.filter(c => c.other_branch && !c.blocking);
+      targets.push(...(notify === "all" ? away : away.filter(c => c.warnings.length === 0).slice(0, 3))
+        .map(c => ({ id: c.personnel_id, name: c.name, away: true })));
+    }
   }
   const dateLabel = formatDateTR(o.date);
   const branchLabel = await branchName(db, o.location_id);

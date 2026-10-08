@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { canApproveLoan, canAssignFrom, canBorrow, declinedIds, worksAt } from "@/lib/loans";
+import { canApproveLoan, canBorrow, declinedIds, worksAt } from "@/lib/loans";
+import { parseOrgSettings } from "@/lib/orgSettings";
+import { canBendRules, RULE_CHECK_IDS } from "@/lib/ruleBend";
+import { readFileSync } from "fs";
 import { missingPerm, parseAccess } from "@/lib/userAccess";
 
 const owner = { role: "admin", location_id: null, managed_location_ids: null, access: null };
@@ -18,12 +21,21 @@ describe("loans: şubeler arası ödünç kuralları", () => {
     expect(canBorrow(employee)).toBe(false);
   });
 
-  it("doğrudan atama: kişinin ana şubesini de yöneten, yetkili kişi", () => {
-    expect(canAssignFrom(owner, "B")).toBe(true);
-    expect(canAssignFrom(regionAB, "B")).toBe(true);
-    expect(canAssignFrom({ ...regionAB, managed_location_ids: ["A"] }, "B")).toBe(false);
-    expect(canAssignFrom(mgrA(), "B")).toBe(false); // şube sorumlusu başka şubenin çalışanını atayamaz
-    expect(canAssignFrom(mgrA(), null)).toBe(false);
+  it("işletme ayarı: veren şubenin onayı varsayılan açık, kapatılabilir", () => {
+    expect(parseOrgSettings(null).loan_approval).toBe(true);
+    expect(parseOrgSettings("bozuk").loan_approval).toBe(true);
+    expect(parseOrgSettings({ loan_approval: false }).loan_approval).toBe(false);
+    expect(parseOrgSettings('{"loan_approval":true}').loan_approval).toBe(true);
+  });
+
+  it("kuralı sadece hesap sahibi esnetir", () => {
+    expect(canBendRules(owner)).toBe(true);
+    expect(canBendRules(regionAB)).toBe(false);
+    expect(canBendRules(mgrA())).toBe(false);
+    expect(canBendRules(employee)).toBe(false);
+    // Plan Kontrolü'ndeki her kural maddesi gerçekten var (ad değişirse yayın kapısı sessizce açılmasın)
+    const checks = readFileSync("lib/copilot/checks.ts", "utf-8");
+    for (const id of RULE_CHECK_IDS) expect(checks).toContain(`add("${id}"`);
   });
 
   it("veren şubenin onayı: o şubede Onaylar yetkisi olan", () => {

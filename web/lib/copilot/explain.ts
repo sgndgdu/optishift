@@ -77,12 +77,11 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
   const free = snap.people.filter(x => x.id !== personId && x.freeDays.includes(day));
   if (free.length) {
     const lighter = free.filter(x => x.loadRatio < p.loadRatio);
-    const names = free.slice(0, 3).map(x => x.name).join(", ");
     out.push({
       tone: lighter.length ? "warn" : "info",
       text: lighter.length
-        ? `O gün boşta ve daha az çalışmış: ${lighter.slice(0, 3).map(x => x.name).join(", ")}`
-        : `O gün boşta: ${names}${free.length > 3 ? ` +${free.length - 3}` : ""}`,
+        ? `O gün boşta ve daha az çalışmış: ${lighter.map(x => x.name).join(", ")}`
+        : `O gün boşta: ${free.map(x => x.name).join(", ")}`,
     });
   }
   return out;

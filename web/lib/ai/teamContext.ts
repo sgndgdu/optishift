@@ -72,7 +72,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
   // İzinler
   const leaves = await db.prepare(`
     SELECT id, type, start_date, end_date, status FROM leave_requests
-    WHERE personnel_id = ? AND (status = 'pending' OR end_date >= ?) ORDER BY start_date LIMIT 10
+    WHERE personnel_id = ? AND (status = 'pending' OR end_date >= ?) ORDER BY start_date
   `).all(me.id, addDays(today, -7)) as any[];
   out.push("### İzinlerim");
   const bal = await loadLeaveBalance(db, me.id, auth.org_id).catch(() => null);
@@ -98,7 +98,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
     const open = await db.prepare(`
       SELECT os.id, os.location_id, os.date, os.start_time, os.end_time, os.hero_bonus_multiplier, os.released_by
       FROM open_shifts os WHERE os.status = 'open' AND os.date >= ? AND os.location_id IN (${ph})
-      ORDER BY os.date, os.start_time LIMIT 12
+      ORDER BY os.date, os.start_time
     `).all(today, ...locIds) as any[];
     const busyDays = new Set(mine.map(s => addDays(s.week_start, Number(s.day))));
     out.push("### Açık vardiyalar (ilk alan alır)");

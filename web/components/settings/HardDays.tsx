@@ -47,8 +47,7 @@ export function SpecialDatesEditor({ value, onChange, industry, today }: {
   const taken = new Set(value.map(v => v.date));
   // Resmî tatiller ayrı ayarda; burada arife ve ticari günler önerilir
   const suggestions = specialDaysInRange(today, yearLater, industry)
-    .filter(s => (s.kind === "commercial" || s.kind === "half_holiday") && !taken.has(s.date))
-    .slice(0, 6);
+    .filter(s => (s.kind === "commercial" || s.kind === "half_holiday") && !taken.has(s.date));
   const update = (i: number, patch: Partial<SpecialDatePoints>) => onChange(value.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const sorted = value.map((v, i) => ({ v, i })).sort((a, b) => (a.v.date || "9").localeCompare(b.v.date || "9"));
 

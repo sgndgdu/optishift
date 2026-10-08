@@ -27,9 +27,6 @@ export type Suggestion = {
   href: string;
 };
 
-const MAX_LEAVES = 5;
-const MAX_OPEN = 5;
-const MAX_CONFLICTS = 7;
 const OPEN_DAYS_AHEAD = 2;
 
 const range = (a: string, b: string) => (a === b ? formatDateTR(a) : `${formatDateTR(a, { weekday: false })} - ${formatDateTR(b, { weekday: false })}`);
@@ -45,7 +42,7 @@ export async function leaveSuggestion(db: any, orgId: string, locationId: string
   const today = businessNow().date;
   if (req.end_date < today) return null;
 
-  const conflicts = (await findConflicts(db, req)).filter(c => c.date >= today).slice(0, MAX_CONFLICTS);
+  const conflicts = (await findConflicts(db, req)).filter(c => c.date >= today);
   const replacements: Record<string, string> = {};
   const covered: { name: string; date: string; time: string }[] = [];
   let uncoveredDraft = 0, uncoveredPublished = 0;
@@ -128,8 +125,8 @@ export async function buildSuggestions(db: any, auth: AuthUser, locationId: stri
     const leaves = await db.prepare(`
       SELECT lr.id FROM leave_requests lr JOIN personnel p ON p.id = lr.personnel_id
       WHERE p.org_id = ? AND p.primary_location_id = ? AND lr.status = 'pending' AND lr.end_date >= ?
-      ORDER BY lr.start_date LIMIT ?
-    `).all(auth.org_id, locationId, today, MAX_LEAVES) as any[];
+      ORDER BY lr.start_date
+    `).all(auth.org_id, locationId, today) as any[];
     for (const l of leaves) {
       const s = await leaveSuggestion(db, auth.org_id, locationId, l.id).catch(() => null);
       if (s) out.push(s);
@@ -139,8 +136,8 @@ export async function buildSuggestions(db: any, auth: AuthUser, locationId: stri
   if (hasPerm(auth, "plan_settings")) {
     const open = await db.prepare(`
       SELECT * FROM open_shifts WHERE org_id = ? AND location_id = ? AND status = 'open' AND claimed_by IS NULL
-        AND date >= ? AND date <= ? ORDER BY date, start_time LIMIT ?
-    `).all(auth.org_id, locationId, today, addDays(today, OPEN_DAYS_AHEAD), MAX_OPEN) as any[];
+        AND date >= ? AND date <= ? ORDER BY date, start_time
+    `).all(auth.org_id, locationId, today, addDays(today, OPEN_DAYS_AHEAD)) as any[];
     for (const os of open) {
       const s = await openShiftSuggestion(db, os).catch(() => null);
       if (s) out.push(s);

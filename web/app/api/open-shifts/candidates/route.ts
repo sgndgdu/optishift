@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { rankCandidates, type SlotInput } from "@/lib/openShiftCandidates";
-import { canAssignFrom, canBorrow, declinedIds } from "@/lib/loans";
+import { canBorrow, declinedIds } from "@/lib/loans";
 
 // GET ?id=<open_shift_id> | ?assignment_id=<boşalacak atama> — uygun aday listesi (müdür).
 // Hesap lib/openShiftCandidates.ts'te (izin, rol ve gerekçeler dahil).
@@ -57,12 +57,9 @@ export async function GET(req: NextRequest) {
     const { candidates, is_night } = await rankCandidates(db, slot);
     // Başka şubelerdeki adaylar sadece "Başka şubeden kişi" yetkisiyle (lib/loans). assignable: onaysız doğrudan atanabilir
     const borrow = canBorrow(auth);
-    // Kendi şubesinden en fazla 10, ardından diğer şubelerden (rankCandidates en fazla 5 verir); tek kesimde
-    // kalabalık şubede başka şube adayları hiç görünmüyordu
-    const usable = candidates.filter(c => !declined.includes(c.personnel_id) && (!c.other_branch || borrow));
-    const list = [...usable.filter(c => !c.other_branch).slice(0, 10), ...usable.filter(c => c.other_branch)]
-      .map(c => ({ ...c, assignable: !c.other_branch || canAssignFrom(auth, c.home_location_id) }));
-    return NextResponse.json({ candidates: list, is_night, cross_branch: borrow });
+    // Uygun olan herkes (sayı sınırı yok, kullanıcı kararı 2026-10-08): önce kendi şubesi, sonra diğer şubeler
+    const list = candidates.filter(c => !declined.includes(c.personnel_id) && (!c.other_branch || borrow));
+    return NextResponse.json({ candidates: list, is_night, cross_branch: borrow, can_bend_rules: auth.role === "admin" });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -46,7 +46,6 @@ export function findBottlenecks(snap: WeekSnapshot, shiftDefs: ShiftDefinition[]
       .filter(p => !p.roles.includes(role))
       .map(p => ({ p, onShift: p.shifts.filter(x => r.shiftIds.has(x.shiftId)).length }))
       .sort((a, b) => (b.onShift - a.onShift) || (a.p.loadRatio - b.p.loadRatio))
-      .slice(0, 3)
       .map(x => x.p.name);
     out.push({ role, needShifts: r.need, holders: holders.length, capacity, gaps, trainees });
   }

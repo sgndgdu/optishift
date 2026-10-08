@@ -134,19 +134,6 @@ export default function OpenShiftsPage() {
   // adalet puanı sıralı liste — "Ata" ile müdür doğrudan atar
   const [candidates, setCandidates] = useState<Record<number, { loading: boolean; list: any[] }>>({});
   const [assigning, setAssigning] = useState<number | null>(null);
-  const [invited, setInvited] = useState<Record<string, boolean>>({}); // "<ilan>-<kişi>" → davet gitti
-
-  // Başka şubedeki kişiye davet (lib/loans): kişi alırsa kendi sorumlusu onaylar
-  async function handleInvite(shift: any, cand: any) {
-    const r = await fetch("/api/open-shifts", {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: shift.id, invite: cand.personnel_id }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (r.ok) { setInvited(prev => ({ ...prev, [`${shift.id}-${cand.personnel_id}`]: true })); showToast(`${cand.name} davet edildi. Alırsa kendi sorumlusu onaylar.`); }
-    else showToast(d.error || "Davet gönderilemedi.");
-  }
-
   // Kişinin kendi sorumlusunun onayını beklemekten vazgeç: ilan yeniden açılır
   async function handleLoanWithdraw(shift: any) {
     const r = await fetch("/api/open-shifts", {
@@ -180,12 +167,14 @@ export default function OpenShiftsPage() {
       let r = await send(false);
       let d: ViolationResponse = await r.json().catch(() => ({}));
       if (r.status === 409 && d.can_force && d.violations?.length) {
-        if (!confirmDespiteViolations(d.violations, `${cand.name} yine de atansın mı?`)) return;
+        if (!confirmDespiteViolations(d.violations, `${cand.name} yine de atansın mı?`, user?.role === "admin")) return;
         r = await send(true);
         d = await r.json().catch(() => ({}));
       }
-      if (r.ok) {
-        showToast(`${cand.name} vardiyaya atandı ve bilgilendirildi.`);
+      const pending = (d as { pending?: boolean }).pending;
+      if (d.exception_requested) { showToast(d.message ?? "Hesap sahibinin onayına gönderildi."); await load(); }
+      else if (r.ok) {
+        showToast(pending ? `${cand.name} için kendi şubesinin sorumlusunun onayı bekleniyor.` : `${cand.name} vardiyaya atandı ve bilgilendirildi.`);
         await load();
       } else showToast(violationText(d, "Atanamadı."));
     } finally { setAssigning(null); }
@@ -299,7 +288,7 @@ export default function OpenShiftsPage() {
                       {candidates[selected.id].list.map((c: any, i: number, arr: any[]) => (
                         <Fragment key={c.personnel_id}>
                         {c.other_branch && !arr[i - 1]?.other_branch && (
-                          <li className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-500">Diğer şubelerden · alırsa kendi sorumlusu onaylar</li>
+                          <li className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-500">Diğer şubelerden</li>
                         )}
                         <li className="flex items-center gap-3 px-3 py-2.5">
                           <Avatar name={c.name} />
@@ -309,19 +298,10 @@ export default function OpenShiftsPage() {
                               {c.warnings.length > 0 ? c.warnings.join(" · ") : `${c.other_branch ? `${c.other_branch} · ` : ""}${Math.round(c.prev_score)} puan`}
                             </p>
                           </div>
-                          {/* Başka şubenin çalışanı: ana şubesini de yöneten atar, diğerleri davet eder (lib/loans) */}
-                          {c.assignable !== false ? (
                           <button disabled={assigning === selected.id} onClick={() => handleAssign(selected, c)}
                             className="shrink-0 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                             {assigning === selected.id ? "Atanıyor…" : "Ata"}
                           </button>
-                          ) : invited[`${selected.id}-${c.personnel_id}`] ? <span className="shrink-0 text-xs text-slate-500">Davet gitti</span>
-                          : (
-                          <button onClick={() => handleInvite(selected, c)}
-                            className="shrink-0 px-3 min-h-[36px] rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/5">
-                            Davet et
-                          </button>
-                          )}
                         </li>
                         </Fragment>
                       ))}

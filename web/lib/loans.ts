@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Şubeler arası ödünç: kim ister, kim verir. TEK KAYNAK (kullanıcı kararı 2026-10-08).
- * - İsteyen: başka şubelerdeki kişileri aday olarak görmek ve ilanı onlara duyurmak "Başka şubeden kişi"
+ * Şubeler arası ödünç: kim ister, kim verir. TEK KAYNAK (kullanıcı kararları 2026-10-08).
+ * - İsteyen: başka şubelerdeki kişileri görmek, ilanı onlara duyurmak ve onları plana yazmak "Başka şubeden kişi"
  *   (cross_branch) yetkisi ister. Departman sorumlusu yapamaz. Ekip üyesinin bıraktığı vardiya sadece kendi şubesine duyurulur.
- * - Veren: başka şubeden biri ilanı alınca vardiya "loan_pending" olur, kişinin ana şubesinde onay yetkisi
- *   (approvals) olan sorumlu Onaylar'da onaylar ya da reddeder. İlanı açan kişi o şube için de onay verebiliyorsa
- *   ya da kişiyi doğrudan atayan iki şubeyi de yönetiyorsa ayrıca onay gerekmez.
+ * - Veren: işletme ayarı loan_approval açıksa (lib/orgSettings, varsayılan) başka şubeden kişi yazılınca ya da kişi
+ *   ilanı alınca vardiya "loan_pending" olur, kişinin ana şubesinde onay yetkisi (approvals) olan sorumlu Onaylar'da
+ *   onaylar ya da reddeder. Yazan / ilanı açan kişi o şube için de onay verebiliyorsa onay gerekmez. Ayar kapalıysa
+ *   hiç onay yok, kişinin şubesine sadece haber gider. Kişinin kendi kabulü hiçbir zaman şart değil.
  */
 import type { AuthUser } from "@/lib/auth";
 import { parseManagedLocations } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { departmentScope, hasPerm, parseAccess } from "@/lib/userAccess";
 
-type Viewer = Pick<AuthUser, "role" | "location_id" | "managed_location_ids" | "access">;
+export type Viewer = Pick<AuthUser, "role" | "location_id" | "managed_location_ids" | "access">;
 
 /** İlanı başka şubelere duyurabilir, oradaki adayları görebilir */
 export function canBorrow(auth: Viewer | null | undefined): boolean {
@@ -20,11 +21,6 @@ export function canBorrow(auth: Viewer | null | undefined): boolean {
   return hasPerm(auth, "cross_branch") && !departmentScope(auth);
 }
 
-/** Başka şubenin çalışanını onaysız doğrudan atayabilir: ödünç yetkisi var ve kişinin ana şubesini de yönetiyor */
-export function canAssignFrom(auth: Viewer | null | undefined, homeLocationId: string | null | undefined): boolean {
-  if (!canBorrow(auth) || !homeLocationId) return false;
-  return !managerOutsideBranch(auth as AuthUser, homeLocationId);
-}
 
 /** Kişinin ana şubesi adına ödünç kararı verebilir (Onaylar yetkisi, o şube kapsamında) */
 export function canApproveLoan(auth: Viewer | null | undefined, homeLocationId: string | null | undefined): boolean {

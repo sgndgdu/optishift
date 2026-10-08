@@ -6,11 +6,13 @@ import { businessToday, formatDateTR } from "@/lib/date";
 import { canApproveLoan } from "@/lib/loans";
 import { claimOpenShift, declineLoan } from "@/lib/openShifts";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
+import { canBendRules, EXCEPTION_SENT_MESSAGE, requestRuleException } from "@/lib/ruleExceptions";
 
 /**
  * Ödünç onayı (lib/loans): başka şubenin ilanını alan kişinin ana şubesinin sorumlusu karar verir.
  * GET ?location_id=<ana şube>: bekleyenler (Onaylar sayfası, menü rozeti, Ana Sayfa sayacı).
- * PATCH { id, decision: "approve" | "reject" }.
+ * PATCH { id, decision: "approve" | "reject", force? }. Kurala uymayan onayı sadece hesap sahibi geçirir; başkasınınki
+ * hesap sahibinin onayına gider (lib/ruleExceptions).
  */
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -37,7 +39,7 @@ export async function PATCH(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const db = getDB();
   try {
-    const { id, decision } = await req.json();
+    const { id, decision, force } = await req.json();
     if (!id || (decision !== "approve" && decision !== "reject")) {
       return NextResponse.json({ error: "id ve karar zorunlu" }, { status: 400 });
     }
@@ -52,11 +54,22 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Onay: kurallar yeniden denetlenir (bekleme sırasında plan değişmiş olabilir), vardiya plana yazılır
-    const r = await claimOpenShift(db, auth.org_id, Number(id), os.claimed_by, os.claimed_by_name ?? null, { loanApproval: true });
-    if (!r.ok) {
-      const why = r.violations?.length ? `Kişinin planı çalışma kurallarına uymuyor: ${r.violations.join(" ")}` : r.error;
-      return NextResponse.json({ error: `Onaylanamadı. ${why} İsteği reddedebilirsiniz.` }, { status: r.status });
+    const ownerForce = force === true && canBendRules(auth);
+    const r = await claimOpenShift(db, auth.org_id, Number(id), os.claimed_by, os.claimed_by_name ?? null, { loanApproval: true, force: ownerForce });
+    if (!r.ok && r.violations?.length) {
+      if (force === true && !ownerForce) {
+        await requestRuleException(db, auth, {
+          kind: "loan_approve", location_id: os.loan_home_location_id, ref_key: String(id), payload: { open_shift_id: Number(id) },
+          summary: `${os.claimed_by_name ?? "Ekip üyesinin"} ${formatDateTR(os.date)} ${os.start_time}-${os.end_time} başka şube vardiyasını onaylamak istiyor.`,
+          violations: r.violations,
+        });
+        return NextResponse.json({ success: true, exception_requested: true, message: EXCEPTION_SENT_MESSAGE }, { status: 202 });
+      }
+      return NextResponse.json({
+        error: "Bu vardiya kişinin planında çalışma kurallarına uymuyor.", violations: r.violations, can_force: true,
+      }, { status: 409 });
     }
+    if (!r.ok) return NextResponse.json({ error: `Onaylanamadı. ${r.error} İsteği reddedebilirsiniz.` }, { status: r.status });
     await notifyBranchManagers(db, auth.org_id, os.location_id, "plan_settings", {
       type: "open_shift", title: "Ödünç onaylandı",
       message: `${os.claimed_by_name ?? "Kişinin"} ${formatDateTR(os.date)} ${os.start_time}–${os.end_time} vardiyasına gelmesi onaylandı. Vardiya planınıza yazıldı.`,

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { trNum } from "@/lib/format";
 import { canPublishPlan } from "@/lib/userAccess";
+import { canBendRules, publishPermit } from "@/lib/ruleExceptions";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
 import { type ShiftDef } from "@/lib/fairness";
@@ -287,6 +288,45 @@ export async function POST(req: NextRequest) {
     }
 
     // Güncellemeler toplanır, döngü sonunda tek UPDATE ile yazılır
+    // Kurala uymayan planı yayınlamak (force): sadece hesap sahibi ya da onun bu hafta için verdiği izin (lib/ruleExceptions).
+    // Ön tarama: yazmadan önce dinlenme kontrolü; izin yoksa hiçbir satır yazılmaz (yarım yayın olmasın).
+    if (forcePublish && !canBendRules(auth)) {
+      const groups = new Map<string, any[]>();
+      for (const sh of shifts) {
+        if (!sh?.personnel_id || !sh.location_id || !sh.week_start || !sh.start_time || !sh.end_time || sh.kind === "on_call") continue;
+        const k = `${sh.location_id}|${sh.week_start}`;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(sh);
+      }
+      for (const [k, list] of groups) {
+        const [locId, ws] = k.split("|");
+        const minRest = await getMinRestMin(locId);
+        const byPerson = new Map<string, Map<number, any>>();
+        for (const sh of list) {
+          if (!byPerson.has(sh.personnel_id)) byPerson.set(sh.personnel_id, new Map());
+          byPerson.get(sh.personnel_id)!.set(Number(sh.day), sh);
+        }
+        let broken = false;
+        for (const days of byPerson.values()) {
+          for (const [d, sh] of days) {
+            const next = days.get(d + 1);
+            if (!next) continue;
+            const [sh1, sm1] = String(sh.start_time).split(":").map(Number), [eh1, em1] = String(sh.end_time).split(":").map(Number);
+            const [nh, nm] = String(next.start_time).split(":").map(Number);
+            let end = eh1 * 60 + em1; if (end <= sh1 * 60 + sm1) end += 1440;
+            if ((nh * 60 + nm + 1440) - end < minRest) { broken = true; break; }
+          }
+          if (broken) break;
+        }
+        if (broken && !(await publishPermit(db, auth.org_id, locId, ws))) {
+          return NextResponse.json({
+            error: "Bu plan dinlenme kuralına uymuyor. Kuralı sadece hesap sahibi esnetebilir: Plan Kontrolü'nden hesap sahibinin onayına gönderin.",
+            needs_owner: true,
+          }, { status: 403 });
+        }
+      }
+    }
+
     const pendingUpdates: { id: number; shift_id: string; start: string | null; end: string | null; pub: string; dept: string | null }[] = [];
     const publishedGroups = new Set<string>(); // location|week: yayından sonra artık taslak kopyalar silinir
 

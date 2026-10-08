@@ -33,7 +33,7 @@ export interface Candidate {
   role_match: boolean;
   /** Başka şubenin çalışanı (ödünç): ana şubesinin adı. Kendi şubesindekiler önce sıralanır. */
   other_branch?: string;
-  /** Başka şubenin çalışanının ana şubesi (doğrudan atama yetkisi buna göre, lib/loans canAssignFrom) */
+  /** Başka şubenin çalışanının ana şubesi */
   home_location_id?: string;
   /** Üstlenirse çalışma kuralı bozulur (dinlenme ya da haftalık sınır): üstlenme sunucuda reddedilir */
   blocking?: boolean;
@@ -79,9 +79,11 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   };
   const eligible = people.filter(p => p.id !== slot.excludePersonnelId && inDept(p));
   let ruleMax = 45;
+  let minRest = 11; // şubenin "En az dinlenme süresi" ayarı (lib/assignmentCheck ile aynı)
   try {
     const r = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules || "{}") : (locRow?.rules ?? {});
     if (typeof r.max_weekly_hours === "number") ruleMax = r.max_weekly_hours;
+    if (typeof r.min_rest_hours === "number") minRest = r.min_rest_hours;
   } catch { /* varsayılan */ }
 
   // O haftanın normal vardiyaları TÜM şubelerde (gün çakışması, saat toplamı, dinlenme şubeler arası)
@@ -152,7 +154,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       if (pe !== null && ps !== null) {
         const prevEnd = pe <= ps ? pe + 1440 : pe;
         const gap = (osStart + 1440) - prevEnd;
-        if (gap < 11 * 60) { warnings.push(`Önceki günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az 11 olmalı`); blocking = true; }
+        if (gap < minRest * 60) { warnings.push(`Önceki günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az ${trNum(minRest)} olmalı`); blocking = true; }
       }
     }
     const nextA = mine.find(a => Number(a.day) === dayIdx + 1);
@@ -160,7 +162,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       const ns = toMin(nextA.start_time);
       if (ns !== null) {
         const gap = (ns + 1440) - osEnd;
-        if (gap < 11 * 60) { warnings.push(`Ertesi günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az 11 olmalı`); blocking = true; }
+        if (gap < minRest * 60) { warnings.push(`Ertesi günle arada ${trNum(Math.round(gap / 6) / 10)} saat kalır, en az ${trNum(minRest)} olmalı`); blocking = true; }
       }
     }
 
@@ -187,8 +189,6 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   // Adalet sırası gerekçesi: uyarısızlar arasında en az yük taşıyanlar
   candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az çalışan önce)`));
 
-  // Diğer şubelerden en fazla 5 uyarısız aday (liste uzamasın)
-  const local = candidates.filter(c => !c.other_branch);
-  const away = candidates.filter(c => c.other_branch && c.warnings.length === 0).slice(0, 5);
-  return { candidates: [...local, ...away], is_night: osIsNight };
+  // Uygun olan herkes (sayı sınırı yok, kullanıcı kararı 2026-10-08); kendi şubesi önce (sıralama yukarıda)
+  return { candidates, is_night: osIsNight };
 }

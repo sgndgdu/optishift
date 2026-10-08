@@ -28,6 +28,8 @@ export const organizations = pgTable("organizations", {
   notes: text("notes"),                           // admin iç notu
   feature_flags: text("feature_flags").default("{}"), // JSON
   max_personnel: integer("max_personnel"),        // null = sınırsız
+  // İşletme geneli ayarlar (JSON, lib/orgSettings): { loan_approval } (2026-10-08)
+  settings: text("settings"),
   created_at: bigint("created_at", { mode: "number" }),
   last_activity_at: bigint("last_activity_at", { mode: "number" }),
 });
@@ -870,4 +872,24 @@ export const planSubmissions = pgTable("plan_submissions", {
   submitted_by: text("submitted_by"),
   submitted_by_name: text("submitted_by_name"),
   submitted_at: bigint("submitted_at", { mode: "number" }),
+});
+
+// ─── Kural istisnası (2026-10-08) ────────────────────────────────────────────
+// Çalışma kuralını esneten işlem (dinlenme, haftalık sınır...) sorumlu isteyince hesap sahibinin onayına düşer
+// (lib/ruleExceptions). kind: open_shift_assign | loan_approve | swap_approve | publish_week
+export const ruleExceptions = pgTable("rule_exceptions", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id"),
+  kind: text("kind").notNull(),
+  ref_key: text("ref_key").notNull(),
+  payload: text("payload"),
+  summary: text("summary").notNull(),
+  violations: text("violations"),
+  requested_by: text("requested_by"),
+  requested_by_name: text("requested_by_name"),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  created_at: bigint("created_at", { mode: "number" }),
+  decided_by: text("decided_by"),
+  decided_at: bigint("decided_at", { mode: "number" }),
 });

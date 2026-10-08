@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   ClipboardList, ArrowLeftRight, FileEdit, CalendarOff,
-  CheckCircle2, XCircle, History, Timer, Building2
+  CheckCircle2, XCircle, History, Timer, Building2, ShieldAlert
 } from "lucide-react";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
@@ -62,8 +62,10 @@ export default function ManagerRequestsPage() {
   const [leaveOpen, setLeaveOpen] = useState<Record<number, boolean>>({}); // izin kartında ayrıntılar açık mı (sadeleştirme 2026-10-07)
   const [overtimes, setOvertimes] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]); // başka şubeye yardım isteği (lib/loans), sadece bekleyenler
+  const [exceptions, setExceptions] = useState<any[]>([]); // kural istisnası (lib/ruleExceptions), sadece hesap sahibine
+  const isOwner = user?.role === "admin";
   // "all": bekleyen her şey tek akışta (varsayılan); diğerleri tür filtresi
-  const [activeTab, setActiveTab] = useState<"all" | "swap" | "edit" | "leave" | "overtime" | "loan">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "swap" | "edit" | "leave" | "overtime" | "loan" | "exception">("all");
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast]     = useState("");
@@ -81,15 +83,17 @@ export default function ManagerRequestsPage() {
     setLoading(true);
     const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
     try {
-      const [sw, ed, lv, ot, locs, ln] = await Promise.all([
+      const [sw, ed, lv, ot, locs, ln, ex] = await Promise.all([
         fetch(`/api/swap-requests?org_id=${user.org_id}&location_id=${locId}&status=peer_accepted`).then(r => r.json()).catch(() => []),
         fetch(`/api/shift-edit-requests?org_id=${user.org_id}&location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/leave-requests?location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/overtime?location_id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/locations?id=${locId}`).then(r => r.json()).catch(() => []),
         fetch(`/api/open-shifts/loans?location_id=${locId}`).then(r => r.json()).catch(() => []),
+        user.role === "admin" ? fetch(`/api/rule-exceptions?location_id=${locId}`).then(r => r.json()).catch(() => []) : Promise.resolve([]),
       ]);
       setLoans(Array.isArray(ln) ? ln : []);
+      setExceptions(Array.isArray(ex) ? ex : []);
       setSwaps(Array.isArray(sw) ? sw : []);
       setEdits(Array.isArray(ed) ? ed : []);
       setLeaves(Array.isArray(lv) ? lv : []);
@@ -118,7 +122,7 @@ export default function ManagerRequestsPage() {
 
   async function approveSwap(id: number, known: string[] = []) {
     // Kartta görünen kural sorunları varsa önce açık onay al
-    if (known.length > 0 && !confirmDespiteViolations(known, "Vardiya değiştirme yine de onaylansın mı?")) return;
+    if (known.length > 0 && !confirmDespiteViolations(known, "Vardiya değiştirme yine de onaylansın mı?", isOwner)) return;
     const send = (force: boolean) => fetch("/api/swap-requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -128,10 +132,11 @@ export default function ManagerRequestsPage() {
     let d: ViolationResponse = await r.json().catch(() => ({}));
     // Plan kart yüklendikten sonra değişmiş olabilir: yeni sorunları göster ve tekrar sor
     if (r.status === 409 && d.can_force && d.violations?.length) {
-      if (!confirmDespiteViolations(d.violations, "Vardiya değiştirme yine de onaylansın mı?")) return;
+      if (!confirmDespiteViolations(d.violations, "Vardiya değiştirme yine de onaylansın mı?", isOwner)) return;
       r = await send(true);
       d = await r.json().catch(() => ({}));
     }
+    if (d.exception_requested) { showToast(d.message ?? "Hesap sahibinin onayına gönderildi."); await load(); return; }
     if (!r.ok) { showToast(violationText(d, "Vardiya değiştirme onaylanamadı.")); await load(); return; }
     showToast("Vardiya değiştirme onaylandı, vardiyalar güncellendi.");
     await load();
@@ -223,13 +228,30 @@ export default function ManagerRequestsPage() {
   }
 
   async function decideLoan(id: number, decision: "approve" | "reject") {
-    const r = await fetch("/api/open-shifts/loans", {
+    const send = (force: boolean) => fetch("/api/open-shifts/loans", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, decision, force }),
+    });
+    let r = await send(false);
+    let d: ViolationResponse = await r.json().catch(() => ({}));
+    if (r.status === 409 && d.can_force && d.violations?.length) {
+      if (!confirmDespiteViolations(d.violations, "Yine de onaylansın mı?", isOwner)) return;
+      r = await send(true);
+      d = await r.json().catch(() => ({}));
+    }
+    showToast(d.exception_requested ? (d.message ?? "Hesap sahibinin onayına gönderildi.")
+      : !r.ok ? violationText(d, "İşlem yapılamadı.")
+      : decision === "approve" ? "Onaylandı. Vardiya kişinin planına yazıldı." : "Reddedildi. Kişiye ve diğer şubeye haber verildi.");
+    await load();
+  }
+
+  async function decideException(id: number, decision: "approve" | "reject") {
+    const r = await fetch("/api/rule-exceptions", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, decision }),
     });
     const d = await r.json().catch(() => ({}));
-    showToast(!r.ok ? (d.error || "İşlem yapılamadı.")
-      : decision === "approve" ? "Onaylandı. Vardiya kişinin planına yazıldı." : "Reddedildi. Kişiye ve diğer şubeye haber verildi.");
+    showToast(!r.ok ? (d.error || "İşlem yapılamadı.") : decision === "approve" ? "Onaylandı. İsteyen sorumluya haber verildi." : "Reddedildi. İsteyen sorumluya haber verildi.");
     await load();
   }
 
@@ -247,7 +269,7 @@ export default function ManagerRequestsPage() {
   const pendingEdits  = edits.filter(e => e.status === "pending");
   const pendingLeaves = leaves.filter((l: any) => l.status === "pending");
   const pendingOvertimes = overtimes.filter((o: any) => o.status === "pending");
-  const totalPending  = pendingSwaps.length + pendingEdits.length + pendingLeaves.length + pendingOvertimes.length + loans.length;
+  const totalPending  = pendingSwaps.length + pendingEdits.length + pendingLeaves.length + pendingOvertimes.length + loans.length + exceptions.length;
 
   // Filtered lists based on showHistory toggle
   const visibleSwaps  = showHistory ? swaps  : pendingSwaps;
@@ -255,7 +277,7 @@ export default function ManagerRequestsPage() {
   const visibleLeaves = showHistory ? leaves : pendingLeaves;
   const visibleOvertimes = showHistory ? overtimes : pendingOvertimes;
   // Açık sekmenin listesi boşaldıysa (sekmeler gizlendi) "Tümü"ne dön
-  const kindCount: Record<string, number> = { swap: visibleSwaps.length, edit: visibleEdits.length, leave: visibleLeaves.length, overtime: visibleOvertimes.length, loan: loans.length };
+  const kindCount: Record<string, number> = { swap: visibleSwaps.length, edit: visibleEdits.length, leave: visibleLeaves.length, overtime: visibleOvertimes.length, loan: loans.length, exception: exceptions.length };
   const activeEmpty = activeTab !== "all" && !loading && (kindCount[activeTab] ?? 0) === 0;
   const tab = activeEmpty ? "all" : activeTab;
 
@@ -302,13 +324,14 @@ export default function ManagerRequestsPage() {
           leaveRequestsEnabled && visibleLeaves.length > 0 ? { id: "leave", label: "İzin", count: pendingLeaves.length, icon: CalendarOff } : null,
           overtimeTrackingEnabled && visibleOvertimes.length > 0 ? { id: "overtime", label: "Mesai", count: pendingOvertimes.length, icon: Timer } : null,
           loans.length > 0 ? { id: "loan", label: "Başka şubeye yardım", count: loans.length, icon: Building2 } : null,
+          exceptions.length > 0 ? { id: "exception", label: "Kural istisnası", count: exceptions.length, icon: ShieldAlert } : null,
         ].filter((k): k is NonNullable<typeof k> => k !== null);
         if (kinds.length < 2) return null;
         return <Tabs value={tab} onChange={id => setActiveTab(id)} items={[{ id: "all", label: "Tümü", count: totalPending, icon: ClipboardList }, ...kinds] as never} />;
       })()}
 
       {loading && <div className="text-center py-16 text-slate-400 text-sm">Yükleniyor…</div>}
-      {!loading && tab === "all" && visibleSwaps.length + visibleEdits.length + visibleLeaves.length + visibleOvertimes.length + loans.length === 0 && (
+      {!loading && tab === "all" && visibleSwaps.length + visibleEdits.length + visibleLeaves.length + visibleOvertimes.length + loans.length + exceptions.length === 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl"><EmptyState text={showHistory ? "Talep yok" : "Onay bekleyen bir şey yok"} /></div>
       )}
 
@@ -371,6 +394,43 @@ export default function ManagerRequestsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── KURAL İSTİSNASI (lib/ruleExceptions): sorumlu kuralı aşan bir işlem istedi, sadece hesap sahibi onaylar ── */}
+      {!loading && (tab === "exception" || (tab === "all" && exceptions.length > 0)) && (
+        <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+          {tab === "all" && <p className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500">Kural istisnası</p>}
+          {exceptions.map(x => (
+            <div key={x.id} className="px-4 py-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <ShieldAlert size={13} className="text-red-600 shrink-0" />
+                    <span className="text-sm font-bold text-slate-900">{x.requested_by_name ?? "Sorumlu"}</span>
+                    <StatusPill tone="danger">Kurala uymuyor</StatusPill>
+                  </div>
+                  <p className="text-sm text-slate-700">{x.summary}</p>
+                  {x.location_name && <p className="text-xs text-slate-500 mt-0.5">{x.location_name} şubesi</p>}
+                  <ul className="mt-2 space-y-0.5 text-xs text-red-700 list-disc list-inside">
+                    {(x.violations ?? []).map((v: string) => <li key={v}>{v}</li>)}
+                  </ul>
+                  <p className="text-xs text-slate-500 mt-2">{x.kind === "publish_week" ? "Onaylarsanız sorumlu planı 24 saat içinde yayınlayabilir." : "Onaylarsanız işlem hemen yapılır."}</p>
+                </div>
+                {x.created_at && <span className="text-xs text-slate-400 shrink-0">{timeAgo(x.created_at)}</span>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => decideException(x.id, "reject")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-700 hover:bg-red-50 transition-colors">
+                  <XCircle size={15} /> Reddet
+                </button>
+                <button onClick={() => decideException(x.id, "approve")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
+                  <CheckCircle2 size={15} /> Onayla
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

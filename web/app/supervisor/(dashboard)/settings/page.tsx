@@ -8,6 +8,7 @@ import { DetailRow } from "@/components/ui/Sheet";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { getPlan } from "@/lib/plans";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
+import { parseOrgSettings } from "@/lib/orgSettings";
 
 export default function SupervisorSettingsPage() {
   const router = useRouter();
@@ -54,6 +55,18 @@ export default function SupervisorSettingsPage() {
   };
 
   const planInfo = getPlan(org?.plan);
+  const loanApproval = parseOrgSettings(org?.settings).loan_approval;
+  const [savingLoan, setSavingLoan] = useState(false);
+  const setLoanApproval = async (v: boolean) => {
+    setSavingLoan(true);
+    try {
+      const r = await fetch(`/api/admin/organizations?id=${user.org_id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: { loan_approval: v } }),
+      });
+      if (r.ok) setOrg((o: any) => ({ ...o, settings: JSON.stringify({ ...parseOrgSettings(o?.settings), loan_approval: v }) }));
+    } finally { setSavingLoan(false); }
+  };
 
   if (!mounted) return <Page />;
 
@@ -71,6 +84,21 @@ export default function SupervisorSettingsPage() {
           </>}
         </div>
       </section>
+
+      {/* İşletme geneli ayar (lib/orgSettings), tek yeri burası; sadece hesap sahibi ve birden çok şubede */}
+      {user.role === "admin" && locations.length > 1 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-bold text-slate-900">Şubeler arası</h2>
+          <label className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3.5 cursor-pointer">
+            <input type="checkbox" className="mt-1 h-4 w-4 accent-forest-700" checked={loanApproval} disabled={savingLoan || loading}
+              onChange={e => setLoanApproval(e.target.checked)} />
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">Başka şubeden kişi alınca kendi sorumlusu onaylasın</span>
+              <span className="block text-xs text-slate-500 mt-0.5">Açıkken bir şube başka şubenin çalışanını vardiyaya yazdığında ya da kişi ilanı aldığında, kişinin kendi şubesinin sorumlusu Onaylar&apos;dan onaylar. Kapalıyken vardiya hemen yazılır, kişinin şubesine sadece haber gider.</span>
+            </span>
+          </label>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-base font-bold text-slate-900">Hesabım</h2>

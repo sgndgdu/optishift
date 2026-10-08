@@ -47,6 +47,7 @@ import { canPublishPlan, departmentScope, hasPerm, parseAccess, type UserAccess 
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments } from "@/lib/departments";
 import { demandGapDays, fillAllRows } from "@/lib/demandGaps";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
+import { RULE_CHECK_IDS } from "@/lib/ruleBend";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
@@ -468,6 +469,8 @@ function SchedulePageInner() {
   const [copyLoading, setCopyLoading]             = useState(false);
   const [confirmCopy, setConfirmCopy]             = useState(false);
   const [violationModal, setViolationModal]       = useState<{ problems: Insight[]; onConfirm: () => void; verb?: "Yayınla" | "Onaya Gönder" } | null>(null);
+  // Çalışma kuralını aşan planı sadece hesap sahibi yayınlar; diğerleri onayına gönderir (lib/ruleBend, /api/rule-exceptions)
+  const [publishGate, setPublishGate] = useState<{ ruleLines: string[]; approved: boolean; pending: boolean } | null>(null);
   const [approvedLeaves, setApprovedLeaves]       = useState<{ personnel_id: string; start_date: string; end_date: string; type: string }[]>([]); // Plan Asistanı + yayın kontrolü: izinli gün ataması
   const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
   const [tplName, setTplName]                     = useState("");
@@ -1450,11 +1453,13 @@ function SchedulePageInner() {
         });
         let r2 = await send(false);
         let d2: ViolationResponse = await r2.json().catch(() => ({}));
-        if (r2.status === 409 && d2.can_force && d2.violations?.length && confirmDespiteViolations(d2.violations, `${pick.name} yine de atansın mı?`)) {
+        if (r2.status === 409 && d2.can_force && d2.violations?.length && confirmDespiteViolations(d2.violations, `${pick.name} yine de atansın mı?`, viewerAccess.role === "admin")) {
           r2 = await send(true);
           d2 = await r2.json().catch(() => ({}));
         }
-        if (!r2.ok) { showToast(`Açık vardiya oluştu ama atanamadı (${violationText(d2, "hata")}). Açık Vardiyalar'dan atayın.`, "error"); }
+        if (d2.exception_requested) showToast(d2.message ?? "Hesap sahibinin onayına gönderildi.", "info");
+        else if (!r2.ok) { showToast(`Açık vardiya oluştu ama atanamadı (${violationText(d2, "hata")}). Açık Vardiyalar'dan atayın.`, "error"); }
+        else if ((d2 as { pending?: boolean }).pending) showToast(`${pick.name} için kendi şubesinin sorumlusunun onayı bekleniyor.`, "info");
         else showToast(`${pick.name} vardiyaya atandı ve bilgilendirildi.`, "success");
       } else if (mode === "top") {
         const names: string[] = Array.isArray(d.notified) ? d.notified : [];
@@ -1760,6 +1765,17 @@ function SchedulePageInner() {
     }
   };
 
+  const requestPublishException = async () => {
+    if (!publishGate) return;
+    const r = await fetch("/api/rule-exceptions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "publish_week", location_id: activeLocationId, week_start: weekStart, violations: publishGate.ruleLines }),
+    });
+    const d = await r.json().catch(() => ({}));
+    setViolationModal(null);
+    showToast(r.ok ? "Hesap sahibinin onayına gönderildi. Onaylanınca size bildirim gelir, planı o zaman yayınlayabilirsiniz." : d.error ?? "Gönderilemedi.", r.ok ? "success" : "error");
+  };
+
   const handlePublish = () => {
     if (Object.keys(cellMap).length === 0) {
       showToast("Yayınlanacak vardiya yok. Önce vardiya ekleyin veya otomatik oluşturun.", "error");
@@ -1768,6 +1784,19 @@ function SchedulePageInner() {
     // Yayın öncesi kontrol her zaman (engellemez, gösterir). Güvenilirlik kural ihlali değil, bilgi: sadece Plan Kontrolü'nde
     const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
     if (problems.length > 0) {
+      const ruleLines = problems.filter(p => RULE_CHECK_IDS.includes(p.id)).flatMap(p => p.lines);
+      if (ruleLines.length > 0 && viewerAccess.role !== "admin") {
+        fetch(`/api/rule-exceptions?kind=publish_week&location_id=${activeLocationId}&week_start=${weekStart}`)
+          .then(r => r.json()).catch(() => ({}))
+          .then((d: { approved?: boolean; approved_violations?: string[]; pending?: boolean }) => {
+            // Onay, onaylanan maddeleri kapsar; plan sonradan yeni bir kural sorunu edindiyse yeniden onay gerekir
+            const covered = !!d?.approved && ruleLines.every(l => (d.approved_violations ?? []).includes(l));
+            setPublishGate({ ruleLines, approved: covered, pending: !!d?.pending });
+            setViolationModal({ problems, onConfirm: doPublish, verb: "Yayınla" });
+          });
+        return;
+      }
+      setPublishGate(null);
       setViolationModal({ problems, onConfirm: doPublish, verb: "Yayınla" });
     } else {
       doPublish();
@@ -3167,19 +3196,24 @@ loading ? (
                     <li key={pr.id}>
                       <p className={cn("text-xs font-semibold", pr.severity === "critical" ? "text-red-800" : "text-amber-800")}>{pr.title}</p>
                       <ul className={cn("text-xs space-y-0.5 list-disc list-inside", pr.severity === "critical" ? "text-red-700" : "text-amber-700")}>
-                        {pr.lines.slice(0, 5).map((l, li) => {
+                        {pr.lines.map((l, li) => {
                           const tg = pr.targets?.[li];
                           return <li key={l}>{tg ? <button type="button" onClick={() => { setViolationModal(null); jumpTo(tg); }} className="underline decoration-dotted text-left">{l}</button> : l}</li>;
                         })}
-                        {pr.lines.length > 5 && <li className="list-none opacity-80">ve {pr.lines.length - 5} satır daha</li>}
                       </ul>
                     </li>
                   ))}
                 </ul>
-                <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Bu uyarılar yayınlamayı engellemez, isterseniz düzeltebilirsiniz."}</p>
+                <p className={cn("text-xs mt-2", crit ? "text-red-500" : "text-amber-600")}>{verb === "Yayınla" && publishGate && !publishGate.approved
+                  ? `Bu plan çalışma kurallarına uymuyor. Kuralı sadece hesap sahibi esnetebilir: düzeltin ya da onayına gönderin.${publishGate.pending ? " Daha önce gönderdiniz, onay bekleniyor." : ""}`
+                  : crit ? `${verb === "Yayınla" ? "Yayınlamadan" : "Göndermeden"} önce düzeltmeniz önerilir.` : "Bu uyarılar yayınlamayı engellemez, isterseniz düzeltebilirsiniz."}</p>
               </div>
               <div className="flex gap-2 shrink-0 sm:flex-col w-full sm:w-auto">
-                <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
+                {verb === "Yayınla" && publishGate && !publishGate.approved ? (
+                  <button onClick={requestPublishException} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-colors whitespace-nowrap bg-red-600 hover:bg-red-700">Hesap sahibinin onayına gönder</button>
+                ) : (
+                <button onClick={violationModal.onConfirm} className={cn("flex-1 sm:flex-none px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-colors whitespace-nowrap", crit ? "bg-red-600 hover:bg-red-700" : "bg-forest-700 hover:bg-forest-800")}>{verb === "Yayınla" && publishGate?.approved ? "Yayınla (hesap sahibi onayladı)" : crit ? `Yine de ${verb === "Yayınla" ? "Yayınla" : "Gönder"}` : verb}</button>
+                )}
                 <button onClick={() => {
                   // İlk düzeltilebilir soruna götürür (eskiden sadece pencereyi kapatıyordu)
                   const first = violationModal.problems.flatMap(pr => pr.targets ?? []).find(Boolean);
@@ -3448,18 +3482,15 @@ loading ? (
                 ) : (
                   <div className="space-y-2">
                     <p className="text-[12px] font-semibold text-slate-500">Önerilen yedekler</p>
-                    {[...absenceCands.filter(c => !c.other_branch).slice(0, 5), ...absenceCands.filter(c => c.other_branch).slice(0, 3)].map((c, i, arr) => (
+                    {[...absenceCands.filter(c => !c.other_branch), ...absenceCands.filter(c => c.other_branch)].map((c, i, arr) => (
                       <Fragment key={c.personnel_id}>
                       {c.other_branch && !arr[i - 1]?.other_branch && <p className="text-[12px] font-semibold text-slate-500 pt-1">Diğer şubelerden</p>}
                       <div className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
                         <div className="flex items-center gap-2">
                           <span className="text-[12px] font-bold text-slate-400 w-4">{i + 1}</span>
                           <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</span>
-                          {/* Başka şubenin çalışanını ana şubesini de yöneten atar; diğerlerine ilanla davet gider (lib/loans) */}
-                          {c.assignable !== false ? (
-                            <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
-                              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
-                          ) : <span className="text-[11px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />davet gider</span>}
+                          <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
                         </div>
                         {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[12px] text-slate-500 ml-6">✓ {r}</p>)}
                         {c.warnings.map(w => <p key={w} className="text-[12px] text-amber-700 ml-6">! {w}</p>)}
@@ -3468,7 +3499,7 @@ loading ? (
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar.{absenceCrossBranch ? " İlan diğer şubelerdeki en uygun 3 kişiye de gider. Onlardan biri alırsa kendi sorumlusu onaylar." : ""} İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
+                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar.{absenceCrossBranch ? " İlan diğer şubelerdeki uygun kişilere de gider." : ""} İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
               </div>
             </Sheet>
           )}

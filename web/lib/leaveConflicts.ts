@@ -13,7 +13,7 @@ export type Conflict = {
   department_id: string | null; shift_id: string | null;
 };
 
-/** Onay kartında her vardiya için: o vardiyada kalan kişi sayısı ve yerine konabilecek en uygun 3 kişi */
+/** Onay kartında her vardiya için: o vardiyada kalan kişi sayısı ve yerine konabilecek uygun herkes (kural bozanlar sonda) */
 export type Cover = { others: number; candidates: { personnel_id: string; name: string; note: string; ok: boolean }[] };
 
 /** İzin tarihleri arasındaki günler (YYYY-MM-DD), saat diliminden bağımsız */
@@ -70,7 +70,8 @@ export async function coverFor(db: any, personnelId: string, c: Conflict): Promi
     excludePersonnelId: personnelId, departmentId: c.department_id,
   }).catch(() => ({ candidates: [] as any[] }));
   const local = candidates.filter((x: any) => !x.other_branch);
-  const ordered = [...local.filter((x: any) => !x.blocking), ...local.filter((x: any) => x.blocking)].slice(0, 3);
+  // Uygun olan herkes (sayı sınırı yok); kural bozanlar en sonda
+  const ordered = [...local.filter((x: any) => !x.blocking), ...local.filter((x: any) => x.blocking)];
   return {
     others: Number(same?.n ?? 0),
     candidates: ordered.map((x: any) => ({
