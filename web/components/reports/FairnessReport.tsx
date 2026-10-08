@@ -32,7 +32,7 @@ export default function FairnessReport() {
   const [heroEvents, setHeroEvents] = useState<any[]>([]);
   const [adjustments, setAdjustments] = useState<any[]>([]);
   const [shiftDefs, setShiftDefs] = useState<any[]>([]);
-  const [rules, setRules] = useState<Record<string, number>>({});
+  const [rules, setRules] = useState<Record<string, any>>({}); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"current" | "history">("current");
 
@@ -170,9 +170,9 @@ export default function FairnessReport() {
               </>
             );
           })()}
-          <DetailRow label="Boşta kalan vardiyayı alma">+{rules.hero_bonus_points ?? 6}</DetailRow>
-          <DetailRow label="İzinliyken zorunlu atama">+{rules.force_bonus_points ?? 5}</DetailRow>
-          <DetailRow label="Başka şubede çalışılan vardiya">+{rules.away_shift_points ?? 3}</DetailRow>
+          <DetailRow label="Boş kalan vardiyayı kendisi alırsa">{rules.hero_bonus_enabled === false ? "Kapalı" : `+${rules.hero_bonus_points ?? 6}`}</DetailRow>
+          <DetailRow label="İzin gününde çalışmaya çağrılırsa">{rules.force_bonus_enabled === false ? "Kapalı" : `+${rules.force_bonus_points ?? 5}`}</DetailRow>
+          <DetailRow label="Başka bir şubede çalışırsa">{rules.away_shift_enabled === true ? `+${rules.away_shift_points ?? 0}` : "Kapalı"}</DetailRow>
           <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
           {shiftDefs.length > 0 && (
             <DetailRow label="Vardiya zorluğu">

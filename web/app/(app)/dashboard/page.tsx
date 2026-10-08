@@ -259,7 +259,7 @@ export default function DashboardPage() {
   const openShiftsEnabled = isModuleOn(rules, "open_shifts_enabled");
   const autoOpenOnLate    = rules.auto_open_shift_on_late !== false;
   const lateThresholdMin  = typeof rules.late_threshold_min === "number" ? rules.late_threshold_min : 30;
-  const heroBonus         = typeof rules.hero_bonus_points === "number" ? rules.hero_bonus_points : 6;
+  const heroBonus         = rules.hero_bonus_enabled === false ? 0 : typeof rules.hero_bonus_points === "number" ? rules.hero_bonus_points : 6;
   const maxYtdOvertime    = typeof rules.max_ytd_overtime_hours === "number" ? rules.max_ytd_overtime_hours : 270;
 
   // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz giriş yok → geç kalan

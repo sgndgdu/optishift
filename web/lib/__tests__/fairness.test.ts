@@ -366,15 +366,22 @@ describe("weekDayExtraPoints hafta bilinmezken", () => {
   });
 });
 
-describe("başka şubede çalışma puanı (2026-10-08)", () => {
+describe("ek puanlar açılıp kapanır (2026-10-08)", () => {
   const base = { day: 1, start_time: "09:00", end_time: "17:00", base_points: 5 };
-  it("ana şubesi dışında çalışılan vardiyaya ek puan yazılır, 0 kapatır", async () => {
+  it("başka şubede çalışma: varsayılan kapalı, açılınca yazılan puan kadar", async () => {
     const { calcAssignmentPoints } = await import("@/lib/fairness");
     const home = calcAssignmentPoints(base, {}).points;
-    const away = calcAssignmentPoints({ ...base, is_away: true }, {});
-    expect(away.points - home).toBe(3);
-    expect(away.flags.away).toBe(true);
-    expect(calcAssignmentPoints({ ...base, is_away: true }, { away_shift_points: 5 }).points - home).toBe(5);
-    expect(calcAssignmentPoints({ ...base, is_away: true }, { away_shift_points: 0 }).points).toBe(home);
+    expect(calcAssignmentPoints({ ...base, is_away: true }, {}).points).toBe(home);
+    expect(calcAssignmentPoints({ ...base, is_away: true }, { away_shift_points: 4 }).points).toBe(home);
+    const on = calcAssignmentPoints({ ...base, is_away: true }, { away_shift_enabled: true, away_shift_points: 4 });
+    expect(on.points - home).toBe(4);
+    expect(on.flags.away).toBe(true);
+  });
+  it("boş vardiyayı alma ve izin gününde çağrılma kapatılınca puan yazılmaz", async () => {
+    const { calcAssignmentPoints } = await import("@/lib/fairness");
+    const home = calcAssignmentPoints(base, {}).points;
+    expect(calcAssignmentPoints({ ...base, is_hero: true }, {}).points - home).toBe(6);
+    expect(calcAssignmentPoints({ ...base, is_hero: true }, { hero_bonus_enabled: false }).points).toBe(home);
+    expect(calcAssignmentPoints({ ...base, force_points: 5 }, { force_bonus_enabled: false }).points).toBe(home);
   });
 });

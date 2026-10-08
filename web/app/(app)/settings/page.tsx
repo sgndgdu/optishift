@@ -334,7 +334,10 @@ export default function SettingsPage() {
   const [hardDays, setHardDays]                                   = useState<HardDayRules>(() => resolveHardDayRules({}));
   const [heroBonusPoints, setHeroBonusPoints]                     = useState(6);
   const [forceBonusPoints, setForceBonusPoints]                   = useState(5);
-  const [awayShiftPoints, setAwayShiftPoints]                     = useState(3); // başka şubede çalışılan vardiya (lib/fairness)
+  const [awayShiftPoints, setAwayShiftPoints]                     = useState(0); // başka şubede çalışılan vardiya (lib/fairness), puanı hesap sahibi yazar
+  const [heroBonusEnabled, setHeroBonusEnabled]                   = useState(true);
+  const [forceBonusEnabled, setForceBonusEnabled]                 = useState(true);
+  const [awayShiftEnabled, setAwayShiftEnabled]                   = useState(false); // varsayılan kapalı
   const [branchCount, setBranchCount]                             = useState(1); // tek şubede "başka şubede" satırı gizli
   useEffect(() => {
     fetch("/api/locations?names=1").then(r => r.json()).then(d => { if (Array.isArray(d)) setBranchCount(d.length); }).catch(() => {});
@@ -478,6 +481,9 @@ export default function SettingsPage() {
           if (typeof loc.rules?.hero_bonus_points === "number")         setHeroBonusPoints(loc.rules.hero_bonus_points);
           if (typeof loc.rules?.force_bonus_points === "number")        setForceBonusPoints(loc.rules.force_bonus_points);
           if (typeof loc.rules?.away_shift_points === "number")         setAwayShiftPoints(loc.rules.away_shift_points);
+          setHeroBonusEnabled(loc.rules?.hero_bonus_enabled !== false);
+          setForceBonusEnabled(loc.rules?.force_bonus_enabled !== false);
+          setAwayShiftEnabled(loc.rules?.away_shift_enabled === true);
 
           setClopeningEnabled(loc.rules?.clopening_enabled !== false);
           setSwapRequestsEnabled(loc.rules?.swap_requests_enabled !== false);
@@ -580,7 +586,10 @@ export default function SettingsPage() {
             hardDays: resolveHardDayRules(loc.rules),
             heroBonusPoints: typeof loc.rules?.hero_bonus_points === "number" ? loc.rules.hero_bonus_points : 6,
             forceBonusPoints: typeof loc.rules?.force_bonus_points === "number" ? loc.rules.force_bonus_points : 5,
-            awayShiftPoints: typeof loc.rules?.away_shift_points === "number" ? loc.rules.away_shift_points : 3,
+            awayShiftPoints: typeof loc.rules?.away_shift_points === "number" ? loc.rules.away_shift_points : 0,
+            heroBonusEnabled: loc.rules?.hero_bonus_enabled !== false,
+            forceBonusEnabled: loc.rules?.force_bonus_enabled !== false,
+            awayShiftEnabled: loc.rules?.away_shift_enabled === true,
             clopeningEnabled: loc.rules?.clopening_enabled !== false,
             swapRequestsEnabled: loc.rules?.swap_requests_enabled !== false,
             availabilityCollectionEnabled: loc.rules?.availability_collection_enabled !== false,
@@ -645,7 +654,7 @@ export default function SettingsPage() {
       maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
       maxWeeklyHours, minRestHours, changeCompensationPoints,
-      hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints,
+      hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -663,7 +672,7 @@ export default function SettingsPage() {
     maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
     maxWeeklyHours, minRestHours, changeCompensationPoints,
-    hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints,
+    hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -809,6 +818,9 @@ export default function SettingsPage() {
             hero_bonus_points:                  heroBonusPoints,
             force_bonus_points:                 forceBonusPoints,
             away_shift_points:                  awayShiftPoints,
+            hero_bonus_enabled:                 heroBonusEnabled,
+            force_bonus_enabled:                forceBonusEnabled,
+            away_shift_enabled:                 awayShiftEnabled,
             clopening_enabled:                  true, // "Mümkünse en az dinlenme" ayarı kaldırıldı: varsayılan 13 saat, hep açık
             swap_requests_enabled:              swapRequestsEnabled,
             availability_collection_enabled:    availabilityCollectionEnabled,
@@ -871,7 +883,7 @@ export default function SettingsPage() {
         maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
         maxWeeklyHours, minRestHours, changeCompensationPoints,
-        hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints,
+        hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -1848,38 +1860,31 @@ export default function SettingsPage() {
                       industry={savedIndustry?.key ?? null} today={todayIso} />
                   </div>
                 </SectionCard>
-                {/* Fazladan iş yapana ek puan (eski adları "Bonus Puanları", "Ekibe kolaylık sağlayana ek puan") */}
-                <SectionCard title="Fazladan iş yapana ek puan">
-                  <p className="text-xs text-slate-500 pt-4 pb-3">Aşağıdaki durumlarda kişiye ek puan yazılır. Puanı yüksek olan kişiye sonraki planlarda daha az vardiya verilir. Sayıyı 0 yaparsanız o durumda ek puan verilmez.</p>
-                  <RuleRow
-                    label="Boş kalan bir vardiyayı kendisi alırsa"
-                    description="Açık Vardiyalar'dan gönüllü olarak vardiya alan kişiye verilir."
-                    right={<NumberInput value={heroBonusPoints} onChange={setHeroBonusPoints} min={0} max={20} suffix="puan" />}
-                  />
-                  {branchCount > 1 && (
-                    <RuleRow
-                      label="Başka bir şubede çalışırsa"
-                      description="Kendi şubesi dışında bir şubede çalıştığı her vardiya için verilir. Şube değiştirmek zahmetli olduğu için."
-                      right={<NumberInput value={awayShiftPoints} onChange={setAwayShiftPoints} min={0} max={20} suffix="puan" />}
-                    />
-                  )}
-                  <RuleRow
-                    label="Plan yayınlandıktan sonra vardiyası değişirse"
-                    description="Düzeni bozulduğu için verilir."
-                    right={
-                      <div className="flex items-center gap-2">
-                        <div className={changeCompensationEnabled ? "" : "opacity-40 pointer-events-none"}>
-                          <NumberInput value={changeCompensationPoints} onChange={setChangeCompensationPoints} min={0} max={10} suffix="puan" />
+                {/* Ek puan verilen durumlar (eski adı "Bonus Puanları"). Her satır diğer kurallar gibi açılıp kapanır, puanı yazılır. */}
+                <SectionCard title="Ek puan verilen durumlar">
+                  <p className="text-xs text-slate-500 pt-4 pb-3">Aşağıdaki durumlar açıksa kişiye yazdığınız kadar ek puan verilir. Puanı yüksek olan kişiye sonraki planlarda daha az vardiya verilir.</p>
+                  {([
+                    { show: true, label: "Boş kalan bir vardiyayı kendisi alırsa", description: "Açık Vardiyalar'dan gönüllü olarak vardiya alan kişiye verilir.",
+                      on: heroBonusEnabled, toggle: () => setHeroBonusEnabled(v => !v), value: heroBonusPoints, set: setHeroBonusPoints, max: 20 },
+                    { show: branchCount > 1, label: "Başka bir şubede çalışırsa", description: "Kendi şubesi dışında bir şubede çalıştığı her vardiya için verilir.",
+                      on: awayShiftEnabled, toggle: () => setAwayShiftEnabled(v => !v), value: awayShiftPoints, set: setAwayShiftPoints, max: 20 },
+                    { show: true, label: "Plan yayınlandıktan sonra vardiyası değişirse", description: "Düzeni bozulduğu için verilir.",
+                      on: changeCompensationEnabled, toggle: () => setChangeCompensationEnabled(v => !v), value: changeCompensationPoints, set: setChangeCompensationPoints, max: 10 },
+                    { show: true, label: "İzin gününde çalışmaya çağrılırsa", description: "İzinli olduğu gün çağrılan ve gelmeyi kabul eden kişiye verilir.",
+                      on: forceBonusEnabled, toggle: () => setForceBonusEnabled(v => !v), value: forceBonusPoints, set: setForceBonusPoints, max: 20 },
+                  ]).filter(r => r.show).map(r => (
+                    <RuleRow key={r.label} label={r.label}
+                      description={r.on && r.value === 0 ? `${r.description} Kaç puan verileceğini yazın.` : r.description}
+                      right={
+                        <div className="flex items-center gap-2">
+                          <div className={r.on ? "" : "opacity-40 pointer-events-none"}>
+                            <NumberInput value={r.value} onChange={r.set} min={0} max={r.max} suffix="puan" />
+                          </div>
+                          <Toggle on={r.on} onToggle={r.toggle} />
                         </div>
-                        <Toggle on={changeCompensationEnabled} onToggle={() => setChangeCompensationEnabled(v => !v)} />
-                      </div>
-                    }
-                  />
-                  <RuleRow
-                    label="İzin gününde çalışmaya çağrılırsa"
-                    description="İzinli olduğu gün çağrılan ve gelmeyi kabul eden kişiye verilir."
-                    right={<NumberInput value={forceBonusPoints} onChange={setForceBonusPoints} min={0} max={20} suffix="puan" />}
-                  />
+                      }
+                    />
+                  ))}
                 </SectionCard>
                 <SectionCard title="Ne kadar geriye bakılsın?">
                   <RuleRow

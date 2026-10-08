@@ -275,6 +275,7 @@ export async function publishOpenShift(
       const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(o.location_id) as any;
       const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
       if (typeof rules.hero_bonus_points === "number") heroPoints = rules.hero_bonus_points;
+      if (rules.hero_bonus_enabled === false) heroPoints = 0;
     } catch { /* varsayılan kalır */ }
   }
 

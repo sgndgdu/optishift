@@ -99,9 +99,10 @@ export default function OpenShiftsPage() {
         const locId = user.location_id || localStorage.getItem("optishift_selected_location") || "";
         const loc = Array.isArray(locs) ? (locs.find((l: any) => l.id === locId) ?? locs[0]) : null;
         const rules = typeof loc?.rules === "string" ? JSON.parse(loc.rules) : loc?.rules;
-        if (typeof rules?.hero_bonus_points === "number") {
-          setDefaultBonus(rules.hero_bonus_points);
-          setBonus(rules.hero_bonus_points);
+        const pts = rules?.hero_bonus_enabled === false ? 0 : rules?.hero_bonus_points;
+        if (typeof pts === "number") {
+          setDefaultBonus(pts);
+          setBonus(pts);
         }
       } catch { /* varsayılan 6 kalır */ }
     })();

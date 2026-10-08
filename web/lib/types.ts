@@ -168,7 +168,11 @@ export interface ScheduleRules {
   hard_shift_weekend?: boolean;      // hafta sonu "zor vardiya" sayılsın mı, varsayılan true
   hard_shift_night?: boolean;        // gece "zor vardiya" sayılsın mı, varsayılan true
   hard_shift_preferred_not?: boolean; // sarı gün "zor vardiya" sayılsın mı, varsayılan true
+  hero_bonus_enabled?: boolean;      // kapalıysa ek puan yok (varsayılan açık)
   hero_bonus_points?: number;        // açık vardiya üstlenme (kahraman) düz bonus puanı, varsayılan 6
+  force_bonus_enabled?: boolean;     // izin gününde çağrılma ek puanı (varsayılan açık)
+  away_shift_enabled?: boolean;      // başka şubede çalışılan vardiyaya ek puan (varsayılan kapalı)
+  away_shift_points?: number;
   force_bonus_points?: number;       // izinliyken kabul edilen zorunlu atama düz bonus puanı, varsayılan 5
   fairness_window_weeks?: number;    // kümülatif puan penceresi (hafta), decay YOK — düz toplam, varsayılan 4
   availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları sorumlu tek başına planlar, personelden uygunluk istenmez

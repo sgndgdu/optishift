@@ -43,9 +43,13 @@ export interface Rules {
   hard_shift_weekend?: boolean;
   hard_shift_preferred_not?: boolean;
   // Bonuslar — düz puan, 0 = kapalı
+  // Her biri Ayarlar'da açılıp kapanır ve puanı yazılır (2026-10-08). Eski kayıtlarda açık sayılan: hero, force.
+  hero_bonus_enabled?: boolean;        // boş kalan vardiyayı kendisi alan; varsayılan açık
   hero_bonus_points?: number;          // varsayılan 6
+  force_bonus_enabled?: boolean;       // izin gününde çalışmaya çağrılan; varsayılan açık
   force_bonus_points?: number;         // varsayılan 5
-  away_shift_points?: number;          // başka şubede çalışılan her vardiya (kendi şubesi dışı), varsayılan 3
+  away_shift_enabled?: boolean;        // başka şubede çalışılan her vardiya; varsayılan KAPALI, puanı hesap sahibi yazar
+  away_shift_points?: number;
   // Sadece yayın öncesi kural ihlali uyarısı için (puanı etkilemez)
   clopening_min_rest_hours?: number;   // varsayılan 13
   // Kümülatif pencere
@@ -239,9 +243,9 @@ export interface AssignmentPoints {
  */
 export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules): AssignmentPoints {
   const hr = resolveHardDayRules(rules);
-  const heroBonusPoints = input.hero_points ?? rules.hero_bonus_points ?? 6;
-  const forceBonusPoints = input.force_points ?? rules.force_bonus_points ?? 5;
-  const awayPoints = rules.away_shift_points ?? 3;
+  const heroBonusPoints = rules.hero_bonus_enabled === false ? 0 : (input.hero_points ?? rules.hero_bonus_points ?? 6);
+  const forceBonusPoints = rules.force_bonus_enabled === false ? 0 : (input.force_points ?? rules.force_bonus_points ?? 5);
+  const awayPoints = rules.away_shift_enabled === true ? (rules.away_shift_points ?? 0) : 0;
 
   const hours = durationHours(input.start_time, input.end_time);
   const base = hours * (input.base_points / 5);
@@ -256,8 +260,8 @@ export function calcAssignmentPoints(input: AssignmentPointsInput, rules: Rules)
   // Gece bayrağı bilgi içindir; puana zorluk (base_points) üzerinden yansır
   const isNight = input.is_night ?? false;
   const isHard = hardPoints > 0;
-  const isHero = input.is_hero ?? false;
-  const isForce = typeof input.force_points === "number" && input.force_points > 0;
+  const isHero = (input.is_hero ?? false) && heroBonusPoints > 0;
+  const isForce = typeof input.force_points === "number" && input.force_points > 0 && forceBonusPoints > 0;
   const isAway = (input.is_away ?? false) && awayPoints > 0;
 
   const points = base

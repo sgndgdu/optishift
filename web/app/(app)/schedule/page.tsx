@@ -3736,7 +3736,7 @@ loading ? (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {pts.hardReasons.map(r => <StatusPill key={r.label} tone="attention">{r.label}</StatusPill>)}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
-                {pts.flags.away && <StatusPill tone="info">Başka şubeden, +{locRules.away_shift_points ?? 3} puan</StatusPill>}
+                {pts.flags.away && <StatusPill tone="info">Başka şubeden, +{locRules.away_shift_points ?? 0} puan</StatusPill>}
                 {pts.hardPoints > 0 && (
                   <span className="text-[11px] text-slate-400">→ +{pts.hardPoints} puan{pts.hardReasons.length > 1 ? " (en yükseği)" : ""}</span>
                 )}
