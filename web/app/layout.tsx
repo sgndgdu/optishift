@@ -20,10 +20,21 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://web-nine-drab-19.vercel.app";
+const DESCRIPTION = "Vardiya planını otomatik hazırlayan ve vardiyaları ekibe eşit dağıtan uygulama";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "OptiShift · Vardiya Yönetimi",
-  description: "Vardiya planını otomatik hazırlayan ve vardiyaları ekibe eşit dağıtan uygulama",
+  description: DESCRIPTION,
   manifest: "/manifest.json",
+  // Bağlantı paylaşılınca (WhatsApp, LinkedIn, X) görünen başlık ve görsel
+  openGraph: {
+    type: "website", locale: "tr_TR", siteName: "OptiShift",
+    title: "OptiShift · Vardiya planınız saniyeler içinde hazır", description: DESCRIPTION,
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "OptiShift vardiya planı" }],
+  },
+  twitter: { card: "summary_large_image", title: "OptiShift · Vardiya Yönetimi", description: DESCRIPTION, images: ["/og.png"] },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

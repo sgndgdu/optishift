@@ -3,6 +3,9 @@ import { ArrowRight, Check, Building2 } from "lucide-react";
 import { PLANS, SALES_EMAIL, TRIAL_DAYS } from "@/lib/plans";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Fiyatlar · OptiShift", description: "OptiShift paketleri ve fiyatları. 14 gün bütün özellikler ücretsiz." };
 
 // Ücretsiz paket yok (2026-10-06): fiyat sayfası Pro ve Kurumsal'ı gösterir
 const PRO = PLANS.find((p) => p.id === "pro")!;

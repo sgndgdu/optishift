@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     const org = await db.prepare(
-      `SELECT id, name, plan, connected_erp, erp_mapped_fields FROM organizations WHERE id = ?`
+      `SELECT id, name, plan, subscription_status, trial_ends_at, connected_erp, erp_mapped_fields FROM organizations WHERE id = ?`
     ).get(auth.org_id) as any;
     if (!org) return NextResponse.json({ error: "İşletme bulunamadı" }, { status: 404 });
     // Paket kişi sınırı için (lib/plans): işletmedeki aktif kişi sayısı (Excel önizlemesi uyarır)

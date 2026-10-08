@@ -16,5 +16,5 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -sS --max-time 320 -H "Authorization: Bearer $CRON_SECRET" \
+          curl -sS --fail-with-body --max-time 320 -H "Authorization: Bearer $CRON_SECRET" \
             -w "\nHTTP %{http_code}\n" "https://web-nine-drab-19.vercel.app/api/cron/autopilot?only=autopilot"

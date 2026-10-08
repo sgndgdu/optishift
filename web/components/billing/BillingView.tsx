@@ -108,6 +108,12 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
   if (loading) return <div className="p-8 text-slate-400 text-sm animate-pulse">Yükleniyor…</div>;
 
   const currentPlan: string = org?.plan ?? "free";
+  // Deneme süresindeki işletme ödeme yapmış gibi "Aktif" görmesin (lansman testi 2026-10-08)
+  const trialEndsAt = Number((org as { trial_ends_at?: number | string } | null)?.trial_ends_at ?? 0);
+  const trial = ["trialing", "expired"].includes(String((org as { subscription_status?: string } | null)?.subscription_status)) && trialEndsAt > 0
+    ? { end: new Date(trialEndsAt * 1000).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }),
+        left: Math.max(0, Math.ceil((trialEndsAt * 1000 - Date.now()) / 86400000)) }
+    : null;
   const isStripeConfigured = stripeConfigured;
 
   return (
@@ -124,8 +130,15 @@ function BillingContent({ storageKey, returnPath }: { storageKey: string; return
           <p className="text-xs font-semibold text-slate-400">Mevcut Plan</p>
           <p className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
             {getPlan(currentPlan).name}
-            {currentPlan === "pro" && <StatusPill tone="positive">Aktif</StatusPill>}
+            {currentPlan === "pro" && (trial
+              ? <StatusPill tone={trial.left > 0 ? "attention" : "danger"}>{trial.left > 0 ? "Deneme" : "Deneme bitti"}</StatusPill>
+              : <StatusPill tone="positive">Aktif</StatusPill>)}
           </p>
+          {trial && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              {trial.left > 0 ? `Deneme süreniz ${trial.end} tarihinde bitiyor (${trial.left} gün kaldı).` : `Deneme süreniz ${trial.end} tarihinde bitti.`}
+            </p>
+          )}
         </div>
         {!isStripeConfigured && (
           <div className="ml-auto flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-semibold text-amber-700">

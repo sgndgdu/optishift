@@ -43,7 +43,7 @@ export function splitAssistantReply(text: string): { answer: string; raw: unknow
     return "";
   }).replace(/<\/?islem>/gi, "")
     // Bağlamdaki iç numaralar ([v12], [izin 5], [takas 3]) kullanıcıya gösterilmez
-    .replace(/\s*\(?\[(?:v\d+|izin \d+|takas \d+|ilan \d+)\]\)?/g, "").trim();
+    .replace(/\s*\(?\[(?:v\d+|izin \d+|takas \d+|ilan \d+)\]\)?(?:\s+numaralı)?/g, "").trim();
   return { answer, raw };
 }
 
@@ -181,7 +181,9 @@ export async function resolveActions(db: any, auth: { org_id: string }, location
         // Kurala takılan kişi yazılmaz (atama 409 ile düşerdi): vardiya en uygun 3 kişiye teklif edilir
         if (problems.length) { dropped.push(`${p.name} bu vardiyayı alamaz: ${problems[0]}. Bunun yerine en uygun 3 kişiye teklif önerildi.`); replacement = null; }
       }
-      const reason = str(a.reason) === "emergency" ? "acil bir durum nedeniyle gelemiyor" : "hastalık nedeniyle gelemiyor";
+      // Gerekçe sadece kullanıcı söylediyse yazılır (önceden belirtilmeyen her şey "hastalık" sayılıyordu)
+      const reason = str(a.reason) === "emergency" ? "acil bir durum nedeniyle gelemiyor"
+        : str(a.reason) === "sick" ? "hastalık nedeniyle gelemiyor" : "gelemiyor";
       actions.push({
         kind: "absence", assignment_id: row.id, replacement, note: `${row.name} ${reason}`,
         title: `${row.name}, ${formatDateTR(date)} ${row.start_time}-${row.end_time} vardiyasına gelemiyor. ` +
@@ -214,7 +216,7 @@ export const ACTIONS_PROMPT = [
   `- {"type":"add_leave","person":"Ad Soyad","start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD","leave_type":"${LEAVE_TYPES.join(" | ")}","note":"kısa açıklama"}`,
   "- {\"type\":\"review_leave\",\"leave_id\":12,\"decision\":\"approve | reject\"}  (veride [izin 12] yazan talep)",
   "- {\"type\":\"review_swap\",\"swap_id\":3,\"decision\":\"approve | reject\"}  (veride [takas 3] yazan talep)",
-  "- {\"type\":\"absence\",\"assignment_id\":45,\"reason\":\"sick | emergency\",\"replacement\":\"Ad Soyad ya da boş\"}  (veride [v45] yazan YAYINLANMIŞ vardiya; kişi gelemiyor. replacement boşsa vardiya en uygun 3 kişiye teklif edilir)",
+  "- {\"type\":\"absence\",\"assignment_id\":45,\"reason\":\"sick | emergency | other\",\"replacement\":\"Ad Soyad ya da boş\"}  (veride [v45] yazan YAYINLANMIŞ vardiya; kişi gelemiyor. reason: kullanıcı hastalık ya da acil durum demediyse other. replacement boşsa vardiya en uygun 3 kişiye teklif edilir)",
   "- {\"type\":\"open_shift\",\"date\":\"YYYY-MM-DD\",\"start_time\":\"HH:MM\",\"end_time\":\"HH:MM\",\"note\":\"kısa açıklama\"}  (ek kişi gereken bir saat için ilan)",
   "Kurallar: Numaraları ve isimleri sadece veriden al, uydurma. [v12] gibi numaraları cevap metnine yazma, sadece blokta kullan. Kişilerden \"ekip üyesi\" diye söz et, \"personel\" deme. Tarihleri bugüne ve plan satırlarındaki gün.ay bilgisine göre YYYY-MM-DD yaz.",
   "Yerine birini önerirken o gün boş olan, izinli olmayan ve haftalık saati sınıra yakın olmayan kişiyi seç; seçimini bir cümleyle açıkla.",
