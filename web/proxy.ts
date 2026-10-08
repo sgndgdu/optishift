@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "./lib/auth";
 import { verifyGodToken } from "./lib/god-auth";
 import { requestHasForeignScope } from "./lib/orgScope";
+import { sessionIsStale } from "./lib/sessionCheck";
 import { CHEF_BLOCKED_ERROR, EMPLOYEE_VIEW_HEADER, isChefBlocked, isViewOnly, missingPerm, permError, VIEW_ONLY_ERROR } from "./lib/userAccess";
 
 // Bu path'ler JWT doğrulaması gerektirmez.
@@ -113,6 +114,11 @@ export async function proxy(req: NextRequest) {
       { error: "Geçersiz veya süresi dolmuş oturum" },
       { status: 401 }
     );
+  }
+
+  // Hesap kapatıldıysa ya da rolü/yetkisi değiştiyse eski oturum kullanılamaz (lib/sessionCheck)
+  if (await sessionIsStale(user)) {
+    return NextResponse.json({ error: "Yetkileriniz değişti ya da hesabınız kapatıldı. Lütfen yeniden giriş yapın." }, { status: 401 });
   }
 
   // Çalışan görünümü (lib/userAccess EMPLOYEE_VIEW_HEADER): vardiyaya giren yönetici portaldan kendi işlerini yapar.

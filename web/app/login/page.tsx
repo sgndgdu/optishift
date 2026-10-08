@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, AtSign, Eye, EyeOff, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -30,22 +30,21 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  // SessionGuard oturum düşünce ?expired=1 ile yönlendirir
-  const [sessionExpired] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "1"
-  );
-  const [googleError] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const code = new URLSearchParams(window.location.search).get("google_error");
-    if (!code || code === "not_found") return "";
-    return GOOGLE_ERROR_MESSAGES[code] ?? "Google ile giriş yapılamadı. Tekrar deneyin.";
-  });
+  // SessionGuard oturum düşünce ?expired=1 ile yönlendirir. Adres çizimden sonra okunur
+  // (ilk çizimde okumak sunucu çizimiyle uyuşmuyor, hydration hatası veriyordu)
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [googleError, setGoogleError] = useState("");
   // Bu Gmail'e bağlı hesap yok: hata değil, iki yol gösterilir (çalışan bağlantı ister, sahip işletme açar)
-  const [unknownGmail] = useState(() => {
-    if (typeof window === "undefined") return "";
+  const [unknownGmail, setUnknownGmail] = useState("");
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("google_error") === "not_found" ? (params.get("google_email") ?? "Bu Gmail") : "";
-  });
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSessionExpired(params.get("expired") === "1");
+    const code = params.get("google_error");
+    if (code && code !== "not_found") setGoogleError(GOOGLE_ERROR_MESSAGES[code] ?? "Google ile giriş yapılamadı. Tekrar deneyin.");
+    if (code === "not_found") setUnknownGmail(params.get("google_email") ?? "Bu Gmail");
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
   // Giriş başarılı olduktan sonra doğru panele yönlendirir (şifreli ve Google aynı kural)
   const routeAfterLogin = (data: LoginData) => routeAfterLoginShared(data, router.push);
 
