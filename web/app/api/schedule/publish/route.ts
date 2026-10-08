@@ -7,6 +7,7 @@ import { canPublishPlan, departmentScope } from "@/lib/userAccess";
 import { canManageLocation, chefDepartmentIds } from "@/lib/access";
 import { sendSMS, sendEmail, sendPushToPersonnel } from "@/lib/notifications";
 import { rescoreWeek } from "@/lib/scoring";
+import { alertManualLoad } from "@/lib/manualLoad";
 import { deriveOvertimeForWeek } from "@/lib/overtime";
 import { type ShiftDef } from "@/lib/fairness";
 
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
     // score_history DELETE+INSERT + kümülatif/z recompute — re-publish idempotent.
     // Kahraman ve zorunlu atama çarpanları lib/scoring.ts içinde uygulanır.
     await rescoreWeek(auth.org_id, location_id, week_start);
+
+    // Elle yapılan değişiklikler üst üste haftalarda hep aynı kişinin yükünü değiştiriyorsa hesap sahibine haber (lib/manualLoad)
+    try { await alertManualLoad(db, auth.org_id, location_id, week_start); } catch (e) { console.error("[publish] elle değişiklik kontrolü:", e); }
 
     // ── Mesai derive: yayınlanan saatlerden kişi başı haftalık toplam →
     // eşik üstü pending overtime_records (upsert — re-publish idempotent).

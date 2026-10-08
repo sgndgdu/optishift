@@ -18,6 +18,7 @@ import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import { coworkersOf } from "@/lib/coworkers";
 import { netWorkMinutes } from "@/lib/legal";
+import { MyFairnessCard } from "@/components/portal/MyFairnessCard";
 function shiftDur(s: any): number {
   if (!s?.start_time || !s?.end_time) return 8;
   const [sh, sm] = s.start_time.split(":").map(Number);
@@ -499,6 +500,8 @@ export default function PortalDashboard() {
 
       </div>
       <div className="space-y-6 min-w-0">
+      {/* ── Açık ekip anketi ve kendi Adalet Puanı ─────────────────────── */}
+      <MyFairnessCard />
       {/* ── Yaklaşan vardiyalar: nerede, kimle ─────────────────────────── */}
       {!dataLoading && nextShifts.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

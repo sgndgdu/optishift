@@ -57,7 +57,7 @@ const SPOOFABLE_AUTH_HEADERS = [
 // istemciden gelen değerlerle geçmemeli.
 // "Sadece görür" yetkili hesabın yine de yapabileceği yazma işlemleri: kendi hesabı, mesajlaşma,
 // bildirimler ve soru soran asistan (kayıt değiştirmez).
-const VIEW_ONLY_WRITE_PATHS = ["/api/auth/", "/api/messages", "/api/chat", "/api/notifications", "/api/push", "/api/copilot/chat", "/api/copilot/team",
+const VIEW_ONLY_WRITE_PATHS = ["/api/auth/", "/api/messages", "/api/chat", "/api/notifications", "/api/push", "/api/copilot/chat", "/api/copilot/team", "/api/fairness-surveys/mine",
   "/api/schedule/publications"]; // arşivden plan okuma (POST ile)
 
 function stripSpoofableHeaders(req: NextRequest): Headers {

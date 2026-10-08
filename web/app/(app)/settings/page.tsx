@@ -33,6 +33,7 @@ import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { DayPointsGrid, SpecialDatesEditor } from "@/components/settings/HardDays";
+import { FairnessSurveyCard } from "@/components/settings/FairnessSurveyCard";
 import { resolveHardDayRules, type HardDayRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 
@@ -1833,6 +1834,8 @@ export default function SettingsPage() {
                     <p>Örnek: orta zorlukta 8 saatlik vardiya 8 puandır. Vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndan gelir. Aşağıdakiler bunun üstüne eklenen puanlardır.</p>
                   </div>
                 </div>
+                {/* Ekip anketi: vardiya zorluğunu ve zor günleri ekip puanlar, hesap sahibi uygular (lib/fairnessSurvey) */}
+                {locationData?.id && <FairnessSurveyCard locationId={locationData.id} blocked={isDirty} />}
                 <SectionCard title="Zor günler">
                   <p className="text-xs text-slate-500 pt-4">Zor sayılan günde çalışan kişiye ek puan yazılır. Böylece bu günler ekibe sırayla düşer. 0 yazılan gün zor sayılmaz. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır, puanlar toplanmaz. Örnek: Pazar 4, bayram 8 puansa Pazar&apos;a denk gelen bayramda 8 puan yazılır.</p>
                   <RuleRow wide

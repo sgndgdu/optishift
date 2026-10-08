@@ -893,3 +893,57 @@ export const ruleExceptions = pgTable("rule_exceptions", {
   decided_by: text("decided_by"),
   decided_at: bigint("decided_at", { mode: "number" }),
 });
+
+// ─── Ekip anketi: vardiya zorluğu (2026-10-08, lib/fairnessSurvey) ───────────
+// Cevaplarda personnel_id sadece "bir kişi bir cevap" ve "sadece çalıştığı vardiya" kontrolü içindir;
+// hiçbir uç nokta cevabı kişiyle birlikte döndürmez.
+export const fairnessSurveys = pgTable("fairness_surveys", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  status: text("status").notNull().default("open"), // open | closed
+  shifts: text("shifts").notNull(),         // JSON: anket açıldığındaki vardiyalar [{id,name,start,end,base_points}]
+  day_points: text("day_points").notNull(), // JSON: anket açıldığındaki zor gün puanları (7)
+  closes_at: bigint("closes_at", { mode: "number" }).notNull(),
+  created_by: text("created_by"),
+  created_by_name: text("created_by_name"),
+  created_at: bigint("created_at", { mode: "number" }),
+  closed_at: bigint("closed_at", { mode: "number" }),
+  applied: text("applied"),                 // JSON: hesap sahibinin uyguladığı değerler
+  applied_by_name: text("applied_by_name"),
+  applied_at: bigint("applied_at", { mode: "number" }),
+});
+
+export const fairnessSurveyResponses = pgTable("fairness_survey_responses", {
+  id: serial("id").primaryKey(),
+  survey_id: integer("survey_id").notNull(),
+  org_id: text("org_id").notNull(),
+  personnel_id: text("personnel_id").notNull(),
+  answers: text("answers").notNull(), // JSON: lib/fairnessSurvey SurveyAnswers
+  created_at: bigint("created_at", { mode: "number" }),
+  updated_at: bigint("updated_at", { mode: "number" }),
+});
+
+// Adalet Puanı kurallarındaki (vardiya zorluğu, zor günler, ek puanlar) her değişiklik: kim, ne zaman, ne
+export const fairnessRuleChanges = pgTable("fairness_rule_changes", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  source: text("source").notNull(), // settings | survey
+  summary: text("summary").notNull(),
+  changed_by: text("changed_by"),
+  changed_by_name: text("changed_by_name"),
+  created_at: bigint("created_at", { mode: "number" }),
+});
+
+// Motorun hazırladığı planın kişi başı kopyası: yayınlanan planla karşılaştırılıp elle yapılan değişikliklerin
+// yük etkisi bulunur (lib/manualLoad)
+export const planGenerations = pgTable("plan_generations", {
+  id: serial("id").primaryKey(),
+  org_id: text("org_id").notNull(),
+  location_id: text("location_id").notNull(),
+  week_start: text("week_start").notNull(),
+  personnel_id: text("personnel_id").notNull(),
+  assignments: text("assignments").notNull(), // JSON: [{day, start_time, end_time, shift_id}]
+  created_at: bigint("created_at", { mode: "number" }),
+});

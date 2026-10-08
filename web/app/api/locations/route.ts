@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getPlan, limitMessage } from "@/lib/plans";
+import { describeFairnessChanges } from "@/lib/fairnessChanges";
+import { logRuleChanges, parseJson, userDisplayName } from "@/lib/fairnessSurveyDb";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -165,8 +167,24 @@ export async function PATCH(req: NextRequest) {
 
     if (updates.length === 0) return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
 
+    // Adalet Puanı kurallarındaki değişiklik kayda geçer (lib/fairnessChanges): kim, ne zaman, ne
+    const before = (body.rules !== undefined || body.shift_definitions !== undefined)
+      ? await db.prepare("SELECT rules, shift_definitions FROM locations WHERE id = ?").get(id) as { rules?: string; shift_definitions?: string } | undefined
+      : undefined;
+
     values.push(id);
     await db.prepare(`UPDATE locations SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+
+    if (before) {
+      try {
+        const after = await db.prepare("SELECT rules, shift_definitions FROM locations WHERE id = ?").get(id) as { rules?: string; shift_definitions?: string } | undefined;
+        const lines = describeFairnessChanges(
+          parseJson(before.rules, {}), parseJson(after?.rules, {}),
+          parseJson(before.shift_definitions, []), parseJson(after?.shift_definitions, []),
+        );
+        if (lines.length) await logRuleChanges(db, auth.org_id, id, "settings", lines, { id: auth.id, name: await userDisplayName(db, auth.id) });
+      } catch (e) { console.error("[locations] adalet kuralı kaydı:", e); }
+    }
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

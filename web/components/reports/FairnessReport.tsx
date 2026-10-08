@@ -147,6 +147,9 @@ export default function FairnessReport() {
         <NoShowCard noShowPersonnel={noShowPersonnel} loading={loading} />
       </div>
 
+      {/* Elle yapılan değişikliklerin yük etkisi (lib/manualLoad): kayırma ve mobbinge karşı */}
+      {locationId && <ManualLoadSection locationId={locationId} />}
+
       {/* Puan kuralları: salt okunur özet, değiştirme Ayarlar'da */}
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -472,6 +475,75 @@ function NoShowCard({ noShowPersonnel, loading }: { noShowPersonnel: any[]; load
           </li>
         )}
       </List>
+    </section>
+  );
+}
+
+// ─── Elle yapılan değişiklikler ──────────────────────────────────────────────
+
+type ManualLoad = {
+  weeks: { week_start: string; avg_shift_points: number }[];
+  people: { personnel_id: string; name: string; weeks: (number | null)[]; total: number }[];
+  flags: { personnel_id: string; name: string; direction: "more" | "less"; total: number }[];
+  flag_weeks: number;
+};
+
+/**
+ * Motorun hazırladığı plan ile yayınlanan plan arasındaki kişi başı puan farkı: elle yapılan değişiklikler kimin yükünü
+ * artırdı ya da azalttı. Üst üste haftalarda aynı yönde değişen kişi işaretlenir (hesap sahibine bildirim de gider).
+ */
+function ManualLoadSection({ locationId }: { locationId: string }) {
+  const [data, setData] = useState<ManualLoad | null>(null);
+  useEffect(() => {
+    let stale = false;
+    fetch(`/api/fairness/manual-load?location_id=${locationId}`).then(r => (r.ok ? r.json() : null)).then(d => { if (!stale) setData(d); }).catch(() => {});
+    return () => { stale = true; };
+  }, [locationId]);
+  if (!data || data.weeks.length === 0) return null;
+  const fmt = (v: number | null) => (v === null ? "-" : v === 0 ? "0" : `${v > 0 ? "+" : ""}${formatScore(v)}`);
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-base font-bold text-slate-900">Elle yapılan değişiklikler</h2>
+      <p className="text-xs text-slate-500">
+        Otomatik planın verdiği puan ile yayınlanan plandaki puan arasındaki fark. Artı, elle yapılan değişikliklerin kişinin yükünü artırdığı anlamına gelir. İzin, vardiya değişimi ya da hastalık gibi sebeplerle değişiklik yapmak normaldir. Aynı kişinin yükü {data.flag_weeks} hafta üst üste aynı yönde değişirse işaretlenir ve hesap sahibine bildirim gider.
+      </p>
+      {data.flags.length > 0 && (
+        <div className="space-y-1.5">
+          {data.flags.map(f => (
+            <p key={f.personnel_id} className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+              <span>Son {data.flag_weeks} haftada elle yapılan değişiklikler her hafta {f.name} adlı kişinin yükünü {f.direction === "more" ? "artırdı" : "azalttı"} (toplam {fmt(f.total)} puan).</span>
+            </p>
+          ))}
+        </div>
+      )}
+      {data.people.length === 0 ? (
+        <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">Son haftalarda yayınlanan planlar otomatik planla aynı. Elle yapılan bir değişiklik yok.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[480px] text-sm tabular-nums">
+            <thead>
+              <tr className="text-left text-xs text-slate-400">
+                <th className="px-3 py-2 font-semibold">Kişi</th>
+                {data.weeks.map(w => <th key={w.week_start} className="px-2 py-2 text-right font-semibold">{formatDateTR(w.week_start, { weekday: false })}</th>)}
+                <th className="px-3 py-2 text-right font-semibold">Toplam</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.people.map(p => (
+                <tr key={p.personnel_id} className="border-t border-slate-100">
+                  <td className="px-3 py-2 font-semibold text-slate-800">{p.name}</td>
+                  {p.weeks.map((d, i) => (
+                    <td key={i} className={cn("px-2 py-2 text-right", d && d > 0 ? "text-amber-700" : d && d < 0 ? "text-sky-700" : "text-slate-400")}>{fmt(d)}</td>
+                  ))}
+                  <td className="px-3 py-2 text-right font-bold text-slate-800">{fmt(p.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

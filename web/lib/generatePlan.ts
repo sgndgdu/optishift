@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { saveGeneration } from "@/lib/manualLoad";
 import { resolveHardDayRules, weekDayExtraPoints, weekShiftExtraPoints, type Rules as FairnessRules } from "@/lib/fairness";
 import { addDays, businessToday } from "@/lib/date";
 import { applyOverrides, sanitizeOverrides } from "@/lib/planOverrides";
@@ -772,6 +773,14 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       personnel_count: personnelData.length,
       latency_ms: orToolsLatency,
     });
+
+    // Motorun planı kişi başı saklanır: yayında elle yapılan değişikliklerin yük etkisi bulunur (lib/manualLoad).
+    // "Ya şöyle olursa?" denemesi gerçek plan değildir, saklanmaz.
+    if (!scenario && Array.isArray(data.assignments)) {
+      try {
+        await saveGeneration(db, orgIdIn, branchId, week_start, personnelData.map((p: any) => String(p.id)), data.assignments, shiftsPayload as { id?: string }[]);
+      } catch (e) { console.error("[generate] motor planı saklanamadı:", e); }
+    }
 
     // Python motorundan dönen veriyi UI için eşle
     if (data.personnel) {
