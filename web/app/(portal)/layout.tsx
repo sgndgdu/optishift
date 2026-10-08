@@ -74,7 +74,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     if (isLogin) return;
     let has = false;
     try { has = !!localStorage.getItem("optishift_portal_user"); } catch {}
-    if (has) setOk(true); else router.replace("/login");
+    // Yönetim hesabıyla girmiş biri /portal yazarsa giriş ekranına değil kendi ana sayfasına gider
+    if (has) setOk(true); else router.replace(managementHome());
   }, [isLogin, router]);
   if (isLogin) return <>{children}</>;
   if (!ok) return null;
