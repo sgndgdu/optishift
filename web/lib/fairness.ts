@@ -196,9 +196,11 @@ export function weekDayExtraPoints(weekStart: string, rules: Rules | null | unde
   return Array.from({ length: 7 }, (_, d) => dayHardReasons(d, isoAddDays(weekStart, d), hr)[0]?.points ?? 0);
 }
 
-function isoAddDays(iso: string, n: number): string {
+// Hafta henüz bilinmiyorsa (sayfanın ilk çizimi weekStart = "") tarih yok, sadece haftanın günü bakılır
+function isoAddDays(iso: string, n: number): string | undefined {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return Number.isNaN(t.getTime()) ? undefined : t.toISOString().slice(0, 10);
 }
 
 // ─── Ana Hesaplama ────────────────────────────────────────────────────────────

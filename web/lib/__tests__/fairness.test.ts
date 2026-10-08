@@ -358,3 +358,10 @@ describe("zor günler: her güne ayrı puan, tatil, özel gün (2026-10-07)", ()
     expect(weekDayExtraPoints("2026-10-26", rules)).toEqual([0, 0, 0, 8, 2, 4, 4]);
   });
 });
+
+describe("weekDayExtraPoints hafta bilinmezken", () => {
+  it("boş weekStart çökmez, sadece haftanın gününe bakar", () => {
+    expect(() => weekDayExtraPoints("", null)).not.toThrow();
+    expect(weekDayExtraPoints("", null)).toHaveLength(7);
+  });
+});
