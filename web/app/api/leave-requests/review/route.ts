@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
 import { rescoreWeek } from "@/lib/scoring";
+import { canBorrow } from "@/lib/loans";
 import { publishOpenShift } from "@/lib/openShifts";
 import { coverFor, datesBetween, findConflicts, type Cover } from "@/lib/leaveConflicts";
 import { checkPersonChange } from "@/lib/assignmentCheck";
@@ -151,6 +152,7 @@ export async function PATCH(req: NextRequest) {
             start_time: c.start_time, end_time: c.end_time,
             note: `${request.p_name} izinli, vardiya ilana çevrildi`,
             releasedBy: request.personnel_id,
+            createdBy: auth.id, crossBranch: canBorrow(auth),
           });
           opened++;
         }

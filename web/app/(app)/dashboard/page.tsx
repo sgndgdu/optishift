@@ -122,7 +122,7 @@ export default function DashboardPage() {
       const weekStart = getTodayWeekStart();
       const canApproveAccounts = u.role === "admin" || u.role === "supervisor";
       const [personnelData, shiftsData, openShiftsData, availData, nextShiftsData, locData,
-             leaves, swaps, edits, overtimes, accounts, autopilotData, unreadData] = await Promise.all([
+             leaves, swaps, edits, overtimes, accounts, autopilotData, unreadData, loans] = await Promise.all([
         json(`/api/personnel?location_id=${loc}`),
         json(`/api/shifts?location_id=${loc}&week_start=${weekStart}`),
         json(`/api/open-shifts?location_id=${loc}`),
@@ -137,6 +137,7 @@ export default function DashboardPage() {
         canApproveAccounts ? json(`/api/users?approval_status=pending`) : Promise.resolve([]),
         json(`/api/autopilot?location_id=${loc}`),
         json(`/api/messages/unread-count`),
+        json(`/api/open-shifts/loans?location_id=${loc}`),
       ]);
       setAutopilot(autopilotData && !autopilotData.error ? autopilotData : null);
       setUnreadMessages(typeof unreadData?.count === "number" ? unreadData.count : Number(unreadData?.count ?? 0) || 0);
@@ -164,7 +165,8 @@ export default function DashboardPage() {
         list(leaves).filter((l: any) => l.status === "pending").length +
         list(swaps).filter((s: any) => s.status === "peer_accepted").length +
         list(edits).filter((e: any) => e.status === "pending").length +
-        list(overtimes).filter((o: any) => o.status === "pending").length
+        list(overtimes).filter((o: any) => o.status === "pending").length +
+        list(loans).length
       );
       setPendingAccounts(list(accounts).length);
 

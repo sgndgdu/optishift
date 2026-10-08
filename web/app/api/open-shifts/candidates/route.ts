@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { rankCandidates, type SlotInput } from "@/lib/openShiftCandidates";
+import { canAssignFrom, canBorrow, declinedIds } from "@/lib/loans";
 
 // GET ?id=<open_shift_id> | ?assignment_id=<boşalacak atama> — uygun aday listesi (müdür).
 // Hesap lib/openShiftCandidates.ts'te (izin, rol ve gerekçeler dahil).
@@ -25,9 +26,12 @@ export async function GET(req: NextRequest) {
   const db = getDB();
   try {
     let slot: SlotInput;
+    let declined: string[] = [];
     if (id) {
       const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(id, auth.org_id) as any;
       if (!os) return NextResponse.json({ error: "Açık vardiya bulunamadı" }, { status: 404 });
+      if (managerOutsideBranch(auth, os.location_id)) return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
+      declined = declinedIds(os);
       slot = { location_id: os.location_id, date: os.date, start_time: os.start_time, end_time: os.end_time };
     } else {
       // "Gelemiyor" önizlemesi: yayınlanmış atamanın yerine kim geçebilir (atamaya dokunmaz)
@@ -51,7 +55,14 @@ export async function GET(req: NextRequest) {
       };
     }
     const { candidates, is_night } = await rankCandidates(db, slot);
-    return NextResponse.json({ candidates: candidates.slice(0, 10), is_night });
+    // Başka şubelerdeki adaylar sadece "Başka şubeden kişi" yetkisiyle (lib/loans). assignable: onaysız doğrudan atanabilir
+    const borrow = canBorrow(auth);
+    // Kendi şubesinden en fazla 10, ardından diğer şubelerden (rankCandidates en fazla 5 verir); tek kesimde
+    // kalabalık şubede başka şube adayları hiç görünmüyordu
+    const usable = candidates.filter(c => !declined.includes(c.personnel_id) && (!c.other_branch || borrow));
+    const list = [...usable.filter(c => !c.other_branch).slice(0, 10), ...usable.filter(c => c.other_branch)]
+      .map(c => ({ ...c, assignable: !c.other_branch || canAssignFrom(auth, c.home_location_id) }));
+    return NextResponse.json({ candidates: list, is_night, cross_branch: borrow });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

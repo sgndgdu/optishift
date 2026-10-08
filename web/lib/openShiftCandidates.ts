@@ -33,6 +33,8 @@ export interface Candidate {
   role_match: boolean;
   /** Başka şubenin çalışanı (ödünç): ana şubesinin adı. Kendi şubesindekiler önce sıralanır. */
   other_branch?: string;
+  /** Başka şubenin çalışanının ana şubesi (doğrudan atama yetkisi buna göre, lib/loans canAssignFrom) */
+  home_location_id?: string;
   /** Üstlenirse çalışma kuralı bozulur (dinlenme ya da haftalık sınır): üstlenme sunucuda reddedilir */
   blocking?: boolean;
 }
@@ -65,7 +67,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
   osDurationH = assignmentWorkMinutes(locDefs, { start_time: slot.start_time, end_time: slot.end_time }) / 60 || osDurationH;
   const people = await db.prepare(`
     SELECT p.id, p.name, p.prev_score, p.max_weekly_hours, p.night_restriction, p.weekly_off_day, p.user_access_level, p.roles,
-           p.assigned_location_ids, p.department_id, p.assigned_department_ids, l.name AS home_name
+           p.assigned_location_ids, p.primary_location_id, p.department_id, p.assigned_department_ids, l.name AS home_name
     FROM personnel p LEFT JOIN locations l ON l.id = p.primary_location_id
     WHERE p.org_id = ? AND p.status = 'active' AND p.schedulable IS NOT FALSE
   `).all(locRow?.org_id ?? "") as any[];
@@ -174,7 +176,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     const local = isLocal(p);
     if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
     candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0, blocking,
-      ...(local ? {} : { other_branch: p.home_name ?? "Başka şube" }) });
+      ...(local ? {} : { other_branch: p.home_name ?? "Başka şube", home_location_id: p.primary_location_id ?? undefined }) });
   }
 
   candidates.sort((a, b) =>

@@ -552,8 +552,9 @@ export default function PortalRequests() {
             <Section title="Bıraktığım vardiyalar" icon={<Megaphone size={14} />}>
               {myListings.map((o: any) => (
                 <RequestCard key={o.id}
-                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşınız"} aldı` : "Ekip görüyor, henüz alan yok"}
-                  sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri alana kadar vardiya sizde" : ""}`}
+                  title={o.status === "claimed" ? `${o.claimed_by_name ?? "Bir ekip arkadaşınız"} aldı`
+                    : o.status === "loan_pending" ? `${o.claimed_by_name ?? "Başka şubeden biri"} aldı, onay bekleniyor` : "Ekip görüyor, henüz alan yok"}
+                  sub={`${formatDateTR(o.date)} · ${o.start_time}–${o.end_time}${o.status === "open" ? " · biri alana kadar vardiya sizde" : o.status === "loan_pending" ? " · onaylanana kadar vardiya sizde" : ""}`}
                   status={o.status}
                   canCancel={o.status === "open"}
                   onCancel={() => setCancelConfirm({ kind: "listing", id: o.id })}

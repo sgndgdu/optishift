@@ -14,11 +14,11 @@ export type Perm = "prepare" | "publish" | "approvals" | "team" | "plan_settings
 export const PERM_LIST: { key: Perm; label: string; description: string }[] = [
   { key: "prepare", label: "Planı hazırlama", description: "Vardiya planını ve ihtiyaç tablosunu hazırlar." },
   { key: "publish", label: "Planı yayınlama", description: "Planı ekibe yayınlar, yayınlanmış planı değiştirir." },
-  { key: "approvals", label: "Onaylar", description: "İzin, vardiya değiştirme, fazla mesai ve saat düzeltme taleplerini onaylar." },
+  { key: "approvals", label: "Onaylar", description: "İzin, vardiya değiştirme, fazla mesai ve saat düzeltme taleplerini onaylar. Ekipten biri başka şubeye yardıma gitmek isterse karar verir." },
   { key: "team", label: "Ekip", description: "Kişi ekler, çıkarır, kişi kartını ve belgeleri düzenler." },
   { key: "plan_settings", label: "Plan ayarları", description: "Vardiya saatleri, çalışma kuralları, açık vardiya ve Adalet Puanı." },
   { key: "budget", label: "Ücretler ve maliyet", description: "Kişilerin saatlik ücretini görür ve değiştirir, maaş için çalışma süresi dökümünü alır." },
-  { key: "cross_branch", label: "Başka şubeden kişi", description: "Çalışanı başka şubelerde de çalıştırır, şubeler arasında sırayla çalışma düzeni kurar." },
+  { key: "cross_branch", label: "Başka şubeden kişi", description: "Boş vardiya için başka şubelerden kişi ister, çalışanı birden çok şubede çalıştırır, şubeler arasında sırayla çalışma düzeni kurar." },
   { key: "delegate", label: "Başkasına yetki verme", description: "Kendi kapsamında başkasını sorumlu yapar, en fazla kendi yetkilerini verir." },
 ];
 
@@ -150,6 +150,8 @@ export const PERM_ROUTES: { path: string; methods: string[]; perm: Perm; exact?:
   { path: "/api/self-signup", methods: ["PATCH"], perm: "team" },
   { path: "/api/invite", methods: ["POST"], perm: "team" },
   { path: "/api/departments", methods: ["POST", "DELETE"], perm: "plan_settings" },
+  // Ödünç kararı (lib/loans) kişinin ana şubesinin onayıdır; ilan işlerinden (plan_settings) önce eşleşmeli
+  { path: "/api/open-shifts/loans", methods: ["PATCH"], perm: "approvals" },
   { path: "/api/open-shifts", methods: W, perm: "plan_settings" },
   { path: "/api/score-adjustments", methods: W, perm: "plan_settings" },
   { path: "/api/autopilot", methods: W, perm: "plan_settings" },

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import TimeInput from "@/components/ui/TimeInput";
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { businessToday } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -24,6 +24,7 @@ function formatDate(d: string) {
 function StatusBadge({ status, expired }: { status: string; expired?: boolean }) {
   if (status === "open" && expired) return <StatusPill tone="neutral">Süresi geçti</StatusPill>;
   if (status === "open") return <StatusPill tone="attention">Açık</StatusPill>;
+  if (status === "loan_pending") return <StatusPill tone="info">Onay bekliyor</StatusPill>;
   if (status === "claimed") return <StatusPill tone="positive">Alındı</StatusPill>;
   return <StatusPill tone="neutral">İptal</StatusPill>;
 }
@@ -133,6 +134,29 @@ export default function OpenShiftsPage() {
   // adalet puanı sıralı liste — "Ata" ile müdür doğrudan atar
   const [candidates, setCandidates] = useState<Record<number, { loading: boolean; list: any[] }>>({});
   const [assigning, setAssigning] = useState<number | null>(null);
+  const [invited, setInvited] = useState<Record<string, boolean>>({}); // "<ilan>-<kişi>" → davet gitti
+
+  // Başka şubedeki kişiye davet (lib/loans): kişi alırsa kendi sorumlusu onaylar
+  async function handleInvite(shift: any, cand: any) {
+    const r = await fetch("/api/open-shifts", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: shift.id, invite: cand.personnel_id }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { setInvited(prev => ({ ...prev, [`${shift.id}-${cand.personnel_id}`]: true })); showToast(`${cand.name} davet edildi. Alırsa kendi sorumlusu onaylar.`); }
+    else showToast(d.error || "Davet gönderilemedi.");
+  }
+
+  // Kişinin kendi sorumlusunun onayını beklemekten vazgeç: ilan yeniden açılır
+  async function handleLoanWithdraw(shift: any) {
+    const r = await fetch("/api/open-shifts", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: shift.id, loan_withdraw: true }),
+    });
+    const d = await r.json().catch(() => ({}));
+    showToast(r.ok ? "İlan yeniden açıldı. Kişiye haber verildi." : d.error || "İşlem yapılamadı.");
+    await load();
+  }
 
   async function loadCandidates(id: number) {
     setCandidates(prev => ({ ...prev, [id]: { loading: true, list: [] } }));
@@ -185,7 +209,7 @@ export default function OpenShiftsPage() {
 
   // Tarihi geçmiş ilan üstlenilemez (sunucu da reddeder): "Geçmiş"te "Süresi geçti" olarak durur
   const todayISO = businessToday();
-  const isLive = (s: any) => s.status === "open" && s.date >= todayISO;
+  const isLive = (s: any) => (s.status === "open" || s.status === "loan_pending") && s.date >= todayISO;
   const openShifts = shifts.filter(isLive);
   const pastShifts = shifts.filter(s => !isLive(s));
   const selected = shifts.find(s => s.id === selectedId) ?? null;
@@ -205,6 +229,7 @@ export default function OpenShiftsPage() {
       leading={<DateBadge date={s.date} />}
       title={`${weekdayName(s.date)} · ${s.start_time}–${s.end_time}`}
       subtitle={s.status === "claimed" && s.claimed_by_name ? `${s.claimed_by_name} aldı`
+        : s.status === "loan_pending" ? `${s.claimed_by_name ?? "Başka şubeden biri"} aldı, kendi sorumlusunun onayı bekleniyor`
         : s.note || (s.hero_bonus_multiplier > 0 ? `Alana +${s.hero_bonus_multiplier} puan` : "Bonus yok")}
       trailing={<StatusBadge status={s.status} expired={s.status === "open" && s.date < todayISO} />}
     />
@@ -251,9 +276,17 @@ export default function OpenShiftsPage() {
               {selected.status === "claimed" && selected.claimed_by_name && (
                 <DetailRow label="Alan"><Link href="/personnel" className="text-primary font-semibold hover:underline">{selected.claimed_by_name}</Link></DetailRow>
               )}
+              {selected.status === "loan_pending" && <DetailRow label="Alan">{selected.claimed_by_name ?? "Başka şubeden biri"}</DetailRow>}
             </div>
 
-            {isLive(selected) && (
+            {selected.status === "loan_pending" && isLive(selected) && (
+              <section className="space-y-2">
+                <p className="text-sm text-slate-600">Bu kişi başka bir şubede çalışıyor. Kendi sorumlusu onaylayınca vardiya planınıza yazılır, size bildirim gelir.</p>
+                <button onClick={() => { handleLoanWithdraw(selected); setSelectedId(null); }} className={sheetSecondaryClass}>Beklemeyi bırak, ilanı yeniden aç</button>
+              </section>
+            )}
+
+            {selected.status === "open" && isLive(selected) && (
               <section className="space-y-2">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Uygun adaylar</h3>
@@ -263,22 +296,34 @@ export default function OpenShiftsPage() {
                   : (candidates[selected.id]?.list.length ?? 0) === 0 ? <p className="text-xs text-slate-500">Uygun kimse yok. Herkesin o gün vardiyası ya da izni var veya o gün çalışamıyor.</p>
                   : (
                     <List>
-                      {candidates[selected.id].list.map((c: any) => (
-                        <li key={c.personnel_id} className="flex items-center gap-3 px-3 py-2.5">
+                      {candidates[selected.id].list.map((c: any, i: number, arr: any[]) => (
+                        <Fragment key={c.personnel_id}>
+                        {c.other_branch && !arr[i - 1]?.other_branch && (
+                          <li className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-500">Diğer şubelerden · alırsa kendi sorumlusu onaylar</li>
+                        )}
+                        <li className="flex items-center gap-3 px-3 py-2.5">
                           <Avatar name={c.name} />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</p>
+                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
                             <p className={`text-xs truncate ${c.warnings.length > 0 ? "text-amber-700" : "text-slate-500"}`}>
-                              {c.warnings.length > 0 ? c.warnings.join(" · ") : `${Math.round(c.prev_score)} puan`}
+                              {c.warnings.length > 0 ? c.warnings.join(" · ") : `${c.other_branch ? `${c.other_branch} · ` : ""}${Math.round(c.prev_score)} puan`}
                             </p>
                           </div>
-                          {(!c.other_branch || user?.role === "admin" || user?.role === "supervisor") ? (
+                          {/* Başka şubenin çalışanı: ana şubesini de yöneten atar, diğerleri davet eder (lib/loans) */}
+                          {c.assignable !== false ? (
                           <button disabled={assigning === selected.id} onClick={() => handleAssign(selected, c)}
                             className="shrink-0 px-3 min-h-[36px] rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                             {assigning === selected.id ? "Atanıyor…" : "Ata"}
                           </button>
-                          ) : <span className="shrink-0 text-[11px] text-slate-400 text-right leading-tight">İlan ona<br />duyuruldu</span>}
+                          ) : invited[`${selected.id}-${c.personnel_id}`] ? <span className="shrink-0 text-xs text-slate-500">Davet gitti</span>
+                          : (
+                          <button onClick={() => handleInvite(selected, c)}
+                            className="shrink-0 px-3 min-h-[36px] rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/5">
+                            Davet et
+                          </button>
+                          )}
                         </li>
+                        </Fragment>
                       ))}
                     </List>
                   )}

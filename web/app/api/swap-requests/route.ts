@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     // İlandaki ("gelemeyeceğim") vardiya takasa konmaz; ilan önce geri çekilmeli
     const listed = await db.prepare(
-      `SELECT id FROM open_shifts WHERE source_assignment_id IN (?, ?) AND status = 'open' LIMIT 1`
+      `SELECT id FROM open_shifts WHERE source_assignment_id IN (?, ?) AND status IN ('open','loan_pending') LIMIT 1`
     ).get(requester_shift_id, target_shift_id);
     if (listed) {
       return NextResponse.json({ error: "Bu vardiya ekibe duyurulmuş (ilanda). Vardiya değiştirmek için önce ilanı geri çekin." }, { status: 409 });

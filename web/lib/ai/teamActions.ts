@@ -76,7 +76,7 @@ export async function resolveTeamActions(db: any, auth: AuthUser, raw: unknown[]
       if (!row || row.publication_status !== "published" || (row.kind ?? "regular") !== "regular") { dropped.push("Bırakılacak vardiya bulunamadı."); continue; }
       const date = addDays(row.week_start, Number(row.day));
       if (businessWallTime(date, row.start_time).getTime() <= Date.now()) { dropped.push("Başlamış ya da geçmiş vardiya bırakılamaz. Sorumlunuza haber verin."); continue; }
-      const listed = await db.prepare(`SELECT 1 FROM open_shifts WHERE source_assignment_id = ? AND status = 'open'`).get(row.id);
+      const listed = await db.prepare(`SELECT 1 FROM open_shifts WHERE source_assignment_id = ? AND status IN ('open','loan_pending')`).get(row.id);
       if (listed) { dropped.push("Bu vardiya zaten ekibe duyuruldu."); continue; }
       actions.push({
         kind: "release_shift", assignment_id: row.id,

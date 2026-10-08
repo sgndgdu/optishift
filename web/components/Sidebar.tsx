@@ -50,7 +50,9 @@ function usePendingApprovals(orgId: string | undefined) {
         list(`/api/shift-edit-requests?org_id=${orgId}&location_id=${locId}`),
         list(`/api/leave-requests?location_id=${locId}`),
         list(`/api/overtime?location_id=${locId}&status=pending`),
-      ]).then(([swaps, edits, leaves, overtimes]) => setCount(
+        list(`/api/open-shifts/loans?location_id=${locId}`),
+      ]).then(([swaps, edits, leaves, overtimes, loans]) => setCount(
+        loans.length +
         swaps.filter((s: any) => s.status === "peer_accepted").length +
         edits.filter((e: any) => e.status === "pending").length +
         leaves.filter((l: any) => l.status === "pending").length +

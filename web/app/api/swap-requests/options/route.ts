@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     // İlanda ya da başka bir takasta bekleyen vardiyalar seçilemez
     const busyRows = await db.prepare(`
-      SELECT source_assignment_id AS id FROM open_shifts WHERE org_id = ? AND status = 'open' AND source_assignment_id IS NOT NULL
+      SELECT source_assignment_id AS id FROM open_shifts WHERE org_id = ? AND status IN ('open','loan_pending') AND source_assignment_id IS NOT NULL
       UNION SELECT requester_shift_id FROM shift_swap_requests WHERE org_id = ? AND status IN ('pending','peer_accepted')
       UNION SELECT target_shift_id FROM shift_swap_requests WHERE org_id = ? AND status IN ('pending','peer_accepted')`).all(auth.org_id, auth.org_id, auth.org_id) as any[];
     const busy = new Set(busyRows.map(r => Number(r.id)));

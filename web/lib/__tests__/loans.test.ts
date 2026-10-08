@@ -1,0 +1,53 @@
+import { describe, it, expect } from "vitest";
+import { canApproveLoan, canAssignFrom, canBorrow, declinedIds, worksAt } from "@/lib/loans";
+import { missingPerm, parseAccess } from "@/lib/userAccess";
+
+const owner = { role: "admin", location_id: null, managed_location_ids: null, access: null };
+const mgrA = (perms?: string[], department_id?: string) =>
+  ({ role: "manager", location_id: "A", managed_location_ids: null, access: perms ? parseAccess({ perms, department_id }) : null });
+const regionAB = { role: "supervisor", location_id: null, managed_location_ids: ["A", "B"], access: null };
+const employee = { role: "employee", location_id: "A", managed_location_ids: null, access: null };
+
+describe("loans: şubeler arası ödünç kuralları", () => {
+  it("başka şubeden kişi istemek 'Başka şubeden kişi' yetkisi ister", () => {
+    expect(canBorrow(owner)).toBe(true);
+    expect(canBorrow(mgrA())).toBe(true); // boş alan = tam yetki
+    expect(canBorrow(mgrA(["prepare", "publish", "plan_settings"]))).toBe(false);
+    expect(canBorrow(mgrA(["plan_settings", "cross_branch"]))).toBe(true);
+    expect(canBorrow(mgrA(["prepare", "team"], "d1"))).toBe(false); // departman sorumlusu
+    expect(canBorrow(employee)).toBe(false);
+  });
+
+  it("doğrudan atama: kişinin ana şubesini de yöneten, yetkili kişi", () => {
+    expect(canAssignFrom(owner, "B")).toBe(true);
+    expect(canAssignFrom(regionAB, "B")).toBe(true);
+    expect(canAssignFrom({ ...regionAB, managed_location_ids: ["A"] }, "B")).toBe(false);
+    expect(canAssignFrom(mgrA(), "B")).toBe(false); // şube sorumlusu başka şubenin çalışanını atayamaz
+    expect(canAssignFrom(mgrA(), null)).toBe(false);
+  });
+
+  it("veren şubenin onayı: o şubede Onaylar yetkisi olan", () => {
+    expect(canApproveLoan(owner, "A")).toBe(true);
+    expect(canApproveLoan(mgrA(), "A")).toBe(true);
+    expect(canApproveLoan(mgrA(), "B")).toBe(false);
+    expect(canApproveLoan(mgrA(["prepare", "cross_branch"]), "A")).toBe(false);
+    expect(canApproveLoan(mgrA(["prepare", "team"], "d1"), "A")).toBe(false);
+    expect(canApproveLoan(employee, "A")).toBe(false);
+  });
+
+  it("onay kararı Onaylar yetkisiyle geçer, ilan işleri Plan ayarlarıyla", () => {
+    const approver = mgrA(["approvals"]);
+    expect(missingPerm(approver, "PATCH", "/api/open-shifts/loans")).toBeNull();
+    expect(missingPerm(approver, "PATCH", "/api/open-shifts")).toBe("plan_settings");
+    expect(missingPerm(mgrA(["plan_settings"]), "PATCH", "/api/open-shifts/loans")).toBe("approvals");
+  });
+
+  it("kişi şubede çalışıyor mu, onay alamayanlar", () => {
+    expect(worksAt({ primary_location_id: "A", assigned_location_ids: '["A"]' }, "A")).toBe(true);
+    expect(worksAt({ primary_location_id: "A", assigned_location_ids: '["A","B"]' }, "B")).toBe(true);
+    expect(worksAt({ primary_location_id: "A", assigned_location_ids: '["A"]' }, "B")).toBe(false);
+    expect(declinedIds({ loan_declined: '["p1"]' })).toEqual(["p1"]);
+    expect(declinedIds({ loan_declined: null })).toEqual([]);
+    expect(declinedIds({ loan_declined: "bozuk" })).toEqual([]);
+  });
+});

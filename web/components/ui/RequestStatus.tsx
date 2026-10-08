@@ -6,7 +6,7 @@ import { StatusPill, type PillTone } from "@/components/ui/StatusPill";
  * Metin okuyana göre değişir (müdür / personel).
  */
 const TONE: Record<string, PillTone> = {
-  pending: "attention", peer_accepted: "attention", open: "attention",
+  pending: "attention", peer_accepted: "attention", open: "attention", loan_pending: "attention",
   approved: "positive", manager_approved: "positive", claimed: "positive",
   rejected: "danger", manager_rejected: "danger", peer_rejected: "danger",
   cancelled: "neutral",
@@ -16,12 +16,12 @@ const LABELS: Record<"manager" | "employee", Record<string, string>> = {
   manager: {
     pending: "Bekliyor", peer_accepted: "Onay Bekliyor", approved: "Onaylandı", manager_approved: "Onaylandı",
     rejected: "Reddedildi", manager_rejected: "Reddedildi", peer_rejected: "Karşı taraf reddetti", cancelled: "İptal Edildi",
-    open: "Açık", claimed: "Alındı",
+    open: "Açık", claimed: "Alındı", loan_pending: "Onay Bekliyor",
   },
   employee: {
     pending: "Bekliyor", peer_accepted: "Sorumlu Onayı Bekliyor", peer_rejected: "Karşı Taraf Reddetti",
     cancelled: "İptal Edildi", manager_approved: "Onaylandı", manager_rejected: "Reddedildi", approved: "Onaylandı",
-    open: "Alacak kişi bekleniyor", claimed: "Başkası aldı", rejected: "Reddedildi",
+    open: "Alacak kişi bekleniyor", claimed: "Başkası aldı", rejected: "Reddedildi", loan_pending: "Sorumlu Onayı Bekliyor",
   },
 };
 

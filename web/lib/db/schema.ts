@@ -328,7 +328,7 @@ export const openShifts = pgTable("open_shifts", {
   claimed_by: text("claimed_by"), // personnel_id
   claimed_by_name: text("claimed_by_name"),
   claimed_at: bigint("claimed_at", { mode: "number" }),
-  status: text("status").notNull().default("open"), // open | claimed | cancelled
+  status: text("status").notNull().default("open"), // open | loan_pending | claimed | cancelled
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),
@@ -336,6 +336,11 @@ export const openShifts = pgTable("open_shifts", {
   released_by: text("released_by"),
   // Personelin "Herkese Aç" ilanında atama biri üstlenene kadar onda kalır; üstlenilince bu atama silinir
   source_assignment_id: integer("source_assignment_id"),
+  // Ödünç onayı (2026-10-08): ilanı açan hesap (users.id), başka şubeden alan kişinin ana şubesi
+  // (status = 'loan_pending' iken o şubenin sorumlusu onaylar) ve onay alamayan kişiler (JSON dizi, tekrar alamaz)
+  created_by: text("created_by"),
+  loan_home_location_id: text("loan_home_location_id"),
+  loan_declined: text("loan_declined"),
 });
 
 // ─── Push Subscriptions (Web Push VAPID) ─────────────────────────────────────

@@ -3,11 +3,13 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
-import { claimOpenShift, publishOpenShift } from "@/lib/openShifts";
+import { claimOpenShift, declineLoan, publishOpenShift, sendAwayInvite } from "@/lib/openShifts";
+import { permError } from "@/lib/userAccess";
 import { addDays, businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
 import { openShiftSuggestion } from "@/lib/suggestions";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { checkPersonChange } from "@/lib/assignmentCheck";
+import { canAssignFrom, canBorrow, declinedIds, wasInvited, worksAt } from "@/lib/loans";
 
 
 function getDb() {
@@ -35,17 +37,26 @@ export async function GET(req: NextRequest) {
         SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
         WHERE os.org_id = ? AND os.status = 'open' AND os.date >= ? AND os.location_id IN (${locs.map(() => "?").join(",")})
         ORDER BY os.date ASC, os.start_time ASC`).all(auth.org_id, today, ...locs) as any[] : [];
+      // Onay alamadığı ilan listede görünmez (lib/loans declineLoan)
+      for (let i = rows.length - 1; i >= 0; i--) if (declinedIds(rows[i]).includes(auth.personnel_id)) rows.splice(i, 1);
+      // Davet: sadece bu kişiye davet bildirimi gittiyse (ilan numarasını bilen herkes göremez)
       const invite = Number(searchParams.get("invite"));
-      if (invite && !rows.some(r => Number(r.id) === invite)) {
+      if (invite && !rows.some(r => Number(r.id) === invite) && await wasInvited(db0, auth.personnel_id, invite)) {
         const inv = await db0.prepare(`
           SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
           WHERE os.id = ? AND os.org_id = ? AND os.status = 'open' AND os.date >= ?`).get(invite, auth.org_id, today) as any;
-        if (inv) rows.unshift({ ...inv, invited: true });
+        if (inv && !declinedIds(inv).includes(auth.personnel_id)) rows.unshift({ ...inv, invited: true });
       }
+      // Aldığı, kendi sorumlusunun onayını bekleyen başka şube vardiyaları
+      const waiting = await db0.prepare(`
+        SELECT os.*, l.name AS location_name FROM open_shifts os JOIN locations l ON l.id = os.location_id
+        WHERE os.org_id = ? AND os.status = 'loan_pending' AND os.claimed_by = ? AND os.date >= ?
+        ORDER BY os.date ASC, os.start_time ASC`).all(auth.org_id, auth.personnel_id, today) as any[];
+      rows.push(...waiting.map(w => ({ ...w, awaiting_approval: true })));
       // Üstlenemeyeceği ilan baştan belli olsun (kullanıcı kararı 2026-10-05): o gün vardiyası varsa ya da alırsa
       // dinlenme/haftalık sınır bozulursa "problems" döner, portal düğmeyi kapatır. Kontrol üstlenmeyle aynı (lib/assignmentCheck).
       const withProblems = await Promise.all(rows.map(async r => {
-        if (r.released_by === auth.personnel_id) return r;
+        if (r.released_by === auth.personnel_id || r.awaiting_approval) return r;
         const date = String(r.date);
         const ws = weekStartOf(date), day = dayIndexOf(date);
         const sameDay = await db0.prepare(`
@@ -182,7 +193,7 @@ export async function POST(req: NextRequest) {
         // Personelin devir ilanı: vardiya biri üstlenene kadar onda kalır (claimOpenShift atamayı devreder).
         // Aynı atama için ikinci açık ilan açılmaz.
         const existing = await db.prepare(
-          `SELECT id FROM open_shifts WHERE source_assignment_id = ? AND status = 'open'`
+          `SELECT id FROM open_shifts WHERE source_assignment_id = ? AND status IN ('open','loan_pending')`
         ).get(convert_assignment_id) as any;
         if (existing) {
           return NextResponse.json({ error: "Bu vardiya zaten ilanda." }, { status: 409 });
@@ -221,10 +232,12 @@ export async function POST(req: NextRequest) {
     }
 
     const employeeRelease = auth.role === "employee" && !!sourceAssignmentId;
+    // Başka şubelere davet sadece "Başka şubeden kişi" yetkisiyle (lib/loans); ekip üyesinin bıraktığı vardiya kendi şubesinde kalır
     const published = await publishOpenShift(db, {
       org_id, location_id, date, start_time, end_time, note: note ?? null,
       heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
       releasedBy: absentPersonnelId, sourceAssignmentId, notify,
+      createdBy: auth.id, crossBranch: canBorrow(auth),
     });
     // Çalışan vardiyasını bıraktı ("Gelemeyeceğim"): sorumlulara en uygun yedekle birlikte haber ver (lib/suggestions)
     if (employeeRelease) {
@@ -272,6 +285,26 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
     }
 
+    if (body.invite) {
+      // "Davet et": başka şubedeki bir kişiye bu ilanı duyurur (lib/loans canBorrow). Kişi alırsa kendi sorumlusu onaylar
+      if (!canBorrow(auth)) return NextResponse.json({ error: permError("cross_branch") }, { status: 403 });
+      if (os.status !== "open" || os.date < businessToday()) return NextResponse.json({ error: "İlan artık açık değil" }, { status: 409 });
+      const p = await db.prepare("SELECT id, primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ? AND status = 'active'").get(body.invite, auth.org_id) as any;
+      if (!p) return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 404 });
+      if (worksAt(p, os.location_id)) return NextResponse.json({ error: "Bu kişi zaten bu şubede çalışıyor, ilanı görüyor" }, { status: 400 });
+      if (declinedIds(os).includes(p.id)) return NextResponse.json({ error: "Bu kişinin sorumlusu bu vardiya için onay vermedi" }, { status: 409 });
+      if (!(await wasInvited(db, p.id, Number(id)))) await sendAwayInvite(db, os, p.id);
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.loan_withdraw) {
+      // İlanı açan şube, kişinin kendi sorumlusunun onayını beklemekten vazgeçer: ilan yeniden açılır
+      if (auth.role === "employee") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
+      const r = await declineLoan(db, auth.org_id, Number(id), "requester");
+      if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
+      return NextResponse.json({ success: true });
+    }
+
     if (body.withdraw) {
       // Personel kendi devir ilanını geri çeker (vardiya zaten hâlâ onda)
       if (auth.role !== "employee" || os.released_by !== auth.personnel_id || !os.source_assignment_id) {
@@ -284,11 +317,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Şube müdürü başka şubenin çalışanını doğrudan atayamaz (kullanıcı kararı): ilan ona duyurulur, kendisi üstlenir
-    if (claimed_by && assigned_by_manager && auth.role === "manager") {
-      const target = await db.prepare("SELECT assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(claimed_by, auth.org_id) as any;
-      if (!String(target?.assigned_location_ids ?? "").includes(`"${auth.location_id}"`)) {
-        return NextResponse.json({ error: "Başka şubenin çalışanını sadece hesap sahibi ya da bölge sorumlusu atar. İlan bu kişiye duyuruldu, kendisi alabilir." }, { status: 403 });
+    // Başka şubenin çalışanını doğrudan atamak: "Başka şubeden kişi" yetkisi ve kişinin ana şubesini de yönetmek gerekir
+    // (lib/loans canAssignFrom). Yoksa ilan ona duyurulur, kendisi alır, kendi sorumlusu onaylar.
+    if (claimed_by && assigned_by_manager && auth.role !== "employee") {
+      const target = await db.prepare("SELECT primary_location_id, assigned_location_ids FROM personnel WHERE id = ? AND org_id = ?").get(claimed_by, auth.org_id) as any;
+      if (!target) return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 404 });
+      if (!worksAt(target, os.location_id) && !canAssignFrom(auth, target.primary_location_id)) {
+        return NextResponse.json({ error: "Bu kişi başka bir şubede çalışıyor. Onu sadece kendi şubesini de yöneten biri atayabilir. İlanı ona duyurursanız kendisi alabilir, kendi sorumlusu onaylar." }, { status: 403 });
       }
     }
     if (claimed_by) {
@@ -298,6 +333,7 @@ export async function PATCH(req: NextRequest) {
       }
       const outcome = await claimOpenShift(db, auth.org_id, id, claimed_by, claimed_by_name ?? null, { assignedByManager: !!assigned_by_manager, force: force === true });
       if (!outcome.ok) return NextResponse.json({ error: outcome.error, violations: outcome.violations, can_force: outcome.can_force }, { status: outcome.status });
+      if (outcome.pending) return NextResponse.json({ success: true, pending: true });
       // Gelemeyen birinin vardiyasını ekipten biri kendisi aldı: sorumluya sadece sonuç gider
       if (auth.role === "employee" && os.released_by) {
         const absent = await db.prepare(`SELECT name FROM personnel WHERE id = ?`).get(os.released_by) as any;
@@ -313,6 +349,12 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
       }
       await db.prepare(`UPDATE open_shifts SET status = ? WHERE id = ?`).run(status, id);
+      // Ödünç onayı beklerken ilan kapandı: vardiyayı alan kişi beklemeye devam etmesin
+      if (os.status === "loan_pending" && os.claimed_by && status === "cancelled") {
+        await db.prepare(`
+          INSERT INTO notifications (personnel_id, type, title, message, created_at) VALUES (?, 'open_shift', ?, ?, ?)
+        `).run(os.claimed_by, "İlan kapandı", `${formatDateTR(os.date)} ${os.start_time}–${os.end_time} ilanı kapatıldı. Bu vardiyaya gelmenize gerek yok, kendi planınız değişmedi.`, Math.floor(Date.now() / 1000));
+      }
     }
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -367,7 +367,8 @@ function SchedulePageInner() {
   const [callSummary, setCallSummary]             = useState<string | null>(null);
   // "Gelemiyor" (hastalık/acil) penceresi: yayınlanmış vardiya için akıllı yedek (lib/openShiftCandidates)
   const [absence, setAbsence] = useState<{ assignmentId: number; personId: string; title: string } | null>(null);
-  const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string }[] | null>(null);
+  const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string; assignable?: boolean }[] | null>(null);
+  const [absenceCrossBranch, setAbsenceCrossBranch] = useState(false); // ilan başka şubelere de duyurulur (lib/loans canBorrow)
   const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
   const [absenceBusy, setAbsenceBusy] = useState(false);
   // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
@@ -416,9 +417,6 @@ function SchedulePageInner() {
   const editRequestCheckedRef = useRef<string | null>(null); // `${locId}-${weekStart}` — double-fetch önler
   const [actionsOpen, setActionsOpen]             = useState(false); // ⋯ İşlemler menüsü
   const [advancedOpen, setAdvancedOpen]           = useState(false); // İşlemler › Gelişmiş
-  const [viewerRole] = useState<string | null>(() => {
-    try { return JSON.parse(localStorage.getItem("optishift_manager_user") || "{}").role ?? null; } catch { return null; }
-  });
   // Kişi bazında yetki (lib/userAccess): "Planı hazırlama" yoksa plan sadece görüntülenir; "Planı yayınlama"
   // yayınlar ve yayınlanmış haftayı değiştirir (sunucu: proxy + lib/access canEditPublishedWeek)
   const [viewerAccess] = useState<{ role: string | null; access: UserAccess | null }>(() => {
@@ -1397,7 +1395,7 @@ function SchedulePageInner() {
     setAbsenceReason("sick");
     fetch(`/api/open-shifts/candidates?assignment_id=${assignmentId}`)
       .then(r => r.json())
-      .then(d => setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []))
+      .then(d => { setAbsenceCands(Array.isArray(d?.candidates) ? d.candidates : []); setAbsenceCrossBranch(d?.cross_branch === true); })
       .catch(() => setAbsenceCands([]));
   };
 
@@ -3450,18 +3448,18 @@ loading ? (
                 ) : (
                   <div className="space-y-2">
                     <p className="text-[12px] font-semibold text-slate-500">Önerilen yedekler</p>
-                    {[...absenceCands.filter(c => !c.other_branch).slice(0, 5), ...absenceCands.filter(c => c.other_branch)].map((c, i, arr) => (
+                    {[...absenceCands.filter(c => !c.other_branch).slice(0, 5), ...absenceCands.filter(c => c.other_branch).slice(0, 3)].map((c, i, arr) => (
                       <Fragment key={c.personnel_id}>
                       {c.other_branch && !arr[i - 1]?.other_branch && <p className="text-[12px] font-semibold text-slate-500 pt-1">Diğer şubelerden</p>}
                       <div className={cn("rounded-xl border px-3 py-2", c.warnings.length ? "border-amber-200 bg-amber-50/50" : "border-slate-200")}>
                         <div className="flex items-center gap-2">
                           <span className="text-[12px] font-bold text-slate-400 w-4">{i + 1}</span>
                           <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}{c.other_branch && <span className="font-normal text-slate-400"> · {c.other_branch}</span>}</span>
-                          {/* Başka şubenin çalışanını sadece patron/bölge müdürü atar; şube müdürü ilanla duyurur */}
-                          {(!c.other_branch || viewerRole === "admin" || viewerRole === "supervisor") ? (
+                          {/* Başka şubenin çalışanını ana şubesini de yöneten atar; diğerlerine ilanla davet gider (lib/loans) */}
+                          {c.assignable !== false ? (
                             <button disabled={absenceBusy} onClick={() => resolveAbsence("assign", c)}
                               className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-40">Ata</button>
-                          ) : <span className="text-[11px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />ona da duyurulur</span>}
+                          ) : <span className="text-[11px] text-slate-400 text-right leading-tight">İlana çıkarınca<br />davet gider</span>}
                         </div>
                         {c.reasons.slice(0, 2).map(r => <p key={r} className="text-[12px] text-slate-500 ml-6">✓ {r}</p>)}
                         {c.warnings.map(w => <p key={w} className="text-[12px] text-amber-700 ml-6">! {w}</p>)}
@@ -3470,7 +3468,7 @@ loading ? (
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar. İlan diğer şubelerdeki uygun kişilere de gider. İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
+                <p className="text-xs text-slate-500">Vardiya plandan kaldırılır ve ilana çıkar.{absenceCrossBranch ? " İlan diğer şubelerdeki en uygun 3 kişiye de gider. Onlardan biri alırsa kendi sorumlusu onaylar." : ""} İlk kabul eden vardiyayı alır ve ek puan kazanır.</p>
               </div>
             </Sheet>
           )}
