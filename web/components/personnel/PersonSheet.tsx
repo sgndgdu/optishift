@@ -451,49 +451,89 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               (eskiden sadece aşağıdaki Şubeler bölümündeydi, üstteki seçim ana şubeye yazıyordu ve kişi "departmanı seçilmemiş" kalıyordu) */}
           {showWork && viewBranchId && viewBranchId !== ep.location_id && branchIds.includes(viewBranchId) && (branchDeptLists[viewBranchId]?.length ?? 0) > 0 && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">{branchName(viewBranchId)} şubesinde departmanı</label>
-              <select value={branchDept[viewBranchId] ?? ""} disabled={!canCrossBranch}
-                onChange={e => setBranchDept(prev => ({ ...prev, [viewBranchId]: e.target.value }))}
-                className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${branchDept[viewBranchId] ? "border-slate-200" : "border-amber-300"}`}>
-                <option value="">Seçilmedi (bu şubede otomatik plana alınmaz)</option>
-                {leafDepartments(sortDepartments(branchDeptLists[viewBranchId])).map(d => <option key={d.id} value={d.id}>{departmentLabel(branchDeptLists[viewBranchId], d)}</option>)}
-              </select>
+              <p className="block text-sm font-medium text-slate-700 mb-1.5">{branchName(viewBranchId)} şubesinde departmanı</p>
+              <div className="flex flex-wrap gap-1.5">
+                {leafDepartments(sortDepartments(branchDeptLists[viewBranchId])).map(d => {
+                  const on = branchDept[viewBranchId] === d.id;
+                  return (
+                    <button key={d.id} type="button" disabled={!canCrossBranch} aria-pressed={on}
+                      onClick={() => setBranchDept(prev => ({ ...prev, [viewBranchId]: on ? "" : d.id }))}
+                      className={`inline-flex min-h-[36px] items-center gap-1 rounded-xl border px-3 text-sm font-semibold transition-colors disabled:opacity-60 ${on ? "border-forest-600 bg-forest-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-forest-300"}`}>
+                      {on && <Check size={13} />}{departmentLabel(branchDeptLists[viewBranchId], d)}
+                    </button>
+                  );
+                })}
+              </div>
+              {!branchDept[viewBranchId] && <p className="text-xs text-amber-700 mt-1">Seçilmezse bu şubede otomatik plana alınmaz.</p>}
               {!canCrossBranch && <p className="text-xs text-slate-400 mt-1">Bunu "Başka şubeden kişi" yetkisi olan sorumlu ya da hesap sahibi değiştirebilir.</p>}
             </div>
           )}
-          {showWork && depts.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                {viewBranchId && viewBranchId !== ep.location_id ? `Ana şubesindeki (${branchName(ep.location_id ?? "")}) departmanı` : "Departman"}
-              </label>
-              <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
-                className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${editForm.department_id ? "border-slate-200" : "border-amber-300"}`}>
-                <option value="">Seçilmedi (otomatik plana alınmaz)</option>
-                {/* Kişi en alttaki departmana bağlanır (lib/departments); eskiden üst departmana bağlıysa o da görünür */}
-                {sortDepartments(depts).filter(d => !hasSubDepartments(depts, d.id) || d.id === editForm.department_id).map(d => (
-                  <option key={d.id} value={d.id}>{departmentLabel(depts, d)}{hasSubDepartments(depts, d.id) ? " (alt departman seçin)" : ""}</option>
-                ))}
-              </select>
-              {/* Joker: birden çok departmanda çalışabilir. Plan her vardiyasını tek departmana yazar. */}
-              {editForm.department_id && leafDepartments(sortDepartments(depts)).length > 1 && (
-                <div className="mt-3">
-                  <p className="text-sm font-medium text-slate-700">{viewBranchId && viewBranchId !== ep.location_id ? "Ana şubesinde başka hangi departmanlarda çalışabilir?" : "Başka hangi departmanlarda çalışabilir?"}</p>
-                  <p className="text-xs text-slate-400 mb-2">Seçerseniz otomatik plan bu kişiyi o departmanların eksiğine de yazar. Planda ana departmanının altında görünür, başka departmana yazıldığı gün kutuda o departmanın adı yazar.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {leafDepartments(sortDepartments(depts)).filter(d => d.id !== editForm.department_id).map(d => {
-                      const on = extraDepts.includes(d.id);
-                      return (
-                        <button key={d.id} type="button" onClick={() => setExtraDepts(v => (on ? v.filter(x => x !== d.id) : [...v, d.id]))}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${on ? "bg-forest-600 text-white border-forest-600" : "bg-white text-slate-600 border-slate-200 hover:border-forest-300"}`}>
-                          {on && <Check size={10} className="inline mr-1" />}{departmentLabel(depts, d)}
-                        </button>
-                      );
-                    })}
-                  </div>
+          {/* Departman: tek düğme grubu (2026-10-09, kullanıcı: açılır liste + ayrı "başka departman" bölümü yerine).
+              İlk seçilen ana departmandır; birden çok seçilirse planda hangisinin altında görüneceği ayrıca seçilir.
+              Plan her vardiyasını tek departmana yazar; diğerleri otomatik planda eksik kapatmak için kullanılır. */}
+          {showWork && depts.length > 0 && (() => {
+            const leaves = leafDepartments(sortDepartments(depts));
+            // Eskiden üst departmana bağlanmışsa o da seçili görünür (alt departman seçilene kadar)
+            const options = editForm.department_id && !leaves.some(d => d.id === editForm.department_id)
+              ? [...depts.filter(d => d.id === editForm.department_id), ...leaves] : leaves;
+            const selected = editForm.department_id ? [editForm.department_id, ...extraDepts.filter(id => id !== editForm.department_id)] : [];
+            const toggle = (id: string) => {
+              if (!selected.includes(id)) {
+                if (!editForm.department_id) setEditForm(f => ({ ...f, department_id: id }));
+                else setExtraDepts(v => [...v.filter(x => x !== id), id]);
+                return;
+              }
+              if (id === editForm.department_id) {
+                const next = selected.find(x => x !== id) ?? null;
+                setEditForm(f => ({ ...f, department_id: next }));
+                setExtraDepts(v => v.filter(x => x !== next && x !== id));
+              } else setExtraDepts(v => v.filter(x => x !== id));
+            };
+            const makePrimary = (id: string) => {
+              const old = editForm.department_id;
+              setEditForm(f => ({ ...f, department_id: id }));
+              setExtraDepts(v => [...v.filter(x => x !== id), ...(old && old !== id ? [old] : [])]);
+            };
+            const otherBranch = !!viewBranchId && viewBranchId !== ep.location_id;
+            return (
+              <div>
+                <p className="text-sm font-medium text-slate-700">{otherBranch ? `Ana şubesinde (${branchName(ep.location_id ?? "")}) hangi departmanlarda çalışır?` : "Hangi departmanlarda çalışır?"}</p>
+                <p className="mb-2 text-xs text-slate-500">{selected.length === 0 ? "Departman seçilmezse otomatik plana alınmaz." : "Birden çok seçerseniz otomatik plan bu kişiyi o departmanların eksiğine de yazar."}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {options.map(d => {
+                    const on = selected.includes(d.id);
+                    const primary = d.id === editForm.department_id;
+                    return (
+                      <button key={d.id} type="button" onClick={() => toggle(d.id)} aria-pressed={on}
+                        className={`inline-flex min-h-[36px] items-center gap-1 rounded-xl border px-3 text-sm font-semibold transition-colors ${on ? "border-forest-600 bg-forest-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-forest-300"}`}>
+                        {on && <Check size={13} />}{departmentLabel(depts, d)}
+                        {primary && selected.length > 1 && <span className="ml-0.5 rounded bg-white/20 px-1 text-[11px] font-semibold">Ana</span>}
+                        {hasSubDepartments(depts, d.id) && <span className="ml-0.5 text-[11px] font-normal">(alt departman seçin)</span>}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          )}
+                {selected.length > 1 && (
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-xs font-medium text-slate-600">Planda hangi departmanın altında görünsün?</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.map(id => {
+                        const d = depts.find(x => x.id === id);
+                        if (!d) return null;
+                        const on = id === editForm.department_id;
+                        return (
+                          <button key={id} type="button" onClick={() => makePrimary(id)} aria-pressed={on}
+                            className={`min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold ${on ? "border-forest-600 bg-forest-50 text-forest-800" : "border-slate-200 bg-white text-slate-600 hover:border-forest-300"}`}>
+                            {departmentLabel(depts, d)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           {showWork && (
             <>
               <details className="rounded-xl border border-slate-200 px-3 py-2">
@@ -657,14 +697,20 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                     </div>
                     {/* Departmanlı diğer şubelerde kişinin departmanı (yoksa o şubede otomatik plana alınmaz) */}
                     {branchIds.filter(id => id !== primary && (branchDeptLists[id]?.length ?? 0) > 0).map(id => (
-                      <div key={id} className="mt-2 flex items-center gap-2">
-                        <span className="text-xs text-slate-600 shrink-0">{name(id)} departmanı</span>
-                        <select value={branchDept[id] ?? ""} disabled={!canCrossBranch}
-                          onChange={e => setBranchDept(prev => ({ ...prev, [id]: e.target.value }))}
-                          className={`flex-1 min-w-0 border rounded-lg px-2 py-1.5 text-sm bg-white ${branchDept[id] ? "border-slate-200" : "border-amber-300"}`}>
-                          <option value="">Seçilmedi (orada otomatik plana alınmaz)</option>
-                          {leafDepartments(sortDepartments(branchDeptLists[id])).map(d => <option key={d.id} value={d.id}>{departmentLabel(branchDeptLists[id], d)}</option>)}
-                        </select>
+                      <div key={id} className="mt-3">
+                        <p className="mb-1.5 text-xs text-slate-600">{name(id)} şubesinde departmanı{!branchDept[id] && <span className="text-amber-700"> (seçilmezse orada otomatik plana alınmaz)</span>}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {leafDepartments(sortDepartments(branchDeptLists[id])).map(d => {
+                            const on = branchDept[id] === d.id;
+                            return (
+                              <button key={d.id} type="button" disabled={!canCrossBranch} aria-pressed={on}
+                                onClick={() => setBranchDept(prev => ({ ...prev, [id]: on ? "" : d.id }))}
+                                className={`inline-flex min-h-[32px] items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold disabled:opacity-60 ${on ? "border-forest-600 bg-forest-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-forest-300"}`}>
+                                {on && <Check size={11} />}{departmentLabel(branchDeptLists[id], d)}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     ))}
                     {branchIds.length >= 2 && (
