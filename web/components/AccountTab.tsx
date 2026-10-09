@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Lock, Save, Check, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Save, Check, Eye, EyeOff, AlertCircle, Pencil } from "lucide-react";
 
 type StorageKey = "optishift_portal_user" | "optishift_manager_user" | "optishift_supervisor_user";
 
@@ -14,9 +14,10 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({ name: "", email: "", username: "" });
   const [profilePassword, setProfilePassword] = useState("");
-  // Yüklenen giriş bilgisi: e-posta ya da kullanıcı adı değişince şifre sorulur
-  const [savedLogin, setSavedLogin] = useState({ email: "", username: "" });
-  const loginChanged = profile.email.trim() !== savedLogin.email || profile.username.trim() !== savedLogin.username;
+  // Kayıtlı bilgi: profil önce okunur görünür, "Düzenle" ile açılır; her değişiklik şifreyle kaydedilir
+  const [saved, setSaved] = useState({ name: "", email: "", username: "" });
+  const [editing, setEditing] = useState(false);
+  const dirty = profile.name.trim() !== saved.name || profile.email.trim() !== saved.email || profile.username.trim() !== saved.username;
   const [showProfilePw, setShowProfilePw] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -35,7 +36,8 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const obj = JSON.parse(raw);
-        setProfile({ name: obj.name ?? "", email: obj.email ?? "", username: obj.username ?? "" });
+        const p = { name: obj.name ?? "", email: obj.email ?? "", username: obj.username ?? "" };
+        setProfile(p); setSaved(p);
       }
     } catch {}
 
@@ -45,7 +47,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
       .then(data => {
         if (data) {
           const p = { name: data.name ?? "", email: data.email ?? "", username: data.username ?? "" };
-          setProfile(p); setSavedLogin({ email: p.email, username: p.username });
+          setProfile(p); setSaved(p);
         }
       })
       .finally(() => setLoading(false));
@@ -53,7 +55,8 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginChanged && !profilePassword) { setProfileError("E-posta ya da kullanıcı adını değiştirmek için şifrenizi girin"); return; }
+    if (!dirty) { setEditing(false); return; }
+    if (!profilePassword) { setProfileError("Değişikliği kaydetmek için şifrenizi girin"); return; }
     setProfileSaving(true);
     setProfileError("");
     try {
@@ -63,7 +66,7 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
         body: JSON.stringify({ name: profile.name, email: profile.email, username: profile.username, confirmPassword: profilePassword }),
       });
       const data = await res.json();
-      if (!res.ok) { setProfileError(data.error ?? "Hata"); return; }
+      if (!res.ok) { setProfileError(data.error ?? "Hata"); setProfileSaving(false); return; }
       // localStorage'daki ismi güncelle
       try {
         const raw = localStorage.getItem(storageKey);
@@ -75,8 +78,9 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
         }
       } catch {}
       setProfile(prev => ({ ...prev, name: data.name, email: data.email ?? prev.email, username: data.username ?? prev.username }));
-      setSavedLogin({ email: data.email ?? profile.email, username: data.username ?? profile.username });
+      setSaved({ name: data.name, email: data.email ?? profile.email, username: data.username ?? profile.username });
       setProfilePassword("");
+      setEditing(false);
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 2500);
     } catch {
@@ -128,60 +132,61 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
             </p>
           </div>
         </div>
+        {!editing ? (
+          <div className="p-4 sm:p-5 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <p className="field-label">Ad Soyad</p>
+                <p className="text-sm text-slate-900">{profile.name || "Yok"}</p>
+              </div>
+              <div>
+                <p className="field-label">E-posta</p>
+                <p className="text-sm text-slate-900 break-all">{profile.email || "Yok"}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              {profileSuccess && <span className="inline-flex items-center gap-1 text-sm font-semibold text-forest-700"><Check size={15} /> Kaydedildi</span>}
+              <button type="button" onClick={() => { setEditing(true); setProfileError(""); }}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl">
+                <Pencil size={14} /> Düzenle
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleProfileSave} className="p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {allowNameEdit ? (
-              <>
-                <div>
-                  <label className="field-label">Ad Soyad</label>
-                  <input
-                    className="field-input"
-                    value={profile.name}
-                    onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
-                    required
-                    placeholder="Ad Soyad"
-                  />
-                </div>
-              </>
+              <div>
+                <label className="field-label">Ad Soyad</label>
+                <input className="field-input" value={profile.name} required placeholder="Ad Soyad" autoFocus
+                  onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />
+              </div>
             ) : (
-              <>
-                <div>
-                  <label className="field-label">Ad Soyad</label>
-                  <div className="field-input bg-slate-50 text-slate-500 cursor-default select-none">{profile.name || "—"}</div>
-                </div>
-              </>
+              <div>
+                <label className="field-label">Ad Soyad</label>
+                <div className="field-input bg-slate-50 text-slate-500 cursor-default select-none">{profile.name || "Yok"}</div>
+              </div>
             )}
             <div className="sm:col-span-2">
               <label className="field-label">E-posta</label>
-              <input
-                type="email"
-                className="field-input"
-                value={profile.email}
-                onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
-                placeholder="ornek@email.com"
-              />
+              <input type="email" className="field-input" value={profile.email} placeholder="ornek@email.com"
+                onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} />
             </div>
           </div>
 
-          {loginChanged && <div className="border-t border-slate-100 pt-4">
-            <label className="field-label">Şifreniz (giriş bilgisi değişiyor)</label>
+          <div className="border-t border-slate-100 pt-4">
+            <label className="field-label">Şifreniz</label>
+            <p className="mb-2 text-xs text-slate-500">Bilgilerinizi korumak için değişikliği şifrenizle onaylayın.</p>
             <div className="relative">
-              <input
-                type={showProfilePw ? "text" : "password"}
-                className="field-input pr-10"
-                value={profilePassword}
-                onChange={e => setProfilePassword(e.target.value)}
-                placeholder="Mevcut şifreniz"
-              />
-              <button
-                type="button"
+              <input type={showProfilePw ? "text" : "password"} className="field-input pr-10" value={profilePassword}
+                onChange={e => setProfilePassword(e.target.value)} placeholder="Mevcut şifreniz" autoComplete="current-password" />
+              <button type="button" aria-label={showProfilePw ? "Şifreyi gizle" : "Şifreyi göster"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                onClick={() => setShowProfilePw(v => !v)}
-              >
+                onClick={() => setShowProfilePw(v => !v)}>
                 {showProfilePw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </div>}
+          </div>
 
           {profileError && (
             <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3">
@@ -190,22 +195,16 @@ export default function AccountTab({ storageKey, allowNameEdit = false }: Props)
             </div>
           )}
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={profileSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
-            >
-              {profileSaving ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : profileSuccess ? (
-                <><Check size={15} /> Kaydedildi</>
-              ) : (
-                <><Save size={15} /> Kaydet</>
-              )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => { setProfile(saved); setProfilePassword(""); setProfileError(""); setEditing(false); }}
+              className="px-4 py-2.5 text-sm font-semibold text-slate-600 rounded-xl hover:bg-slate-100">Vazgeç</button>
+            <button type="submit" disabled={profileSaving || !dirty || !profilePassword}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+              {profileSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save size={15} /> Kaydet</>}
             </button>
           </div>
         </form>
+        )}
       </div>
 
       {/* Şifre Değiştir */}
