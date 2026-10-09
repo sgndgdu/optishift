@@ -26,6 +26,74 @@ const ROLE: Record<string, string> = { admin: "Hesap sahibi", supervisor: "Sorum
 const DETAIL_BRANCH_LIMIT = 8;
 const EMP: Record<string, string> = { full_time: "tam zamanlı", part_time: "yarı zamanlı" };
 
+export async function weekRows(db: any, locationId: string, ws: string): Promise<any[]> {
+  return await db.prepare(`
+    SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at, department_id
+    FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
+  `).all(locationId, ws) as any[];
+}
+
+/** Bir haftanın planı okunur satırlarla: kişi kişi vardiyalar, gün gün kim çalışıyor (atanan/gereken), eksikler.
+ *  Asistan (branchDetail) ve planı yazarak değiştirme (/api/plan/instruct) aynı metni kullanır. */
+export function weekPlanLines(rows: any[], o: {
+  label: string; ws: string; loc: any; defs: any[]; active: any[]; nameOf: Map<string, string>;
+  depts: any[]; personDept: Map<string, string | null>; today: number | null;
+}): string[] {
+  const out: string[] = [];
+  const { label, ws, loc, defs, active, nameOf, depts, personDept } = o;
+  const defName = new Map(defs.map(d => [String(d.id), d.name]));
+  const deptName = (id: string | null | undefined) => { const d = id ? depts.find(x => x.id === id) : null; return d ? departmentLabel(depts, d) : null; };
+  const status = rows.length === 0 ? "plan yok" : rows.some(r => r.publication_status === "published") ? "yayınlandı" : "taslak (personel görmüyor)";
+  out.push(`### ${label} planı (${short(ws)}-${short(addDays(ws, 6))}, ${status})`);
+  const byPerson = new Map<string, string[]>();
+  const hours = new Map<string, number>();
+  for (const r of rows) {
+    // [v<id>]: asistanın işlem önerisinde vardiyayı göstermesi için (lib/ai/actions)
+    const tag = `${day(r.day)} ${short(addDays(ws, Number(r.day)))} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""} [v${r.id}]`;
+    byPerson.set(r.personnel_id, [...(byPerson.get(r.personnel_id) ?? []), tag]);
+    if (r.kind !== "on_call" && r.start_time && r.end_time) {
+      // Mola düşülmüş çalışma saati (lib/legal)
+      hours.set(r.personnel_id, (hours.get(r.personnel_id) ?? 0) + assignmentWorkMinutes(defs, r) / 60);
+    }
+  }
+  for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);
+  const idle = active.filter(p => !byPerson.has(p.id)).map(p => p.name);
+  if (rows.length && idle.length) out.push(`- Vardiyası olmayanlar: ${idle.join(", ")}`);
+  // Gün gün kim nerede: "Cmt 17.10 Akşam Servisi · Bar: Kaan Yıldız, Cansu Oral (2/2 kişi)"
+  // Vardiyanın departmanı: kayıttaki departman (joker) ya da kişinin ana departmanı
+  const leaves = depts.length ? leafDepartments(depts) : [];
+  const rowDept = (r: any) => (r.department_id ?? personDept.get(r.personnel_id) ?? null) as string | null;
+  const needOf = (deptId: string | null, defId: string, g: number) => {
+    const m = deptId ? J(depts.find(d => d.id === deptId)?.demand_matrix, {}) : J(loc.demand_matrix, {});
+    return Number(m?.[defId]?.[g] ?? m?.[defId]?.[String(g)] ?? 0) || 0;
+  };
+  const gaps: string[] = [];
+  if (rows.length) {
+    out.push(`#### ${label}: gün gün kim çalışıyor (atanan/gereken)`);
+    const groups: (string | null)[] = depts.length ? [...leaves.map(d => d.id), null] : [null];
+    for (let g = 0; g < 7; g++) for (const d of defs) {
+      if (d.on_call) continue;
+      for (const gid of groups) {
+        // Vardiya kimliği tutmayan kayıt (ör. ilandan gelen "open-shift") saatinden eşleşir
+        const isDef = (r: any) => String(r.shift_id) === String(d.id) || (!defName.has(String(r.shift_id)) && r.start_time === d.start && r.end_time === d.end);
+        const here = rows.filter(r => r.day === g && isDef(r) && r.kind !== "on_call" && (!depts.length || rowDept(r) === gid));
+        const need = depts.length && gid === null ? 0 : needOf(gid, d.id, g);
+        if (!here.length && !need) continue;
+        const where = depts.length ? ` · ${gid ? deptName(gid) : "departmansız"}` : "";
+        out.push(`- ${day(g)} ${short(addDays(ws, g))} ${d.name}${where}: ${here.map(r => nameOf.get(r.personnel_id) ?? r.personnel_id).join(", ") || "kimse yok"}${need ? ` (${here.length}/${need})` : ""}`);
+        if (need && here.length < need) gaps.push(`${day(g)} ${d.name}${where} ${here.length}/${need}`);
+      }
+    }
+  }
+  if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken): ${gaps.join(", ")}`);
+  if (o.today !== null) {
+    const dayIdx = o.today;
+    const todays = rows.filter(r => r.day === dayIdx && r.publication_status === "published" && r.kind !== "on_call");
+    if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}${r.check_in_at ? " (geldi)" : ""}`).join(", ")}`);
+  }
+  return out;
+}
+
 async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]> {
   const out: string[] = [];
   const rules = J(loc.rules, {});
@@ -76,57 +144,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
 
   // Plan: bu hafta ve gelecek hafta
   for (const [label, ws] of [["Bu hafta", weekStart], ["Gelecek hafta", nextWeek]] as const) {
-    const rows = await db.prepare(`
-      SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at, department_id
-      FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
-    `).all(loc.id, ws) as any[];
-    const status = rows.length === 0 ? "plan yok" : rows.some(r => r.publication_status === "published") ? "yayınlandı" : "taslak (personel görmüyor)";
-    out.push(`### ${label} planı (${short(ws)}-${short(addDays(ws, 6))}, ${status})`);
-    const byPerson = new Map<string, string[]>();
-    const hours = new Map<string, number>();
-    for (const r of rows) {
-      // [v<id>]: asistanın işlem önerisinde vardiyayı göstermesi için (lib/ai/actions)
-      const tag = `${day(r.day)} ${short(addDays(ws, Number(r.day)))} ${r.start_time}-${r.end_time}${r.kind === "on_call" ? " icap" : ""}${defName.get(String(r.shift_id)) ? ` (${defName.get(String(r.shift_id))})` : ""} [v${r.id}]`;
-      byPerson.set(r.personnel_id, [...(byPerson.get(r.personnel_id) ?? []), tag]);
-      if (r.kind !== "on_call" && r.start_time && r.end_time) {
-        // Mola düşülmüş çalışma saati (lib/legal)
-        hours.set(r.personnel_id, (hours.get(r.personnel_id) ?? 0) + assignmentWorkMinutes(defs, r) / 60);
-      }
-    }
-    for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);
-    const idle = active.filter(p => !byPerson.has(p.id)).map(p => p.name);
-    if (rows.length && idle.length) out.push(`- Vardiyası olmayanlar: ${idle.join(", ")}`);
-    // Gün gün kim nerede: "Cmt 17.10 Akşam Servisi · Bar: Kaan Yıldız, Cansu Oral (2/2 kişi)"
-    // Vardiyanın departmanı: kayıttaki departman (joker) ya da kişinin ana departmanı
-    const leaves = depts.length ? leafDepartments(depts) : [];
-    const rowDept = (r: any) => (r.department_id ?? personDept.get(r.personnel_id) ?? null) as string | null;
-    const needOf = (deptId: string | null, defId: string, g: number) => {
-      const m = deptId ? J(depts.find(d => d.id === deptId)?.demand_matrix, {}) : J(loc.demand_matrix, {});
-      return Number(m?.[defId]?.[g] ?? m?.[defId]?.[String(g)] ?? 0) || 0;
-    };
-    const gaps: string[] = [];
-    if (rows.length) {
-      out.push(`#### ${label}: gün gün kim çalışıyor (atanan/gereken)`);
-      const groups: (string | null)[] = depts.length ? [...leaves.map(d => d.id), null] : [null];
-      for (let g = 0; g < 7; g++) for (const d of defs) {
-        if (d.on_call) continue;
-        for (const gid of groups) {
-          // Vardiya kimliği tutmayan kayıt (ör. ilandan gelen "open-shift") saatinden eşleşir
-          const isDef = (r: any) => String(r.shift_id) === String(d.id) || (!defName.has(String(r.shift_id)) && r.start_time === d.start && r.end_time === d.end);
-          const here = rows.filter(r => r.day === g && isDef(r) && r.kind !== "on_call" && (!depts.length || rowDept(r) === gid));
-          const need = depts.length && gid === null ? 0 : needOf(gid, d.id, g);
-          if (!here.length && !need) continue;
-          const where = depts.length ? ` · ${gid ? deptName(gid) : "departmansız"}` : "";
-          out.push(`- ${day(g)} ${short(addDays(ws, g))} ${d.name}${where}: ${here.map(r => nameOf.get(r.personnel_id) ?? r.personnel_id).join(", ") || "kimse yok"}${need ? ` (${here.length}/${need})` : ""}`);
-          if (need && here.length < need) gaps.push(`${day(g)} ${d.name}${where} ${here.length}/${need}`);
-        }
-      }
-    }
-    if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken): ${gaps.join(", ")}`);
-    if (ws === weekStart) {
-      const todays = rows.filter(r => r.day === dayIdx && r.publication_status === "published" && r.kind !== "on_call");
-      if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}${r.check_in_at ? " (geldi)" : ""}`).join(", ")}`);
-    }
+    out.push(...weekPlanLines(await weekRows(db, loc.id, ws), { label, ws, loc, defs, active, nameOf, depts, personDept, today: ws === weekStart ? dayIdx : null }));
   }
 
   // Takvim: bu ve gelecek haftanın özel günleri, işletmenin aynı gündeki geçmişiyle (lib/weekCalendar; hava yok, hızlı kalsın)

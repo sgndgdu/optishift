@@ -1568,8 +1568,8 @@ function SchedulePageInner() {
   // sihirbazın Kontrol adımında gösterilir (UX-7).
   // overrides: cümleyle plan değiştirme (components/schedule/PlanInstructBar); verilirse mevcut plan en az değişir
   // ve değişen vardiyalar okunur listeyle döner
-  const runGenerate = async (opts?: { overrides?: PlanOverride[] }): Promise<RebuildResult> => {
-    const instruct = !!opts?.overrides?.length;
+  const runGenerate = async (opts?: { overrides?: PlanOverride[]; instruct?: boolean }): Promise<RebuildResult> => {
+    const instruct = !!opts?.instruct || !!opts?.overrides?.length;
     setGenerating(true);
     setError(null);
     // Elle düzeltilen (korunan) hücreler ve geçmiş günlerin vardiyaları motora sabit olarak gider,
@@ -1606,7 +1606,7 @@ function SchedulePageInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locationId: activeLocationId, week_start: weekStart, fixed_assignments, current_assignments,
-          ...(instruct ? { overrides: opts!.overrides } : {}) }),
+          ...(opts?.overrides?.length ? { overrides: opts.overrides } : {}) }),
       });
       const data = await res.json();
       setExcludedCompliance(data.excluded_compliance ?? []);
@@ -2704,7 +2704,7 @@ function SchedulePageInner() {
           {aiEnabled && !loading && activeLocationId && !viewOnly && !(isPublishedWeek && !canPublish) && (
             <PlanInstructBar locationId={activeLocationId} weekStart={weekStart}
               mode={isPublishedWeek && !editUnlocked ? "locked" : cellCount === 0 ? "empty" : "ready"}
-              onRebuild={overrides => runGenerate({ overrides })} onUndo={undo} />
+              onRebuild={overrides => runGenerate({ overrides, instruct: true })} onUndo={undo} />
           )}
           {/* Rehber üç adım bitene kadar kalır; haftada plan oluştuysa ihtiyaç tablosu bilinçli boş bırakılmış olabilir */}
           {!loading && (shiftDefs.length === 0 || personnel.length === 0 || (dbShiftCount === 0 && demandEmpty)) && (

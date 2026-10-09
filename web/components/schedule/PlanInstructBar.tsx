@@ -7,6 +7,8 @@
  *
  * Konuşma olarak çalışır (2026-10-07, kullanıcı geri bildirimi): yapay zekâ soru sorarsa altta cevap yazılır,
  * önceki mesajlar sunucuya `history` ile gider; anlaşılan listeye ekleme/düzeltme de aynı kutudan yazılır.
+ * Sorulara da cevap verir (2026-10-09, kullanıcı: "eksik var mı" deyince soru soruyordu): sunucu haftanın planını ve
+ * eksiklerini modele verir, model {answer} döner. Seçenekli sorular ve öneriler dokunulacak düğme olarak çıkar.
  * Kutu her hafta görünür; plan yoksa veya hafta yayınlanmışsa sadece üstteki Planı Oluştur / Düzenle düğmesine yönlendirir
  * (düğme tek yerde, sayfanın üst çubuğunda).
  */
@@ -15,7 +17,7 @@ import { RotateCcw, Send, Sparkles, Undo2 } from "lucide-react";
 import type { PlanOverride } from "@/lib/planOverrides";
 import { cn } from "@/lib/utils";
 
-type Parsed = { summary: string[]; dropped: string[]; overrides: PlanOverride[]; ask?: string };
+type Parsed = { summary: string[]; dropped: string[]; overrides: PlanOverride[]; rebuild: boolean; ask?: string; answer?: string; options: string[] };
 export type RebuildResult = { ok: boolean; error?: string; changes: string[] };
 type Msg =
   | { role: "user"; text: string }
@@ -23,6 +25,8 @@ type Msg =
   | { role: "result"; result: RebuildResult; undone?: boolean };
 
 export type InstructMode = "ready" | "locked" | "empty";
+
+const SUGGESTIONS = ["Eksik var mı?", "Bu hafta en çok kim çalışıyor?", "Eksikleri kapat", "Cumartesi akşama bir kişi daha"];
 
 export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild, onUndo }: {
   locationId: string; weekStart: string; mode: InstructMode;
@@ -40,10 +44,19 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
 
   const last = msgs[msgs.length - 1];
   const lastParsed = last?.role === "assistant" ? last.parsed : null;
-  const asking = !!lastParsed?.ask && !lastParsed.overrides.length;
+  const asking = !!lastParsed?.ask && !lastParsed.rebuild;
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [msgs, busy]);
+  // Yazı alanı içeriğe göre büyür (en fazla ~5 satır)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }, [text]);
 
-  const send = async () => {
-    const t = text.trim();
+  const send = async (preset?: string) => {
+    const t = (preset ?? text).trim();
     if (!t || busy) return;
     // Sunucuya giden geçmiş: plan kurulduktan sonraki mesajlar (yeni istek yeni konuşmadır)
     const lastResult = msgs.map(m => m.role).lastIndexOf("result");
@@ -66,15 +79,15 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
       if (!r.ok) setError(d.error || "İstek işlenemedi.");
       else setMsgs(m => [...m, {
         role: "assistant",
-        parsed: { summary: d.summary ?? [], dropped: d.dropped ?? [], overrides: d.overrides ?? [], ask: d.ask },
-        modelText: typeof d.model_text === "string" ? d.model_text : JSON.stringify(d.ask ? { ask: d.ask } : {}),
+        parsed: { summary: d.summary ?? [], dropped: d.dropped ?? [], overrides: d.overrides ?? [], rebuild: !!d.rebuild, ask: d.ask, answer: d.answer, options: d.options ?? [] },
+        modelText: typeof d.model_text === "string" ? d.model_text : JSON.stringify(d.ask ? { ask: d.ask } : d.answer ? { answer: d.answer } : {}),
       }]);
     } catch { setError("Bağlantı hatası, tekrar deneyin."); }
     finally { setBusy(""); setTimeout(() => inputRef.current?.focus(), 0); }
   };
 
   const build = async () => {
-    if (!lastParsed?.overrides.length) return;
+    if (!lastParsed?.rebuild) return;
     setBusy("build");
     setError("");
     try {
@@ -93,8 +106,8 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
     <div className="flex items-start gap-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-forest-700 text-ember-300"><Sparkles size={17} /></span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-slate-900">Planı yazarak değiştirin</p>
-        <p className="text-xs text-slate-500">Örneğin: &quot;Mehmet cuma gelemiyor&quot;, &quot;Ayşe bu hafta sadece sabah çalışsın&quot;, &quot;Cumartesi akşama bir kişi daha&quot;.</p>
+        <p className="text-sm font-bold text-slate-900">Plan hakkında yazın</p>
+        <p className="text-xs text-slate-500">Planı değiştirmesini isteyin ya da plan hakkında soru sorun.</p>
       </div>
       {msgs.length > 0 && mode === "ready" && (
         <button type="button" onClick={() => { setMsgs([]); setError(""); }} disabled={!!busy}
@@ -122,8 +135,19 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
     <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
       {header}
 
+      {msgs.length === 0 && (
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTIONS.map(x => (
+            <button key={x} type="button" onClick={() => send(x)} disabled={!!busy}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-forest-300 hover:bg-forest-50 disabled:opacity-50">
+              {x}
+            </button>
+          ))}
+        </div>
+      )}
+
       {msgs.length > 0 && (
-        <div className="space-y-2.5">
+        <div ref={listRef} className="max-h-[420px] space-y-2.5 overflow-y-auto pr-1">
           {msgs.map((m, i) => {
             if (m.role === "user") return (
               <div key={i} className="flex justify-end">
@@ -155,7 +179,18 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
             const isLast = i === msgs.length - 1;
             return (
               <div key={i} className="max-w-[92%] space-y-2 rounded-2xl rounded-bl-md bg-slate-50 px-3.5 py-2.5">
+                {p.answer && <p className="whitespace-pre-line text-sm text-slate-800">{p.answer}</p>}
                 {p.ask && <p className="text-sm text-slate-800">{p.ask}</p>}
+                {isLast && p.options.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {p.options.map(o => (
+                      <button key={o} type="button" onClick={() => send(o)} disabled={!!busy}
+                        className="rounded-full border border-forest-200 bg-white px-3 py-1.5 text-xs font-semibold text-forest-800 hover:bg-forest-50 disabled:opacity-50">
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {p.summary.length > 0 && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-forest-800">Anladığım istekler:</p>
@@ -167,7 +202,7 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
                     {p.dropped.map((d, k) => <p key={k}>Uygulanamaz: {d}</p>)}
                   </div>
                 )}
-                {isLast && p.overrides.length > 0 && (
+                {isLast && p.rebuild && (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-slate-500">Diğer vardiyalar mümkün olduğunca yerinde kalır, çalışma kuralları her zamanki gibi uygulanır. Eklemek ya da düzeltmek istediğiniz bir şey varsa aşağıya yazın.</p>
                     <button onClick={build} disabled={!!busy}
@@ -179,21 +214,26 @@ export default function PlanInstructBar({ locationId, weekStart, mode, onRebuild
               </div>
             );
           })}
-          {busy === "parse" && <p className="text-xs text-slate-400">Okunuyor…</p>}
+          {busy === "parse" && (
+            <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-slate-50 px-3.5 py-3" aria-label="Yazıyor">
+              {[0, 1, 2].map(k => <span key={k} className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: `${k * 120}ms` }} />)}
+            </div>
+          )}
         </div>
       )}
 
       {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
 
-      <form onSubmit={e => { e.preventDefault(); send(); }} className="flex items-end gap-2">
+      <form onSubmit={e => { e.preventDefault(); send(); }}
+        className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 pl-3.5 focus-within:border-forest-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-forest-100">
         <textarea ref={inputRef} value={text} onChange={e => setText(e.target.value)} maxLength={600} rows={1} disabled={busy === "build"}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           aria-label={asking ? "Cevabınız" : "İsteğiniz"}
-          placeholder={asking ? "Cevabınızı yazın" : lastParsed?.overrides.length ? "Eklemek ya da düzeltmek istediğinizi yazın" : "İsteğinizi yazın"}
-          className="field-input min-h-[44px] flex-1 resize-none py-2.5" />
-        <button type="submit" disabled={!text.trim() || !!busy} aria-label="Gönder"
-          className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-forest-700 text-white disabled:opacity-40")}>
-          <Send size={16} />
+          placeholder={asking ? "Cevabınızı yazın" : lastParsed?.rebuild ? "Eklemek ya da düzeltmek istediğinizi yazın" : "Örneğin: Mehmet cuma gelemiyor"}
+          className="max-h-[140px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400" />
+        <button type="submit" disabled={!text.trim() || !!busy} aria-label="Gönder" title="Gönder"
+          className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-forest-700 text-white transition disabled:bg-slate-300")}>
+          <Send size={15} />
         </button>
       </form>
     </div>

@@ -15,7 +15,11 @@ export type InstructDept = { id: string; name: string };
 /** Kayıtlı kişi sayıları: departman kimliği (departmansız şubede "") → vardiya → gün → kişi.
  *  "Bir kişi daha" gibi göreli istekler bunun üstüne eklenir. */
 export type InstructDemand = Record<string, Record<string, Record<string, number>>>;
-export type InstructCtx = { people: InstructPerson[]; shifts: InstructShift[]; departments: InstructDept[]; weekStart: string; today: string; demand?: InstructDemand };
+export type InstructCtx = {
+  people: InstructPerson[]; shifts: InstructShift[]; departments: InstructDept[]; weekStart: string; today: string; demand?: InstructDemand;
+  /** Bu haftanın planı okunur satırlarla (lib/ai/businessContext weekPlanLines): sorulara cevap için */
+  plan?: string[];
+};
 
 const MAX_DIRECTIVES = 12;
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
@@ -78,7 +82,9 @@ function spanOf(list: InstructShift[]): { start: string; end: string } {
   return { start: fmt(a), end: fmt(b) };
 }
 
-export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides: PlanOverride[]; summary: string[]; dropped: string[] } {
+export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides: PlanOverride[]; summary: string[]; dropped: string[]; rebuild: boolean; ask?: string; options?: string[] } {
+  let rebuild = false;
+  let askDept = "";
   const overrides: PlanOverride[] = [];
   const summary: string[] = [];
   const dropped: string[] = [];
@@ -178,8 +184,9 @@ export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides
       let dept: InstructDept | null = null;
       if (ctx.departments.length) {
         const w = norm(str(a.department));
-        dept = ctx.departments.find(d => norm(d.name) === w) ?? (ctx.departments.length === 1 ? ctx.departments[0] : null);
-        if (!dept) { dropped.push(`${sh.name} için hangi departman olduğu anlaşılamadı. Departmanlar: ${ctx.departments.map(d => d.name).join(", ")}.`); continue; }
+        dept = (w ? ctx.departments.find(d => norm(d.name) === w || norm(d.name.split("›").pop() ?? "") === w) : null) ?? (ctx.departments.length === 1 ? ctx.departments[0] : null);
+        // Departman söylenmediyse düşürmek yerine sorulur, departman adları dokunulacak seçenek olur
+        if (!dept) { askDept = `${sh.name} vardiyasında hangi departman için?`; continue; }
       }
       const days = future(parseDays(a.days));
       if (!days.length) { dropped.push(`${sh.name}: günler geçmişte kaldı.`); continue; }
@@ -201,21 +208,36 @@ export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides
       continue;
     }
 
+    if (type === "fill_gaps") {
+      if (!rebuild) summary.push("Plan kayıtlı kişi sayılarına göre yeniden kurulur, eksik kalan vardiyalara uygun kişiler yazılır.");
+      rebuild = true;
+      continue;
+    }
+
     dropped.push("Bir istek anlaşılamadı.");
   }
-  return { overrides, summary, dropped };
+  if (askDept) return { overrides: [], summary: [], dropped, rebuild: false, ask: askDept, options: ctx.departments.map(d => d.name) };
+  return { overrides, summary, dropped, rebuild: rebuild || overrides.length > 0 };
 }
 
 export function planInstructPrompt(ctx: InstructCtx): string {
   const week = [0, 1, 2, 3, 4, 5, 6].map(d => `${d}=${DAY_NAMES[d]} ${addDays(ctx.weekStart, d)}`).join(", ");
+  const dept = ctx.departments.length ? ",\"department\":\"Departman adı\"" : "";
   return [
-    "Sen bir vardiya planlama asistanısın. Sorumlunun Türkçe yazdığı isteği aşağıdaki JSON biçimine çevir. SADECE JSON yaz, açıklama yazma.",
-    `Bu haftanın günleri: ${week}. Bugün: ${ctx.today}.`,
+    "Sen bir vardiya planlama asistanısın. Sorumlu Vardiya Planı sayfasında, açık olan haftanın planı hakkında Türkçe yazıyor.",
+    "Yazdığı şey ya planı değiştirme isteğidir ya da plan hakkında bir sorudur. SADECE JSON yaz, açıklama yazma.",
+    `Bu haftanın günleri: ${week}. Bugün: ${ctx.today}. Geçmiş günler değiştirilemez.`,
     `Vardiyalar: ${ctx.shifts.map(s => `${s.name} (${s.start}-${s.end})`).join(", ")}.`,
     ctx.departments.length ? `Departmanlar: ${ctx.departments.map(d => d.name).join(", ")}.` : "",
     `Ekip: ${ctx.people.map(p => p.name).join(", ")}.`,
+    ctx.plan?.length ? `\nBu haftanın şu anki planı:\n${ctx.plan.join("\n")}\n` : "\nBu hafta henüz plan yok.\n",
+    "Üç cevap biçimi var:",
+    "1) Soru ise (\"eksik var mı\", \"cuma kim çalışıyor\", \"Ayşe kaç saat çalışıyor\", \"en çok kim çalışıyor\"): {\"answer\":\"cevap\"}. Cevabı yukarıdaki plandan kendin bul, kısa ve net yaz (en fazla 6 satır, her madde ayrı satırda \"• \" ile). Soru sorarak cevabı erteleme.",
+    "   Eksik soruluyorsa ve eksik varsa cevabın sonuna \"Eksikleri kapatmak için planı yeniden kurabilirim.\" ekle ve \"options\":[\"Eksikleri kapat\"] ver. Eksik yoksa bunu açıkça söyle.",
+    "2) Değişiklik isteği ise: {\"directives\":[...]}.",
+    "3) Sadece ne istendiği gerçekten anlaşılmıyorsa: {\"ask\":\"kısa soru\",\"options\":[\"seçenek 1\",\"seçenek 2\"]}. options en fazla 8 kısa seçenek (ör. departman adları); sorumlu birine dokunarak cevaplar.",
+    "Varsayılanlar (bunlar için SORU SORMA): gün söylenmediyse bütün hafta, vardiya söylenmediyse bütün vardiyalar, departman söylenmediyse bütün departmanlar, \"standart\" / \"normal\" kayıtlı kişi sayıları demektir.",
     "",
-    "Biçim: {\"directives\":[...]} ya da istek belirsizse {\"ask\":\"kısa soru\"}.",
     "İstek türleri (days: gün numaraları dizisi, bütün hafta için \"all\"):",
     "- {\"type\":\"day_off\",\"person\":\"Ad Soyad\",\"days\":[4]}  kişi o günlerde çalışmasın / izinli / gelemez",
     "- {\"type\":\"only_shifts\",\"person\":\"Ad\",\"shifts\":[\"Sabah\"],\"days\":\"all\"}  sadece bu vardiyalarda çalışsın",
@@ -224,10 +246,13 @@ export function planInstructPrompt(ctx: InstructCtx): string {
     "- {\"type\":\"work\",\"person\":\"Ad\",\"shift\":\"Akşam\",\"days\":[5]}  o gün o vardiyada mutlaka çalışsın",
     "- {\"type\":\"max_hours\",\"person\":\"Ad\",\"hours\":30}  bu hafta en fazla şu kadar saat",
     "- {\"type\":\"not_together\",\"person\":\"Ad\",\"other\":\"Ad\"}  ikisi aynı vardiyada olmasın",
-    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"count\":4" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  o vardiyada o gün toplam şu kadar kişi olsun",
-    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"add\":1" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  \"bir kişi daha\", \"iki kişi fazla\" (add: +1, +2), \"bir kişi eksik olsun\" (add: -1). Göreli isteklerde count YAZMA, add yaz.",
-    "Kurallar: İsimleri ve vardiya adlarını listeden aynen yaz. \"Yeniden dağıt\", \"planı düzelt\" gibi ifadeler ayrı istek değildir. Bir kişi için birden çok istek olabilir.",
-    "Listede olmayan bir kişi ya da vardiya söylenirse ya da ne istendiği açık değilse \"ask\" ile kısa bir soru sor.",
-    "Konuşma: önceki mesajlar varsa sorumlunun son mesajı bir soruya cevap ya da önceki isteklere ekleme/düzeltme olabilir. Cevabın HER ZAMAN bütün konuşmadaki geçerli isteklerin tam listesi olsun (önceki istekleri tekrar yaz, düzeltileni değiştir, vazgeçileni çıkar).",
+    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"count\":4" + dept + "}  o vardiyada o gün toplam şu kadar kişi olsun",
+    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"add\":1" + dept + "}  \"bir kişi daha\", \"iki kişi fazla\" (add: +1, +2), \"bir kişi eksik olsun\" (add: -1). Göreli isteklerde count YAZMA, add yaz.",
+    "- {\"type\":\"fill_gaps\"}  \"eksikleri kapat\", \"eksikleri doldur\", \"boşları tamamla\": plan kayıtlı kişi sayılarına göre yeniden kurulur",
+    ctx.departments.length
+      ? "Kişi sayısı (demand) isteğinde departman şarttır. Söylenmediyse ask ile sor ve options'a departman adlarını yaz; vardiyada sadece bir departman eksikse onu kullan."
+      : "",
+    "Kurallar: İsimleri ve vardiya adlarını listeden aynen yaz. Bir kişi için birden çok istek olabilir.",
+    "Konuşma: önceki mesajlar varsa sorumlunun son mesajı bir soruya cevap ya da önceki isteklere ekleme/düzeltme olabilir. directives yazıyorsan HER ZAMAN bütün konuşmadaki geçerli isteklerin tam listesini yaz (önceki istekleri tekrar yaz, düzeltileni değiştir, vazgeçileni çıkar).",
   ].filter(Boolean).join("\n");
 }

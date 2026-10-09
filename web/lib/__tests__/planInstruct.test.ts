@@ -115,3 +115,22 @@ describe("applyOverrides", () => {
     expect(t.demand.s2["5"]).toBe(4);
   });
 });
+
+describe("resolveDirectives: eksikleri kapat ve departman sorusu", () => {
+  it("fill_gaps kısıt eklemeden planı yeniden kurdurur", () => {
+    const r = resolveDirectives([{ type: "fill_gaps" }], ctx);
+    expect(r.overrides).toEqual([]);
+    expect(r.rebuild).toBe(true);
+    expect(r.summary).toHaveLength(1);
+  });
+  it("departmanlı şubede departmansız kişi sayısı isteği düşmez, departman adlarıyla sorulur", () => {
+    const c = { ...ctx, departments: [{ id: "bar", name: "Bar" }, { id: "mutfak", name: "Mutfak" }, { id: "teras", name: "Salon › Teras" }] };
+    const r = resolveDirectives([{ type: "demand", shift: "Akşam", days: [5], add: 1 }], c);
+    expect(r.rebuild).toBe(false);
+    expect(r.ask).toContain("Akşam");
+    expect(r.options).toEqual(["Bar", "Mutfak", "Salon › Teras"]);
+    // Alt departman kısa adıyla da bulunur
+    const t = resolveDirectives([{ type: "demand", shift: "Akşam", days: [5], count: 2, department: "Teras" }], c);
+    expect(t.overrides[0]).toMatchObject({ type: "demand", department_id: "teras", count: 2 });
+  });
+});
