@@ -60,7 +60,12 @@ function findShift(shifts: InstructShift[], wanted: string): InstructShift | nul
   const time = shifts.filter(s => w.includes(s.start) && w.includes(s.end));
   if (time.length === 1) return time[0];
   const partial = shifts.filter(s => norm(s.name).includes(w) || w.includes(norm(s.name)));
-  return partial.length === 1 ? partial[0] : null;
+  if (partial.length === 1) return partial[0];
+  // Model adı biraz değiştirebiliyor ("Akşam Service", "akşama"): ilk kelimeye göre, tek eşleşme varsa
+  const head = w.split(/[\s(]+/)[0].slice(0, 4);
+  if (head.length < 3) return null;
+  const byWord = shifts.filter(s => norm(s.name).split(/[\s(]+/).some(t => t.startsWith(head)));
+  return byWord.length === 1 ? byWord[0] : null;
 }
 
 /** Vardiya listesinin kapsadığı saat aralığı (gece geçişi "26:00" gibi yazılır) */

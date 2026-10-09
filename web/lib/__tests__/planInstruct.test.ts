@@ -77,6 +77,9 @@ describe("resolveDirectives", () => {
       { type: "demand", shift_id: "s2", days: [6], count: 4, department_id: "bar" },
     ]);
     expect(r.summary[0]).toBe("Bar, Akşam: Cumartesi 2 yerine 3, Pazar 3 yerine 4 kişi (sadece bu plan için).");
+    // Modelin değiştirdiği ad ilk kelimeden bulunur
+    const typo = resolveDirectives([{ type: "demand", shift: "Akşam Service", days: [5], add: 1, department: "Bar" }], withDemand);
+    expect(typo.overrides[0]).toMatchObject({ shift_id: "s2", count: 3 });
     const less = resolveDirectives([{ type: "demand", shift: "Akşam", days: [5], add: -5, department: "Bar" }], withDemand);
     expect(less.overrides[0]).toMatchObject({ count: 0 });
   });
