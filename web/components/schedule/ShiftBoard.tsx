@@ -53,7 +53,7 @@ function shortName(n: string) {
 export default function ShiftBoard({
   groups, tones, days, mobileDay, cellMap, matchDef, demandOf, statusOf, cellGroupId, weekHours, editable,
   onNameClick, onAssign, timeLabel, customTone, onCallDefs, onCallMap, onOnCallClick, extras, onExtraClick, flash, chipMark,
-  onDemandChange, countsEditing = false, onRemove, hintOf, listingsOf, onListingClick, onPostListing,
+  onDemandChange, countsEditing = false, onRemove, hintOf, listingsOf, onListingClick, onPostListing, postableDay,
 }: {
   groups: BoardGroup[];
   tones: { def: ShiftDefinition; tone: ShiftTone }[];
@@ -90,6 +90,8 @@ export default function ShiftBoard({
   onListingClick?: (id: number) => void;
   /** Boş yeri ekibe ilan olarak duyur; o gün için null dönerse (geçmiş gün, taslak hafta) gösterilmez */
   onPostListing?: ((groupId: string, def: ShiftDefinition, day: number) => void) | null;
+  /** İlan açılabilecek gün (geçmiş gün değil) */
+  postableDay?: (day: number) => boolean;
 }) {
   const [countOpen, setCountOpen] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ groupId: string; def: ShiftDefinition; day: number; x: number; y: number } | null>(null);
@@ -221,13 +223,14 @@ export default function ShiftBoard({
                               {l.label}
                             </button>
                           ))}
-                          {!editable && onPostListing && Array.from({ length: Math.min(missing, 4) }, (_, k) => (
-                            <button key={`p-${k}`} type="button" onClick={() => onPostListing(g.id, def, day)}
+                          {/* Kilitli yayınlı haftada eksik yer için tek düğme (geçmiş günde yok) */}
+                          {!editable && onPostListing && missing > 0 && (postableDay?.(day) ?? true) && (
+                            <button type="button" onClick={() => onPostListing(g.id, def, day)}
                               className="flex h-[26px] w-full items-center justify-center gap-1 rounded-md border border-dashed border-red-200 text-[11px] font-semibold text-red-400 transition-colors hover:border-red-400 hover:bg-red-50/60 hover:text-red-600"
                               title="Eksik: ekibe ilan olarak duyurmak için dokunun">
-                              Duyur
+                              {missing > 1 ? `${missing} eksik · Duyur` : "Duyur"}
                             </button>
-                          ))}
+                          )}
                           {editable && Array.from({ length: Math.min(missing, 4) }, (_, k) => (
                             <button key={`m-${k}`} type="button" onClick={e => openPicker(e, g.id, def, day)}
                               className="flex h-[26px] w-full items-center justify-center rounded-md border border-dashed border-red-200 text-red-300 transition-colors hover:border-red-400 hover:bg-red-50/60 hover:text-red-500"
@@ -360,7 +363,7 @@ export default function ShiftBoard({
                 );
               })}
             </ul>
-            {onPostListing && !picker.def.on_call && (
+            {onPostListing && !picker.def.on_call && (postableDay?.(picker.day) ?? true) && (
               <button type="button" onClick={() => { onPostListing(picker.groupId, picker.def, picker.day); setPicker(null); }}
                 className="w-full border-t border-slate-100 px-4 py-2.5 text-left text-[13px] font-semibold text-forest-700 hover:bg-forest-50">
                 Kimseyi seçmeden ekibe duyur

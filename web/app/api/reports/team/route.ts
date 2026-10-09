@@ -7,7 +7,7 @@ import { businessToday } from "@/lib/date";
 import { buildTeamReport } from "@/lib/reports/teamReport";
 
 // GET /api/reports/team?location_id=X&month=YYYY-MM → Raporlar › Özet (lib/reports/teamReport)
-// location_id=all: kullanıcının kapsamındaki bütün şubeler (hesap sahibi, bölge sorumlusu). Ay verilmezse bu ay.
+// all=1: kullanıcının kapsamındaki bütün şubeler (proxy location_id değerini şube kimliği diye denetler) (hesap sahibi, bölge sorumlusu). Ay verilmezse bu ay.
 // Maliyet sadece "Ücretler ve maliyet" yetkisiyle.
 export async function GET(req: NextRequest) {
   const auth = requireAuth(req);
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (month > thisMonth) return NextResponse.json({ error: "Gelecek ay için rapor yok" }, { status: 400 });
   const db = getDB();
   let ids: string[];
-  if (loc === "all") {
+  if (sp.get("all") === "1") {
     if (auth.role !== "admin" && auth.role !== "supervisor") return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
     const scoped = await scopedLocationIds(db, auth);
     const all = await db.prepare(`SELECT id FROM locations WHERE org_id = ? ORDER BY name`).all(auth.org_id) as { id: string }[];

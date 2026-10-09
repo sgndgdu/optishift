@@ -230,7 +230,7 @@ function SupervisorPersonnelInner() {
                 </button>
                 {open && (
                   <div className="border-t border-slate-100">
-                    <PeopleList people={people} {...listProps(l.id)} groupOf={groupOf}
+                    <PeopleList flush people={people} {...listProps(l.id)} groupOf={groupOf}
                       extraDepts={p => departmentsInBranch(p, ids).slice(1).map(id => deptNames[id]).filter(Boolean).join(", ") || null}
                       empty="Bu şubede henüz kimse yok."
                       emptyAction={<button onClick={() => goToBranch(l.id, "add=1")} className="text-sm font-semibold text-forest-700 hover:underline">Ekibe kişi ekle</button>} />

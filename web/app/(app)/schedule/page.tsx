@@ -2274,6 +2274,19 @@ function SchedulePageInner() {
         })),
         { id: "__none__", name: "Diğer", members: filteredPersonnel.filter(p => !p.department_id) },
       ].filter(g => g.members.length > 0);
+  // İlanın vardiyası: saati aynı olan tanım, yoksa en çok örtüştüğü tanım
+  const listingDefId = (o: Listing): string | null => {
+    const st = hhmmToMin(o.start_time.slice(0, 5)); let en = hhmmToMin(o.end_time.slice(0, 5)); if (en <= st) en += 1440;
+    let best: { id: string; overlap: number } | null = null;
+    for (const d of shiftDefs) {
+      if (d.on_call) continue;
+      const ds = hhmmToMin(d.start); let de = hhmmToMin(d.end); if (de <= ds) de += 1440;
+      if (ds === st && de === en) return d.id;
+      const overlap = Math.min(en, de) - Math.max(st, ds);
+      if (overlap > 0 && (!best || overlap > best.overlap)) best = { id: d.id, overlap };
+    }
+    return best?.id ?? null;
+  };
   // İlanın tablodaki yeri: vardiyayı bırakan kişinin departmanı, yoksa o vardiyada kişi gereken ilk departman
   const listingGroup = (o: Listing, defId: string, day: number): string => {
     if (departments.length === 0) return "__all__";
@@ -2948,21 +2961,24 @@ function SchedulePageInner() {
                   listingsOf={(gid, defId, day) => {
                     const def = shiftDefs.find(d => d.id === defId);
                     if (!def) return [];
-                    return openListings.filter(o => o.date === isoDates[day] && o.start_time?.slice(0, 5) === def.start && o.end_time?.slice(0, 5) === def.end)
+                    return openListings.filter(o => o.date === isoDates[day] && listingDefId(o) === defId)
                       .filter(o => listingGroup(o, defId, day) === gid)
                       .map(o => {
                         const who = o.status === "loan_pending" ? o.claimed_by_name : o.source_assignment_id ? personnel.find(p => p.id === o.released_by)?.name : null;
                         const short = who ? who.split(/\s+/).length > 1 ? `${who.split(/\s+/)[0]} ${who.split(/\s+/).at(-1)![0]}.` : who : "";
+                        // Vardiya tanımına uymayan saatli ilan en çok örtüştüğü vardiyada, saatiyle yazılır
+                        const exact = o.start_time?.slice(0, 5) === def.start && o.end_time?.slice(0, 5) === def.end;
+                        const time = exact ? "" : ` ${o.start_time?.slice(0, 5)}-${o.end_time?.slice(0, 5)}`;
                         return {
                           id: o.id,
-                          label: o.status === "loan_pending" ? `Onay bekliyor${short ? ` · ${short}` : ""}` : o.source_assignment_id ? `İlanda · ${short || "biri"} veriyor` : "İlanda",
+                          label: o.status === "loan_pending" ? `Onay bekliyor${short ? ` · ${short}` : ""}${time}` : o.source_assignment_id ? `İlanda · ${short || "biri"} veriyor${time}` : `İlanda${time}`,
                           fillsGap: !o.source_assignment_id,
                         };
                       });
                   }}
                   onListingClick={id => setListingId(id)}
+                  postableDay={day => isoDates[day] >= businessToday()}
                   onPostListing={canPublish && isPublishedWeek && isModuleOn(locRules, "open_shifts_enabled") ? (gid, def, day) => {
-                    if (isoDates[day] < businessToday()) { showToast("Geçmiş güne ilan açılamaz.", "error"); return; }
                     setListingDraft({ locationId: activeLocationId, date: isoDates[day], start: def.start, end: def.end,
                       label: [def.name, departments.find(d => d.id === gid)?.name].filter(Boolean).join(" · ") });
                   } : null}

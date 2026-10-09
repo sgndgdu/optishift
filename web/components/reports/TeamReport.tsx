@@ -20,7 +20,7 @@ const ROWS = 10;
 const tl = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
 
 function diffHint(cur: number, prev: number, partial: boolean, unit: string): string {
-  if (partial) return "Ay sürüyor, bugüne kadar";
+  if (partial) return "Bugüne kadar";
   if (!prev) return "Önceki ayda kayıt yok";
   const pct = Math.round(((cur - prev) / prev) * 100);
   return pct === 0 ? "Önceki ayla aynı" : `Önceki aya göre %${Math.abs(pct)} ${pct > 0 ? "fazla" : "az"}${unit ? ` ${unit}` : ""}`;
@@ -57,7 +57,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
     if (!locationId) return;
     let stale = false;
     const t = setTimeout(() => { setData(null); setError(""); }, 0);
-    fetch(`/api/reports/team?location_id=${locationId}&month=${month}`)
+    fetch(locationId === "all" ? `/api/reports/team?all=1&month=${month}` : `/api/reports/team?location_id=${locationId}&month=${month}`)
       .then(r => r.json().then(d => ({ ok: r.ok, d })))
       .then(({ ok, d }) => { if (stale) return; if (ok) setData(d); else setError(d.error ?? "Rapor hazırlanamadı."); })
       .catch(() => { if (!stale) setError("Bağlantı hatası, tekrar deneyin."); });

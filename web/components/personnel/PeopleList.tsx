@@ -14,7 +14,7 @@ import { personKey, roleBadge, rowStatus, type MergedPerson } from "@/components
 
 export type PersonGroup = { key: string; label: string; order: number };
 
-export default function PeopleList({ people, onOpen, deptName, branchName, hasDepts, managerSummary, managementAction, empty, emptyAction, groupOf, extraDepts }: {
+export default function PeopleList({ people, onOpen, deptName, branchName, hasDepts, managerSummary, managementAction, empty, emptyAction, groupOf, extraDepts, flush }: {
   people: MergedPerson[];
   onOpen: (p: MergedPerson) => void;
   deptName: (p: MergedPerson) => string | null;
@@ -31,7 +31,10 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
   groupOf?: (p: MergedPerson) => PersonGroup | null;
   /** Gruplu listede satırda ana departman tekrar yazılmaz, sadece yardım ettiği diğer departmanlar ("Ayrıca: Kasa") */
   extraDepts?: (p: MergedPerson) => string | null;
+  /** Başka bir çerçevenin içinde (Tüm Şubeler'de şube bölümü): kendi çerçevesi çizilmez */
+  flush?: boolean;
 }) {
+  const frame = flush ? "rounded-none border-0" : undefined;
   const [showInactive, setShowInactive] = useState(false);
   const active = people.filter(p => !p.inactive);
   const inactive = people.filter(p => p.inactive);
@@ -61,10 +64,10 @@ export default function PeopleList({ people, onOpen, deptName, branchName, hasDe
     );
   };
 
-  if (people.length === 0) return <List><ListEmpty action={emptyAction}>{empty}</ListEmpty></List>;
+  if (people.length === 0) return <List className={frame}><ListEmpty action={emptyAction}>{empty}</ListEmpty></List>;
 
   return (
-    <List>
+    <List className={frame}>
       {owners.length > 0 && <ListSection title="Hesap sahibi" />}
       {owners.map(row)}
       {(managers.length > 0 || managementAction) && <ListSection title="Sorumlular" count={managers.length || undefined} action={managementAction} />}

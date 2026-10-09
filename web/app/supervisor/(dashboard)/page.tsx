@@ -222,7 +222,7 @@ export default function SupervisorDashboard() {
         <StatCard label="Bugün çalışan" icon={Users} value={num(todayTotal)} active={filter === "today"} onClick={() => pick("today")}
           hint={checkedIn ? `${checkedIn} kişi geldi` : "kişi vardiyada"} />
         <StatCard label="Gelecek hafta" icon={CalendarX} tone={notReady ? "attention" : "positive"} value={num(notReady)} active={filter === "plan"} onClick={() => pick("plan")}
-          hint={notReady ? "şubenin planı hazır değil" : "bütün planlar hazır"} />
+          hint={notReady ? "şubede hazır değil" : "bütün planlar hazır"} />
         <StatCard label="Onay bekleyen" icon={Inbox} tone={pendingTotal ? "attention" : "neutral"} value={num(pendingTotal)} active={filter === "pending"} onClick={() => pick("pending")}
           hint="talep" />
         <StatCard label="Bu hafta eksik" icon={UserMinus} tone={gapsTotal ? "danger" : "positive"} value={num(gapsTotal)} active={filter === "gaps"} onClick={() => pick("gaps")}
