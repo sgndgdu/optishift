@@ -7,27 +7,24 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Search, Check, Copy,
-  Link, Upload, Loader2, RefreshCw, UserCog,
+  Link, Upload, Loader2, RefreshCw,
   ChevronDown,
 } from "lucide-react";
 import BulkImportModal from "@/components/personnel/BulkImportModal";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { ManagerAddSheet, accessSummary, addsOnlyChefs, type Mgr } from "@/components/personnel/ManagersCard";
+import { accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
 import PeopleList from "@/components/personnel/PeopleList";
 import { List } from "@/components/ui/List";
 import PersonSheet from "@/components/personnel/PersonSheet";
 import { createInvite, mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
-import { canDelegate, parseAccess } from "@/lib/userAccess";
 import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 import { departmentInBranch, departmentsInBranch } from "@/lib/branchRotation";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import DepartmentAssignSheet from "@/components/personnel/DepartmentAssignSheet";
 
-const viewerAccessOf = (u: any) => ({ role: u?.role ?? null, access: parseAccess(u?.access) });
 
-
-// Yöneticiler "Yönetici ekle" penceresinden (ManagerAddSheet) eklenir; bu form sadece çalışan ekler
+// Sorumlu, kişi kartındaki "Sorumlu yap" ile atanır (Ekle menüsünde ayrıca yok, kullanıcı kararı 2026-10-09); bu form sadece ekip üyesi ekler
 const ROLE_DEFS = [
   { label: "Ekip üyesi", role: "employee", display_title: "" },
 ];
@@ -50,7 +47,6 @@ export default function PersonnelPage() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   // Yöneticilerin yetki bilgisi (permissions, kapsam) ayrıntıda yetki düzenleyici için
   const [rawUsers, setRawUsers] = useState<Mgr[]>([]);
-  const [showManagerAdd, setShowManagerAdd] = useState(false);
   const [showSignupCard, setShowSignupCard] = useState(false);
   const [locations, setLocations] = useState<{ id: string; name: string; self_signup_token?: string | null; rules?: Record<string, unknown> | null }[]>([]);
   const [selfSignupLoading, setSelfSignupLoading] = useState(false);
@@ -241,9 +237,7 @@ export default function PersonnelPage() {
   }, [persons, loading]);
 
 
-  // Yönetici/şef ekleme: işletme sahibi ya da "Başkasına yetki verme" yetkisi olan (şube müdürü kademesi sadece şef atar)
-  const branchMgr = addsOnlyChefs(authUser ?? {});
-  const canManageManagers = canDelegate(viewerAccessOf(authUser));
+  // Kişi kartındaki "Sorumlu yap" için seçilebilecek şubeler
   const managerLocations = (authUser?.role === "manager" ? locations.filter(l => l.id === authUser?.location_id) : locations).map(l => ({ id: l.id, name: l.name }));
 
   const managerSummary = (p: MergedPerson) => {
@@ -301,11 +295,6 @@ export default function PersonnelPage() {
                   { icon: Plus, title: "Tek kişi ekle", sub: "İsim ve telefonla hesap açılır", on: () => { resetAddForm(); setShowAddModal(true); } },
                   { icon: Upload, title: "Excel'den toplu ekle", sub: "Excel şablonunu doldurup bütün ekibi bir kerede ekleyin", on: () => setShowBulkModal(true) },
                   { icon: Link, title: "Kayıt bağlantısı paylaş", sub: "Kişiler kendileri kaydolur, siz onaylarsınız", on: () => setShowSignupCard(true) },
-                  ...(canManageManagers ? [{
-                    icon: UserCog, title: branchMgr ? "Departman sorumlusu ata" : "Sorumlu ekle",
-                    sub: branchMgr ? "Bir departmanın planını yapacak kişi" : "Planı ve ekibi sizin yerinize yönetecek kişi",
-                    on: () => setShowManagerAdd(true),
-                  }] : []),
                 ].map(o => (
                   <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
                     className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50">
@@ -433,10 +422,6 @@ export default function PersonnelPage() {
           )} />
       )}
 
-      {canManageManagers && (
-        <ManagerAddSheet open={showManagerAdd} onClose={() => setShowManagerAdd(false)} locations={managerLocations}
-          granter={authUser ?? {}} onDone={() => fetchData(authUser)} />
-      )}
 
       {/* ADD MODAL */}
       {showAddModal && (

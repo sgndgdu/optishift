@@ -2,22 +2,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Tüm Şubeler › Tüm Personel: şubenin Ekip sayfasıyla AYNI liste (PeopleList) ve AYNI kişi kartı
- * (PersonSheet), sadece bütün şubeler bir arada ve şube süzgeçli. Yöneticiler ayrı kartta değil,
- * listenin "Yönetim" bölümünde; onay bekleyenler satırdaki durumla görünür.
- * Kişi ekleme formu tek yerde (şubenin Ekip sayfası): "Çalışan ekle" oraya geçer.
+ * Tüm Şubeler › Ekip: şubenin Ekip sayfasıyla AYNI liste (PeopleList) ve AYNI kişi kartı (PersonSheet).
+ * 2026-10-09 (kullanıcı: "şube şube, departman departman"): üstte hesap sahibi ve birden çok şubeyi yöneten
+ * sorumlular; altında her şube açılır kapanır bir bölüm (şubenin sorumluları, sonra ekip departman departman).
+ * Kapalı bölümde departmanların kişi sayıları görünür. Şube seçilince ya da arama yapılınca bölümler açık gelir.
+ * Kişi ekleme formu tek yerde (şubenin Ekip sayfası): "Ekibe kişi ekle" oraya geçer. Sorumlu, kişi kartındaki
+ * "Sorumlu yap" ile atanır (Ekle menüsünde ayrıca "Sorumlu ekle" yok, kullanıcı kararı).
  */
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, ChevronDown, UserCog } from "lucide-react";
+import { Plus, Search, ChevronDown, ChevronRight, Building2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem } from "@/components/ui/List";
 import { Sheet, sheetPrimaryClass } from "@/components/ui/Sheet";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { openBranchPanel } from "@/lib/sessionRouting";
 import InviteLinkList, { type InviteResult } from "@/components/personnel/InviteLinkList";
-import { ManagerAddSheet, accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
-import { canDelegate, parseAccess } from "@/lib/userAccess";
+import { accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
+import { departmentLabel, sortDepartments, type DeptLite } from "@/lib/departments";
+import { departmentInBranch, departmentsInBranch } from "@/lib/branchRotation";
+import { cn } from "@/lib/utils";
 import PeopleList from "@/components/personnel/PeopleList";
 import PersonSheet from "@/components/personnel/PersonSheet";
 import { mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
@@ -38,14 +42,12 @@ function SupervisorPersonnelInner() {
   const [selectedLocId, setSelectedLocId] = useState<string>("");
   const [users, setUsers] = useState<Mgr[]>([]);
   const [persons, setPersons] = useState<MergedPerson[]>([]);
-  const [deptNames, setDeptNames] = useState<Record<string, string>>({});
-  const [branchesWithDepts, setBranchesWithDepts] = useState<Set<string>>(new Set());
+  const [deptsByLoc, setDeptsByLoc] = useState<Record<string, DeptLite[]>>({});
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [pickBranch, setPickBranch] = useState(false);
-  const [managerAdd, setManagerAdd] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<InviteResult[] | null>(null);
   const [toast, setToast] = useState("");
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
@@ -88,14 +90,12 @@ function SupervisorPersonnelInner() {
       // Satırlardaki departman adları ve "Departman seçin" durumu için
       Promise.all(locs.map(l => fetch(`/api/departments?location_id=${l.id}`).then(r => r.json()).catch(() => [])))
         .then(lists => {
-          const names: Record<string, string> = {};
-          const withDepts = new Set<string>();
+          const by: Record<string, DeptLite[]> = {};
           lists.forEach((list, i) => {
             if (!Array.isArray(list) || !list.length) return;
-            withDepts.add(locs[i].id);
-            list.forEach((d: { id: string; name: string }) => { names[d.id] = d.name; });
+            by[locs[i].id] = sortDepartments(list.map((d: DeptLite) => ({ id: d.id, name: d.name, parent_id: d.parent_id ?? null })));
           });
-          setDeptNames(names); setBranchesWithDepts(withDepts);
+          setDeptsByLoc(by);
         });
     }).catch(() => {});
     fetchPeople();
@@ -112,7 +112,9 @@ function SupervisorPersonnelInner() {
 
   if (!mounted) return <Page />;
 
-  const locName = (id: string | null) => (id ? locations.find(l => l.id === id)?.name ?? null : null);
+  const allDepts = Object.values(deptsByLoc).flat();
+  const deptNames: Record<string, string> = Object.fromEntries(allDepts.map(d => [d.id, departmentLabel(allDepts, d)]));
+  const branchesWithDepts = new Set(Object.keys(deptsByLoc));
   const userOf = (p: MergedPerson) => (p.userId ? users.find(u => u.id === p.userId) ?? null : null);
   const q = search.toLocaleLowerCase("tr");
   const filtered = persons.filter(p =>
@@ -120,6 +122,37 @@ function SupervisorPersonnelInner() {
     (!q || p.name.toLocaleLowerCase("tr").includes(q) || (p.email ?? "").toLowerCase().includes(q) || [p.department_id, ...p.assigned_department_ids].some(id => (id ? deptNames[id] ?? "" : "").toLocaleLowerCase("tr").includes(q))));
   const openPerson = openKey ? persons.find(p => personKey(p) === openKey) ?? null : null;
   const managerLocations = locations.map(l => ({ id: l.id, name: l.name }));
+  // Üst bölüm: hesap sahibi ve tek şubeye bağlı olmayan sorumlular (bölge sorumlusu gibi)
+  const topLevel = filtered.filter(p => p.role === "admin" || ((p.role === "supervisor" || p.role === "manager") && !p.location_id));
+  const branchPeople = (locId: string) => filtered.filter(p => p.location_id === locId && !topLevel.includes(p));
+  const shownBranches = locations.filter(l => (!selectedLocId || l.id === selectedLocId) && (!q || branchPeople(l.id).length > 0));
+  // Şube seçiliyse, aramada ya da tek şubede bölümler açık
+  const isOpen = (id: string) => !!selectedLocId || !!q || shownBranches.length === 1 || expanded.has(id);
+  const toggle = (id: string) => setExpanded(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const deptGroupOf = (locId: string) => {
+    const depts = deptsByLoc[locId] ?? [];
+    if (!depts.length) return undefined;
+    const ids = new Set(depts.map(d => d.id));
+    return (p: MergedPerson) => {
+      const id = departmentInBranch(p, ids);
+      const i = depts.findIndex(d => d.id === id);
+      return i < 0 ? null : { key: depts[i].id, label: departmentLabel(depts, depts[i]), order: i };
+    };
+  };
+  const countFor = (locId: string) => {
+    const act = persons.filter(p => p.location_id === locId && !p.inactive);
+    return { staff: act.filter(p => p.role === "employee").length, mgrs: act.filter(p => p.role === "manager" || p.role === "supervisor").length };
+  };
+  const listProps = (locId: string | null) => ({
+    onOpen: (p: MergedPerson) => setOpenKey(personKey(p)),
+    deptName: (p: MergedPerson) => (p.department_id
+      ? [p.department_id, ...p.assigned_department_ids.filter(id => id !== p.department_id)].map(id => deptNames[id]).filter(Boolean).join(" + ") || null
+      : null),
+    branchName: locId ? undefined : (p: MergedPerson) => (p.role === "admin" ? null : "Birden çok şube"),
+    hasDepts: (p: MergedPerson) => !!p.location_id && branchesWithDepts.has(p.location_id),
+    managerSummary: (p: MergedPerson) => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; },
+    empty: "Aramaya uyan kimse yok.",
+  });
 
   return (
     <Page className="animate-in fade-in duration-500">
@@ -130,33 +163,7 @@ function SupervisorPersonnelInner() {
         const mgrs = act.filter(p => p.role === "manager" || p.role === "supervisor").length;
         return `Tüm şubeler · ${staff} ekip üyesi${mgrs ? ` · ${mgrs} sorumlu` : ""}`;
       })()} actions={
-        <div className="relative">
-          <button onClick={() => setAddMenuOpen(o => !o)} className={pageActionClass}>
-            <Plus size={16} /> Ekle <ChevronDown size={14} className={addMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-          </button>
-          {addMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setAddMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-1.5">
-                {[
-                  { icon: Plus, title: "Ekibe kişi ekle", sub: "Şubenin Ekip sayfasında açılır", on: addEmployee },
-                  ...(canDelegate({ role: user?.role ?? null, access: parseAccess(user?.access) }) ? [
-                    { icon: UserCog, title: "Sorumlu ekle", sub: "Planı ve ekibi sizin yerinize yönetecek kişi", on: () => setManagerAdd(true) },
-                  ] : []),
-                ].map(o => (
-                  <button key={o.title} onClick={() => { setAddMenuOpen(false); o.on(); }}
-                    className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50">
-                    <o.icon size={16} className="text-forest-600 mt-0.5 shrink-0" />
-                    <span>
-                      <span className="block text-sm font-bold text-slate-800">{o.title}</span>
-                      <span className="block text-xs text-slate-500">{o.sub}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <button onClick={addEmployee} className={pageActionClass}><Plus size={16} /> Ekibe kişi ekle</button>
       } />
 
       {/* Arama + şube */}
@@ -166,17 +173,22 @@ function SupervisorPersonnelInner() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Ad, e-posta ya da departman ara"
             className="w-full pl-9 pr-3 min-h-[40px] bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
-        {locations.length > 1 && (
-          <div className="relative">
-            <select value={selectedLocId} onChange={e => setSelectedLocId(e.target.value)}
-              className="pl-3 pr-8 min-h-[40px] bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
-              <option value="">Tüm şubeler</option>
-              {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
-        )}
       </div>
+      {locations.length > 1 && (
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Şube">
+          {[{ id: "", name: "Tüm şubeler" }, ...locations].map(l => {
+            const on = selectedLocId === l.id;
+            const n = l.id ? countFor(l.id).staff : persons.filter(p => !p.inactive && p.role === "employee").length;
+            return (
+              <button key={l.id || "all"} role="tab" aria-selected={on} onClick={() => setSelectedLocId(l.id)}
+                className={cn("inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition",
+                  on ? "border-forest-700 bg-forest-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>
+                {l.name}<span className={cn("text-xs", on ? "text-white/70" : "text-slate-400")}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {loading ? (
         <List>
@@ -188,15 +200,50 @@ function SupervisorPersonnelInner() {
           ))}
         </List>
       ) : (
-        <PeopleList people={filtered} onOpen={p => setOpenKey(personKey(p))}
-          deptName={p => (p.department_id
-            ? [p.department_id, ...p.assigned_department_ids.filter(id => id !== p.department_id)].map(id => deptNames[id]).filter(Boolean).join(" + ") || null
-            : null)}
-          branchName={!selectedLocId && locations.length > 1 ? p => locName(p.location_id) : undefined}
-          hasDepts={p => !!p.location_id && branchesWithDepts.has(p.location_id)}
-          managerSummary={p => { const u = userOf(p); return u ? accessSummary(u, id => deptNames[id], roleBadge(p).label) : null; }}
-          empty={search ? "Aramaya uyan kimse yok." : "Henüz ekip yok."}
-          emptyAction={!search && <button onClick={addEmployee} className="text-sm font-semibold text-forest-700 hover:underline">Ekibe kişi ekle</button>} />
+        <div className="space-y-4">
+          {topLevel.length > 0 && !selectedLocId && <PeopleList people={topLevel} {...listProps(null)} />}
+          {shownBranches.length === 0 && (
+            <List><li className="px-4 py-6 text-center text-sm text-slate-500">{search ? "Aramaya uyan kimse yok." : "Henüz ekip yok."}</li></List>
+          )}
+          {shownBranches.map(l => {
+            const people = branchPeople(l.id);
+            const open = isOpen(l.id);
+            const c = countFor(l.id);
+            const depts = deptsByLoc[l.id] ?? [];
+            const ids = new Set(depts.map(d => d.id));
+            const groupOf = deptGroupOf(l.id);
+            // Kapalı bölümde departmanların kişi sayısı
+            const perDept = depts.map(d => ({ d, n: people.filter(p => p.role === "employee" && !p.inactive && departmentInBranch(p, ids) === d.id).length })).filter(x => x.n > 0);
+            return (
+              <section key={l.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <button type="button" onClick={() => toggle(l.id)} aria-expanded={open}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"><Building2 size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-slate-900">{l.name}</span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {c.staff} ekip üyesi{c.mgrs ? ` · ${c.mgrs} sorumlu` : ""}
+                      {!open && perDept.length > 0 && ` · ${perDept.map(x => `${departmentLabel(depts, x.d)} ${x.n}`).join(", ")}`}
+                    </span>
+                  </span>
+                  <ChevronDown size={16} className={cn("shrink-0 text-slate-400 transition-transform", open && "rotate-180")} />
+                </button>
+                {open && (
+                  <div className="border-t border-slate-100">
+                    <PeopleList people={people} {...listProps(l.id)} groupOf={groupOf}
+                      extraDepts={p => departmentsInBranch(p, ids).slice(1).map(id => deptNames[id]).filter(Boolean).join(", ") || null}
+                      empty="Bu şubede henüz kimse yok."
+                      emptyAction={<button onClick={() => goToBranch(l.id, "add=1")} className="text-sm font-semibold text-forest-700 hover:underline">Ekibe kişi ekle</button>} />
+                    <button type="button" onClick={() => goToBranch(l.id, "")}
+                      className="flex w-full items-center justify-center gap-1 border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-forest-700 hover:bg-slate-50">
+                      {l.name} ekip sayfasına git <ChevronRight size={13} />
+                    </button>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
       )}
 
       {openPerson && (
@@ -212,9 +259,6 @@ function SupervisorPersonnelInner() {
           onChanged={msg => { setOpenKey(null); fetchPeople(); showToast(msg); }}
           onInvite={setInviteLinks} />
       )}
-
-      <ManagerAddSheet open={managerAdd} onClose={() => setManagerAdd(false)} locations={managerLocations}
-        granter={user ?? {}} onDone={fetchPeople} />
 
       <Sheet open={!!inviteLinks} onClose={() => setInviteLinks(null)} title="Giriş bağlantıları"
         footer={<button onClick={() => setInviteLinks(null)} className={sheetPrimaryClass}>Tamam</button>}>
