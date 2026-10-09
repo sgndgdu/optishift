@@ -170,6 +170,14 @@ export default function NotificationsPage() {
     window.dispatchEvent(new CustomEvent("notif-read"));
   }, [user?.personnel_id]);
 
+  const [confirmClear, setConfirmClear] = useState(false);
+  const clearAll = () => {
+    setNotifs([]);
+    setConfirmClear(false);
+    fetch(`/api/notifications?personnel_id=${user?.personnel_id}`, { method: "DELETE" }).catch(() => {});
+    window.dispatchEvent(new CustomEvent("notif-read"));
+  };
+
   const handleNavigate = (href: string | null) => {
     if (href) router.push(href);
   };
@@ -221,7 +229,17 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div>
-          <p className="text-xs text-slate-400 font-medium mb-3 text-center">Silmek için sola kaydırın</p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-400 font-medium">Silmek için sola kaydırın</p>
+            {confirmClear ? (
+              <span className="flex items-center gap-1">
+                <button onClick={() => setConfirmClear(false)} className="min-h-[36px] rounded-lg px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100">Vazgeç</button>
+                <button onClick={clearAll} className="min-h-[36px] rounded-lg bg-red-600 px-3 text-xs font-semibold text-white">Hepsini sil</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmClear(true)} className="min-h-[36px] rounded-lg px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100">Tümünü sil</button>
+            )}
+          </div>
           {notifs.map((notif) => (
             <NotifCard
               key={notif.id}

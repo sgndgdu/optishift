@@ -99,7 +99,7 @@ export async function PUT(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-// DELETE: Bildirimi sil
+// DELETE: Bildirimi sil. id verilmezse kişinin bütün bildirimleri silinir. Herkes sadece kendi bildirimini siler.
 export async function DELETE(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -108,20 +108,20 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id");
   const personnel_id = searchParams.get("personnel_id");
 
-  if (!id || !personnel_id) {
-    return NextResponse.json({ error: "id ve personnel_id zorunlu" }, { status: 400 });
+  if (!personnel_id) {
+    return NextResponse.json({ error: "personnel_id zorunlu" }, { status: 400 });
   }
-
-  // Sadece kendi bildirimini silebilir
-  if (auth.role === "employee" && auth.personnel_id !== personnel_id) {
+  if (auth.personnel_id !== personnel_id) {
     return NextResponse.json({ error: "Erişim reddedildi" }, { status: 403 });
   }
 
   const dbConn = getDB();
   try {
-    await dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
+    if (id) await dbConn.prepare("DELETE FROM notifications WHERE id = ? AND personnel_id = ?").run(parseInt(id), personnel_id);
+    else await dbConn.prepare("DELETE FROM notifications WHERE personnel_id = ?").run(personnel_id);
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error("Notifications DELETE error:", err);
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
 }

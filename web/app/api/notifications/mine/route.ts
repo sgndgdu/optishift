@@ -4,6 +4,7 @@ import { getDB } from "@/lib/db/client";
 
 // Yönetim paneli bildirim zili (components/NotificationBell): hesaba (user_id) yazılan bildirimler.
 // GET → { items, unread }; PATCH { id } tek bildirimi, { all: true } hepsini okundu yapar.
+// DELETE { id } tek bildirimi, { all: true } hepsini siler (sadece kendi hesabının).
 const LIMIT = 30;
 
 export async function GET(req: NextRequest) {
@@ -26,6 +27,17 @@ export async function PATCH(req: NextRequest) {
   const db = getDB();
   if (body.all) await db.prepare(`UPDATE notifications SET is_read = true WHERE user_id = ? AND is_read = false`).run(auth.id);
   else if (Number.isInteger(body.id)) await db.prepare(`UPDATE notifications SET is_read = true WHERE id = ? AND user_id = ?`).run(body.id, auth.id);
+  else return NextResponse.json({ error: "id ya da all zorunlu" }, { status: 400 });
+  return NextResponse.json({ success: true });
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+  const body = await req.json().catch(() => ({})) as { id?: number; all?: boolean };
+  const db = getDB();
+  if (body.all) await db.prepare(`DELETE FROM notifications WHERE user_id = ?`).run(auth.id);
+  else if (Number.isInteger(body.id)) await db.prepare(`DELETE FROM notifications WHERE id = ? AND user_id = ?`).run(body.id, auth.id);
   else return NextResponse.json({ error: "id ya da all zorunlu" }, { status: 400 });
   return NextResponse.json({ success: true });
 }

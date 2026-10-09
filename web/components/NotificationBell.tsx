@@ -4,11 +4,12 @@
  * Yönetim paneli bildirim zili: hesaba (notifications.user_id) yazılan bildirimler, /api/notifications/mine.
  * Masaüstünde kenar menünün üstünde, telefonda üst çubukta. Okunmamış sayısı dakikada bir ve sayfaya
  * dönünce tazelenir. Pencerede "Telefon bildirimlerini aç" (lib/pushClient, hesaba bağlı abonelik).
+ * Bildirim tek tek (satırdaki çöp kutusu) ya da toplu ("Tümünü sil", iki adımlı) silinir.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Bell, BellRing, Check, X } from "lucide-react";
+import { Bell, BellRing, Check, Trash2, X } from "lucide-react";
 import { timeAgo } from "@/lib/date";
 import { pushSupported, subscribePush } from "@/lib/pushClient";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
   const [items, setItems] = useState<Item[] | null>(null);
   const [unread, setUnread] = useState(0);
   const [push, setPush] = useState<PushState>("unsupported");
+  const [confirmClear, setConfirmClear] = useState(false);
   const synced = useRef(false);
 
   const load = useCallback(async () => {
@@ -65,6 +67,19 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
     setItems(list => list?.map(i => ({ ...i, is_read: true })) ?? list);
     setUnread(0);
     await fetch("/api/notifications/mine", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) }).catch(() => {});
+  };
+
+  const removeItem = (it: Item) => {
+    setItems(list => list?.filter(i => i.id !== it.id) ?? list);
+    if (!it.is_read) setUnread(n => Math.max(0, n - 1));
+    fetch("/api/notifications/mine", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: it.id }) }).catch(() => {});
+  };
+
+  const clearAll = () => {
+    setItems([]);
+    setUnread(0);
+    setConfirmClear(false);
+    fetch("/api/notifications/mine", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) }).catch(() => {});
   };
 
   const openItem = async (it: Item) => {
@@ -112,6 +127,21 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
               )}
               <button onClick={() => setOpen(false)} aria-label="Kapat" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
             </div>
+            {!!items?.length && (
+              <div className="flex items-center justify-end gap-2 border-b border-slate-100 px-4 py-1.5">
+                {confirmClear ? (
+                  <>
+                    <span className="mr-auto text-xs text-slate-600">{items.length} bildirim silinsin mi?</span>
+                    <button onClick={() => setConfirmClear(false)} className="min-h-[32px] rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Vazgeç</button>
+                    <button onClick={clearAll} className="min-h-[32px] rounded-lg bg-red-600 px-2.5 text-xs font-semibold text-white hover:bg-red-700">Hepsini sil</button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmClear(true)} className="inline-flex min-h-[32px] items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-500 hover:bg-slate-100">
+                    <Trash2 size={13} /> Tümünü sil
+                  </button>
+                )}
+              </div>
+            )}
 
             {push !== "granted" && (
               <div className="border-b border-slate-100 bg-forest-50/60 px-4 py-3">
@@ -140,14 +170,18 @@ export default function NotificationBell({ placement }: { placement: "sidebar" |
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {items.map(it => (
-                    <li key={it.id}>
-                      <button onClick={() => openItem(it)} className={cn("flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50", !it.is_read && "bg-forest-50/40")}>
+                    <li key={it.id} className={cn("group relative", !it.is_read && "bg-forest-50/40")}>
+                      <button onClick={() => openItem(it)} className="flex w-full gap-3 py-3 pl-4 pr-12 text-left hover:bg-slate-50">
                         <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", it.is_read ? "bg-transparent" : "bg-red-500")} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-bold text-slate-800">{it.title}</span>
                           <span className="mt-0.5 block text-sm text-slate-600">{it.message}</span>
                           <span className="mt-1 block text-xs text-slate-400">{timeAgo(it.created_at)}</span>
                         </span>
+                      </button>
+                      <button onClick={() => removeItem(it)} aria-label="Bildirimi sil" title="Sil"
+                        className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100">
+                        <Trash2 size={15} />
                       </button>
                     </li>
                   ))}
