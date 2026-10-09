@@ -19,6 +19,7 @@ import PersonSheet from "@/components/personnel/PersonSheet";
 import { createInvite, mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
 import { canDelegate, parseAccess } from "@/lib/userAccess";
 import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
+import { departmentInBranch, departmentsInBranch } from "@/lib/branchRotation";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
 import { Sheet, sheetPrimaryClass, sheetSecondaryClass } from "@/components/ui/Sheet";
 import DepartmentAssignSheet from "@/components/personnel/DepartmentAssignSheet";
@@ -266,6 +267,7 @@ export default function PersonnelPage() {
 
   const openPerson = openKey ? persons.find(p => personKey(p) === openKey) ?? null : null;
   const editDepts = authUser?.location_id ? (deptCache[authUser.location_id] ?? []) : [];
+  const editDeptIds = new Set(editDepts.map(d => d.id));
   const filtered = persons.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -416,11 +418,13 @@ export default function PersonnelPage() {
           }}
           hasDepts={() => editDepts.length > 0}
           // Departmanlı şubede ekip departman departman (ana departmana göre), sıra Ayarlar'daki departman sırası
+          // Ana şubesi başka olan kişi bu şubedeki departmanına göre (lib/branchRotation departmentInBranch)
           groupOf={editDepts.length > 0 ? p => {
-            const i = editDepts.findIndex(d => d.id === p.department_id);
+            const id = departmentInBranch(p, editDeptIds);
+            const i = editDepts.findIndex(d => d.id === id);
             return i < 0 ? null : { key: editDepts[i].id, label: departmentLabel(editDepts, editDepts[i]), order: i };
           } : undefined}
-          extraDepts={p => p.assigned_department_ids.filter(id => id !== p.department_id)
+          extraDepts={p => departmentsInBranch(p, editDeptIds).slice(1)
             .map(id => editDepts.find(d => d.id === id)).filter(Boolean).map(d => departmentLabel(editDepts, d!)).join(", ") || null}
           managerSummary={managerSummary}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}

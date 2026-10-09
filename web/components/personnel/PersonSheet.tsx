@@ -132,6 +132,9 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [branchDeptLists, setBranchDeptLists] = useState<Record<string, DeptLite[]>>({});
   const [branchDept, setBranchDept] = useState<Record<string, string>>({});
   const otherBranchKey = branchIds.filter(id => id !== ep.location_id).join(",");
+  // Kartın açıldığı şube (şubenin Ekip sayfası); Tüm Şubeler'den açılınca yok
+  const viewBranchId = viewer.location_id ?? null;
+  const branchName = (id: string) => orgBranches.find(b => b.id === id)?.name ?? "Bu";
   useEffect(() => {
     let alive = true;
     for (const loc of otherBranchKey ? otherBranchKey.split(",") : []) {
@@ -444,9 +447,25 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               <input type="checkbox" checked={editForm.schedulable} onChange={e => setEditForm(f => ({ ...f, schedulable: e.target.checked }))} className="mt-1 h-5 w-5 accent-forest-600" />
             </label>
           )}
+          {/* Ana şubesi başka olan kişi bu şubenin Ekip'inden açıldıysa: bu şubedeki departmanı en üstte
+              (eskiden sadece aşağıdaki Şubeler bölümündeydi, üstteki seçim ana şubeye yazıyordu ve kişi "departmanı seçilmemiş" kalıyordu) */}
+          {showWork && viewBranchId && viewBranchId !== ep.location_id && branchIds.includes(viewBranchId) && (branchDeptLists[viewBranchId]?.length ?? 0) > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{branchName(viewBranchId)} şubesinde departmanı</label>
+              <select value={branchDept[viewBranchId] ?? ""} disabled={!canCrossBranch}
+                onChange={e => setBranchDept(prev => ({ ...prev, [viewBranchId]: e.target.value }))}
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${branchDept[viewBranchId] ? "border-slate-200" : "border-amber-300"}`}>
+                <option value="">Seçilmedi (bu şubede otomatik plana alınmaz)</option>
+                {leafDepartments(sortDepartments(branchDeptLists[viewBranchId])).map(d => <option key={d.id} value={d.id}>{departmentLabel(branchDeptLists[viewBranchId], d)}</option>)}
+              </select>
+              {!canCrossBranch && <p className="text-xs text-slate-400 mt-1">Bunu "Başka şubeden kişi" yetkisi olan sorumlu ya da hesap sahibi değiştirebilir.</p>}
+            </div>
+          )}
           {showWork && depts.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Departman</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {viewBranchId && viewBranchId !== ep.location_id ? `Ana şubesindeki (${branchName(ep.location_id ?? "")}) departmanı` : "Departman"}
+              </label>
               <select value={editForm.department_id ?? ""} onChange={e => setEditForm(f => ({ ...f, department_id: e.target.value || null }))}
                 className={`w-full border rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:border-forest-400 ${editForm.department_id ? "border-slate-200" : "border-amber-300"}`}>
                 <option value="">Seçilmedi (otomatik plana alınmaz)</option>
@@ -458,7 +477,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
               {/* Joker: birden çok departmanda çalışabilir. Plan her vardiyasını tek departmana yazar. */}
               {editForm.department_id && leafDepartments(sortDepartments(depts)).length > 1 && (
                 <div className="mt-3">
-                  <p className="text-sm font-medium text-slate-700">Başka hangi departmanlarda çalışabilir?</p>
+                  <p className="text-sm font-medium text-slate-700">{viewBranchId && viewBranchId !== ep.location_id ? "Ana şubesinde başka hangi departmanlarda çalışabilir?" : "Başka hangi departmanlarda çalışabilir?"}</p>
                   <p className="text-xs text-slate-400 mb-2">Seçerseniz otomatik plan bu kişiyi o departmanların eksiğine de yazar. Planda ana departmanının altında görünür, başka departmana yazıldığı gün kutuda o departmanın adı yazar.</p>
                   <div className="flex flex-wrap gap-1.5">
                     {leafDepartments(sortDepartments(depts)).filter(d => d.id !== editForm.department_id).map(d => {
