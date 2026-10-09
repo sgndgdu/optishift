@@ -38,6 +38,8 @@ export async function weekRows(db: any, locationId: string, ws: string): Promise
 export function weekPlanLines(rows: any[], o: {
   label: string; ws: string; loc: any; defs: any[]; active: any[]; nameOf: Map<string, string>;
   depts: any[]; personDept: Map<string, string | null>; today: number | null;
+  /** Eksik listesine bu günden (0=Pzt) önceki günler yazılmaz: geçmiş gün değiştirilemez */
+  gapsFromDay?: number;
 }): string[] {
   const out: string[] = [];
   const { label, ws, loc, defs, active, nameOf, depts, personDept } = o;
@@ -90,7 +92,8 @@ export function weekPlanLines(rows: any[], o: {
       }
     }
   }
-  if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken): ${gaps.join(", ")}`);
+  if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken${o.gapsFromDay ? ", geçmiş günler hariç" : ""}): ${gaps.join(", ")}`);
+  else if (rows.length) out.push(`- Eksik: yok${o.gapsFromDay ? " (geçmiş günler hariç)" : ""}`);
   if (o.today !== null) {
     const dayIdx = o.today;
     const todays = rows.filter(r => r.day === dayIdx && r.publication_status === "published" && r.kind !== "on_call");

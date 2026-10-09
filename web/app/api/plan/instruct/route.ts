@@ -5,7 +5,7 @@ import { getDB } from "@/lib/db/client";
 import { canManageLocation } from "@/lib/access";
 import { aiChat, aiChatProvider } from "@/lib/ai/chat";
 import { extractJson, planInstructPrompt, resolveDirectives, type InstructCtx, type InstructDemand } from "@/lib/ai/planInstruct";
-import { businessToday } from "@/lib/date";
+import { addDays, businessToday } from "@/lib/date";
 import { weekPlanLines, weekRows } from "@/lib/ai/businessContext";
 import { sortDepartments, leafDepartments, departmentLabel } from "@/lib/departments";
 
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
   const plan = weekPlanLines(await weekRows(db, locationId, weekStart), {
     label: "Bu hafta", ws: weekStart, loc, defs, active: people, nameOf: new Map(people.map(p => [p.id, p.name])),
     depts: allDepts, personDept: new Map(personDept.map(p => [p.id, p.department_id ?? null])), today: null,
+    gapsFromDay: Math.max(0, Math.min(7, [0, 1, 2, 3, 4, 5, 6, 7].find(d => addDays(weekStart, d) >= day) ?? 7)),
   }).map(l => l.replace(/ \[v[^\]]+\]/g, ""));
   const ctx: InstructCtx = { people, shifts, departments, weekStart, today: day, demand, plan };
 
