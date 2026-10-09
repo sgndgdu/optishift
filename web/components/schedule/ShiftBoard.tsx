@@ -23,6 +23,9 @@ import type { ShiftDefinition } from "@/lib/types";
  * - Çıkarma: adın üstüne gelince × (telefonda hep görünür), onRemove
  * - Sürükle bırak (@dnd-kit, sayfanın DndContext'i): ad başka güne/vardiyaya taşınır.
  *   Sürüklenen: { kind: "board-chip", personId, day }, bırakılan yer: { kind: "board-cell", groupId, def, day }
+ * - İlan (2026-10-09, ayrı Açık Vardiyalar sayfası kalktı): ilandaki vardiya kutuda turuncu "İlanda" olarak görünür
+ *   (listingsOf, dokununca onListingClick). Yayınlı haftada boş yer kişi seçme listesinin altından ya da kilitli
+ *   haftada doğrudan "Duyur" ile ekibe ilan olarak açılır (onPostListing).
  */
 
 export type ShiftTone = { box: string; name: string; time: string; dot: string };
@@ -50,7 +53,7 @@ function shortName(n: string) {
 export default function ShiftBoard({
   groups, tones, days, mobileDay, cellMap, matchDef, demandOf, statusOf, cellGroupId, weekHours, editable,
   onNameClick, onAssign, timeLabel, customTone, onCallDefs, onCallMap, onOnCallClick, extras, onExtraClick, flash, chipMark,
-  onDemandChange, countsEditing = false, onRemove, hintOf,
+  onDemandChange, countsEditing = false, onRemove, hintOf, listingsOf, onListingClick, onPostListing,
 }: {
   groups: BoardGroup[];
   tones: { def: ShiftDefinition; tone: ShiftTone }[];
@@ -81,6 +84,12 @@ export default function ShiftBoard({
   onRemove?: (personId: string, day: number) => void;
   /** Yoğunluk tahmini (geçmiş haftalar): sayı düzenlenirken ipucu */
   hintOf?: (groupId: string, defId: string, day: number) => number | null;
+  /** Kutudaki ilanlar. label: kutuda yazan ("İlanda", "Onay bekliyor · Ayşe K."); fillsGap: boş yer için açılmış
+   *  (eksik sayılmaz); kişinin "başkası alsın" ilanında vardiya zaten onda durur, fillsGap false */
+  listingsOf?: (groupId: string, defId: string, day: number) => { id: number; label: string; fillsGap: boolean }[];
+  onListingClick?: (id: number) => void;
+  /** Boş yeri ekibe ilan olarak duyur; o gün için null dönerse (geçmiş gün, taslak hafta) gösterilmez */
+  onPostListing?: ((groupId: string, def: ShiftDefinition, day: number) => void) | null;
 }) {
   const [countOpen, setCountOpen] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ groupId: string; def: ShiftDefinition; day: number; x: number; y: number } | null>(null);
@@ -176,7 +185,9 @@ export default function ShiftBoard({
                   {days.map((_, day) => {
                     const here = inGroup.filter(x => x.def?.id === def.id && x.day === day);
                     const need = demandOf(g.id, def.id, day);
-                    const missing = Math.max(0, need - here.length);
+                    const listings = listingsOf?.(g.id, def.id, day) ?? [];
+                    // İlandaki yer eksik sayılmaz, üstlenen bekleniyor
+                    const missing = Math.max(0, need - here.length - listings.filter(l => l.fillsGap).length);
                     return (
                       <td key={day} className={dayCell(day)}>
                         <CountBar groupId={g.id} defId={def.id} day={day} here={here.length} need={need}
@@ -201,6 +212,20 @@ export default function ShiftBoard({
                               title="Bu kişinin aynı gün ikinci vardiyası var. Dinlenme ve haftalık sınır kurallarına uymayabilir."
                               className="w-full truncate rounded-md border border-red-300 bg-red-50 px-2 py-1 text-left text-[12px] font-semibold text-red-700">
                               ⚠ {shortName(x.person.name)}
+                            </button>
+                          ))}
+                          {listings.map(l => (
+                            <button key={`l-${l.id}`} type="button" onClick={() => onListingClick?.(l.id)}
+                              title="Bu vardiya ekibe ilan olarak duyuruldu. Kişi yazmak ya da ilanı kapatmak için dokunun."
+                              className="w-full truncate rounded-md border border-dashed border-amber-300 bg-amber-50 px-2 py-1 text-left text-[12px] font-semibold text-amber-800 hover:bg-amber-100">
+                              {l.label}
+                            </button>
+                          ))}
+                          {!editable && onPostListing && Array.from({ length: Math.min(missing, 4) }, (_, k) => (
+                            <button key={`p-${k}`} type="button" onClick={() => onPostListing(g.id, def, day)}
+                              className="flex h-[26px] w-full items-center justify-center gap-1 rounded-md border border-dashed border-red-200 text-[11px] font-semibold text-red-400 transition-colors hover:border-red-400 hover:bg-red-50/60 hover:text-red-600"
+                              title="Eksik: ekibe ilan olarak duyurmak için dokunun">
+                              Duyur
                             </button>
                           ))}
                           {editable && Array.from({ length: Math.min(missing, 4) }, (_, k) => (
@@ -335,6 +360,13 @@ export default function ShiftBoard({
                 );
               })}
             </ul>
+            {onPostListing && !picker.def.on_call && (
+              <button type="button" onClick={() => { onPostListing(picker.groupId, picker.def, picker.day); setPicker(null); }}
+                className="w-full border-t border-slate-100 px-4 py-2.5 text-left text-[13px] font-semibold text-forest-700 hover:bg-forest-50">
+                Kimseyi seçmeden ekibe duyur
+                <span className="block text-[11px] font-normal text-slate-500">İlk alan kişi vardiyaya yazılır</span>
+              </button>
+            )}
           </div>
         );
       })()}

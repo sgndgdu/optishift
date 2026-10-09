@@ -1868,7 +1868,7 @@ export default function SettingsPage() {
                 <SectionCard title="Ek puan verilen durumlar">
                   <p className="text-xs text-slate-500 pt-4 pb-3">Aşağıdaki durumlar açıksa kişiye yazdığınız kadar ek puan verilir. Puanı yüksek olan kişiye sonraki planlarda daha az vardiya verilir.</p>
                   {([
-                    { show: true, label: "Boş kalan bir vardiyayı kendisi alırsa", description: "Açık Vardiyalar'dan gönüllü olarak vardiya alan kişiye verilir.",
+                    { show: true, label: "Boş kalan bir vardiyayı kendisi alırsa", description: "Ekibe duyurulan boş vardiyayı gönüllü olarak alan kişiye verilir.",
                       on: heroBonusEnabled, toggle: () => setHeroBonusEnabled(v => !v), value: heroBonusPoints, set: setHeroBonusPoints, max: 20 },
                     { show: branchCount > 1, label: "Başka bir şubede çalışırsa", description: "Kendi şubesi dışında bir şubede çalıştığı her vardiya için verilir.",
                       on: awayShiftEnabled, toggle: () => setAwayShiftEnabled(v => !v), value: awayShiftPoints, set: setAwayShiftPoints, max: 20 },
@@ -1982,7 +1982,7 @@ export default function SettingsPage() {
                   ),
                   openShifts: (
                 <FeatureCard icon={Megaphone} title="Açık Vardiyalar"
-                  description="Boşalan vardiyayı ekibe duyurursunuz, isteyen biri alır. Geç kalan kişinin vardiyası da buraya eklenebilir."
+                  description="Boşalan vardiyayı Vardiya Planı’ndan ekibe duyurursunuz, isteyen biri alır. Gelemeyen kişinin vardiyası da duyurulabilir."
                   on={openShiftsEnabled} onToggle={() => setOpenShiftsEnabled(v => !v)} />
                   ),
                   // Devir-teslim TEK özellik: eski "Vardiya Devri Notu" (handover_notes_enabled) ile onaylı defter (handover_log_enabled) birleşti

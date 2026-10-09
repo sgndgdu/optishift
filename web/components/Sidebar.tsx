@@ -99,14 +99,13 @@ const NAV = [
   { href: "/requests",     label: "Onaylar",                icon: ClipboardList,   group: "main" },
   { href: "/reports",      label: "Raporlar",               icon: BarChart2,       group: "more" },
   { href: "/chat",         label: "Mesajlar",             icon: MessageSquare,   group: "more", module: "chat_enabled" },
-  { href: "/open-shifts",  label: "Açık Vardiyalar",        icon: Megaphone,       group: "more", module: "open_shifts_enabled" },
   { href: "/handovers",    label: "Devir-Teslim", icon: ClipboardCheck,  group: "more", module: "handover_log_enabled" },
   { href: "/breaks",       label: "Mola Takibi",            icon: Coffee,          group: "more", feature: "breaks" },
   { href: "/integrations", label: "Entegrasyonlar",         icon: Plug,            group: "more", feature: "integrations" },
   { href: "/settings",     label: "Ayarlar",                icon: Settings,        group: "footer" },
 ] as const;
 
-const CHEF_HIDDEN = new Set<string>(["/requests", "/open-shifts", "/overtime", "/handovers"]);
+const CHEF_HIDDEN = new Set<string>(["/requests", "/overtime", "/handovers"]);
 
 // "Tüm Şubeler" kapsamı (patron / bölge müdürü): işletme geneli sayfalar (/supervisor/*).
 // Şube seçicinin en üstündeki "Tüm Şubeler" bu kapsama geçer; bir şube seçmek şube kapsamına döner.

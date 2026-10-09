@@ -53,13 +53,13 @@ async function run(a: ProposedAction): Promise<ApplyResult> {
         id: opened.data.id, claimed_by: a.replacement.personnel_id, claimed_by_name: a.replacement.name, assigned_by_manager: true,
       });
       if (!assigned.ok) {
-        return { ok: false, message: `Vardiya ilana çıktı ama ${a.replacement.name} atanamadı: ${violationText(assigned.data, "kural engeli")} Açık Vardiyalar'dan başka birini seçin.` };
+        return { ok: false, message: `Vardiya ilana çıktı ama ${a.replacement.name} atanamadı: ${violationText(assigned.data, "kural engeli")} Vardiya Planı'nda ilana dokunup başka birini seçin.` };
       }
       return { ok: true, message: `${a.replacement.name} vardiyaya atandı ve bilgilendirildi.` };
     }
     case "assign_open_shift": {
       const r = await call("/api/open-shifts", "PATCH", { id: a.open_shift_id, claimed_by: a.personnel_id, claimed_by_name: a.name, assigned_by_manager: true });
-      if (!r.ok) return { ok: false, message: `${a.name} atanamadı: ${violationText(r.data, "işlem yapılamadı")} Açık Vardiyalar'dan başka birini seçin.` };
+      if (!r.ok) return { ok: false, message: `${a.name} atanamadı: ${violationText(r.data, "işlem yapılamadı")} Vardiya Planı'nda ilana dokunup başka birini seçin.` };
       if (r.data?.pending) return { ok: true, message: `${a.name} yazıldı. Başka şubeden olduğu için kendi sorumlusu onaylayınca kesinleşir.` };
       return { ok: true, message: `Vardiya ${a.name} adına yazıldı, kendisine bildirim gitti.` };
     }

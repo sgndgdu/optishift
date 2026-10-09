@@ -112,7 +112,7 @@ export async function openShiftSuggestion(db: any, os: any): Promise<Suggestion 
   return {
     id: `open-${os.id}`,
     urgent: os.date <= addDays(today, 1),
-    title, detail, href: "/open-shifts",
+    title, detail, href: `/schedule?week=${os.date}`,
     action: { kind: "assign_open_shift", open_shift_id: os.id, personnel_id: pick.personnel_id, name: pick.name, title: `${title} ${detail}` },
   };
 }

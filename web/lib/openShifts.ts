@@ -247,7 +247,7 @@ export async function declineLoan(db: any, orgId: string, openShiftId: number, b
     await notifyBranchManagers(db, orgId, os.location_id, "plan_settings", {
       type: "open_shift", title: "Ödünç onaylanmadı",
       message: `${home} şubesinin sorumlusu ${os.claimed_by_name ?? "kişinin"} ${when} vardiyasına gelmesini onaylamadı. İlan yeniden açık.`,
-      link: "/open-shifts",
+      link: "/schedule?week=this",
     }).catch(() => 0);
   }
   return { ok: true };

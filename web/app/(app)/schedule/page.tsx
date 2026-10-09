@@ -29,6 +29,7 @@ import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import PlanInstructBar, { type RebuildResult } from "@/components/schedule/PlanInstructBar";
+import OpenShiftSheet, { type Listing, type NewListing } from "@/components/schedule/OpenShiftSheet";
 import WeekCalendarCard from "@/components/schedule/WeekCalendarCard";
 import type { PlanOverride } from "@/lib/planOverrides";
 import {
@@ -329,7 +330,7 @@ function SchedulePageInner() {
     if (w && /^-?\d{1,2}$/.test(w)) return Number(w);
     // Bildirimden gelen bağlantı: haftanın tarihi (2026-10-19), bugünkü haftaya göre kaç hafta ileri
     if (w && /^\d{4}-\d{2}-\d{2}$/.test(w)) {
-      const diff = Math.round((Date.parse(w) - Date.parse(getWeekStart(0))) / (7 * 86400000));
+      const diff = Math.floor((Date.parse(w) - Date.parse(getWeekStart(0))) / (7 * 86400000)); // haftanın herhangi bir günü
       if (Number.isFinite(diff)) return diff;
     }
     return (new Date().getDay() + 6) % 7 >= 3 ? 1 : 0;
@@ -397,12 +398,16 @@ function SchedulePageInner() {
   const [minimizeChanges, setMinimizeChanges]     = useState(false);
   const [reloadTick, setReloadTick]               = useState(0); // optishift_location_changed: haftayı yeniden yükle
   // Açık ilanlar (Plan Kontrolü: ilandaki eksik "acil" sayılmaz)
-  const [openListings, setOpenListings]           = useState<{ date: string; start_time: string; end_time: string }[]>([]);
+  // İlanlar plan tablosunda görünür ve oradan yönetilir (components/schedule/OpenShiftSheet; ayrı sayfa 2026-10-09'da kalktı)
+  const [openListings, setOpenListings]           = useState<(Listing & { source_assignment_id?: number | null })[]>([]);
+  const [listingId, setListingId]                 = useState<number | null>(null);
+  const [listingDraft, setListingDraft]           = useState<NewListing | null>(null);
   useEffect(() => {
     if (!activeLocationId) return;
     let stale = false;
-    fetch(`/api/open-shifts?location_id=${activeLocationId}&status=open`).then(r => (r.ok ? r.json() : [])).then(d => {
-      if (!stale) setOpenListings(Array.isArray(d) ? d.filter((o: any) => o.status === "open") : []);
+    fetch(`/api/open-shifts?location_id=${activeLocationId}`).then(r => (r.ok ? r.json() : [])).then(d => {
+      const today = businessToday();
+      if (!stale) setOpenListings(Array.isArray(d) ? d.filter((o: any) => (o.status === "open" || o.status === "loan_pending") && o.date >= today) : []);
     }).catch(() => {});
     return () => { stale = true; };
   }, [activeLocationId, weekStart, reloadTick]);
@@ -1432,7 +1437,7 @@ function SchedulePageInner() {
           d2 = await r2.json().catch(() => ({}));
         }
         if (d2.exception_requested) showToast(d2.message ?? "Hesap sahibinin onayına gönderildi.", "info");
-        else if (!r2.ok) { showToast(`Açık vardiya oluştu ama atanamadı (${violationText(d2, "hata")}). Açık Vardiyalar'dan atayın.`, "error"); }
+        else if (!r2.ok) { showToast(`Açık vardiya oluştu ama atanamadı (${violationText(d2, "hata")}). Plandaki ilana dokunup atayın.`, "error"); }
         else if ((d2 as { pending?: boolean }).pending) showToast(`${pick.name} için kendi şubesinin sorumlusunun onayı bekleniyor.`, "info");
         else showToast(`${pick.name} vardiyaya atandı ve bilgilendirildi.`, "success");
       } else if (mode === "top") {
@@ -2122,7 +2127,7 @@ function SchedulePageInner() {
 
   const weekBudgets: WeekBudgets = {
     unreliable: reliabilityNotes,
-    listed: openListings.flatMap(o => {
+    listed: openListings.filter(o => !o.source_assignment_id).flatMap(o => {
       const day = [0, 1, 2, 3, 4, 5, 6].find(d => addDays(weekStart, d) === o.date);
       const def = shiftDefs.find(d => d.start === o.start_time?.slice(0, 5) && d.end === o.end_time?.slice(0, 5));
       return day !== undefined && def ? [{ day, shiftId: def.id, count: 1 }] : [];
@@ -2269,6 +2274,13 @@ function SchedulePageInner() {
         })),
         { id: "__none__", name: "Diğer", members: filteredPersonnel.filter(p => !p.department_id) },
       ].filter(g => g.members.length > 0);
+  // İlanın tablodaki yeri: vardiyayı bırakan kişinin departmanı, yoksa o vardiyada kişi gereken ilk departman
+  const listingGroup = (o: Listing, defId: string, day: number): string => {
+    if (departments.length === 0) return "__all__";
+    const p = o.released_by ? personnel.find(x => x.id === o.released_by) : null;
+    if (p?.department_id && boardGroups.some(g => g.id === p.department_id)) return p.department_id;
+    return boardGroups.find(g => (deptDemandMatrix[g.id]?.[defId]?.[day] ?? 0) > 0)?.id ?? boardGroups[0]?.id ?? "__none__";
+  };
   const boardEditable = !((isPublishedWeek && !editUnlocked) || viewOnly || (!canPublish && isPublishedWeek));
   const boardStatusOf = (pid: string, day: number) => {
     const dayIso = isoDates[day];
@@ -2699,6 +2711,11 @@ function SchedulePageInner() {
             onJump={jumpTo}
           />
           {!loading && activeLocationId && <WeekCalendarCard locationId={activeLocationId} weekStart={weekStart} />}
+          <OpenShiftSheet listing={openListings.find(o => o.id === listingId) ?? null} draft={listingDraft}
+            defaultBonus={(locRules as Record<string, unknown>).hero_bonus_enabled === false ? 0 : Number((locRules as Record<string, unknown>).hero_bonus_points ?? 6)}
+            isOwner={viewerAccess.role === "admin"}
+            onClose={() => { setListingId(null); setListingDraft(null); }}
+            onDone={msg => { showToast(msg, "success"); setReloadTick(t => t + 1); }} />
           {/* Planı cümleyle değiştirme (yapay zekâ): dolu ve düzenlenebilir haftada */}
           {/* Her hafta görünür; plan yoksa / yayınlanmışsa üstteki tek Planı Oluştur / Düzenle düğmesine yönlendirir */}
           {aiEnabled && !loading && activeLocationId && !viewOnly && !(isPublishedWeek && !canPublish) && (
@@ -2928,6 +2945,27 @@ function SchedulePageInner() {
                     if (isPublishedWeek && !editUnlocked && c.id && canPublish) openAbsence(c.id, pid, `${person?.name ?? ""} · ${DAY_NAMES[day]} ${normTime(minToHHMM(c.startMin))}–${normTime(minToHHMM(c.endMin, c.endMin >= 1440))}`);
                   }}
                   flash={flash}
+                  listingsOf={(gid, defId, day) => {
+                    const def = shiftDefs.find(d => d.id === defId);
+                    if (!def) return [];
+                    return openListings.filter(o => o.date === isoDates[day] && o.start_time?.slice(0, 5) === def.start && o.end_time?.slice(0, 5) === def.end)
+                      .filter(o => listingGroup(o, defId, day) === gid)
+                      .map(o => {
+                        const who = o.status === "loan_pending" ? o.claimed_by_name : o.source_assignment_id ? personnel.find(p => p.id === o.released_by)?.name : null;
+                        const short = who ? who.split(/\s+/).length > 1 ? `${who.split(/\s+/)[0]} ${who.split(/\s+/).at(-1)![0]}.` : who : "";
+                        return {
+                          id: o.id,
+                          label: o.status === "loan_pending" ? `Onay bekliyor${short ? ` · ${short}` : ""}` : o.source_assignment_id ? `İlanda · ${short || "biri"} veriyor` : "İlanda",
+                          fillsGap: !o.source_assignment_id,
+                        };
+                      });
+                  }}
+                  onListingClick={id => setListingId(id)}
+                  onPostListing={canPublish && isPublishedWeek && isModuleOn(locRules, "open_shifts_enabled") ? (gid, def, day) => {
+                    if (isoDates[day] < businessToday()) { showToast("Geçmiş güne ilan açılamaz.", "error"); return; }
+                    setListingDraft({ locationId: activeLocationId, date: isoDates[day], start: def.start, end: def.end,
+                      label: [def.name, departments.find(d => d.id === gid)?.name].filter(Boolean).join(" · ") });
+                  } : null}
                 />
               ) : !loading ? (
                 <div className="py-16 px-4 text-center text-sm text-slate-400">

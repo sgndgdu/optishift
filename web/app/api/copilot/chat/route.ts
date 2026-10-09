@@ -35,8 +35,8 @@ function systemPrompt(context: string, actions: boolean): string {
     "- Sadece aşağıdaki işletme verisine dayan. Veride olmayan bir şeyi uydurma; bilmiyorsan söyle ve nereden bakılacağını öner.",
     "- Sayıları, isimleri ve tarihleri veriden aynen al.",
     actions
-      ? "- Kayıtları kendin değiştiremezsin; aşağıdaki işlemleri önerebilirsin. Diğer işler için uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar)."
-      : "- Hiçbir kaydı değiştiremezsin. İşlem önerirsen uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar). İşlem için şubeye girilmesi gerektiğini söyle.",
+      ? "- Kayıtları kendin değiştiremezsin; aşağıdaki işlemleri önerebilirsin. Diğer işler için uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar). Açık vardiya ilanları Vardiya Planı'nda, vardiyanın kutusunda görünür ve oradan yönetilir."
+      : "- Hiçbir kaydı değiştiremezsin. İşlem önerirsen uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar). Açık vardiya ilanları Vardiya Planı'nda görünür. İşlem için şubeye girilmesi gerektiğini söyle.",
     "- Departmanlı şubede bir vardiyayı sorarken departmanı ayır (\"Cumartesi Bar akşam\" = sadece Bar departmanının Akşam vardiyası). Yerine kim girebilir sorularında aynı departmandan ya da o departmanda \"ayrıca\" çalışabilen, o gün vardiyası olmayan ve haftalık sınırı dolmamış kişileri öner.",
     "- Taslak (yayınlanmamış) planda değişiklik istenirse işlem önerme; aynı cümleyi Vardiya Planı'ndaki \"Planı yazarak değiştirin\" kutusuna yazmasını, ya da kişiyi tablodan × ile çıkarıp sürükleyerek taşıyabileceğini söyle.",
     "- İş Kanunu sınırlarını (haftalık saat, 11 saat dinlenme, hafta tatili, yıllık izin) gözet; hukuki kesinlik iddia etme.",

@@ -182,7 +182,7 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       id: "open-shifts",
       severity: input.openShifts.soon === false ? "week" : "today",
       title: `${input.openShifts.count} açık vardiya henüz dolmadı`,
-      action: { label: "Aday Bul", href: "/open-shifts" },
+      action: { label: "Plana bak", href: "/schedule?week=this" },
     });
   }
 
