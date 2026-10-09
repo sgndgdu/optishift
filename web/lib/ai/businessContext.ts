@@ -57,6 +57,11 @@ export function weekPlanLines(rows: any[], o: {
     }
   }
   for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);
+  // Hazır sıralama: "en çok / en az kim çalışıyor" soruları modelin saymasına kalmasın
+  if (byPerson.size > 1) {
+    const ranked = [...byPerson.keys()].map(pid => ({ name: nameOf.get(pid) ?? pid, h: Math.round((hours.get(pid) ?? 0) * 10) / 10 })).sort((a, b) => b.h - a.h);
+    out.push(`- Haftalık çalışma süresine göre çoktan aza: ${ranked.map(x => `${x.name} ${String(x.h).replace(".", ",")} saat`).join(", ")}`);
+  }
   const idle = active.filter(p => !byPerson.has(p.id)).map(p => p.name);
   if (rows.length && idle.length) out.push(`- Vardiyası olmayanlar: ${idle.join(", ")}`);
   // Gün gün kim nerede: "Cmt 17.10 Akşam Servisi · Bar: Kaan Yıldız, Cansu Oral (2/2 kişi)"
