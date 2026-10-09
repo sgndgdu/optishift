@@ -1,45 +1,14 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { trNum } from "@/lib/format";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, ChevronLeft, ChevronRight, RefreshCw, Lock, Unlock, Clock, Scale, Users, TrendingUp, Wallet, Timer, Sparkles } from "lucide-react";
+import { Download, Lock, Unlock, Scale, Timer, Sparkles } from "lucide-react";
 import FairnessReport from "@/components/reports/FairnessReport";
 import OvertimeReport from "@/components/reports/OvertimeReport";
-import MonthlyGainReport from "@/components/reports/MonthlyGainReport";
+import TeamReport from "@/components/reports/TeamReport";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
-import { cn } from "@/lib/utils";
-import { StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
-
-interface ReportRow {
-  personnel_id: string;
-  name: string;
-  title: string;
-  shift_count: number;
-  total_hours: number;
-  overtime_hours: number;
-  overtime_cost: number | null;
-}
-
-function getMonthLabel(month: string) {
-  const [y, m] = month.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
-}
-
-function prevMonth(month: string) {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function nextMonth(month: string) {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function currentMonth() {
   const d = new Date();
@@ -48,247 +17,57 @@ function currentMonth() {
 
 const downloadClass = "inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors";
 
-// Liste bu kadar kişiden uzunsa katlanır (telefonda sayfa 6 ekran boyuna çıkıyordu); tamamı Excel'de
-const ROW_PREVIEW = 8;
 
-function WorkHoursReport() {
-  const [month, setMonth] = useState(currentMonth());
-  const [rows, setRows] = useState<ReportRow[]>([]);
-  const [showAllRows, setShowAllRows] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+/** Özet'in ay seçicisinin yanında: puantaj (CSV), aylık Excel ve ay kilidi (bordro dönemi) */
+function PayrollTools({ month }: { month: string }) {
   const [periodLock, setPeriodLock] = useState<any>(null); // null = kilitli değil
-  const [lockActionLoading, setLockActionLoading] = useState(false);
-  const [role, setRole] = useState<string>("");
-
-  const getLocationId = () => {
-    try {
-      const u = JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}");
-      return u?.location_id ?? "";
-    } catch { return ""; }
-  };
-
+  const [busy, setBusy] = useState(false);
+  const [role, setRole] = useState("");
+  const locationId = () => { try { return JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}")?.location_id ?? ""; } catch { return ""; } };
   useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}");
-      setRole(u?.role ?? "");
-    } catch { /* empty */ }
+    let r = "";
+    try { r = JSON.parse(localStorage.getItem("optishift_manager_user") ?? "{}")?.role ?? ""; } catch { /* boş */ }
+    void Promise.resolve().then(() => setRole(r));
   }, []);
-
-  const loadPeriodLock = useCallback(async (m: string) => {
-    const location_id = getLocationId();
-    if (!location_id) return;
-    try {
-      const res = await fetch(`/api/payroll-periods?location_id=${location_id}&month=${m}`);
-      const data = await res.json();
-      setPeriodLock(Array.isArray(data) && data.length > 0 ? data[0] : null);
-    } catch { /* empty */ }
-  }, []);
-
-  useEffect(() => { loadPeriodLock(month); }, [month, loadPeriodLock]);
-
-  const handleLockPeriod = async () => {
-    const location_id = getLocationId();
-    if (!location_id) return;
-    setLockActionLoading(true);
-    try {
-      const res = await fetch("/api/payroll-periods", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id, month }),
-      });
-      if (res.ok) await loadPeriodLock(month);
-    } finally { setLockActionLoading(false); }
+  const load = useCallback(async () => {
+    const id = locationId();
+    if (!id) return;
+    const d = await fetch(`/api/payroll-periods?location_id=${id}&month=${month}`).then(r => r.json()).catch(() => null);
+    setPeriodLock(Array.isArray(d) && d.length > 0 ? d[0] : null);
+  }, [month]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
+  const lock = async () => {
+    setBusy(true);
+    try { const r = await fetch("/api/payroll-periods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location_id: locationId(), month }) }); if (r.ok) await load(); }
+    finally { setBusy(false); }
   };
-
-  const handleUnlockPeriod = async () => {
+  const unlock = async () => {
     if (!periodLock?.id) return;
-    setLockActionLoading(true);
-    try {
-      const res = await fetch(`/api/payroll-periods?id=${periodLock.id}`, { method: "DELETE" });
-      if (res.ok) await loadPeriodLock(month);
-    } finally { setLockActionLoading(false); }
+    setBusy(true);
+    try { const r = await fetch(`/api/payroll-periods?id=${periodLock.id}`, { method: "DELETE" }); if (r.ok) await load(); }
+    finally { setBusy(false); }
   };
-
-  const loadReport = useCallback(async (m: string) => {
-    const location_id = getLocationId();
-    if (!location_id) { setError("Şube bulunamadı."); return; }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/reports/monthly?location_id=${location_id}&month=${m}`);
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Hata oluştu"); return; }
-      setRows(data.rows ?? []);
-    } catch {
-      setError("Bağlantı hatası");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadReport(month); }, [month, loadReport]);
-
-  const handleExport = () => {
-    if (rows.length === 0) return;
-    const location_id = getLocationId();
-    if (!location_id) return;
-    // Excel sunucu tarafında (exceljs) üretilir — aynı /api/reports/monthly endpoint'i,
-    // ?format=xlsx ile aynı veriyi indirilebilir dosya olarak döner.
-    window.location.href = `/api/reports/monthly?location_id=${location_id}&month=${month}&format=xlsx`;
-  };
-
-  const totalShifts = rows.reduce((s, r) => s + r.shift_count, 0);
-  const totalHours = Math.round(rows.reduce((s, r) => s + r.total_hours, 0) * 10) / 10;
-  const totalOvertime = Math.round(rows.reduce((s, r) => s + r.overtime_hours, 0) * 10) / 10;
-  const totalOvertimeCost = rows.reduce((s, r) => s + (r.overtime_cost ?? 0), 0);
-  const visibleRows = showAllRows ? rows : rows.slice(0, ROW_PREVIEW);
-  const hasCost = rows.some(r => r.overtime_cost !== null && r.overtime_cost !== undefined);
-
+  // Kilit ay bitmeden (son hafta hariç) gösterilmez: yeni kullanıcıya anlamsız
+  const showLock = !!periodLock || month < currentMonth() || new Date().getDate() >= 24;
   return (
-    <div className="space-y-6">
-      {/* Ay + indirmeler: tek satır. İndirmeler ikincil (DESIGN.md §5: bu görünümde birincil eylem yok) */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          <button onClick={() => setMonth(prevMonth(month))} aria-label="Önceki ay" title="Önceki ay"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
-            <ChevronLeft size={18} />
-          </button>
-          <p className="min-w-[7.5rem] text-center text-base font-bold text-slate-900">{getMonthLabel(month)}</p>
-          <button onClick={() => setMonth(nextMonth(month))} disabled={month >= currentMonth()} aria-label="Sonraki ay" title="Sonraki ay"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { const lid = getLocationId(); if (lid) window.location.href = `/api/reports/timesheet?location_id=${lid}&month=${month}`; }}
-            title="Her kişinin her gün ne zaman girip çıktığı. Bordro ve muhasebe programına aktarmak için CSV dosyası."
-            className={downloadClass}
-          >
-            <Download size={15} /> Puantaj
-          </button>
-          <button onClick={handleExport} disabled={rows.length === 0 || loading} title="Aylık özet, Excel dosyası" className={downloadClass}>
-            <Download size={15} /> Excel
-          </button>
-        </div>
-      </div>
-
-      {/* Puantaj dönem kilidi: tek satır. Ay bitmeden (son hafta hariç) gösterilmez: yeni kullanıcıya anlamsız */}
-      {(periodLock || month < currentMonth() || new Date().getDate() >= 24) && (
-      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3">
-        {periodLock ? <Lock size={16} className="shrink-0 text-slate-500" /> : <Unlock size={16} className="shrink-0 text-amber-600" />}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">{periodLock ? "Dönem kilitli" : "Dönem açık"}</p>
-          <p className="text-xs text-slate-500">
-            {periodLock
-              ? `${periodLock.locked_by_name ?? "Sorumlu"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`
-              : "Puantajı onayladıktan sonra ayı kilitleyin. Böylece geçmiş kayıtlar değiştirilemez."}
-          </p>
-        </div>
-        {periodLock ? (
-          (role === "admin" || role === "supervisor") && (
-            <button onClick={handleUnlockPeriod} disabled={lockActionLoading} className={cn(downloadClass, "shrink-0")}>
-              Kilidi Aç
-            </button>
-          )
-        ) : (
-          <button onClick={handleLockPeriod} disabled={lockActionLoading} className={cn(downloadClass, "shrink-0")}>
-            <Lock size={14} /> Kilitle
-          </button>
-        )}
-      </div>
-      )}
-
-      {rows.length > 0 && (
-        <div className={`grid grid-cols-2 ${hasCost ? "md:grid-cols-4" : "md:grid-cols-3"} gap-3`}>
-          <StatCard label="Kişi" value={rows.length} icon={Users} />
-          <StatCard label="Toplam çalışma" value={`${trNum(totalHours)} sa`} icon={Clock} />
-          <StatCard label="Fazla mesai" value={`${trNum(totalOvertime)} sa`} icon={TrendingUp} tone={totalOvertime > 0 ? "attention" : "neutral"} />
-          {hasCost && (
-            <StatCard label="Mesai maliyeti" value={`₺${totalOvertimeCost.toLocaleString("tr-TR")}`} icon={Wallet}
-              tone={totalOvertimeCost > 0 ? "danger" : "neutral"} hint="Saat × ücret × 1,5" />
-          )}
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
-            <RefreshCw size={18} className="animate-spin" />
-            <span className="text-sm">Yükleniyor…</span>
-          </div>
-        ) : error ? (
-          <div className="py-16 text-center text-sm text-red-500">{error}</div>
-        ) : rows.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-sm text-slate-500">Bu ay için yayınlanan vardiya bulunamadı.</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="text-left px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Ad Soyad</th>
-                <th className="hidden sm:table-cell text-left px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Departman</th>
-                <th className="hidden sm:table-cell text-right px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Vardiya</th>
-                <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Saat</th>
-                <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Mesai</th>
-                {hasCost && <th className="text-right px-3 sm:px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Maliyet</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {visibleRows.map((row, i) => (
-                <tr key={row.personnel_id} className={`hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/20"}`}>
-                  <td className="px-3 sm:px-5 py-3 font-medium text-slate-900">
-                    {row.name}
-                    {/* Telefonda Departman/Vardiya sütunları gizli: ismin altında kısa özet */}
-                    <span className="sm:hidden block text-xs font-normal text-slate-400">{row.title ? `${row.title} · ` : ""}{row.shift_count} vardiya</span>
-                  </td>
-                  <td className="hidden sm:table-cell px-5 py-3 text-slate-500">{row.title || "—"}</td>
-                  <td className="hidden sm:table-cell px-5 py-3 text-right text-slate-700">{row.shift_count}</td>
-                  <td className="px-3 sm:px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{trNum(row.total_hours)} sa</td>
-                  <td className="px-3 sm:px-5 py-3 text-right whitespace-nowrap">
-                    {row.overtime_hours > 0 ? (
-                      <StatusPill tone="attention">
-                        +{trNum(row.overtime_hours)} sa
-                      </StatusPill>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  {hasCost && (
-                    <td className="px-3 sm:px-5 py-3 text-right text-slate-700 whitespace-nowrap">
-                      {row.overtime_cost ? `₺${row.overtime_cost.toLocaleString("tr-TR")}` : <span className="text-slate-400">—</span>}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="px-3 sm:px-5 py-3 font-bold text-slate-900">Toplam <span className="font-normal text-slate-400">({rows.length} kişi)</span></td>
-                <td className="hidden sm:table-cell" />
-                <td className="hidden sm:table-cell px-5 py-3 text-right font-bold text-slate-900">{totalShifts}</td>
-                <td className="px-3 sm:px-5 py-3 text-right font-bold text-slate-900 whitespace-nowrap">{trNum(totalHours)} sa</td>
-                <td className="px-3 sm:px-5 py-3 text-right font-bold text-amber-700 whitespace-nowrap">{totalOvertime > 0 ? `+${trNum(totalOvertime)} sa` : "—"}</td>
-                {hasCost && <td className="px-3 sm:px-5 py-3 text-right font-bold text-red-700 whitespace-nowrap">{totalOvertimeCost > 0 ? `₺${totalOvertimeCost.toLocaleString("tr-TR")}` : "—"}</td>}
-              </tr>
-            </tfoot>
-          </table>
-        )}
-        {!loading && !error && rows.length > ROW_PREVIEW && (
-          <button onClick={() => setShowAllRows(v => !v)}
-            className="w-full py-3 text-sm font-bold text-forest-600 hover:bg-forest-50 border-t border-slate-100 transition-colors">
-            {showAllRows ? "Daha az göster" : `Tümünü göster (${rows.length} kişi)`}
-          </button>
-        )}
-      </div>
-
-      <p className="text-xs text-slate-400 text-center">
-        Fazla mesai hesabı: ayarlardaki haftalık eşiği aşan çalışma süresi. Maliyet = fazla mesai × saatlik ücret × 1,5 (%50 zamlı).
-      </p>
+    <div className="flex flex-wrap items-center gap-2">
+      <button onClick={() => { const id = locationId(); if (id) window.location.href = `/api/reports/timesheet?location_id=${id}&month=${month}`; }}
+        title="Her kişinin her gün ne zaman girip çıktığı. Bordro ve muhasebe programına aktarmak için CSV dosyası." className={downloadClass}>
+        <Download size={15} /> Puantaj
+      </button>
+      <button onClick={() => { const id = locationId(); if (id) window.location.href = `/api/reports/monthly?location_id=${id}&month=${month}&format=xlsx`; }}
+        title="Kişi kişi aylık çalışma ve fazla mesai, Excel dosyası" className={downloadClass}>
+        <Download size={15} /> Excel
+      </button>
+      {showLock && (periodLock ? (
+        (role === "admin" || role === "supervisor")
+          ? <button onClick={unlock} disabled={busy} title={`${periodLock.locked_by_name ?? "Sorumlu"} kilitledi. Giriş/çıkış ve düzenleme yapılamaz.`} className={downloadClass}><Lock size={14} /> Kilitli, aç</button>
+          : <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"><Lock size={13} /> Ay kilitli</span>
+      ) : (
+        <button onClick={lock} disabled={busy} title="Puantajı onayladıktan sonra ayı kilitleyin. Böylece geçmiş kayıtlar değiştirilemez." className={downloadClass}>
+          <Unlock size={14} /> Ayı kilitle
+        </button>
+      ))}
     </div>
   );
 }
@@ -297,9 +76,9 @@ function WorkHoursReport() {
 // ?tab=adalet derin linki desteklenir (eski /fairness adresi buraya yönlendirir).
 
 const REPORT_TABS = [
-  // Aylık Özet (lib/monthlyGain) ilk ve varsayılan: ay başı bildirimi buraya açılır (?tab=ozet&month=)
-  { id: "ozet",    label: "Aylık Özet",       icon: Sparkles },
-  { id: "saatler", label: "Çalışma Süresi", icon: Clock },
+  // Özet (lib/reports/teamReport) ilk ve varsayılan: ay başı bildirimi buraya açılır (?tab=ozet&month=).
+  // 2026-10-09: eski Aylık Özet ve Çalışma Süresi sekmeleri Özet'te birleşti (puantaj ve Excel ay seçicinin yanında)
+  { id: "ozet",    label: "Özet",             icon: Sparkles },
   { id: "adalet",  label: "Adalet Puanı",     icon: Scale },
   { id: "mesai",   label: "Fazla Mesai",      icon: Timer },
 ] as const;
@@ -318,14 +97,16 @@ function ReportsPageInner() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReportTab>(() => {
     const t = searchParams.get("tab");
-    return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "ozet";
+    return REPORT_TABS.some(x => x.id === t) ? (t as ReportTab) : "ozet"; // eski ?tab=saatler de Özet'e düşer
   });
 
   // Fazla mesai sekmesi sadece Fazla Mesai Takibi açıkken
   const [overtimeOn, setOvertimeOn] = useState(false);
+  const [locId, setLocId] = useState("");
   useEffect(() => {
     const loc = localStorage.getItem("optishift_selected_location") || "";
     if (!loc) return;
+    void Promise.resolve().then(() => setLocId(loc));
     let stale = false;
     fetch(`/api/locations?id=${loc}`).then(res => (res.ok ? res.json() : null)).then(d => {
       const rules = Array.isArray(d) ? d[0]?.rules : d?.rules;
@@ -347,8 +128,8 @@ function ReportsPageInner() {
 
       <Tabs items={REPORT_TABS.filter(t => t.id !== "mesai" || overtimeOn)} value={tab} onChange={selectTab} />
 
-      {tab === "ozet" ? <MonthlyGainReport initialMonth={searchParams.get("month")} />
-        : tab === "saatler" ? <WorkHoursReport /> : tab === "mesai" && overtimeOn ? <OvertimeReport /> : <FairnessReport />}
+      {tab === "ozet" ? <TeamReport locationId={locId} initialMonth={searchParams.get("month")} tools={m => <PayrollTools month={m} />} />
+        : tab === "mesai" && overtimeOn ? <OvertimeReport /> : <FairnessReport />}
     </Page>
   );
 }
