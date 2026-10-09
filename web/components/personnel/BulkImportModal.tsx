@@ -207,7 +207,7 @@ export default function BulkImportModal({ locationId, onClose, onDone }: {
                 <input type="checkbox" checked={createDepts} onChange={e => setCreateDepts(e.target.checked)} className="mt-0.5 accent-forest-600" />
                 <span>
                   <strong>Şubede olmayan departmanları oluştur:</strong> {unknownDepts.join(", ")}.{" "}
-                  <span className="text-slate-500">Departman eklenince ihtiyaç tablosu departman bazına geçer. İşaretlemezseniz bu kişiler departmansız eklenir.</span>
+                  <span className="text-slate-500">Departman eklenince kişi sayıları departman departman girilir. İşaretlemezseniz bu kişiler departmansız eklenir.</span>
                 </span>
               </label>
             )}

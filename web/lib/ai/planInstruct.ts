@@ -12,7 +12,10 @@ import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 export type InstructPerson = { id: string; name: string; weekly_off_day?: number | null };
 export type InstructShift = { id: string; name: string; start: string; end: string };
 export type InstructDept = { id: string; name: string };
-export type InstructCtx = { people: InstructPerson[]; shifts: InstructShift[]; departments: InstructDept[]; weekStart: string; today: string };
+/** Kayıtlı kişi sayıları: departman kimliği (departmansız şubede "") → vardiya → gün → kişi.
+ *  "Bir kişi daha" gibi göreli istekler bunun üstüne eklenir. */
+export type InstructDemand = Record<string, Record<string, Record<string, number>>>;
+export type InstructCtx = { people: InstructPerson[]; shifts: InstructShift[]; departments: InstructDept[]; weekStart: string; today: string; demand?: InstructDemand };
 
 const MAX_DIRECTIVES = 12;
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
@@ -163,8 +166,10 @@ export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides
     if (type === "demand") {
       const sh = findShift(ctx.shifts, str(a.shift));
       if (!sh) { dropped.push(`Vardiya adı anlaşılamadı. Vardiyalar: ${ctx.shifts.map(s => s.name).join(", ")}.`); continue; }
+      // "add": göreli değişiklik ("bir kişi daha" → +1), "count": kesin sayı
+      const add = a.add !== undefined && a.add !== null && a.add !== "" ? Math.round(Number(a.add)) : null;
       const count = Math.round(Number(a.count));
-      if (!(count >= 0 && count <= 50)) { dropped.push(`${sh.name}: kişi sayısı anlaşılamadı.`); continue; }
+      if (add !== null ? !(Math.abs(add) >= 1 && Math.abs(add) <= 20) : !(count >= 0 && count <= 50)) { dropped.push(`${sh.name}: kişi sayısı anlaşılamadı.`); continue; }
       let dept: InstructDept | null = null;
       if (ctx.departments.length) {
         const w = norm(str(a.department));
@@ -173,8 +178,21 @@ export function resolveDirectives(raw: unknown[], ctx: InstructCtx): { overrides
       }
       const days = future(parseDays(a.days));
       if (!days.length) { dropped.push(`${sh.name}: günler geçmişte kaldı.`); continue; }
-      overrides.push({ type: "demand", shift_id: sh.id, days, count, department_id: dept?.id ?? null });
-      summary.push(`${dept ? `${dept.name}, ` : ""}${sh.name}: ${daysLabel(days)} ${count} kişi gerekir (sadece bu plan için).`);
+      if (add === null) {
+        overrides.push({ type: "demand", shift_id: sh.id, days, count, department_id: dept?.id ?? null });
+        summary.push(`${dept ? `${dept.name}, ` : ""}${sh.name}: ${daysLabel(days)} ${count} kişi gerekir (sadece bu plan için).`);
+        continue;
+      }
+      // Göreli: her gün kayıtlı sayının üstüne (gün gün farklı olabilir)
+      const row = ctx.demand?.[dept?.id ?? ""]?.[sh.id] ?? {};
+      const parts: string[] = [];
+      for (const d of days) {
+        const cur = Number(row[String(d)] ?? 0) || 0;
+        const next = Math.max(0, Math.min(50, cur + add));
+        overrides.push({ type: "demand", shift_id: sh.id, days: [d], count: next, department_id: dept?.id ?? null });
+        parts.push(`${DAY_NAMES[d]} ${cur} yerine ${next}`);
+      }
+      summary.push(`${dept ? `${dept.name}, ` : ""}${sh.name}: ${parts.join(", ")} kişi (sadece bu plan için).`);
       continue;
     }
 
@@ -201,7 +219,8 @@ export function planInstructPrompt(ctx: InstructCtx): string {
     "- {\"type\":\"work\",\"person\":\"Ad\",\"shift\":\"Akşam\",\"days\":[5]}  o gün o vardiyada mutlaka çalışsın",
     "- {\"type\":\"max_hours\",\"person\":\"Ad\",\"hours\":30}  bu hafta en fazla şu kadar saat",
     "- {\"type\":\"not_together\",\"person\":\"Ad\",\"other\":\"Ad\"}  ikisi aynı vardiyada olmasın",
-    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"count\":4" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  o vardiyada o gün şu kadar kişi olsun",
+    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"count\":4" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  o vardiyada o gün toplam şu kadar kişi olsun",
+    "- {\"type\":\"demand\",\"shift\":\"Akşam\",\"days\":[5],\"add\":1" + (ctx.departments.length ? ",\"department\":\"Departman adı\"" : "") + "}  \"bir kişi daha\", \"iki kişi fazla\" (add: +1, +2), \"bir kişi eksik olsun\" (add: -1). Göreli isteklerde count YAZMA, add yaz.",
     "Kurallar: İsimleri ve vardiya adlarını listeden aynen yaz. \"Yeniden dağıt\", \"planı düzelt\" gibi ifadeler ayrı istek değildir. Bir kişi için birden çok istek olabilir.",
     "Listede olmayan bir kişi ya da vardiya söylenirse ya da ne istendiği açık değilse \"ask\" ile kısa bir soru sor.",
     "Konuşma: önceki mesajlar varsa sorumlunun son mesajı bir soruya cevap ya da önceki isteklere ekleme/düzeltme olabilir. Cevabın HER ZAMAN bütün konuşmadaki geçerli isteklerin tam listesi olsun (önceki istekleri tekrar yaz, düzeltileni değiştir, vazgeçileni çıkar).",

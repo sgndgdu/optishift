@@ -37,6 +37,8 @@ function systemPrompt(context: string, actions: boolean): string {
     actions
       ? "- Kayıtları kendin değiştiremezsin; aşağıdaki işlemleri önerebilirsin. Diğer işler için uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar)."
       : "- Hiçbir kaydı değiştiremezsin. İşlem önerirsen uygulamada nereden yapılacağını söyle (Vardiya Planı, Ekip, Onaylar, Ayarlar, Raporlar, Açık Vardiyalar). İşlem için şubeye girilmesi gerektiğini söyle.",
+    "- Departmanlı şubede bir vardiyayı sorarken departmanı ayır (\"Cumartesi Bar akşam\" = sadece Bar departmanının Akşam vardiyası). Yerine kim girebilir sorularında aynı departmandan ya da o departmanda \"ayrıca\" çalışabilen, o gün vardiyası olmayan ve haftalık sınırı dolmamış kişileri öner.",
+    "- Taslak (yayınlanmamış) planda değişiklik istenirse işlem önerme; aynı cümleyi Vardiya Planı'ndaki \"Planı yazarak değiştirin\" kutusuna yazmasını, ya da kişiyi tablodan × ile çıkarıp sürükleyerek taşıyabileceğini söyle.",
     "- İş Kanunu sınırlarını (haftalık saat, 11 saat dinlenme, hafta tatili, yıllık izin) gözet; hukuki kesinlik iddia etme.",
     ...(actions ? ["", ACTIONS_PROMPT] : []),
     "",

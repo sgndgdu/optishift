@@ -415,6 +415,13 @@ export default function PersonnelPage() {
             return ids.map(id => editDepts.find(d => d.id === id)).filter(Boolean).map(d => departmentLabel(editDepts, d)).join(" + ") || null;
           }}
           hasDepts={() => editDepts.length > 0}
+          // Departmanlı şubede ekip departman departman (ana departmana göre), sıra Ayarlar'daki departman sırası
+          groupOf={editDepts.length > 0 ? p => {
+            const i = editDepts.findIndex(d => d.id === p.department_id);
+            return i < 0 ? null : { key: editDepts[i].id, label: departmentLabel(editDepts, editDepts[i]), order: i };
+          } : undefined}
+          extraDepts={p => p.assigned_department_ids.filter(id => id !== p.department_id)
+            .map(id => editDepts.find(d => d.id === id)).filter(Boolean).map(d => departmentLabel(editDepts, d!)).join(", ") || null}
           managerSummary={managerSummary}
           empty={search ? "Aramaya uyan kimse yok." : "Henüz kimse eklenmedi."}
           emptyAction={!search && (

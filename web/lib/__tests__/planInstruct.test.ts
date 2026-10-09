@@ -66,6 +66,20 @@ describe("resolveDirectives", () => {
     ]);
     expect(r.dropped).toEqual([]);
   });
+  it("bir kişi daha: kayıtlı sayının üstüne eklenir, gün gün", () => {
+    const withDemand = {
+      ...ctx, departments: [{ id: "bar", name: "Bar" }],
+      demand: { bar: { s2: { "5": 2, "6": 3 } } },
+    };
+    const r = resolveDirectives([{ type: "demand", shift: "Akşam", days: [5, 6], add: 1, department: "Bar" }], withDemand);
+    expect(r.overrides).toEqual([
+      { type: "demand", shift_id: "s2", days: [5], count: 3, department_id: "bar" },
+      { type: "demand", shift_id: "s2", days: [6], count: 4, department_id: "bar" },
+    ]);
+    expect(r.summary[0]).toBe("Bar, Akşam: Cumartesi 2 yerine 3, Pazar 3 yerine 4 kişi (sadece bu plan için).");
+    const less = resolveDirectives([{ type: "demand", shift: "Akşam", days: [5], add: -5, department: "Bar" }], withDemand);
+    expect(less.overrides[0]).toMatchObject({ count: 0 });
+  });
 });
 
 describe("applyOverrides", () => {

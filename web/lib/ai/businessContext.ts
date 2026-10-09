@@ -17,6 +17,7 @@ import { assignmentWorkMinutes } from "@/lib/legal";
 import { hasPerm } from "@/lib/userAccess";
 import { managerOutsideBranch } from "@/lib/access";
 import { buildWeekCalendar, calendarLines } from "@/lib/weekCalendar";
+import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const day = (d: number) => DAY_SHORT[d] ?? String(d);
@@ -50,9 +51,19 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   `).all(auth.org_id, loc.id, `%"${loc.id}"%`) as any[];
   const active = people.filter(p => p.status !== "inactive");
   const nameOf = new Map(people.map(p => [p.id, p.name]));
+
+  // Departmanlar: kişi ana departmanında ve yardım ettiği departmanlarda (joker) görünür; plan ve eksikler departman departman
+  const depts = sortDepartments(await db.prepare(`SELECT id, name, parent_id, demand_matrix FROM departments WHERE location_id = ?`).all(loc.id) as any[]);
+  const deptName = (id: string | null | undefined) => { const d = id ? depts.find(x => x.id === id) : null; return d ? departmentLabel(depts, d) : null; };
+  const personDept = new Map<string, string | null>(people.map(p => [p.id, p.department_id ?? null]));
+  if (depts.length) out.push(`Departmanlar: ${leafDepartments(depts).map(d => departmentLabel(depts, d)).join(", ")}`);
   out.push(`### Personel (${active.length} aktif${people.length > active.length ? `, ${people.length - active.length} pasif` : ""})`);
   for (const p of active) {
-    const bits = [p.title || "Personel", EMP[p.employment_type] ?? p.employment_type, `haftalık sınır ${p.max_weekly_hours ?? 45} s`];
+    const extra = (J(p.assigned_department_ids, []) as string[]).filter(id => id !== p.department_id).map(deptName).filter(Boolean);
+    const bits = [
+      depts.length ? (deptName(p.department_id) ? `departman ${deptName(p.department_id)}${extra.length ? ` (ayrıca ${extra.join(", ")})` : ""}` : "departmanı seçilmemiş") : (p.title || "Personel"),
+      EMP[p.employment_type] ?? p.employment_type, `haftalık sınır ${p.max_weekly_hours ?? 45} s`,
+    ];
     if (p.weekly_off_day !== null && p.weekly_off_day !== undefined) bits.push(`sabit izin günü ${day(Number(p.weekly_off_day))}`);
     if (p.hire_date) bits.push(`işe giriş ${p.hire_date}`);
     if (p.night_restriction) bits.push("gece çalıştırılamaz");
@@ -66,7 +77,7 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
   // Plan: bu hafta ve gelecek hafta
   for (const [label, ws] of [["Bu hafta", weekStart], ["Gelecek hafta", nextWeek]] as const) {
     const rows = await db.prepare(`
-      SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at
+      SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at, department_id
       FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
     `).all(loc.id, ws) as any[];
     const status = rows.length === 0 ? "plan yok" : rows.some(r => r.publication_status === "published") ? "yayınlandı" : "taslak (personel görmüyor)";
@@ -85,14 +96,31 @@ async function branchDetail(db: any, auth: AuthUser, loc: any): Promise<string[]
     for (const [pid, list] of byPerson) out.push(`- ${nameOf.get(pid) ?? pid} (${Math.round((hours.get(pid) ?? 0) * 10) / 10} s): ${list.join("; ")}`);
     const idle = active.filter(p => !byPerson.has(p.id)).map(p => p.name);
     if (rows.length && idle.length) out.push(`- Vardiyası olmayanlar: ${idle.join(", ")}`);
-    // İhtiyaç karşılaştırması (düz tablo)
-    const demand = J(loc.demand_matrix, {});
+    // Gün gün kim nerede: "Cmt 17.10 Akşam Servisi · Bar: Kaan Yıldız, Cansu Oral (2/2 kişi)"
+    // Vardiyanın departmanı: kayıttaki departman (joker) ya da kişinin ana departmanı
+    const leaves = depts.length ? leafDepartments(depts) : [];
+    const rowDept = (r: any) => (r.department_id ?? personDept.get(r.personnel_id) ?? null) as string | null;
+    const needOf = (deptId: string | null, defId: string, g: number) => {
+      const m = deptId ? J(depts.find(d => d.id === deptId)?.demand_matrix, {}) : J(loc.demand_matrix, {});
+      return Number(m?.[defId]?.[g] ?? m?.[defId]?.[String(g)] ?? 0) || 0;
+    };
     const gaps: string[] = [];
-    for (const d of defs) for (let g = 0; g < 7; g++) {
-      const need = Number(demand?.[d.id]?.[g] ?? demand?.[d.id]?.[String(g)] ?? 0);
-      if (!need) continue;
-      const got = rows.filter(r => r.day === g && String(r.shift_id) === String(d.id) && r.kind !== "on_call").length;
-      if (got < need) gaps.push(`${day(g)} ${d.name} ${got}/${need}`);
+    if (rows.length) {
+      out.push(`#### ${label}: gün gün kim çalışıyor (atanan/gereken)`);
+      const groups: (string | null)[] = depts.length ? [...leaves.map(d => d.id), null] : [null];
+      for (let g = 0; g < 7; g++) for (const d of defs) {
+        if (d.on_call) continue;
+        for (const gid of groups) {
+          // Vardiya kimliği tutmayan kayıt (ör. ilandan gelen "open-shift") saatinden eşleşir
+          const isDef = (r: any) => String(r.shift_id) === String(d.id) || (!defName.has(String(r.shift_id)) && r.start_time === d.start && r.end_time === d.end);
+          const here = rows.filter(r => r.day === g && isDef(r) && r.kind !== "on_call" && (!depts.length || rowDept(r) === gid));
+          const need = depts.length && gid === null ? 0 : needOf(gid, d.id, g);
+          if (!here.length && !need) continue;
+          const where = depts.length ? ` · ${gid ? deptName(gid) : "departmansız"}` : "";
+          out.push(`- ${day(g)} ${short(addDays(ws, g))} ${d.name}${where}: ${here.map(r => nameOf.get(r.personnel_id) ?? r.personnel_id).join(", ") || "kimse yok"}${need ? ` (${here.length}/${need})` : ""}`);
+          if (need && here.length < need) gaps.push(`${day(g)} ${d.name}${where} ${here.length}/${need}`);
+        }
+      }
     }
     if (rows.length && gaps.length) out.push(`- Eksik (atanan/gereken): ${gaps.join(", ")}`);
     if (ws === weekStart) {

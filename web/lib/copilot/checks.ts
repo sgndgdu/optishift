@@ -40,7 +40,9 @@ export interface WeekBudgets {
 export const fmtHours = (h: number) => `${h.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} saat`;
 const trN = (h: number) => h.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 export const dayList = (days: number[]) => days.map(d => DAY_SHORT[d]).join(", ");
-const gap = (g: { fromDay: number; toDay: number }) => `${DAY_SHORT[g.fromDay]}→${DAY_SHORT[g.toDay]}`;
+// Aynı gün: "Pzt" (iki vardiya aynı gün); eksi süre saatlerin çakıştığını gösterir ("-7 saat" yazılmaz)
+const gap = (g: { fromDay: number; toDay: number; hours: number }) =>
+  `${g.fromDay === g.toDay ? DAY_SHORT[g.fromDay] : `${DAY_SHORT[g.fromDay]}→${DAY_SHORT[g.toDay]}`} ${g.hours < 0 ? "saatleri çakışıyor" : fmtHours(g.hours)}`;
 
 /** "Ali, Veli ve Ayşe" / "Ali, Veli, Ayşe ve 2 kişi daha" */
 export function nameList(names: string[], max = 3): string {
@@ -91,7 +93,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     over.map(p => ({ text: `${p.name}: ${fmtHours(p.hours)}, sınır ${trN(p.maxHours)}${p.maxHours === 66 ? " (denkleştirmede tek hafta tavanı)" : ""}`, personId: p.id })));
 
   const shortRest = per(p => p.restGaps.filter(g => g.hours < rules.minRestHours),
-    (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}`);
+    (n, gs) => `${n}: ${gs.map(gap).join(", ")}`);
   add("short-rest", "critical", `${shortRest.length} kişinin iki vardiyası arasında ${rules.minRestHours} saatten az dinlenme var`, shortRest);
 
   // İş K. m.46: 7 günde en az 24 saat kesintisiz hafta tatili
@@ -162,7 +164,7 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     const unused = [...byShift.values()].filter(r => r.total === 0);
     add("shift-unused", "warning", `${unused.length} vardiyaya hafta boyunca kimse yazılmamış`, [
       ...unused.map(r => `${r.name}: ${upcoming.length < snap.coverage.length ? "kalan günlerin" : "7 günün"} hiçbirinde kimse yok`),
-      ...(unused.length ? ["Her vardiyaya kaç kişi gerektiğini ihtiyaç tablosuna girerseniz plan buna göre kurulur"] : []),
+      ...(unused.length ? ["Her vardiyaya kaç kişi gerektiğini plan tablosundaki kutulara girerseniz plan buna göre kurulur"] : []),
     ]);
   }
 
@@ -176,12 +178,12 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
     add("demand-gap", "warning", `${gapDays.length} günde kaç kişi gerektiği girilmemiş`, gapDays.map(d => {
       const day = upcoming.filter(c => c.day === d);
       const empty = day.filter(c => c.assigned === 0).map(c => c.shiftName);
-      return { text: `${DAY_SHORT[d]}: ${day.reduce((t, c) => t + c.assigned, 0)} kişi yazıldı${empty.length ? `, ${empty.join(", ")} boş` : ""}. İhtiyaç tablosunda bu günü doldurun`, day: d };
+      return { text: `${DAY_SHORT[d]}: ${day.reduce((t, c) => t + c.assigned, 0)} kişi yazıldı${empty.length ? `, ${empty.join(", ")} boş` : ""}. Plan tablosunda bu günün kişi sayılarını girin`, day: d };
     }));
   }
 
   const clopening = per(p => p.restGaps.filter(g => g.hours >= rules.minRestHours && g.hours < rules.clopeningMinRestHours),
-    (n, gs) => `${n}: ${gs.map(g => `${gap(g)} ${fmtHours(g.hours)}`).join(", ")}${gs.length >= 2 ? ". Yorgunluk riski yüksek" : ""}`);
+    (n, gs) => `${n}: ${gs.map(gap).join(", ")}${gs.length >= 2 ? ". Yorgunluk riski yüksek" : ""}`);
   add("clopening", "warning", `${clopening.length} kişide kapanıştan açılışa geçiş var (${rules.clopeningMinRestHours} saat dinlenme önerilir)`, clopening);
 
   const streak = working.filter(p => p.longestStreak > rules.maxConsecutiveDays);

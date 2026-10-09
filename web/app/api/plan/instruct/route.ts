@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { getDB } from "@/lib/db/client";
 import { canManageLocation } from "@/lib/access";
 import { aiChat, aiChatProvider } from "@/lib/ai/chat";
-import { extractJson, planInstructPrompt, resolveDirectives, type InstructCtx } from "@/lib/ai/planInstruct";
+import { extractJson, planInstructPrompt, resolveDirectives, type InstructCtx, type InstructDemand } from "@/lib/ai/planInstruct";
 import { businessToday } from "@/lib/date";
 
 // Cümleyle plan değiştirme, 1. adım: isteği motor kısıtlarına çevirir (lib/ai/planInstruct). Kayıt yazmaz.
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (n >= DAILY_LIMIT) return NextResponse.json({ error: "Bugünkü sınıra ulaşıldı, yarın tekrar deneyin." }, { status: 429 });
   usage.set(auth.id, { day, n: n + 1 });
 
-  const loc = await db.prepare(`SELECT shift_definitions FROM locations WHERE id = ? AND org_id = ?`).get(locationId, auth.org_id) as any;
+  const loc = await db.prepare(`SELECT shift_definitions, demand_matrix FROM locations WHERE id = ? AND org_id = ?`).get(locationId, auth.org_id) as any;
   if (!loc) return NextResponse.json({ error: "Şube bulunamadı" }, { status: 404 });
   const shifts = (J(loc.shift_definitions, []) as any[])
     .filter(s => !s.on_call && s.start && s.end)
@@ -47,8 +47,13 @@ export async function POST(req: NextRequest) {
     SELECT id, name, weekly_off_day FROM personnel
     WHERE org_id = ? AND status != 'inactive' AND (primary_location_id = ? OR assigned_location_ids LIKE ?) ORDER BY name
   `).all(auth.org_id, locationId, `%"${locationId}"%`) as any[];
-  const departments = await db.prepare(`SELECT id, name FROM departments WHERE location_id = ? ORDER BY name`).all(locationId) as any[];
-  const ctx: InstructCtx = { people, shifts, departments, weekStart, today: day };
+  const deptRows = await db.prepare(`SELECT id, name, demand_matrix FROM departments WHERE location_id = ? ORDER BY name`).all(locationId) as any[];
+  const departments = deptRows.map(d => ({ id: String(d.id), name: String(d.name) }));
+  // Kayıtlı kişi sayıları: "bir kişi daha" gibi göreli istekler bunun üstüne eklenir
+  const demand: InstructDemand = deptRows.length
+    ? Object.fromEntries(deptRows.map(d => [String(d.id), J(d.demand_matrix, {})]))
+    : { "": J(loc.demand_matrix, {}) };
+  const ctx: InstructCtx = { people, shifts, departments, weekStart, today: day, demand };
 
   // Konuşma: önceki mesajlar (sorumlunun yazdıkları ve modelin JSON cevapları), en fazla 8, her biri sınırlı
   const history = (Array.isArray(body?.history) ? body!.history as any[] : [])

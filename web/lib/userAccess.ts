@@ -12,7 +12,7 @@
 export type Perm = "prepare" | "publish" | "approvals" | "team" | "plan_settings" | "budget" | "cross_branch" | "delegate";
 
 export const PERM_LIST: { key: Perm; label: string; description: string }[] = [
-  { key: "prepare", label: "Planı hazırlama", description: "Vardiya planını ve ihtiyaç tablosunu hazırlar." },
+  { key: "prepare", label: "Planı hazırlama", description: "Vardiya planını ve vardiyalara kaç kişi gerektiğini hazırlar." },
   { key: "publish", label: "Planı yayınlama", description: "Planı ekibe yayınlar, yayınlanmış planı değiştirir." },
   { key: "approvals", label: "Onaylar", description: "İzin, vardiya değiştirme, fazla mesai ve saat düzeltme taleplerini onaylar. Ekipten biri başka şubeye yardıma gitmek isterse karar verir." },
   { key: "team", label: "Ekip", description: "Kişi ekler, çıkarır, kişi kartını ve belgeleri düzenler." },

@@ -12,7 +12,7 @@ import {
   Bell, ChevronLeft, ChevronRight, Check, AlertCircle,
   Download, Zap, Send, X, BookOpen, Sparkles, Copy,
   Undo2, Redo2, Search, Trash2, MoreHorizontal, BarChart2, CalendarPlus,
-  History, CheckCircle2, RefreshCw, ChevronDown, MessageCircle, Pin, PinOff, Lock,
+  History, ChevronDown, MessageCircle, Pin, PinOff, Lock, Users, UserMinus,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeRangeSlider, minToHHMM, hhmmToMin } from "@/components/schedule/TimeRangeSlider";
@@ -31,15 +31,15 @@ import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
 import PlanInstructBar, { type RebuildResult } from "@/components/schedule/PlanInstructBar";
 import WeekCalendarCard from "@/components/schedule/WeekCalendarCard";
 import type { PlanOverride } from "@/lib/planOverrides";
-import { CURVES, callDemand, type CallForecastInput, type CurveKey } from "@/lib/erlang";
 import {
   DndContext,
   DragEndEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
-  closestCenter,
+  pointerWithin,
 } from "@dnd-kit/core";
 import QuickSetup from "@/components/schedule/QuickSetup";
 import { isModuleOn } from "@/lib/moduleVisibility";
@@ -375,9 +375,6 @@ function SchedulePageInner() {
   const [calloutForm, setCalloutForm]             = useState({ start: "", end: "", note: "" });
   const [calloutBusy, setCalloutBusy]             = useState(false);
   // Çağrı merkezi: Erlang C ile ihtiyaç (lib/erlang), girdiler rules.call_forecast'ta saklanır
-  const [callFormOpen, setCallFormOpen]           = useState(false);
-  const [callForm, setCallForm]                   = useState<CallForecastInput>({ dailyCalls: [0, 0, 0, 0, 0, 0, 0], curve: "office", ahtSec: 240, slPercent: 80, slSeconds: 20, shrinkagePercent: 30 });
-  const [callSummary, setCallSummary]             = useState<string | null>(null);
   // "Gelemiyor" (hastalık/acil) penceresi: yayınlanmış vardiya için akıllı yedek (lib/openShiftCandidates)
   const [absence, setAbsence] = useState<{ assignmentId: number; personId: string; title: string } | null>(null);
   const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string; assignable?: boolean }[] | null>(null);
@@ -414,7 +411,6 @@ function SchedulePageInner() {
   const [shiftDefs, setShiftDefs]                 = useState<ShiftDefinition[]>([]);
   const [dbShiftCount, setDbShiftCount]           = useState(0); // DB'den yüklenen vardiya sayısı (yayınlandı göstergesi için)
   const [demandMatrix, setDemandMatrix]           = useState<Record<string, Record<number, number>>>({}); // shiftDefId → {day → count} (lokasyon geneli, OR-Tools fallback)
-  const [forecastMatrix, setForecastMatrix]       = useState<Record<string, Record<number, number>>>({}); // rules.forecasting_enabled — shiftDefId → {day → tahmini kişi sayısı}
   const [deptDemandMatrix, setDeptDemandMatrix]   = useState<Record<string, Record<string, Record<number, number>>>>({}); // deptId → shiftDefId → {day → count}
   const [fairnessOpen, setFairnessOpen]           = useState(false);
   const [isDraftWeek, setIsDraftWeek]             = useState(false);
@@ -483,17 +479,19 @@ function SchedulePageInner() {
   // Çalışma kuralını aşan planı sadece hesap sahibi yayınlar; diğerleri onayına gönderir (lib/ruleBend, /api/rule-exceptions)
   const [publishGate, setPublishGate] = useState<{ ruleLines: string[]; approved: boolean; pending: boolean } | null>(null);
   const [approvedLeaves, setApprovedLeaves]       = useState<{ personnel_id: string; start_date: string; end_date: string; type: string }[]>([]); // Plan Asistanı + yayın kontrolü: izinli gün ataması
-  const [demandTemplates, setDemandTemplates]     = useState<Record<string, { flat?: Record<string, Record<number, number>>; departments?: Record<string, Record<string, Record<number, number>>> }>>({}); // kaydedilmiş hafta şablonları
-  const [tplName, setTplName]                     = useState("");
-  const [tplOpen, setTplOpen]                     = useState(false); // ilk kullanımda şablon çubuğu kapalı
-  const [tplBusy, setTplBusy]                     = useState(false);
   const [excludedCompliance, setExcludedCompliance] = useState<{ id: string; name: string; doc_type: string; expiry_date: string }[]>([]);
   // Sertifika Kalkanı: belgesi geçersiz olduğu için bu haftalık planda düşürülen roller (/api/generate revoked_skills)
   const [revokedSkills, setRevokedSkills] = useState<{ id: string; name: string; skill: string; document: string; reason: "expired" | "missing" }[]>([]);
   const [personnelFilter, setPersonnelFilter]     = useState('');
   const [canUndo, setCanUndo]                     = useState(false);
   const [canRedo, setCanRedo]                     = useState(false);
-  const [demandOpen, setDemandOpen]               = useState(false);
+  const [forecastMatrix, setForecastMatrix]       = useState<Record<string, Record<number, number>>>({}); // rules.forecasting_enabled: shiftDefId → {day → tahmini kişi sayısı}
+  // Plan tablosunda bütün kutularda kişi sayısı düzenleme (− / +)
+  const [countsEditing, setCountsEditing]         = useState(false);
+  const openCountsEditing = () => {
+    setCountsEditing(true);
+    setTimeout(() => document.querySelector("[data-schedule-grid]")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
   const [proposalModal, setProposalModal]         = useState<{
     personnelId: string; name: string;
     currentDate: string; currentStart: string; currentEnd: string;
@@ -673,14 +671,6 @@ function SchedulePageInner() {
           setDemandMatrix({});
         }
 
-        // Kaydedilmiş hafta şablonlarını yükle (normal/bakım/kampanya)
-        try {
-          const rawTpl = Array.isArray(locData) && locData[0]?.demand_templates
-            ? (typeof locData[0].demand_templates === "string" ? JSON.parse(locData[0].demand_templates) : locData[0].demand_templates)
-            : {};
-          setDemandTemplates(rawTpl && typeof rawTpl === "object" ? rawTpl : {});
-        } catch { setDemandTemplates({}); }
-
         // Tam kural objesi + clopening eşiği + uygunluk toplama (locations.rules)
         let clopeningRest = 13;
         let collectAvail = true;
@@ -702,7 +692,7 @@ function SchedulePageInner() {
           setClosedDays([0, 1, 2, 3, 4, 5, 6].filter(d => hours?.[d]?.isOpen === false));
         } catch { setClosedDays([]); }
 
-        // Talep tahmini (rules.forecasting_enabled) — kapasite matrisi hücrelerinde ipucu gösterir
+        // Yoğunluk tahmini (rules.forecasting_enabled): kişi sayısı düzenlenirken kutuda ipucu
         if (isModuleOn(parsedRules, "forecasting_enabled")) {
           try {
             const fRes = await fetch(`/api/forecast?location_id=${activeLocationId}&week_start=${weekStart}`);
@@ -1045,34 +1035,6 @@ function SchedulePageInner() {
       .catch(() => {});
     return () => { stale = true; };
   }, [wizardOpen, activeLocationId, weekStart, departments.length, personnel.length]);
-
-  const openCallForm = () => {
-    const saved = (locRules as Record<string, unknown>).call_forecast as Partial<CallForecastInput> | undefined;
-    if (saved && Array.isArray(saved.dailyCalls)) setCallForm(f => ({ ...f, ...saved }));
-    setCallFormOpen(true);
-  };
-  const applyCallForecast = async () => {
-    if (!activeLocationId) return;
-    const res = callDemand(shiftDefs.filter(d => !d.on_call), callForm);
-    setDemandMatrix(res.matrix);
-    const pk = res.peak;
-    setCallSummary(pk && pk.agents > 0
-      ? `En yoğun saat: ${DAY_NAMES[pk.day]} ${String(pk.hour).padStart(2, "0")}:00, ${pk.agents} temsilci (mola payı dahil).`
-      : "Çağrı girilmedi, ihtiyaç 0.");
-    try {
-      // rules REPLACE edildiği için taze kurallar üzerine yazılır
-      const locRes = await fetch(`/api/locations?id=${activeLocationId}`);
-      const locData = await locRes.json();
-      const raw = Array.isArray(locData) ? locData[0]?.rules : null;
-      const fresh = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
-      await fetch(`/api/locations?id=${activeLocationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_matrix: res.matrix, rules: { ...fresh, call_forecast: callForm } }),
-      });
-      showToast("Çağrı yoğunluğuna göre ihtiyaç tabloya yazıldı.", "success");
-    } catch { showToast("Kaydedilemedi.", "error"); }
-  };
 
   const applyDemandSuggestion = async (auto = false) => {
     if (!demandSuggestion || !activeLocationId) return;
@@ -1898,81 +1860,11 @@ function SchedulePageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ demand_matrix: matrix ?? latestDemandRef.current.flat }),
       }));
-      if (!silent) showToast("İhtiyaç tablosu kaydedildi.", "success");
+      if (!silent) showToast("Kişi sayıları kaydedildi.", "success");
     } catch {
-      if (!silent) showToast("İhtiyaç tablosu kaydedilemedi.", "error");
+      if (!silent) showToast("Kişi sayıları kaydedilemedi.", "error");
     }
   };
-
-  // ── Hafta şablonları: mevcut Kapasite Planı'nı isimle kaydet / kayıtlı şablonu uygula ──
-  const handleTemplateSave = async () => {
-    const name = tplName.trim();
-    if (!name || !activeLocationId) return;
-    setTplBusy(true);
-    try {
-      const next = {
-        ...demandTemplates,
-        [name]: departments.length > 0 ? { departments: deptDemandMatrix } : { flat: demandMatrix },
-      };
-      const r = await fetch(`/api/locations?id=${activeLocationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_templates: next }),
-      });
-      if (r.ok) {
-        setDemandTemplates(next);
-        setTplName("");
-        showToast(`"${name}" tablosu kaydedildi.`);
-      } else showToast("Tablo kaydedilemedi.", "error");
-    } catch { showToast("Tablo kaydedilemedi.", "error"); }
-    finally { setTplBusy(false); }
-  };
-
-  const handleTemplateApply = async (name: string) => {
-    const t = demandTemplates[name];
-    if (!t || !activeLocationId) return;
-    setTplBusy(true);
-    try {
-      if (departments.length > 0 && t.departments) {
-        setDeptDemandMatrix(t.departments);
-        for (const [deptId, matrix] of Object.entries(t.departments)) {
-          if (!departments.some(d => d.id === deptId)) continue; // silinmiş departmanı atla
-          await fetch(`/api/departments?id=${deptId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ demand_matrix: matrix }),
-          });
-        }
-      } else if (t.flat) {
-        setDemandMatrix(t.flat);
-        await fetch(`/api/locations?id=${activeLocationId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ demand_matrix: t.flat }),
-        });
-      } else {
-        showToast("Bu kayıtlı tablo mevcut yapıyla uyumlu değil (departman düzeni değişmiş).", "error");
-        return;
-      }
-      showToast(`"${name}" tablosu uygulandı, Planı Oluştur bu sayıları kullanır.`);
-    } catch { showToast("Tablo uygulanamadı.", "error"); }
-    finally { setTplBusy(false); }
-  };
-
-  const handleTemplateDelete = async (name: string) => {
-    if (!activeLocationId) return;
-    const next = { ...demandTemplates };
-    delete next[name];
-    setDemandTemplates(next);
-    try {
-      await fetch(`/api/locations?id=${activeLocationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demand_templates: next }),
-      });
-    } catch { /* sessiz */ }
-  };
-
 
   const handleDeptDemandSave = async (deptId: string, override?: Record<string, Record<number, number>>) => {
     try {
@@ -2331,29 +2223,6 @@ function SchedulePageInner() {
     return warnings;
   }, [hasDeptDemand, deptDemandMatrix, demandMatrix, personnel, departments, availMap, shiftDefs, locRules, chefDept]);
 
-  // Kapasite Planı hücrelerinde "bu gün en fazla kaç kişi girilebilir" ipucu için —
-  // departman verilmezse lokasyon geneli, verilirse sadece o departmanın personeli sayılır.
-  const maxAvailableFor = (day: number, deptId?: string) => {
-    const pool = deptId ? personnel.filter(p => p.department_id === deptId || p.department_ids?.includes(deptId)) : personnel;
-    return pool.filter(p => availMap[p.id]?.[day]?.status !== 'unavailable').length;
-  };
-
-  // Bir kişi günde yalnızca 1 vardiyaya girebildiği için, bir hücrenin gerçek üst
-  // sınırı o günün toplam uygun kişisinden AYNI departmanın o gündeki diğer
-  // vardiyalarına zaten girilmiş sayı düşülerek bulunur (kalan kapasite) —
-  // aksi halde "Sabah:5, Akşam:5" gibi tek tek sınır içinde görünen ama toplamda
-  // imkansız girişler kırmızı uyarı almadan geçebilirdi.
-  const remainingCapacityFor = (day: number, currentDefId: string, deptId?: string) => {
-    const totalAvail = maxAvailableFor(day, deptId);
-    const matrix = deptId ? (deptDemandMatrix[deptId] ?? {}) : demandMatrix;
-    const usedByOtherShifts = shiftDefs.reduce((sum, d) => {
-      if (d.id === currentDefId) return sum;
-      return sum + (matrix[d.id]?.[day] ?? 0);
-    }, 0);
-    return totalAvail - usedByOtherShifts;
-  };
-
-
   // Personel filtresi
   const filteredPersonnel = personnelFilter.trim()
     ? personnel.filter(p => p.name.toLowerCase().includes(personnelFilter.toLowerCase()))
@@ -2443,18 +2312,16 @@ function SchedulePageInner() {
     });
   };
 
+  // Fareyle 5 px kayınca, telefonda basılı tutunca sürüklenir (dokunup kaydırmak sayfayı kaydırır)
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    })
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
   const handleDragStart = (event: any) => {
     const { active } = event;
-    const type = active.data?.current?.type || "grid";
-    const personId = active.data?.current?.personId || active.id.split('-')[0];
+    const type = "grid";
+    const personId = active.data?.current?.personId;
     const person = personnel.find(p => p.id === personId);
     
     setActiveDragData({
@@ -2466,49 +2333,66 @@ function SchedulePageInner() {
 
   const handleDragCancel = () => setActiveDragData(null);
 
+  // Sürükle bırak (components/schedule/ShiftBoard): ad başka güne / vardiyaya taşınır.
+  // Kişi bırakılan departmanda çalışmıyorsa ya da o gün zaten vardiyadaysa taşınmaz.
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragData(null);
-    const { active, over } = event;
-    if (!over) return;
-    
-    const sourceId = active.id as string;
-    const targetId = over.id as string;
-    
-    if (sourceId === targetId) return;
-
+    const src = event.active.data.current as { kind?: string; personId?: string; day?: number } | undefined;
+    const dst = event.over?.data.current as { kind?: string; groupId?: string; def?: ShiftDefinition; day?: number } | undefined;
+    if (src?.kind !== "board-chip" || dst?.kind !== "board-cell" || !src.personId || src.day === undefined || !dst.def || dst.day === undefined || !dst.groupId) return;
+    const pid = src.personId, fromDay = src.day, toDay = dst.day, def = dst.def, gid = dst.groupId;
+    const sourceCell = cellMap[`${pid}-${fromDay}`];
+    if (!sourceCell || def.on_call) return;
+    const person = personnel.find(p => p.id === pid);
+    const name = person?.name ?? "Bu kişi";
+    const inGroup = gid === "__all__" || (gid === "__none__" ? !person?.department_id : person?.department_id === gid || !!person?.department_ids?.includes(gid));
+    if (!inGroup) { showToast(`${name} bu departmanda çalışmıyor.`, "error"); return; }
+    if (toDay !== fromDay && cellMap[`${pid}-${toDay}`]) { showToast(`${name} ${DAY_NAMES[toDay]} günü zaten vardiyada.`, "error"); return; }
+    const st = boardStatusOf(pid, toDay);
+    if (st === "leave" || st === "away") { showToast(`${name} ${DAY_NAMES[toDay]} günü ${st === "leave" ? "izinli" : "başka şubede"}.`, "error"); return; }
+    const startMin = hhmmToMin(def.start);
+    let endMin = hhmmToMin(def.end);
+    if (endMin <= startMin) endMin += 1440;
+    if (toDay === fromDay && sourceCell.startMin === startMin && sourceCell.endMin === endMin && (sourceCell.deptId ?? person?.department_id ?? "__all__") === gid) return;
+    const joker = gid !== "__all__" && gid !== "__none__" && person?.department_id !== gid;
     const newMap = { ...cellMap };
-
-    // Tablo içi taşıma: kaynak ve hedef kimliği `${personel_id}-${gün}` (DraggableShift / DroppableCell).
-    // (Eski ShiftBoard pano görünümünün person-/assigned-/shift- dalı pano silinince kaldırıldı.)
-    const sourceCell = cellMap[sourceId];
-    if (!sourceCell) return;
-
-    const lastDash = targetId.lastIndexOf("-");
-    const targetPId = targetId.slice(0, lastDash);
-    const targetDay = parseInt(targetId.slice(lastDash + 1));
-    const targetAvail = availMap[targetPId]?.[targetDay];
-    const targetPerson = personnel.find(p => p.id === targetPId);
-
-    if (targetAvail?.status === "unavailable") {
-      showToast("Hedef gün izinli, vardiya taşınamaz.", "error");
-      return;
-    }
-    if (targetPerson?.weekly_off_day !== null && targetPerson?.weekly_off_day !== undefined && Number(targetPerson.weekly_off_day) === targetDay) {
-       showToast("Hedef gün kişinin haftalık izni, vardiya taşınamaz.", "error");
-       return;
-    }
-
-    // Departman başka kişiye taşınmaz: hedef kişinin o departmanı yoksa ana departmanına sayılır
-    const { deptId: srcDept, ...rest } = sourceCell;
-    newMap[targetId] = {
-      ...rest,
-      ...(srcDept && targetPerson?.department_ids?.includes(srcDept) ? { deptId: srcDept } : {}),
-      points: cellBurden(sourceCell.startMin, sourceCell.endMin, targetDay, availMap, targetPId, locRules, shiftDefs, weekStart),
+    delete newMap[`${pid}-${fromDay}`];
+    const { deptId: _oldDept, ...rest } = sourceCell; void _oldDept;
+    newMap[`${pid}-${toDay}`] = {
+      ...rest, startMin, endMin,
+      ...(joker ? { deptId: gid } : {}),
+      points: cellBurden(startMin, endMin, toDay, availMap, pid, locRules, shiftDefs, weekStart),
       pinned: true,
     };
-    delete newMap[sourceId];
-    
     pushCellMap(newMap);
+    if (st === "unavailable" || st === "weekly_off") showToast(`${name} ${DAY_NAMES[toDay]} günü ${st === "unavailable" ? "\"Gelemem\" demişti" : "haftalık izinli"}. Plan Kontrolü'nde uyarı olarak görünür.`, "error");
+  };
+
+  // Plan tablosundan çıkarma (adın yanındaki ×)
+  const boardRemove = (pid: string, day: number) => {
+    const key = `${pid}-${day}`;
+    if (!cellMap[key]) return;
+    const newMap = { ...cellMap };
+    delete newMap[key];
+    pushCellMap(newMap);
+    setPopover(null);
+    const person = personnel.find(p => p.id === pid);
+    showToast(`${person?.name ?? "Kişi"} ${DAY_NAMES[day]} vardiyasından çıkarıldı. Geri almak için Ctrl+Z ya da İşlemler › Geri Al.`);
+  };
+
+  // Kişi sayısı plan tablosunda değişir (ShiftBoard): şubeye ya da departmana kaydedilir, sonraki haftalar da bu sayıyla açılır
+  const boardDemandChange = (gid: string, defId: string, day: number, n: number) => {
+    if (departments.length > 0) {
+      if (!demandDepts.some(d => d.id === gid)) return;
+      const cur = deptDemandMatrix[gid] ?? {};
+      const next = { ...cur, [defId]: { ...(cur[defId] ?? {}), [day]: n } };
+      setDeptDemandMatrix(prev => ({ ...prev, [gid]: next }));
+      handleDeptDemandSave(gid, next);
+    } else if (gid === "__all__") {
+      const next = { ...demandMatrix, [defId]: { ...(demandMatrix[defId] ?? {}), [day]: n } };
+      setDemandMatrix(next);
+      handleDemandSave(true, next);
+    }
   };
 
   // Yarım dolu tablo: sayı girilmemiş açık günlerde motor herkesi yazar (lib/demandGaps)
@@ -2538,300 +2422,6 @@ function SchedulePageInner() {
     Object.values(demandMatrix).every(row => Object.values(row ?? {}).every(v => !v)) &&
     Object.values(deptDemandMatrix).every(d => Object.values(d ?? {}).every(row => Object.values(row ?? {}).every(v => !v)));
 
-  // Personel İhtiyacı tablosu: hem sihirbazın 1. adımında hem de isteğe bağlı panelde kullanılır
-  const demandTableEl = (
-loading ? (
-              <div className="p-4 space-y-2 border-t border-slate-100">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />)}</div>
-            ) : shiftDefs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">Henüz vardiya tanımlı değil. Vardiyaları yukarıdaki Hızlı Kurulum bölümünden ekleyin.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                {/* Hafta şablonları: normal / bakım duruşu / kampanya haftası gibi planları kaydet, tek tıkla uygula */}
-                {departments.length === 0 && (locRules as Record<string, unknown>).industry === "callcenter" && (
-                  <div className="px-5 py-3 border-t border-slate-100 bg-sky-50/50">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p className="flex-1 text-xs font-semibold text-sky-900">Çağrı yoğunluğundan hesapla (Erlang C)</p>
-                      {!callFormOpen && (
-                        <button onClick={openCallForm} className="text-xs font-semibold px-3 py-2 rounded-lg text-sky-800 border border-sky-200 hover:bg-sky-100">Hesapla</button>
-                      )}
-                    </div>
-                    {callSummary && !callFormOpen && <p className="text-[12px] text-sky-800 mt-1">{callSummary}</p>}
-                    {callFormOpen && (
-                      <div className="mt-2 space-y-2 text-[12px] text-slate-700">
-                        <div className="grid grid-cols-7 gap-1">
-                          {DAYS.map((d, i) => (
-                            <label key={d} className="flex flex-col items-center gap-0.5 font-semibold">
-                              {d}
-                              <input type="number" min={0} value={callForm.dailyCalls[i] || ""} placeholder="0" aria-label={`${d} günlük çağrı`}
-                                onChange={e => setCallForm(f => ({ ...f, dailyCalls: f.dailyCalls.map((v, j) => j === i ? Math.max(0, Number(e.target.value) || 0) : v) }))}
-                                className="w-full min-w-0 border border-slate-200 rounded-md px-1 py-1 text-center bg-white" />
-                            </label>
-                          ))}
-                        </div>
-                        <p className="text-slate-400">Günlük beklenen çağrı sayısı</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-2 items-center">
-                          <label className="flex items-center gap-1">Yoğunluk
-                            <select value={callForm.curve} onChange={e => setCallForm(f => ({ ...f, curve: e.target.value as CurveKey }))}
-                              className="border border-slate-200 rounded-md px-1 py-1 bg-white">
-                              {Object.entries(CURVES).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
-                            </select>
-                          </label>
-                          <label className="flex items-center gap-1">Ortalama görüşme süresi
-                            <input type="number" min={10} value={callForm.ahtSec} onChange={e => setCallForm(f => ({ ...f, ahtSec: Math.max(10, Number(e.target.value) || 0) }))}
-                              className="w-16 border border-slate-200 rounded-md px-1 py-1 bg-white" /> sn
-                          </label>
-                          <label className="flex items-center gap-1">Hedef: çağrıların %
-                            <input type="number" min={1} max={99} value={callForm.slPercent} onChange={e => setCallForm(f => ({ ...f, slPercent: Number(e.target.value) || 80 }))}
-                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" />&apos;i
-                            <input type="number" min={1} value={callForm.slSeconds} onChange={e => setCallForm(f => ({ ...f, slSeconds: Number(e.target.value) || 20 }))}
-                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" /> sn içinde
-                          </label>
-                          <label className="flex items-center gap-1">Mola/izin payı %
-                            <input type="number" min={0} max={80} value={callForm.shrinkagePercent} onChange={e => setCallForm(f => ({ ...f, shrinkagePercent: Math.max(0, Number(e.target.value) || 0) }))}
-                              className="w-12 border border-slate-200 rounded-md px-1 py-1 bg-white" />
-                          </label>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setCallFormOpen(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 font-semibold hover:bg-slate-50">Vazgeç</button>
-                          <button onClick={() => { applyCallForecast(); setCallFormOpen(false); }}
-                            className="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-bold hover:bg-sky-800">Hesapla ve tabloya yaz</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {demandSuggestion && departments.length === 0 && (() => {
-                  const same = shiftDefs.every(def => Array.from({ length: 7 }, (_, d) => d)
-                    .every(d => (demandMatrix[def.id]?.[d] ?? 0) === (demandSuggestion.matrix[def.id]?.[d] ?? 0)));
-                  if (same) return null;
-                  return (
-                    <div className={cn("px-5 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3", demandEmpty ? "bg-forest-50/70" : "bg-white")}>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-forest-800 flex items-center gap-1.5">
-                          <Sparkles size={13} className="text-forest-600 shrink-0" />
-                          {demandSuggestion.source === "history"
-                            ? `Öneri: son ${demandSuggestion.history_weeks} yayınlanmış haftanın ortalaması`
-                            : "Başlangıç önerisi: açık her gün, her vardiyaya 1 kişi"}
-                        </p>
-                        {demandSuggestion.notes.map(n => <p key={n} className="text-[12px] text-slate-500 mt-0.5">{n}</p>)}
-                      </div>
-                      <button onClick={() => applyDemandSuggestion()}
-                        className={cn("shrink-0 text-xs font-semibold px-3 py-2 rounded-lg transition-colors",
-                          demandEmpty ? "bg-forest-600 text-white hover:bg-forest-700" : "text-forest-700 border border-forest-200 hover:bg-forest-50")}>
-                        {demandEmpty ? "Tabloya uygula" : "Öneriyle değiştir"}
-                      </button>
-                    </div>
-                  );
-                })()}
-                {/* İlk kullanımda (şablon yok) çubuk gizli; tablonun altındaki "Şablon olarak kaydet" açar */}
-                {(Object.keys(demandTemplates).length > 0 || tplOpen) && (
-                <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-b border-slate-100 bg-slate-50/40">
-                  <span className="text-[11px] font-bold text-slate-400 shrink-0">Kayıtlı tablolar</span>
-                  {Object.keys(demandTemplates).length === 0 && (
-                    <span className="text-[12px] text-slate-400">Bu tabloyu isim vererek kaydedin (örn. &quot;Normal&quot;, &quot;Kampanya Haftası&quot;), sonraki haftalarda tek tıkla uygulayın.</span>
-                  )}
-                  {Object.keys(demandTemplates).map(name => (
-                    <span key={name} className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg pl-2 pr-1 py-1">
-                      <button
-                        onClick={() => handleTemplateApply(name)}
-                        disabled={tplBusy}
-                        title="Bu kayıtlı tabloyu uygula"
-                        className="text-[12px] font-bold text-forest-600 hover:text-forest-800 disabled:opacity-40"
-                      >
-                        {name}
-                      </button>
-                      <button
-                        onClick={() => handleTemplateDelete(name)}
-                        title="Kayıtlı tabloyu sil"
-                        className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
-                      >
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))}
-                  <span className="flex items-center gap-1.5 ml-auto">
-                    <input
-                      value={tplName}
-                      onChange={e => setTplName(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleTemplateSave(); }}
-                      placeholder="Tablo adı (örn. Bayram haftası)…"
-                      className="w-32 text-[12px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-forest-400"
-                    />
-                    <button
-                      onClick={handleTemplateSave}
-                      disabled={!tplName.trim() || tplBusy}
-                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-forest-600 text-white hover:bg-forest-700 transition-colors disabled:opacity-40 shrink-0"
-                    >
-                      Bu tabloyu kaydet
-                    </button>
-                  </span>
-                </div>
-                )}
-                {demandGaps.length > 0 && !(isPublishedWeek && !editUnlocked) && !viewOnly && (
-                  <div className="px-5 py-3 border-t border-b border-amber-100 bg-amber-50/70 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                    <p className="flex-1 min-w-0 text-xs text-amber-900">
-                      <span className="font-bold">Bazı günler boş:</span> {demandGaps.join(" · ")}. Bu günlere kaç kişi gerektiği girilmezse herkes haftalık sınırına kadar yazılır.
-                    </p>
-                    <button type="button" onClick={fillAllDemand}
-                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-forest-600 text-white hover:bg-forest-700">Boş günleri doldur</button>
-                  </div>
-                )}
-                <table className="w-full min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left py-2.5 px-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest w-44">Vardiya</th>
-                      {DAYS.map((d, i) => {
-                        const isWeekend = i === 5 || i === 6;
-                        return (
-                          <th key={d} className={cn("text-center py-2.5 px-2 text-[12px] font-bold uppercase tracking-widest min-w-[52px]", isWeekend ? "text-forest-500 bg-forest-50/40" : "text-slate-400")}>
-                            <div>{d}</div>
-                            <div className={cn("text-[11px] font-semibold mt-0.5", isWeekend ? "text-forest-300" : "text-slate-300")}>{dates[i]}</div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {departments.length === 0 ? (
-                      shiftDefs.map(def => (
-                        <tr key={def.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <td className="py-2.5 px-5">
-                            <span className="text-sm font-semibold text-slate-700">{def.name}</span>
-                            <span className="text-[11px] text-slate-400 ml-2">{def.start}–{def.end}</span>
-                            <span className="text-[11px] text-slate-300 ml-2">· maks {personnel.length} kişi</span>
-                          </td>
-                          {Array.from({ length: 7 }, (_, day) => {
-                            const val = demandMatrix[def.id]?.[day] ?? 0;
-                            const assigned = assignedCounts[def.id]?.[day] ?? 0;
-                            const isWeekend = day === 5 || day === 6;
-                            const maxAvail = remainingCapacityFor(day, def.id);
-                            const maxAvailDisplay = Math.max(0, maxAvail);
-                            const overLimit = val > 0 && val > maxAvail;
-                            const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
-                            return (
-                              <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-forest-50/20")}>
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <input
-                                    type="number" min={0} max={maxAvailDisplay}
-                                    value={val === 0 ? "" : val}
-                                    placeholder="—"
-                                    disabled={(isPublishedWeek && !editUnlocked) || viewOnly}
-                                    onChange={e => {
-                                      const n = Math.max(0, parseInt(e.target.value) || 0);
-                                      setDemandMatrix(prev => ({ ...prev, [def.id]: { ...(prev[def.id] ?? {}), [day]: n } }));
-                                    }}
-                                    onBlur={() => handleDemandSave(true)}
-                                    title={`Bu vardiya için kalan kapasite: ${maxAvailDisplay} kişi`}
-                                    className={cn(
-                                      "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
-                                      overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-forest-300 text-forest-700"
-                                    )}
-                                  />
-                                  {overLimit ? (
-                                    <span className="text-[11px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
-                                  ) : val > 0 && cellCount > 0 ? (
-                                    // Atanan/gereken sadece plan varken anlamlı (boş haftada her kutu kırmızı "0/1" oluyordu)
-                                    <span className={cn(
-                                      "text-[11px] font-bold leading-tight",
-                                      coverState === "under" && "text-red-500",
-                                      coverState === "ok"    && "text-emerald-600",
-                                      coverState === "over"  && "text-sky-500",
-                                    )}>{assigned}/{val}</span>
-                                  ) : forecastMatrix[def.id]?.[day] != null ? (
-                                    <span className="text-[11px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
-                                  ) : null}
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))
-                    ) : (
-                      demandDepts.map(dept => {
-                        const deptHeadcount = personnel.filter(p => p.department_id === dept.id).length;
-                        return (
-                        <Fragment key={dept.id}>
-                          <tr className="border-t border-slate-200 bg-slate-50/70">
-                            <td colSpan={8} className="px-5 py-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-0.5 h-4 rounded-full bg-forest-400 shrink-0" />
-                                <span className="text-xs font-semibold text-slate-700">{departmentLabel(departments, dept)}</span>
-                                <span className="text-[11px] font-normal text-slate-400">· maks {deptHeadcount} kişi</span>
-                              </div>
-                            </td>
-                          </tr>
-                          {shiftDefs.map(def => {
-                            const deptRow = deptDemandMatrix[dept.id]?.[def.id] ?? {};
-                            return (
-                              <tr key={`${dept.id}-${def.id}`} className="border-b border-slate-50 hover:bg-slate-50/50">
-                                <td className="py-2.5 pl-8 pr-4">
-                                  <span className="text-[13px] font-semibold text-slate-600">{def.name}</span>
-                                  <span className="text-[11px] text-slate-300 ml-1.5">{def.start}–{def.end}</span>
-                                </td>
-                                {Array.from({ length: 7 }, (_, day) => {
-                                  const val = deptRow[day] ?? 0;
-                                  const assigned = deptAssignedCounts[dept.id]?.[def.id]?.[day] ?? 0;
-                                  const isWeekend = day === 5 || day === 6;
-                                  const maxAvail = remainingCapacityFor(day, def.id, dept.id);
-                                  const maxAvailDisplay = Math.max(0, maxAvail);
-                                  const overLimit = val > 0 && val > maxAvail;
-                                  const coverState = val === 0 ? "empty" : assigned < val ? "under" : assigned === val ? "ok" : "over";
-                                  return (
-                                    <td key={day} className={cn("py-2 px-2 text-center", isWeekend && "bg-forest-50/20")}>
-                                      <div className="flex flex-col items-center gap-0.5">
-                                        <input
-                                          type="number" min={0} max={maxAvailDisplay}
-                                          value={val === 0 ? "" : val}
-                                          placeholder="—"
-                                          disabled={(isPublishedWeek && !editUnlocked) || viewOnly}
-                                          onChange={e => {
-                                            const n = Math.max(0, parseInt(e.target.value) || 0);
-                                            setDeptDemandMatrix(prev => ({
-                                              ...prev,
-                                              [dept.id]: { ...(prev[dept.id] ?? {}), [def.id]: { ...(prev[dept.id]?.[def.id] ?? {}), [day]: n } },
-                                            }));
-                                          }}
-                                          onBlur={() => handleDeptDemandSave(dept.id)}
-                                          title={`${dept.name}: bu vardiya için kalan kapasite: ${maxAvailDisplay} kişi`}
-                                          className={cn(
-                                            "w-11 h-8 text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 bg-white placeholder-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-50",
-                                            overLimit ? "border-red-300 focus:ring-red-300 text-red-600 bg-red-50/40" : "border-slate-200 focus:ring-forest-300 text-forest-700"
-                                          )}
-                                        />
-                                        {overLimit ? (
-                                          <span className="text-[11px] font-bold leading-tight text-red-500">maks {maxAvailDisplay}</span>
-                                        ) : val > 0 && cellCount > 0 ? (
-                                          <span className={cn(
-                                            "text-[11px] font-bold leading-tight",
-                                            coverState === "under" && "text-red-500",
-                                            coverState === "ok"    && "text-emerald-600",
-                                            coverState === "over"  && "text-sky-500",
-                                          )}>{assigned}/{val}</span>
-                                        ) : forecastMatrix[def.id]?.[day] != null ? (
-                                          <span className="text-[11px] font-bold leading-tight text-sky-400" title="Geçmiş haftalara dayalı tahmin">~{forecastMatrix[def.id][day]}</span>
-                                        ) : null}
-                                      </div>
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </Fragment>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-                {Object.keys(demandTemplates).length === 0 && !tplOpen && (
-                  <button onClick={() => setTplOpen(true)}
-                    className="px-5 py-2.5 text-[12px] font-bold text-forest-600 hover:text-forest-800 transition-colors">
-                    Bu tabloyu kaydet (sonra tek dokunuşla uygula)
-                  </button>
-                )}
-              </div>
-            )
-  );
 
   // Departmanlı şubede departmanı seçilmemiş kişi otomatik plana alınmaz (lib/generatePlan)
   // Alt departmanı olan departmana doğrudan bağlı kişi de alt departman seçilene kadar plana alınmaz
@@ -2844,7 +2434,7 @@ loading ? (
       id: "capacity", tone: "danger" as const,
       title: "İstenen kişi sayısı ekipten fazla",
       detail: <><ul className="list-disc list-inside space-y-0.5">{capacityWarnings.slice(0, 6).map((w, i) => <li key={i}>{w}</li>)}</ul><p className="mt-1">Bu günlerde herkes uygun olsa bile otomatik planlama çözüm bulamaz. Sayıları azaltın.</p></>,
-      action: { label: "Tabloyu Aç", onClick: () => setDemandOpen(true) },
+      action: { label: "Sayıları düzenle", onClick: openCountsEditing },
     }] : []),
     ...(isPublishedWeek && !editUnlocked && editRequestStatus === "rejected" ? [{
       id: "edit-rejected", tone: "danger" as const,
@@ -2883,7 +2473,7 @@ loading ? (
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -2964,10 +2554,6 @@ loading ? (
                         <Zap size={13} className="text-forest-500" /> Planı Yeniden Oluştur
                       </button>
                     )}
-                    <button onClick={() => { setActionsOpen(false); setDemandOpen(o => !o); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <BookOpen size={13} className="text-slate-400" /> {demandOpen ? "İhtiyaç Tablosunu Gizle" : "Kaç Kişi Gerekli?"}
-                    </button>
                     <button onClick={() => { setActionsOpen(false); handleCopyPrevWeek(); }} disabled={copyLoading}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       <Copy size={13} className="text-slate-400" /> {copyLoading ? "Kopyalanıyor…" : "Geçen Haftayı Kopyala"}
@@ -3109,7 +2695,7 @@ loading ? (
             alerts={weekAlerts}
             snapshot={!loading && shiftDefs.length > 0 && personnel.length > 0 ? weekSnapshot : null}
             insights={weekInsights}
-            onAction={a => (a === "remind-availability" ? handleRequestAvailability() : setDemandOpen(true))}
+            onAction={a => (a === "remind-availability" ? handleRequestAvailability() : openCountsEditing())}
             onJump={jumpTo}
           />
           {!loading && activeLocationId && <WeekCalendarCard locationId={activeLocationId} weekStart={weekStart} />}
@@ -3165,17 +2751,6 @@ loading ? (
               </div>
             );
           })()}
-
-          {/* ── Personel İhtiyacı (isteğe bağlı panel; İşlemler menüsünden açılır) ── */}
-          {demandOpen && !wizardOpen && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-3 bg-slate-50/60">
-                <p className="flex-1 text-[12px] font-bold text-slate-500">Kaç kişi gerekli?</p>
-                <button onClick={() => setDemandOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Kapat"><X size={14} /></button>
-              </div>
-              {demandTableEl}
-            </div>
-          )}
 
           {/* ── Kopyalama onay diyalogu ── */}
           {confirmCopy && (
@@ -3272,7 +2847,20 @@ loading ? (
                     <span className="text-slate-400">{normTime(def.start)}–{normTime(def.end)}</span>
                   </span>
                 ))}
+                {boardEditable && (
+                  <button type="button" onClick={() => setCountsEditing(v => !v)}
+                    className={cn("ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors",
+                      countsEditing ? "border-forest-600 bg-forest-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50")}>
+                    <Users size={13} /> {countsEditing ? "Sayılar tamam" : "Kişi sayılarını düzenle"}
+                  </button>
+                )}
               </div>
+            )}
+            {countsEditing && boardEditable && (
+                <p className="px-4 py-2 border-b border-slate-100 bg-forest-50/50 text-[12px] text-forest-800">
+                  Her kutuda − ve + ile o vardiyaya kaç kişi gerektiğini değiştirin. Sayılar kendiliğinden kaydedilir ve sonraki haftalarda da kullanılır.
+                  {demandGaps.length > 0 && <> <button type="button" onClick={fillAllDemand} className="font-semibold underline">Boş günleri doldur</button></>}
+                </p>
             )}
             <div className="overflow-x-auto relative" data-schedule-grid>
               {shiftTones.length > 0 && filteredPersonnel.length > 0 ? (
@@ -3325,6 +2913,10 @@ loading ? (
                   editable={boardEditable}
                   onNameClick={boardNameClick}
                   onAssign={boardAssign}
+                  onRemove={boardRemove}
+                  onDemandChange={viewOnly ? null : boardDemandChange}
+                  countsEditing={countsEditing}
+                  hintOf={(gid, defId, day) => (gid === "__all__" ? forecastMatrix[defId]?.[day] ?? null : null)}
                   timeLabel={c => `${normTime(minToHHMM(c.startMin))}–${normTime(minToHHMM(c.endMin, c.endMin >= 1440))}`}
                   customTone={CUSTOM_TONE}
                   onCallDefs={shiftDefs.filter(d => d.on_call)}
@@ -3363,7 +2955,7 @@ loading ? (
           {wizardOpen && (
             <GenerateWizard
               weekLabel={weekLabel}
-              demandTable={demandTableEl}
+              onEditCounts={() => { setWizardOpen(false); openCountsEditing(); }}
               demandEmpty={demandEmpty}
               demandAutoFilled={demandAutoFilled}
               demandGaps={demandGaps}
@@ -3639,18 +3231,29 @@ loading ? (
 
       {/* ── Hücre popover ── */}
       {popover && (
+        // Telefonda alttan açılır; masaüstünde kutunun yanında, ekrana sığmazsa içi kayar (Plandan çıkar hep üstte görünür)
         <div
           data-popover
-          className="fixed z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 w-[calc(100vw-2rem)] max-w-[288px] sm:w-72"
-          style={{ left: Math.min(popover.x, window.innerWidth - 320), top: popover.y }}
+          className="fixed z-50 bg-white border border-slate-200 shadow-xl p-4 overflow-y-auto inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:inset-x-auto sm:bottom-auto sm:w-72 sm:rounded-2xl sm:pb-4 sm:max-h-[var(--pop-max)] sm:left-[var(--pop-x)] sm:top-[var(--pop-y)]"
+          style={{
+            ["--pop-x" as string]: `${Math.min(popover.x, window.innerWidth - 320)}px`,
+            ["--pop-y" as string]: `${Math.max(8, Math.min(popover.y, window.innerHeight - 320))}px`,
+            ["--pop-max" as string]: `${window.innerHeight - Math.max(8, Math.min(popover.y, window.innerHeight - 320)) - 12}px`,
+          }}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-bold text-slate-800">{popoverPerson?.name}</p>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-800 truncate">{popoverPerson?.name}</p>
               <p className="text-xs text-slate-400">{DAYS[popover.day]}, {dates[popover.day]}</p>
             </div>
-            <button onClick={() => setPopover(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
+            {hasExisting && (
+              <button onClick={handlePopoverDelete}
+                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+                <UserMinus size={13} /> Plandan çıkar
+              </button>
+            )}
+            <button onClick={() => setPopover(null)} aria-label="Kapat" className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
           </div>
           {shiftDefs.length === 0 && (
             <div className="mb-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
@@ -3824,10 +3427,7 @@ loading ? (
               </div>
             </div>
           )}
-          <div className="flex gap-2 mt-2">
-            {hasExisting && (
-              <button onClick={handlePopoverDelete} className="flex-1 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors">Sil</button>
-            )}
+          <div className="flex gap-2 mt-3">
             <button onClick={handlePopoverSave} className="flex-1 py-2 text-sm font-bold text-white bg-primary rounded-xl hover:opacity-90 transition-opacity">Kaydet</button>
           </div>
         </div>

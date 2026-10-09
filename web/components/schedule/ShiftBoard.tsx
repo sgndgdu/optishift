@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { trNum } from "@/lib/format";
 import type { ShiftDefinition } from "@/lib/types";
@@ -16,6 +17,12 @@ import type { ShiftDefinition } from "@/lib/types";
  * - Nöbet tanımları ayrı satır (onCallMap; normal vardiyayla aynı gün olabilir)
  * - Aynı gün ikinci vardiya (extras) kırmızı uyarılı ad olarak kendi vardiya satırında
  * - flash: Plan Kontrolü'nden "oraya git" ile gelen kişi/gün vurgulanır
+ * - Kişi sayısı (2026-10-09, kullanıcı isteği): kutunun köşesindeki "2/3" sayısına dokununca − / + ile ihtiyaç değişir
+ *   (onDemandChange; ayrı "Kaç kişi gerekli?" tablosu kalktı). countsEditing açıkken bütün kutularda − / + görünür.
+ *   Sayı şubeye/departmana kaydedilir, sonraki haftalar da aynı sayıyla açılır.
+ * - Çıkarma: adın üstüne gelince × (telefonda hep görünür), onRemove
+ * - Sürükle bırak (@dnd-kit, sayfanın DndContext'i): ad başka güne/vardiyaya taşınır.
+ *   Sürüklenen: { kind: "board-chip", personId, day }, bırakılan yer: { kind: "board-cell", groupId, def, day }
  */
 
 export type ShiftTone = { box: string; name: string; time: string; dot: string };
@@ -43,6 +50,7 @@ function shortName(n: string) {
 export default function ShiftBoard({
   groups, tones, days, mobileDay, cellMap, matchDef, demandOf, statusOf, cellGroupId, weekHours, editable,
   onNameClick, onAssign, timeLabel, customTone, onCallDefs, onCallMap, onOnCallClick, extras, onExtraClick, flash, chipMark,
+  onDemandChange, countsEditing = false, onRemove, hintOf,
 }: {
   groups: BoardGroup[];
   tones: { def: ShiftDefinition; tone: ShiftTone }[];
@@ -67,7 +75,14 @@ export default function ShiftBoard({
   flash: { personId?: string; day?: number } | null;
   /** Ad kutusunun sonuna küçük işaret (zorunlu atama durumu, yorgunluk uyarısı) */
   chipMark?: (personId: string, day: number) => { text: string; title: string } | null;
+  /** Kişi sayısını değiştirme; verilmezse ya da grup için null dönerse sayı salt okunur */
+  onDemandChange?: ((groupId: string, defId: string, day: number, next: number) => void) | null;
+  countsEditing?: boolean;
+  onRemove?: (personId: string, day: number) => void;
+  /** Yoğunluk tahmini (geçmiş haftalar): sayı düzenlenirken ipucu */
+  hintOf?: (groupId: string, defId: string, day: number) => number | null;
 }) {
+  const [countOpen, setCountOpen] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ groupId: string; def: ShiftDefinition; day: number; x: number; y: number } | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -164,22 +179,22 @@ export default function ShiftBoard({
                     const missing = Math.max(0, need - here.length);
                     return (
                       <td key={day} className={dayCell(day)}>
-                        {need > 0 && (
-                          <div className={cn("mb-1 text-right text-[10.5px] font-bold tabular-nums", missing > 0 ? "text-red-500" : "text-slate-300")}
-                            title={`${here.length} kişi yazıldı, ${need} kişi gerekiyor`}>
-                            {here.length}/{need}
-                          </div>
-                        )}
-                        <div className="flex flex-col gap-1">
+                        <CountBar groupId={g.id} defId={def.id} day={day} here={here.length} need={need}
+                          canEdit={!!onDemandChange && editable && g.id !== "__none__"}
+                          open={countsEditing || countOpen === `${g.id}|${def.id}|${day}`}
+                          onToggle={() => setCountOpen(o => (o === `${g.id}|${def.id}|${day}` ? null : `${g.id}|${def.id}|${day}`))}
+                          hint={hintOf?.(g.id, def.id, day) ?? null}
+                          onChange={n => onDemandChange?.(g.id, def.id, day, n)} />
+                        <DropCell id={`cell:${g.id}:${def.id}:${day}`} data={{ kind: "board-cell", groupId: g.id, def, day }} enabled={editable}>
                           {here.map(x => (
-                            <button key={x.person.id} type="button" onClick={e => onNameClick(e, x.person.id, day)}
-                              data-board-person={`${x.person.id}-${day}`}
+                            <NameChip key={x.person.id} personId={x.person.id} day={day} draggable={editable}
+                              className={cn(tone.box, tone.name, isFlash(x.person.id, day) && "ring-2 ring-amber-400 ring-offset-1")}
                               title={`${x.person.name} · ${timeLabel(x.cell)}`}
-                              className={cn("w-full truncate rounded-md border px-2 py-1 text-left text-[12px] font-semibold transition-colors", tone.box, tone.name,
-                                isFlash(x.person.id, day) && "ring-2 ring-amber-400 ring-offset-1")}>
-                              {shortName(x.person.name)}
-                              {(() => { const m = chipMark?.(x.person.id, day); return m ? <span className="ml-1 font-normal" title={m.title}>{m.text}</span> : null; })()}
-                            </button>
+                              label={<>{shortName(x.person.name)}
+                                {(() => { const m = chipMark?.(x.person.id, day); return m ? <span className="ml-1 font-normal" title={m.title}>{m.text}</span> : null; })()}</>}
+                              onClick={e => onNameClick(e, x.person.id, day)}
+                              onRemove={editable && onRemove ? () => onRemove(x.person.id, day) : undefined}
+                              removeLabel={`${x.person.name} kişisini ${days[day].label} ${def.name} vardiyasından çıkar`} />
                           ))}
                           {placedExtras.filter(x => x.groupId === g.id && x.def?.id === def.id && x.day === day).map(x => (
                             <button key={`x-${x.person.id}`} type="button" onClick={() => onExtraClick(x.person.id, day, x.cell)}
@@ -202,7 +217,7 @@ export default function ShiftBoard({
                               <Plus size={12} />
                             </button>
                           )}
-                        </div>
+                        </DropCell>
                       </td>
                     );
                   })}
@@ -324,5 +339,86 @@ export default function ShiftBoard({
         );
       })()}
     </>
+  );
+}
+
+/** Kutunun üstündeki "yazılan/gereken" sayısı; dokununca − / + ile kaç kişi gerektiği değişir */
+function CountBar({ groupId, defId, day, here, need, canEdit, open, onToggle, onChange, hint }: {
+  groupId: string; defId: string; day: number; here: number; need: number; hint: number | null;
+  canEdit: boolean; open: boolean; onToggle: () => void; onChange: (n: number) => void;
+}) {
+  const missing = need > here;
+  if (canEdit && open) {
+    return (
+      <div className="mb-1 flex items-center justify-between gap-1 rounded-md bg-slate-50 px-1 py-0.5" data-count={`${groupId}|${defId}|${day}`}>
+        <button type="button" onClick={() => onChange(Math.max(0, need - 1))} disabled={need === 0}
+          className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-slate-800 disabled:opacity-30" aria-label="Bir kişi azalt">
+          <Minus size={13} />
+        </button>
+        <span className="text-center leading-tight">
+          <span className="block text-[12px] font-bold tabular-nums text-slate-800" title="Bu vardiyaya kaç kişi gerekli">{need} kişi</span>
+          {hint != null && hint !== need && <span className="block text-[10.5px] font-semibold text-sky-500" title="Geçmiş haftalara göre tahmin">tahmin {hint}</span>}
+        </span>
+        <button type="button" onClick={() => onChange(Math.min(50, need + 1))}
+          className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-slate-800" aria-label="Bir kişi artır">
+          <Plus size={13} />
+        </button>
+      </div>
+    );
+  }
+  if (!canEdit) {
+    if (need === 0) return null;
+    return (
+      <div className={cn("mb-1 text-right text-[10.5px] font-bold tabular-nums", missing ? "text-red-500" : "text-slate-300")}
+        title={`${here} kişi yazıldı, ${need} kişi gerekiyor`}>{here}/{need}</div>
+    );
+  }
+  return (
+    <div className="mb-1 flex justify-end">
+      <button type="button" onClick={onToggle}
+        title={need ? `${here} kişi yazıldı, ${need} kişi gerekiyor. Sayıyı değiştirmek için dokunun.` : "Bu vardiyaya kaç kişi gerektiğini girmek için dokunun"}
+        className={cn("rounded px-1 text-[10.5px] font-bold tabular-nums transition-colors hover:bg-slate-100",
+          need === 0 ? "text-slate-300 hover:text-slate-600" : missing ? "text-red-500" : "text-slate-400 hover:text-slate-700")}>
+        {need === 0 ? (here ? `${here}/?` : "kişi?") : `${here}/${need}`}
+      </button>
+    </div>
+  );
+}
+
+/** Ad bırakılabilen kutu (sürükle bırak) */
+function DropCell({ id, data, enabled, children }: { id: string; data: Record<string, unknown>; enabled: boolean; children: React.ReactNode }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id, data, disabled: !enabled });
+  const dragging = !!active && active.data.current?.kind === "board-chip";
+  return (
+    <div ref={setNodeRef} data-drop={id} className={cn("flex min-h-[26px] flex-col gap-1 rounded-md transition-colors",
+      dragging && enabled && "outline-dashed outline-1 outline-slate-200", isOver && "bg-forest-50 outline-forest-400")}>
+      {children}
+    </div>
+  );
+}
+
+/** Kişinin adı: tıklayınca pencere, × ile çıkarma, tutup sürükleyince taşıma */
+function NameChip({ personId, day, draggable, className, title, label, onClick, onRemove, removeLabel }: {
+  personId: string; day: number; draggable: boolean; className: string; title: string; label: React.ReactNode;
+  onClick: (e: React.MouseEvent) => void; onRemove?: () => void; removeLabel: string;
+}) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `chip:${personId}:${day}`, data: { kind: "board-chip", personId, day }, disabled: !draggable,
+  });
+  return (
+    <div ref={setNodeRef} className={cn("group/chip relative flex items-stretch rounded-md border transition-colors", className, isDragging && "opacity-40",
+      draggable && "cursor-grab active:cursor-grabbing touch-manipulation")} {...attributes} {...listeners} role="group">
+      <button type="button" onClick={onClick} data-board-person={`${personId}-${day}`} title={title}
+        className="min-w-0 flex-1 truncate px-2 py-1 text-left text-[12px] font-semibold">
+        {label}
+      </button>
+      {onRemove && (
+        <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} onPointerDown={e => e.stopPropagation()}
+          aria-label={removeLabel} title="Plandan çıkar"
+          className="flex w-6 shrink-0 items-center justify-center rounded-r-md opacity-60 hover:bg-black/5 hover:opacity-100 sm:opacity-0 sm:group-hover/chip:opacity-70 sm:focus:opacity-100">
+          <X size={12} />
+        </button>
+      )}
+    </div>
   );
 }

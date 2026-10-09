@@ -948,8 +948,8 @@ export default function SettingsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const count = (dept as any).personnel_count ?? 0;
     const msg = count > 0
-      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} kişinin departmanı boşalır ve bu departmanın ihtiyaç tablosu silinir.`
-      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın ihtiyaç tablosu da silinir.`;
+      ? `"${dept.name}" departmanını silmek istediğinize emin misiniz? ${count} kişinin departmanı boşalır ve bu departmanın kişi sayıları silinir.`
+      : `"${dept.name}" departmanını silmek istediğinize emin misiniz? Bu departmanın kişi sayıları da silinir.`;
     if (!confirm(msg)) return;
     setDeptError(null);
     try {
@@ -2028,7 +2028,7 @@ export default function SettingsPage() {
                   ),
                   forecast: (
                 <FeatureCard icon={TrendingUp} title="Satış ve Yoğunluk Tahmini"
-                  description="İhtiyaç tablosunda geçmiş haftalara dayalı öneri gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
+                  description="Vardiya Planı'nda kişi sayıları düzenlenirken geçmiş haftalara dayalı tahmin gösterir. Günlük ciroyu girerseniz tahmin iyileşir."
                   on={forecastingEnabled} onToggle={() => setForecastingEnabled(v => !v)}>
                     <div className="space-y-2">
                       <div className="flex gap-2">
