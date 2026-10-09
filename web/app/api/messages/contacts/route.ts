@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getDB } from "@/lib/db/client";
 import { chatLocationIds } from "@/lib/access";
+import { chatGroupsFor } from "@/lib/chat";
 
 // GET /api/messages/contacts: kullanıcının yazabileceği şube grupları ve kişiler (kullanıcı hesaplarından).
 // Personel kaydı olmayan müdür/patron da listede çıkar. Kapsam: lib/access scopedLocationIds.
@@ -12,7 +13,6 @@ export async function GET(req: NextRequest) {
   try {
     const scope = await chatLocationIds(db, auth);
     const locs = await db.prepare("SELECT id, name FROM locations WHERE org_id = ? ORDER BY name").all(auth.org_id) as { id: string; name: string }[];
-    const visible = scope === null ? locs : locs.filter(l => scope.includes(l.id));
     const locName = new Map(locs.map(l => [l.id, l.name]));
     const users = await db.prepare(`
       SELECT u.id, u.name, u.role, u.display_title, u.location_id, p.assigned_location_ids FROM users u
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       // Yöneticiler önce
       .sort((a, b) => Number(a.role === "employee") - Number(b.role === "employee"));
     return NextResponse.json({
-      groups: visible.map(l => ({ id: `loc-${l.id}`, name: l.name })),
+      groups: await chatGroupsFor(db, auth),
       people,
     });
   } catch (err: unknown) {

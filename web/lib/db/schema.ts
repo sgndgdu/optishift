@@ -7,6 +7,7 @@ import {
   boolean,
   bigint,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ─── Organizations ────────────────────────────────────────────────────────────
@@ -448,6 +449,15 @@ export const messages = pgTable("messages", {
     () => Math.floor(Date.now() / 1000),
   ),
 });
+
+// Kişi başı sohbet durumu (2026-10-09): grupta okundu bilgisi ve "sohbeti temizle" kişiye özel.
+// conv_key: "g:<grup>" ya da "u:<karşı kişi>"; cleared_id'ye kadarki mesajlar o kişiye gösterilmez.
+export const chatState = pgTable("chat_state", {
+  user_id: text("user_id").notNull(),
+  conv_key: text("conv_key").notNull(),
+  last_read_id: integer("last_read_id").notNull().default(0),
+  cleared_id: integer("cleared_id").notNull().default(0),
+}, t => [primaryKey({ columns: [t.user_id, t.conv_key] })]);
 
 // ─── Password Reset Tokens ────────────────────────────────────────────────────
 export const passwordResetTokens = pgTable("password_reset_tokens", {

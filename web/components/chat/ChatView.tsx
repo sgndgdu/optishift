@@ -5,6 +5,8 @@
  * Mesajlaşma ekranının TEK KAYNAĞI (yönetim paneli, Tüm Şubeler ve personel portalı).
  * Sayfalar sadece oturum anahtarını, başlığı ve /api/messages/contacts satırlarının
  * nasıl adlandırılacağını verir; sohbet, okundu bilgisi, canlı akış ve gönderme burada.
+ * 2026-10-09: Sorumlular grubu (lib/chat "mgr"), liste bölümleri (Gruplar, Son konuşmalar, Sorumlular, Ekip),
+ * aynı kişinin art arda mesajları tek blok, bağlantılar tıklanır, "sohbeti temizle" sadece kendi ekranından.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +57,18 @@ function formatRelative(ts: number) {
   if (d.toDateString() === new Date().toDateString())
     return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+}
+
+/** Mesaj metni: satır sonları korunur, bağlantılar tıklanır */
+function MessageText({ text, mine }: { text: string; mine: boolean }) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <span className="whitespace-pre-wrap break-words">
+      {parts.map((p, i) => /^https?:\/\//.test(p)
+        ? <a key={i} href={p} target="_blank" rel="noopener noreferrer" className={`underline ${mine ? "text-white" : "text-forest-700"}`}>{p}</a>
+        : p)}
+    </span>
+  );
 }
 
 function ContactRow({ c, selected, onSelect }: { c: Contact; selected: Contact | null; onSelect: (c: Contact) => void }) {
@@ -154,8 +168,8 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
     try {
       const d: ChatContactsApi = await fetch("/api/messages/contacts").then(r => r.json());
       for (const g of d?.groups ?? []) {
-        const { name, label } = groupLabel(g);
-        list.push({ id: `group-${g.id.slice(4)}`, name, type: "group", groupId: g.id, label });
+        const { name, label } = g.id === "mgr" ? { name: "Sorumlular", label: "Bütün sorumlular ve hesap sahibi" } : groupLabel(g);
+        list.push({ id: `group-${g.id}`, name, type: "group", groupId: g.id, label });
       }
       for (const p of d?.people ?? []) {
         const view = personLabel(p);
@@ -333,6 +347,16 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
   const filtered = q ? contacts.filter(c => c.name.toLowerCase().includes(q)) : contacts;
   const groupContacts = filtered.filter(c => c.type === "group");
   const individualContacts = filtered.filter(c => c.type === "individual");
+  // Arama yokken: konuşulmuş kişiler en yeni üstte, sonra sorumlular, sonra ekip
+  const recent = q ? [] : individualContacts.filter(c => c.lastAt).sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0));
+  const rest = q ? individualContacts : individualContacts.filter(c => !c.lastAt);
+  const personSections: { title: string; list: Contact[] }[] = q
+    ? [{ title: "Kişiler", list: rest }]
+    : [
+        { title: "Son konuşmalar", list: recent },
+        { title: "Sorumlular", list: rest.filter(c => c.accent) },
+        { title: "Ekip", list: rest.filter(c => !c.accent) },
+      ];
 
   return (
     <Page>
@@ -343,14 +367,14 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
       <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-72 shrink-0 bg-white md:border-r border-slate-100 flex-col`}>
         <div className="p-4 md:p-5 border-b border-slate-100 shrink-0">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className="text-base font-bold text-slate-900">Kişiler ve kanallar</h2>
+            <h2 className="text-base font-bold text-slate-900">Sohbetler</h2>
             {totalUnread > 0 && <CountBadge count={totalUnread} />}
           </div>
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Kişi ara…"
+              placeholder="Kişi ya da grup ara"
               className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary transition-colors placeholder:text-slate-400"
             />
           </div>
@@ -358,27 +382,27 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
 
         <div className="flex-1 overflow-y-auto py-1">
           {contacts.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center mt-8 px-4">Kişi bulunamadı.</p>
+            <p className="text-xs text-slate-400 text-center mt-8 px-4">Henüz mesajlaşabileceğiniz kimse yok.</p>
           ) : filtered.length === 0 ? (
             <p className="text-xs text-slate-400 text-center mt-8 px-4">&ldquo;{search}&rdquo; için sonuç yok.</p>
           ) : (
             <>
               {groupContacts.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">Kanallar</p>
+                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">Gruplar</p>
                   {groupContacts.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
                 </>
               )}
-              {individualContacts.length > 0 && (
-                <>
-                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">Kişiler</p>
-                  {individualContacts.map(c => (
+              {personSections.filter(sec => sec.list.length > 0).map(sec => (
+                <div key={sec.title}>
+                  <p className="text-xs font-semibold text-slate-400 px-4 pt-3 pb-1">{sec.title}</p>
+                  {sec.list.map(c => (
                     <ContactRow key={c.id} c={c} selected={selected} onSelect={handleSelectContact} />
                   ))}
-                </>
-              )}
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -404,12 +428,12 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
               </div>
               {clearConfirm ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-slate-500">Sohbet silinsin mi?</span>
+                  <span className="text-xs text-slate-500">Sizin ekranınızdan silinsin mi?</span>
                   <button onClick={clearConversation} className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors">Sil</button>
                   <button onClick={() => setClearConfirm(false)} className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors">İptal</button>
                 </div>
               ) : (
-                <button onClick={() => setClearConfirm(true)} title="Sohbeti Temizle"
+                <button onClick={() => setClearConfirm(true)} title="Sohbeti temizle" aria-label="Sohbeti temizle"
                   className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
                   <Trash2 size={15} />
                 </button>
@@ -432,19 +456,22 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
                   <div className="space-y-1.5">
-                    {msgs.map(m => {
+                    {msgs.map((m, k) => {
                       const isMe = m.from_user_id === user?.id;
                       const name = m.from_name ?? m.sender_name;
                       const isRead = m.is_read === true || m.is_read === 1;
+                      // Aynı kişinin 5 dakika içindeki art arda mesajları tek blok: ad ve resim bir kez
+                      const prev = msgs[k - 1];
+                      const cont = !!prev && prev.from_user_id === m.from_user_id && m.created_at - prev.created_at < 300;
                       return (
-                        <div key={m.id} className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
-                          {!isMe && (
+                        <div key={m.id} className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"} ${cont ? "-mt-1" : ""}`}>
+                          {!isMe && (cont ? <div className="w-7 shrink-0" /> : (
                             <div className="w-7 h-7 rounded-full bg-forest-100 flex items-center justify-center text-xs font-semibold text-forest-600 shrink-0 mt-0.5">
                               {name?.charAt(0)?.toUpperCase() ?? "?"}
                             </div>
-                          )}
-                          <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
-                            {!isMe && selected.type === "group" && (
+                          ))}
+                          <div className={`max-w-[78%] md:max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
+                            {!isMe && !cont && selected.type === "group" && (
                               <span className="text-xs font-semibold text-slate-500 px-1">{name}</span>
                             )}
                             <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
@@ -452,7 +479,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
                                 ? `bg-primary text-white rounded-tr-sm${m._optimistic ? " opacity-60" : ""}`
                                 : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
                             }`}>
-                              {m.content}
+                              <MessageText text={m.content} mine={isMe} />
                             </div>
                             <div className={`flex items-center gap-1 px-1 ${isMe ? "flex-row-reverse" : ""}`}>
                               <span className="text-xs text-slate-400">{formatTime(m.created_at)}</span>
@@ -497,7 +524,7 @@ export default function ChatView({ storageKey, title, description, groupLabel, p
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center px-6">
-            <p className="text-sm text-slate-500">Soldan bir kişi ya da kanal seçin.</p>
+            <p className="text-sm text-slate-500">Soldan bir kişi ya da grup seçin.</p>
           </div>
         )}
       </div>

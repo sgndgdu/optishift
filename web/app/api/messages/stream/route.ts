@@ -1,6 +1,7 @@
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { convKey, markRead } from "@/lib/chat";
 import { canAccessChatGroup } from "@/lib/access";
 
 
@@ -48,13 +49,8 @@ export async function GET(req: NextRequest) {
                ORDER BY m.id ASC`
             ).all(org_id, group_id, lastId) as Record<string, unknown>[];
 
-            if (rows.length > 0) {
-              // Mark group messages as read
-              await db.prepare(
-                `UPDATE messages SET is_read = true
-                 WHERE org_id = ? AND group_id = ? AND from_user_id != ? AND is_read = false`
-              ).run(org_id, group_id, me);
-            }
+            // Grupta okundu kişi başı (lib/chat)
+            if (rows.length > 0) await markRead(db, me, convKey(group_id, null), Number(rows[rows.length - 1].id));
           } else {
             rows = await db.prepare(
               `SELECT m.*, u.name as sender_name
@@ -88,7 +84,7 @@ export async function GET(req: NextRequest) {
       };
 
       poll(); // immediate first poll
-      const interval = setInterval(poll, 500);
+      const interval = setInterval(poll, 1500); // açık her sohbet veritabanına saniyede iki kez soruyordu
 
       req.signal.addEventListener("abort", () => {
         clearInterval(interval);

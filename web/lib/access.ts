@@ -105,9 +105,11 @@ export async function chatLocationIds(db: any, auth: AuthUser): Promise<string[]
   return [...new Set([...scope, ...extra])];
 }
 
-/** Sohbet grubu ("loc-<şube>") bu kullanıcıya açık mı? */
+/** Sohbet grubu ("loc-<şube>" ya da "mgr") bu kullanıcıya açık mı? */
 export async function canAccessChatGroup(db: any, auth: AuthUser, groupId: string | null | undefined): Promise<boolean> {
   if (!groupId) return false;
+  // Sorumlular grubu (lib/chat): işletmenin bütün sorumluları ve hesap sahibi
+  if (groupId === "mgr") return auth.role !== "employee";
   const loc = groupId.startsWith("loc-") ? groupId.slice(4) : null;
   if (!loc) return false;
   const exists = await db.prepare("SELECT 1 FROM locations WHERE id = ? AND org_id = ?").get(loc, auth.org_id);
