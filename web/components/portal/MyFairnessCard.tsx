@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ClipboardCheck, Scale } from "lucide-react";
-import { formatScore } from "@/lib/fairness";
+import { fairnessExplainer, formatScore } from "@/lib/fairness";
 import { cn } from "@/lib/utils";
 
 export function MyFairnessCard() {
@@ -46,7 +46,7 @@ export function MyFairnessCard() {
           </div>
           <p className={cn("mt-1 text-sm font-semibold",
             me.label.level === "high" ? "text-amber-700" : me.label.level === "low" ? "text-emerald-700" : "text-slate-600")}>{me.label.text}</p>
-          <p className="mt-1 text-xs text-slate-500">Son haftalarda çalıştığınız vardiyaların zorluğuna göre toplanır. Puanı yüksek olana sonraki planlarda daha az zor vardiya verilir.</p>
+          <p className="mt-1 text-xs text-slate-500">{fairnessExplainer(null, true)}</p>
         </Link>
       )}
     </div>

@@ -23,7 +23,7 @@ import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignme
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentPoints, weekDayExtraPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText } from "@/lib/fairness";
+import { calcAssignmentPoints, weekDayExtraPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText, fairnessExplainer } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
@@ -2041,6 +2041,29 @@ function SchedulePageInner() {
 
   const popoverPerson = popover ? personnel.find(p => p.id === popover.personnelId) : null;
   const hasExisting   = popover ? !!cellMap[`${popover.personnelId}-${popover.day}`] : false;
+  // Fazla mesai: haftalık çalışma mesai başlangıcını (rules.overtime_threshold_hours, varsayılan 45) aştığı
+  // vardiyada adın yanına "+3 sa mesai" (kişi-gün → aşan saat). Rapordaki hesapla aynı kural.
+  const overtimeMarks: Record<string, { over: number; total: number }> = (() => {
+    const at = Number((locRules as Record<string, unknown>).overtime_threshold_hours) || 45;
+    const byPerson: Record<string, { day: number; h: number }[]> = {};
+    for (const [k, v] of Object.entries(cellMap)) {
+      const i = k.lastIndexOf("-");
+      (byPerson[k.slice(0, i)] ??= []).push({ day: Number(k.slice(i + 1)), h: cellWorkHours(v.startMin, v.endMin, shiftDefs) });
+    }
+    const out: Record<string, { over: number; total: number }> = {};
+    for (const [pid, list] of Object.entries(byPerson)) {
+      const total = list.reduce((t, x) => t + x.h, 0);
+      if (total <= at + 0.05) continue;
+      let sum = 0;
+      for (const x of list.sort((a, b) => a.day - b.day)) {
+        const before = sum; sum += x.h;
+        const over = Math.min(x.h, sum - Math.max(at, before));
+        if (over > 0.05) out[`${pid}-${x.day}`] = { over: Math.round(over * 10) / 10, total: Math.round(total * 10) / 10 };
+      }
+    }
+    return out;
+  })();
+  const overtimeAt = Number((locRules as Record<string, unknown>).overtime_threshold_hours) || 45;
   const popoverHours  = popover ? Math.round(cellWorkHours(popover.startMin, popover.endMin, shiftDefs) * 10) / 10 : 0;
 
   // Popover anlık kural kontrolleri
@@ -2569,7 +2592,7 @@ function SchedulePageInner() {
                     )}
                     <button onClick={() => { setActionsOpen(false); setFairnessOpen(o => !o); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                      <BarChart2 size={13} className="text-slate-400" /> {fairnessOpen ? "Adalet Dağılımını Gizle" : "Adalet Dağılımı"}
+                      <BarChart2 size={13} className="text-slate-400" /> {fairnessOpen ? "Adalet Puanını gizle" : "Adalet Puanı"}
                     </button>
                     <a href={`/api/export/schedule?location_id=${activeLocationId}&week_start=${weekStart}`} download onClick={() => setActionsOpen(false)}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
@@ -2905,11 +2928,14 @@ function SchedulePageInner() {
                     };
                   })}
                   chipMark={(pid, day) => {
+                    const marks: { text: string; title: string }[] = [];
                     const f = forceAssignMap[`${pid}-${day}`];
-                    if (f) return { text: f.status === "pending" ? "⏳" : f.status === "accepted" ? "✓" : "✗", title: f.status === "pending" ? "Zorunlu atama: yanıt bekleniyor" : f.status === "accepted" ? "Zorunlu atama kabul edildi" : "Zorunlu atama reddedildi" };
+                    if (f) marks.push({ text: f.status === "pending" ? "⏳" : f.status === "accepted" ? "✓" : "✗", title: f.status === "pending" ? "Zorunlu atama: yanıt bekleniyor" : f.status === "accepted" ? "Zorunlu atama kabul edildi" : "Zorunlu atama reddedildi" });
                     const r = fatigueRiskMap[pid];
-                    if (r) return { text: r.riskLevel === "danger" ? "‼" : "!", title: `Yorgunluk uyarısı: ${r.reasons.join(" / ")}` };
-                    return null;
+                    if (r && !f) marks.push({ text: r.riskLevel === "danger" ? "‼" : "!", title: `Yorgunluk uyarısı: ${r.reasons.join(" / ")}` });
+                    const o = overtimeMarks[`${pid}-${day}`];
+                    if (o) marks.push({ text: `+${trNum(o.over)} sa mesai`, title: `Fazla mesai: bu hafta ${trNum(o.total)} saat çalışıyor. ${overtimeAt} saati aşan ${trNum(o.over)} saat bu vardiyada.` });
+                    return marks.length ? { text: marks.map(m => m.text).join(" "), title: marks.map(m => m.title).join(" · ") } : null;
                   }}
                   mobileDay={mobileDay}
                   cellMap={cellMap}
@@ -3215,7 +3241,7 @@ function SchedulePageInner() {
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <BarChart2 size={15} className="text-forest-500" />
-            <h2 className="text-sm font-bold text-slate-800">Adalet Dağılımı</h2>
+            <h2 className="text-sm font-bold text-slate-800">Adalet Puanı</h2>
           </div>
           <button onClick={() => setFairnessOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={15} /></button>
         </div>
@@ -3256,8 +3282,8 @@ function SchedulePageInner() {
           )}
         </div>
         <div className="px-4 py-3 border-t border-slate-100 space-y-1 text-[11px] text-slate-400 leading-relaxed">
-          <p>Puan, kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını gösterir. Puanı yüksek olan daha çok çalışmıştır. Otomatik plan önce puanı düşük olana vardiya verir.</p>
-          <p>Kırmızı çubuk puanı ortalamanın belirgin üstünde, mavi çubuk altında olan kişiyi gösterir. Kesin puan plan yayınlanınca hesaplanır.</p>
+          <p>{fairnessExplainer((locRules as Record<string, unknown>).fairness_window_weeks as number | undefined)}</p>
+          <p>Yeşil çubuk ortalamanın %20&apos;den fazla altında, kırmızı çubuk %20&apos;den fazla üstünde, mavi çubuk ortalamaya yakın olan kişidir. Kesin puan plan yayınlanınca hesaplanır.</p>
         </div>
       </div>
 
@@ -3367,8 +3393,15 @@ function SchedulePageInner() {
             }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
             const isNght = isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440));
-            if (!pts.hardPoints && !isNght && !pts.flags.away) return null;
+            const basePts = Math.round((pts.points - pts.hardPoints - (pts.flags.away ? Number(locRules.away_shift_points ?? 0) : 0)) * 10) / 10;
             return (
+              <>
+              {/* Bu vardiyanın Adalet Puanı'na katkısı, hesabıyla (lib/fairness calcAssignmentPoints) */}
+              <p className="mt-2 text-xs text-slate-500">
+                Adalet Puanı&apos;na <span className="font-semibold text-slate-700">+{formatScore(pts.points)}</span> ekler
+                ({trNum(pts.hours)} saat × zorluk {matchedDef?.base_points ?? 5} ÷ 5 = {formatScore(basePts)}{pts.hardPoints > 0 ? `, zor gün +${pts.hardPoints}` : ""}{pts.flags.away ? `, başka şube +${locRules.away_shift_points ?? 0}` : ""}).
+              </p>
+              {(pts.hardPoints > 0 || isNght || pts.flags.away) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {pts.hardReasons.map(r => <StatusPill key={r.label} tone="attention">{r.label}</StatusPill>)}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
@@ -3377,6 +3410,8 @@ function SchedulePageInner() {
                   <span className="text-[11px] text-slate-400">→ +{pts.hardPoints} puan{pts.hardReasons.length > 1 ? " (en yükseği)" : ""}</span>
                 )}
               </div>
+              )}
+              </>
             );
           })()}
           {popoverWarnings.length > 0 && (

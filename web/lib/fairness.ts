@@ -505,6 +505,20 @@ export function scoreVsAverageText(score: number, teamAvg: number): string {
   return pct > 0 ? `ortalamanın %${pct} üstü` : `ortalamanın %${-pct} altı`;
 }
 
+/**
+ * Adalet Puanı'nın TEK açıklaması (kullanıcı kararı 2026-10-10: her ekranda aynı cümle).
+ * forTeam: ekip üyesine "siz" diliyle.
+ */
+export function fairnessExplainer(windowWeeks?: number | null, forTeam = false): string {
+  const w = Number(windowWeeks) > 0 ? Number(windowWeeks) : 4;
+  return forTeam
+    ? `Adalet Puanı son ${w} haftada ne kadar ve ne kadar zor vardiyalarda çalıştığınızı gösterir. Puanı düşük olan sıradaki planda önce vardiya alır, yüksek olan daha az alır. Böylece zor vardiyalar hep aynı kişilere yazılmaz.`
+    : `Adalet Puanı her kişinin son ${w} haftada ne kadar ve ne kadar zor vardiyalarda çalıştığını gösterir. Puanı düşük olan sıradaki planda önce vardiya alır, yüksek olan daha az alır. Böylece zor vardiyalar hep aynı kişilere yazılmaz.`;
+}
+
+/** "ortalamanın %12 altı" → "Ortalamanın %12 altı" (satır başı) */
+export const capitalizeTr = (t: string) => (t ? t.charAt(0).toLocaleUpperCase("tr") + t.slice(1) : t);
+
 /** Puanı Türkçe biçimde yazar (331,6). */
 export function formatScore(score: number): string {
   return (Math.round(score * 10) / 10).toLocaleString("tr-TR", { maximumFractionDigits: 1 });

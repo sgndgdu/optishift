@@ -33,7 +33,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { DayPointsGrid, SpecialDatesEditor } from "@/components/settings/HardDays";
 import { FairnessSurveyCard } from "@/components/settings/FairnessSurveyCard";
-import { resolveHardDayRules, type HardDayRules } from "@/lib/fairness";
+import { fairnessExplainer, resolveHardDayRules, type HardDayRules } from "@/lib/fairness";
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -1733,7 +1733,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                   <Scale size={18} className="text-forest-500 shrink-0 mt-0.5" />
                   <div className="space-y-1.5 text-xs text-forest-700">
                     <p className="text-sm font-semibold text-forest-800">Adalet Puanı nedir?</p>
-                    <p>Kişi çalıştığı her vardiyadan puan alır. Puanı yüksek olan kişi çok çalışmış demektir. Otomatik plan, puanı düşük olana daha çok, puanı yüksek olana daha az vardiya vererek iş yükünü eşitler.</p>
+                    <p>{fairnessExplainer((locationData?.rules as Record<string, unknown> | undefined)?.fairness_window_weeks as number | undefined)}</p>
                     <p>Örnek: orta zorlukta 8 saatlik vardiya 8 puandır. Vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndan gelir. Aşağıdakiler bunun üstüne eklenen puanlardır.</p>
                   </div>
                 </div>

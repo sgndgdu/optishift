@@ -22,6 +22,10 @@ export type TeamPerson = {
   id: string; name: string; branch: string; department: string | null;
   hours: number; shifts: number; weekend: number; night: number; leaveDays: number;
   overLimitWeeks: number; late: number; cost: number | null;
+  /** Fazla mesai: haftalık çalışması mesai başlangıcını (rules.overtime_threshold_hours, varsayılan 45) aşan haftalar.
+   *  Hafta, başladığı ayın raporunda sayılır ve bütün haftanın süresiyle hesaplanır. */
+  overtime: { weekStart: string; worked: number; over: number }[];
+  overtimeHours: number;
 };
 export type TeamReport = {
   month: string; label: string; partial: boolean;
@@ -32,11 +36,13 @@ export type TeamReport = {
     /** Giriş yapılmayan geçmiş vardiya; şubede o ay hiç giriş yoksa null (giriş kullanılmıyor) */
     noCheckIn: number | null;
     overLimitPeople: number;
+    overtimePeople: number;
+    overtimeHours: number;
   };
   people: TeamPerson[];
   departments: { name: string; hours: number; people: number }[];
   weekdays: number[];
-  branches: { id: string; name: string; hours: number; cost: number | null; gaps: number; people: number; overLimit: number; late: number }[];
+  branches: { id: string; name: string; hours: number; cost: number | null; gaps: number; people: number; overLimit: number; overtimePeople: number; late: number }[];
   /** Dikkat edilecekler: tam cümleler, önemli olan önce */
   attention: string[];
 };
@@ -76,12 +82,22 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
   const defsByLoc = new Map<string, any[]>(locs.map(l => [l.id, J(l.shift_definitions, [])]));
   const locName = new Map<string, string>(locs.map(l => [l.id, l.name]));
   const ruleMax = new Map<string, number>(locs.map(l => [l.id, Number(J(l.rules, {}).max_weekly_hours) || 45]));
+  // Fazla mesai başlangıcı (Ayarlar › Gelişmiş › Çalışma Süresi; İş K. m.41 haftalık 45)
+  const ruleOt = new Map<string, number>(locs.map(l => [l.id, Number(J(l.rules, {}).overtime_threshold_hours) || 45]));
   const depts = ids.length ? await db.prepare(`SELECT id, location_id, parent_id, name, demand_matrix FROM departments WHERE location_id IN (${ids.map(() => "?").join(",")})`).all(...ids) as any[] : [];
   const people = await db.prepare(`SELECT id, name, primary_location_id, department_id, max_weekly_hours, hourly_wage, weekly_off_day FROM personnel WHERE org_id = ?`).all(orgId) as any[];
   const personOf = new Map<string, any>(people.map(p => [p.id, p]));
 
   const shifts = await shiftsIn(db, ids, start, end, defsByLoc);
   const prevShifts = await shiftsIn(db, ids, prev.start, prev.end, defsByLoc);
+  // Ayın son haftası ertesi aya taşar: fazla mesai için o haftanın tamamı
+  const tailShifts = await shiftsIn(db, ids, addDays(end, 1), addDays(end, 7), defsByLoc);
+  const weekSum = new Map<string, number>(); // kişi|hafta → saat (ay içinde başlayan haftalar)
+  for (const s of [...shifts, ...tailShifts]) {
+    if (s.week_start < start || s.week_start > end) continue;
+    const k = `${s.personnel_id}|${s.week_start}`;
+    weekSum.set(k, (weekSum.get(k) ?? 0) + s.hours);
+  }
   const wage = (pid: string) => Number(personOf.get(pid)?.hourly_wage) || 0;
 
   // İzinler (onaylı), ay içine düşen günler
@@ -127,6 +143,10 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     const weeks = new Map<string, number>();
     for (const s of ss) weeks.set(s.week_start, (weeks.get(s.week_start) ?? 0) + s.hours);
     const hours = ss.reduce((t, s) => t + s.hours, 0);
+    const otAt = ruleOt.get(home) ?? 45;
+    const overtime = [...weekSum.entries()].filter(([k]) => k.startsWith(`${pid}|`))
+      .map(([k, h]) => ({ weekStart: k.split("|")[1], worked: round1(h), over: round1(h - otAt) }))
+      .filter(w => w.over > 0.05).sort((a, b) => a.weekStart.localeCompare(b.weekStart));
     list.push({
       id: pid, name: p?.name ?? "Silinmiş kişi", branch: locName.get(home) ?? "", department: deptName(p?.department_id),
       hours: round1(hours), shifts: ss.length,
@@ -136,13 +156,14 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
       overLimitWeeks: [...weeks.values()].filter(h => h > limit + 0.01).length,
       late: ss.filter(lateOf).length,
       cost: withCost && wage(pid) ? Math.round(hours * wage(pid)) : null,
+      overtime, overtimeHours: round1(overtime.reduce((t, w) => t + w.over, 0)),
     });
   }
   // Ay içinde hiç vardiyası olmayan ama izinli olanlar da listede görünsün
   for (const [pid, n] of leaveDays) if (!byPerson.has(pid)) {
     const p = personOf.get(pid);
     list.push({ id: pid, name: p?.name ?? "", branch: locName.get(p?.primary_location_id) ?? "", department: deptName(p?.department_id),
-      hours: 0, shifts: 0, weekend: 0, night: 0, leaveDays: n, overLimitWeeks: 0, late: 0, cost: null });
+      hours: 0, shifts: 0, weekend: 0, night: 0, leaveDays: n, overLimitWeeks: 0, late: 0, cost: null, overtime: [], overtimeHours: 0 });
   }
   list.sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name, "tr"));
 
@@ -195,6 +216,8 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     late: list.reduce((t, p) => t + p.late, 0),
     noCheckIn: usesCheckIn.size ? shifts.filter(missedCheckIn).length : null,
     overLimitPeople: list.filter(p => p.overLimitWeeks > 0).length,
+    overtimePeople: list.filter(p => p.overtimeHours > 0).length,
+    overtimeHours: round1(list.reduce((t, p) => t + p.overtimeHours, 0)),
   };
 
   const branches = locs.map(l => {
@@ -205,6 +228,7 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
       cost: withCost && ss.some(s => wage(s.personnel_id)) ? Math.round(ss.reduce((t, s) => t + s.hours * wage(s.personnel_id), 0)) : null,
       gaps: gapsByLoc.get(l.id) ?? 0, people: pids.size,
       overLimit: list.filter(p => pids.has(p.id) && p.overLimitWeeks > 0).length,
+      overtimePeople: list.filter(p => pids.has(p.id) && p.overtimeHours > 0).length,
       late: ss.filter(lateOf).length,
     };
   });
@@ -213,6 +237,8 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
   const attention: string[] = [];
   const names = (xs: TeamPerson[]) => xs.length <= 3 ? xs.map(x => x.name).join(", ") : `${xs.slice(0, 3).map(x => x.name).join(", ")} ve ${xs.length - 3} kişi daha`;
   const over = list.filter(p => p.overLimitWeeks > 0);
+  const ot = list.filter(p => p.overtimeHours > 0).sort((a, b) => b.overtimeHours - a.overtimeHours);
+  if (ot.length) attention.push(`${ot.length} kişi fazla mesai yaptı, toplam ${fmt(totals.overtimeHours)} saat. En çok: ${ot[0].name} (${fmt(ot[0].overtimeHours)} saat).`);
   if (over.length) attention.push(`${over.length} kişi en az bir hafta haftalık çalışma sınırını aştı: ${names(over)}.`);
   if (totals.gaps) {
     const top = [...gapPlaces].sort((a, b) => b[1] - a[1])[0];

@@ -6,16 +6,16 @@
  * Sıra: ay seçimi, dört sayı, dikkat edilecekler, ekip tablosu (sıralanır, departmana süzülür), departmanlar, günler.
  */
 import { useEffect, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Clock, UserMinus, Wallet, Users, ArrowDownUp } from "lucide-react";
+import { Timer, ChevronLeft, ChevronRight, Clock, UserMinus, Wallet, Users, ArrowDownUp } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
-import { businessToday } from "@/lib/date";
+import { businessToday, weekRangeTR } from "@/lib/date";
 import { monthLabel, nextMonth, prevMonth } from "@/lib/months";
 import { DAY_SHORT } from "@/lib/constants";
 import { trNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TeamReport as Report, TeamPerson } from "@/lib/reports/teamReport";
 
-type SortKey = "hours" | "shifts" | "weekend" | "night" | "leaveDays" | "late" | "cost" | "name";
+type SortKey = "hours" | "overtimeHours" | "shifts" | "weekend" | "night" | "leaveDays" | "late" | "cost" | "name";
 const ROWS = 10;
 const tl = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
 
@@ -109,8 +109,8 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
             )}
             <StatCard label="Eksik kalan" icon={UserMinus} tone={data.totals.gaps ? "danger" : "positive"} value={`${data.totals.gaps} kişi`}
               hint="Yayınlanan planda" />
-            <StatCard label="Sınırı aşan" icon={AlertTriangle} tone={data.totals.overLimitPeople ? "danger" : "positive"} value={`${data.totals.overLimitPeople} kişi`}
-              hint={data.totals.late ? `${data.totals.late} geç gelme` : data.totals.leaveDays ? `${data.totals.leaveDays} gün izin` : "Haftalık çalışma sınırı"} />
+            <StatCard label="Fazla mesai" icon={Timer} tone={data.totals.overtimePeople ? "attention" : "positive"} value={`${data.totals.overtimePeople} kişi`}
+              hint={data.totals.overtimePeople ? `Toplam ${trNum(data.totals.overtimeHours)} saat` : "Kimse fazla çalışmadı"} />
           </div>
 
           {data.attention.length > 0 && (
@@ -134,7 +134,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                       {data.branches.some(b => b.cost !== null) && <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Maliyet</th>}
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Kişi</th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Eksik</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Sınırı aşan</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Fazla mesai</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -146,7 +146,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                         {data.branches.some(x => x.cost !== null) && <td className="px-3 py-2.5 text-right tabular-nums">{b.cost !== null ? tl(b.cost) : "Yok"}</td>}
                         <td className="px-3 py-2.5 text-right tabular-nums">{b.people}</td>
                         <td className={cn("px-3 py-2.5 text-right tabular-nums", b.gaps ? "font-semibold text-red-600" : "text-slate-400")}>{b.gaps}</td>
-                        <td className={cn("px-3 py-2.5 text-right tabular-nums", b.overLimit ? "font-semibold text-red-600" : "text-slate-400")}>{b.overLimit}</td>
+                        <td className={cn("px-3 py-2.5 text-right tabular-nums", b.overtimePeople ? "font-semibold text-amber-700" : "text-slate-400")}>{b.overtimePeople} kişi</td>
                       </tr>
                     ))}
                   </tbody>
@@ -173,6 +173,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                   <tr>
                     <Th sort={sort} onSort={setSort} k="name">Ad</Th>
                     <Th sort={sort} onSort={setSort} k="hours" className="text-right">Saat</Th>
+                    {data.totals.overtimePeople > 0 && <Th sort={sort} onSort={setSort} k="overtimeHours" className="text-right">Mesai</Th>}
                     <Th sort={sort} onSort={setSort} k="shifts" className="hidden text-right sm:table-cell">Vardiya</Th>
                     <Th sort={sort} onSort={setSort} k="weekend" className="hidden text-right md:table-cell">Hafta sonu</Th>
                     <Th sort={sort} onSort={setSort} k="night" className="hidden text-right md:table-cell">Gece</Th>
@@ -192,11 +193,17 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                         <span className="block text-xs text-slate-500">
                           {[multi && !branch ? p.branch : null, p.department, `${p.shifts} vardiya`, p.weekend ? `${p.weekend} hafta sonu` : null, p.leaveDays ? `${p.leaveDays} gün izin` : null].filter(Boolean).join(" · ")}
                         </span>
+                        {p.overtime.length > 0 && (
+                          <span className="block text-xs text-amber-700">
+                            Fazla mesai: {p.overtime.map(w => `${weekRangeTR(w.weekStart)} haftası ${trNum(w.worked)} saat çalıştı, ${trNum(w.over)} saati fazla`).join(" · ")}
+                          </span>
+                        )}
                         <span className="mt-1 block h-1 overflow-hidden rounded-full bg-slate-100 sm:max-w-[220px]">
                           <span className={cn("block h-full rounded-full", p.overLimitWeeks ? "bg-red-400" : "bg-forest-400")} style={{ width: `${Math.round((p.hours / maxHours) * 100)}%` }} />
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-slate-900">{trNum(p.hours)}</td>
+                      {data.totals.overtimePeople > 0 && <td className={cn("px-3 py-2.5 text-right tabular-nums", p.overtimeHours ? "font-semibold text-amber-700" : "text-slate-400")}>{p.overtimeHours ? trNum(p.overtimeHours) : "0"}</td>}
                       <td className="hidden px-3 py-2.5 text-right tabular-nums sm:table-cell">{p.shifts}</td>
                       <td className="hidden px-3 py-2.5 text-right tabular-nums md:table-cell">{p.weekend}</td>
                       <td className="hidden px-3 py-2.5 text-right tabular-nums md:table-cell">{p.night}</td>
@@ -205,7 +212,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                       {hasCost && <td className="hidden px-3 py-2.5 text-right tabular-nums sm:table-cell">{p.cost !== null ? tl(p.cost) : "Yok"}</td>}
                     </tr>
                   ))}
-                  {shown.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-sm text-slate-500">Bu süzgece uyan kimse yok.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-slate-500">Bu süzgece uyan kimse yok.</td></tr>}
                 </tbody>
               </table>
               {sorted.length > ROWS && (

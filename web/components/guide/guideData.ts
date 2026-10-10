@@ -212,7 +212,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Adalet Puanı neyi ölçüyor?",
     answer:
-      "Adalet Puanı, kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını ölçer. Hafta sonu ve çalışmak istemediğiniz günde çalışmak daha çok puan getirir. Puanı yüksek olana sonraki planlarda daha az vardiya verilir. Böylece zor vardiyalar hep aynı kişilere yazılmaz.",
+      "Adalet Puanı her kişinin son haftalarda ne kadar ve ne kadar zor vardiyalarda çalıştığını gösterir. Puanı düşük olan sıradaki planda önce vardiya alır, yüksek olan daha az alır. Böylece zor vardiyalar hep aynı kişilere yazılmaz. Bir vardiyanın puanı saat × vardiya zorluğu ÷ 5'tir: orta zorlukta 8 saatlik vardiya 8 puan. Hafta sonu, bayram ve çalışmak istemediğiniz gün ek puan getirir.",
   },
   {
     question: "Uygunluk girmek zorunlu mu?",

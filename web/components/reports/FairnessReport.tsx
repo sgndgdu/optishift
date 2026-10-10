@@ -9,9 +9,9 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { DetailRow } from "@/components/ui/Sheet";
-import { formatDateTR } from "@/lib/date";
+import { formatDateTR, weekRangeTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { fairnessBarColor, fairnessLabelFromAverage, formatScore, resolveHardDayRules } from "@/lib/fairness";
+import { capitalizeTr, fairnessBarColor, fairnessExplainer, fairnessLabelFromAverage, formatScore, resolveHardDayRules, scoreVsAverageText } from "@/lib/fairness";
 import { DAY_SHORT } from "@/lib/constants";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
@@ -107,7 +107,13 @@ export default function FairnessReport() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">Son {rules.fairness_window_weeks ?? 4} haftanın toplamı. Yeni plan bu birikimi dengeler.</p>
+        <div className="flex gap-3 rounded-2xl border border-forest-100 bg-forest-50 p-4">
+          <Scale size={18} className="mt-0.5 shrink-0 text-forest-600" />
+          <div className="space-y-1 text-sm text-forest-800">
+            <p>{fairnessExplainer(rules.fairness_window_weeks)}</p>
+            <p className="text-xs text-forest-700">Bir kişiye dokununca puanının hangi haftalardan ve ek puanlardan geldiğini görürsünüz.</p>
+          </div>
+        </div>
         <button
           onClick={() => locationId && load(locationId)}
           className="shrink-0 inline-flex items-center gap-1.5 px-2 min-h-[40px] text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
@@ -117,14 +123,14 @@ export default function FairnessReport() {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Ortalama" value={formatScore(avgBurden)} icon={Scale} />
-        <StatCard label="En hafif" value={<span className="block truncate">{leastLoaded ? leastLoaded.name : "—"}</span>} icon={Gauge} tone="positive" />
-        <StatCard label="Fark" value={formatScore(gap)} icon={Ruler} tone={gapTone} />
+        <StatCard label="Ekip ortalaması" value={formatScore(avgBurden)} icon={Scale} />
+        <StatCard label="Sıradaki vardiya önce" value={<span className="block truncate">{leastLoaded ? leastLoaded.name : "—"}</span>} icon={Gauge} tone="positive" />
+        <StatCard label="En yüksek ile en düşük farkı" value={formatScore(gap)} icon={Ruler} tone={gapTone} />
       </div>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-slate-900">Yük dağılımı</h2>
+          <h2 className="text-base font-bold text-slate-900">Kişilerin puanı</h2>
           <Tabs items={[{ id: "current", label: "Güncel" }, { id: "history", label: "8 Hafta" }] as const} value={view} onChange={setView} />
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-4">
@@ -184,7 +190,7 @@ export default function FairnessReport() {
           )}
         </div>
         <p className="text-xs text-slate-500">
-          Puan = saat × zorluk ÷ 5 + zor gün puanı + ek puanlar. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır.
+          Bir vardiyanın puanı = saat × vardiya zorluğu ÷ 5 + zor gün puanı. Örnek: orta zorlukta (5) 8 saatlik vardiya 8 puan, aynı vardiya Pazar günü (+4) 12 puan. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır.
         </p>
       </section>
     </div>
@@ -232,14 +238,12 @@ function CurrentView({
             {/* İsim + durum (ortalamadaysa durum yazılmaz) */}
             <div className="w-28 md:w-40 shrink-0 min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
-              {fairnessText !== "Takım ortalamasında" && (
-                <p className={cn(
-                  "text-xs truncate",
-                  level === "low" ? "text-emerald-600" : level === "high" ? "text-red-600" : "text-slate-500"
-                )}>
-                  {level === "low" ? "Az yüklü" : level === "high" ? "Çok yüklü" : "Ortalamanın üstü"}
-                </p>
-              )}
+              <p className={cn(
+                "text-xs truncate",
+                level === "low" ? "text-emerald-600" : level === "high" ? "text-red-600" : "text-slate-500"
+              )}>
+                {capitalizeTr(scoreVsAverageText(burden, avgBurden))}
+              </p>
             </div>
 
             {/* Bar */}
@@ -265,31 +269,28 @@ function CurrentView({
           {/* Kırılım — neden bu puan? */}
           {isExpanded && (
             <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
-              <p className="text-xs text-slate-500">{fairnessText}{(p.hero_count ?? 0) > 0 && ` · ${p.hero_count} kez açık vardiya aldı`}{(p.no_show_count ?? 0) > 0 && ` · ${p.no_show_count} kez gelmedi`}</p>
+              <p className="text-sm font-semibold text-slate-800">{fairnessText}.</p>
+              <p className="text-xs text-slate-500">Puanı {formatScore(burden)}, ekip ortalaması {formatScore(avgBurden)}. Her hafta: saat × vardiya zorluğu ÷ 5, zor günlerde (hafta sonu, bayram, tercih etmem dediği gün) ek puan.{(p.hero_count ?? 0) > 0 && ` Boş kalan vardiyayı ${p.hero_count} kez kendisi aldı.`}</p>
               {pHist.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-slate-400 font-semibold text-left">
                         <th className="pr-3 pb-1 font-semibold">Hafta</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Puan</th>
                         <th className="pr-3 pb-1 font-semibold text-right">Saat</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Hf.sonu</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Gece</th>
-                        <th className="pr-3 pb-1 font-semibold text-right">Tercih etmem</th>
-                        <th className="pb-1 font-semibold text-right">Kap→Açl</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Hafta sonu vardiyası</th>
+                        <th className="pr-3 pb-1 font-semibold text-right">Tercih etmem günü</th>
+                        <th className="pb-1 font-semibold text-right">Haftanın puanı</th>
                       </tr>
                     </thead>
                     <tbody className="text-slate-600 tabular-nums">
                       {[...pHist].slice(-4).reverse().map((h: any) => (
                         <tr key={h.week_start} className="border-t border-slate-100">
-                          <td className="pr-3 py-1">{new Date(h.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}</td>
-                          <td className="pr-3 py-1 text-right font-bold">{formatScore(h.burden_score ?? 0)}</td>
+                          <td className="pr-3 py-1">{weekRangeTR(h.week_start)}</td>
                           <td className="pr-3 py-1 text-right">{formatScore(h.total_hours ?? 0)}</td>
                           <td className="pr-3 py-1 text-right">{h.weekend_shifts ?? 0}</td>
-                          <td className="pr-3 py-1 text-right">{h.night_shifts ?? 0}</td>
                           <td className="pr-3 py-1 text-right">{h.pref_not_shifts ?? 0}</td>
-                          <td className="py-1 text-right">{h.clopening_count ?? 0}</td>
+                          <td className="py-1 text-right font-bold">{formatScore(h.burden_score ?? 0)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -300,7 +301,7 @@ function CurrentView({
               )}
               {pAdjs.length > 0 && (
                 <div className="border-t border-slate-200/60 pt-2 space-y-1">
-                  <p className="text-xs text-slate-400 font-bold">Puan Olayları</p>
+                  <p className="text-xs text-slate-500 font-semibold">Ek puanlar</p>
                   {pAdjs.slice(0, 5).map((a: any) => (
                     <div key={a.id} className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Elle düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
@@ -317,9 +318,9 @@ function CurrentView({
 
       {/* Renk açıklaması */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-emerald-500 rounded-full inline-block" />Az yüklü (%20 altı)</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block" />Normal</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-400 rounded-full inline-block" />Çok yüklü (%20 üstü)</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-emerald-500 rounded-full inline-block" />Ortalamanın %20&apos;den fazla altı</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block" />Ortalamaya yakın</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-400 rounded-full inline-block" />Ortalamanın %20&apos;den fazla üstü</span>
         <span className="flex items-center gap-1.5"><span className="w-0.5 h-3.5 bg-amber-400 inline-block" />Ortalama</span>
       </div>
 
@@ -328,10 +329,10 @@ function CurrentView({
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-px" />
           <div>
             <p className="text-sm font-semibold text-amber-800">
-              Yük dağılımı dengesiz, {formatScore(gap)} puanlık fark var.
+              En yüksek ile en düşük puan arasında {formatScore(gap)} puan fark var.
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
-              Bir sonraki otomatik plan bu farkı kapatmaya çalışacak.
+              Sıradaki otomatik plan puanı düşük olanlara daha çok vardiya vererek farkı kapatır.
             </p>
           </div>
         </div>
