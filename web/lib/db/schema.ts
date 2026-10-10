@@ -305,6 +305,9 @@ export const shiftEditRequests = pgTable("shift_edit_requests", {
     .notNull()
     .references(() => shiftAssignments.id),
   reason: text("reason").notNull(),
+  // Gerçek saat (2026-10-10): onaylanınca vardiya bu saate çekilir, fazla mesai yeniden hesaplanır
+  requested_start: text("requested_start"),
+  requested_end: text("requested_end"),
   status: text("status").notNull().default("pending"), // pending | approved | rejected
   manager_note: text("manager_note"),
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(

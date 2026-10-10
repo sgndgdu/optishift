@@ -19,7 +19,6 @@ const PUBLIC_API_PATHS = [
   "/api/auth/google/complete-registration", // pending_token'ın kendisi doğrulama sağlar
   "/api/auth/forgot-password",           // oturumu olmayan kullanıcı içindir
   "/api/auth/reset-password",            // e-postadaki token'ın kendisi doğrulama sağlar
-  "/api/kiosk/",                         // ortak tablet — requireAuth kullanmaz, PIN kendi kimlik doğrulamasını sağlar (bkz. lib/kiosk-auth.ts)
   // DİKKAT: /api/auth/google/session buraya EKLENMEMELİ — callback'in az önce
   // set ettiği oturum cookie'sini JWT doğrulamasıyla okumak zorunda.
   // DİKKAT: /api/auth/setup da EKLENMEMELİ — GET /api/invite'ın başlattığı

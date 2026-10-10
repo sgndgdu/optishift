@@ -5,7 +5,7 @@
 // Maddeleri lib/inbox.ts üretir; bu sayfa sadece veriyi toplar ve çizer.
 
 import { addDays, businessToday, formatDateTR } from "@/lib/date";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useManagerAuth } from "@/hooks/useAuth";
 import {
   Users, AlertTriangle, Check, ArrowRight, CheckCircle2,
@@ -80,7 +80,6 @@ export default function DashboardPage() {
   const [fatigueAtRisk, setFatigueAtRisk] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showAllToday, setShowAllToday] = useState(false);
-  const lateAutoCreated = useRef<Set<number>>(new Set());
 
   const getTodayWeekStart = () => {
     const now = new Date();
@@ -257,21 +256,9 @@ export default function DashboardPage() {
   };
 
   const openShiftsEnabled = isModuleOn(rules, "open_shifts_enabled");
-  const autoOpenOnLate    = rules.auto_open_shift_on_late !== false;
-  const lateThresholdMin  = typeof rules.late_threshold_min === "number" ? rules.late_threshold_min : 30;
-  const heroBonus         = rules.hero_bonus_enabled === false ? 0 : typeof rules.hero_bonus_points === "number" ? rules.hero_bonus_points : 6;
   const maxYtdOvertime    = typeof rules.max_ytd_overtime_hours === "number" ? rules.max_ytd_overtime_hours : 270;
 
-  // Vardiya başlangıcından eşik süre (rules.late_threshold_min) geçmiş, henüz giriş yok → geç kalan
-  // rules.checkin_required kapalıyken giriş bilgi amaçlıdır, eksikliği hiç kimseyi "geç kalan" yapmaz
-  const isLate = (s: any): boolean => {
-    if (!isModuleOn(rules, "checkin_required") || s.check_in_at || !s.start_time) return false;
-    const [h, m] = s.start_time.split(":").map(Number);
-    return now.getHours() * 60 + now.getMinutes() >= h * 60 + m + lateThresholdMin;
-  };
-
-  // Vardiyanın saate göre durumu: giriş kaydı tutulmayan şubede (checkin_required kapalı) "Bekleniyor"
-  // vardiya bitse de kalıyor, bitmiş vardiyaya "Yerine bul" çıkıyordu (tam test 2026-10-05)
+  // Vardiyanın saate göre durumu (giriş/çıkış kaldırıldı 2026-10-10: durum sadece saatten)
   const shiftPhase = (s: any): "before" | "during" | "after" => {
     if (!s.start_time || !s.end_time) return "before";
     const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
@@ -279,46 +266,13 @@ export default function DashboardPage() {
     const cur = now.getHours() * 60 + now.getMinutes();
     return cur >= end ? "after" : cur >= start ? "during" : "before";
   };
-  const checkinTracked = isModuleOn(rules, "checkin_required");
-
-  // Gelmeyen personelin vardiyasını açık vardiyaya dönüştür: atama kişinin
-  // takviminden düşer, ilan havuzuna girer, kişiye + ekibe bildirim gider.
-  const convertToOpenShift = async (s: any, auto: boolean) => {
-    if (lateAutoCreated.current.has(s.id) || !user?.location_id) return;
-    lateAutoCreated.current.add(s.id);
-    try {
-      const res = await fetch("/api/open-shifts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          convert_assignment_id: s.id,
-          reason: auto ? "no_show" : "absence",
-          hero_bonus_multiplier: heroBonus,
-        }),
-      });
-      if (!res.ok) { lateAutoCreated.current.delete(s.id); return; }
-      // Atama artık ilanda — canlı listeden düşür, açık vardiya sayısını güncelle
-      setTodayShifts(prev => prev.filter((x: any) => x.id !== s.id));
-      setOpenShiftCount(c => c + 1);
-    } catch { lateAutoCreated.current.delete(s.id); }
-  };
-
-  // Geç kalanların vardiyasını otomatik ilana çevir (Ayarlar → Gelişmiş Seçenekler → Vardiya Girişi ve Canlı Durum).
-  // Her dakika "now" ile yeniden değerlendirilir; aynı atama iki kez çevrilmez (lateAutoCreated).
-  useEffect(() => {
-    if (!openShiftsEnabled || !autoOpenOnLate) return;
-    todayShifts.filter(s => !s.check_in_at && isLate(s)).forEach(s => convertToOpenShift(s, true));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayShifts, now, rules]);
 
   if (!mounted || !user) return <div className="space-y-8" />;
-
-  const lateShifts = todayShifts.filter(s => !s.check_in_at && isLate(s));
 
   const inbox = loading ? [] : buildInbox({
     now,
     personnelCount: personnel.length,
-    lateCount: openShiftsEnabled && autoOpenOnLate ? 0 : lateShifts.length,
+    lateCount: 0, // giriş/çıkış kaldırıldı: "gelmedi" tespiti yok
     nextWeek,
     canPublish: canPublishPlan(user),
     // Hazır çözümü gösterilen izin talepleri Bekleyen İşler'de ikinci kez sayılmaz
@@ -471,13 +425,11 @@ export default function DashboardPage() {
 
       {/* Bugün vardiyada — canlı durum */}
       {todayShifts.length > 0 && (() => {
-        const checkedIn  = todayShifts.filter(s => s.check_in_at && !s.check_out_at);
-        const checkedOut = todayShifts.filter(s => s.check_out_at);
-        const waiting    = todayShifts.filter(s => !s.check_in_at && !isLate(s) && (checkinTracked || shiftPhase(s) === "before"));
-        const untracked  = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "during");
-        const ended      = checkinTracked ? [] : todayShifts.filter(s => !s.check_in_at && shiftPhase(s) === "after");
-        // Sadeleştirme (2026-10-07): önce dikkat isteyenler (gelmedi, bekleniyor), ilk 5 satır; gerisi "Tümünü göster"
-        const rank = (s: any) => (s.check_out_at ? 4 : s.check_in_at ? 2 : isLate(s) ? 0 : (checkinTracked ? "before" : shiftPhase(s)) === "after" ? 3 : (checkinTracked ? "before" : shiftPhase(s)) === "during" ? 2 : 1);
+        const during = todayShifts.filter(s => shiftPhase(s) === "during");
+        const waiting = todayShifts.filter(s => shiftPhase(s) === "before");
+        const ended = todayShifts.filter(s => shiftPhase(s) === "after");
+        // Önce bekleniyor, sonra vardiyada, en son bitenler; ilk 5 satır, gerisi "Tümünü göster"
+        const rank = (s: any) => ({ before: 1, during: 2, after: 3 })[shiftPhase(s)];
         const sorted = [...todayShifts].sort((a, b) => rank(a) - rank(b) || String(a.start_time).localeCompare(String(b.start_time)));
         const TODAY_LIMIT = 5;
         const visible = showAllToday ? sorted : sorted.slice(0, TODAY_LIMIT);
@@ -488,10 +440,9 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Bugün Çalışanlar</CardTitle>
                 <div className="flex flex-wrap gap-3 ml-1">
                   {[
-                    { label: "Vardiyada", value: checkedIn.length + untracked.length,  color: "text-emerald-600" },
+                    { label: "Vardiyada", value: during.length,  color: "text-emerald-600" },
                     { label: "Bekleniyor", value: waiting.length,    color: "text-amber-600" },
-                    { label: "Geç",      value: lateShifts.length, color: "text-red-600" },
-                    { label: "Vardiyası bitti", value: checkedOut.length + ended.length, color: "text-slate-400" },
+                    { label: "Vardiyası bitti", value: ended.length, color: "text-slate-400" },
                   ].filter(x => x.value > 0).map(({ label, value, color }) => (
                     <span key={label} className="flex items-center gap-1 text-xs text-slate-400 font-medium">
                       <span className={`text-sm font-bold ${color}`}>{value}</span> {label}
@@ -505,14 +456,8 @@ export default function DashboardPage() {
               <ul className="divide-y divide-slate-100">
                 {visible.map((s: any) => {
                   const p            = personnel.find(px => px.id === s.personnel_id);
-                  const isCheckedIn  = !!s.check_in_at;
-                  const isCheckedOut = !!s.check_out_at;
-                  const late         = isLate(s);
-                  const phase        = checkinTracked ? "before" : shiftPhase(s);
-                  const status = isCheckedOut ? { label: "Bitti", tone: "neutral" as const }
-                    : isCheckedIn ? { label: "Vardiyada", tone: "positive" as const }
-                    : late ? { label: "Gelmedi", tone: "danger" as const }
-                    : phase === "after" ? { label: "Bitti", tone: "neutral" as const }
+                  const phase = shiftPhase(s);
+                  const status = phase === "after" ? { label: "Bitti", tone: "neutral" as const }
                     : phase === "during" ? { label: "Vardiyada", tone: "positive" as const }
                     : { label: "Bekleniyor", tone: "attention" as const };
                   return (
@@ -524,22 +469,13 @@ export default function DashboardPage() {
                       </div>
                       <StatusPill tone={status.tone}>{status.label}</StatusPill>
                       {/* Telefonla "gelemiyorum" haberi: yerine kim geçsin penceresini doğrudan aç */}
-                      {!isCheckedIn && !isCheckedOut && phase !== "after" && !(late && openShiftsEnabled && !autoOpenOnLate) && (
+                      {phase !== "after" && (
                         <button
                           onClick={() => router.push(`/schedule?week=this&gelemiyor=${s.id}&p=${encodeURIComponent(s.personnel_id)}&t=${encodeURIComponent(`${p?.name ?? ""} · ${s.start_time}–${s.end_time}`)}`)}
                           className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                           title="Yerine kim geçebilir? Uygun yedekler önerilir"
                         >
                           Yerine bul
-                        </button>
-                      )}
-                      {!isCheckedIn && !isCheckedOut && late && openShiftsEnabled && !autoOpenOnLate && (
-                        <button
-                          onClick={() => convertToOpenShift(s, false)}
-                          className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                          title="Vardiyayı ilana çıkarın, ekipten biri alabilir"
-                        >
-                          İlana çevir
                         </button>
                       )}
                     </li>

@@ -5,7 +5,7 @@
  * kim geç geldi, iş kimin üstünde toplandı. Şube raporu tek şube, Tüm Şubeler raporu birden çok şube için çağırır.
  * Sadece yayınlanmış vardiyalar sayılır; saatler molası düşülmüş çalışma süresidir (lib/legal).
  */
-import { addDays, businessToday, businessWallTime } from "@/lib/date";
+import { addDays, businessToday } from "@/lib/date";
 import { monthLabel, monthRange, prevMonth } from "@/lib/months";
 import { definedBreakFor, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { departmentLabel, leafDepartments } from "@/lib/departments";
@@ -17,12 +17,11 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + (m || 0); };
 /** 10 dakikadan fazla gecikme geç gelme sayılır */
-export const LATE_MINUTES = 10;
 
 export type TeamPerson = {
   id: string; name: string; branch: string; department: string | null;
   hours: number; shifts: number; weekend: number; night: number; leaveDays: number;
-  overLimitWeeks: number; late: number; cost: number | null;
+  overLimitWeeks: number; cost: number | null;
   /** Fazla mesai: haftalık çalışması mesai başlangıcını (rules.overtime_threshold_hours, varsayılan 45) aşan haftalar.
    *  Hafta, başladığı ayın raporunda sayılır ve bütün haftanın süresiyle hesaplanır. */
   overtime: { weekStart: string; worked: number; over: number }[];
@@ -33,9 +32,7 @@ export type TeamReport = {
   totals: {
     hours: number; prevHours: number; shifts: number; people: number;
     cost: number | null; prevCost: number | null; pricedPeople: number;
-    gaps: number; leaveDays: number; late: number;
-    /** Giriş yapılmayan geçmiş vardiya; şubede o ay hiç giriş yoksa null (giriş kullanılmıyor) */
-    noCheckIn: number | null;
+    gaps: number; leaveDays: number;
     overLimitPeople: number;
     overtimePeople: number;
     overtimeHours: number;
@@ -45,20 +42,20 @@ export type TeamReport = {
   people: TeamPerson[];
   departments: { name: string; hours: number; people: number }[];
   weekdays: number[];
-  branches: { id: string; name: string; hours: number; cost: number | null; gaps: number; people: number; overLimit: number; overtimePeople: number; late: number }[];
+  branches: { id: string; name: string; hours: number; cost: number | null; gaps: number; people: number; overLimit: number; overtimePeople: number }[];
   /** Dikkat edilecekler: tam cümleler, önemli olan önce */
   attention: string[];
 };
 
 type Shift = {
   location_id: string; personnel_id: string; week_start: string; day: number; date: string;
-  start_time: string; end_time: string; shift_id: string | null; department_id: string | null; check_in_at: number | null; hours: number;
+  start_time: string; end_time: string; shift_id: string | null; department_id: string | null; hours: number;
 };
 
 async function shiftsIn(db: any, ids: string[], start: string, end: string, defsByLoc: Map<string, any[]>): Promise<Shift[]> {
   if (!ids.length) return [];
   const rows = await db.prepare(`
-    SELECT location_id, personnel_id, week_start, day, start_time, end_time, shift_id, department_id, check_in_at
+    SELECT location_id, personnel_id, week_start, day, start_time, end_time, shift_id, department_id
     FROM shift_assignments
     WHERE location_id IN (${ids.map(() => "?").join(",")}) AND publication_status = 'published' AND COALESCE(kind, 'regular') = 'regular'
       AND start_time IS NOT NULL AND end_time IS NOT NULL
@@ -67,7 +64,7 @@ async function shiftsIn(db: any, ids: string[], start: string, end: string, defs
   return rows.map(r => {
     const s = toMin(r.start_time); let e = toMin(r.end_time); if (e <= s) e += 1440;
     const hours = netWorkMinutes(e - s, definedBreakFor(defsByLoc.get(r.location_id) ?? [], r)) / 60;
-    return { ...r, day: Number(r.day), date: addDays(r.week_start, Number(r.day)), check_in_at: r.check_in_at ? Number(r.check_in_at) : null, hours };
+    return { ...r, day: Number(r.day), date: addDays(r.week_start, Number(r.day)), hours };
   });
 }
 
@@ -122,16 +119,6 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     leaveDays.set(l.personnel_id, (leaveDays.get(l.personnel_id) ?? 0) + n);
   }
 
-  // Giriş: şubede o ay en az bir giriş varsa giriş kullanılıyor sayılır
-  const usesCheckIn = new Set(shifts.filter(s => s.check_in_at).map(s => s.location_id));
-  const nowSec = Date.now() / 1000;
-  const lateOf = (s: Shift) => {
-    if (!s.check_in_at) return false;
-    return s.check_in_at - businessWallTime(s.date, s.start_time).getTime() / 1000 > LATE_MINUTES * 60;
-  };
-  // Gece yarısını geçen vardiyanın bitişi ertesi gün
-  const endSec = (s: Shift) => businessWallTime(toMin(s.end_time) <= toMin(s.start_time) ? addDays(s.date, 1) : s.date, s.end_time).getTime() / 1000;
-  const missedCheckIn = (s: Shift) => usesCheckIn.has(s.location_id) && !s.check_in_at && endSec(s) < nowSec;
 
   // Kişi kişi
   const byPerson = new Map<string, Shift[]>();
@@ -159,7 +146,6 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
       night: ss.filter(s => toMin(s.start_time) >= 22 * 60 || toMin(s.end_time) <= toMin(s.start_time)).length,
       leaveDays: leaveDays.get(pid) ?? 0,
       overLimitWeeks: [...weeks.values()].filter(h => h > limit + 0.01).length,
-      late: ss.filter(lateOf).length,
       cost: withCost && wage(pid) ? Math.round(hours * wage(pid)) : null,
       overtime, overtimeHours: round1(overtime.reduce((t, w) => t + w.over, 0)),
     });
@@ -168,7 +154,7 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
   for (const [pid, n] of leaveDays) if (!byPerson.has(pid)) {
     const p = personOf.get(pid);
     list.push({ id: pid, name: p?.name ?? "", branch: locName.get(p?.primary_location_id) ?? "", department: deptName(p?.department_id),
-      hours: 0, shifts: 0, weekend: 0, night: 0, leaveDays: n, overLimitWeeks: 0, late: 0, cost: null, overtime: [], overtimeHours: 0 });
+      hours: 0, shifts: 0, weekend: 0, night: 0, leaveDays: n, overLimitWeeks: 0, cost: null, overtime: [], overtimeHours: 0 });
   }
   list.sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name, "tr"));
 
@@ -218,8 +204,6 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     pricedPeople: [...byPerson.keys()].filter(pid => wage(pid) > 0).length,
     gaps: [...gapsByLoc.values()].reduce((a, b) => a + b, 0),
     leaveDays: [...leaveDays.values()].reduce((a, b) => a + b, 0),
-    late: list.reduce((t, p) => t + p.late, 0),
-    noCheckIn: usesCheckIn.size ? shifts.filter(missedCheckIn).length : null,
     overLimitPeople: list.filter(p => p.overLimitWeeks > 0).length,
     overtimePeople: list.filter(p => p.overtimeHours > 0).length,
     overtimeHours: round1(list.reduce((t, p) => t + p.overtimeHours, 0)),
@@ -235,7 +219,6 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
       gaps: gapsByLoc.get(l.id) ?? 0, people: pids.size,
       overLimit: list.filter(p => pids.has(p.id) && p.overLimitWeeks > 0).length,
       overtimePeople: list.filter(p => pids.has(p.id) && p.overtimeHours > 0).length,
-      late: ss.filter(lateOf).length,
     };
   });
 
@@ -250,9 +233,6 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     const top = [...gapPlaces].sort((a, b) => b[1] - a[1])[0];
     attention.push(`Yayınlanan planlarda toplam ${totals.gaps} kişilik eksik kaldı. En çok eksik olan vardiya: ${top[0]} (${top[1]} kişi).`);
   }
-  const lateList = list.filter(p => p.late > 0).sort((a, b) => b.late - a.late);
-  if (lateList.length) attention.push(`${lateList.length} kişi toplam ${totals.late} kez ${LATE_MINUTES} dakikadan fazla geç geldi. En çok: ${lateList[0].name} (${lateList[0].late} kez).`);
-  if (totals.noCheckIn) attention.push(`${totals.noCheckIn} vardiyada giriş yapılmadı. Kişi gelmemiş ya da girişi unutmuş olabilir.`);
   const working = list.filter(p => p.shifts >= 4);
   if (working.length >= 3) {
     const avgW = working.reduce((t, p) => t + p.weekend, 0) / working.length;

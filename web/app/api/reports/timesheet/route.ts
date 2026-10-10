@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
 
     const rows = await db.prepare(`
-      SELECT sa.shift_id, sa.week_start, sa.day, sa.start_time, sa.end_time, sa.check_in_at, sa.check_out_at,
+      SELECT sa.shift_id, sa.week_start, sa.day, sa.start_time, sa.end_time,
              p.name, p.employee_id
       FROM shift_assignments sa
       JOIN personnel p ON p.id = sa.personnel_id
@@ -56,13 +56,8 @@ export async function GET(req: NextRequest) {
       const [h, m] = String(t).split(":").map(Number);
       return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m;
     };
-    const fmtTs = (ts?: number | null) => {
-      if (!ts) return "";
-      const d = new Date(ts * 1000);
-      return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
-    };
-
-    const lines = ["Sicil;Ad Soyad;Tarih;Plan Başlangıç;Plan Bitiş;Mola (dk);Plan Saat;Giriş;Çıkış;Gerçekleşen Saat;Geç Kalma (dk);Durum"];
+    // Giriş/çıkış kaldırıldı (2026-10-10): saatler vardiyanın kendisinden (onaylanan saat düzeltmeleri vardiyaya yazılır)
+    const lines = ["Sicil;Ad Soyad;Tarih;Başlangıç;Bitiş;Mola (dk);Saat;Durum"];
     const today = new Date();
     for (const r of rows) {
       const shiftDate = new Date(r.week_start + "T00:00:00Z");
@@ -82,32 +77,14 @@ export async function GET(req: NextRequest) {
         planH = (netWorkMinutes(pe - ps, defBreak) / 60).toFixed(1).replace(".", ",");
       }
 
-      let actualH = "";
-      if (r.check_in_at && r.check_out_at) {
-        actualH = (netWorkMinutes(Math.max(0, r.check_out_at - r.check_in_at) / 60, defBreak) / 60).toFixed(1).replace(".", ",");
-      }
-
-      let lateMin = "";
-      if (r.check_in_at && ps !== null) {
-        const ci = new Date(r.check_in_at * 1000);
-        const ciStr = ci.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Istanbul" });
-        const ciMin = toMin(ciStr);
-        if (ciMin !== null) {
-          const diff = ciMin - ps;
-          if (diff > 0 && diff < 12 * 60) lateMin = String(diff);
-        }
-      }
-
       const isPast = shiftDate.getTime() + 86400_000 < today.getTime();
-      const status = r.check_out_at ? "Tamamlandı"
-        : r.check_in_at ? "Devam ediyor / çıkış yok"
-        : isPast ? "GELMEDİ" : "Planlı";
+      const status = isPast ? "Çalıştı" : "Planlı";
 
       const clean = (v: any) => String(v ?? "").replace(/;/g, ",");
       lines.push([
         clean(r.employee_id), clean(r.name), dateStr,
         clean(r.start_time), clean(r.end_time), breakMin, planH,
-        fmtTs(r.check_in_at), fmtTs(r.check_out_at), actualH, lateMin, status,
+        status,
       ].join(";"));
     }
 

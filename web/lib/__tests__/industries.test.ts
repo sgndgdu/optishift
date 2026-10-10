@@ -88,7 +88,6 @@ describe("akıllı varsayılanlar", () => {
     expect(d.rules.industry).toBe("security");
     expect(d.rules.industry_variant).toBe("12-36");
     expect(d.rules.min_rest_hours).toBe(36);          // alt tür, sektörün 11'ini ezer
-    expect(d.rules.gps_checkin_required).toBe(true);  // sektör kuralı
     expect(d.rules.compliance_tracking_enabled).toBe(true); // özellik
     expect(d.rules.max_weekly_hours).toBe(45);         // taban
   });
@@ -115,7 +114,7 @@ describe("akıllı varsayılanlar", () => {
 
   it("vurgulanan özellikler sadece açılanlar", () => {
     expect(enabledHighlights(getIndustry("hospitality")!)).not.toContain("Bahşiş Havuzu"); // 2026-10-05: küçük işletmede kapalı başlar
-    expect(enabledHighlights(getIndustry("healthcare")!)).toContain("Dijital Nöbet Teslimi Defteri");
+    expect(enabledHighlights(getIndustry("healthcare")!)).toContain("Nöbet Teslimi Notu");
     expect(enabledHighlights(getIndustry("retail")!)).not.toContain("Bahşiş Havuzu");
   });
 

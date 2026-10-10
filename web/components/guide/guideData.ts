@@ -166,7 +166,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
         title: "Vardiyalarım",
         icon: CalendarClock,
         paragraphs: [
-          "Sadece yayınlanmış plan görünür; taslak plan size görünmez. Bir vardiyaya dokununca \"Gelemeyeceğim\", \"Biriyle değiştir\" ya da \"Saatte hata var\" seçeneklerini görürsün.",
+          "Sadece yayınlanmış plan görünür; taslak plan size görünmez. Bir vardiyaya dokununca \"Gelemeyeceğim\", \"Biriyle değiştir\" ya da \"Saatim farklıydı\" seçeneklerini görürsünüz. Geç çıktığınız günü \"Saatim farklıydı\" ile bildirin, sorumlunuz onaylayınca vardiyanız ve fazla mesainiz düzelir.",
         ],
       },
       {

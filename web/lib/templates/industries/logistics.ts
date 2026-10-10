@@ -81,19 +81,15 @@ export const logistics: IndustryProfile = {
     clopening_min_rest_hours: 12,
     clopening_penalty_weight: 40,
     hard_shift_points: 5,
-    checkin_required: true,
-    auto_open_shift_on_late: true,
-    late_threshold_min: 15,
   },
 
   modules: {
     forecasting_enabled: false,
-    handover_log_enabled: true,
+    handover_notes_enabled: true,
     overtime_tracking_enabled: true,
     compliance_tracking_enabled: true,
     fatigue_radar_enabled: true,
     open_shifts_enabled: true,
-    kiosk_mode_enabled: true,
     tip_pooling_enabled: false,
   },
 

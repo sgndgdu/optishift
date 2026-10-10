@@ -84,17 +84,14 @@ export const manufacturing: IndustryProfile = {
     clopening_min_rest_hours: 13,
     clopening_penalty_weight: 50,
     hard_shift_points: 5,
-    checkin_required: true,
-    auto_open_shift_on_late: false,
   },
 
   modules: {
     forecasting_enabled: false,
-    handover_log_enabled: true,
+    handover_notes_enabled: true,
     fatigue_radar_enabled: true,
     compliance_tracking_enabled: true,
     overtime_tracking_enabled: true,
-    kiosk_mode_enabled: true,
     task_management_enabled: true,
     tip_pooling_enabled: false,
   },
@@ -114,12 +111,9 @@ export const manufacturing: IndustryProfile = {
   nudges: {
     terms: { shift: "vardiya", shifts: "vardiyalar", openShift: "açık vardiya", handover: "devir-teslim", staff: "personel" },
     inboxPriority: ["fatigue", "late", "handover", "certifications", "next-week", "overtime", "approvals", "open-shifts", "availability", "tasks", "accounts"],
-    inboxCopy: {
-      handover: { title: "{n} devir-teslim notu henüz teslim alınmadı", detail: "Bir sonraki vardiya notu okumadan hatta başlayamaz." },
-    },
+    inboxCopy: {},
     firstSteps: [
       "Personelin rollerini (Hat Operatörü, Bakım Teknisyeni...) ve İSG belgelerini girin.",
-      "Personel sayfasından ortak tablet PIN'lerini atayın, girişler hattaki tabletten yapılsın.",
     ],
   },
 

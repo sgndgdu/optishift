@@ -12,6 +12,7 @@ import {
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { formatDateTR } from "@/lib/date";
+import { trNum } from "@/lib/format";
 import { isAnnualLeaveType, leaveTypeLabel } from "@/lib/leave";
 import { Page, PageHeader } from "@/components/ui/PageHeader";
 import { RequestStatusPill } from "@/components/ui/RequestStatus";
@@ -154,12 +155,14 @@ export default function ManagerRequestsPage() {
   }
 
   async function approveEdit(id: number) {
-    await fetch("/api/shift-edit-requests", {
+    const res = await fetch("/api/shift-edit-requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "approved" }),
     });
-    showToast("Düzenleme talebi onaylandı.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error ?? "Onaylanamadı."); return; }
+    showToast(data.applied ? "Onaylandı, vardiya gerçek saate düzeltildi." : "Saat düzeltme onaylandı.");
     await load();
   }
 
@@ -169,7 +172,7 @@ export default function ManagerRequestsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "rejected", manager_note: note }),
     });
-    showToast("Düzenleme talebi reddedildi.");
+    showToast("Saat düzeltme reddedildi.");
     setRejectModal(null); setRejectNote("");
     await load();
   }
@@ -486,7 +489,19 @@ export default function ManagerRequestsPage() {
                     <p className="text-xs text-slate-500">
                       {shiftLabel({ week_start: e.week_start, day: e.day, start_time: e.start_time, end_time: e.end_time })}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg px-3 py-1.5 italic">"{e.reason}"</p>
+                    {e.requested_start && e.requested_end && (() => {
+                      // Plan ile bildirilen saat arasındaki fark (gece yarısını geçen vardiya dahil)
+                      const len = (a: string, b: string) => { const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)); let d = m(b) - m(a); if (d <= 0) d += 1440; return d; };
+                      const diff = Math.round((len(e.requested_start, e.requested_end) - len(String(e.start_time).slice(0, 5), String(e.end_time).slice(0, 5))) / 6) / 10;
+                      return (
+                        <p className="text-sm text-slate-800 mt-1.5">
+                          Gerçek saat: <span className="font-semibold">{e.requested_start}-{e.requested_end}</span>
+                          {diff !== 0 && <span className={diff > 0 ? "ml-1.5 font-semibold text-amber-700" : "ml-1.5 text-slate-500"}>({diff > 0 ? "+" : ""}{trNum(diff)} saat)</span>}
+                        </p>
+                      );
+                    })()}
+                    {e.reason && <p className="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg px-3 py-1.5 italic">&quot;{e.reason}&quot;</p>}
+                    {pending && e.requested_start && <p className="text-xs text-slate-500 mt-1">Onaylarsanız vardiya bu saate düzelir; çalışma süresi ve fazla mesai yeniden hesaplanır.</p>}
                     {e.manager_note && (
                       <p className="text-xs text-slate-500 mt-1"><span className="font-bold">Notun:</span> {e.manager_note}</p>
                     )}

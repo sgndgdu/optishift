@@ -15,7 +15,7 @@ import { trNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TeamReport as Report, TeamPerson } from "@/lib/reports/teamReport";
 
-type SortKey = "hours" | "overtimeHours" | "shifts" | "weekend" | "night" | "leaveDays" | "late" | "cost" | "name";
+type SortKey = "hours" | "overtimeHours" | "shifts" | "weekend" | "night" | "leaveDays" | "cost" | "name";
 const ROWS = 10;
 const tl = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
 
@@ -179,7 +179,6 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                     <Th sort={sort} onSort={setSort} k="weekend" className="hidden text-right md:table-cell">Hafta sonu</Th>
                     <Th sort={sort} onSort={setSort} k="night" className="hidden text-right md:table-cell">Gece</Th>
                     <Th sort={sort} onSort={setSort} k="leaveDays" className="hidden text-right md:table-cell">İzin günü</Th>
-                    {data.totals.late > 0 && <Th sort={sort} onSort={setSort} k="late" className="hidden text-right md:table-cell">Geç</Th>}
                     {hasCost && <Th sort={sort} onSort={setSort} k="cost" className="hidden text-right sm:table-cell">Maliyet</Th>}
                   </tr>
                 </thead>
@@ -209,7 +208,6 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                       <td className="hidden px-3 py-2.5 text-right tabular-nums md:table-cell">{p.weekend}</td>
                       <td className="hidden px-3 py-2.5 text-right tabular-nums md:table-cell">{p.night}</td>
                       <td className="hidden px-3 py-2.5 text-right tabular-nums md:table-cell">{p.leaveDays}</td>
-                      {data.totals.late > 0 && <td className={cn("hidden px-3 py-2.5 text-right tabular-nums md:table-cell", p.late ? "font-semibold text-amber-700" : "")}>{p.late}</td>}
                       {hasCost && <td className="hidden px-3 py-2.5 text-right tabular-nums sm:table-cell">{p.cost !== null ? tl(p.cost) : "Yok"}</td>}
                     </tr>
                   ))}

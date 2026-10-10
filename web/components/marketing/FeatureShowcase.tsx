@@ -92,9 +92,6 @@ export const FEATURE_GROUPS: { icon: typeof Check; title: string; items: string[
   {
     icon: Clock, title: "Vardiya günü",
     items: [
-      "Uygulamadan giriş-çıkış",
-      "Konum doğrulamalı giriş ya da ortak tablet",
-      "Geç kalan ve gelmeyen kişi için uyarı",
       "Gelemeyen kişi için uygun yedek önerisi",
       "Devir-teslim notu",
       "Belge ve sertifika süresi takibi",

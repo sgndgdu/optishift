@@ -16,8 +16,6 @@ export interface ExplainExtras {
   cycleState?: "W" | "D" | "N" | "O" | null;
   /** Vardiya tanımının zorunlu rolleri */
   requiredRoles?: string[];
-  /** Güvenilirlik notu (lib/reliability reliabilityNote); null: sorun yok ya da veri yok */
-  reliabilityNote?: string | null;
   /** Bu güne/vardiyaya denk gelen öğrenilmiş tercih notları (lib/implicitPrefs) */
   learned?: string[];
 }
@@ -47,7 +45,6 @@ export function explainAssignment(snap: WeekSnapshot, personId: string, day: num
   const needed = (extras.requiredRoles ?? []).filter(r => p.roles.includes(r));
   if (needed.length) out.push({ tone: "ok", text: `Vardiyanın gerektirdiği görevi yapabiliyor: ${needed.join(", ")}` });
 
-  if (extras.reliabilityNote) out.push({ tone: "warn", text: extras.reliabilityNote });
   for (const n of extras.learned ?? []) out.push({ tone: "warn", text: `Geçmişten öğrenilen: ${n}` });
 
   // Adalet

@@ -281,7 +281,7 @@ export default function PortalCalendar() {
             {[
               ...(!picked.past && reqFlags.giveaway ? [{ type: "giveaway", label: "Gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır.", Icon: UserX }] : []),
               ...(!picked.past && reqFlags.swap ? [{ type: "swap", label: "Biriyle değiştir", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", Icon: ArrowLeftRight }] : []),
-              ...(reqFlags.edit ? [{ type: "edit", label: "Vardiyada hata var", hint: "Sorumludan düzeltme isteyin", Icon: FileEdit }] : []),
+              ...(reqFlags.edit ? [{ type: "edit", label: "Saatim farklıydı", hint: "Geç çıktıysanız ya da erken başladıysanız gerçek saati bildirin", Icon: FileEdit }] : []),
             ].map(o => (
               <button key={o.type} onClick={() => router.push(`/portal/requests?new=${o.type}&shift=${picked.id}`)}
                 className="w-full flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3.5 text-left hover:bg-slate-50 min-h-[56px]">

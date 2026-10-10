@@ -1,16 +1,16 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock, Check, Megaphone,
   MapPin, AlertCircle, Timer, ChevronRight,
-  Zap, ClipboardList, PlayCircle, StopCircle,
+  Zap, ClipboardList, StickyNote,
 } from "lucide-react";
 import Link from "next/link";
 import { usePortalAuth } from "@/hooks/useAuth";
-import { getWeekStart, timeAgo, addDays, formatDateTR } from "@/lib/date";
+import { getWeekStart, addDays, formatDateTR } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT as SHORT } from "@/lib/constants";
 
 import { useAvailabilityEnabled, useOpenShiftsEnabled, useShiftWords } from "@/hooks/useShiftWords";
@@ -29,12 +29,13 @@ function shiftDur(s: any): number {
   return Math.round(netWorkMinutes(diff, s.break_minutes) / 60 * 10) / 10;
 }
 
-function elapsedLabel(checkInAt: number): string {
-  // Giriş saati cihaz saatinden ileride görünebilir (saat farkı): sayaç eksiye düşmez
-  const diff = Math.max(0, Date.now() - checkInAt * 1000);
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  return h > 0 ? `${h}s ${m}dk` : `${m} dakika`;
+// Vardiyanın saate göre durumu (giriş/çıkış kaldırıldı 2026-10-10)
+function shiftPhase(s: any, now: Date): "before" | "during" | "after" {
+  if (!s?.start_time || !s?.end_time) return "before";
+  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const start = toMin(s.start_time); let end = toMin(s.end_time); if (end <= start) end += 1440;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= end ? "after" : cur >= start ? "during" : "before";
 }
 
 export default function PortalDashboard() {
@@ -57,11 +58,10 @@ export default function PortalDashboard() {
   const [shifts,        setShifts]        = useState<any[]>([]);
   const [onCalls,       setOnCalls]       = useState<any[]>([]);
   const [handoverNotes, setHandoverNotes]  = useState<{ author: string; shift: string; note: string }[]>([]);
-  const [checkoutModal, setCheckoutModal]  = useState<number | null>(null);
+  const [noteSheet, setNoteSheet]  = useState<number | null>(null);
+  const [noteSaved, setNoteSaved]  = useState(false);
   const [handoverDraft, setHandoverDraft]  = useState("");
   const [handoverEnabled, setHandoverEnabled] = useState(true); // rules.handover_notes_enabled (eski, broadcast)
-  const [handoverLogEnabled, setHandoverLogEnabled] = useState(false); // rules.handover_log_enabled (yeni, zorunlu okuma)
-  const [pendingHandoverModal, setPendingHandoverModal] = useState<{ shiftId: number; handover: { id: number; note: string; author_name: string; created_at: number } } | null>(null);
   const [shiftTasks, setShiftTasks] = useState<any[]>([]); // rules.task_management_enabled — bugünkü vardiyanın görev listesi
   const [taskToggleBusy, setTaskToggleBusy] = useState<number | null>(null);
   const [nextWeekAvail, setNextWeekAvail] = useState<boolean | null>(null);
@@ -70,15 +70,12 @@ export default function PortalDashboard() {
   const [nextWeekFirst, setNextWeekFirst] = useState<any | null>(null);
   const [teamWeek, setTeamWeek] = useState<any[]>([]); // bu haftanın ekip vardiyaları (çalıştığı şubeler)
   const [dataLoading,   setDataLoading]   = useState(true);
-  const [checkInLoading,setCheckInLoading]= useState(false);
-  const [checkInError,  setCheckInError]  = useState("");
-  const [elapsed,       setElapsed]       = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [now,           setNow]           = useState(new Date());
   const [emergencyOpen,    setEmergencyOpen]    = useState(false);
   const [emergencyMsg,     setEmergencyMsg]     = useState("");
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencySent,    setEmergencySent]    = useState(false);
-  const qrAutoCheckinDone = useRef(false);
 
   // clock tick
   useEffect(() => {
@@ -124,7 +121,6 @@ export default function PortalDashboard() {
       .then(d => {
         setHandoverNotes(Array.isArray(d?.notes) ? d.notes : []);
         setHandoverEnabled(d?.enabled !== false);
-        setHandoverLogEnabled(d?.handover_log_enabled === true);
       })
       .catch(() => {});
   }, [user]);
@@ -133,15 +129,6 @@ export default function PortalDashboard() {
   const todayIdx   = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const todayShift = shifts.find(s => s.day === todayIdx) ?? null;
   const todayOnCall = onCalls.find(s => s.day === todayIdx) ?? null;
-
-  // elapsed timer
-  useEffect(() => {
-    if (!todayShift?.check_in_at || todayShift?.check_out_at) { setElapsed(""); return; }
-    const tick = () => setElapsed(elapsedLabel(todayShift.check_in_at));
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
-  }, [todayShift?.check_in_at, todayShift?.check_out_at]);
 
   // Görev/Kontrol Listeleri (rules.task_management_enabled) — toggle kapalıyken
   // ya da bu vardiya için şablon tanımlanmamışsa liste boş döner, kart hiç görünmez.
@@ -182,104 +169,30 @@ export default function PortalDashboard() {
     } finally { setEmergencySending(false); }
   };
 
-  const getGeoPosition = (): Promise<{ lat: number; lon: number } | null> =>
-    new Promise(resolve => {
-      if (!("geolocation" in navigator)) { resolve(null); return; }
-      const timer = setTimeout(() => resolve(null), 6000);
-      navigator.geolocation.getCurrentPosition(
-        pos => { clearTimeout(timer); resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }); },
-        () => { clearTimeout(timer); resolve(null); },
-        { enableHighAccuracy: true, timeout: 5500 }
-      );
-    });
-
-  const handleCheckIn = async (shiftId: number, acknowledgeHandoverId?: number) => {
-    setCheckInLoading(true);
-    setCheckInError("");
+  // Devir notu: sonraki vardiyaya not (giriş/çıkıştan bağımsız, shift_assignments.handover_note)
+  const saveHandoverNote = async (shiftId: number, note: string) => {
+    setNoteSaving(true);
     try {
-      const pos = await getGeoPosition();
       const r = await fetch("/api/shifts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "check_in", shift_id: shiftId, lat: pos?.lat, lon: pos?.lon,
-          acknowledge_handover_id: acknowledgeHandoverId,
-        }),
+        body: JSON.stringify({ action: "handover_note", shift_id: shiftId, note }),
       });
       if (r.ok) {
-        const ts = Math.floor(Date.now() / 1000);
-        setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_in_at: ts } : s));
-        setPendingHandoverModal(null);
-      } else if (r.status === 428) {
-        // rules.handover_log_enabled: bekleyen bir devir-teslim notu var — giriş
-        // gerçekleşmedi, önce notu okuyup "Teslim Aldım" demesi gerekiyor.
-        const data = await r.json().catch(() => ({}));
-        if (data?.pending_handover) setPendingHandoverModal({ shiftId, handover: data.pending_handover });
-        else setCheckInError(data.error || "Giriş kaydedilemedi.");
-      } else {
-        const err = await r.json().catch(() => ({}));
-        setCheckInError(err.error || "Giriş kaydedilemedi.");
+        setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, handover_note: note.trim() || null } : s));
+        setNoteSheet(null); setNoteSaved(true);
       }
-    } catch {
-      setCheckInError("Giriş kaydedilemedi.");
-    } finally { setCheckInLoading(false); }
+    } finally { setNoteSaving(false); }
   };
-
-  const handleAcknowledgeAndCheckIn = () => {
-    if (!pendingHandoverModal) return;
-    handleCheckIn(pendingHandoverModal.shiftId, pendingHandoverModal.handover.id);
-  };
-
-  const handleCheckOut = async (shiftId: number, handoverNote?: string) => {
-    const ts = Math.floor(Date.now() / 1000);
-    setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: ts } : s));
-    setCheckInLoading(true);
-    setCheckoutModal(null);
-    const trimmedNote = handoverNote?.trim();
-    try {
-      // rules.handover_log_enabled açıksa not YENİ Devir-Teslim Defteri'ne gider
-      // (ayrı bir POST — hedef vardiya otomatik belirlenir), eski handover_note
-      // alanına hiç yazılmaz. Kapalıysa davranış eskisiyle birebir aynıdır.
-      if (trimmedNote && handoverLogEnabled) {
-        await fetch("/api/shift-handovers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ shift_id: shiftId, note: trimmedNote }),
-        }).catch(() => {});
-      }
-      const r = await fetch("/api/shifts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "check_out", shift_id: shiftId,
-          handover_note: !handoverLogEnabled ? (trimmedNote || undefined) : undefined,
-        }),
-      });
-      if (!r.ok) setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
-    } catch {
-      setShifts(prev => prev.map(s => s.id === shiftId ? { ...s, check_out_at: null } : s));
-    } finally { setCheckInLoading(false); }
-  };
-
-  // QR ile giriş: şube panosundaki QR kod /portal?qr=1'e yönlendirir. Bugün vardiyan
-  // varsa ve henüz giriş yapmadıysan, sayfa açılır açılmaz otomatik giriş dener.
-  useEffect(() => {
-    if (qrAutoCheckinDone.current) return;
-    if (typeof window === "undefined") return;
-    if (!new URLSearchParams(window.location.search).has("qr")) return;
-    if (!todayShift || todayShift.check_in_at || todayShift.check_out_at || dataLoading) return;
-    qrAutoCheckinDone.current = true;
-    handleCheckIn(todayShift.id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayShift, dataLoading]);
 
   if (!mounted) return <div className="p-5 space-y-5" />;
 
   // computed
   const totalHours    = shifts.reduce((acc: number, s: any) => acc + shiftDur(s), 0);
   const upcomingShifts = shifts.filter(s => s.day >= todayIdx).sort((a, b) => a.day - b.day);
-  const isCheckedIn   = !!todayShift?.check_in_at && !todayShift?.check_out_at;
-  const isCompleted   = !!todayShift?.check_out_at;
+  const phase         = todayShift ? shiftPhase(todayShift, now) : "before";
+  const isCheckedIn   = phase === "during";
+  const isCompleted   = phase === "after";
   const todayLabel    = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
   // Seninle çalışanlar (lib/coworkers): departman adı ekip verisinde
   const matesOf = (sh: any) => coworkersOf(teamWeek.find(t => t.id === sh.id) ?? sh, teamWeek, user?.personnel_id);
@@ -340,16 +253,10 @@ export default function PortalDashboard() {
               <div className="text-4xl font-bold tracking-tight mb-1.5">
                 {todayShift.start_time} – {todayShift.end_time}
               </div>
-              {isCheckedIn && elapsed && (
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="w-1.5 h-1.5 bg-amber-300 rounded-full animate-pulse" />
-                  <span className="text-sm font-bold text-amber-200">{elapsed} çalışıyorsun</span>
-                </div>
-              )}
               {isCompleted && (
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Check size={13} className="text-emerald-300" />
-                  <span className="text-sm font-bold text-emerald-200">{shiftDur(todayShift)} saat çalıştın</span>
+                  <span className="text-sm font-bold text-emerald-200">{shiftDur(todayShift)} saat çalıştınız</span>
                 </div>
               )}
               <p className="text-forest-200/70 text-sm flex items-center gap-2 flex-wrap">
@@ -385,23 +292,12 @@ export default function PortalDashboard() {
             </div>
           )}
 
-          {checkInError && (
-            <div className="bg-red-500/20 border border-red-300/40 text-white text-xs font-semibold rounded-xl px-3 py-2 mb-2.5">
-              {checkInError}
-            </div>
-          )}
           {/* buttons */}
           <div className="flex gap-2.5">
-            {todayShift && !todayShift.check_in_at && !isCompleted && (
-              <button onClick={() => handleCheckIn(todayShift.id)} disabled={checkInLoading}
-                className="flex-[2] bg-emerald-400 hover:bg-emerald-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
-                <PlayCircle size={15} /> {checkInLoading ? "…" : "Vardiyayı Başlat"}
-              </button>
-            )}
-            {todayShift && isCheckedIn && (
-              <button onClick={() => { if (!handoverEnabled && !handoverLogEnabled) { handleCheckOut(todayShift.id); return; } setHandoverDraft(""); setCheckoutModal(todayShift.id); }} disabled={checkInLoading}
-                className="flex-[2] bg-amber-400 hover:bg-amber-300 text-white text-sm font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-60">
-                <StopCircle size={15} /> {checkInLoading ? "…" : "Vardiyayı Bitir"}
+            {todayShift && handoverEnabled && phase !== "before" && (
+              <button onClick={() => { setHandoverDraft(todayShift.handover_note ?? ""); setNoteSaved(false); setNoteSheet(todayShift.id); }}
+                className="flex-[2] bg-white/15 hover:bg-white/25 border border-white/30 text-white text-sm font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-[0.97]">
+                <StickyNote size={15} /> {todayShift.handover_note ? "Devir notunu düzenle" : noteSaved ? "Not bırakıldı" : "Sonraki vardiyaya not bırak"}
               </button>
             )}
             {/* Uygunluk kapalıysa yok; eksikse aşağıdaki uyarı zaten aynı yere götürüyor */}
@@ -453,40 +349,12 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      {/* ── Bekleyen devir-teslim notu — girişi engeller, kapatılamaz ─── */}
-      {pendingHandoverModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4">
-            <div className="flex items-center gap-2 text-amber-600">
-              <AlertCircle size={20} />
-              <h3 className="text-base font-bold text-slate-900">Devir-Teslim Notu</h3>
-            </div>
-            <p className="text-xs text-slate-500">
-              Giriş yapmadan önce sizden önceki vardiyanın bıraktığı notu okuyup teslim almanız gerekiyor.
-            </p>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
-              <p className="text-sm text-slate-800 leading-relaxed">{pendingHandoverModal.handover.note}</p>
-              <p className="text-xs text-amber-600 font-semibold mt-2">
-                {pendingHandoverModal.handover.author_name} · {timeAgo(pendingHandoverModal.handover.created_at)}
-              </p>
-            </div>
-            <button
-              onClick={handleAcknowledgeAndCheckIn}
-              disabled={checkInLoading}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
-            >
-              {checkInLoading ? "…" : "Okudum, Teslim Aldım"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Çıkış devir notu ──────────────────────────────────────────── */}
-      <Sheet open={checkoutModal !== null} onClose={() => setCheckoutModal(null)} title="Vardiyadan çıkış"
-        description="Sonraki vardiyaya iletmek istediğiniz bir not var mı? (isteğe bağlı)"
-        footer={checkoutModal !== null && <>
-          <button onClick={() => handleCheckOut(checkoutModal)} className={sheetSecondaryClass}>Notsuz çık</button>
-          <button onClick={() => handleCheckOut(checkoutModal, handoverDraft)} disabled={!handoverDraft.trim()} className={sheetPrimaryClass}>Notu bırak ve çık</button>
+      {/* ── Devir notu ──────────────────────────────────────────────── */}
+      <Sheet open={noteSheet !== null} onClose={() => setNoteSheet(null)} title="Sonraki vardiyaya not"
+        description="Sizden sonraki vardiyada çalışanlar bu notu ana sayfalarında görür."
+        footer={noteSheet !== null && <>
+          <button onClick={() => setNoteSheet(null)} className={sheetSecondaryClass}>Vazgeç</button>
+          <button onClick={() => saveHandoverNote(noteSheet, handoverDraft)} disabled={noteSaving} className={sheetPrimaryClass}>{noteSaving ? "…" : "Kaydet"}</button>
         </>}>
         <textarea
           value={handoverDraft}

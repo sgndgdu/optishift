@@ -913,7 +913,7 @@ function SchedulePageInner() {
   };
   // Yayınla ile aynı kontrol: departman sorumlusu sorunlu planı uyarı görmeden gönderiyordu (tam test 2026-10-05)
   const handleSubmitForApproval = () => {
-    const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
+    const problems = findProblems(weekSnapshot, weekBudgets);
     if (problems.length > 0) setViolationModal({ problems, verb: "Onaya Gönder", onConfirm: () => { setViolationModal(null); submitForApproval(); } });
     else submitForApproval();
   };
@@ -1740,7 +1740,7 @@ function SchedulePageInner() {
       return;
     }
     // Yayın öncesi kontrol her zaman (engellemez, gösterir). Güvenilirlik kural ihlali değil, bilgi: sadece Plan Kontrolü'nde
-    const problems = findProblems(weekSnapshot, weekBudgets).filter(p => p.id !== "reliability");
+    const problems = findProblems(weekSnapshot, weekBudgets);
     if (problems.length > 0) {
       const ruleLines = problems.filter(p => RULE_CHECK_IDS.includes(p.id)).flatMap(p => p.lines);
       if (ruleLines.length > 0 && viewerAccess.role !== "admin") {

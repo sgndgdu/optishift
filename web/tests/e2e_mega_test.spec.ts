@@ -9,10 +9,7 @@ import { test, expect, type Page } from "@playwright/test";
  * diğerini de güncelle.
  */
 const PASSWORD = "1234";
-const KAFE_LOCATION_ID = "loc-mega-kafe";
-const KIOSK_PIN = "4711";
 const FABRIKA_MANAGER_USERNAME = "mega.mudur.fabrika";
-const HANDOVER_TARGET_USERNAME = "mega.calisan.fabrika.montaj"; // Meryem Yılmaz — bugün s-sabah, okunmamış not fixture'ı
 const FATIGUE_TEST_PERSON_NAME = "Hasan Bal"; // son 3 gün ardışık gece vardiyası fixture'ı
 
 const MANAGERS = [
@@ -94,73 +91,7 @@ test("2) Rastgele şube — Otomatik Oluştur (OR-Tools) çöküyor mu", async (
   expect(status, `beklenmeyen sunucu hatası: ${JSON.stringify(body)}`).toBeLessThan(500);
 });
 
-test("3) Kiosk — Zeytin Sahil Kafe check-in", async ({ page }) => {
-  await page.goto(`/kiosk/${KAFE_LOCATION_ID}`);
-  await expect(page.getByText("GİRİŞ YAP")).toBeVisible({ timeout: 15_000 });
-
-  const [kioskResponse] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes(`/api/kiosk/${KAFE_LOCATION_ID}`) && r.request().method() === "POST",
-      { timeout: 15_000 },
-    ),
-    (async () => {
-      for (const digit of KIOSK_PIN) {
-        await page.getByRole("button", { name: digit, exact: true }).click();
-      }
-    })(),
-  ]);
-
-  const status = kioskResponse.status();
-  const body = await kioskResponse.json().catch(() => null);
-  console.log(`[INFO] Kiosk check-in → HTTP ${status}`, body);
-
-  expect(status, `kiosk check-in başarısız: ${JSON.stringify(body)}`).toBe(200);
-  await expect(page.getByText(/Giriş kaydedildi/)).toBeVisible();
-});
-
-test("4) Devir-Teslim Defteri — okunmamış not check-in'i engelliyor", async ({ page }) => {
-  // Fixture (scripts/seed_mega_test.mjs): loc-mega-fabrika/Montaj Hattı'nda
-  // Osman Öztürk'ün bıraktığı okunmamış bir not var, hedef s-sabah — bugün
-  // tam o vardiyada olan Meryem Yılmaz'ı (HANDOVER_TARGET_USERNAME) bloklamalı.
-  await login(page, HANDOVER_TARGET_USERNAME, PASSWORD);
-  await page.waitForURL("**/portal", { timeout: 20_000 });
-
-  const checkInBtn = page.getByRole("button", { name: /Vardiyayı Başlat/ });
-  await expect(checkInBtn).toBeVisible({ timeout: 15_000 });
-
-  const [blockedResponse] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes("/api/shifts") && r.request().method() === "PATCH",
-      { timeout: 20_000 },
-    ),
-    checkInBtn.click(),
-  ]);
-  const blockedBody = await blockedResponse.json().catch(() => null);
-  console.log(`[INFO] İlk check-in denemesi → HTTP ${blockedResponse.status()}`, blockedBody?.pending_handover);
-
-  // 428 = tasarım gereği "önce notu onayla" sinyali, hata değil (bkz. lib/handover.ts)
-  expect(blockedResponse.status(), `beklenen 428 (bekleyen not) gelmedi: ${JSON.stringify(blockedBody)}`).toBe(428);
-  expect(blockedBody?.pending_handover?.note).toContain("pres arızalı");
-
-  // Zorunlu okuma ekranı — kapatılamaz, sadece "Okudum, Teslim Aldım" ile geçilir
-  await expect(page.getByText("Devir-Teslim Notu")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(blockedBody.pending_handover.note)).toBeVisible();
-
-  const ackBtn = page.getByRole("button", { name: /Okudum, Teslim Aldım/ });
-  const [ackResponse] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes("/api/shifts") && r.request().method() === "PATCH",
-      { timeout: 20_000 },
-    ),
-    ackBtn.click(),
-  ]);
-  console.log(`[INFO] Onay sonrası check-in → HTTP ${ackResponse.status()}`);
-  expect(ackResponse.status(), "onaylandıktan sonra check-in başarısız olmamalı").toBe(200);
-
-  // Check-in gerçekten gerçekleşti mi: vardiyayı bitirme düğmesi görünmeli
-  // (2026-10-04: "Çıkış Yap" oturum kapatmayla karışıyordu, adı "Vardiyayı Bitir" oldu)
-  await expect(page.getByRole("button", { name: /Vardiyayı Bitir/ })).toBeVisible({ timeout: 10_000 });
-});
+// 3 ve 4 (ortak tablet girişi, girişi engelleyen devir defteri) kaldırıldı: vardiya giriş/çıkışı yok (2026-10-10)
 
 test("5) Kaza Risk Radarı — dashboard kartı ve schedule risk ikonu", async ({ page }) => {
   // Fixture: Hasan Bal'ın (FATIGUE_TEST_PERSON_NAME) son 3 günü ardışık gece

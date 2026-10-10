@@ -61,9 +61,6 @@ export const callcenter: IndustryProfile = {
     clopening_min_rest_hours: 12,
     clopening_penalty_weight: 40,
     hard_shift_points: 4,
-    checkin_required: true,
-    auto_open_shift_on_late: true,
-    late_threshold_min: 10,
   },
 
   modules: {

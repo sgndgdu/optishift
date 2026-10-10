@@ -28,7 +28,7 @@ const EMP: Record<string, string> = { full_time: "tam zamanlı", part_time: "yar
 
 export async function weekRows(db: any, locationId: string, ws: string): Promise<any[]> {
   return await db.prepare(`
-    SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, check_in_at, department_id
+    SELECT id, personnel_id, day, start_time, end_time, shift_id, publication_status, COALESCE(kind,'regular') AS kind, department_id
     FROM shift_assignments WHERE location_id = ? AND week_start = ? ORDER BY day, start_time
   `).all(locationId, ws) as any[];
 }
@@ -97,7 +97,7 @@ export function weekPlanLines(rows: any[], o: {
   if (o.today !== null) {
     const dayIdx = o.today;
     const todays = rows.filter(r => r.day === dayIdx && r.publication_status === "published" && r.kind !== "on_call");
-    if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}${r.check_in_at ? " (geldi)" : ""}`).join(", ")}`);
+    if (todays.length) out.push(`- Bugün (${day(dayIdx)}): ${todays.map(r => `${nameOf.get(r.personnel_id) ?? r.personnel_id} ${r.start_time}-${r.end_time}`).join(", ")}`);
   }
   return out;
 }

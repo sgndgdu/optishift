@@ -3,7 +3,6 @@
 import TimeSelect from "@/components/ui/TimeInput";
 import { businessToday, formatDateTR } from "@/lib/date";
 import { trNum } from "@/lib/format";
-import { FEATURES } from "@/lib/features";
 import { isModuleOn } from "@/lib/moduleVisibility";
 import { SALES_EMAIL } from "@/lib/plans";
 import { Fragment, useState, useEffect, useRef, createContext, useContext, type ReactNode, type ComponentType } from "react";
@@ -22,7 +21,6 @@ import BranchAccountTab from "@/components/BranchAccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
 import { industryFromRules } from "@/lib/templates";
-import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, isNightDef, netWorkHours } from "@/lib/legal";
 import { BreakPicker } from "@/components/ui/BreakPicker";
 import { WORK_CYCLES, distributeOffsets, weekStates, type WorkCycleConfig } from "@/lib/workCycle";
@@ -361,7 +359,6 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
   const [complianceTrackingEnabled, setComplianceTrackingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [kioskModeEnabled, setKioskModeEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
-  const [kioskLinkCopied, setKioskLinkCopied] = useState(false);
   const [forecastingEnabled, setForecastingEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [handoverLogEnabled, setHandoverLogEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
   const [fatigueRadarEnabled, setFatigueRadarEnabled] = useState(false); // ileri seviye modül — varsayılan kapalı
@@ -844,7 +841,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
             },
             // Müdür bu alanı gönderse de sunucu yok sayar (applyRuleLocks)
             edit_requests_enabled:              editRequestsEnabled,
-            checkin_required:                   checkinRequired,
+            checkin_required:                   false, // giriş/çıkış kaldırıldı (2026-10-10)
             chat_enabled:                       chatEnabled,
             leave_requests_enabled:             leaveRequestsEnabled,
             overtime_tracking_enabled:          overtimeTrackingEnabled,
@@ -852,13 +849,13 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
             personnel_conflicts_enabled:        personnelConflictsEnabled,
             compliance_tracking_enabled:        complianceTrackingEnabled,
             task_management_enabled:            taskManagementEnabled,
-            kiosk_mode_enabled:                 kioskModeEnabled,
+            kiosk_mode_enabled:                 false,
             forecasting_enabled:                forecastingEnabled,
-            handover_log_enabled:               handoverLogEnabled,
+            handover_log_enabled:               false, // zorunlu okuma girişe bağlıydı, giriş kaldırıldı (2026-10-10)
             fatigue_radar_enabled:              fatigueRadarEnabled,
-            gps_checkin_required:               gpsCheckinRequired,
+            gps_checkin_required:               false,
             checkin_radius_m:                   checkinRadiusM,
-            auto_open_shift_on_late:            autoOpenShiftOnLate,
+            auto_open_shift_on_late:            false,
             auto_cover_enabled:                 false, // kendiliğinden yedek kaldırıldı (2026-10-07)
             morning_brief_enabled:              morningBriefEnabled,
             late_threshold_min:                 lateThresholdMin,
@@ -873,7 +870,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
             consecutive_night_weeks_enabled:    false, // kaldırıldı (2026-10-07)
             balancing_period_weeks:             balancingPeriodWeeks,
             night_legal_warning_enabled:        nightLegalWarning,
-            handover_notes_enabled:             handoverNotesEnabled,
+            handover_notes_enabled:             handoverNotesEnabled || handoverLogEnabled,
             auto_leave_entitlement_enabled:     autoLeaveEntitlement,
           },
           latitude:  finalLat ? parseFloat(finalLat) : null,
@@ -1538,132 +1535,14 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                 </SectionCard>
                 )}
               </SettingsGroup>
-              <SettingsGroup id="live" title="Vardiya Girişi" description="Giriş yöntemi (telefon, konum, ortak tablet), geç kalma" open={!!openGroups["live"]} onToggle={toggleGroup}>
-                {/* Girişle ilgili her şey TEK yerde: yöntem seçimi kiosk_mode_enabled ve gps_checkin_required'ı birlikte yazar */}
-                <SectionCard title="Vardiya Girişi">
-                  <RuleRow
-                    label="Vardiyaya giriş yapılsın"
-                    description="Açıkken ekip vardiyaya geldiğinde giriş yapar; giriş yapmayan geç kalan sayılır. Kapalıyken giriş, geç kalma ve QR ayarları gizlenir."
-                    right={<Toggle on={checkinRequired} onToggle={() => setCheckinRequired(v => !v)} />}
-                  />
-                  {/* Giriş kapalıyken yöntem, geç kalma ve QR anlamsız: hiçbiri çalışmaz (dashboard isLate checkin_required'a bakar) */}
-                  {checkinRequired && (<>
-                  <div className="py-4 space-y-2">
-                    <p className="text-sm font-semibold text-slate-900">Giriş nasıl yapılır?</p>
-                    {([
-                      { id: "phone", label: "Kendi telefonundan", desc: "Ekip üyesi telefonundaki vardiya kartından ya da işyerine asılan QR kodu okutarak giriş yapar." },
-                      { id: "gps", label: "Telefondan, konum doğrulamalı", desc: "İşyerine belirlediğiniz mesafeden uzaktaki giriş reddedilir." },
-                      { id: "kiosk", label: "İşyerindeki ortak tabletten, PIN ile", desc: "Ekip üyesi hesabına girmeden, 4 haneli PIN ile giriş ve çıkış yapar." },
-                    ] as const).map(opt => {
-                      const current = kioskModeEnabled ? "kiosk" : gpsCheckinRequired ? "gps" : "phone";
-                      const on = current === opt.id;
-                      // Ortak tablet "Ek özellikler" iznine bağlı; konum seçimi değil
-                      const featuresLocked = isCatLocked("features") && (opt.id === "kiosk" || current === "kiosk");
-                      return (
-                        <label key={opt.id} className={cn("flex items-start gap-2.5 rounded-xl border px-3 py-2.5 cursor-pointer", on ? "border-forest-300 bg-forest-50/60" : "border-slate-200", featuresLocked && "opacity-50 cursor-not-allowed")}>
-                          <input type="radio" name="checkin-method" checked={on} disabled={featuresLocked}
-                            onChange={() => { setKioskModeEnabled(opt.id === "kiosk"); setGpsCheckinRequired(opt.id === "gps"); }}
-                            className="mt-0.5 accent-forest-600" />
-                          <span>
-                            <span className="block text-sm font-semibold text-slate-800">{opt.label}</span>
-                            <span className="block text-xs text-slate-500">{opt.desc}</span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                    {gpsCheckinRequired && !kioskModeEnabled && (
-                      <p className="flex items-center gap-2 text-xs text-slate-600">
-                        <span>İzin verilen mesafe:</span>
-                        <input
-                          type="number" min={20} max={2000} value={checkinRadiusM}
-                          onChange={e => setCheckinRadiusM(Math.min(2000, Math.max(20, parseInt(e.target.value) || 150)))}
-                          className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                        />
-                        <span>metre</span>
-                      </p>
-                    )}
-                    {kioskModeEnabled && (
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/kiosk/${selectedLocationId}`);
-                            setKioskLinkCopied(true);
-                            setTimeout(() => setKioskLinkCopied(false), 2000);
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${kioskLinkCopied ? "bg-emerald-500 text-white" : "bg-forest-50 text-forest-700 hover:bg-forest-100"}`}
-                        >
-                          {kioskLinkCopied ? "Kopyalandı" : "Tablet Bağlantısını Kopyala"}
-                        </button>
-                        <p className="text-xs text-slate-400 mt-1.5">Bu bağlantıyı ortak tabletin tarayıcısında sabit sekme olarak açın. Kişilerin PIN&apos;leri Ekip sayfasında, kişinin kartında yazar.</p>
-                      </div>
-                    )}
-                  </div>
-                  <RuleRow
-                    label="Geç kalanın vardiyası açık vardiyaya dönsün"
-                    description={
-                      <span>
-                        Vardiya başlangıcından <span className="font-semibold">{lateThresholdMin} dakika</span> sonra hâlâ giriş yapmayan kişinin vardiyası otomatik açık vardiyaya dönüşür.
-                        {autoOpenShiftOnLate && (
-                          <span className="flex items-center gap-2 mt-2">
-                            <span>Eşik:</span>
-                            <input
-                              type="number" min={10} max={120} value={lateThresholdMin}
-                              onChange={e => setLateThresholdMin(Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
-                              className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-forest-500"
-                            />
-                            <span>dakika</span>
-                          </span>
-                        )}
-                      </span>
-                    }
-                    right={<Toggle on={autoOpenShiftOnLate} onToggle={() => setAutoOpenShiftOnLate(v => !v)} />}
-                  />
-                  </>)}
-                  {FEATURES.breaks && (<>
-                  <RuleRow
-                    label="Eş Zamanlı Mola Limiti"
-                    description="Aynı anda molaya çıkabilecek en fazla kişi sayısı. Aşılınca sorumlunun ekranında uyarı gösterilir."
-                    right={<NumberInput value={maxConcurrentBreaks} onChange={setMaxConcurrentBreaks} min={1} max={10} suffix="kişi" />}
-                  />
-                  <RuleRow
-                    label="Uzun Mola Uyarı Eşiği"
-                    description="Mola bu süreden uzun sürerse kart kırmızıya döner ve sorumlunun ekranında 'Uzun mola!' uyarısı çıkar."
-                    right={<NumberInput value={maxBreakDurationMin} onChange={setMaxBreakDurationMin} min={5} max={60} suffix="dk" />}
-                  />
-                  </>)}
-                </SectionCard>
-
-                {checkinRequired && !kioskModeEnabled && (
-                <SectionCard title="Giriş için QR kod">
-                  <p className="text-xs text-slate-500 mb-4">
-                    Bu QR kodu işyerinize (giriş kapısı, pano vb.) asın. Ekip telefon kamerasıyla okuttuğunda doğrudan giriş ekranı açılır, bugün vardiyası varsa ve henüz giriş yapmadıysa otomatik giriş dener.
-                  </p>
-                  <div className="flex items-center gap-6">
-                    <div className="bg-white p-3 border border-slate-200 rounded-2xl shrink-0">
-                      <QRCodeSVG
-                        value={typeof window !== "undefined" ? `${window.location.origin}/portal?qr=1` : "/portal?qr=1"}
-                        size={140}
-                      />
-                    </div>
-                    <div className="text-xs text-slate-500 space-y-2">
-                      <p>Yazdırıp panoya asabilir ya da ekrandan doğrudan gösterebilirsiniz.</p>
-                      <button
-                        onClick={() => window.print()}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
-                      >
-                        Yazdır
-                      </button>
-                    </div>
-                  </div>
-                </SectionCard>
-                )}
+              {/* Vardiya girişi (giriş/çıkış, QR, ortak tablet, konumlu giriş, geç kalma) kaldırıldı (kullanıcı kararı 2026-10-10) */}
+              <SettingsGroup id="live" title="İşyeri konumu" description="Plan ekranındaki hava durumu için" open={!!openGroups["live"]} onToggle={toggleGroup}>
                 {/* İşyeri konumu (2026-10-05 Temel'den taşındı): konumlu giriş ve plan ekranındaki hava durumu */}
                 <SectionCard title="İşyeri konumu">
                 <RuleRow
                   wide
                   label="Konum"
-                  description="Konum doğrulamalı giriş ve plan ekranındaki hava durumu bu konumu kullanır."
+                  description="Plan ekranındaki hava durumu bu konumu kullanır."
                   right={
                     <div className="flex flex-col items-stretch sm:items-end gap-2 sm:min-w-[220px]">
                       {/* Mevcut konum göstergesi */}
@@ -1891,22 +1770,12 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                   // Devir-teslim TEK özellik: eski "Vardiya Devri Notu" (handover_notes_enabled) ile onaylı defter (handover_log_enabled) birleşti
                   handover: (
                 <FeatureCard icon={BookOpen} title="Devir-Teslim Notu"
-                  description="Vardiyadan çıkan kişi sonraki vardiyaya not bırakır. Sonraki vardiyadakiler bu notu okur."
+                  description="Ekip üyesi vardiyasından sonraki vardiyaya not bırakır. Sonraki vardiyadakiler bu notu ana sayfalarında görür."
                   on={handoverNotesEnabled || handoverLogEnabled}
                   onToggle={() => {
                     if (handoverNotesEnabled || handoverLogEnabled) { setHandoverNotesEnabled(false); setHandoverLogEnabled(false); }
                     else setHandoverNotesEnabled(true);
-                  }}>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input type="checkbox" checked={handoverLogEnabled}
-                      onChange={e => { setHandoverLogEnabled(e.target.checked); if (!e.target.checked) setHandoverNotesEnabled(true); }}
-                      className="mt-0.5 w-4 h-4 rounded accent-forest-600" />
-                    <span>
-                      <span className="block text-sm font-semibold text-slate-800">Notu okumadan vardiyaya giriş yapılamasın</span>
-                      <span className="block text-xs text-slate-500 mt-0.5">Okundu bilgisi kaydedilir, notlar Devir-Teslim sayfasında saklanır. Hastane, fabrika, güvenlik gibi işlerde önerilir.</span>
-                    </span>
-                  </label>
-                </FeatureCard>
+                  }} />
                   ),
                   conflicts: (
                 <FeatureCard icon={UserX} title="Birlikte Çalışamaz"

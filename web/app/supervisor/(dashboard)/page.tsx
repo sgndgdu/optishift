@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 type BranchStatus = {
   next_week: "published" | "draft" | "none"; today: number; pending: number;
-  checked_in?: number; gaps_this_week?: number; gaps_next_week?: number; open_listings?: number;
+  gaps_this_week?: number; gaps_next_week?: number; open_listings?: number;
   over_hours?: number; week_hours?: number; not_joined?: number; staff?: number; pending_by?: Record<string, number>;
 };
 type Filter = "" | "today" | "plan" | "pending" | "gaps" | "listings";
@@ -148,7 +148,6 @@ export default function SupervisorDashboard() {
   const notReady = all.filter(x => x.next_week !== "published").length;
   const pendingTotal = sum(x => x.pending);
   const todayTotal = sum(x => x.today);
-  const checkedIn = sum(x => x.checked_in ?? 0);
   const gapsTotal = sum(x => x.gaps_this_week ?? 0);
   const listingsTotal = sum(x => x.open_listings ?? 0);
   const staffTotal = sum(x => x.staff ?? 0);
@@ -220,7 +219,7 @@ export default function SupervisorDashboard() {
       {/* Özet: her kutu dokununca aşağıdaki listeleri o konuya süzer */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 sm:gap-4">
         <StatCard label="Bugün çalışan" icon={Users} value={num(todayTotal)} active={filter === "today"} onClick={() => pick("today")}
-          hint={checkedIn ? `${checkedIn} kişi geldi` : "kişi vardiyada"} />
+          hint="kişi vardiyada" />
         <StatCard label="Gelecek hafta" icon={CalendarX} tone={notReady ? "attention" : "positive"} value={num(notReady)} active={filter === "plan"} onClick={() => pick("plan")}
           hint={notReady ? "şubede hazır değil" : "bütün planlar hazır"} />
         <StatCard label="Onay bekleyen" icon={Inbox} tone={pendingTotal ? "attention" : "neutral"} value={num(pendingTotal)} active={filter === "pending"} onClick={() => pick("pending")}
@@ -324,7 +323,7 @@ export default function SupervisorDashboard() {
                 leading={<Avatar name={loc.name} tone="brand" />}
                 title={loc.name}
                 subtitle={[
-                  st ? `Bugün ${st.today} kişi${st.checked_in ? ` (${st.checked_in} geldi)` : ""}` : null,
+                  st ? `Bugün ${st.today} kişi` : null,
                   st && (st.gaps_this_week ?? 0) > 0 ? `bu hafta ${st.gaps_this_week} eksik` : null,
                   st && st.pending > 0 ? `${st.pending} onay` : null,
                   st?.week_hours ? `bu hafta ${st.week_hours.toLocaleString("tr-TR")} saat` : null,

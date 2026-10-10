@@ -31,8 +31,6 @@ export interface Insight {
 export interface WeekBudgets {
   /** Haftalık işçilik maliyeti (₺) ve bütçesi; bütçe 0 ise kontrol yok. */
   labor?: { total: number; budget: number };
-  /** Güvenilirliği düşük personel → kısa not (lib/reliability; giriş verisi yoksa boş) */
-  unreliable?: Record<string, string>;
   /** Açık ilandaki vardiyalar (gün + vardiya): eksik sayılır ama "acil" değil, üstlenen bekleniyor */
   listed?: { day: number; shiftId: string; count: number }[];
 }
@@ -195,12 +193,6 @@ export function findProblems(snap: WeekSnapshot, budgets: WeekBudgets = {}): Ins
   add("night-streak", "warning", `${nightStreak.length} kişi üst üste 3 ya da daha fazla gece çalışıyor`,
     nightStreak.map(p => `${p.name}: üst üste ${p.nightStreak} gece`));
 
-  // Güvenilirlik: son haftalarda gelmeyen/geç kalan kişinin vardiyaları (yedek düşünülebilir)
-  if (budgets.unreliable) {
-    const risky = working.filter(p => budgets.unreliable![p.id]).map(p =>
-      `${p.name} (${budgets.unreliable![p.id].replace(/^Son/, "son")}): ${p.shifts.map(x => `${DAY_SHORT[x.day]} ${x.shiftName}`).join(", ")}`);
-    add("reliability", "warning", `${risky.length} kişinin vardiyalarında gelmeme riski var`, risky);
-  }
 
   const prefNot = per(p => p.preferredNotDays, (n, d) => `${n}: ${dayList(d)}`);
   add("preferred-not", "warning", `${prefNot.length} kişi "Tercih etmem" dediği gün vardiyada`, prefNot);

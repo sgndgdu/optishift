@@ -96,10 +96,6 @@ export interface IndustryRules {
   clopening_penalty_weight: number;
   hard_shift_points: number;
   overtime_threshold_hours: number;
-  checkin_required: boolean;
-  gps_checkin_required: boolean;
-  auto_open_shift_on_late: boolean;
-  late_threshold_min: number;
   handover_notes_enabled: boolean;
 }
 

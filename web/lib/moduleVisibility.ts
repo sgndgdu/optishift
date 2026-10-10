@@ -47,6 +47,12 @@ export type ModuleKey = keyof typeof MODULE_DEFAULTS;
  */
 export const COMING_SOON = new Set<ModuleKey>(["tip_pooling_enabled"]);
 
+/**
+ * Kaldırılan özellikler (kullanıcı kararı 2026-10-10: vardiya giriş/çıkışı kullanılmıyor): eski kayıtlı
+ * değer ne olursa olsun kapalı. Ortak tablet, girişe bağlı zorunlu okumalı devir defteri, giriş takibi.
+ */
+export const REMOVED = new Set<ModuleKey>(["kiosk_mode_enabled", "handover_log_enabled", "checkin_required"]);
+
 /** `locations.rules` bazen JSON string, bazen nesne olarak gelir. */
 export function parseRules(raw: unknown): Record<string, unknown> {
   if (typeof raw === "string") {
@@ -57,7 +63,7 @@ export function parseRules(raw: unknown): Record<string, unknown> {
 
 /** Özellik bu şubede açık mı? `rules` nesne ya da JSON string olabilir. */
 export function isModuleOn(rules: unknown, key: ModuleKey): boolean {
-  if (COMING_SOON.has(key)) return false;
+  if (COMING_SOON.has(key) || REMOVED.has(key)) return false;
   const value = parseRules(rules)[key];
   return MODULE_DEFAULTS[key] ? value !== false : value === true;
 }

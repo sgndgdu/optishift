@@ -122,6 +122,16 @@ export default function PortalRequests() {
     return () => clearTimeout(id);
   }, []);
   const [editReason, setEditReason]   = useState("");
+  // Gerçek saat: vardiya seçilince planlanan saatle dolar, kişi değiştirir (örn. geç çıktı)
+  const [editStart, setEditStart]     = useState("");
+  const [editEnd, setEditEnd]         = useState("");
+  useEffect(() => {
+    if (!editShift) return;
+    const id = setTimeout(() => { setEditStart(String(editShift.start_time ?? "").slice(0, 5)); setEditEnd(String(editShift.end_time ?? "").slice(0, 5)); }, 0);
+    return () => clearTimeout(id);
+  }, [editShift]);
+  const editTimesChanged = !!editShift && /^\d\d:\d\d$/.test(editStart) && /^\d\d:\d\d$/.test(editEnd) && editStart !== editEnd
+    && (editStart !== String(editShift.start_time ?? "").slice(0, 5) || editEnd !== String(editShift.end_time ?? "").slice(0, 5));
 
   // leave form
   // Tür önceden seçili gelmez (bakiyesi 0 olana ilk açılışta kırmızı "0 gün" gösteriyordu)
@@ -350,7 +360,7 @@ export default function PortalRequests() {
   }
 
   async function submitEdit() {
-    if (!editShift || !editReason.trim() || !user) return;
+    if (!editShift || (!editReason.trim() && !editTimesChanged) || !user) return;
     setLoading(true);
     try {
       const r = await fetch("/api/shift-edit-requests", {
@@ -361,12 +371,13 @@ export default function PortalRequests() {
           personnel_name: user.name,
           shift_id: editShift.id,
           reason: editReason,
+          ...(editTimesChanged ? { requested_start: editStart, requested_end: editEnd } : {}),
         }),
       });
       if (r.ok) {
         showToast("Saat düzeltme isteği gönderildi.");
         await loadData();
-        setEditShift(null); setEditReason("");
+        setEditShift(null); setEditReason(""); setEditStart(""); setEditEnd("");
         setActiveTab("sent"); setNewType(null);
       } else {
         const err = await r.json().catch(() => ({}));
@@ -585,7 +596,7 @@ export default function PortalRequests() {
                   title="Saat düzeltme"
                   sub={shiftLabel({ week_start: e.week_start, day: e.day, start_time: e.start_time, end_time: e.end_time })}
                   status={e.status}
-                  note={e.reason}
+                  note={e.requested_start && e.requested_end ? `Bildirdiğiniz saat: ${e.requested_start}-${e.requested_end}${e.reason ? ` · ${e.reason}` : ""}` : e.reason}
                   managerNote={e.manager_note}
                   canCancel={e.status === "pending"}
                   onCancel={() => setCancelConfirm({ kind: "edit", id: e.id })}
@@ -773,7 +784,7 @@ export default function PortalRequests() {
               ...(leaveRequestsEnabled ? [{ id: "leave" as const, label: "İzin istiyorum", hint: "Yıllık izin, rapor, mazeret", icon: CalendarOff }] : []),
               ...(openShiftsEnabled ? [{ id: "giveaway" as const, label: "Vardiyama gelemeyeceğim", hint: "Vardiya ekibe duyurulur. Biri alana kadar vardiya sizde kalır.", icon: UserX }] : []),
               ...(swapRequestsEnabled ? [{ id: "swap" as const, label: "Biriyle vardiya değiştirmek istiyorum", hint: "Bir arkadaşınıza vardiya değiştirmeyi teklif edin", icon: ArrowLeftRight }] : []),
-              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Vardiyamda hata var", hint: "Sorumludan düzeltme isteyin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
+              ...(editRequestsEnabled ? [{ id: "edit" as const, label: "Saatim farklıydı", hint: "Geç çıktıysanız ya da erken başladıysanız gerçek saati bildirin (son 2 haftadaki vardiyalar için de olur)", icon: FileEdit }] : []),
             ];
             if (typeOptions.length === 0) {
               return <p className="text-sm text-slate-400 text-center py-6">Bu işletmede yeni talep oluşturma kapalı.</p>;
@@ -972,17 +983,28 @@ export default function PortalRequests() {
               {editShift && (
                 <>
                   <div>
-                    <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Neden değiştirmek istiyorsunuz?</label>
+                    <p className="text-xs font-semibold text-slate-500 mb-1.5">Gerçekte hangi saatler arasında çalıştınız?</p>
+                    <div className="flex items-center gap-2">
+                      <input type="time" value={editStart} onChange={e => setEditStart(e.target.value)} aria-label="Başladığınız saat"
+                        className="min-h-[44px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary" />
+                      <span className="text-slate-400">–</span>
+                      <input type="time" value={editEnd} onChange={e => setEditEnd(e.target.value)} aria-label="Bitirdiğiniz saat"
+                        className="min-h-[44px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">Örneğin vardiyanız 23:00&apos;te bitecekti ama 00:30&apos;a kadar kaldıysanız bitişi 00:30 yapın. Sorumlunuz onaylayınca vardiyanız bu saate düzelir.</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Açıklama {editTimesChanged ? "(isteğe bağlı)" : ""}</label>
                     <textarea
                       value={editReason}
                       onChange={e => setEditReason(e.target.value)}
-                      rows={3}
-                      placeholder="Sorumlunuza kısa bir açıklama yazın..."
+                      rows={2}
+                      placeholder={editTimesChanged ? "Örn: Kapanışta kalabalık vardı." : "Sorumlunuza kısa bir açıklama yazın..."}
                       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
                   <button
-                    disabled={!editReason.trim() || loading}
+                    disabled={(!editReason.trim() && !editTimesChanged) || loading}
                     onClick={submitEdit}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >

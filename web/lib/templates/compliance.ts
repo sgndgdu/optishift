@@ -81,10 +81,9 @@ export function buildIndustryDefaults(industryKey: string, variantKey?: string |
 export function enabledHighlights(industry: IndustryProfile): string[] {
   const LABELS: Record<string, string> = {
     task_management_enabled: "Görev Listeleri",
-    handover_log_enabled: `Dijital ${titleCaseTr(industry.nudges.terms.handover)} Defteri`,
+    handover_notes_enabled: `${titleCaseTr(industry.nudges.terms.handover)} Notu`,
     fatigue_radar_enabled: "Yorgunluk Uyarısı",
     compliance_tracking_enabled: "Belge ve Sertifika Takibi",
-    kiosk_mode_enabled: "Ortak Tablet",
     forecasting_enabled: "Yoğunluk Tahmini",
   };
   return Object.entries(industry.modules)

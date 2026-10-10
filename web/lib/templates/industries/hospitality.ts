@@ -89,8 +89,6 @@ export const hospitality: IndustryProfile = {
     clopening_min_rest_hours: 12,
     clopening_penalty_weight: 30,
     hard_shift_points: 4,
-    auto_open_shift_on_late: true,
-    late_threshold_min: 20,
   },
 
   modules: {

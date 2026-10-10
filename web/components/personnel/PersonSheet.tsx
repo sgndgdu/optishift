@@ -78,10 +78,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
   const [newDocType, setNewDocType] = useState("");
   const [newDocExpiry, setNewDocExpiry] = useState("");
   const [docError, setDocError] = useState("");
-  const [pinSet, setPinSet] = useState(person.kiosk_pin_set);
-  const [newKioskPin, setNewKioskPin] = useState("");
-  const [kioskPinError, setKioskPinError] = useState("");
-  const [kioskPinSaving, setKioskPinSaving] = useState(false);
   const [makeManagerOpen, setMakeManagerOpen] = useState(false);
   // Ana departman dışında yardım edebileceği departmanlar (bu şube): planda onların ihtiyacına da yazılabilir
   const initialExtraDepts = (ep.assigned_department_ids ?? []).filter(id => id !== ep.department_id);
@@ -113,7 +109,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
     if (ep.personnelId && complianceTrackingEnabled) void Promise.resolve().then(() => loadDocs(ep.personnelId!));
   }, [ep.personnelId, complianceTrackingEnabled]);
 
-  const kioskModeEnabled = isModuleOn(rules, "kiosk_mode_enabled");
   // Şubeler arası (lib/branchRotation): çalıştığı şubeler + planlı rotasyon. "Başka şubeden personel" yetkisiyle
   // (departman şefi hariç) değiştirilir.
   const canCrossBranch = can("cross_branch") && !viewerAccess.access?.department_id;
@@ -320,22 +315,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
     loadDocs(ep.personnelId);
   };
 
-  const handleSetKioskPin = async () => {
-    if (!ep.personnelId || !/^\d{4}$/.test(newKioskPin)) return;
-    setKioskPinSaving(true); setKioskPinError("");
-    try {
-      const res = await fetch(`/api/personnel/${ep.personnelId}/kiosk-pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: newKioskPin }) });
-      const data = await res.json();
-      if (!res.ok) { setKioskPinError(data.error ?? "PIN kaydedilemedi"); return; }
-      setNewKioskPin(""); setPinSet(true);
-    } catch { setKioskPinError("PIN kaydedilemedi"); }
-    finally { setKioskPinSaving(false); }
-  };
-  const handleClearKioskPin = async () => {
-    if (!ep.personnelId) return;
-    await fetch(`/api/personnel/${ep.personnelId}/kiosk-pin`, { method: "DELETE" });
-    setPinSet(false);
-  };
 
   // Ekipten çıkmış kişi: sadece geri alma
   if (ep.inactive) {
@@ -766,32 +745,6 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
                       className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">Ekle</button>
                   </div>
                   {pairError && <p className="text-xs text-red-600 mt-1">{pairError}</p>}
-                </div>
-              )}
-              {kioskModeEnabled && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Ortak Tablet PIN&apos;i</label>
-                  <p className="text-xs text-slate-400 mb-2">Ortak tablette giriş/çıkış için 4 haneli PIN. Ortak tablet girişi açıkken geçerlidir.</p>
-                  {pinSet ? (
-                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs">
-                      <span className="flex-1 font-semibold text-emerald-700">PIN atanmış</span>
-                      <button type="button" onClick={handleClearKioskPin} className="text-slate-400 hover:text-red-500 font-bold">Kaldır</button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        value={newKioskPin}
-                        onChange={e => setNewKioskPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                        placeholder="4 haneli PIN"
-                        inputMode="numeric"
-                        className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-forest-400"
-                      />
-                      <button type="button" onClick={handleSetKioskPin} disabled={!/^\d{4}$/.test(newKioskPin) || kioskPinSaving} className="shrink-0 px-3 py-2 bg-forest-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl hover:bg-forest-700">
-                        {kioskPinSaving ? "..." : "Ata"}
-                      </button>
-                    </div>
-                  )}
-                  {kioskPinError && <p className="text-xs text-red-600 mt-1">{kioskPinError}</p>}
                 </div>
               )}
             </>

@@ -3,6 +3,15 @@ import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
+import { notifyBranchManagers } from "@/lib/managerNotifications";
+import { sendPushToPersonnel } from "@/lib/notifications";
+import { isPeriodLocked } from "@/lib/checkin";
+import { rescoreWeek } from "@/lib/scoring";
+import { deriveOvertimeForWeek } from "@/lib/overtime";
+import { addDays, formatDateTR } from "@/lib/date";
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const shiftDate = (sa: { week_start: string; day: number }) => formatDateTR(addDays(sa.week_start, Number(sa.day)));
 
 
 // GET:
@@ -61,10 +70,14 @@ export async function POST(req: NextRequest) {
 
   const db = getDB();
   try {
-    const { personnel_id, personnel_name, shift_id, reason } = await req.json();
+    const { personnel_id, personnel_name, shift_id, reason, requested_start, requested_end } = await req.json();
     const org_id = auth.org_id;
-
-    if (!personnel_id || !shift_id || !reason?.trim()) {
+    // Gerçek saat verilirse açıklama isteğe bağlı ("Geç çıktım" gibi)
+    const times = typeof requested_start === "string" && typeof requested_end === "string";
+    if (times && (!HHMM.test(requested_start) || !HHMM.test(requested_end) || requested_start === requested_end)) {
+      return NextResponse.json({ error: "Saatleri SS:DD biçiminde girin." }, { status: 400 });
+    }
+    if (!personnel_id || !shift_id || (!reason?.trim() && !times)) {
       return NextResponse.json({ error: "Zorunlu alanlar eksik" }, { status: 400 });
     }
 
@@ -86,11 +99,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const sa = await db.prepare(
+      "SELECT sa.id, sa.personnel_id, sa.location_id, sa.week_start, sa.day, sa.start_time, sa.end_time FROM shift_assignments sa JOIN locations l ON l.id = sa.location_id WHERE sa.id = ? AND l.org_id = ?",
+    ).get(shift_id, org_id) as any;
+    if (!sa || sa.personnel_id !== personnel_id) return NextResponse.json({ error: "Vardiya bulunamadı" }, { status: 404 });
+
     const now = Math.floor(Date.now() / 1000);
+    const note = reason?.trim() || "Gerçek saatim farklıydı";
     const result = await db.prepare(`
-      INSERT INTO shift_edit_requests (org_id, personnel_id, personnel_name, shift_id, reason, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'pending', ?)
-    `).run(org_id, personnel_id, personnel_name ?? null, shift_id, reason.trim(), now);
+      INSERT INTO shift_edit_requests (org_id, personnel_id, personnel_name, shift_id, reason, requested_start, requested_end, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    `).run(org_id, personnel_id, personnel_name ?? null, shift_id, note,
+      times ? requested_start : null, times ? requested_end : null, now);
+    // Sorumluya haber: onay bekleyen saat düzeltmesi (Onaylar)
+    const who = personnel_name ?? "Bir ekip üyesi";
+    await notifyBranchManagers(db, org_id, sa.location_id, "approvals", {
+      type: "edit_request",
+      title: "Saat düzeltme talebi",
+      message: times
+        ? `${who}, ${shiftDate(sa)} vardiyasının ${sa.start_time}-${sa.end_time} değil ${requested_start}-${requested_end} olduğunu bildirdi.`
+        : `${who}, ${shiftDate(sa)} vardiyası için düzeltme istedi: ${note}`,
+      link: "/requests",
+    }).catch(() => 0);
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -147,9 +177,48 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Yetersiz yetki" }, { status: 403 });
     }
 
+    if (existing.status !== "pending") {
+      return NextResponse.json({ error: "Bu talep zaten karara bağlandı" }, { status: 409 });
+    }
+    const sa = await db.prepare("SELECT * FROM shift_assignments WHERE id = ?").get(existing.shift_id) as any;
+
+    // Onayda vardiya gerçek saate çekilir; yayınlanmış haftada puan ve fazla mesai yeniden hesaplanır
+    const applyTimes = status === "approved" && sa && existing.requested_start && existing.requested_end;
+    if (applyTimes) {
+      if (await isPeriodLocked(db, auth.org_id, sa.location_id, sa.week_start, sa.day)) {
+        return NextResponse.json({ error: "Bu ayın puantajı kilitli. Önce Raporlar'dan ayın kilidini açın." }, { status: 409 });
+      }
+      await db.prepare("UPDATE shift_assignments SET start_time = ?, end_time = ? WHERE id = ?")
+        .run(existing.requested_start, existing.requested_end, sa.id);
+    }
+
     await db.prepare(`UPDATE shift_edit_requests SET status = ?, manager_note = ? WHERE id = ?`)
       .run(status, manager_note ?? null, id);
-    return NextResponse.json({ success: true });
+
+    let overtimeHours = 0;
+    if (applyTimes && sa.publication_status === "published") {
+      await rescoreWeek(auth.org_id, sa.location_id, sa.week_start).catch(e => console.error("[edit-request] puan", e));
+      const derived = await deriveOvertimeForWeek(auth.org_id, sa.location_id, sa.week_start).catch(e => { console.error("[edit-request] mesai", e); return []; });
+      overtimeHours = derived.find(d => d.personnelId === existing.personnel_id && d.result !== "deleted")?.overtimeHours ?? 0;
+    }
+
+    // Kişiye karar bildirimi
+    if (sa) {
+      const when = shiftDate(sa);
+      const title = status === "approved" ? "Saat düzeltmeniz onaylandı" : "Saat düzeltmeniz reddedildi";
+      const message = status === "approved"
+        ? (applyTimes
+          ? `${when} vardiyanız ${existing.requested_start}-${existing.requested_end} olarak düzeltildi.${overtimeHours > 0 ? ` O hafta ${String(overtimeHours).replace(".", ",")} saat fazla mesainiz oldu; Talepler'den onaylayın.` : ""}`
+          : `${when} vardiyası için düzeltme talebiniz onaylandı.`)
+        : `${when} vardiyası için düzeltme talebiniz reddedildi.${manager_note ? ` Not: ${manager_note}` : ""}`;
+      const now = Math.floor(Date.now() / 1000);
+      await db.prepare(`
+        INSERT INTO notifications (personnel_id, type, title, message, link, is_read, created_at)
+        VALUES (?, 'edit_request', ?, ?, '/portal/requests', false, ?)
+      `).run(existing.personnel_id, title, message, now).catch(() => {});
+      sendPushToPersonnel(existing.personnel_id, auth.org_id, { title, body: message, url: "/portal/requests" }).catch(() => {});
+    }
+    return NextResponse.json({ success: true, applied: !!applyTimes });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

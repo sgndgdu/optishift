@@ -10,8 +10,7 @@ import { canBendRules, publishPermit } from "@/lib/ruleExceptions";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
 import { type ShiftDef } from "@/lib/fairness";
-import { performCheckIn, performCheckOut } from "@/lib/checkin";
-import { checkHandoverGate } from "@/lib/handover";
+import { saveHandoverNote } from "@/lib/checkin";
 import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
 import { canActOnPersonnel, canEditPublishedWeek, canManageLocation, canManageLocations, managerOutsideBranch, departmentPersonnelIds } from "@/lib/access";
 
@@ -607,44 +606,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, synced });
     }
 
-    // ── Giriş ─────────────────────────────────────────────────────
-    if (action === "check_in") {
-      const { shift_id, lat, lon, acknowledge_handover_id } = body;
-      if (!shift_id) {
-        return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
-      }
-      // rules.handover_log_enabled açıksa: bekleyen (okunmamış) bir devir-teslim
-      // notu varsa girişi başlatmadan durdur — istemci notu gösterip
-      // acknowledge_handover_id ile tekrar denemeli (bkz. lib/handover.ts).
-      const pendingHandover = await checkHandoverGate(db, {
-        shiftAssignmentId: shift_id,
-        acknowledgeHandoverId: acknowledge_handover_id ?? null,
-      });
-      if (pendingHandover) {
-        return NextResponse.json(
-          { error: "Önce devir-teslim notunu okuyup onaylamanız gerekiyor", pending_handover: pendingHandover },
-          { status: 428 }
-        );
-      }
-      const outcome = await performCheckIn(db, auth.org_id, {
-        shiftId: shift_id,
-        lat, lon,
-        // Employee sadece kendi vardiyasını giriş yapabilir
-        restrictPersonnelId: auth.role === "employee" ? (auth.personnel_id ?? undefined) : undefined,
-      });
-      if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
-      return NextResponse.json({ success: true, check_in_distance_m: outcome.check_in_distance_m, check_in_verified: outcome.check_in_verified });
-    }
-
-    // ── Çıkış ────────────────────────────────────────────────────
-    if (action === "check_out") {
-      const { shift_id, handover_note } = body;
-      if (!shift_id) {
-        return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
-      }
-      const outcome = await performCheckOut(db, auth.org_id, {
-        shiftId: shift_id,
-        handoverNote: handover_note,
+    // ── Devir notu (giriş/çıkış kaldırıldı 2026-10-10; not artık çıkıştan bağımsız) ──
+    if (action === "handover_note") {
+      const { shift_id, note } = body;
+      if (!shift_id) return NextResponse.json({ error: "shift_id zorunlu" }, { status: 400 });
+      const outcome = await saveHandoverNote(db, auth.org_id, {
+        shiftId: shift_id, note,
         restrictPersonnelId: auth.role === "employee" ? (auth.personnel_id ?? undefined) : undefined,
       });
       if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });

@@ -74,20 +74,15 @@ export const security: IndustryProfile = {
     night_legal_warning_enabled: false,
     clopening_enabled: false,
     hard_shift_points: 5,
-    checkin_required: true,
-    gps_checkin_required: true,
-    auto_open_shift_on_late: true,
-    late_threshold_min: 10,
   },
 
   modules: {
     forecasting_enabled: false,
     compliance_tracking_enabled: true,
-    handover_log_enabled: true,
+    handover_notes_enabled: true,
     fatigue_radar_enabled: true,
     open_shifts_enabled: true,
     overtime_tracking_enabled: true,
-    kiosk_mode_enabled: false,
     tip_pooling_enabled: false,
   },
 

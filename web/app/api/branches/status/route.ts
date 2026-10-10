@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
       WHERE p.org_id = ? AND p.primary_location_id IN (${ph})`).all(auth.org_id, ...ids) as any[];
     const personDept = new Map<string, string | null>(people.map(p => [p.id, p.department_id ?? null]));
     const weekRows = await db.prepare(`
-      SELECT location_id, week_start, personnel_id, day, start_time, end_time, shift_id, department_id, check_in_at, publication_status
+      SELECT location_id, week_start, personnel_id, day, start_time, end_time, shift_id, department_id, publication_status
       FROM shift_assignments WHERE location_id IN (${ph}) AND week_start IN (?, ?) AND COALESCE(kind, 'regular') = 'regular'`).all(...ids, thisWeek, nextWeek) as any[];
     const listings = await db.prepare(`
       SELECT location_id, COUNT(*)::int AS n FROM open_shifts WHERE location_id IN (${ph}) AND status = 'open' AND date >= ?
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     type St = {
       next_week: "published" | "draft" | "none"; today: number; pending: number;
-      checked_in: number; gaps_this_week: number; gaps_next_week: number; open_listings: number;
+      gaps_this_week: number; gaps_next_week: number; open_listings: number;
       over_hours: number; week_hours: number; not_joined: number; staff: number;
       pending_by: Record<string, number>;
     };
@@ -129,7 +129,6 @@ export async function GET(req: NextRequest) {
         next_week: published ? "published" : draft ? "draft" : "none",
         today: todayRows.find(r => r.location_id === id)?.n ?? 0,
         pending: pending.find(r => r.loc === id)?.n ?? 0,
-        checked_in: new Set(thisRows.filter(r => r.day === todayIdx && r.check_in_at).map(r => r.personnel_id)).size,
         gaps_this_week: loc && thisRows.length ? countGaps(loc, depts, thisRows, personDept, todayIdx) : 0,
         gaps_next_week: loc && nextRowsFull.length ? countGaps(loc, depts, nextRowsFull, personDept, 0) : 0,
         open_listings: listings.find(r => r.location_id === id)?.n ?? 0,

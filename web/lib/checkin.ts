@@ -1,12 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Giriş / çıkış — TEK KAYNAK.
- *
- * app/api/shifts/route.ts PATCH (personel portalı, oturumlu) ve
- * app/api/kiosk/[locationId]/route.ts (ortak tablet, oturumsuz PIN girişi)
- * aynı mantığı çağırır — davranış iki yoldan da birebir aynıdır.
+ * Vardiya giriş/çıkışı kaldırıldı (kullanıcı kararı 2026-10-10). Burada kalan: puantaj kilidi ve devir notu.
  */
-import { distanceMeters } from "@/lib/geo";
 
 function assignmentMonth(weekStart: string, day: number): string {
   const dt = new Date(weekStart + "T00:00:00Z");
@@ -23,81 +18,25 @@ export async function isPeriodLocked(db: any, orgId: string, locationId: string,
   return !!row;
 }
 
-export type CheckInOutcome =
-  | { ok: true; check_in_distance_m: number | null; check_in_verified: boolean | null }
-  | { ok: false; status: number; error: string };
-
-export type CheckOutOutcome = { ok: true } | { ok: false; status: number; error: string };
+export type HandoverOutcome = { ok: true } | { ok: false; status: number; error: string };
 
 /**
- * restrictPersonnelId verilirse, vardiya o personele ait değilse 403 döner
- * (personel portalında employee rolü ve kiosk her zaman bunu geçer; manager/admin PATCH'i geçmez).
+ * Devir notu: ekip üyesi kendi vardiyasına sonraki vardiya için not bırakır (shift_assignments.handover_note).
+ * Okuyan: GET /api/shifts/handover. Boş not, notu siler.
  */
-export async function performCheckIn(
+export async function saveHandoverNote(
   db: any,
   orgId: string,
-  params: { shiftId: number; lat?: number; lon?: number; restrictPersonnelId?: string },
-): Promise<CheckInOutcome> {
-  const existing = await db.prepare("SELECT * FROM shift_assignments WHERE id = ?").get(params.shiftId) as any;
+  params: { shiftId: number; note?: string; restrictPersonnelId?: string },
+): Promise<HandoverOutcome> {
+  const existing = await db.prepare(
+    "SELECT sa.* FROM shift_assignments sa JOIN locations l ON l.id = sa.location_id WHERE sa.id = ? AND l.org_id = ?",
+  ).get(params.shiftId, orgId) as any;
   if (!existing) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
   if (params.restrictPersonnelId && existing.personnel_id !== params.restrictPersonnelId) {
     return { ok: false, status: 403, error: "Erişim reddedildi" };
   }
-  if (existing.kind === "on_call") {
-    return { ok: false, status: 400, error: "Nöbette giriş yapılmaz. Çağrılırsanız çalıştığınız saati sorumlunuz kaydeder." };
-  }
-  if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
-    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, giriş yapılamaz" };
-  }
-
-  // GPS doğrulama: konum paylaşıldıysa ve şubenin koordinatları tanımlıysa mesafeyi hesapla.
-  // rules.gps_checkin_required açıksa ve yarıçap dışındaysa giriş reddedilir; kapalıysa
-  // sadece bilgi olarak kaydedilir (müdür panelinde görünür), giriş engellenmez.
-  let checkInDistanceM: number | null = null;
-  let checkInVerified: boolean | null = null;
-  if (typeof params.lat === "number" && typeof params.lon === "number") {
-    const loc = await db.prepare(
-      `SELECT latitude, longitude, rules FROM locations WHERE id = ?`
-    ).get(existing.location_id) as any;
-    if (loc?.latitude != null && loc?.longitude != null) {
-      checkInDistanceM = distanceMeters(params.lat, params.lon, loc.latitude, loc.longitude);
-      let rules: any = {};
-      try { rules = typeof loc.rules === "string" ? JSON.parse(loc.rules) : (loc.rules ?? {}); } catch { rules = {}; }
-      const radius = typeof rules.checkin_radius_m === "number" ? rules.checkin_radius_m : 150;
-      checkInVerified = checkInDistanceM <= radius;
-      if (!checkInVerified && rules.gps_checkin_required === true) {
-        return {
-          ok: false, status: 400,
-          error: `Şubeden çok uzaktasınız (${checkInDistanceM}m). Giriş için şubede olmanız gerekiyor.`,
-        };
-      }
-    }
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  await db.prepare(
-    "UPDATE shift_assignments SET check_in_at = ?, status = 'active', check_in_distance_m = ?, check_in_verified = ? WHERE id = ?"
-  ).run(now, checkInDistanceM, checkInVerified, params.shiftId);
-  return { ok: true, check_in_distance_m: checkInDistanceM, check_in_verified: checkInVerified };
-}
-
-export async function performCheckOut(
-  db: any,
-  orgId: string,
-  params: { shiftId: number; handoverNote?: string; restrictPersonnelId?: string },
-): Promise<CheckOutOutcome> {
-  const existing = await db.prepare("SELECT * FROM shift_assignments WHERE id = ?").get(params.shiftId) as any;
-  if (!existing) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
-  if (params.restrictPersonnelId && existing.personnel_id !== params.restrictPersonnelId) {
-    return { ok: false, status: 403, error: "Erişim reddedildi" };
-  }
-  if (await isPeriodLocked(db, orgId, existing.location_id, existing.week_start, existing.day)) {
-    return { ok: false, status: 400, error: "Bu ayın puantaj dönemi kilitli, çıkış yapılamaz" };
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const note = typeof params.handoverNote === "string" && params.handoverNote.trim()
-    ? params.handoverNote.trim().slice(0, 500)
-    : null;
-  await db.prepare("UPDATE shift_assignments SET check_out_at = ?, status = 'completed', handover_note = ? WHERE id = ?").run(now, note, params.shiftId);
+  const note = typeof params.note === "string" && params.note.trim() ? params.note.trim().slice(0, 500) : null;
+  await db.prepare("UPDATE shift_assignments SET handover_note = ? WHERE id = ?").run(note, params.shiftId);
   return { ok: true };
 }
