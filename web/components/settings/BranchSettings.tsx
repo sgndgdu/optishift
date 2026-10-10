@@ -21,8 +21,7 @@ import { hasPerm, parseAccess, type UserAccess } from "@/lib/userAccess";
 import BranchAccountTab from "@/components/BranchAccountTab";
 import { geocodePlace } from "@/lib/geo";
 import { summarizeOperatingHours } from "@/lib/operatingHours";
-import IndustryPicker from "@/components/IndustryPicker";
-import { getIndustry, industryFromRules } from "@/lib/templates";
+import { industryFromRules } from "@/lib/templates";
 import { QRCodeSVG } from "qrcode.react";
 import { DAILY_DRIVING_EXTENDED_HOURS, DAILY_MAX_NET_HOURS, isNightDef, netWorkHours } from "@/lib/legal";
 import { BreakPicker } from "@/components/ui/BreakPicker";
@@ -978,9 +977,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
     return Math.round((dur / 60) * 10) / 10;
   };
 
-  // ── İşletme türü (lib/templates) ─────────────────────────────────────────
-  // Anında kaydedilir (departmanlar gibi); kaydetme barından bağımsızdır. Taze rules
-  // üzerine yazılır, sonra sayfa yeniden yüklenir; kaydedilmemiş değişiklik varken kapalıdır.
+  // İşletme türü (lib/templates) sadece kurulumda seçilir; ayarlarda görünmez, öneriler arka planda ona göre gelir
   const savedIndustry = industryFromRules(locationData?.rules);
   // Zor günler: sıradaki resmi tatil ve özel gün önerileri için bugünün tarihi (Türkiye saati)
   const todayIso = businessToday();
@@ -991,38 +988,6 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
   const hasNightShift = ((locationData?.shift_definitions ?? []) as ShiftDefinition[]).some(d => {
     return isNightDef(d);
   });
-  const savedVariant = (locationData?.rules as Record<string, unknown> | undefined)?.industry_variant as string | undefined;
-  const [industryDraft, setIndustryDraft] = useState<{ industry: string; variant: string } | null>(null);
-  const [industrySaving, setIndustrySaving] = useState(false);
-  const pickedIndustry = industryDraft?.industry ?? savedIndustry?.key ?? null;
-  const pickedVariant = industryDraft?.variant ?? savedVariant ?? savedIndustry?.variants[0].key ?? null;
-  const industryChanged = !!industryDraft && (industryDraft.industry !== savedIndustry?.key || industryDraft.variant !== savedVariant);
-
-  // Sadece hiç seçilmemiş (eski) şubede bir kez; sunucu da seçilmiş türü değiştirmez
-  const saveIndustry = async () => {
-    if (!locationData || !industryDraft) return;
-    setIndustrySaving(true);
-    try {
-      const fresh = await fetch(`/api/locations?id=${locationData.id}`).then(r => r.json());
-      const fr = Array.isArray(fresh) ? fresh[0]?.rules : null;
-      const base: Record<string, unknown> = fr ? (typeof fr === "string" ? JSON.parse(fr) : { ...fr }) : {};
-      const rules = { ...base, industry: industryDraft.industry, industry_variant: industryDraft.variant };
-      const res = await fetch(`/api/locations?id=${locationData.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rules }),
-      });
-      if (!res.ok) throw new Error();
-      setIndustryDraft(null);
-      showToast("ok", "İşletme türü kaydedildi.");
-      window.dispatchEvent(new Event("optishift_location_changed"));
-    } catch {
-      showToast("error", "İşletme türü kaydedilemedi.");
-    } finally {
-      setIndustrySaving(false);
-    }
-  };
-
   // Çalışma döngüsü: deseni seç, aktif personele eşit dağıt (kaydırmalar), anında kaydet
   const workCycle = (() => {
     const r = locationData?.rules;
@@ -1085,73 +1050,6 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
           {/* ─── TEMEL AYARLAR ─── */}
           {activeTab === "basic" && (
             <div className="space-y-8">
-              {/* İşletme türü: roller, belge kataloğu, sektör dili ve önerilen kurallar buna bağlı */}
-              <div>
-                <SectionLabel>İşletme Türü</SectionLabel>
-                {savedIndustry ? (
-                  <>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {savedIndustry.variants.find(v => v.key === savedVariant)?.label ?? savedIndustry.variants[0].label}
-                      <span className="font-normal text-slate-500"> · {savedIndustry.label}</span>
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Belge kontrolü, yasal uyarılar ve öneriler seçtiğiniz işletme türüne göre yapılır.
-                      {viewerRole === "admin" && !industryDraft && (
-                        <> <button type="button" onClick={() => setIndustryDraft({ industry: savedIndustry.key, variant: savedVariant ?? savedIndustry.variants[0].key })}
-                          className="font-semibold text-forest-700 hover:underline">Değiştir</button></>
-                      )}
-                    </p>
-                    {viewerRole === "admin" && industryDraft && (
-                      <div className="mt-3 space-y-3">
-                        <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
-                          onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
-                        <p className="text-xs text-slate-500">Vardiyalarınız ve ayarlarınız değişmez. Görev listesi ve öneriler yeni türe göre güncellenir.</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty || !industryChanged}
-                            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
-                          <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
-                          {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs text-slate-500 mb-3">
-                      Henüz seçilmedi. Belge kontrolü ve Ana Sayfa&apos;daki öncelikler işletme türüne göre çalışır.
-                    </p>
-                    {/* İşletme düzeyinde karar: sadece hesap sahibi seçer */}
-                    {viewerRole === "admin" ? (
-                    <IndustryPicker compact industry={pickedIndustry} variant={pickedVariant}
-                      onChange={(industry, variant) => setIndustryDraft({ industry, variant })} />
-                    ) : <p className="text-xs text-slate-500">İşletme türünü hesap sahibi seçer.</p>}
-                    {industryChanged && (
-                      <div className="flex flex-wrap items-center gap-2 mt-3">
-                        <button onClick={() => saveIndustry()} disabled={industrySaving || isDirty}
-                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50">Türü Kaydet</button>
-                        <button onClick={() => setIndustryDraft(null)} disabled={industrySaving} className="px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Vazgeç</button>
-                        {isDirty && <span className="text-xs text-amber-700">Önce aşağıdaki kaydedilmemiş değişiklikleri kaydedin.</span>}
-                      </div>
-                    )}
-                  </>
-                )}
-                {savedIndustry && !industryChanged && (
-                  <details className="mt-3 text-xs text-slate-600">
-                    <summary className="cursor-pointer font-semibold text-slate-500 hover:text-slate-800">{getIndustry(savedIndustry.key)!.label} için yasal notlar ({savedIndustry.legalNotes.length})</summary>
-                    <ul className="mt-2 space-y-2">
-                      {savedIndustry.legalNotes.map(n => (
-                        <li key={n.title} className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
-                          <p className="font-bold text-slate-700">{n.title}</p>
-                          <p className="mt-0.5">{n.text}</p>
-                          {n.basis && <p className="mt-0.5 text-slate-400">Dayanak: {n.basis}</p>}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
-
-
                 {/* Departmanlar Temel'de (2026-10-04): kafe/fabrikada plan tablosunun ana yapısı; anında kaydedilir */}
                 <div>
                   <SectionLabel>Departmanlar</SectionLabel>
@@ -2120,7 +2018,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                   {others.length > 0 && (
                     <details className="group">
                       <summary className="cursor-pointer text-sm font-semibold text-slate-500 hover:text-slate-800">
-                        {savedIndustry!.label} işletmelerinde genelde kullanılmayanlar ({others.length})
+                        Diğer özellikler ({others.length})
                       </summary>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                         {others.map(id => <Fragment key={id}>{card[id]}</Fragment>)}

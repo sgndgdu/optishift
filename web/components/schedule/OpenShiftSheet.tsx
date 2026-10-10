@@ -14,6 +14,8 @@ import { Sheet, DetailRow, sheetPrimaryClass, sheetSecondaryClass, sheetDangerCl
 import { StatusPill } from "@/components/ui/StatusPill";
 import { confirmDespiteViolations, violationText, type ViolationResponse } from "@/lib/ruleViolations";
 import { formatDateTR } from "@/lib/date";
+import { formatScore } from "@/lib/fairness";
+import { trNum } from "@/lib/format";
 
 export type Listing = {
   id: number; date: string; start_time: string; end_time: string; status: string; note?: string | null;
@@ -21,6 +23,15 @@ export type Listing = {
 };
 
 export type NewListing = { locationId: string; date: string; start: string; end: string; label: string };
+
+// Aday satırı: bu haftaki süre + Adalet Puanı'nın anlamı ("109 puan" tek başına bir şey anlatmıyordu)
+function candidateLine(c: { other_branch?: string; week_hours?: number; prev_score: number; fair_text?: string }) {
+  return [
+    c.other_branch ?? null,
+    c.week_hours !== undefined ? `Bu hafta ${trNum(c.week_hours)} saat` : null,
+    `Adalet Puanı ${formatScore(c.prev_score)}${c.fair_text ? `, ${c.fair_text}` : ""}`,
+  ].filter(Boolean).join(" · ");
+}
 
 export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, onClose, onDone }: {
   listing: Listing | null;
@@ -151,7 +162,7 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
           <section className="space-y-2">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Uygun kişiler</h3>
-              <p className="text-xs text-slate-500">Ekibe bildirim gitti. Beklemeden birini siz de yazabilirsiniz. Liste en az çalışan kişiden başlar.</p>
+              <p className="text-xs text-slate-500">Ekibe bildirim gitti. Beklemeden birini siz de yazabilirsiniz. Son haftalarda en az ve en kolay vardiyalarda çalışan kişi en üsttedir.</p>
             </div>
             {!list ? <p className="text-xs text-slate-500">Hesaplanıyor…</p>
               : list.list.length === 0 ? <p className="text-xs text-slate-500">Uygun kimse yok. Herkesin o gün vardiyası ya da izni var veya o gün çalışamıyor.</p>
@@ -164,8 +175,8 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
                         <Avatar name={c.name} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-slate-900">{c.name}</p>
-                          <p className={`truncate text-xs ${c.warnings.length > 0 ? "text-amber-700" : "text-slate-500"}`}>
-                            {c.warnings.length > 0 ? c.warnings.join(" · ") : `${c.other_branch ? `${c.other_branch} · ` : ""}${Math.round(c.prev_score)} puan`}
+                          <p className={`text-xs ${c.warnings.length > 0 ? "text-amber-700" : "text-slate-500"}`}>
+                            {c.warnings.length > 0 ? c.warnings.join(" · ") : candidateLine(c)}
                           </p>
                         </div>
                         <button disabled={busy} onClick={() => assign(c)}

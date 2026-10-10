@@ -7,10 +7,9 @@
  */
 
 import { isNightTime } from "@/lib/legal";
-import { loadReliability } from "@/lib/reliabilityData";
 import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
-import { RELIABILITY_WEEKS, isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
+import { scoreVsAverageText } from "@/lib/fairness";
 
 export interface SlotInput {
   location_id: string;
@@ -35,6 +34,10 @@ export interface Candidate {
   other_branch?: string;
   /** Başka şubenin çalışanının ana şubesi */
   home_location_id?: string;
+  /** Bu haftaki çalışma süresi (saat, bu vardiya hariç) */
+  week_hours?: number;
+  /** Adalet Puanı'nın ekibe göre anlamı: "ortalamanın %12 altı" (aday listesindeki herkesin ortalamasına göre) */
+  fair_text?: string;
   /** Üstlenirse çalışma kuralı bozulur (dinlenme ya da haftalık sınır): üstlenme sunucuda reddedilir */
   blocking?: boolean;
 }
@@ -123,8 +126,6 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     try { const r = JSON.parse(p.roles ?? "[]"); return Array.isArray(r) ? r : []; } catch { return []; }
   };
   const required = (slot.requiredRoles ?? []).filter(Boolean);
-  // Güvenilirlik (giriş kayıtlarından; şube giriş kullanmıyorsa boş)
-  const reliability: Record<string, Reliability> = await loadReliability(db, slot.location_id).catch(() => ({}));
 
   const candidates: Candidate[] = [];
   for (const p of eligible) {
@@ -166,10 +167,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
       }
     }
 
-    const rel = reliability[p.id];
-    const relNote = reliabilityNote(rel);
-    if (relNote && isUnreliable(rel)) warnings.push(relNote);
-    else if (rel && !relNote) reasons.push(`Son ${RELIABILITY_WEEKS} haftada ${rel.shifts} vardiyanın hiçbirini kaçırmadı`);
+    // Gelmeme / geç kalma burada yazılmaz (kullanıcı kararı 2026-10-10): tek yeri Raporlar
 
     const myRoles = rolesOf(p);
     const matched = required.filter(r => myRoles.includes(r));
@@ -178,6 +176,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     const local = isLocal(p);
     if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
     candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0, blocking,
+      week_hours: Math.round(weekMin / 6) / 10,
       ...(local ? {} : { other_branch: p.home_name ?? "Başka şube", home_location_id: p.primary_location_id ?? undefined }) });
   }
 
@@ -186,6 +185,9 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     (a.warnings.length - b.warnings.length) ||
     (Number(b.role_match) - Number(a.role_match)) ||
     (a.prev_score - b.prev_score));
+  // Puanın anlamı: listedekilerin ortalamasına göre (ham sayı tek başına bir şey anlatmıyordu)
+  const avgScore = candidates.length ? candidates.reduce((t, c) => t + c.prev_score, 0) / candidates.length : 0;
+  for (const c of candidates) c.fair_text = scoreVsAverageText(c.prev_score, avgScore);
   // Adalet sırası gerekçesi: uyarısızlar arasında en az yük taşıyanlar
   candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az çalışan önce)`));
 

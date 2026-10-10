@@ -21,7 +21,6 @@ import ShiftBoard, { type BoardGroup } from "@/components/schedule/ShiftBoard";
 import WeekCopilot, { type WeekAlert } from "@/components/schedule/WeekCopilot";
 import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignment, findProblems, type DayState, type Insight, type InsightTarget, type WeekBudgets, type WeekSnapshot } from "@/lib/copilot";
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
-import { isUnreliable, reliabilityNote, type Reliability } from "@/lib/reliability";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
 import { calcAssignmentPoints, weekDayExtraPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText } from "@/lib/fairness";
@@ -381,8 +380,6 @@ function SchedulePageInner() {
   const [absenceCands, setAbsenceCands] = useState<{ personnel_id: string; name: string; warnings: string[]; reasons: string[]; other_branch?: string; assignable?: boolean }[] | null>(null);
   const [absenceReason, setAbsenceReason] = useState<"sick" | "emergency" | "no_show">("sick");
   const [absenceBusy, setAbsenceBusy] = useState(false);
-  // Güvenilirlik notları (lib/reliability; giriş verisi yoksa boş): personelId → "Son 8 haftada 2 kez gelmedi"
-  const [reliabilityNotes, setReliabilityNotes]   = useState<Record<string, string>>({});
   // Öğrenilen tercihler (lib/implicitPrefs): personelId → [{gün, vardiya, not}]
   const [learnedPrefs, setLearnedPrefs]           = useState<Record<string, { day: number; shiftId: string | null; note: string }[]>>({});
   // "Ya şöyle olursa?" senaryosu: kaydetmeden motoru çöz, mevcut planla karşılaştır
@@ -979,24 +976,6 @@ function SchedulePageInner() {
     return () => { stale = true; };
   }, [activeLocationId]);
 
-  // Güvenilirlik: şube değişince bir kez
-  useEffect(() => {
-    if (!activeLocationId) return;
-    let stale = false;
-    fetch(`/api/reliability?location_id=${activeLocationId}`)
-      .then(r => (r.ok ? r.json() : {}))
-      .then((d: Record<string, Reliability>) => {
-        if (stale) return;
-        const notes: Record<string, string> = {};
-        for (const [pid, r] of Object.entries(d ?? {})) {
-          const n = reliabilityNote(r);
-          if (n && isUnreliable(r)) notes[pid] = n;
-        }
-        setReliabilityNotes(notes);
-      })
-      .catch(() => {});
-    return () => { stale = true; };
-  }, [activeLocationId]);
 
   useEffect(() => {
     if (!activeLocationId || !weekStart) return;
@@ -2126,7 +2105,6 @@ function SchedulePageInner() {
     clopeningMinRest, availCollectionEnabled, approvedLeaves, weekStart, elsewhere });
 
   const weekBudgets: WeekBudgets = {
-    unreliable: reliabilityNotes,
     listed: openListings.filter(o => !o.source_assignment_id).flatMap(o => {
       const day = [0, 1, 2, 3, 4, 5, 6].find(d => addDays(weekStart, d) === o.date);
       const def = shiftDefs.find(d => d.start === o.start_time?.slice(0, 5) && d.end === o.end_time?.slice(0, 5));
@@ -3324,7 +3302,6 @@ function SchedulePageInner() {
               pinned: !!c?.pinned,
               cycleState: weekStates(wc, popover!.personnelId, weekStart)?.[popover!.day] ?? null,
               requiredRoles: [],
-              reliabilityNote: reliabilityNotes[popover!.personnelId] ?? null,
               learned: (learnedPrefs[popover!.personnelId] ?? [])
                 .filter(l => l.day === popover!.day && (l.shiftId === null || l.shiftId === def?.id))
                 .map(l => l.note),

@@ -33,6 +33,8 @@ export default function LoginPage() {
   // SessionGuard oturum düşünce ?expired=1 ile yönlendirir. Adres çizimden sonra okunur
   // (ilk çizimde okumak sunucu çizimiyle uyuşmuyor, hydration hatası veriyordu)
   const [sessionExpired, setSessionExpired] = useState(false);
+  // SessionGuard: bu tarayıcıda başka sekmede başka hesaba girildi (?switched=1)
+  const [accountSwitched, setAccountSwitched] = useState(false);
   const [googleError, setGoogleError] = useState("");
   // Bu Gmail'e bağlı hesap yok: hata değil, iki yol gösterilir (çalışan bağlantı ister, sahip işletme açar)
   const [unknownGmail, setUnknownGmail] = useState("");
@@ -40,6 +42,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     /* eslint-disable react-hooks/set-state-in-effect */
     setSessionExpired(params.get("expired") === "1");
+    setAccountSwitched(params.get("switched") === "1");
     const code = params.get("google_error");
     if (code && code !== "not_found") setGoogleError(GOOGLE_ERROR_MESSAGES[code] ?? "Google ile giriş yapılamadı. Tekrar deneyin.");
     if (code === "not_found") setUnknownGmail(params.get("google_email") ?? "Bu Gmail");
@@ -113,6 +116,11 @@ export default function LoginPage() {
             {(sessionExpired && !error) && (
               <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
                 Oturumunuz kapandı. Tekrar giriş yapın.
+              </div>
+            )}
+            {(accountSwitched && !sessionExpired && !error) && (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                Bu tarayıcıda başka bir hesaba giriş yapıldı. Aynı anda tek hesap açık kalabilir. Devam etmek istediğiniz hesapla giriş yapın.
               </div>
             )}
             {(error || googleError) && (

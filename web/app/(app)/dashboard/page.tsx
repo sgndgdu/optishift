@@ -346,7 +346,6 @@ export default function DashboardPage() {
     // Şubenin sektörü seçiliyse maddeler sektörün diliyle ve önceliğiyle gelir
     nudges: industryFromRules(rules)?.nudges ?? null,
     // Geri alınamaz, işletme düzeyinde karar: görev sadece işletme sahibine çıkar (müdür ve bölge müdürüne değil)
-    industrySelected: user?.role === "admin" ? industryFromRules(rules) !== null : undefined,
     autopilot: autopilot?.enabled ? {
       drafted: autopilot.last_draft_week === getNextWeekStart(),
       upcoming: autopilot.upcoming,

@@ -38,6 +38,34 @@ const EXCLUDED_API = [
 
 let redirecting = false;
 
+const USER_KEYS = ["optishift_manager_user", "optishift_portal_user", "optishift_supervisor_user"];
+
+// Ekranın gösterdiği hesap (localStorage) ile oturumdaki hesap (cookie) aynı mı? Aynı tarayıcıda
+// başka sekmede başka hesaba girilince cookie değişir, ekran eski hesabın adını gösterip yeni hesabın
+// verisini çekiyordu (sahip adıyla tek şube görünüyordu, 2026-10-10).
+async function checkSameAccount(origFetch: typeof fetch) {
+  if (redirecting) return;
+  const cur = window.location.pathname;
+  if (PUBLIC_PREFIXES.some(p => cur === p || cur.startsWith(p + "/"))) return;
+  const shownIds = new Set<string>();
+  for (const k of USER_KEYS) {
+    try {
+      const u = JSON.parse(localStorage.getItem(k) ?? "null");
+      if (u?.id) shownIds.add(String(u.id));
+    } catch { /* yok say */ }
+  }
+  if (shownIds.size === 0) return;
+  try {
+    const res = await origFetch("/api/auth/account", { cache: "no-store" });
+    if (!res.ok) return;
+    const me = await res.json();
+    if (!me?.id || shownIds.has(String(me.id)) || redirecting) return;
+    redirecting = true;
+    USER_KEYS.forEach(k => localStorage.removeItem(k));
+    window.location.href = "/login?switched=1";
+  } catch { /* ağ hatası: bir sonraki denemede bakılır */ }
+}
+
 export default function SessionGuard() {
   useEffect(() => {
     const w = window as Window & { __optishiftFetchPatched?: boolean };
@@ -45,6 +73,11 @@ export default function SessionGuard() {
     w.__optishiftFetchPatched = true;
 
     const origFetch = window.fetch.bind(window);
+    void checkSameAccount(origFetch);
+    // Sekmeye dönülünce ve başka sekme hesap değiştirince yeniden bakılır
+    const onVisible = () => { if (document.visibilityState === "visible") void checkSameAccount(origFetch); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("storage", e => { if (e.key && USER_KEYS.includes(e.key)) void checkSameAccount(origFetch); });
     window.fetch = async (input, init) => {
       const res = await origFetch(input, init);
       try {

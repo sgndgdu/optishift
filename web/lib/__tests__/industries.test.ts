@@ -208,11 +208,7 @@ describe("Bekleyen İşler: sektör önceliği ve dili", () => {
     expect(buildInbox({ ...base, certifications: { enabled: false, expired: 2, expiring: 0 } })).toEqual([]);
   });
 
-  it("işletme türü seçilmemişse hatırlatma, seçiliyse ya da bilinmiyorsa yok", () => {
-    expect(buildInbox({ ...base, industrySelected: false })).toMatchObject([{ id: "industry", severity: "week", action: { href: "/settings" } }]);
-    expect(buildInbox({ ...base, industrySelected: true })).toEqual([]);
-    expect(buildInbox(base)).toEqual([]);
-  });
+
 });
 
 describe("önerilen zorunlu roller", () => {

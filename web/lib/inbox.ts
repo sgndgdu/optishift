@@ -60,7 +60,6 @@ export type InboxInput = {
   /** Şubenin sektörü seçiliyse dil ve öncelik. */
   nudges?: IndustryNudges | null;
   /** false: şubede işletme türü seçilmemiş (belge kalkanı, sektör dili ve önerilen kurallar çalışmıyor). */
-  industrySelected?: boolean;
   /** Otomatik pilot (lib/autopilotRules): drafted = gelecek haftanın taslağını otomatik pilot hazırladı;
    *  upcoming = henüz hazırlamadı ama bu hafta hazırlayacak (gün gelmedi, ihtiyaç tablosu dolu). */
   autopilot?: { drafted: boolean; upcoming: boolean; when: string }; // when: "Perşembe 08:00"
@@ -266,16 +265,6 @@ export function buildInbox(input: InboxInput): InboxItem[] {
       severity: "week",
       title: `${input.overtime.nearLimit} kişi yıllık fazla mesai sınırına yaklaştı`,
       action: { label: "Gör", href: "/overtime#warnings" },
-    });
-  }
-
-  if (input.industrySelected === false) {
-    items.push({
-      id: "industry",
-      severity: "week",
-      title: "İşletme türünüzü seçin",
-      detail: "Görev listesi, belge kontrolü ve öneriler seçtiğiniz işletme türüne göre hazırlanır.",
-      action: { label: "Seç", href: "/settings" },
     });
   }
 

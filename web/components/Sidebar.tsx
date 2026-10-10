@@ -74,7 +74,7 @@ function usePendingApprovals(orgId: string | undefined) {
   return count;
 }
 import {
-  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, HelpCircle, ClipboardCheck, Building2, CalendarCheck,
+  LayoutDashboard, Users, CalendarClock, Plug, Settings, LogOut, ChevronDown, Check, MessageSquare, Megaphone, ClipboardList, Coffee, X, BarChart2, HelpCircle, ClipboardCheck, Building2, CalendarCheck, Plus,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -235,7 +235,7 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
   }, []);
 
   const isOwner = user?.role === "admin" || user?.role === "supervisor";
-  // Tek şubeli işletmede bu satır "Yeni şube aç"tır: sihirbaz doğrudan açık gelir (?new=1)
+  // "Yeni şube aç" Tüm Şubeler sayfasına gider, sihirbaz doğrudan açık gelir (?new=1)
   const goAllBranches = (openNewBranch = false) => {
     if (!localStorage.getItem("optishift_supervisor_user") && user) {
       localStorage.setItem("optishift_supervisor_user", JSON.stringify({ ...user, location_id: null }));
@@ -389,17 +389,17 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                 className="fixed inset-0 z-40" 
                 onClick={() => setIsDropdownOpen(false)} 
               />
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-900/10 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="max-h-[240px] overflow-y-auto p-1.5 space-y-0.5">
-                  {isOwner && (
+                  {isOwner && locations.length > 1 && (
                     <button
-                      onClick={() => goAllBranches(locations.length <= 1)}
+                      onClick={() => goAllBranches()}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-left transition-colors border-b border-slate-100",
+                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-left transition-colors",
                         scope === "all" ? "bg-primary/5 text-primary font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
                       )}
                     >
-                      <span className="flex items-center gap-2"><Building2 size={15} /> {locations.length > 1 ? "Tüm Şubeler" : "Yeni şube aç"}</span>
+                      <span className="flex items-center gap-2"><Building2 size={15} /> Tüm Şubeler</span>
                       {scope === "all" && <Check size={16} className="text-primary shrink-0" />}
                     </button>
                   )}
@@ -420,6 +420,15 @@ export default function Sidebar({ onClose, scope = "branch" }: { onClose?: () =>
                     );
                   })}
                 </div>
+                {/* Yeni şube bir seçim değil, bir iştir: listenin altında ayrı durur, tik almaz (şube açmayı sadece hesap sahibi yapar) */}
+                {user?.role === "admin" && (
+                  <button
+                    onClick={() => goAllBranches(true)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 border-t border-slate-100 text-sm font-semibold text-forest-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Plus size={15} /> Yeni şube aç
+                  </button>
+                )}
               </div>
             </>
           )}
