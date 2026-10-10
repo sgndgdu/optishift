@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { leaveTypeLabel } from "@/lib/leave";
+import { COMP_LEAVE_TYPE } from "@/lib/compLeave";
+import { formatScore } from "@/lib/fairness";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAvailabilityEnabled } from "@/hooks/useShiftWords";
@@ -696,7 +698,7 @@ export default function PortalRequests() {
                       body: JSON.stringify({ shift_id: fa.id, action }),
                     });
                     if (r.ok) {
-                      showToast(action === "accept" ? `Kabul edildi! +${fa.force_bonus_multiplier} ek puan kazandınız.` : "Reddedildi. Sorumlunuz bilgilendirildi.");
+                      showToast(action === "accept" ? (fa.comp_leave ? "Kabul edildi. Hesabınıza 1 gün denkleştirme izni yazıldı." : "Kabul edildi.") : "Reddedildi. Sorumlunuz bilgilendirildi.");
                     } else {
                       const err = await r.json().catch(() => ({}));
                       showToast(err.error || "İşlem başarısız.", "error");
@@ -1048,11 +1050,26 @@ export default function PortalRequests() {
                 </div>
               )}
 
+              {/* Denkleştirme izni (lib/compLeave): izin gününde çağrılıp gelince kazanılan günler */}
+              {(leaveBalance?.comp_leave?.earned ?? 0) > 0 && (leaveType === COMP_LEAVE_TYPE || !leaveType) && (
+                <div className={`rounded-xl p-3 flex items-start gap-2.5 border ${leaveBalance.comp_leave.available > 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                  <CalendarOff size={15} className={`shrink-0 mt-0.5 ${leaveBalance.comp_leave.available > 0 ? "text-emerald-600" : "text-amber-600"}`} />
+                  <div className="text-xs">
+                    <p className={`font-bold ${leaveBalance.comp_leave.available > 0 ? "text-emerald-800" : "text-amber-800"}`}>
+                      Denkleştirme izniniz: {leaveBalance.comp_leave.available} gün
+                    </p>
+                    <p className="text-slate-500 mt-0.5">
+                      İzin gününüzde çağrılıp geldiğiniz için kazandınız. Toplam {leaveBalance.comp_leave.earned} gün · kullanılan {leaveBalance.comp_leave.used} gün{leaveBalance.comp_leave.pending > 0 ? ` · onay bekleyen ${leaveBalance.comp_leave.pending} gün` : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Şube kuralları ayrı kutuda gösterilmez: mazeret zorunluysa not alanı söyler, tek gün ise tek tarih alanı çıkar */}
               <div>
                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block">İzin Türü</label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {LEAVE_TYPES.filter(t => leaveOther || MAIN_LEAVE_TYPES.includes(t) || leaveType === t).map(t => (
+                  {[...((leaveBalance?.comp_leave?.earned ?? 0) > 0 ? [COMP_LEAVE_TYPE] : []), ...LEAVE_TYPES.filter(t => leaveOther || MAIN_LEAVE_TYPES.includes(t) || leaveType === t)].map(t => (
                     <button
                       key={t}
                       onClick={() => setLeaveType(t)}
@@ -1308,13 +1325,17 @@ function ForceAssignCard({ item, onRespond }: { item: any; onRespond: (action: "
         </div>
       </div>
 
-      {/* Bonus bilgisi */}
-      <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
-        <Star size={13} className="text-amber-500 shrink-0" />
-        <p className="text-xs text-amber-800">
-          Kabul edersen <strong>+{item.force_bonus_multiplier ?? 5} bonus puan</strong> kazanırsınız.
-        </p>
-      </div>
+      {/* Karşılığı: Adalet Puanı eki ve denkleştirme izni (lib/fairness, lib/compLeave) */}
+      {(Number(item.force_bonus_multiplier) > 0 || item.comp_leave) && (
+        <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
+          <Star size={13} className="text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-800">
+            Kabul ederseniz{Number(item.force_bonus_multiplier) > 0 && <> Adalet Puanınıza <strong>+{formatScore(Number(item.force_bonus_multiplier))}</strong> ek yazılır</>}
+            {Number(item.force_bonus_multiplier) > 0 && item.comp_leave ? " ve" : ""}
+            {item.comp_leave && <> hesabınıza <strong>1 gün denkleştirme izni</strong> yazılır</>}.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button

@@ -2,7 +2,7 @@
 /**
  * Ekip anketi ve Adalet Puanı kural kaydı: veritabanı tarafı (kurallar lib/fairnessSurvey.ts).
  */
-import { resolveShiftDef, resolveHardDayRules, type Rules } from "@/lib/fairness";
+import { resolveShiftDef, resolveHardDayRules, shiftDifficultyPct, type Rules } from "@/lib/fairness";
 import { addDays, businessToday, weekStartOf } from "@/lib/date";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { aggregateSurvey, eligibilityWeeks, type SurveyAnswers, type SurveyResults, type SurveyShift } from "@/lib/fairnessSurvey";
@@ -22,7 +22,7 @@ export async function loadLocation(db: any, orgId: string, locationId: string) {
   const defs = parseJson<any[]>(loc.shift_definitions, []);
   const shifts: SurveyShift[] = (Array.isArray(defs) ? defs : [])
     .filter(d => d && d.id && !d.on_call)
-    .map(d => ({ id: String(d.id), name: String(d.name ?? "Vardiya"), start: String(d.start ?? ""), end: String(d.end ?? ""), base_points: Number(d.base_points ?? 5) }));
+    .map(d => ({ id: String(d.id), name: String(d.name ?? "Vardiya"), start: String(d.start ?? ""), end: String(d.end ?? ""), difficulty_pct: shiftDifficultyPct(d) }));
   return { id: loc.id as string, name: loc.name as string, rules, defs, shifts };
 }
 
@@ -81,7 +81,7 @@ export function surveyWeeks(rules: Rules) {
 }
 
 export function currentDayPoints(rules: Rules) {
-  return resolveHardDayRules(rules).dayPoints;
+  return resolveHardDayRules(rules).dayPct;
 }
 
 /** Ekip üyelerine bildirim + telefon bildirimi (personnel_id ile, lib/managerNotifications'ın ekip karşılığı). */

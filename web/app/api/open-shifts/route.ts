@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     let { location_id, date, start_time, end_time, note } = body;
-    const { hero_bonus_multiplier, convert_assignment_id, reason } = body;
+    const { convert_assignment_id, reason } = body;
     // Bildirim hedefi: "all" (şubenin tüm personeli, varsayılan), "top" (en uygun 3 aday,
     // lib/openShiftCandidates), "none" (müdür doğrudan atayacak)
     const notify: "all" | "top" | "none" = body.notify === "top" || body.notify === "none" ? body.notify : "all";
@@ -225,7 +225,6 @@ export async function POST(req: NextRequest) {
     const employeeRelease = auth.role === "employee" && !!sourceAssignmentId;
     const published = await publishOpenShift(db, {
       org_id, location_id, date, start_time, end_time, note: note ?? null,
-      heroPoints: typeof hero_bonus_multiplier === "number" ? hero_bonus_multiplier : undefined,
       releasedBy: absentPersonnelId, sourceAssignmentId, notify,
       createdBy: auth.id,
     });

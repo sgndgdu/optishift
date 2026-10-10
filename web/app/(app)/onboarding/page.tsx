@@ -16,6 +16,7 @@ import type { ShiftDefinition } from "@/lib/types";
 import { WizardProgress, WizardStep, WizardNav } from "@/components/ui/Wizard";
 import { openBranchPanel } from "@/lib/sessionRouting";
 import { AuthLogo } from "@/components/AuthLogo";
+import { shiftDifficultyPct } from "@/lib/fairness";
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 // Vardiya/kural preset'lerinin tek kaynağı lib/presets.ts — burada sadece görsel eşleme var.
@@ -31,7 +32,8 @@ const DEMAND_STEP = { label: "Kaç kişi", icon: Users };
 const TEAM_STEP = { label: "Ekibiniz", icon: UserPlus };
 const FREE_TEAM_LIMIT = 10;
 const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-const DIFFICULTY_POINTS = { easy: 3, medium: 5, hard: 8 } as const;
+// Yapay zekâ kurulumunun zorluğu Adalet Puanı ekine (lib/fairness): kolay ve orta sıradan, zor %50
+const DIFFICULTY_PCT = { easy: 0, medium: 0, hard: 50 } as const;
 
 // ─── Bileşen ─────────────────────────────────────────────────────────────────
 
@@ -132,7 +134,7 @@ export default function OnboardingWizard() {
     setIndustry(p.industry);
     setVariant(p.variant);
     setPickedDepts(p.departments);
-    const defs: ShiftDefinition[] = p.shifts.map((s, i) => ({ id: `s-${i + 1}`, name: s.name, start: s.start, end: s.end, base_points: DIFFICULTY_POINTS[s.difficulty], ...(s.break_minutes !== undefined ? { break_minutes: s.break_minutes } : {}) }));
+    const defs: ShiftDefinition[] = p.shifts.map((s, i) => ({ id: `s-${i + 1}`, name: s.name, start: s.start, end: s.end, base_points: 5, difficulty_pct: DIFFICULTY_PCT[s.difficulty], ...(s.break_minutes !== undefined ? { break_minutes: s.break_minutes } : {}) }));
     setShifts(defs);
     setOpHours({ open: p.open, close: p.close, closedDays: p.closedDays });
     const byName = new Map(defs.map(d => [d.name, d.id]));
@@ -464,8 +466,8 @@ export default function OnboardingWizard() {
                       </div>
                       <div className="flex items-center gap-1 w-full md:w-auto">
                         {/* Zorluk: Ayarlar'la aynı seçici (components/ui/DifficultyPicker) */}
-                        <DifficultyPicker className="flex-1 md:w-56" value={s.base_points}
-                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, base_points: v } : x))} />
+                        <DifficultyPicker className="flex-1 md:w-56" value={shiftDifficultyPct(s)}
+                          onChange={v => setShifts(p => p.map((x, j) => j === i ? { ...x, difficulty_pct: v } : x))} />
                         <button onClick={() => setShifts(p => p.filter((_, j) => j !== i))} aria-label="Vardiyayı kaldır" title="Vardiyayı kaldır"
                           className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                           <Trash2 size={12} />
@@ -480,7 +482,7 @@ export default function OnboardingWizard() {
                   ))}
                   {shifts.length < 6 && (
                     <button
-                      onClick={() => setShifts(p => [...p, { id: `s${Date.now()}`, name: "", start: "09:00", end: "17:00", base_points: 3 }])}
+                      onClick={() => setShifts(p => [...p, { id: `s${Date.now()}`, name: "", start: "09:00", end: "17:00", base_points: 5, difficulty_pct: 0 }])}
                       className="inline-flex items-center gap-1.5 px-3 min-h-[40px] rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
                       <Plus size={15} /> Vardiya ekle
                     </button>

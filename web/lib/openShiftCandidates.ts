@@ -9,7 +9,7 @@
 import { isNightTime } from "@/lib/legal";
 import { assignmentWorkMinutes, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { trNum } from "@/lib/format";
-import { scoreVsAverageText } from "@/lib/fairness";
+import { comparableScore, scoreVsAverageText } from "@/lib/fairness";
 
 export interface SlotInput {
   location_id: string;
@@ -27,6 +27,8 @@ export interface Candidate {
   personnel_id: string;
   name: string;
   prev_score: number;
+  /** Kişinin haftalık süresine oranlanmış puan (sıralama ve karşılaştırma) */
+  cmp_score: number;
   warnings: string[];
   reasons: string[];
   role_match: boolean;
@@ -175,7 +177,7 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
 
     const local = isLocal(p);
     if (!local) reasons.unshift(`${p.home_name ?? "Başka şube"} şubesinden (ödünç)`);
-    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, warnings, reasons, role_match: matched.length > 0, blocking,
+    candidates.push({ personnel_id: p.id, name: p.name, prev_score: p.prev_score ?? 0, cmp_score: comparableScore(p.prev_score ?? 0, p.max_weekly_hours, ruleMax), warnings, reasons, role_match: matched.length > 0, blocking,
       week_hours: Math.round(weekMin / 6) / 10,
       ...(local ? {} : { other_branch: p.home_name ?? "Başka şube", home_location_id: p.primary_location_id ?? undefined }) });
   }
@@ -184,10 +186,10 @@ export async function rankCandidates(db: any, slot: SlotInput): Promise<{ candid
     (Number(!!a.other_branch) - Number(!!b.other_branch)) ||
     (a.warnings.length - b.warnings.length) ||
     (Number(b.role_match) - Number(a.role_match)) ||
-    (a.prev_score - b.prev_score));
-  // Puanın anlamı: listedekilerin ortalamasına göre (ham sayı tek başına bir şey anlatmıyordu)
-  const avgScore = candidates.length ? candidates.reduce((t, c) => t + c.prev_score, 0) / candidates.length : 0;
-  for (const c of candidates) c.fair_text = scoreVsAverageText(c.prev_score, avgScore);
+    (a.cmp_score - b.cmp_score));
+  // Puanın anlamı: listedekilerin ortalamasına göre, kişinin haftalık süresine oranlanmış (lib/fairness comparableScore)
+  const avgScore = candidates.length ? candidates.reduce((t, c) => t + c.cmp_score, 0) / candidates.length : 0;
+  for (const c of candidates) c.fair_text = scoreVsAverageText(c.cmp_score, avgScore);
   // Adalet sırası gerekçesi: uyarısızlar arasında en az yük taşıyanlar
   candidates.filter(c => c.warnings.length === 0 && !c.other_branch).slice(0, 3).forEach((c, i) => c.reasons.push(`Adalet Puanı'na göre ${i + 1}. sırada (en az çalışan önce)`));
 

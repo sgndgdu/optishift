@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { shiftDifficultyPct } from "@/lib/fairness";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         id: lastClosed.id, created_at: lastClosed.created_at, closed_at: lastClosed.closed_at,
         applied: parseJson(lastClosed.applied, null), applied_by_name: lastClosed.applied_by_name, applied_at: lastClosed.applied_at,
         results: await surveyResults(db, lastClosed),
-        current_shifts: Object.fromEntries(loc.shifts.map(s => [s.id, s.base_points])),
+        current_shifts: Object.fromEntries(loc.shifts.map(s => [s.id, s.difficulty_pct])),
         current_days: currentDayPoints(loc.rules),
       },
       history: surveys.filter(s => s.status === "closed").map(s => ({ id: s.id, created_at: s.created_at, closed_at: s.closed_at, responses: Number(s.responses), applied_at: s.applied_at })),
@@ -125,20 +126,20 @@ export async function PATCH(req: NextRequest) {
     const oldDefs = loc.defs;
     const newDefs = oldDefs.map((d: any) => {
       const v = Math.round(Number(wantShifts[d?.id]));
-      if (!d?.id || !(String(d.id) in wantShifts) || !Number.isFinite(v) || v < 1 || v > 10) return d;
+      if (!d?.id || !(String(d.id) in wantShifts) || !Number.isFinite(v) || v < 0 || v > 100) return d;
       const team = results.shifts.find(s => s.id === String(d.id))?.median ?? null;
-      applied.shifts[d.id] = { name: d.name, from: Number(d.base_points ?? 5), to: v, team };
-      return { ...d, base_points: v };
+      applied.shifts[d.id] = { name: d.name, from: shiftDifficultyPct(d), to: v, team };
+      return { ...d, difficulty_pct: v };
     });
     const oldDayPoints = currentDayPoints(loc.rules);
     const newDayPoints = [...oldDayPoints];
     for (const [k, raw] of Object.entries(wantDays)) {
       const d = Number(k), v = Math.round(Number(raw));
-      if (!(d >= 0 && d <= 6) || !Number.isFinite(v) || v < 0 || v > 20) continue;
+      if (!(d >= 0 && d <= 6) || !Number.isFinite(v) || v < 0 || v > 100) continue;
       newDayPoints[d] = v;
       applied.days[d] = { name: DAY_NAMES_TR[d], from: oldDayPoints[d], to: v, team: results.days[d]?.median ?? null };
     }
-    const newRules = { ...loc.rules, hard_day_points: newDayPoints };
+    const newRules = { ...loc.rules, hard_day_pct: newDayPoints };
     const lines = describeFairnessChanges(loc.rules, newRules, oldDefs, newDefs);
     if (lines.length === 0) return NextResponse.json({ success: true, changed: 0 });
 

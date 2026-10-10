@@ -23,7 +23,7 @@ import { buildInsights, buildWeekSnapshot, crossTrainingInsight, explainAssignme
 import { weekStates, type WorkCycleConfig } from "@/lib/workCycle";
 import { cn } from "@/lib/utils";
 import type { ShiftDefinition, LocationEvent } from "@/lib/types";
-import { calcAssignmentPoints, weekDayExtraPoints, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText, fairnessExplainer } from "@/lib/fairness";
+import { calcAssignmentPoints, comparableScore, explainAssignmentPoints, resolveBonusRules, shiftDifficultyPct, weekDayExtraPct, fairnessBarColor, type Rules as FairnessRules, formatScore, scoreVsAverageText, fairnessExplainer } from "@/lib/fairness";
 import { getHolidaysForDate } from "@/lib/holidays";
 import { addDays, businessToday, getWeekStart } from "@/lib/date";
 import { DAY_NAMES, DAY_SHORT } from "@/lib/constants";
@@ -75,7 +75,7 @@ function getWeekLabel(offset: number): { label: string; dates: string[] } {
 
 /**
  * Bir hücrenin canlı puanı — resmi formül (lib/fairness.ts calcAssignmentPoints).
- * Vardiya tanımı ±10 dk toleransla eşleştirilir; eşleşmezse base_points=5 varsayılır.
+ * Vardiya tanımı ±10 dk toleransla eşleştirilir; eşleşmezse sıradan vardiya sayılır.
  * Kesin puan yayında calcWeeklyPoints ile hesaplanır.
  */
 function cellBurden(
@@ -92,14 +92,14 @@ function cellBurden(
     date: weekStart ? addDays(weekStart, day) : undefined,
     start_time: minToHHMM(startMin),
     end_time: minToHHMM(endMin % 1440),
-    base_points: def?.base_points ?? 5,
+    difficulty_pct: shiftDifficultyPct(def),
     is_night: isNightTime(minToHHMM(startMin), minToHHMM(endMin % 1440)),
     is_pref_not: am[pid]?.[day]?.status === "preferred_not",
   }, rules);
   return Math.round(r.points * 10) / 10;
 }
 
-/** Ana şubesi bu şube olmayan kişiler (başka şubede çalışma puanı, lib/fairness away_shift_points). Sayfa yükleyince doldurur. */
+/** Ana şubesi bu şube olmayan kişiler (başka şubede çalışma puanı, lib/fairness away_travel_minutes). Sayfa yükleyince doldurur. */
 const awayPeople = new Set<string>();
 function fillAwayPeople(list: { id: string; primary_location_id?: string | null }[], locationId: string) {
   awayPeople.clear();
@@ -278,7 +278,7 @@ function scheduleSnapshot(a: {
       balancingPeriodWeeks: num("balancing_period_weeks", 0),
       nightLegalWarning: isModuleOn(a.locRules, "night_legal_warning_enabled"),
       availabilityCollection: a.availCollectionEnabled,
-      hardDayPoints: weekDayExtraPoints(a.weekStart, a.locRules as FairnessRules),
+      hardDayPoints: weekDayExtraPct(a.weekStart, a.locRules as FairnessRules),
     },
     personnel: a.personnel.map(p => ({
       id: p.id, name: p.name,
@@ -818,7 +818,7 @@ function SchedulePageInner() {
               newCellMap[key] = cellData;
               if (s.publication_status === "draft") hasDraft = true;
               if (s.force_assigned && s.force_acceptance_status) {
-                newForceMap[key] = { status: s.force_acceptance_status, multiplier: s.force_bonus_multiplier ?? 5 };
+                newForceMap[key] = { status: s.force_acceptance_status, multiplier: Number(s.force_bonus_multiplier) || 0 };
               }
             }
           }
@@ -1288,11 +1288,13 @@ function SchedulePageInner() {
       .filter(([k]) => k.startsWith(`${p.id}-`))
       .reduce((sum, [, v]) => sum + v.points, 0);
     const base = (p.prev_score || 0) - (scoredWeekBurden[p.id] ?? 0);
-    return { id: p.id, name: p.name, score: Math.round((base + weekPoints) * 10) / 10 };
+    const score = Math.round((base + weekPoints) * 10) / 10;
+    // Karşılaştırma kişinin haftalık süresine oranlanır (lib/fairness comparableScore), gösterilen sayı puanın kendisi
+    return { id: p.id, name: p.name, score, cmp: comparableScore(score, p.max_weekly_hours, (locRules as FairnessRules & { max_weekly_hours?: number }).max_weekly_hours) };
   });
-  const maxScore = Math.max(...personScores.map(s => s.score), 1);
+  const maxScore = Math.max(...personScores.map(s => s.cmp), 1);
   // Çubuk rengi takım ortalamasına göre (Raporlar → Adalet ile aynı kural)
-  const avgScore = personScores.length ? personScores.reduce((t, s) => t + s.score, 0) / personScores.length : 0;
+  const avgScore = personScores.length ? personScores.reduce((t, s) => t + s.cmp, 0) / personScores.length : 0;
 
 
   // Hafta durumu (OPTI-024): tek birincil aksiyon + pasif durum çipi bu türevlerden beslenir
@@ -2728,7 +2730,7 @@ function SchedulePageInner() {
           />
           {!loading && activeLocationId && <WeekCalendarCard locationId={activeLocationId} weekStart={weekStart} />}
           <OpenShiftSheet listing={openListings.find(o => o.id === listingId) ?? null} draft={listingDraft}
-            defaultBonus={(locRules as Record<string, unknown>).hero_bonus_enabled === false ? 0 : Number((locRules as Record<string, unknown>).hero_bonus_points ?? 6)}
+            defaultBonus={resolveBonusRules(locRules as FairnessRules).heroPct}
             isOwner={viewerAccess.role === "admin"}
             onClose={() => { setListingId(null); setListingDraft(null); }}
             onDone={msg => { showToast(msg, "success"); setReloadTick(t => t + 1); }} />
@@ -3252,7 +3254,7 @@ function SchedulePageInner() {
             <p className="text-xs text-slate-400 text-center py-6">Ekip yok</p>
           ) : (
             <div className="space-y-3.5">
-              {[...personScores].sort((a, b) => b.score - a.score).map(s => {
+              {[...personScores].sort((a, b) => b.cmp - a.cmp).map(s => {
                 // Bu haftanın canlı çarpan sayaçları — hücrelerden türetilir
                 let wknd = 0, nght = 0, prfn = 0;
                 for (const [key, val] of Object.entries(cellMap)) {
@@ -3270,12 +3272,12 @@ function SchedulePageInner() {
                       {wknd > 0 && <span className="text-[10.5px] font-bold bg-amber-50 text-amber-600 px-1 py-px rounded" title={`${wknd} hafta sonu vardiyası`}>{wknd} hafta sonu</span>}
                       {nght > 0 && <span className="text-[10.5px] font-bold bg-forest-50 text-forest-600 px-1 py-px rounded" title={`${nght} gece vardiyası`}>{nght} gece</span>}
                       {prfn > 0 && <span className="text-[10.5px] font-bold bg-yellow-50 text-yellow-600 px-1 py-px rounded" title={`${prfn} "tercih etmem" günü ataması (puanla telafi edilir)`}>{prfn} istemediği gün</span>}
-                      <span className="text-xs font-semibold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.score, avgScore)}>{formatScore(s.score)}</span>
+                      <span className="text-xs font-semibold text-slate-400 tabular-nums ml-0.5" title={scoreVsAverageText(s.cmp, avgScore)}>{formatScore(s.score)}</span>
                     </span>
                   </div>
-                  {s.score > 0 && avgScore > 0 && <p className="text-[11px] text-slate-400 -mt-0.5 mb-1">{scoreVsAverageText(s.score, avgScore)}</p>}
+                  {s.score > 0 && avgScore > 0 && <p className="text-[11px] text-slate-400 -mt-0.5 mb-1">{scoreVsAverageText(s.cmp, avgScore)}</p>}
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all duration-300", fairnessBarColor(s.score, avgScore))} style={{ width: `${(s.score / maxScore) * 100}%` }} />
+                    <div className={cn("h-full rounded-full transition-all duration-300", fairnessBarColor(s.cmp, avgScore))} style={{ width: `${(s.cmp / maxScore) * 100}%` }} />
                   </div>
                 </div>
                 );
@@ -3388,29 +3390,26 @@ function SchedulePageInner() {
             const pts = calcAssignmentPoints({
               day: popover.day, date: addDays(weekStart, popover.day),
               start_time: minToHHMM(popover.startMin), end_time: minToHHMM(popover.endMin % 1440),
-              base_points: matchedDef?.base_points ?? 5, is_night: isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440)),
+              difficulty_pct: shiftDifficultyPct(matchedDef), is_night: isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440)),
               is_pref_not: availMap[popover.personnelId]?.[popover.day]?.status === "preferred_not",
               is_away: awayPeople.has(popover.personnelId),
               shift_id: matchedDef?.id ?? null,
             }, locRules);
             // Gece zorluğu vardiya tanımındaki zorluktan gelir (lib/fairness); burada sadece etiket
             const isNght = isNightTime(minToHHMM(popover.startMin), minToHHMM(popover.endMin % 1440));
-            const basePts = Math.round((pts.points - pts.hardPoints - (pts.flags.away ? Number(locRules.away_shift_points ?? 0) : 0)) * 10) / 10;
             return (
               <>
-              {/* Bu vardiyanın Adalet Puanı'na katkısı, hesabıyla (lib/fairness calcAssignmentPoints) */}
+              {/* Bu vardiyanın Adalet Puanı'na katkısı, hesabıyla (lib/fairness explainAssignmentPoints) */}
               <p className="mt-2 text-xs text-slate-500">
-                Adalet Puanı&apos;na <span className="font-semibold text-slate-700">+{formatScore(pts.points)}</span> ekler
-                ({trNum(pts.hours)} saat × zorluk {matchedDef?.base_points ?? 5} ÷ 5 = {formatScore(basePts)}{pts.hardPoints > 0 ? `, zor gün +${pts.hardPoints}` : ""}{pts.flags.away ? `, başka şube +${locRules.away_shift_points ?? 0}` : ""}).
+                Adalet Puanı&apos;na <span className="font-semibold text-slate-700">+{formatScore(pts.points)}</span> ekler ({explainAssignmentPoints(pts)}).
               </p>
-              {(pts.hardPoints > 0 || isNght || pts.flags.away) && (
+              {(pts.hardReasons.length > 0 || pts.flags.prefNot || isNght || pts.flags.away) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {pts.hardReasons.map(r => <StatusPill key={r.label} tone="attention">{r.label}</StatusPill>)}
+                {pts.hardReasons.map((r, i) => <StatusPill key={r.label} tone={i === 0 ? "attention" : "neutral"}>{r.label} %{r.pct}</StatusPill>)}
+                {pts.flags.prefNot && <StatusPill tone="attention">Tercih etmem %{pts.pct.prefNot}</StatusPill>}
                 {isNght && <StatusPill tone="brand">🌙 Gece</StatusPill>}
-                {pts.flags.away && <StatusPill tone="info">Başka şubeden, +{locRules.away_shift_points ?? 0} puan</StatusPill>}
-                {pts.hardPoints > 0 && (
-                  <span className="text-[11px] text-slate-400">→ +{pts.hardPoints} puan{pts.hardReasons.length > 1 ? " (en yükseği)" : ""}</span>
-                )}
+                {pts.flags.away && <StatusPill tone="info">Başka şubeden, +{formatScore(pts.parts.away)} puan</StatusPill>}
+                {pts.hardReasons.length > 1 && <span className="text-[11px] text-slate-400">Günün en yüksek eki uygulanır</span>}
               </div>
               )}
               </>

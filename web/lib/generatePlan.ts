@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { saveGeneration } from "@/lib/manualLoad";
-import { resolveHardDayRules, weekDayExtraPoints, weekShiftExtraPoints, type Rules as FairnessRules } from "@/lib/fairness";
+import { fairnessWeight, resolveHardDayRules, shiftDifficultyPct, weekDayExtraPct, weekShiftExtraPct, type Rules as FairnessRules } from "@/lib/fairness";
 import { addDays, businessToday } from "@/lib/date";
 import { applyOverrides, sanitizeOverrides } from "@/lib/planOverrides";
 import { isModuleOn } from "@/lib/moduleVisibility";
@@ -96,6 +96,8 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
             start: String(d.start ?? "08:00"),
             end: String(d.end ?? "16:00"),
             base_points: Number(d.base_points ?? 5),
+            // Adalet Puanı zorluk eki (%), lib/fairness shiftDifficultyPct; motor puanı saat × (1 + ekler) hesaplar
+            difficulty_pct: shiftDifficultyPct(d),
             is_night: isNightTime(d.start, d.end), // tek kural lib/legal (elle işaret kaldırıldı)
             on_call: !!d.on_call,
             driving_hours: Number(d.driving_hours) > 0 ? Number(d.driving_hours) : 0,
@@ -497,6 +499,12 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
       }
     }
 
+    // Adalet karşılaştırma ağırlığı (lib/fairness fairnessWeight): kişinin sözleşmedeki haftalık sınırı ÷ şubenin tam
+    // süresi. Denkleştirme ve diğer şube aşağıda max_weekly_hours'u bu haftaya göre değiştirir; ağırlık ondan önce alınır.
+    for (const p of personnelData as any[]) {
+      p.fairness_weight = fairnessWeight(p.max_weekly_hours, ruleMaxWeeklyHours);
+    }
+
     // Denkleştirme dönemi (İş K. m.63): son N-1 haftanın yayınlanmış saatlerine göre
     // her personelin bu haftaki kalan hakkı hesaplanır. N ardışık haftanın ortalaması
     // max_weekly_hours'u aşamaz; tek hafta tavanı yasal 66 saattir. Kişi bazlı hak,
@@ -744,17 +752,17 @@ export async function generatePlan(orgIdIn: string, branchId: string, week_start
         max_on_call_per_week: maxOnCallPerWeek,
         weekend_multiplier: weekendMultiplier,
         night_multiplier: nightMultiplier,
-        // Gece zorluğu vardiya tanımından (base_points) gelir; motorun eski varsayılanı kapatılır (lib/fairness ile aynı)
+        // Gece zorluğu vardiya tanımından (difficulty_pct) gelir; motorun eski varsayılanı kapatılır (lib/fairness ile aynı)
         hard_shift_night: false,
-        // Zor gün puanları web'de çözülür (haftanın günü, resmi tatil, özel gün; lib/fairness), motor hazır sayıyı kullanır
+        // Zor gün ekleri (%) web'de çözülür (haftanın günü, resmi tatil, özel gün; lib/fairness), motor hazır sayıyı kullanır
         ...(() => {
           let lr: FairnessRules = {};
           try { lr = locationRow?.rules ? JSON.parse(locationRow.rules) : {}; } catch { /* varsayılan */ }
           return {
-            day_extra_points: weekDayExtraPoints(week_start, lr),
-            // Sadece belirli vardiyalara ait özel günler: { vardiya kimliği → 7 gün }
-            shift_day_extra_points: weekShiftExtraPoints(week_start, lr),
-            pref_not_points: resolveHardDayRules(lr).prefNotPoints,
+            day_extra_pct: weekDayExtraPct(week_start, lr),
+            // Sadece belirli vardiyalara ait özel günler: { vardiya kimliği → 7 gün (%) }
+            shift_day_extra_pct: weekShiftExtraPct(week_start, lr),
+            pref_not_pct: resolveHardDayRules(lr).prefNotPct,
           };
         })(),
       },

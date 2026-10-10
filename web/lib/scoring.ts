@@ -17,12 +17,14 @@ import {
   availability,
   scoreHistory,
   scoreAdjustments,
+  leaveRequests,
 } from "@/lib/db/schema";
 import { and, eq, gte, lte, inArray } from "drizzle-orm";
 import {
   calcWeeklyPoints,
-  calcCumulativeWindow,
+  calcWindowScores,
   calcFairnessRank,
+  fairnessWeight,
   type ShiftDef,
   type Rules,
   type AssignmentInput,
@@ -91,9 +93,10 @@ export async function getAdjustmentsByWeek(
 // ─── Kümülatif recompute ──────────────────────────────────────────────────────
 
 /**
- * Lokasyondaki tüm aktif personelin birikimli puanını ve takım-içi percentile'ını,
- * score_history + score_adjustments üzerinden yeniden hesaplar ve personnel
- * önbelleğine yazar. Decay YOK — düz toplam, sabit pencere.
+ * Lokasyondaki tüm aktif personelin pencere puanını ve takım-içi sırasını score_history + score_adjustments
+ * üzerinden yeniden hesaplar ve personnel önbelleğine yazar (lib/fairness calcWindowScores):
+ * düz toplam, sabit pencere; kişinin sistemde olmadığı ve onaylı izinli olduğu günler ekip ortalamasıyla dolar;
+ * sıra kişinin haftalık süresine oranlanmış puana göredir.
  * `asOfWeek`: pencerenin en yeni haftası (genelde bu hafta veya yayınlanan hafta).
  */
 export async function recomputeLocationFairness(
@@ -105,13 +108,18 @@ export async function recomputeLocationFairness(
     .select({ rules: locations.rules })
     .from(locations)
     .where(and(eq(locations.id, locationId), eq(locations.org_id, orgId)));
-  const rules = parseJSON<Rules>(loc[0]?.rules, {});
+  const rules = parseJSON<Rules & { max_weekly_hours?: number }>(loc[0]?.rules, {});
   const windowWeeks = rules.fairness_window_weeks ?? 4;
   const fromWeek = windowStart(asOfWeek, windowWeeks);
+  const weeks = Array.from({ length: windowWeeks }, (_, i) => addDays(fromWeek, 7 * i));
+  const branchMax = typeof rules.max_weekly_hours === "number" ? rules.max_weekly_hours : 45;
 
   // Lokasyona atanmış aktif personel (assigned_location_ids JSON array'i primary'yi de içerir)
   const people = await db
-    .select({ id: personnel.id, assigned: personnel.assigned_location_ids, primary: personnel.primary_location_id })
+    .select({
+      id: personnel.id, assigned: personnel.assigned_location_ids, primary: personnel.primary_location_id,
+      max_weekly_hours: personnel.max_weekly_hours, hire_date: personnel.hire_date, created_at: personnel.created_at,
+    })
     .from(personnel)
     .where(and(eq(personnel.org_id, orgId), eq(personnel.status, "active")));
   const locPeople = people.filter(p =>
@@ -121,8 +129,6 @@ export async function recomputeLocationFairness(
   const pids = locPeople.map(p => p.id);
 
   // Puan KİŞİYE aittir (2026-10-08): kişinin bütün şubelerdeki haftaları ve puan olayları birlikte sayılır.
-  // Eskiden sadece bu şubenin satırları sayılıyordu; iki şubede çalışan kişi her şubede "az çalışmış" görünüp daha
-  // çok zor vardiya alıyordu. Bir haftada birden çok şubede çalıştıysa o haftanın puanları toplanır.
   const histRows = await db
     .select({
       personnel_id: scoreHistory.personnel_id,
@@ -134,39 +140,70 @@ export async function recomputeLocationFairness(
       inArray(scoreHistory.personnel_id, pids),
       gte(scoreHistory.week_start, fromWeek),
       lte(scoreHistory.week_start, asOfWeek),
-    ))
-    .orderBy(scoreHistory.week_start);
+    ));
+  const histByPid: Record<string, Record<string, number>> = {};
+  for (const h of histRows) {
+    const m = (histByPid[h.personnel_id] ??= {});
+    m[h.week_start] = (m[h.week_start] ?? 0) + (h.burden_score ?? 0);
+  }
+  // Kişinin ilk puanlı haftası: kayıt tarihi sonradan girilmiş olabilir, puanı olan hafta zaten sistemdedir
+  const firstHist: Record<string, string> = {};
+  const allHist = await db
+    .select({ personnel_id: scoreHistory.personnel_id, week_start: scoreHistory.week_start })
+    .from(scoreHistory)
+    .where(and(inArray(scoreHistory.personnel_id, pids), lte(scoreHistory.week_start, asOfWeek)));
+  for (const h of allHist) {
+    if (!firstHist[h.personnel_id] || h.week_start < firstHist[h.personnel_id]) firstHist[h.personnel_id] = h.week_start;
+  }
 
   const adjByPid = await getAdjustmentsByWeek(null, fromWeek, asOfWeek, pids);
 
-  const histByPid: Record<string, { week_start: string; burden_score: number }[]> = {};
-  for (const h of histRows) {
-    const list = (histByPid[h.personnel_id] ??= []);
-    const same = list.find(x => x.week_start === h.week_start);
-    if (same) same.burden_score += h.burden_score ?? 0;
-    else list.push({ week_start: h.week_start, burden_score: h.burden_score ?? 0 });
+  // Onaylı izin günleri, hafta hafta
+  const windowEnd = addDays(asOfWeek, 6);
+  const leaves = await db
+    .select({ personnel_id: leaveRequests.personnel_id, start_date: leaveRequests.start_date, end_date: leaveRequests.end_date })
+    .from(leaveRequests)
+    .where(and(
+      inArray(leaveRequests.personnel_id, pids),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.start_date, windowEnd),
+      gte(leaveRequests.end_date, fromWeek),
+    ));
+  const leaveDaysByPid: Record<string, Record<string, number>> = {};
+  for (const l of leaves) {
+    const m = (leaveDaysByPid[l.personnel_id] ??= {});
+    for (const w of weeks) {
+      const s = l.start_date > w ? l.start_date : w;
+      const wEnd = addDays(w, 6);
+      const e = l.end_date < wEnd ? l.end_date : wEnd;
+      const n = Math.round((Date.parse(e) - Date.parse(s)) / 86400000) + 1;
+      if (n > 0) m[w] = Math.min(7, (m[w] ?? 0) + n);
+    }
   }
 
-  const cumulativeByPid: Record<string, number> = {};
-  for (const pid of pids) {
-    const hist = histByPid[pid] ?? [];
-    // asOfWeek'e ait satır "bu hafta"dır (i=0); geri kalanı tarihsel pencere
-    const current = hist.find(h => h.week_start === asOfWeek);
-    const past = hist.filter(h => h.week_start !== asOfWeek);
-    cumulativeByPid[pid] = calcCumulativeWindow(
-      past,
-      current?.burden_score ?? 0,
-      windowWeeks,
-      adjByPid[pid],
-      asOfWeek,
-    );
-  }
+  const startOf = (p: typeof locPeople[number]): string | null => {
+    const created = p.created_at ? new Date(p.created_at * 1000).toISOString().slice(0, 10) : null;
+    const hire = p.hire_date && /^\d{4}-\d{2}-\d{2}$/.test(p.hire_date) ? p.hire_date : null;
+    let start = created && hire ? (created > hire ? created : hire) : (created ?? hire);
+    const first = firstHist[p.id];
+    if (start && first && first < start) start = first;
+    return start;
+  };
 
-  const ranks = calcFairnessRank(cumulativeByPid);
+  const scores = calcWindowScores(weeks, locPeople.map(p => ({
+    id: p.id,
+    weight: fairnessWeight(p.max_weekly_hours, branchMax),
+    startDate: startOf(p),
+    hist: histByPid[p.id] ?? {},
+    leaveDays: leaveDaysByPid[p.id] ?? {},
+    adjustments: adjByPid[p.id],
+  })));
+
+  const ranks = calcFairnessRank(Object.fromEntries(pids.map(pid => [pid, scores[pid]?.comparable ?? 0])));
 
   const result: Record<string, { cumulative: number; percentile: number }> = {};
   for (const pid of pids) {
-    const cumulative = cumulativeByPid[pid] ?? 0;
+    const cumulative = scores[pid]?.cumulative ?? 0;
     const percentile = ranks[pid]?.percentile ?? 0;
     result[pid] = { cumulative, percentile };
     // Toplam her şubede aynıdır; ekibe göre sıra (percentile) kişinin ana şubesinin hesabından yazılır
@@ -276,21 +313,14 @@ export async function loadWeekInputs(
       end_time: shiftAssignments.end_time,
       force_assigned: shiftAssignments.force_assigned,
       force_acceptance_status: shiftAssignments.force_acceptance_status,
-      force_bonus_multiplier: shiftAssignments.force_bonus_multiplier,
     })
     .from(shiftAssignments)
     .where(and(eq(shiftAssignments.location_id, locationId), eq(shiftAssignments.week_start, weekStart)));
 
-  // Kahraman eşlemesi: claim edilmiş open_shifts, tarihi haftanın içinde olanlar.
-  // Anahtar: personel|gün|başlangıç — publish'teki eski (kırık) sa.id eşlemesinin yerine.
-  // Not: hero_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil).
+  // Boş kalan vardiyayı alan: claim edilmiş open_shifts, tarihi haftanın içinde olanlar (kişi|gün|başlangıç).
+  // Ek puan kuraldan gelir (lib/fairness resolveBonusRules); ilandaki eski hero_bonus_multiplier okunmaz.
   const osRows = await db
-    .select({
-      date: openShifts.date,
-      start_time: openShifts.start_time,
-      claimed_by: openShifts.claimed_by,
-      hero_bonus_multiplier: openShifts.hero_bonus_multiplier,
-    })
+    .select({ date: openShifts.date, start_time: openShifts.start_time, claimed_by: openShifts.claimed_by })
     .from(openShifts)
     .where(and(
       eq(openShifts.location_id, locationId),
@@ -298,14 +328,14 @@ export async function loadWeekInputs(
       gte(openShifts.date, weekStart),
       lte(openShifts.date, weekEnd),
     ));
-  const heroByKey: Record<string, number> = {};
+  const heroKeys = new Set<string>();
   for (const os of osRows) {
     if (!os.claimed_by) continue;
     const dayIdx = Math.round((Date.parse(os.date) - Date.parse(weekStart)) / 86400000);
-    heroByKey[`${os.claimed_by}|${dayIdx}|${os.start_time}`] = os.hero_bonus_multiplier ?? 6;
+    heroKeys.add(`${os.claimed_by}|${dayIdx}|${os.start_time}`);
   }
 
-  // Ana şubesi bu şube olmayan kişinin vardiyası "başka şubede" sayılır (rules.away_shift_points)
+  // Ana şubesi bu şube olmayan kişinin vardiyası "başka şubede" sayılır (rules.away_travel_minutes)
   const saPids = [...new Set(saRows.map(r => r.personnel_id))];
   const homeRows = saPids.length
     ? await db.select({ id: personnel.id, primary: personnel.primary_location_id }).from(personnel).where(inArray(personnel.id, saPids))
@@ -315,20 +345,14 @@ export async function loadWeekInputs(
   const assignments: AssignmentInput[] = saRows
     .filter(r => r.start_time && r.end_time)
     .map(r => {
-      const heroPts = heroByKey[`${r.personnel_id}|${r.day}|${r.start_time}`];
-      const forcePts =
-        r.force_assigned && r.force_acceptance_status === "accepted" && r.force_bonus_multiplier
-          ? r.force_bonus_multiplier
-          : undefined;
       return {
         personnel_id: r.personnel_id,
         day: r.day,
         shift_id: r.shift_id,
         start_time: r.start_time!,
         end_time: r.end_time!,
-        is_hero: heroPts !== undefined,
-        hero_points: heroPts,
-        force_points: forcePts,
+        is_hero: heroKeys.has(`${r.personnel_id}|${r.day}|${r.start_time}`),
+        is_force: !!r.force_assigned && r.force_acceptance_status === "accepted",
         is_away: !!homeById.get(r.personnel_id) && homeById.get(r.personnel_id) !== locationId,
       };
     });

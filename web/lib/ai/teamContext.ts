@@ -105,7 +105,7 @@ export async function buildTeamContext(db: any, auth: AuthUser): Promise<{ text:
     const rows = open.filter(o => o.released_by !== me.id);
     if (!rows.length) out.push("- Şu an açık vardiya yok.");
     for (const o of rows) {
-      out.push(`- ${dayName(o.date)} ${short(o.date)} (${o.date}) ${o.start_time}-${o.end_time}${locs.length > 1 ? `, ${locName.get(o.location_id) ?? ""}` : ""}, +${o.hero_bonus_multiplier ?? 6} puan${busyDays.has(o.date) ? " (o gün zaten vardiyanız var, alamazsınız)" : ""} [ilan ${o.id}]`);
+      out.push(`- ${dayName(o.date)} ${short(o.date)} (${o.date}) ${o.start_time}-${o.end_time}${locs.length > 1 ? `, ${locName.get(o.location_id) ?? ""}` : ""}, +${o.hero_bonus_multiplier ?? 0} puan${busyDays.has(o.date) ? " (o gün zaten vardiyanız var, alamazsınız)" : ""} [ilan ${o.id}]`);
     }
     const mineOpen = open.filter(o => o.released_by === me.id);
     for (const o of mineOpen) out.push(`- Sizin bıraktığınız: ${short(o.date)} ${o.start_time}-${o.end_time}, henüz kimse almadı (alınana kadar sizde)`);

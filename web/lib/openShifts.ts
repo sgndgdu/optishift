@@ -6,7 +6,7 @@
  * (Teklif Pazarı 2026-10-03 kaldırıldı; shift_bids tablosu eski kayıtlar için duruyor.)
  */
 import { rescoreWeek } from "@/lib/scoring";
-import { resolveShiftDef } from "@/lib/fairness";
+import { heroBonusPointsFor, resolveShiftDef } from "@/lib/fairness";
 import { businessToday, formatDateTR } from "@/lib/date";
 import { sendPushToPersonnel } from "@/lib/notifications";
 import { rankCandidates } from "@/lib/openShiftCandidates";
@@ -26,7 +26,7 @@ export async function claimOpenShift(
   claimedByName: string | null,
   /** assigner: doğrudan atayan sorumlu (ödüncte kişinin şubesi adına da karar verebiliyor mu, lib/loans).
    *  force: kurala uymayan atama. Sadece hesap sahibi ya da onun onayladığı istisna geçirir (route'lar, lib/ruleExceptions). */
-  opts: { overrideBonusPoints?: number; assignedByManager?: boolean; force?: boolean; loanApproval?: boolean; assigner?: Viewer | null } = {},
+  opts: { assignedByManager?: boolean; force?: boolean; loanApproval?: boolean; assigner?: Viewer | null } = {},
 ): Promise<ClaimOutcome> {
   const os = await db.prepare(`SELECT * FROM open_shifts WHERE id = ? AND org_id = ?`).get(openShiftId, orgId) as any;
   if (!os) return { ok: false, status: 404, error: "Vardiya bulunamadı" };
@@ -84,12 +84,6 @@ export async function claimOpenShift(
         ? "Bu atama çalışma kurallarına uymuyor. Yine de atamak için sorunları görüp onaylayın."
         : "Bu vardiyayı alırsanız çalışma kurallarına uymayan bir plan oluşur.",
     };
-  }
-
-  // Teklif kabulünde vardiyanın kahraman bonusu, kabul edilen teklifin tutarına çekilir —
-  // rescoreWeek bu kolonu okuyarak puanlar (lib/scoring.ts).
-  if (typeof opts.overrideBonusPoints === "number") {
-    await db.prepare(`UPDATE open_shifts SET hero_bonus_multiplier = ? WHERE id = ?`).run(opts.overrideBonusPoints, openShiftId);
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -261,23 +255,20 @@ export async function publishOpenShift(
   db: any,
   o: {
     org_id: string; location_id: string; date: string; start_time: string; end_time: string; note: string | null;
-    heroPoints?: number; releasedBy?: string | null; sourceAssignmentId?: number | null; notify?: "all" | "top" | "none";
+    releasedBy?: string | null; sourceAssignmentId?: number | null; notify?: "all" | "top" | "none";
     /** İlanı açan hesap (users.id) */
     createdBy?: string | null;
   },
 ): Promise<{ id: number | null; notified: string[] }> {
   const notify = o.notify ?? "all";
-  // hero_bonus_multiplier kolonu düz bonus PUANI tutar; belirtilmezse şubenin varsayılanı
-  let heroPoints = o.heroPoints;
-  if (typeof heroPoints !== "number") {
-    heroPoints = 6;
-    try {
-      const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(o.location_id) as any;
-      const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
-      if (typeof rules.hero_bonus_points === "number") heroPoints = rules.hero_bonus_points;
-      if (rules.hero_bonus_enabled === false) heroPoints = 0;
-    } catch { /* varsayılan kalır */ }
-  }
+  // hero_bonus_multiplier kolonu sadece gösterim içindir: alanın alacağı ek puan, şubenin kuralından (vardiyanın
+  // yüzdesi, lib/fairness resolveBonusRules). İlana özel ek puan yok (2026-10-10); kesin puan rescoreWeek'te hesaplanır.
+  let heroPoints = 0;
+  try {
+    const locRow = await db.prepare(`SELECT rules FROM locations WHERE id = ?`).get(o.location_id) as any;
+    const rules = typeof locRow?.rules === "string" ? JSON.parse(locRow.rules) : (locRow?.rules ?? {});
+    heroPoints = heroBonusPointsFor(o.start_time, o.end_time, rules);
+  } catch { /* 0 kalır */ }
 
   const now = Math.floor(Date.now() / 1000);
   const result = await db.prepare(`
@@ -285,7 +276,7 @@ export async function publishOpenShift(
     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)
   `).run(o.org_id, o.location_id, o.date, o.start_time, o.end_time, o.note, heroPoints, now, o.releasedBy ?? null, o.sourceAssignmentId ?? null, o.createdBy ?? null);
   const osId = result.lastInsertRowid ?? null;
-  const notified = await announceOpenShift(db, { ...o, id: osId, heroPoints: heroPoints ?? 6, notify });
+  const notified = await announceOpenShift(db, { ...o, id: osId, heroPoints, notify });
   return { id: osId, notified };
 }
 

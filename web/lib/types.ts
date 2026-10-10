@@ -139,7 +139,8 @@ export interface ShiftDefinition {
   name: string;        // "Açılış", "Kapanış", "Ara Vardiya" vb.
   start: string;       // "HH:MM"
   end: string;         // "HH:MM"
-  base_points: number; // 1–10, bu vardiyayı OR-Tools'a ne kadar "ağır" göstereceği
+  base_points: number; // eski zorluk (1–10); difficulty_pct yoksa çevrilir (lib/fairness shiftDifficultyPct)
+  difficulty_pct?: number; // zorluk eki (%): 0 sıradan, 50 zor, 100 çok zor
   is_night?: boolean;  // eski elle işaret, okunmaz: gece saatten anlaşılır (lib/legal isNightTime)
   coverage?: Record<string, number>; // role_id -> required_count
   required_skills?: { skill: string; count: number }[]; // bu vardiyada bulunması ZORUNLU yetkinlikler (örn. gece ≥1 bakımcı) — motor hard kısıt uygular
@@ -161,19 +162,18 @@ export interface ScheduleRules {
   min_rest_hours: number;     // iki vardiya arası min dinlenme, varsayılan 11
   skills_match: SkillsMatchMode;
   clopening_min_rest_hours?: number;        // bu saatin altındaki ardışık gün geçişi "clopening" sayılır (SADECE yayın öncesi kural ihlali uyarısı için, adalet puanını etkilemez), varsayılan 13
-  change_compensation_points?: number;      // yayınlanmış vardiya değişince personele yazılan telafi puanı, varsayılan 2
-  change_compensation_enabled?: boolean;    // değişiklik telafisi on/off
-  // Adalet puanı — additive model (2026-09-20 rewrite): tek "zor vardiya" puanı + bonuslar, 0 = kapalı
-  hard_shift_points?: number;        // zor vardiya (hafta sonu/gece/sarı gün) düz puanı, varsayılan 4
-  hard_shift_weekend?: boolean;      // hafta sonu "zor vardiya" sayılsın mı, varsayılan true
-  hard_shift_night?: boolean;        // gece "zor vardiya" sayılsın mı, varsayılan true
-  hard_shift_preferred_not?: boolean; // sarı gün "zor vardiya" sayılsın mı, varsayılan true
-  hero_bonus_enabled?: boolean;      // kapalıysa ek puan yok (varsayılan açık)
-  hero_bonus_points?: number;        // açık vardiya üstlenme (kahraman) düz bonus puanı, varsayılan 6
+  change_compensation_enabled?: boolean;    // yayından sonra saati değişene kaydırılan saat kadar puan (varsayılan açık)
+  // Adalet Puanı (2026-10-10): 1 puan = sıradan vardiyada 1 saat, ekler yüzde (lib/fairness tek kaynak)
+  hard_day_pct?: number[];           // haftanın 7 günü eki (%)
+  holiday_pct?: number;              // resmi tatil ve bayram eki, varsayılan 100
+  pref_not_pct?: number;             // tercih etmem günü eki, varsayılan 50
+  hero_bonus_enabled?: boolean;      // boş kalan vardiyayı alan (varsayılan açık)
+  hero_bonus_pct?: number;           // vardiyanın yüzdesi, varsayılan 50
   force_bonus_enabled?: boolean;     // izin gününde çağrılma ek puanı (varsayılan açık)
-  away_shift_enabled?: boolean;      // başka şubede çalışılan vardiyaya ek puan (varsayılan kapalı)
-  away_shift_points?: number;
-  force_bonus_points?: number;       // izinliyken kabul edilen zorunlu atama düz bonus puanı, varsayılan 5
+  force_bonus_pct?: number;          // vardiyanın yüzdesi, varsayılan 100
+  force_comp_leave_enabled?: boolean; // izin gününde çağrılıp gelene 1 gün denkleştirme izni (varsayılan kapalı)
+  away_shift_enabled?: boolean;      // başka şubede çalışılan vardiyaya yol süresi kadar puan (varsayılan kapalı)
+  away_travel_minutes?: number;      // yol süresi (dk)
   fairness_window_weeks?: number;    // kümülatif puan penceresi (hafta), decay YOK — düz toplam, varsayılan 4
   availability_collection_enabled?: boolean; // varsayılan true — kapalıysa vardiyaları sorumlu tek başına planlar, personelden uygunluk istenmez
   checkin_required?: boolean;       // açıksa giriş yapmayan personel "geç kalan" sayılır (varsayılan false — giriş bilgi amaçlı, geç sayılmaz)

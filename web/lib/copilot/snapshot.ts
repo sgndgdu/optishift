@@ -34,7 +34,7 @@ export interface CopilotInput {
     balancingPeriodWeeks: number;
     nightLegalWarning: boolean;
     availabilityCollection: boolean;
-    /** Haftanın 7 günü için zor gün puanı (lib/fairness weekDayExtraPoints). Yoksa hafta sonu zor sayılır. */
+    /** Haftanın 7 günü için zor gün eki % (lib/fairness weekDayExtraPct). Yoksa hafta sonu zor sayılır. */
     hardDayPoints?: number[];
   };
   /** Şubenin aktif personeli (atanmamış olanlar dahil). */

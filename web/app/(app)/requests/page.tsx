@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { isCompLeaveType } from "@/lib/compLeave";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -180,7 +181,7 @@ export default function ManagerRequestsPage() {
   // Bekleyen yıllık izin taleplerinin sahiplerinin bakiyelerini yükle (onay kararı için)
   useEffect(() => {
     const ids = [...new Set(
-      leaves.filter((l: any) => l.status === "pending" && isAnnualLeaveType(l.type))
+      leaves.filter((l: any) => l.status === "pending" && (isAnnualLeaveType(l.type) || isCompLeaveType(l.type)))
         .map((l: any) => l.personnel_id)
     )].filter(Boolean);
     if (ids.length === 0) return;
@@ -562,6 +563,17 @@ export default function ManagerRequestsPage() {
                         {leaveBalances[l.personnel_id].remaining < (l.days ?? 0) && " (talep bakiyeyi aşıyor!)"}
                       </p>
                     )}
+                    {pending && leaveBalances[l.personnel_id]?.comp_leave && isCompLeaveType(l.type) && (() => {
+                      // Denkleştirme izni (lib/compLeave): bekleyen, bu talebi de içerir
+                      const c = leaveBalances[l.personnel_id].comp_leave;
+                      const left = c.earned - c.used;
+                      return (
+                        <p className={`text-xs font-semibold mt-1 ${left < (l.days ?? 1) ? "text-red-600" : "text-emerald-700"}`}>
+                          Denkleştirme izni hakkı: {left} gün (izin gününde çağrılıp geldiği {c.earned} gün)
+                          {left < (l.days ?? 1) && " (talep hakkı aşıyor)"}
+                        </p>
+                      );
+                    })()}
                     {pending && leaveBalances[l.personnel_id]?.hireDateMissing && isAnnualLeaveType(l.type) && (
                       <p className="text-xs text-amber-700 mt-0.5">
                         İşe giriş tarihi girilmemiş, bakiye tahmini. <Link href="/personnel" className="underline font-semibold">Ekip&apos;ten ekleyin</Link>

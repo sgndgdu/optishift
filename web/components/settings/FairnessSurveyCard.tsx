@@ -61,7 +61,7 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
   const res = last?.results;
   const remainingDays = open?.days_left ?? 0;
 
-  const shiftDiffs = res?.enough ? res.shifts.filter(s => s.median !== null && s.median !== last!.current_shifts[s.id]) : [];
+  const shiftDiffs = res?.enough ? res.shifts.filter(s => s.suggested !== null && s.suggested !== last!.current_shifts[s.id]) : [];
   const dayDiffs = res?.enough ? res.days.filter(d => d.suggested !== null && d.suggested !== last!.current_days[d.day]) : [];
   const unfairShare = res && res.unfair.count ? (res.unfair.yes + res.unfair.partly) / res.unfair.count : 0;
 
@@ -129,7 +129,8 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
               <>
                 {/* Vardiyaların zorluğu */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Vardiyaların zorluğu (1-10)</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Vardiyaların zorluğu</p>
+                  <p className="text-xs text-slate-500">Ekip 1&apos;den 10&apos;a kadar puanlar. 5 sıradan sayılır, üstündeki her puan vardiyaya %20 ekler: 10 diyen ekip %100 (bayram kadar), 8 diyen %60 önerir.</p>
                   <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
                     {res.shifts.map(s => {
                       const current = last.current_shifts[s.id];
@@ -144,14 +145,14 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
                             <span className="text-xs text-slate-400">{s.count} kişi puanladı, sonuç gizli</span>
                           ) : (
                             <>
-                              <span className="text-xs text-slate-500 tabular-nums">Şu an <b className="text-slate-800">{deleted ? "silinmiş" : current}</b></span>
-                              <span className="text-xs text-slate-500 tabular-nums">Ekip <b className="text-slate-800">{s.median}</b></span>
+                              <span className="text-xs text-slate-500 tabular-nums">Şu an <b className="text-slate-800">{deleted ? "silinmiş" : `%${current}`}</b></span>
+                              <span className="text-xs text-slate-500 tabular-nums">Ekip {s.median} · öneri <b className="text-slate-800">%{s.suggested}</b></span>
                               <StatusPill tone={agreeTone(s.agreement)}>{AGREEMENT_LABEL[s.agreement]}</StatusPill>
                               <span className="text-xs text-slate-400 tabular-nums">{s.count} kişi</span>
-                              {data.can_manage && !deleted && s.median !== current && (
+                              {data.can_manage && !deleted && s.suggested !== current && (
                                 <button className={primary} disabled={busy || blocked}
-                                  onClick={() => call("PATCH", { id: last.id, action: "apply", shifts: { [s.id]: s.median } }, true)}>
-                                  {s.median} yap
+                                  onClick={() => call("PATCH", { id: last.id, action: "apply", shifts: { [s.id]: s.suggested } }, true)}>
+                                  %{s.suggested} yap
                                 </button>
                               )}
                             </>
@@ -169,7 +170,7 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
                 {res.days.some(d => d.median !== null) && (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Günler</p>
-                    <p className="text-xs text-slate-500">5 normal gün sayılır, ekibin verdiği puanın 5&apos;ten fazla olan her birimi 1 ek puan önerir. Örnek: ekip Cumartesi&apos;ye 9 dediyse +4 önerilir.</p>
+                    <p className="text-xs text-slate-500">5 sıradan gün sayılır, üstündeki her puan %20 ekler. Örnek: ekip Cumartesi&apos;ye 8 dediyse o günün vardiyalarına %60 önerilir.</p>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {res.days.map(d => (
                         <div key={d.day} className="rounded-xl border border-slate-200 px-3 py-2">
@@ -177,7 +178,7 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
                           {d.median === null ? (
                             <p className="text-xs text-slate-400">{d.count > 0 ? "Sonuç gizli" : "Cevap yok"}</p>
                           ) : (
-                            <p className="text-xs text-slate-500 tabular-nums">Ekip {d.median} · öneri +{d.suggested} · şu an +{last.current_days[d.day]}</p>
+                            <p className="text-xs text-slate-500 tabular-nums">Ekip {d.median} · öneri %{d.suggested} · şu an %{last.current_days[d.day]}</p>
                           )}
                         </div>
                       ))}
@@ -185,7 +186,7 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
                     {data.can_manage && dayDiffs.length > 0 && (
                       <button className={primary} disabled={busy || blocked}
                         onClick={() => call("PATCH", { id: last.id, action: "apply", days: Object.fromEntries(dayDiffs.map(d => [d.day, d.suggested])) }, true)}>
-                        Önerilen gün puanlarını uygula ({dayDiffs.map(d => DAY_NAMES_TR[d.day]).join(", ")})
+                        Önerilen gün eklerini uygula ({dayDiffs.map(d => DAY_NAMES_TR[d.day]).join(", ")})
                       </button>
                     )}
                   </div>
@@ -193,7 +194,7 @@ export function FairnessSurveyCard({ locationId, blocked }: { locationId: string
 
                 {data.can_manage && shiftDiffs.length > 1 && (
                   <button className={secondary} disabled={busy || blocked}
-                    onClick={() => call("PATCH", { id: last.id, action: "apply", shifts: Object.fromEntries(shiftDiffs.filter(s => last.current_shifts[s.id] !== undefined).map(s => [s.id, s.median])) }, true)}>
+                    onClick={() => call("PATCH", { id: last.id, action: "apply", shifts: Object.fromEntries(shiftDiffs.filter(s => last.current_shifts[s.id] !== undefined).map(s => [s.id, s.suggested])) }, true)}>
                     Bütün vardiyalarda ekibin değerini uygula
                   </button>
                 )}

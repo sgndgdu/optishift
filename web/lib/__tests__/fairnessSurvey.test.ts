@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { agreement, aggregateSurvey, dayPointsFromRating, median, sanitizeAnswers, SURVEY_MIN_RESPONSES, type SurveyAnswers } from "../fairnessSurvey";
+import { agreement, aggregateSurvey, median, pctFromRating, sanitizeAnswers, SURVEY_MIN_RESPONSES, type SurveyAnswers } from "../fairnessSurvey";
 import { describeFairnessChanges } from "../fairnessChanges";
 import { findManualLoadFlags, MANUAL_LOAD_WEEKS, type WeekManualLoad } from "../manualLoad";
 
 const shifts = [
-  { id: "a", name: "Açılış", start: "07:00", end: "15:00", base_points: 4 },
-  { id: "k", name: "Kapanış", start: "15:00", end: "23:00", base_points: 5 },
-  { id: "g", name: "Gece", start: "23:00", end: "07:00", base_points: 8 },
+  { id: "a", name: "Açılış", start: "07:00", end: "15:00", difficulty_pct: 0 },
+  { id: "k", name: "Kapanış", start: "15:00", end: "23:00", difficulty_pct: 0 },
+  { id: "g", name: "Gece", start: "23:00", end: "07:00", difficulty_pct: 50 },
 ];
 const ans = (k: number, extra: Partial<SurveyAnswers> = {}): SurveyAnswers => ({
   shifts: { k: { rating: k, reasons: ["Kasa kapatma"] } }, days: [null, null, null, null, null, 9, null],
@@ -24,9 +24,11 @@ describe("ekip anketi", () => {
     expect(agreement([6, 7, 7, 8])).toBe("agree");
     expect(agreement([2, 2, 9, 9])).toBe("split");
   });
-  it("gün puanı: 5 normal, üstü ek puan", () => {
-    expect(dayPointsFromRating(9)).toBe(4);
-    expect(dayPointsFromRating(3)).toBe(0);
+  it("ekibin cevabı yüzdeye: 5 sıradan, üstündeki her puan %20 (10 = bayram kadar %100)", () => {
+    expect(pctFromRating(10)).toBe(100);
+    expect(pctFromRating(8)).toBe(60);
+    expect(pctFromRating(5)).toBe(0);
+    expect(pctFromRating(3)).toBe(0);
   });
   it("sadece çalıştığı vardiya ve gün kaydedilir, geçersiz neden atılır", () => {
     const clean = sanitizeAnswers(
@@ -51,10 +53,11 @@ describe("ekip anketi", () => {
     expect(r.enough).toBe(true);
     const k = r.shifts.find(s => s.id === "k")!;
     expect(k.median).toBe(7);
+    expect(k.suggested).toBe(40);
     expect(k.reasons[0]).toEqual({ label: "Kasa kapatma", count: 4 });
     // Kimse puanlamadığı vardiyada değer yok
     expect(r.shifts.find(s => s.id === "g")!.median).toBeNull();
-    expect(r.days[5]).toMatchObject({ median: 9, suggested: 4 });
+    expect(r.days[5]).toMatchObject({ median: 9, suggested: 80 });
     expect(r.fairness).toMatchObject({ count: 4, positive: 3 });
     expect(r.unfair.yes).toBe(1);
     expect(r.comments).toEqual(["Kapanış çok yorucu"]);
@@ -64,12 +67,13 @@ describe("ekip anketi", () => {
 describe("Adalet Puanı kural değişikliği kaydı", () => {
   it("vardiya zorluğu, gün ve ek puan değişikliği okunur", () => {
     const lines = describeFairnessChanges(
-      { hard_day_points: [0, 0, 0, 0, 0, 4, 4] }, { hard_day_points: [0, 0, 0, 0, 0, 6, 4], hero_bonus_enabled: false },
-      [{ id: "k", name: "Kapanış", base_points: 5 }], [{ id: "k", name: "Kapanış", base_points: 7 }],
+      { hard_day_pct: [0, 0, 0, 0, 0, 50, 50] }, { hard_day_pct: [0, 0, 0, 0, 0, 60, 50], hero_bonus_enabled: false, force_comp_leave_enabled: true },
+      [{ id: "k", name: "Kapanış", base_points: 5 }], [{ id: "k", name: "Kapanış", base_points: 5, difficulty_pct: 50 }],
     );
-    expect(lines).toContain("Kapanış vardiyasının zorluğu 5 → 7");
-    expect(lines).toContain("Cumartesi ek puanı 4 → 6");
-    expect(lines.some(l => l.startsWith("Boş kalan vardiyayı alan ek puanı: açık, 6 puan → kapalı"))).toBe(true);
+    expect(lines).toContain("Kapanış vardiyasının zorluğu Sıradan → Zor");
+    expect(lines).toContain("Cumartesi eki %50 → %60");
+    expect(lines).toContain("Boş kalan vardiyayı alan eki: vardiyanın %50'i → kapalı");
+    expect(lines).toContain("İzin gününde çağrılana denkleştirme izni: kapalı → açık");
     expect(describeFairnessChanges({}, {}, [], [])).toEqual([]);
   });
 });

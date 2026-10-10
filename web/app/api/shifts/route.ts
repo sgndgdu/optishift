@@ -9,7 +9,7 @@ import { canPublishPlan } from "@/lib/userAccess";
 import { canBendRules, publishPermit } from "@/lib/ruleExceptions";
 import { recomputeLocationFairness } from "@/lib/scoring";
 import { businessToday, getWeekStart } from "@/lib/date";
-import { type ShiftDef } from "@/lib/fairness";
+import { changeCompensationHours, formatScore, resolveBonusRules, shiftSpanHours, type ShiftDef } from "@/lib/fairness";
 import { saveHandoverNote } from "@/lib/checkin";
 import { finalizeShiftId, loadLocDefs, syncDraftWeek } from "@/lib/draftSync";
 import { canActOnPersonnel, canEditPublishedWeek, canManageLocation, canManageLocations, managerOutsideBranch, departmentPersonnelIds } from "@/lib/access";
@@ -176,10 +176,6 @@ export async function POST(req: NextRequest) {
       } catch { /* varsayılan */ }
       rulesCache.set(locId, rules);
       return rules;
-    };
-    const getCompPoints = async (locId: string): Promise<number> => {
-      const r = await getLocRules(locId);
-      return typeof r.change_compensation_points === "number" ? r.change_compensation_points : 2;
     };
     const getMinRestMin = async (locId: string): Promise<number> => {
       const r = await getLocRules(locId);
@@ -404,7 +400,9 @@ export async function POST(req: NextRequest) {
             shiftDate.setDate(shiftDate.getDate() + day);
             const compEnabled = ((await getLocRules(location_id))?.change_compensation_enabled !== false);
             if (shiftDate.toISOString().split("T")[0] >= todayStr && compEnabled) {
-              const compPts = await getCompPoints(location_id);
+              // Kaydırılan saat kadar puan (lib/fairness changeCompensationHours): 08-16 → 12-20 = 4
+              const compPts = existing.start_time && existing.end_time && start_time && end_time
+                ? changeCompensationHours(existing.start_time, existing.end_time, start_time, end_time) : 0;
               if (compPts > 0) {
                 // Telafi bir puan OLAYIDIR: score_adjustments'a yazılır, kümülatif
                 // skor recompute ile güncellenir — prev_score'a doğrudan += yok.
@@ -425,7 +423,7 @@ export async function POST(req: NextRequest) {
                   VALUES (?, 'alert', 'Vardiyanız güncellendi', ?, '/portal/calendar', false, ?)
                 `).run(
                   personnel_id,
-                  `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Bu değişiklik için Adalet Puanınıza +${compPts} puan eklendi.`,
+                  `Yayınlanmış vardiyanın saati ${existing.start_time}–${existing.end_time} → ${start_time}–${end_time} olarak değişti. Saat kaydığı için Adalet Puanınıza +${formatScore(compPts)} puan eklendi.`,
                   now
                 );
                 compensations.push({ personnel_id, points: compPts });
@@ -484,7 +482,7 @@ export async function POST(req: NextRequest) {
 
     // ── Force Assignment Detection ──────────────────────────────────────────
 
-    const forceNotifications: { personnel_id: string; shift_id_db: number; points: number; dateLabel: string; timeStr: string }[] = [];
+    const forceNotifications: { personnel_id: string; shift_id_db: number; points: number; compLeave: boolean; dateLabel: string; timeStr: string }[] = [];
 
     for (const item of forceItems) {
       // Zaten pending/accepted/rejected → tekrar flaglama
@@ -501,9 +499,12 @@ export async function POST(req: NextRequest) {
 
       if (!isUnavailable && !onLeave) continue;
 
-      // force_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil), 0 = kapalı
+      // force_bonus_multiplier kolonu sadece gösterim içindir: kabul edince alacağı ek puan (saat × force%, lib/fairness).
+      // Kesin puan yayında rescoreWeek'te kuraldan hesaplanır.
       const rules = await getLocRules(item.location_id);
-      const forceBonusPoints = typeof rules?.force_bonus_points === "number" ? rules.force_bonus_points : 5;
+      const hours = item.start_time && item.end_time ? shiftSpanHours(item.start_time, item.end_time) : 0;
+      const forceBonusPoints = Math.round(hours * resolveBonusRules(rules).forcePct / 10) / 10;
+      const compLeave = rules?.force_comp_leave_enabled === true;
 
       await db.prepare(`
         UPDATE shift_assignments
@@ -514,7 +515,7 @@ export async function POST(req: NextRequest) {
       const DAY_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
       const dateLabel = `${DAY_TR[item.day]} ${shiftDate.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`;
       const timeStr = item.start_time && item.end_time ? ` ${item.start_time}–${item.end_time}` : "";
-      forceNotifications.push({ personnel_id: item.personnel_id, shift_id_db: item.shift_id_db, points: forceBonusPoints, dateLabel, timeStr });
+      forceNotifications.push({ personnel_id: item.personnel_id, shift_id_db: item.shift_id_db, points: forceBonusPoints, compLeave, dateLabel, timeStr });
     }
 
     for (const fn of forceNotifications) {
@@ -523,7 +524,7 @@ export async function POST(req: NextRequest) {
         VALUES (?, 'force_assign', 'Zorunlu Atama Talebi', ?, '/portal/requests', false, ?)
       `).run(
         fn.personnel_id,
-        `Sorumlunuz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. O gün izinli olduğunuz için onayınız gerekiyor. Kabul ederseniz +${fn.points} puan alırsınız.`,
+        `Sorumlunuz sizi ${fn.dateLabel}${fn.timeStr} vardiyasına atadı. O gün izinli olduğunuz için onayınız gerekiyor.${fn.points > 0 ? ` Kabul ederseniz Adalet Puanınıza +${formatScore(fn.points)} ek yazılır.` : ""}${fn.compLeave ? " Karşılığında 1 gün denkleştirme izni hakkı kazanırsınız." : ""}`,
         now,
       );
     }

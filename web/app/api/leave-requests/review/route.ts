@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { isCompLeaveType, loadCompLeaveBalance } from "@/lib/compLeave";
+import { countLeaveDays } from "@/lib/leave";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { managerOutsideBranch } from "@/lib/access";
 import { businessToday, dayIndexOf, formatDateTR, weekStartOf } from "@/lib/date";
-import { rescoreWeek } from "@/lib/scoring";
+import { recomputeLocationFairness, rescoreWeek } from "@/lib/scoring";
 import { publishOpenShift } from "@/lib/openShifts";
 import { coverFor, datesBetween, findConflicts, type Cover } from "@/lib/leaveConflicts";
 import { checkPersonChange } from "@/lib/assignmentCheck";
@@ -95,6 +97,16 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Bu talep zaten karara bağlanmış" }, { status: 409 });
     }
 
+    // Denkleştirme izni hakkı aşılamaz (lib/compLeave); talebin kendisi bekleyenden düşülerek bakılır
+    if (status === "approved" && isCompLeaveType(request.type)) {
+      const bal = await loadCompLeaveBalance(db, request.personnel_id, request.id);
+      const p = await db.prepare(`SELECT weekly_off_day FROM personnel WHERE id = ?`).get(request.personnel_id) as any;
+      const want = countLeaveDays(request.start_date, request.end_date, p?.weekly_off_day ?? null);
+      if (want > bal.available) {
+        return NextResponse.json({ error: `Kişinin denkleştirme izni hakkı ${bal.available} gün, talep ${want} gün. Onaylanamaz.` }, { status: 409 });
+      }
+    }
+
     const now = Math.floor(Date.now() / 1000);
     await db.prepare(`UPDATE leave_requests SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?`)
       .run(status, reviewed_by ?? auth.personnel_id ?? null, now, request.id);
@@ -161,6 +173,8 @@ export async function PATCH(req: NextRequest) {
         const [locId, ws] = key.split("|");
         await rescoreWeek(auth.org_id, locId, ws);
       }
+      // İzinli günler Adalet Puanı'nda ekip ortalamasıyla sayılır (lib/fairness calcWindowScores): puan tazelenir
+      if (request.p_loc) await recomputeLocationFairness(auth.org_id, request.p_loc, weekStartOf(businessToday())).catch(() => {});
 
       // Uygunluk: izin günleri "Gelemem" (motor bu günlere yazmaz)
       for (const date of datesBetween(request.start_date, request.end_date)) {

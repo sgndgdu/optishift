@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         results.push({
           location_name: loc.name, closed_at: last.closed_at, responses: r.responses, enough: r.enough,
           applied_at: last.applied_at, applied_by_name: last.applied_by_name,
-          shifts: r.shifts.map(s => ({ name: s.name, team: s.median, current: loc.shifts.find(x => x.id === s.id)?.base_points ?? null, agreement: s.agreement })),
+          shifts: r.shifts.map(s => ({ name: s.name, team: s.median, suggested: s.suggested, current: loc.shifts.find(x => x.id === s.id)?.difficulty_pct ?? null, agreement: s.agreement })),
           days: r.days.map(d => ({ day: d.day, team: d.median, suggested: d.suggested, current: currentDayPoints(loc.rules)[d.day] })),
           fairness: r.fairness,
         });

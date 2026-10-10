@@ -312,7 +312,7 @@ export default function NewBranchWizard({ existing, planLimited, onClose, onCrea
                       </div>
                     ))}
                     {shifts.length < 6 && (
-                      <button onClick={() => setShifts(p => [...p, { id: `s${Date.now()}`, name: "", start: "09:00", end: "17:00", base_points: 5 }])}
+                      <button onClick={() => setShifts(p => [...p, { id: `s${Date.now()}`, name: "", start: "09:00", end: "17:00", base_points: 5, difficulty_pct: 0 }])}
                         className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:border-primary hover:text-primary">
                         <Plus size={15} /> Vardiya Ekle
                       </button>

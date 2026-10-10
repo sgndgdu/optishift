@@ -5,6 +5,8 @@ import { requireAuth } from "@/lib/auth";
 import { notifyBranchManagers } from "@/lib/managerNotifications";
 import { managerOutsideBranch } from "@/lib/access";
 import { rescoreWeek } from "@/lib/scoring";
+import { formatScore } from "@/lib/fairness";
+import { COMP_LEAVE_DAYS_PER_CALL, compLeaveEnabled } from "@/lib/compLeave";
 
 
 const DAY_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -40,12 +42,16 @@ export async function GET(req: NextRequest) {
       ORDER BY sa.week_start, sa.day
     `).all(personnel_id) as any[];
 
+    // Denkleştirme izni kuralı şube şube (lib/compLeave)
+    const compByLoc = new Map<string, boolean>();
+    for (const locId of new Set(rows.map((r: any) => String(r.location_id)))) compByLoc.set(locId, await compLeaveEnabled(db, locId));
     // Date label ekle
     const enriched = rows.map((r: any) => {
       const d = new Date(`${r.week_start}T00:00:00`);
       d.setDate(d.getDate() + r.day);
       return {
         ...r,
+        comp_leave: compByLoc.get(String(r.location_id)) === true,
         date_str: d.toISOString().split("T")[0],
         day_label: DAY_TR[r.day] ?? "",
         date_label: `${DAY_TR[r.day] ?? ""} ${d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`,
@@ -103,12 +109,14 @@ export async function PATCH(req: NextRequest) {
     const timeStr = shiftRow.start_time && shiftRow.end_time ? ` ${shiftRow.start_time}–${shiftRow.end_time}` : "";
 
     if (action === "accept") {
-      // force_bonus_multiplier kolonu artık düz bonus PUANI tutar (çarpan değil)
-      const points = shiftRow.force_bonus_multiplier ?? 5;
+      // force_bonus_multiplier gösterim içindir (saat × force%); kesin puan rescoreWeek'te kuraldan
+      const points = Number(shiftRow.force_bonus_multiplier) || 0;
+      // Denkleştirme izni (lib/compLeave): şube kuralı kabul anında açıksa 1 gün yazılır, sonradan kapansa da kalır
+      const compDays = (await compLeaveEnabled(db, shiftRow.location_id)) ? COMP_LEAVE_DAYS_PER_CALL : 0;
 
       await db.prepare(`
-        UPDATE shift_assignments SET force_acceptance_status = 'accepted' WHERE id = ?
-      `).run(shift_id);
+        UPDATE shift_assignments SET force_acceptance_status = 'accepted', comp_leave_days = ? WHERE id = ?
+      `).run(compDays || null, shift_id);
 
       await db.prepare(`
         UPDATE personnel SET hero_count = COALESCE(hero_count, 0) + 1 WHERE id = ?
@@ -124,16 +132,16 @@ export async function PATCH(req: NextRequest) {
         VALUES (?, 'schedule', 'Zorunlu Atama Kabul Edildi', ?, '/portal/calendar', false, ?)
       `).run(
         shiftRow.personnel_id,
-        `${dateLabel}${timeStr} vardiyasını kabul ettiniz. Bu vardiya için +${points} ek puan alacaksınız.`,
+        `${dateLabel}${timeStr} vardiyasını kabul ettiniz.${points > 0 ? ` Adalet Puanınıza +${formatScore(points)} ek yazılır.` : ""}${compDays > 0 ? ` Hesabınıza ${compDays} gün denkleştirme izni yazıldı. İstediğiniz gün Talepler'den kullanabilirsiniz.` : ""}`,
         now,
       );
 
       // Müdüre bildirim — lokasyondaki manager/admin kullanıcıları bul
       // Yönetim paneli bildirimi (hesaba bağlı, lib/managerNotifications)
       await notifyBranchManagers(db, auth.org_id, shiftRow.location_id, null, {
-        type: "alert", title: "Zorunlu Atama Kabul Edildi", message: `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını kabul etti.`, link: "/schedule",
+        type: "alert", title: "Zorunlu Atama Kabul Edildi", message: `${shiftRow.personnel_name}, ${dateLabel}${timeStr} zorunlu atamasını kabul etti.${compDays > 0 ? ` Karşılığında ${compDays} gün denkleştirme izni hakkı kazandı.` : ""}`, link: "/schedule",
       });
-      return NextResponse.json({ success: true, action: "accepted", bonus_points: points });
+      return NextResponse.json({ success: true, action: "accepted", bonus_points: points, comp_leave_days: compDays });
     }
 
     // Reject

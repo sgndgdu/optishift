@@ -4,6 +4,7 @@
  * Şubenin Ekip sayfası ve Tüm Şubeler › Tüm Personel aynı birleştirmeyi, aynı satırı (PeopleList)
  * ve aynı kartı (PersonSheet) kullanır.
  */
+import { comparableScore } from "@/lib/fairness";
 import type { PillTone } from "@/components/ui/StatusPill";
 import type { InviteResult } from "@/components/personnel/InviteLinkList";
 
@@ -126,4 +127,13 @@ export async function createInvite(person: MergedPerson): Promise<InviteResult |
   const res = await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: person.userId }) });
   const data = await res.json().catch(() => null);
   return res.ok && data?.token ? { name: person.name, username: person.username, invite_token: data.token } : null;
+}
+
+/**
+ * Kişinin şubesindeki ekip üyelerinin Adalet Puanı ortalaması, herkesin haftalık süresine oranlanmış olarak
+ * (lib/fairness comparableScore). Kişi kartındaki "ortalamanın %X altı" cümlesi bununla kurulur.
+ */
+export function teamComparableAvg(persons: MergedPerson[], locationId: string | null, branchMax?: number | null): number {
+  const team = persons.filter(x => x.personnelId && x.role === "employee" && !x.inactive && x.location_id === locationId);
+  return team.length ? team.reduce((a, x) => a + comparableScore(x.prev_score, x.max_weekly_hours, branchMax), 0) / team.length : 0;
 }

@@ -11,7 +11,7 @@ import { List, ListItem, ListEmpty } from "@/components/ui/List";
 import { DetailRow } from "@/components/ui/Sheet";
 import { formatDateTR, weekRangeTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { capitalizeTr, fairnessBarColor, fairnessExplainer, fairnessLabelFromAverage, formatScore, resolveHardDayRules, scoreVsAverageText } from "@/lib/fairness";
+import { capitalizeTr, comparableScore, difficultyLabel, fairnessBarColor, fairnessExplainer, fairnessLabelFromAverage, formatScore, resolveBonusRules, resolveHardDayRules, scoreVsAverageText, shiftDifficultyPct } from "@/lib/fairness";
 import { DAY_SHORT } from "@/lib/constants";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Tabs } from "@/components/ui/Tabs";
@@ -91,12 +91,14 @@ export default function FairnessReport() {
   }
 
   // ── İstatistikler ───────────────────────────────────────────────────────────
-  const burdens   = personnel.map(p => p.prev_score ?? 0);
+  // Karşılaştırma kişinin haftalık süresine oranlanır (lib/fairness comparableScore); gösterilen sayı puanın kendisi
+  const cmp       = (p: any) => comparableScore(p.prev_score ?? 0, p.max_weekly_hours, rules.max_weekly_hours as number | undefined);
+  const burdens   = personnel.map(cmp);
   const avgBurden = burdens.length ? burdens.reduce((a, b) => a + b, 0) / burdens.length : 0;
   const maxBurden = Math.max(...burdens, 1);
   const gap       = burdens.length ? Math.max(...burdens) - Math.min(...burdens) : 0;
 
-  const leastLoaded = [...personnel].sort((a, b) => (a.prev_score ?? 0) - (b.prev_score ?? 0))[0];
+  const leastLoaded = [...personnel].sort((a, b) => cmp(a) - cmp(b))[0];
 
   const noShowPersonnel = personnel.filter(p => (p.no_show_count ?? 0) > 0);
 
@@ -141,7 +143,7 @@ export default function FairnessReport() {
           ) : personnel.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Henüz veri yok.</p>
           ) : view === "current" ? (
-            <CurrentView personnel={personnel} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} scoreHist={scoreHist} adjustments={adjustments} />
+            <CurrentView personnel={personnel} cmp={cmp} avgBurden={avgBurden} maxBurden={maxBurden} gap={gap} scoreHist={scoreHist} adjustments={adjustments} />
           ) : (
             <HistoryView personnel={personnel} scoreHist={scoreHist} />
           )}
@@ -167,30 +169,32 @@ export default function FairnessReport() {
         <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2">
           {(() => {
             const hr = resolveHardDayRules(rules);
-            const days = hr.dayPoints.map((p, i) => (p > 0 ? `${DAY_SHORT[i]} +${p}` : "")).filter(Boolean);
+            const bonus = resolveBonusRules(rules);
+            const days = hr.dayPct.map((p, i) => (p > 0 ? `${DAY_SHORT[i]} %${p}` : "")).filter(Boolean);
+            const onOff = (v: number) => (v > 0 ? `Vardiyanın %${v}'i` : "Kapalı");
             return (
               <>
-                <DetailRow label="Zor günler">{days.length ? days.join(" · ") : "Yok"}</DetailRow>
-                {hr.holidayPoints > 0 && <DetailRow label="Resmi tatil ve bayram">+{hr.holidayPoints}</DetailRow>}
-                {hr.prefNotPoints > 0 && <DetailRow label="Tercih etmem günü">+{hr.prefNotPoints}</DetailRow>}
-                {hr.specialDates.length > 0 && (
-                  <DetailRow label="Özel günler">{hr.specialDates.map(d => `${d.name || formatDateTR(d.date)} +${d.points}`).join(" · ")}</DetailRow>
+                {shiftDefs.length > 0 && (
+                  <DetailRow label="Vardiya zorluğu">
+                    {shiftDefs.filter((d: any) => !d.on_call).map((d: any) => `${d.name} ${difficultyLabel(shiftDifficultyPct(d)).toLocaleLowerCase("tr")}`).join(" · ")}
+                  </DetailRow>
                 )}
+                <DetailRow label="Zor günler">{days.length ? days.join(" · ") : "Yok"}</DetailRow>
+                <DetailRow label="Resmi tatil ve bayram">{hr.holidayPct > 0 ? `%${hr.holidayPct}` : "Kapalı"}</DetailRow>
+                <DetailRow label="Tercih etmem günü">{hr.prefNotPct > 0 ? `%${hr.prefNotPct}` : "Kapalı"}</DetailRow>
+                {hr.specialDates.length > 0 && (
+                  <DetailRow label="Özel günler">{hr.specialDates.map(d => `${d.name || formatDateTR(d.date)} %${d.pct}`).join(" · ")}</DetailRow>
+                )}
+                <DetailRow label="Boş kalan vardiyayı kendisi alırsa">{onOff(bonus.heroPct)}</DetailRow>
+                <DetailRow label="İzin gününde çalışmaya çağrılırsa">{onOff(bonus.forcePct)}{rules.force_comp_leave_enabled === true ? ", ayrıca 1 gün denkleştirme izni" : ""}</DetailRow>
+                <DetailRow label="Başka bir şubede çalışırsa">{bonus.awayMinutes > 0 ? `${bonus.awayMinutes} dakika yol kadar` : "Kapalı"}</DetailRow>
+                <DetailRow label="Yayından sonra saati değişirse">{bonus.changeComp ? "Kaydırılan saat kadar" : "Kapalı"}</DetailRow>
               </>
             );
           })()}
-          <DetailRow label="Boş kalan vardiyayı kendisi alırsa">{rules.hero_bonus_enabled === false ? "Kapalı" : `+${rules.hero_bonus_points ?? 6}`}</DetailRow>
-          <DetailRow label="İzin gününde çalışmaya çağrılırsa">{rules.force_bonus_enabled === false ? "Kapalı" : `+${rules.force_bonus_points ?? 5}`}</DetailRow>
-          <DetailRow label="Başka bir şubede çalışırsa">{rules.away_shift_enabled === true ? `+${rules.away_shift_points ?? 0}` : "Kapalı"}</DetailRow>
-          <DetailRow label="Yayından sonra değişiklik">+{rules.change_compensation_points ?? 2}</DetailRow>
-          {shiftDefs.length > 0 && (
-            <DetailRow label="Vardiya zorluğu">
-              {shiftDefs.map((d: any) => `${d.name} ${d.base_points ?? 5}`).join(" · ")}
-            </DetailRow>
-          )}
         </div>
         <p className="text-xs text-slate-500">
-          Bir vardiyanın puanı = saat × vardiya zorluğu ÷ 5 + zor gün puanı. Örnek: orta zorlukta (5) 8 saatlik vardiya 8 puan, aynı vardiya Pazar günü (+4) 12 puan. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır.
+          Bir vardiyanın puanı = saat × (1 + vardiya zorluğu + günün eki + tercih etmem eki). Örnek: sıradan 8 saatlik vardiya 8 puan, aynı vardiya Pazar günü (%50) 12 puan. Bir gün birden fazla nedenle zor sayılıyorsa günün en yüksek eki uygulanır. İzinli günler ekip ortalamasıyla sayılır, yarı zamanlı çalışan kendi haftalık süresiyle karşılaştırılır.
         </p>
       </section>
     </div>
@@ -201,6 +205,7 @@ export default function FairnessReport() {
 
 function CurrentView({
   personnel,
+  cmp,
   avgBurden,
   maxBurden,
   gap,
@@ -208,19 +213,22 @@ function CurrentView({
   adjustments,
 }: {
   personnel: any[];
+  cmp: (p: any) => number;
   avgBurden: number;
   maxBurden: number;
   gap: number;
   scoreHist: Record<string, any[]>;
   adjustments: any[];
 }) {
-  const sorted = [...personnel].sort((a, b) => (b.prev_score ?? 0) - (a.prev_score ?? 0));
+  const sorted = [...personnel].sort((a, b) => cmp(b) - cmp(a));
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-0.5">
       {sorted.map(p => {
-        const burden = p.prev_score ?? 0;
+        const score = p.prev_score ?? 0;
+        const burden = cmp(p);
+        const partTime = Math.abs(burden - score) > 0.05;
         const { text: fairnessText, level } = fairnessLabelFromAverage(burden, avgBurden);
         const color = fairnessBarColor(burden, avgBurden);
         const isExpanded = expandedId === p.id;
@@ -262,7 +270,7 @@ function CurrentView({
 
             {/* Puan */}
             <div className="text-sm font-semibold text-slate-700 w-12 text-right shrink-0 tabular-nums">
-              {formatScore(burden)}
+              {formatScore(score)}
             </div>
           </button>
 
@@ -270,7 +278,7 @@ function CurrentView({
           {isExpanded && (
             <div className="ml-10 mr-1 mt-1.5 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5">
               <p className="text-sm font-semibold text-slate-800">{fairnessText}.</p>
-              <p className="text-xs text-slate-500">Puanı {formatScore(burden)}, ekip ortalaması {formatScore(avgBurden)}. Her hafta: saat × vardiya zorluğu ÷ 5, zor günlerde (hafta sonu, bayram, tercih etmem dediği gün) ek puan.{(p.hero_count ?? 0) > 0 && ` Boş kalan vardiyayı ${p.hero_count} kez kendisi aldı.`}</p>
+              <p className="text-xs text-slate-500">Puanı {formatScore(score)}{partTime ? `, haftada ${p.max_weekly_hours} saat çalıştığı için tam süreye göre ${formatScore(burden)} sayılır` : ""}. Ekip ortalaması {formatScore(avgBurden)}. Her saat 1 puan, zor vardiya ve zor günlerde (hafta sonu, bayram, tercih etmem dediği gün) yüzde ek. İzinli olduğu günler ekip ortalamasıyla sayılır.{(p.hero_count ?? 0) > 0 && ` Boş kalan vardiyayı ${p.hero_count} kez kendisi aldı.`}</p>
               {pHist.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -304,8 +312,8 @@ function CurrentView({
                   <p className="text-xs text-slate-500 font-semibold">Ek puanlar</p>
                   {pAdjs.slice(0, 5).map((a: any) => (
                     <div key={a.id} className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Değişiklik telafisi" : "Elle düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
-                      <span className="font-bold text-emerald-600 shrink-0">+{a.points}</span>
+                      <span className="text-slate-500 truncate mr-2">{a.note ?? (a.type === "change_comp" ? "Yayından sonra saat değişikliği" : "Elle düzeltme")} · {new Date(a.week_start + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} haftası</span>
+                      <span className="font-bold text-emerald-600 shrink-0">+{formatScore(a.points)}</span>
                     </div>
                   ))}
                 </div>
@@ -435,7 +443,7 @@ function HeroCard({ heroEvents, personnel, loading }: { heroEvents: any[]; perso
                 leading={<Avatar name={name} />}
                 title={name}
                 subtitle={ev.date ? formatDateTR(ev.date) : undefined}
-                trailing={<StatusPill tone="attention"><Trophy size={10} /> +{ev.hero_bonus_multiplier ?? 6}</StatusPill>}
+                trailing={<StatusPill tone="attention"><Trophy size={10} /> +{ev.hero_bonus_multiplier ?? 0}</StatusPill>}
               />
             );
           })}

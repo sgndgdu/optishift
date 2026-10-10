@@ -57,7 +57,7 @@ export function surveyReasons(industry?: string | null, variant?: string | null)
   return [...new Set([...sector, ...COMMON_REASONS])];
 }
 
-export interface SurveyShift { id: string; name: string; start: string; end: string; base_points: number }
+export interface SurveyShift { id: string; name: string; start: string; end: string; difficulty_pct: number }
 
 export interface SurveyAnswers {
   shifts: Record<string, { rating: number; reasons: string[] }>;
@@ -128,16 +128,16 @@ export function agreement(values: number[]): Agreement {
 export const AGREEMENT_LABEL: Record<Agreement, string> = { agree: "hemfikir", mixed: "farklı görüşler", split: "bölünmüş" };
 
 /**
- * Günün zorluk puanından (1-10) önerilen zor gün ek puanı: 5 normal gün sayılır, 5'in üstündeki her puan 1 ek puan.
- * Örnek: ekip Cumartesi'ye 9 dediyse +4 (eski varsayılan hafta sonu puanı).
+ * Ekibin 1-10 cevabından önerilen ek (%): 5 sıradan sayılır, üstündeki her puan %20 ekler. 10 = %100 (bayram kadar,
+ * İş K. m.47), 7,5 = %50 (fazla mesai kadar, m.41). Vardiya zorluğu ve gün zorluğu aynı çeviriyi kullanır.
  */
-export function dayPointsFromRating(rating: number): number {
-  return Math.max(0, rating - 5);
+export function pctFromRating(rating: number): number {
+  return Math.max(0, Math.round((rating - 5) * 20));
 }
 
 export interface ShiftResult {
   id: string; name: string; start: string; end: string;
-  current: number; median: number | null; count: number; agreement: Agreement; dist: number[];
+  current: number; median: number | null; suggested: number | null; count: number; agreement: Agreement; dist: number[];
   reasons: { label: string; count: number }[];
 }
 export interface DayResult { day: number; current: number; median: number | null; suggested: number | null; count: number; agreement: Agreement }
@@ -173,8 +173,8 @@ export function aggregateSurvey(shifts: SurveyShift[], currentDayPoints: number[
     // Az kişinin puanladığı vardiyada (ör. tek gececi) kimin ne dediği belli olur: değer gösterilmez
     const shown = ratings.length >= SURVEY_MIN_RESPONSES;
     return {
-      id: sh.id, name: sh.name, start: sh.start, end: sh.end, current: sh.base_points,
-      median: shown ? median(ratings) : null, count: ratings.length, agreement: shown ? agreement(ratings) : "agree",
+      id: sh.id, name: sh.name, start: sh.start, end: sh.end, current: sh.difficulty_pct,
+      median: shown ? median(ratings) : null, suggested: shown ? pctFromRating(median(ratings) ?? 5) : null, count: ratings.length, agreement: shown ? agreement(ratings) : "agree",
       dist: shown ? dist : [],
       reasons: shown ? [...reasonCount.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count) : [],
     };
@@ -184,7 +184,7 @@ export function aggregateSurvey(shifts: SurveyShift[], currentDayPoints: number[
     const ratings = answers.map(a => a.days[d]).filter((v): v is number => typeof v === "number");
     const shown = ratings.length >= SURVEY_MIN_RESPONSES;
     const m = shown ? median(ratings) : null;
-    return { day: d, current: currentDayPoints[d] ?? 0, median: m, suggested: m === null ? null : dayPointsFromRating(m), count: ratings.length, agreement: shown ? agreement(ratings) : "agree" };
+    return { day: d, current: currentDayPoints[d] ?? 0, median: m, suggested: m === null ? null : pctFromRating(m), count: ratings.length, agreement: shown ? agreement(ratings) : "agree" };
   });
 
   const fair = answers.map(a => a.fairness).filter((v): v is number => typeof v === "number");

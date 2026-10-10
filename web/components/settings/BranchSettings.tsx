@@ -31,8 +31,13 @@ import { Tabs } from "@/components/ui/Tabs";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { DayPointsGrid, SpecialDatesEditor } from "@/components/settings/HardDays";
 import { FairnessSurveyCard } from "@/components/settings/FairnessSurveyCard";
-import { fairnessExplainer, resolveHardDayRules, type HardDayRules } from "@/lib/fairness";
+import { fairnessExplainer, resolveHardDayRules, shiftDifficultyPct, type HardDayRules } from "@/lib/fairness";
+
 import { TURKISH_HOLIDAYS } from "@/lib/holidays";
+
+/** Başka şube yol süresi (dk); eski düz puan saat sayılır (lib/fairness resolveBonusRules ile aynı). */
+const awayMinutesOf = (r: Record<string, unknown> | null | undefined): number =>
+  typeof r?.away_travel_minutes === "number" ? r.away_travel_minutes : typeof r?.away_shift_points === "number" ? r.away_shift_points * 60 : 0;
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -332,12 +337,12 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
   const [clopeningMinRestHours, setClopeningMinRestHours]         = useState(13);
   const [maxWeeklyHours, setMaxWeeklyHours]                       = useState(45);
   const [minRestHours, setMinRestHours]                           = useState(11);
-  const [changeCompensationPoints, setChangeCompensationPoints]   = useState(2);
-  // Adalet puanı — additive model (2026-09-20): tek "zor vardiya" puanı + bonuslar, 0 = kapalı
+  // Adalet Puanı (2026-10-10, lib/fairness): ekler yüzde, her biri açılıp kapanır
   const [hardDays, setHardDays]                                   = useState<HardDayRules>(() => resolveHardDayRules({}));
-  const [heroBonusPoints, setHeroBonusPoints]                     = useState(6);
-  const [forceBonusPoints, setForceBonusPoints]                   = useState(5);
-  const [awayShiftPoints, setAwayShiftPoints]                     = useState(0); // başka şubede çalışılan vardiya (lib/fairness), puanı hesap sahibi yazar
+  const [heroBonusPct, setHeroBonusPct]                           = useState(50);
+  const [forceBonusPct, setForceBonusPct]                         = useState(100);
+  const [forceCompLeaveEnabled, setForceCompLeaveEnabled]         = useState(false); // izin gününde çağrılana denkleştirme izni (lib/compLeave)
+  const [awayTravelMinutes, setAwayTravelMinutes]                 = useState(0); // başka şubede çalışılan vardiya: yol süresi kadar puan (lib/fairness)
   const [heroBonusEnabled, setHeroBonusEnabled]                   = useState(true);
   const [forceBonusEnabled, setForceBonusEnabled]                 = useState(true);
   const [awayShiftEnabled, setAwayShiftEnabled]                   = useState(false); // varsayılan kapalı
@@ -478,11 +483,11 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
           if (typeof loc.rules?.clopening_min_rest_hours === "number")  setClopeningMinRestHours(loc.rules.clopening_min_rest_hours);
           if (typeof loc.rules?.max_weekly_hours === "number")          setMaxWeeklyHours(loc.rules.max_weekly_hours);
           if (typeof loc.rules?.min_rest_hours === "number")            setMinRestHours(loc.rules.min_rest_hours);
-          if (typeof loc.rules?.change_compensation_points === "number") setChangeCompensationPoints(loc.rules.change_compensation_points);
           setHardDays(resolveHardDayRules(loc.rules));
-          if (typeof loc.rules?.hero_bonus_points === "number")         setHeroBonusPoints(loc.rules.hero_bonus_points);
-          if (typeof loc.rules?.force_bonus_points === "number")        setForceBonusPoints(loc.rules.force_bonus_points);
-          if (typeof loc.rules?.away_shift_points === "number")         setAwayShiftPoints(loc.rules.away_shift_points);
+          setHeroBonusPct(typeof loc.rules?.hero_bonus_pct === "number" ? loc.rules.hero_bonus_pct : 50);
+          setForceBonusPct(typeof loc.rules?.force_bonus_pct === "number" ? loc.rules.force_bonus_pct : 100);
+          setForceCompLeaveEnabled(loc.rules?.force_comp_leave_enabled === true);
+          setAwayTravelMinutes(awayMinutesOf(loc.rules));
           setHeroBonusEnabled(loc.rules?.hero_bonus_enabled !== false);
           setForceBonusEnabled(loc.rules?.force_bonus_enabled !== false);
           setAwayShiftEnabled(loc.rules?.away_shift_enabled === true);
@@ -584,11 +589,11 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
             clopeningMinRestHours: typeof loc.rules?.clopening_min_rest_hours === "number" ? loc.rules.clopening_min_rest_hours : 13,
             maxWeeklyHours: typeof loc.rules?.max_weekly_hours === "number" ? loc.rules.max_weekly_hours : 45,
             minRestHours: typeof loc.rules?.min_rest_hours === "number" ? loc.rules.min_rest_hours : 11,
-            changeCompensationPoints: typeof loc.rules?.change_compensation_points === "number" ? loc.rules.change_compensation_points : 2,
             hardDays: resolveHardDayRules(loc.rules),
-            heroBonusPoints: typeof loc.rules?.hero_bonus_points === "number" ? loc.rules.hero_bonus_points : 6,
-            forceBonusPoints: typeof loc.rules?.force_bonus_points === "number" ? loc.rules.force_bonus_points : 5,
-            awayShiftPoints: typeof loc.rules?.away_shift_points === "number" ? loc.rules.away_shift_points : 0,
+            heroBonusPct: typeof loc.rules?.hero_bonus_pct === "number" ? loc.rules.hero_bonus_pct : 50,
+            forceBonusPct: typeof loc.rules?.force_bonus_pct === "number" ? loc.rules.force_bonus_pct : 100,
+            forceCompLeaveEnabled: loc.rules?.force_comp_leave_enabled === true,
+            awayTravelMinutes: awayMinutesOf(loc.rules),
             heroBonusEnabled: loc.rules?.hero_bonus_enabled !== false,
             forceBonusEnabled: loc.rules?.force_bonus_enabled !== false,
             awayShiftEnabled: loc.rules?.away_shift_enabled === true,
@@ -655,8 +660,8 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
       operating_hours: locationData.operating_hours ?? {},
       maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
       maxPreferredNotDays, clopeningMinRestHours,
-      maxWeeklyHours, minRestHours, changeCompensationPoints,
-      hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
+      maxWeeklyHours, minRestHours,
+      hardDays, heroBonusPct, forceBonusPct, forceCompLeaveEnabled, awayTravelMinutes, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
       clopeningEnabled, swapRequestsEnabled,
       availabilityCollectionEnabled,
       reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -673,8 +678,8 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
     locationData,
     maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
     maxPreferredNotDays, clopeningMinRestHours,
-    maxWeeklyHours, minRestHours, changeCompensationPoints,
-    hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
+    maxWeeklyHours, minRestHours,
+    hardDays, heroBonusPct, forceBonusPct, forceCompLeaveEnabled, awayTravelMinutes, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
     clopeningEnabled, swapRequestsEnabled,
     availabilityCollectionEnabled,
     reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -812,14 +817,14 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
             clopening_min_rest_hours:     clopeningMinRestHours,
             max_weekly_hours:             maxWeeklyHours,
             min_rest_hours:               minRestHours,
-            change_compensation_points:         changeCompensationPoints,
-            hard_day_points:                    hardDays.dayPoints,
-            holiday_points:                     hardDays.holidayPoints,
-            pref_not_points:                    hardDays.prefNotPoints,
-            special_date_points:                hardDays.specialDates.filter(d => d.date && d.points > 0).map(d => ({ ...d, name: d.name.trim() })),
-            hero_bonus_points:                  heroBonusPoints,
-            force_bonus_points:                 forceBonusPoints,
-            away_shift_points:                  awayShiftPoints,
+            hard_day_pct:                       hardDays.dayPct,
+            holiday_pct:                        hardDays.holidayPct,
+            pref_not_pct:                       hardDays.prefNotPct,
+            special_date_points:                hardDays.specialDates.filter(d => d.date && d.pct > 0).map(({ points: _old, ...d }) => ({ ...d, name: d.name.trim() })),
+            hero_bonus_pct:                     heroBonusPct,
+            force_bonus_pct:                    forceBonusPct,
+            force_comp_leave_enabled:           forceCompLeaveEnabled,
+            away_travel_minutes:                awayTravelMinutes,
             hero_bonus_enabled:                 heroBonusEnabled,
             force_bonus_enabled:                forceBonusEnabled,
             away_shift_enabled:                 awayShiftEnabled,
@@ -884,8 +889,8 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
         operating_hours: locationData.operating_hours ?? {},
         maxConsecutiveDays, maxOnCallPerWeek, noNightToMorning, implicitPrefsEnabled,
         maxPreferredNotDays, clopeningMinRestHours,
-        maxWeeklyHours, minRestHours, changeCompensationPoints,
-        hardDays, heroBonusPoints, forceBonusPoints, awayShiftPoints, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
+        maxWeeklyHours, minRestHours,
+        hardDays, heroBonusPct, forceBonusPct, forceCompLeaveEnabled, awayTravelMinutes, heroBonusEnabled, forceBonusEnabled, awayShiftEnabled,
         clopeningEnabled, swapRequestsEnabled,
         availabilityCollectionEnabled,
         reminderEnabled, reminderDay, reminderTime, autopilotEnabled, autopilotDay, autopilotHour,
@@ -1325,9 +1330,9 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                       )}
 
                       {/* Zorluk: tek seçici (components/ui/DifficultyPicker) */}
-                      <DifficultyPicker value={shift.base_points} onChange={val => {
+                      <DifficultyPicker value={shiftDifficultyPct(shift)} onChange={val => {
                         const next = locationData.shift_definitions.map((s: ShiftDefinition, i: number) =>
-                          i === idx ? { ...s, base_points: val } : s
+                          i === idx ? { ...s, difficulty_pct: val } : s
                         );
                         setLocationData({ ...locationData, shift_definitions: next });
                       }} />
@@ -1338,7 +1343,7 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                     onClick={() => {
                       const next = [
                         ...locationData.shift_definitions,
-                        { id: `s${Date.now()}`, name: "Yeni Vardiya", start: "12:00", end: "20:00", base_points: 3 },
+                        { id: `s${Date.now()}`, name: "Yeni Vardiya", start: "12:00", end: "20:00", base_points: 5, difficulty_pct: 0 },
                       ];
                       setLocationData({ ...locationData, shift_definitions: next });
                     }}
@@ -1613,64 +1618,69 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                   <div className="space-y-1.5 text-xs text-forest-700">
                     <p className="text-sm font-semibold text-forest-800">Adalet Puanı nedir?</p>
                     <p>{fairnessExplainer((locationData?.rules as Record<string, unknown> | undefined)?.fairness_window_weeks as number | undefined)}</p>
-                    <p>Örnek: orta zorlukta 8 saatlik vardiya 8 puandır. Vardiyanın ne kadar zor olduğu Temel › Vardiya Tanımları&apos;ndan gelir. Aşağıdakiler bunun üstüne eklenen puanlardır.</p>
+                    <p>Örnek: sıradan 8 saatlik vardiya 8 puandır. Zor vardiya (%50) 12, bayramda çalışılan zor vardiya (%50 + %100) 20 puandır. Basamaklar İş Kanunu&apos;ndan gelir: fazla çalışmada saat ücreti %50 artar, bayramda çalışana bir günlük ek ücret, yani %100 ödenir. Vardiyanın zorluğu Temel › Vardiya Tanımları&apos;ndan gelir.</p>
                   </div>
                 </div>
                 {/* Ekip anketi: vardiya zorluğunu ve zor günleri ekip puanlar, hesap sahibi uygular (lib/fairnessSurvey) */}
                 {locationData?.id && <FairnessSurveyCard locationId={locationData.id} blocked={isDirty} />}
                 <SectionCard title="Zor günler">
-                  <p className="text-xs text-slate-500 pt-4">Zor sayılan günde çalışan kişiye ek puan yazılır. Böylece bu günler ekibe sırayla düşer. 0 yazılan gün zor sayılmaz. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek puan yazılır, puanlar toplanmaz. Örnek: Pazar 4, bayram 8 puansa Pazar&apos;a denk gelen bayramda 8 puan yazılır.</p>
+                  <p className="text-xs text-slate-500 pt-4">Zor sayılan günde çalışılan her saate yüzde olarak ek yazılır. Böylece bu günler ekibe sırayla düşer. 0 yazılan gün zor sayılmaz. Bir gün birden fazla nedenle zor sayılıyorsa en yüksek yüzde uygulanır. Örnek: Pazar %50, bayram %100 ise Pazar&apos;a denk gelen bayramda %100 uygulanır.</p>
                   <RuleRow wide
                     label="Haftanın günleri"
-                    description="Her güne ayrı puan verin. Örnek: Cuma 2, Cumartesi 4, Pazar 4. Cumartesi 8 saat çalışan kişi 8 yerine 12 puan alır."
-                    right={<div className="w-full sm:w-[22rem]"><DayPointsGrid value={hardDays.dayPoints} onChange={v => setHardDays(h => ({ ...h, dayPoints: v }))} /></div>}
+                    description="Her güne ayrı yüzde verin. Örnek: Cumartesi %50 ise Cumartesi 8 saat çalışan kişi 8 yerine 12 puan alır. Ekip anketi sonucunu buraya uygulayabilirsiniz."
+                    right={<div className="w-full sm:w-[22rem]"><DayPointsGrid value={hardDays.dayPct} onChange={v => setHardDays(h => ({ ...h, dayPct: v }))} /></div>}
                   />
                   <RuleRow
                     label="Resmi tatil ve bayram günleri"
-                    description={<>Türkiye resmi tatil takvimine göre otomatik uygulanır.{nextHoliday && <> Sıradaki: {nextHoliday.name} ({formatDateTR(nextHoliday.date)}).</>}</>}
-                    right={<NumberInput value={hardDays.holidayPoints} onChange={v => setHardDays(h => ({ ...h, holidayPoints: v }))} min={0} max={20} suffix="puan" />}
+                    description={<>Türkiye resmi tatil takvimine göre otomatik uygulanır. %100, kanunun bayramda çalışana ödediği ek ücretle aynıdır.{nextHoliday && <> Sıradaki: {nextHoliday.name} ({formatDateTR(nextHoliday.date)}).</>}</>}
+                    right={<NumberInput value={hardDays.holidayPct} onChange={v => setHardDays(h => ({ ...h, holidayPct: v }))} min={0} max={100} suffix="%" />}
                   />
                   <RuleRow
                     label="Kişinin tercih etmem dediği gün"
-                    description="Kişi uygunluk girerken &quot;mümkünse çalışmam&quot; dediği günde çalışırsa."
-                    right={<NumberInput value={hardDays.prefNotPoints} onChange={v => setHardDays(h => ({ ...h, prefNotPoints: v }))} min={0} max={20} suffix="puan" />}
+                    description="Kişi uygunluk girerken &quot;tercih etmem&quot; dediği günde çalışırsa. Bu ek, günün kendi ekine ayrıca eklenir."
+                    right={<NumberInput value={hardDays.prefNotPct} onChange={v => setHardDays(h => ({ ...h, prefNotPct: v }))} min={0} max={100} suffix="%" />}
                   />
                   <RuleRow wide
                     label="İşletmenize özel günler"
-                    description="Belirli bir tarihe ek puan verin. Puanı bütün vardiyalara ya da tek vardiyaya verebilirsiniz. Ek puan istenirse her ay tekrar eder. Günü, adını ve puanını kendiniz girersiniz."
+                    description="Belirli bir tarihe yüzde ek verin. Eki bütün vardiyalara ya da tek vardiyaya verebilirsiniz. İstenirse her ay tekrar eder. Günü, adını ve yüzdesini kendiniz girersiniz."
                     right={null}
                   />
                   <div className="pb-4 -mt-1 border-t-0">
-                    <SpecialDatesEditor value={hardDays.specialDates} onChange={v => setHardDays(h => ({ ...h, specialDates: v }))}
+                    <SpecialDatesEditor value={hardDays.specialDates} onChange={v => setHardDays(h => ({ ...h, specialDates: v.map(x => ({ ...x, pct: x.pct ?? 0 })) }))}
                       today={todayIso}
                       shifts={(locationData?.shift_definitions ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))} />
                   </div>
                 </SectionCard>
-                {/* Ek puan verilen durumlar (eski adı "Bonus Puanları"). Her satır diğer kurallar gibi açılıp kapanır, puanı yazılır. */}
+                {/* Ek puan verilen durumlar. Her satır açılıp kapanır; değer vardiyanın yüzdesi ya da ölçülen süre. */}
                 <SectionCard title="Ek puan verilen durumlar">
-                  <p className="text-xs text-slate-500 pt-4 pb-3">Aşağıdaki durumlar açıksa kişiye yazdığınız kadar ek puan verilir. Puanı yüksek olan kişiye sonraki planlarda daha az vardiya verilir.</p>
+                  <p className="text-xs text-slate-500 pt-4 pb-3">Aşağıdaki durumlar açıksa kişiye ek puan yazılır. Puanı yüksek olan kişiye sonraki planlarda daha az vardiya verilir.</p>
                   {([
-                    { show: true, label: "Boş kalan bir vardiyayı kendisi alırsa", description: "Ekibe duyurulan boş vardiyayı gönüllü olarak alan kişiye verilir.",
-                      on: heroBonusEnabled, toggle: () => setHeroBonusEnabled(v => !v), value: heroBonusPoints, set: setHeroBonusPoints, max: 20 },
-                    { show: branchCount > 1, label: "Başka bir şubede çalışırsa", description: "Kendi şubesi dışında bir şubede çalıştığı her vardiya için verilir.",
-                      on: awayShiftEnabled, toggle: () => setAwayShiftEnabled(v => !v), value: awayShiftPoints, set: setAwayShiftPoints, max: 20 },
-                    { show: true, label: "Plan yayınlandıktan sonra vardiyası değişirse", description: "Düzeni bozulduğu için verilir.",
-                      on: changeCompensationEnabled, toggle: () => setChangeCompensationEnabled(v => !v), value: changeCompensationPoints, set: setChangeCompensationPoints, max: 10 },
-                    { show: true, label: "İzin gününde çalışmaya çağrılırsa", description: "İzinli olduğu gün çağrılan ve gelmeyi kabul eden kişiye verilir.",
-                      on: forceBonusEnabled, toggle: () => setForceBonusEnabled(v => !v), value: forceBonusPoints, set: setForceBonusPoints, max: 20 },
+                    { show: true, label: "Boş kalan bir vardiyayı kendisi alırsa", description: `Ekibe duyurulan boş vardiyayı alan kişiye vardiyanın %${heroBonusPct}'i kadar ek verilir. %50, kanundaki fazla çalışma zammıyla aynıdır.`,
+                      on: heroBonusEnabled, toggle: () => setHeroBonusEnabled(v => !v), input: <NumberInput value={heroBonusPct} onChange={setHeroBonusPct} min={0} max={100} suffix="%" /> },
+                    { show: true, label: "İzin gününde çalışmaya çağrılırsa", description: `İzinli olduğu ya da gelemem dediği gün çağrılan ve gelmeyi kabul eden kişiye vardiyanın %${forceBonusPct}'i kadar ek verilir. %100, kanunun bayramda çalışana ödediği ek ücretle aynıdır.`,
+                      on: forceBonusEnabled, toggle: () => setForceBonusEnabled(v => !v), input: <NumberInput value={forceBonusPct} onChange={setForceBonusPct} min={0} max={100} suffix="%" /> },
+                    { show: branchCount > 1, label: "Başka bir şubede çalışırsa", description: "Kendi şubesi dışında çalıştığı her vardiyaya yol süresi kadar puan verilir. Gidiş ve dönüş toplamını dakika olarak yazın.",
+                      on: awayShiftEnabled, toggle: () => setAwayShiftEnabled(v => !v), input: <NumberInput value={awayTravelMinutes} onChange={setAwayTravelMinutes} min={0} max={240} suffix="dk" /> },
+                    { show: true, label: "Plan yayınlandıktan sonra vardiyası değişirse", description: "Kaydırılan saat kadar puan verilir. Örnek: 08:00-16:00 vardiyası 12:00-20:00 olursa 4 puan.",
+                      on: changeCompensationEnabled, toggle: () => setChangeCompensationEnabled(v => !v), input: null },
                   ]).filter(r => r.show).map(r => (
-                    <RuleRow key={r.label} label={r.label}
-                      description={r.on && r.value === 0 ? `${r.description} Kaç puan verileceğini yazın.` : r.description}
+                    <RuleRow key={r.label} label={r.label} description={r.description}
                       right={
                         <div className="flex items-center gap-2">
-                          <div className={r.on ? "" : "opacity-40 pointer-events-none"}>
-                            <NumberInput value={r.value} onChange={r.set} min={0} max={r.max} suffix="puan" />
-                          </div>
+                          {r.input && <div className={r.on ? "" : "opacity-40 pointer-events-none"}>{r.input}</div>}
                           <Toggle on={r.on} onToggle={r.toggle} />
                         </div>
                       }
                     />
                   ))}
+                </SectionCard>
+                {/* Denkleştirme izni (lib/compLeave): puandan ayrı, izin hakkı olarak yazılır */}
+                <SectionCard title="İzin gününde çağrılana denkleştirme">
+                  <RuleRow
+                    label="Yerine 1 gün izin hakkı verilsin"
+                    description="İzinli olduğu ya da gelemem dediği gün çağrılıp gelen kişinin hesabına 1 günlük denkleştirme izni yazılır. Kişi bu izni istediği gün izin talebiyle kullanır, siz onaylarsınız. Vardiya plandan çıkarılırsa hak da düşer. Ek puanla birlikte ya da tek başına açılabilir."
+                    right={<Toggle on={forceCompLeaveEnabled} onToggle={() => setForceCompLeaveEnabled(v => !v)} />}
+                  />
                 </SectionCard>
                 <SectionCard title="Ne kadar geriye bakılsın?">
                   <RuleRow

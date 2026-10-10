@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { leaveTypeLabel } from "@/lib/leave";
+import { countLeaveDays, leaveTypeLabel } from "@/lib/leave";
+import { isCompLeaveType, loadCompLeaveBalance } from "@/lib/compLeave";
 import { getDB } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -85,6 +86,17 @@ export async function POST(req: NextRequest) {
         try { rules = JSON.parse(locRow.rules); } catch { /* geçersiz JSON → atla */ }
         if (rules.leave_requests_enabled === false) {
           return NextResponse.json({ error: "Bu şubede izin talep sistemi kapalı." }, { status: 422 });
+        }
+      }
+
+      // Denkleştirme izni (lib/compLeave): kazanılmış hak kadar istenebilir
+      if (isCompLeaveType(type)) {
+        const bal = await loadCompLeaveBalance(rawDb, personnel_id);
+        const want = countLeaveDays(start_date, end_date, (await rawDb.prepare("SELECT weekly_off_day FROM personnel WHERE id = ?").get(personnel_id) as any)?.weekly_off_day ?? null);
+        if (want > bal.available) {
+          return NextResponse.json({ error: bal.available > 0
+            ? `Denkleştirme izni hakkınız ${bal.available} gün. ${want} gün istenemez.`
+            : "Kullanılabilir denkleştirme izni hakkınız yok." }, { status: 422 });
         }
       }
 

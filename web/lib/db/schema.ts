@@ -250,7 +250,8 @@ export const shiftAssignments = pgTable("shift_assignments", {
   pinned: boolean("pinned").default(false),
   kind: text("kind").default("regular"), // regular | on_call (icap nöbeti: bekleme çalışma sayılmaz, çağrılınca on_call_callouts) // sorumlu elle düzeltti: Planı Oluştur bu hücreye dokunmaz (taslakta)
   force_acceptance_status: text("force_acceptance_status"), // null | 'pending' | 'accepted' | 'rejected'
-  force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // artık düz bonus PUANI (çarpan değil) — rules.force_bonus_points snapshot
+  force_bonus_multiplier: doublePrecision("force_bonus_multiplier"), // gösterim: kabul edince alacağı ek puan (saat × force%); kesin puan rescoreWeek
+  comp_leave_days: doublePrecision("comp_leave_days"), // izin gününde çağrılıp kabul edince yazılan denkleştirme izni (lib/compLeave)
   created_at: bigint("created_at", { mode: "number" }).$defaultFn(
     () => Math.floor(Date.now() / 1000),
   ),

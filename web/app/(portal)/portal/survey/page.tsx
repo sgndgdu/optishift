@@ -21,7 +21,7 @@ type OpenSurvey = {
 };
 type Result = {
   location_name: string; closed_at: number; responses: number; enough: boolean; applied_at: number | null;
-  shifts: { name: string; team: number | null; current: number | null }[];
+  shifts: { name: string; team: number | null; suggested: number | null; current: number | null }[];
   days: { day: number; team: number | null; suggested: number | null; current: number }[];
   fairness: { count: number; positive: number };
 };
@@ -208,13 +208,13 @@ export default function PortalSurveyPage() {
                         {r.shifts.filter(s => s.team !== null).map(s => (
                           <li key={s.name} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                             <span className="font-semibold text-slate-800">{s.name}</span>
-                            <span className="text-slate-600 tabular-nums">Ekibin değeri {s.team} · şu an {s.current ?? "-"}</span>
+                            <span className="text-slate-600 tabular-nums">Ekibin değeri {s.team}, öneri %{s.suggested ?? 0} · şu an {s.current === null ? "-" : `%${s.current}`}</span>
                           </li>
                         ))}
                         {r.days.filter(d => d.team !== null && (d.suggested !== 0 || d.current !== 0)).map(d => (
                           <li key={d.day} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                             <span className="font-semibold text-slate-800">{DAY_NAMES_TR[d.day]}</span>
-                            <span className="text-slate-600 tabular-nums">Ekibin önerisi +{d.suggested} · şu an +{d.current}</span>
+                            <span className="text-slate-600 tabular-nums">Ekibin önerisi %{d.suggested} · şu an %{d.current}</span>
                           </li>
                         ))}
                       </ul>

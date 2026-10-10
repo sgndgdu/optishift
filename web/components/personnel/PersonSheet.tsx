@@ -17,7 +17,7 @@ import { industryFromRules, matchDocument } from "@/lib/templates";
 import { departmentLabel, hasSubDepartments, leafDepartments, sortDepartments, type DeptLite } from "@/lib/departments";
 import { parseBranchRotation, rotationBranchForWeek } from "@/lib/branchRotation";
 import { defaultWeeklyHours } from "@/lib/legal";
-import { formatScore, scoreVsAverageText } from "@/lib/fairness";
+import { comparableScore, formatScore, scoreVsAverageText } from "@/lib/fairness";
 import { businessToday, getWeekStart } from "@/lib/date";
 
 type Loc = { id: string; name: string; rules?: Record<string, unknown> | null };
@@ -387,7 +387,7 @@ export default function PersonSheet({ person, account, viewer, branch, managerLo
           )}
           {ep.personnelId && ep.role === "employee" && (
             <p className="text-xs text-slate-500">
-              {[ep.prev_score > 0 ? `Adalet Puanı ${formatScore(ep.prev_score)} (${scoreVsAverageText(ep.prev_score, teamAvgScore ?? 0)})` : null, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya aldı` : null,
+              {[ep.prev_score > 0 ? `Adalet Puanı ${formatScore(ep.prev_score)} (${scoreVsAverageText(comparableScore(ep.prev_score, ep.max_weekly_hours, (rules as { max_weekly_hours?: number }).max_weekly_hours), teamAvgScore ?? 0)})` : null, ep.hero_count > 0 ? `${ep.hero_count} kez açık vardiya aldı` : null,
                 (ep.ytd_overtime_hours ?? 0) > 0 ? `bu yıl ${ep.ytd_overtime_hours} saat fazla mesai` : null].filter(Boolean).join(" · ")}
             </p>
           )}

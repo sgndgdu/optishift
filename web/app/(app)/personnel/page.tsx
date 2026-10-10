@@ -16,7 +16,7 @@ import { accessSummary, type Mgr } from "@/components/personnel/ManagersCard";
 import PeopleList from "@/components/personnel/PeopleList";
 import { List } from "@/components/ui/List";
 import PersonSheet from "@/components/personnel/PersonSheet";
-import { createInvite, mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
+import { createInvite, mergePeople, personKey, roleBadge, teamComparableAvg, type MergedPerson } from "@/components/personnel/people";
 import { departmentLabel, leafDepartments, sortDepartments } from "@/lib/departments";
 import { departmentInBranch, departmentsInBranch } from "@/lib/branchRotation";
 import { Page, PageHeader, pageActionClass } from "@/components/ui/PageHeader";
@@ -528,10 +528,7 @@ export default function PersonnelPage() {
           viewer={{ id: authUser?.id, role: authUser?.role ?? "", location_id: authUser?.location_id, access: authUser?.access }}
           branch={locations.find(l => l.id === (openPerson.location_id ?? authUser?.location_id)) ?? locations.find(l => l.id === authUser?.location_id) ?? null}
           managerLocations={managerLocations}
-          teamAvgScore={(() => {
-            const team = persons.filter(x => x.personnelId && x.role === "employee" && !x.inactive && x.location_id === openPerson.location_id);
-            return team.length ? team.reduce((a, x) => a + x.prev_score, 0) / team.length : 0;
-          })()}
+          teamAvgScore={teamComparableAvg(persons, openPerson.location_id, (locations.find(l => l.id === (openPerson.location_id ?? authUser?.location_id))?.rules as { max_weekly_hours?: number } | undefined)?.max_weekly_hours)}
           onClose={() => setOpenKey(null)}
           onChanged={msg => { setOpenKey(null); fetchData(authUser); showToast(msg); }}
           onInvite={setInviteLinks} />

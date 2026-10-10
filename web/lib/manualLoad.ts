@@ -65,7 +65,7 @@ export async function manualLoadForWeek(db: any, orgId: string, locationId: stri
   const { assignments: publishedAll, availRows } = await loadWeekInputs(locationId, weekStart);
   const pids = new Set(gens.map(g => String(g.personnel_id)));
   // Plan sonrası olaylar (boş vardiyayı alma, izin gününde çağrılma, başka şube) iki tarafta da sayılmaz
-  const strip = (a: AssignmentInput): AssignmentInput => ({ ...a, is_hero: false, hero_points: undefined, force_points: undefined, is_away: false });
+  const strip = (a: AssignmentInput): AssignmentInput => ({ ...a, is_hero: false, is_force: false, is_away: false });
   const published = publishedAll.filter(a => pids.has(a.personnel_id)).map(strip);
   const engine: AssignmentInput[] = gens.flatMap(g => parse<any[]>(g.assignments, []).map(a => ({
     personnel_id: String(g.personnel_id), day: Number(a.day),

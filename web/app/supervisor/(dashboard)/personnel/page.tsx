@@ -24,7 +24,7 @@ import { departmentInBranch, departmentsInBranch } from "@/lib/branchRotation";
 import { cn } from "@/lib/utils";
 import PeopleList from "@/components/personnel/PeopleList";
 import PersonSheet from "@/components/personnel/PersonSheet";
-import { mergePeople, personKey, roleBadge, type MergedPerson } from "@/components/personnel/people";
+import { mergePeople, personKey, roleBadge, teamComparableAvg, type MergedPerson } from "@/components/personnel/people";
 
 type Loc = { id: string; name: string; rules?: Record<string, unknown> | null };
 
@@ -251,10 +251,7 @@ function SupervisorPersonnelInner() {
           viewer={{ id: user?.id, role: user?.role ?? "", location_id: null, access: user?.access }}
           branch={locations.find(l => l.id === openPerson.location_id) ?? null}
           managerLocations={managerLocations}
-          teamAvgScore={(() => {
-            const team = persons.filter(x => x.personnelId && x.role === "employee" && !x.inactive && x.location_id === openPerson.location_id);
-            return team.length ? team.reduce((a, x) => a + x.prev_score, 0) / team.length : 0;
-          })()}
+          teamAvgScore={teamComparableAvg(persons, openPerson.location_id, (locations.find(l => l.id === openPerson.location_id)?.rules as { max_weekly_hours?: number } | undefined)?.max_weekly_hours)}
           onClose={() => setOpenKey(null)}
           onChanged={msg => { setOpenKey(null); fetchPeople(); showToast(msg); }}
           onInvite={setInviteLinks} />

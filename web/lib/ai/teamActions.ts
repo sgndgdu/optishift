@@ -97,7 +97,7 @@ export async function resolveTeamActions(db: any, auth: AuthUser, raw: unknown[]
       if (problems.length) { dropped.push(`Bu vardiyayı alamazsınız: ${problems[0]}.`); continue; }
       actions.push({
         kind: "claim_open_shift", open_shift_id: os.id, personnel_id: me.id, name: me.name,
-        title: `${formatDateTR(os.date)} ${os.start_time}-${os.end_time} açık vardiyasını alırsınız. Planınıza eklenir ve +${os.hero_bonus_multiplier ?? 6} puan kazanırsınız.`,
+        title: `${formatDateTR(os.date)} ${os.start_time}-${os.end_time} açık vardiyasını alırsınız. Planınıza eklenir ve +${os.hero_bonus_multiplier ?? 0} puan kazanırsınız.`,
       });
       continue;
     }

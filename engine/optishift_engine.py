@@ -246,69 +246,63 @@ def _is_night_shift(s_idx: int) -> bool:
 
 # ─── PUAN HESAPLAMA ──────────────────────────────────────────────────────────
 #
-# RESMİ FORMÜLÜN PLANLAMA-ANI YAKLAŞIMI (kaynak: web/lib/fairness.ts calcAssignmentPoints)
-# Additive model (2026-09-20 rewrite): puan = saat×(zorluk/5) + zor_vardiya_puanı (tek sefer,
-# hafta sonu/gece/sarı gün OR'lanır) — çarpan zinciri yok, decay yok.
-# Bilinçli farklar — bunlar bug değildir, CP-SAT modeli gereğidir:
+# RESMİ FORMÜLÜN PLANLAMA-ANI YAKLAŞIMI (kaynak: web/lib/fairness.ts calcAssignmentPoints, 2026-10-10)
+# 1 puan = sıradan bir vardiyada 1 saat. puan = saat × (1 + zorluk% + gün% + tercih etmem%).
+# gün% = haftanın günü, resmi tatil, özel gün arasından en yükseği (web hazır gönderir: day_extra_pct,
+# vardiyaya özel günler shift_day_extra_pct); tercih etmem kişiye özel, ayrıca eklenir.
+# Bilinçli farklar, bug değildir:
 #   1. int(round()) yuvarlama: CP-SAT tamsayı ister; TS tarafı ondalık tutar.
-#   2. Clopening puana UYGULANMAZ — ayrı bir soft ceza terimi olarak
-#      (×clopening_penalty_weight, varsayılan 30) objective'e girer.
-#   3. Kahraman (open shift claim) ve zorunlu atama bonusları modellenmez —
-#      bunlar plan üretildikten SONRA oluşan olaylardır; kesin puan yayında
-#      web/lib/scoring.ts rescoreWeek() ile hesaplanır.
-# Puan değerleri ve toggle'lar TS tarafıyla aynı rules anahtarlarından okunur.
+#   2. Clopening puana UYGULANMAZ, ayrı soft ceza terimi (×clopening_penalty_weight, varsayılan 30).
+#   3. Boş vardiyayı alma, izin gününde çağrılma, başka şube yolu modellenmez: plan sonrası olaylardır,
+#      kesin puan yayında web/lib/scoring.ts rescoreWeek() ile hesaplanır.
+
+def _difficulty_pct(shift: dict) -> float:
+    """Vardiyanın zorluk eki (%). Web difficulty_pct gönderir; yoksa eski base_points çevrilir (7+ = %50)."""
+    v = shift.get("difficulty_pct")
+    if isinstance(v, (int, float)):
+        return max(0.0, float(v))
+    return 50.0 if float(shift.get("base_points", 5) or 5) >= 7 else 0.0
+
+
+def _shift_hours(shift_id: int) -> float:
+    shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
+    start_m, end_m = _shift_minutes(shift) if shift else (0, 480)
+    return (end_m - start_m) / 60
+
 
 def shift_points(day: int, shift_id: int) -> float:
-    """Vardiyanın zaman-bazlı taban puanı: saat × (zorluk/5). Zor vardiya bonusu
-    (hafta sonu/gece/sarı gün) effective_points'te eklenir — sarı gün kişiye özel
-    olduğu için üçünün OR'u (dedup) ancak orada kurulabilir."""
+    """Vardiyanın kişiden bağımsız taban puanı: saat × (1 + zorluk%)."""
     shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
-    base = shift.get("base_points", 5)
-    start_m, end_m = _shift_minutes(shift) if shift else (0, 480)
-    hours = (end_m - start_m) / 60
-    return hours * (base / 5)
+    return _shift_hours(shift_id) * (1 + _difficulty_pct(shift) / 100)
 
 
-def _is_hard_shift_time(day: int, shift_id: int) -> bool:
-    """Zaman bazlı (kişiden bağımsız) zor vardiya tespiti: hafta sonu veya gece."""
-    shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
-    is_weekend = day in (5, 6) and RULES.get("hard_shift_weekend", True)
-    is_night   = shift.get("is_night", False) and RULES.get("hard_shift_night", True)
-    return is_weekend or is_night
+def _day_extra_pct(day: int, shift_id: int) -> float:
+    day_extra = RULES.get("day_extra_pct")
+    extra = float(day_extra[day] or 0) if isinstance(day_extra, list) and len(day_extra) == 7 else 0.0
+    shift_extra = RULES.get("shift_day_extra_pct") or {}
+    sid = SHIFTS[shift_id].get("id") if shift_id < len(SHIFTS) else None
+    per_shift = shift_extra.get(sid) if isinstance(shift_extra, dict) and sid is not None else None
+    if isinstance(per_shift, list) and len(per_shift) == 7:
+        extra = max(extra, float(per_shift[day] or 0))
+    return extra
 
 
 def _max_hard_points() -> float:
-    """Bir vardiyaya eklenebilecek en yüksek zor gün puanı (arama sınırı için)."""
-    day_extra = RULES.get("day_extra_points")
-    if isinstance(day_extra, list) and len(day_extra) == 7:
-        shift_extra = RULES.get("shift_day_extra_points") or {}
-        per_shift = [float(x or 0) for v in shift_extra.values() if isinstance(v, list) for x in v] if isinstance(shift_extra, dict) else []
-        return max([float(x or 0) for x in day_extra] + per_shift + [float(RULES.get("pref_not_points", 0) or 0)])
-    return RULES.get("hard_shift_points", 4)
+    """Bir vardiyaya eklenebilecek en yüksek gün + tercih eki (puan, arama sınırı için)."""
+    day_extra = RULES.get("day_extra_pct") or []
+    shift_extra = RULES.get("shift_day_extra_pct") or {}
+    per_shift = [float(x or 0) for v in shift_extra.values() if isinstance(v, list) for x in v] if isinstance(shift_extra, dict) else []
+    max_pct = max([float(x or 0) for x in day_extra] + per_shift + [0.0]) + float(RULES.get("pref_not_pct", 0) or 0)
+    max_hours = max((_shift_hours(s) for s in range(NUM_SHIFTS)), default=8)
+    return max_hours * max_pct / 100
 
 
 def effective_points(person_id, day: int, shift_id: int) -> int:
-    """Kişiye özel toplam puan: taban + zor gün puanı.
-
-    Web (lib/fairness) haftanın her günü için zor gün puanını hazır gönderir (day_extra_points:
-    haftanın günü, resmi tatil, özel gün) ve tercih etmem puanını (pref_not_points). Birden fazlası
-    geçerliyse EN YÜKSEĞİ yazılır. Bu alanlar yoksa eski tek puan + bayrak modeli kullanılır."""
-    base = shift_points(day, shift_id)
-    day_extra = RULES.get("day_extra_points")
-    if isinstance(day_extra, list) and len(day_extra) == 7:
-        pref = RULES.get("pref_not_points", 0) if get_avail(person_id, day) == "preferred_not" else 0
-        extra = float(day_extra[day] or 0)
-        # Sadece belirli vardiyalara ait özel gün: {vardiya id: 7 gün}, gün geneli puanı da içerir
-        shift_extra = RULES.get("shift_day_extra_points") or {}
-        sid = SHIFTS[shift_id].get("id") if shift_id < len(SHIFTS) else None
-        per_shift = shift_extra.get(sid) if isinstance(shift_extra, dict) and sid is not None else None
-        if isinstance(per_shift, list) and len(per_shift) == 7:
-            extra = max(extra, float(per_shift[day] or 0))
-        return int(round(base + max(extra, float(pref or 0))))
-    is_pref_not = RULES.get("hard_shift_preferred_not", True) and get_avail(person_id, day) == "preferred_not"
-    is_hard = _is_hard_shift_time(day, shift_id) or is_pref_not
-    pts = base + (RULES.get("hard_shift_points", 4) if is_hard else 0)
-    return int(round(pts))
+    """Kişiye özel toplam puan: saat × (1 + zorluk% + gün% + tercih etmem%)."""
+    shift = SHIFTS[shift_id] if shift_id < len(SHIFTS) else {}
+    pref = float(RULES.get("pref_not_pct", 0) or 0) if get_avail(person_id, day) == "preferred_not" else 0.0
+    pct = _difficulty_pct(shift) + _day_extra_pct(day, shift_id) + pref
+    return int(round(_shift_hours(shift_id) * (1 + pct / 100)))
 
 
 # ─── MODEL KURULUMU ───────────────────────────────────────────────────────────
@@ -961,10 +955,11 @@ def build_model():
         model.add(total == cumulative + weekly_pts)
         person_scores.append(total)
 
-        # Part-time çalışanların hedeflenen saati daha düşük olduğu için, adalet skorlarını oranlıyoruz.
-        # Çarpanlar: full_time = 1.0 (10), part_time = 0.6 (6)
-        weight = int(RULES.get("part_time_weight_factor", 6)) if person.get("employment_type") == "part_time" else 10
-        weight = weight or 10
+        # Karşılaştırma kişinin haftalık süresine oranlanır (web lib/fairness fairnessWeight: kişinin sınırı ÷
+        # şubenin tam süresi). Ağırlık 10 tabanında tamsayı: 27/45 saatlik kişi 6, tam zamanlı 10.
+        fw = person.get("fairness_weight")
+        weight = int(round(float(fw) * 10)) if isinstance(fw, (int, float)) and fw > 0 else 10
+        weight = max(1, min(10, weight))
         # weighted = (total * 10) / weight -> eğer part-time ise (total * 10) / 6, yani puanı suni olarak yüksek görünür,
         # böylece algoritma ona daha fazla vardiya yazmak için yırtınmaz.
         weighted_lower = (total_lower * 10) // weight - 1 if total_lower < 0 else 0
@@ -1677,12 +1672,14 @@ def api_mode(payload: dict):
     if shifts_from_payload and isinstance(shifts_from_payload, list) and len(shifts_from_payload) > 0:
         SHIFTS = [
             {
-                # Kimlik: vardiyaya özel zor gün puanı (shift_day_extra_points) bununla eşleşir
+                # Kimlik: vardiyaya özel zor gün eki (shift_day_extra_pct) bununla eşleşir
                 "id":          s.get("id"),
                 "name":        s.get("name", f"Vardiya {i + 1}"),
                 "start":       s.get("start", "08:00"),
                 "end":         s.get("end",   "16:00"),
                 "base_points": int(s.get("base_points", 5)),
+                # Adalet Puanı zorluk eki (%); yoksa base_points çevrilir (_difficulty_pct)
+                **({"difficulty_pct": float(s["difficulty_pct"])} if isinstance(s.get("difficulty_pct"), (int, float)) else {}),
                 "is_night":    bool(s.get("is_night", False)),
                 # İcap (evden çağrılabilir) nöbeti: çalışma süresine sayılmaz, normal vardiyayla aynı gün olabilir
                 "on_call":     bool(s.get("on_call", False)),

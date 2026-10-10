@@ -4,7 +4,7 @@
  * Vardiya Planı'ndaki ilan penceresi (2026-10-09, kullanıcı: "ayrı ilan sayfasına gerek yok, plandan yapılsın").
  * Ayrı Açık Vardiyalar sayfası kalktı; ilan plan tablosunun kutusunda görünür, bu pencereden yönetilir:
  *  - Var olan ilan: durum, uygun adaylar ve "Ata", ilanı kapatma / silme, başka şubeden yazılan kişiyi beklemeyi bırakma
- *  - Yeni ilan: boş yerin günü ve saati hazır gelir, alana ek puan ve not seçilip ekibe duyurulur
+ *  - Yeni ilan: boş yerin günü ve saati hazır gelir, not yazılıp ekibe duyurulur (alana ek puan şubenin kuralından)
  * Sunucu tarafı değişmedi (/api/open-shifts, /api/open-shifts/candidates).
  */
 import { Fragment, useEffect, useState } from "react";
@@ -45,7 +45,6 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
   const [cands, setCands] = useState<{ id: number; loading: boolean; list: any[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [bonus, setBonus] = useState(defaultBonus);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
@@ -59,7 +58,7 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
   }, [listing]);
   const list = cands && listing && cands.id === listing.id ? cands : null;
 
-  const close = () => { setConfirmDelete(false); setError(""); setNote(""); setBonus(defaultBonus); setCands(null); onClose(); };
+  const close = () => { setConfirmDelete(false); setError(""); setNote(""); setCands(null); onClose(); };
 
   const patch = (body: Record<string, unknown>) => fetch("/api/open-shifts", {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -96,7 +95,7 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
 
   const create = () => draft && simple(() => fetch("/api/open-shifts", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ location_id: draft.locationId, date: draft.date, start_time: draft.start, end_time: draft.end, note: note.trim() || null, hero_bonus_multiplier: bonus }),
+    body: JSON.stringify({ location_id: draft.locationId, date: draft.date, start_time: draft.start, end_time: draft.end, note: note.trim() || null }),
   }), "İlan açıldı, ekibe bildirim gitti. Alan kişi plana kendiliğinden yazılır.");
 
   if (draft) {
@@ -108,17 +107,7 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
         </>}>
         <div className="space-y-4">
           <p className="text-sm text-slate-600">Bu vardiya ekibe ilan olarak duyurulur. İlk alan kişi vardiyaya yazılır, plan tablosunda görürsünüz.</p>
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-slate-600">Alana ek puan</span>
-            <div className="flex gap-2">
-              {Array.from(new Set([0, 3, defaultBonus, 10])).sort((a, b) => a - b).map(b => (
-                <button key={b} type="button" onClick={() => setBonus(b)}
-                  className={`min-h-[40px] flex-1 rounded-xl border text-sm font-semibold transition-colors ${bonus === b ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
-                  {b === 0 ? "Yok" : `+${b}`}
-                </button>
-              ))}
-            </div>
-          </div>
+          {defaultBonus > 0 && <p className="text-xs text-slate-500">Alan kişiye vardiyanın %{defaultBonus}&apos;i kadar ek puan yazılır (Ayarlar › Adalet Puanı).</p>}
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold text-slate-600">Not (isteğe bağlı)</span>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Ekibe ek bilgi" className="field-input resize-none" />
@@ -144,7 +133,7 @@ export default function OpenShiftSheet({ listing, draft, defaultBonus, isOwner, 
       <div className="space-y-5">
         <div>
           <DetailRow label="Durum">{s.status === "loan_pending" ? <StatusPill tone="info">Onay bekliyor</StatusPill> : <StatusPill tone="attention">Açık</StatusPill>}</DetailRow>
-          <DetailRow label="Alana ek puan">{Number(s.hero_bonus_multiplier) > 0 ? `+${s.hero_bonus_multiplier} puan` : "Yok"}</DetailRow>
+          <DetailRow label="Alana ek puan">{Number(s.hero_bonus_multiplier) > 0 ? `+${formatScore(Number(s.hero_bonus_multiplier))} puan` : "Yok"}</DetailRow>
           {s.note && <DetailRow label="Not">{s.note}</DetailRow>}
           {s.status === "loan_pending" && <DetailRow label="Yazılan">{s.claimed_by_name ?? "Başka şubeden biri"}</DetailRow>}
         </div>
