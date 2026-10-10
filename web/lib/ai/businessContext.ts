@@ -88,7 +88,7 @@ export function weekPlanLines(rows: any[], o: {
         if (!here.length && !need) continue;
         const where = depts.length ? ` · ${gid ? deptName(gid) : "departmansız"}` : "";
         out.push(`- ${day(g)} ${short(addDays(ws, g))} ${d.name}${where}: ${here.map(r => nameOf.get(r.personnel_id) ?? r.personnel_id).join(", ") || "kimse yok"}${need ? ` (${here.length}/${need})` : ""}`);
-        if (need && here.length < need) gaps.push(`${day(g)} ${d.name}${where} ${here.length}/${need}`);
+        if (need && here.length < need && g >= (o.gapsFromDay ?? 0)) gaps.push(`${day(g)} ${d.name}${where} ${here.length}/${need}`);
       }
     }
   }
