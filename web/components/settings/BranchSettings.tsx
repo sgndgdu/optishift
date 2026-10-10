@@ -1450,8 +1450,8 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                     right={<Toggle on={swapRequestsEnabled} onToggle={() => setSwapRequestsEnabled(v => !v)} />}
                   />
                   <RuleRow
-                    label="Vardiya Değişiklik Talebi"
-                    description="Ekip üyesi vardiyasında hata görürse düzeltme isteği gönderir."
+                    label="Saat düzeltme (Saatim farklıydı)"
+                    description="Ekip üyesi geç çıktığında ya da erken başladığında gerçek saati bildirir. Siz onaylayınca vardiya o saate düzelir, çalışma süresi ve fazla mesai yeniden hesaplanır."
                     right={<Toggle on={editRequestsEnabled} onToggle={() => setEditRequestsEnabled(v => !v)} />}
                   />
                 </SectionCard>
