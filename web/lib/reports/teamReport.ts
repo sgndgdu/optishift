@@ -10,6 +10,7 @@ import { monthLabel, monthRange, prevMonth } from "@/lib/months";
 import { definedBreakFor, effectiveWeeklyLimit, netWorkMinutes } from "@/lib/legal";
 import { departmentLabel, leafDepartments } from "@/lib/departments";
 import { DAY_NAMES } from "@/lib/constants";
+import { isModuleOn } from "@/lib/moduleVisibility";
 
 const J = (raw: unknown, d: any) => { try { return typeof raw === "string" ? JSON.parse(raw) : (raw ?? d); } catch { return d; } };
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -38,6 +39,8 @@ export type TeamReport = {
     overLimitPeople: number;
     overtimePeople: number;
     overtimeHours: number;
+    /** En az bir şubede fazla mesai takibi açık */
+    overtimeOn: boolean;
   };
   people: TeamPerson[];
   departments: { name: string; hours: number; people: number }[];
@@ -82,8 +85,10 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
   const defsByLoc = new Map<string, any[]>(locs.map(l => [l.id, J(l.shift_definitions, [])]));
   const locName = new Map<string, string>(locs.map(l => [l.id, l.name]));
   const ruleMax = new Map<string, number>(locs.map(l => [l.id, Number(J(l.rules, {}).max_weekly_hours) || 45]));
-  // Fazla mesai başlangıcı (Ayarlar › Gelişmiş › Çalışma Süresi; İş K. m.41 haftalık 45)
-  const ruleOt = new Map<string, number>(locs.map(l => [l.id, Number(J(l.rules, {}).overtime_threshold_hours) || 45]));
+  // Fazla mesai başlangıcı (Ayarlar › Gelişmiş › Çalışma Süresi; İş K. m.41 haftalık 45).
+  // Fazla mesai takibi kapalı şubede fazla mesai hiç hesaplanmaz (Ayarlar › Özellikler)
+  const ruleOt = new Map<string, number>(locs.filter(l => isModuleOn(J(l.rules, {}), "overtime_tracking_enabled"))
+    .map(l => [l.id, Number(J(l.rules, {}).overtime_threshold_hours) || 45]));
   const depts = ids.length ? await db.prepare(`SELECT id, location_id, parent_id, name, demand_matrix FROM departments WHERE location_id IN (${ids.map(() => "?").join(",")})`).all(...ids) as any[] : [];
   const people = await db.prepare(`SELECT id, name, primary_location_id, department_id, max_weekly_hours, hourly_wage, weekly_off_day FROM personnel WHERE org_id = ?`).all(orgId) as any[];
   const personOf = new Map<string, any>(people.map(p => [p.id, p]));
@@ -143,8 +148,8 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     const weeks = new Map<string, number>();
     for (const s of ss) weeks.set(s.week_start, (weeks.get(s.week_start) ?? 0) + s.hours);
     const hours = ss.reduce((t, s) => t + s.hours, 0);
-    const otAt = ruleOt.get(home) ?? 45;
-    const overtime = [...weekSum.entries()].filter(([k]) => k.startsWith(`${pid}|`))
+    const otAt = ruleOt.get(home);
+    const overtime = otAt === undefined ? [] : [...weekSum.entries()].filter(([k]) => k.startsWith(`${pid}|`))
       .map(([k, h]) => ({ weekStart: k.split("|")[1], worked: round1(h), over: round1(h - otAt) }))
       .filter(w => w.over > 0.05).sort((a, b) => a.weekStart.localeCompare(b.weekStart));
     list.push({
@@ -218,6 +223,7 @@ export async function buildTeamReport(db: any, orgId: string, locationIds: strin
     overLimitPeople: list.filter(p => p.overLimitWeeks > 0).length,
     overtimePeople: list.filter(p => p.overtimeHours > 0).length,
     overtimeHours: round1(list.reduce((t, p) => t + p.overtimeHours, 0)),
+    overtimeOn: ruleOt.size > 0,
   };
 
   const branches = locs.map(l => {

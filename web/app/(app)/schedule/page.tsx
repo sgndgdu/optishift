@@ -2044,6 +2044,8 @@ function SchedulePageInner() {
   // Fazla mesai: haftalık çalışma mesai başlangıcını (rules.overtime_threshold_hours, varsayılan 45) aştığı
   // vardiyada adın yanına "+3 sa mesai" (kişi-gün → aşan saat). Rapordaki hesapla aynı kural.
   const overtimeMarks: Record<string, { over: number; total: number }> = (() => {
+    // Fazla mesai takibi kapalıysa (Ayarlar › Özellikler) hiç gösterilmez
+    if (!isModuleOn(locRules as Record<string, unknown>, "overtime_tracking_enabled")) return {};
     const at = Number((locRules as Record<string, unknown>).overtime_threshold_hours) || 45;
     const byPerson: Record<string, { day: number; h: number }[]> = {};
     for (const [k, v] of Object.entries(cellMap)) {

@@ -109,8 +109,9 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
             )}
             <StatCard label="Eksik kalan" icon={UserMinus} tone={data.totals.gaps ? "danger" : "positive"} value={`${data.totals.gaps} kişi`}
               hint="Yayınlanan planda" />
-            <StatCard label="Fazla mesai" icon={Timer} tone={data.totals.overtimePeople ? "attention" : "positive"} value={`${data.totals.overtimePeople} kişi`}
+            {data.totals.overtimeOn ? <StatCard label="Fazla mesai" icon={Timer} tone={data.totals.overtimePeople ? "attention" : "positive"} value={`${data.totals.overtimePeople} kişi`}
               hint={data.totals.overtimePeople ? `Toplam ${trNum(data.totals.overtimeHours)} saat` : "Kimse fazla çalışmadı"} />
+              : <StatCard label="Sınırı aşan" icon={Timer} tone={data.totals.overLimitPeople ? "danger" : "positive"} value={`${data.totals.overLimitPeople} kişi`} hint="Haftalık çalışma sınırı" />}
           </div>
 
           {data.attention.length > 0 && (
@@ -134,7 +135,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                       {data.branches.some(b => b.cost !== null) && <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Maliyet</th>}
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Kişi</th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Eksik</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Fazla mesai</th>
+                      {data.totals.overtimeOn && <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Fazla mesai</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -146,7 +147,7 @@ export default function TeamReport({ locationId, tools, initialMonth }: {
                         {data.branches.some(x => x.cost !== null) && <td className="px-3 py-2.5 text-right tabular-nums">{b.cost !== null ? tl(b.cost) : "Yok"}</td>}
                         <td className="px-3 py-2.5 text-right tabular-nums">{b.people}</td>
                         <td className={cn("px-3 py-2.5 text-right tabular-nums", b.gaps ? "font-semibold text-red-600" : "text-slate-400")}>{b.gaps}</td>
-                        <td className={cn("px-3 py-2.5 text-right tabular-nums", b.overtimePeople ? "font-semibold text-amber-700" : "text-slate-400")}>{b.overtimePeople} kişi</td>
+                        {data.totals.overtimeOn && <td className={cn("px-3 py-2.5 text-right tabular-nums", b.overtimePeople ? "font-semibold text-amber-700" : "text-slate-400")}>{b.overtimePeople} kişi</td>}
                       </tr>
                     ))}
                   </tbody>
