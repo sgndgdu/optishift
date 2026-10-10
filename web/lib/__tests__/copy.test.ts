@@ -7,7 +7,7 @@ import { GLOSSARY } from "@/lib/copy";
 // Müdür/amir paneli + personel portalı + ortak bileşenler. God Mode (app/admin)
 // iç ekip içindir, API route'ları ayrıca taranmaz (hata mesajları elle düzeltildi).
 const ROOT = path.resolve(__dirname, "../..");
-const SCAN_DIRS = ["app/(app)", "app/(portal)", "app/supervisor", "app/kiosk", "components", "lib/templates"];
+const SCAN_DIRS = ["app/(app)", "app/(portal)", "app/supervisor", "components", "lib/templates"];
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap(name => {
