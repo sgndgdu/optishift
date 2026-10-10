@@ -314,9 +314,9 @@ export default function SupervisorDashboard() {
             </ListEmpty>
           ) : sortedLocations.length === 0 ? <ListEmpty>Bu konuda şube yok.</ListEmpty> : sortedLocations.map(loc => {
             const st = status[loc.id];
-            const plan = st?.next_week === "published" ? { label: "Hazır", tone: "positive" as const }
-              : st?.next_week === "draft" ? { label: "Taslak", tone: "attention" as const }
-              : st ? { label: "Plan yok", tone: "danger" as const } : null;
+            const plan = st?.next_week === "published" ? { label: "Gelecek hafta hazır", tone: "positive" as const }
+              : st?.next_week === "draft" ? { label: "Gelecek hafta taslak", tone: "attention" as const }
+              : st ? { label: "Gelecek hafta plan yok", tone: "danger" as const } : null;
             return (
               <ListItem key={loc.id}
                 // Patron ve bölge müdürü şubeye girer: müdür gibi plan yapar, onaylar, ayarları yönetir
@@ -335,7 +335,6 @@ export default function SupervisorDashboard() {
             );
           })}
         </List>
-        {locations.length > 0 && <p className="text-xs text-slate-500">Rozet gelecek haftanın planını gösterir (Hazır / Taslak / Plan yok). Şubeye dokununca o şubenin paneline girersiniz.</p>}
       </section>
       {showAddBranch && !loading && (
         <NewBranchWizard
