@@ -1637,12 +1637,12 @@ export default function BranchSettings({ locationId, embedded = false }: { locat
                   />
                   <RuleRow wide
                     label="İşletmenize özel günler"
-                    description="Belirli bir tarihe ek puan verin. Puanı bütün vardiyalara ya da tek vardiyaya verebilirsiniz. Ek puan istenirse her ay tekrar eder. Aşağıdaki öneriler takvimdeki yaklaşan günlerdir."
+                    description="Belirli bir tarihe ek puan verin. Puanı bütün vardiyalara ya da tek vardiyaya verebilirsiniz. Ek puan istenirse her ay tekrar eder. Günü, adını ve puanını kendiniz girersiniz."
                     right={null}
                   />
                   <div className="pb-4 -mt-1 border-t-0">
                     <SpecialDatesEditor value={hardDays.specialDates} onChange={v => setHardDays(h => ({ ...h, specialDates: v }))}
-                      industry={savedIndustry?.key ?? null} today={todayIso}
+                      today={todayIso}
                       shifts={(locationData?.shift_definitions ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))} />
                   </div>
                 </SectionCard>
