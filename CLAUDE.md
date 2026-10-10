@@ -125,17 +125,27 @@ Personel portalı sadece `status = 'published'` vardiyeleri gösterir.
 
 ### H. Adil Vardiya Puanı (Fairness Score) & Gamification
 
-**Resmi puan modeli (2026-09-20 additive rewrite — tek kaynak: `web/lib/fairness.ts`):**
+**Resmi puan modeli (2026-10-10 yeniden kurulum, kullanıcı onayı; tek kaynak `web/lib/fairness.ts`, öneri sayfası https://claude.ai/artifact/9hWRvCRXnFML6bYUkC9eXP):**
 ```
-puan          = saat × (zorluk/5) + zor_gün_puanı
-                + (kahraman_mi ? hero_bonus_points : 0) + (zorunlu_atama_mi ? force_bonus_points : 0)
-zor_gün_puanı = max(hard_day_points[gün], resmi tatilse holiday_points, special_date_points[tarih], tercih etmemse pref_not_points)
-                — 2026-10-07: her biri ayrı puan, EN YÜKSEĞİ yazılır, toplanmaz; gece ek puan almaz, zorluğu vardiya tanımındaki base_points'ten
-                — eski tek puan + bayraklar (hard_shift_points/weekend/preferred_not) `resolveHardDayRules` ile çevrilir
-                — motor tarihleri bilmez: generatePlan haftanın 7 günü için hazır `day_extra_points` + `pref_not_points` gönderir (`weekDayExtraPoints`)
-kümülatif     = Σ(son fairness_window_weeks haftanın puanı) + Σ(o pencerede score_adjustments.points)  — DÜZ TOPLAM, decay YOK
-etiket        = fairnessLabelFromAverage(puan, şube ortalaması): ±%20 dışı az/çok yüklü, %5-20 üstü "ortalamanın üstü" (2026-09-28; eskiden sıraya göre percentile idi, en üst %20 her zaman "çok yüklü" çıkıyordu)
+birim         = 1 puan = sıradan bir vardiyada 1 saat (brüt süre)
+puan          = saat × (1 + zorluk% + gün% + tercih etmem%) + boş vardiyayı aldıysa saat × hero% + izin gününde çağrıldıysa saat × force%
+                + başka şubedeyse yol dk ÷ 60
+zorluk%       = vardiya tanımı difficulty_pct (Sıradan 0 / Zor 50 / Çok zor 100; anketten ara değer). Yoksa base_points 7+ = %50 (shiftDifficultyPct)
+gün%          = max(hard_day_pct[gün], resmi tatilse holiday_pct (vars. 100), özel gün pct) — aynı günü anlatır, en yükseği
+tercih etmem% = pref_not_pct (vars. 50), günün ekine AYRICA eklenir (kişisel)
+hero%/force%  = hero_bonus_pct 50 / force_bonus_pct 100, her biri *_enabled ile açılır kapanır; ilana özel elle ek puan YOK
+değişiklik    = yayından sonra saati değişene kaydırılan saat kadar puan olayı (changeCompensationHours), change_compensation_enabled
+kümülatif     = son N hafta toplamı + puan olayları; sistemde olmadığı (işe başlamadan önce) ve onaylı izinli olduğu günler ekibin
+                o haftaki ortalamasıyla dolar (calcWindowScores, lib/scoring recomputeLocationFairness)
+karşılaştırma = puan ÷ fairnessWeight (kişinin haftalık sınırı ÷ şube tam süresi): etiketler, sıralama, motor (fairness_weight)
 ```
+- Basamakların dayanağı İş Kanunu: m.41 fazla çalışma %50, m.47 bayram çalışması %100. Ekip anketi çevirisi `pctFromRating`: ortanca 5 = %0, üstündeki her puan %20.
+- Motor (`optishift_engine.py effective_points`) aynı formül: web `day_extra_pct`, `shift_day_extra_pct`, `pref_not_pct`, vardiyada `difficulty_pct`, kişide `fairness_weight` gönderir. Eski sabit part-time 0,6 çarpanı kalktı.
+- Gösterilen sayı kişinin puanıdır; "ortalamanın %X altı" gibi karşılaştırmalar `comparableScore` ile.
+- Eski düz puan alanları (hard_day_points, hero_bonus_points vb.) canlıda silinmedi; `scripts/migrate_fairness_v2.mjs` (2026-10-10, 25 şube) yeni alanları yazdı. `hard_shift_points` artık okunmaz (yeni şubede günler 0 başlar).
+- **Denkleştirme izni** (`web/lib/compLeave.ts`, kural `force_comp_leave_enabled`, varsayılan kapalı): izin gününde çağrılıp kabul edene `shift_assignments.comp_leave_days = 1` (kabul anında kural açıksa). Bakiye türetilir: kazanılan − onaylı − bekleyen "Denkleştirme İzni" talepleri. Portal izin formunda tür (hak varsa), sunucu hakkı aşan talebi ve onayı reddeder, Onaylar kartında bakiye. Ek puandan bağımsız, ikisi birlikte açılabilir.
+
+**Önceki model (2026-09-20 additive rewrite, artık geçersiz):**
 - **Neden değişti (2026-09-20):** Eski model (zincirleme çarpanlar × üstel decay × z-score/stddev) 16 ayrı Settings alanı gerektiriyordu ve çıktı ("z-score", "Az yüklü/Çok yüklü") müdürün kafadan doğrulayabileceği bir sayı değildi. Yeni model additive: tek "zor vardiya" puanı + düz bonus puanları + düz toplam pencere + basit sıralama. Settings → Adalet Puanı sekmesi ~8 alana indi.
 - **Vardiya zorluğu (`base_points`, 1-10) korundu** — yeni bir ayar değil, zaten var olan vardiya-tanımı alanı; saatle çarpılarak baz puanı oluşturur (`saat × zorluk/5`).
 - **Clopening artık puanı hiç etkilemez** — tamamen adalet puanından çıkarıldı, sadece yayın öncesi kural ihlali uyarısında (`rules.clopening_min_rest_hours`, legal-warning amaçlı) kalıyor.
